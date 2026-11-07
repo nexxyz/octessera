@@ -101,6 +101,7 @@ impl NativeRunner {
                     .iter()
                     .map(|path| Some((*path).into()))
                     .collect();
+                instrument.sample_playback = Default::default();
                 self.sample_availability[slot].fill(NativeSampleAvailability::Unknown);
             }
             _ => unreachable!(),

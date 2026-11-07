@@ -12,7 +12,7 @@ same thing, down to the toast text.
 | [`menu-tree-spec.md`](menu-tree-spec.md) | Root menu, tree notation, and the index of section trees |
 | [`menu-tree/build.md`](menu-tree/build.md) | Build tree, behavior categories, per-behavior config rows, behavior notes |
 | [`menu-tree/link.md`](menu-tree/link.md) | Link tree, event mapping and timing, LFOs, MIDI CC In, Arp, X/Y axis slots, Aux Mappings |
-| [`menu-tree/shape.md`](menu-tree/shape.md) | Instruments, FX buses, global FX, routing, sample and drum assignment |
+| [`menu-tree/shape.md`](menu-tree/shape.md) | Instruments, FX buses, global FX, routing, sample and drum assignment, sample slot start and loops |
 | [`menu-tree/play.md`](menu-tree/play.md) | Play pages, their grid layouts, Play FX, XY |
 | [`menu-tree/system.md`](menu-tree/system.md) | System tree per platform and every System setting and action |
 

@@ -2,8 +2,9 @@ use super::apply_payload_mixer_values::nested_u64;
 use super::sample_assignment_payload::tile_offset;
 use super::{
     sample_assignment_from_payload, sanitize_pan_position_payload, NativeInstrumentSlot,
-    NativeTileStamp, Value, SAMPLE_SLOT_COUNT,
+    NativeSamplePlayback, NativeTileStamp, Value, SAMPLE_SLOT_COUNT,
 };
+use crate::native_menu::SAMPLE_LOOP_MODES;
 
 pub(super) fn apply_instrument_identity_payload(
     slot: &Value,
@@ -93,7 +94,28 @@ pub(super) fn apply_sample_slot_selection(sample: &Value, instrument: &mut Nativ
                 .get("path")
                 .and_then(Value::as_str)
                 .map(str::to_string);
+            instrument.sample_playback[sample_index] = sample_playback_from_payload(sample_slot);
         }
+    }
+}
+
+fn sample_playback_from_payload(slot: &Value) -> NativeSamplePlayback {
+    let neutral = NativeSamplePlayback::default();
+    let pct = |key: &str, fallback: u8| {
+        slot.get(key)
+            .and_then(Value::as_u64)
+            .map_or(fallback, |value| value.min(100) as u8)
+    };
+    let loop_start_pct = pct("loopStartPct", neutral.loop_start_pct).min(99);
+    NativeSamplePlayback {
+        loop_mode: slot
+            .get("loop")
+            .and_then(Value::as_str)
+            .and_then(|mode| SAMPLE_LOOP_MODES.into_iter().find(|known| *known == mode))
+            .unwrap_or(neutral.loop_mode),
+        start_pct: pct("startPct", neutral.start_pct).min(99),
+        loop_start_pct,
+        loop_end_pct: pct("loopEndPct", neutral.loop_end_pct).max(loop_start_pct + 1),
     }
 }
 

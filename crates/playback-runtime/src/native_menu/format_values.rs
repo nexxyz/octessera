@@ -62,6 +62,9 @@ pub(crate) fn format_display_value(key: Option<&str>, value: impl ToString) -> S
     if key.ends_with(".arp.source") && raw == "simultaneous" {
         return "together".into();
     }
+    if key.contains(".sample.slots.") && key.ends_with(".loop") && raw == "pingpong" {
+        return "ping-pong".into();
+    }
     if key == "midi.sendInstruments" {
         return match raw.as_str() {
             "midi" => "MIDI inst.".into(),

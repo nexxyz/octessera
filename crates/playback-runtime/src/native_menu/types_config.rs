@@ -58,6 +58,8 @@ pub struct NativeMenuConfig {
     pub instrument_sample_follow_transpose: Vec<bool>,
     pub instrument_sample_follow_pitch: Vec<bool>,
     pub instrument_tile_stamps: Vec<NativeMenuTileStamp>,
+    /// Each instrument's selected sample slot's Start and Loop rows.
+    pub instrument_sample_playback: Vec<NativeSamplePlayback>,
     pub instrument_midi_drums: Vec<NativeMenuMidiDrum>,
     pub instrument_sample_velocity_high: Vec<u8>,
     pub instrument_sample_velocity_medium: Vec<u8>,
@@ -308,6 +310,28 @@ pub struct NativeMenuTileStamp {
     pub tune_semis: i8,
     pub tune_cents: i8,
     pub level_index: usize,
+}
+
+/// A sample slot's Start, Loop, Loop Start and Loop End, as the slot saves them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NativeSamplePlayback {
+    pub loop_mode: &'static str,
+    pub start_pct: u8,
+    pub loop_start_pct: u8,
+    pub loop_end_pct: u8,
+}
+
+pub const SAMPLE_LOOP_MODES: [&str; 3] = ["off", "forward", "pingpong"];
+
+impl Default for NativeSamplePlayback {
+    fn default() -> Self {
+        Self {
+            loop_mode: "off",
+            start_pct: 0,
+            loop_start_pct: 0,
+            loop_end_pct: 100,
+        }
+    }
 }
 
 /// The MIDI Drum rows: output settings and the note and velocity Assign stamps next.

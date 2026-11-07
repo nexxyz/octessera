@@ -71,6 +71,7 @@ const PLAY_FX_SELECTED_KEYS: &[&str] = &["fxType", "targetKey", "params"];
 const PLAY_FX_ASSIGNMENT_KEYS: &[&str] = &["x", "y", "config"];
 const HDMI_KEYS: &[&str] = &["mode", "showGridlines", "cycleMeasures"];
 const DSP_KEYS: &[&str] = &["busIdleThreshold", "workerWarningThreshold"];
+const SAMPLE_SLOT_KEYS: &[&str] = &["path", "loop", "startPct", "loopStartPct", "loopEndPct"];
 const MIDI_DRUM_KEYS: &[&str] = &[
     "enabled",
     "channel",
@@ -104,13 +105,26 @@ pub(super) fn require_aux_banks(runtime: &Value, context: &str) -> Result<(), St
     Ok(())
 }
 
-/// A saved patch carries every slot's MIDI Drum block, so loading it never keeps the stamps of
-/// the patch before.
+/// A saved patch carries every slot's MIDI Drum block and each sample slot's start and loop, so
+/// loading it never keeps the stamps or loop points of the patch before.
 pub(super) fn require_patch_instrument_blocks(
     instrument: &Value,
     path: &str,
 ) -> Result<(), String> {
-    require_nested(instrument, "midiDrum", MIDI_DRUM_KEYS, path)
+    require_nested(instrument, "midiDrum", MIDI_DRUM_KEYS, path)?;
+    let slots = instrument
+        .get("sample")
+        .and_then(|sample| sample.get("slots"))
+        .and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice);
+    for (index, slot) in slots.iter().enumerate() {
+        require_fields(
+            slot,
+            SAMPLE_SLOT_KEYS,
+            &format!("{path}.sample.slots[{index}]"),
+        )?;
+    }
+    Ok(())
 }
 
 fn require_nested(

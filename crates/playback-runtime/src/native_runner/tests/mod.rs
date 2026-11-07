@@ -156,6 +156,7 @@ mod runtime_control;
 mod runtime_transport;
 mod sample_browser_store;
 mod sample_favorite_save;
+mod sample_loop;
 mod sample_preview_indicator;
 mod sampler_tiles;
 mod scan_note_offs;

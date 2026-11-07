@@ -13,7 +13,16 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
     let sample_slots = instrument
         .sample_paths
         .iter()
-        .map(|path| json!({ "path": path }))
+        .zip(&instrument.sample_playback)
+        .map(|(path, playback)| {
+            json!({
+                "path": path,
+                "loop": playback.loop_mode,
+                "startPct": playback.start_pct,
+                "loopStartPct": playback.loop_start_pct,
+                "loopEndPct": playback.loop_end_pct
+            })
+        })
         .collect::<Vec<_>>();
     json!({
         "type": instrument.kind,

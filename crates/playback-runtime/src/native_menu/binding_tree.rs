@@ -132,6 +132,7 @@ pub(super) fn is_excluded_binding_key(key: &str) -> bool {
         || key.ends_with(".sample.filter.keyTrackingPct")
         || key.contains(".sample.ampEnv.")
         || key.contains(".sample.filterEnv.")
+        || key.contains(".sample.slots.")
         || key.ends_with(".name")
         || key.ends_with(".autoName")
         || key.ends_with(".seeded")

@@ -298,6 +298,11 @@ pub(super) fn instrument_item(
             .get(index)
             .copied()
             .unwrap_or_default(),
+        sample_playback: config
+            .instrument_sample_playback
+            .get(index)
+            .copied()
+            .unwrap_or_default(),
         midi_drum: config
             .instrument_midi_drums
             .get(index)

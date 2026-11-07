@@ -129,6 +129,7 @@ fn validate_sample(instrument: &Map<String, Value>, path: &str) -> Result<(), St
                     ));
                 }
             }
+            validate_sample_slot_playback(slot, &format!("{path}.slots[{index}]"))?;
         }
     }
     if let Some(assignments) = array_field(sample, "assignments", &path, usize::MAX)? {
@@ -392,6 +393,18 @@ fn validate_midi_drum(instrument: &Map<String, Value>, path: &str) -> Result<(),
         )) {
             return Err(format!("{tile_path} duplicates a MIDI Drum tile"));
         }
+    }
+    Ok(())
+}
+
+fn validate_sample_slot_playback(slot: &Map<String, Value>, path: &str) -> Result<(), String> {
+    enum_field(slot, "loop", path, &crate::native_menu::SAMPLE_LOOP_MODES)?;
+    unsigned_field(slot, "startPct", path, 0, 99)?;
+    unsigned_field(slot, "loopStartPct", path, 0, 99)?;
+    unsigned_field(slot, "loopEndPct", path, 1, 100)?;
+    let pct = |key: &str, fallback: u64| slot.get(key).and_then(Value::as_u64).unwrap_or(fallback);
+    if pct("loopEndPct", 100) <= pct("loopStartPct", 0) {
+        return Err(format!("{path}.loopEndPct must be above loopStartPct"));
     }
     Ok(())
 }

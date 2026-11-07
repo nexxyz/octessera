@@ -1,7 +1,7 @@
 use crate::native_menu::{
     NativeAuxBindingConfig, NativeFxBusConfig, NativeLinkLayerConfig, NativeLinkLfoConfig,
     NativeMenuAction, NativeMenuModel, NativeParamBindingSpec, NativeParamModsConfig,
-    NativeSampleAvailability, NativeValueLaneConfig,
+    NativeSampleAvailability, NativeSamplePlayback, NativeValueLaneConfig,
 };
 #[cfg(test)]
 use crate::protocol::{HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult};

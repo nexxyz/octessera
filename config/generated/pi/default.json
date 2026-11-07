@@ -278,28 +278,60 @@
           "selectedSlot": 0,
           "slots": [
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             }
           ],
           "tuneSemis": 0,
@@ -732,28 +764,60 @@
           "selectedSlot": 2,
           "slots": [
             {
-              "path": "samples/Drum/kick/Kick2.wav"
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": "samples/Drum/kick/Kick2.wav",
+              "startPct": 0
             },
             {
-              "path": "samples/Drum/clap/448221__toxicfilmzsrsounds__hip-hop-clap.wav"
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": "samples/Drum/clap/448221__toxicfilmzsrsounds__hip-hop-clap.wav",
+              "startPct": 0
             },
             {
-              "path": "samples/Drum/hihat open/165027__rodrigo-the-mad__mini-open-hihat.wav"
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": "samples/Drum/hihat open/165027__rodrigo-the-mad__mini-open-hihat.wav",
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             }
           ],
           "tuneSemis": 0,
@@ -883,28 +947,60 @@
           "selectedSlot": 0,
           "slots": [
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             }
           ],
           "tuneSemis": 0,
@@ -1039,28 +1135,60 @@
           "selectedSlot": 0,
           "slots": [
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             }
           ],
           "tuneSemis": 0,
@@ -1195,28 +1323,60 @@
           "selectedSlot": 0,
           "slots": [
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             }
           ],
           "tuneSemis": 0,
@@ -1314,28 +1474,60 @@
           "selectedSlot": 0,
           "slots": [
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             }
           ],
           "tuneSemis": 0,
@@ -1433,28 +1625,60 @@
           "selectedSlot": 0,
           "slots": [
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             }
           ],
           "tuneSemis": 0,
@@ -1552,28 +1776,60 @@
           "selectedSlot": 0,
           "slots": [
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             },
             {
-              "path": null
+              "loop": "off",
+              "loopEndPct": 100,
+              "loopStartPct": 0,
+              "path": null,
+              "startPct": 0
             }
           ],
           "tuneSemis": 0,

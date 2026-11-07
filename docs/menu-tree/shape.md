@@ -54,6 +54,10 @@ Shape
 │   │   │   ├── Sample Slot: [1 | 2 | 3 | 4 | 5 | 6 | 7 | 8]
 │   │   │   ├── S<n>: <loaded sample> (picker)   ← opens the browser in its folder; `(empty)` when unset
 │   │   │   ├── S<n> Browse (group)              ← browses the sample tree (WAV only)
+│   │   │   ├── Start: [0..99] %                 ← selected slot; default 0
+│   │   │   ├── Loop: [off | forward | pingpong] ← selected slot; default off; pingpong shows as ping-pong; loops only in Note Mode hold
+│   │   │   ├── Loop Start: [0..99] %            ← selected slot; default 0; only while Loop is not off
+│   │   │   ├── Loop End: [1..100] %             ← selected slot; default 100; only while Loop is not off
 │   │   │   ├── Tile Tune: [-24..24] st          ← stamp value
 │   │   │   ├── Tile Fine: [-100..100] cents     ← stamp value
 │   │   │   ├── Tile Level: [Base | High | Medium | Low]  ← stamp value; only while Vel Levels is on
@@ -200,12 +204,28 @@ Shape
 
 ### Sampler
 
-- Row order: Kit, Sample Slot, the loaded sample, Browse, Tile Tune, Tile Fine, Tile Level (only
-  while Vel Levels is on), Assign, Tune, Follow Transp., Follow Pitch, Gain, Base Velocity, the Vel
-  Levels switch, the Vel Levels group (only while on), Filter, Vel Sens, Amp Env, Filter Env.
-- SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths only. Tile assignments and
-  levels, the selected Sample Slot, and the other sample settings stay.
-- Tune, Gain, Base Velocity, the Vel Levels velocities, Filter, and the envelopes are slot-wide.
+- Row order: Kit, Sample Slot, the loaded sample, Browse, Start, Loop, Loop Start and Loop End
+  (only while Loop is not off), Tile Tune, Tile Fine, Tile Level (only while Vel Levels is on),
+  Assign, Tune, Follow Transp., Follow Pitch, Gain, Base Velocity, the Vel Levels switch, the Vel
+  Levels group (only while on), Filter, Vel Sens, Amp Env, Filter Env.
+- SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths and reset each sample
+  slot's Start and Loop rows to their defaults. Tile assignments and levels, the selected Sample
+  Slot, and the other sample settings stay.
+- Start, Loop, Loop Start, and Loop End belong to the selected sample slot and save with it as
+  `instruments[i].sample.slots[n].startPct`, `loop`, `loopStartPct`, and `loopEndPct`; the other
+  Sampler rows are slot-wide. All four are percent of the sample's length.
+- Start (default 0 %) is where a hit starts reading, in oneshot and hold alike.
+- Loop (default off) only acts in Note Mode `hold`: a held note keeps looping between Loop Start
+  and Loop End until its note-off, then Amp Env's release fades it. In `oneshot` the sample plays
+  once to its end whatever Loop says. `forward` runs to Loop End and starts again from Loop Start,
+  crossfading the seam over 10 ms of the sample (less for loops shorter than 20 ms) so it never
+  clicks. `pingpong` (shown `ping-pong`) reverses at Loop End and again at Loop Start; the turn
+  mirrors the read position, so the waveform stays continuous. A looping hit that starts past Loop
+  End starts at Loop Start. Settings apply from the next hit.
+- Loop Start (`0..99`) and Loop End (`1..100`) stop 1 % short of each other; an edit that would
+  cross the other point stops there and the row shows where it stopped.
+- The defaults (Start 0 %, Loop off, Loop Start 0 %, Loop End 100 %) play a sample exactly as
+  before sample looping existed.
 - Samples play neutral by default: the filter starts as a lowpass at the top of Cutoff with Res
   0, which skips the filter entirely. Drum and FM slots start the same way; Synth and Plucked start
   as an unresonant lowpass at 8 kHz. Cutoff's 0..255 spans 20 Hz to 20 kHz and Res runs 0..100 on
@@ -255,8 +275,8 @@ Instrument rows offered as modulation, XY, and Aux targets:
   ringing strings; Pick Pos shapes the next pluck.
 - Drum: the slot's Gain, Filter Cutoff, and Res (live), plus each voice's Tune, Decay, Tone, and
   Attack, which change the next hits and never ringing ones.
-- Sampler: every Sampler row except Follow Transp., Follow Pitch, Filter Type, Env Amount, Key
-  Tracking, Amp Env, Filter Env, and the `Tile ...` rows. The audible targets are Tune, Gain, Base
+- Sampler: every Sampler row except Start, Loop, Loop Start, Loop End, Follow Transp., Follow
+  Pitch, Filter Type, Env Amount, Key Tracking, Amp Env, Filter Env, and the `Tile ...` rows. The audible targets are Tune, Gain, Base
   Velocity, Vel Sens, the Vel Levels velocities, and Filter Cutoff/Res.
 - No instrument offers its `Tile ...` stamp rows, Ratio, Sound, or Voice as targets, and only
   Synth offers its Filter Type.

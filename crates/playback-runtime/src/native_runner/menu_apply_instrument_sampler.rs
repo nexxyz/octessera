@@ -3,7 +3,7 @@ use super::{
     set_json_path_number, set_json_path_string, value_i32_at, value_string_at,
     NativeInstrumentSlot, NativeRunner,
 };
-use crate::native_menu::NativeMenuModel;
+use crate::native_menu::{NativeMenuModel, NativeSamplePlayback, SAMPLE_LOOP_MODES};
 
 impl NativeRunner {
     pub(super) fn apply_sampler_menu_key(&mut self, index: usize, key: &str) -> bool {
@@ -13,8 +13,59 @@ impl NativeRunner {
         let Some(instrument) = self.instruments.get_mut(index) else {
             return false;
         };
+        if let Some((slot, name)) = field
+            .strip_prefix("slots.")
+            .and_then(|slot_field| slot_field.split_once('.'))
+        {
+            let Some(playback) = slot
+                .parse::<usize>()
+                .ok()
+                .and_then(|slot| instrument.sample_playback.get_mut(slot))
+            else {
+                return false;
+            };
+            return apply_sample_playback_field(&mut self.menu, key, name, playback);
+        }
         apply_sampler_menu_field(&self.menu, key, field, instrument)
     }
+}
+
+/// A slot's Start and Loop rows. Loop Start and Loop End stop one percent short of each other;
+/// the row shows where it stopped.
+fn apply_sample_playback_field(
+    menu: &mut NativeMenuModel,
+    key: &str,
+    name: &str,
+    playback: &mut NativeSamplePlayback,
+) -> bool {
+    if name == "loop" {
+        return menu
+            .value_for_key(key)
+            .and_then(|value| SAMPLE_LOOP_MODES.into_iter().find(|mode| *mode == value))
+            .is_some_and(|mode| value_changed(&mut playback.loop_mode, mode));
+    }
+    let Some(value) = menu.number_for_key(key) else {
+        return false;
+    };
+    let (target, min, max) = match name {
+        "startPct" => (&mut playback.start_pct, 0, 99),
+        "loopStartPct" => (
+            &mut playback.loop_start_pct,
+            0,
+            i32::from(playback.loop_end_pct) - 1,
+        ),
+        "loopEndPct" => (
+            &mut playback.loop_end_pct,
+            i32::from(playback.loop_start_pct) + 1,
+            100,
+        ),
+        _ => return false,
+    };
+    let clamped = value.clamp(min, max);
+    if clamped != value {
+        menu.set_number_value_for_key(key, clamped);
+    }
+    value_changed(target, clamped as u8)
 }
 
 fn apply_sampler_menu_field(

@@ -241,8 +241,17 @@ impl NativeRunner {
             return false;
         }
         instrument.note_behavior = value;
+        let sampler = instrument.kind == "sampler";
         self.sync_engine_runtime_config();
-        self.rebase_and_recompose_modulation_key(key);
+        if !self.rebase_and_recompose_modulation_key(key) && sampler {
+            if let Some(config) = self.instrument_audio_config(index) {
+                self.queue_audio_command(RuntimeAudioCommand::SetInstrumentSlot {
+                    instrument_slot: index,
+                    generation: 0,
+                    config,
+                });
+            }
+        }
         true
     }
 
@@ -266,7 +275,10 @@ impl NativeRunner {
     pub(super) fn fast_full_instrument_sample_key(&mut self, index: usize, key: &str) -> bool {
         let changed = self.apply_sampler_menu_key(index, key);
         if changed {
-            if key.ends_with(".selectedSlot") || key.ends_with(".velocityLevelsEnabled") {
+            if key.ends_with(".selectedSlot")
+                || key.ends_with(".velocityLevelsEnabled")
+                || key.ends_with(".loop")
+            {
                 self.show_instrument_rows_around_key(index, key);
             }
             let rebased = self.rebase_and_recompose_modulation_key(key);

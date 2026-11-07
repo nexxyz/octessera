@@ -75,8 +75,17 @@ pub struct SampleDto {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SampleSlotDto {
     pub(super) path: Option<String>,
+    #[serde(rename = "loop", skip_serializing_if = "Option::is_none")]
+    pub(super) loop_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) start_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) loop_start_pct: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) loop_end_pct: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

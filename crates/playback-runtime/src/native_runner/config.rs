@@ -108,6 +108,11 @@ impl NativeRunner {
                 .iter()
                 .map(|instrument| instrument.tile_stamp.menu_value())
                 .collect(),
+            instrument_sample_playback: self
+                .instruments
+                .iter()
+                .map(|instrument| instrument.sample_playback[instrument.selected_sample_slot])
+                .collect(),
             instrument_midi_drums: self
                 .instruments
                 .iter()

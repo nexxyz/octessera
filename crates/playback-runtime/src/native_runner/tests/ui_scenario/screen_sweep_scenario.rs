@@ -118,11 +118,18 @@ impl Sweep {
 
     fn setup(&mut self) {
         self.open_path(&["Shape", "Instruments"]);
-        for (slot, kind) in [("I5", "drum"), ("I6", "midi"), ("I7", "midi_drum")] {
+        for (slot, kind) in [
+            ("I5", "drum"),
+            ("I6", "midi"),
+            ("I7", "midi_drum"),
+            ("I8", "sampler"),
+        ] {
             self.open(slot);
             self.set_enum("Type", kind);
             self.back();
         }
+        self.open_path(&["Shape", "Instruments", "I8", "Sampler"]);
+        self.set_enum("Loop", "pingpong");
         for (layer, behavior) in [
             ("L5", "fractal_explorer"),
             ("L6", "breaks"),

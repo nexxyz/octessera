@@ -142,6 +142,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         instrument_sample_follow_transpose: vec![false; 4],
         instrument_sample_follow_pitch: vec![false; 4],
         instrument_tile_stamps: vec![Default::default(); 4],
+        instrument_sample_playback: vec![Default::default(); 4],
         instrument_midi_drums: vec![Default::default(); 4],
         instrument_sample_velocity_high: vec![120],
         instrument_sample_velocity_medium: vec![85],

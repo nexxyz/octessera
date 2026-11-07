@@ -169,6 +169,8 @@ fn sampler_kit_precedes_unchanged_sample_rows_with_or_without_velocity_levels() 
             "Sample Slot",
             "S1: (empty)",
             "S1 Browse",
+            "Start",
+            "Loop",
             "Tile Tune",
             "Tile Fine",
         ];

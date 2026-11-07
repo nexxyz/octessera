@@ -6,8 +6,10 @@ use super::{
     action_item, bool_item, enum_item, factory_load_group, group, number_item, selected_index,
     InstrumentMenuConfig, NativeMenuAction, NativeMenuItem,
 };
-use crate::native_menu::NativeSampleAvailability;
-use crate::native_menu::{sample_display_name, NativeMenuPick, NativeMenuValue};
+use crate::native_menu::{
+    sample_display_name, NativeMenuPick, NativeMenuValue, NativeSampleAvailability,
+    NativeSamplePlayback, SAMPLE_LOOP_MODES,
+};
 
 pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let sample_slot = config.sample_slot.min(7);
@@ -47,6 +49,10 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             config.sample_builtin_favourite_dirs,
         ),
     ];
+    children.extend(sample_playback_items(
+        &format!("{prefix}.sample.slots.{sample_slot}"),
+        config.sample_playback,
+    ));
     children.extend(tile_stamp_items(
         config,
         prefix,
@@ -167,6 +173,47 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
         sample_env_group("Filter Env", prefix, "filterEnv", config.sample_filter_env),
     ]);
     group("Sampler", children)
+}
+
+/// The selected slot's Start and Loop rows; Loop Start and Loop End show while it loops.
+fn sample_playback_items(slot_key: &str, playback: NativeSamplePlayback) -> Vec<NativeMenuItem> {
+    let mut items = vec![
+        number_item(
+            "Start",
+            format!("{slot_key}.startPct"),
+            i32::from(playback.start_pct),
+            0,
+            99,
+            1,
+        ),
+        enum_item(
+            "Loop",
+            format!("{slot_key}.loop"),
+            SAMPLE_LOOP_MODES.to_vec(),
+            selected_index(&SAMPLE_LOOP_MODES, playback.loop_mode),
+        ),
+    ];
+    if playback.loop_mode != "off" {
+        items.extend([
+            number_item(
+                "Loop Start",
+                format!("{slot_key}.loopStartPct"),
+                i32::from(playback.loop_start_pct),
+                0,
+                99,
+                1,
+            ),
+            number_item(
+                "Loop End",
+                format!("{slot_key}.loopEndPct"),
+                i32::from(playback.loop_end_pct),
+                1,
+                100,
+                1,
+            ),
+        ]);
+    }
+    items
 }
 
 fn velocity_levels_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
