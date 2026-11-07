@@ -13,8 +13,8 @@ use crate::palette::{WHITE, YELLOW};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use wall::{
-    add_block, break_block, fresh_wall, has_block, normalize_hues, top_row_tiles, wall_blocks,
-    BlockRow,
+    add_block, block_color, break_block, fresh_wall, has_block, normalize_hues, top_row_tiles,
+    wall_blocks, BlockRow,
 };
 
 mod wall;
@@ -43,6 +43,9 @@ pub struct BlockoutState {
     pub start_rows: u8,
     #[serde(rename = "rowSpawn")]
     pub row_spawn: String,
+    /// The block broken this step and its row color: it stays lit for the step, then clears.
+    #[serde(skip)]
+    pub flash: Option<(usize, [u8; 3])>,
     #[serde(rename = "triggerTypes", skip_serializing, default)]
     pub trigger_types: Vec<TileTriggerType>,
 }
@@ -65,11 +68,11 @@ struct Config {
     row_spawn: Option<String>,
 }
 
-/// Tiles one step lit up or broke on purpose, beyond the ball and paddle moving.
+/// Tiles one step lit up or let go on purpose, beyond the ball and paddle moving.
 #[derive(Default)]
 struct Accents {
     activated: Vec<usize>,
-    broken: Option<usize>,
+    cleared_flash: Option<usize>,
 }
 
 pub fn init(config: Value) -> Result<BlockoutState, String> {
@@ -106,6 +109,7 @@ fn from_value(value: Value) -> BlockoutState {
             .row_spawn
             .filter(|mode| ROW_SPAWNS.contains(&mode.as_str()))
             .unwrap_or_else(|| "new".into()),
+        flash: None,
         trigger_types: Vec::new(),
     };
     if !restored {
@@ -173,7 +177,10 @@ pub fn on_input(
 
 pub fn on_tick(mut state: BlockoutState, _: &mut BehaviorContext) -> BlockoutState {
     let (ball_before, paddle_before) = (ball_index(&state), state.paddle);
-    let mut accents = Accents::default();
+    let mut accents = Accents {
+        cleared_flash: state.flash.take().map(|(index, _)| index),
+        ..Accents::default()
+    };
     match state.ball {
         Some(ball) if ball.y == 0 => {
             state.ball = None;
@@ -235,7 +242,9 @@ fn advance_ball(state: &mut BlockoutState, ball: Ball, accents: &mut Accents) {
             }
         }
     } else if has_block(&state.rows, x, y) {
-        accents.broken = Some(grid_index(usize::from(x), usize::from(y)));
+        let index = grid_index(usize::from(x), usize::from(y));
+        state.flash = Some((index, block_color(&state.rows, y)));
+        accents.activated.push(index);
         if break_block(&mut state.rows, x, y) {
             state.rows_cleared = state.rows_cleared.saturating_add(1);
             if state.row_spawn == "new" {
@@ -278,6 +287,7 @@ fn tiles(state: &BlockoutState) -> Vec<bool> {
         .map(|(index, _)| index)
         .chain(paddle_tiles(state.paddle))
         .chain(ball_index(state))
+        .chain(state.flash.map(|(index, _)| index))
     {
         tiles[index] = true;
     }
@@ -285,7 +295,8 @@ fn tiles(state: &BlockoutState) -> Vec<bool> {
 }
 
 /// Blocks pushed down by a new row move silently; only the ball, the paddle edges, breaks and
-/// new blocks make events.
+/// new blocks make events. A broken block activates for its last step and deactivates as it
+/// clears.
 fn triggers(
     ball_before: Option<usize>,
     paddle_before: u8,
@@ -303,7 +314,11 @@ fn triggers(
             }
         })
         .collect::<Vec<_>>();
-    for index in ball_before.into_iter().chain(paddle_tiles(paddle_before)) {
+    for index in ball_before
+        .into_iter()
+        .chain(paddle_tiles(paddle_before))
+        .chain(accents.cleared_flash)
+    {
         if !tiles[index] {
             triggers[index] = TileTriggerType::Deactivate;
         }
@@ -317,15 +332,12 @@ fn triggers(
     {
         triggers[index] = TileTriggerType::Activate;
     }
-    if let Some(index) = accents.broken {
-        triggers[index] = TileTriggerType::Deactivate;
-    }
     triggers
 }
 
 pub fn render_model(state: &BlockoutState) -> BehaviorRenderModel {
     let mut colors = vec![BACKGROUND; TILE_COUNT];
-    for (index, color) in wall_blocks(&state.rows) {
+    for (index, color) in state.flash.into_iter().chain(wall_blocks(&state.rows)) {
         colors[index] = color;
     }
     for index in paddle_tiles(state.paddle) {

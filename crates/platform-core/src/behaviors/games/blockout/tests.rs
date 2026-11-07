@@ -39,7 +39,7 @@ fn default_wall_paddle_and_ball() {
 }
 
 #[test]
-fn a_block_hit_breaks_it_and_turns_the_ball() {
+fn a_block_hit_breaks_it_with_a_one_step_flash_and_turns_the_ball() {
     let state = with_ball(
         init(Value::Null).unwrap(),
         Ball {
@@ -51,7 +51,10 @@ fn a_block_hit_breaks_it_and_turns_the_ball() {
     );
     let state = on_tick(state, &mut context());
     assert_eq!(state.rows[2].blocks, !(1 << 3));
-    assert_eq!(trigger(&state, 3, 5), TileTriggerType::Deactivate);
+    assert_eq!(trigger(&state, 3, 5), TileTriggerType::Activate);
+    let model = render_model(&state);
+    assert!(model.tiles[grid_index(3, 5)]);
+    assert_eq!(model.tile_colors.unwrap()[grid_index(3, 5)], ROW_HUES[2]);
     assert_eq!(
         state.ball,
         Some(Ball {
@@ -62,6 +65,10 @@ fn a_block_hit_breaks_it_and_turns_the_ball() {
         })
     );
     assert_eq!(trigger(&state, 3, 3), TileTriggerType::Activate);
+    let state = on_tick(state, &mut context());
+    assert_eq!(state.flash, None);
+    assert_eq!(trigger(&state, 3, 5), TileTriggerType::Deactivate);
+    assert!(!render_model(&state).tiles[grid_index(3, 5)]);
 }
 
 #[test]
@@ -86,7 +93,7 @@ fn a_cleared_row_drops_a_new_row_on_top_and_pushes_the_rest_down_silently() {
         );
         assert_eq!(state.rows, vec![row(255, 5), row(255, 0), row(255, 1)]);
         assert_eq!(state.rows_cleared, 1);
-        assert_eq!(trigger(&state, 3, 5), TileTriggerType::Deactivate);
+        assert_eq!(trigger(&state, 3, 5), TileTriggerType::Activate);
         assert_eq!(trigger(&state, 0, 5), TileTriggerType::Stable);
         assert_eq!(trigger(&state, 0, 6), TileTriggerType::Stable);
         assert_eq!(trigger(&state, 0, 7), spawned, "{mode}");

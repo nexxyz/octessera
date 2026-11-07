@@ -696,7 +696,7 @@ native_behavior_select_maze_growth	*	action:behavior_select:maze_growth	action	M
 native_behavior_select_shapes	*	action:behavior_select:shapes	action	Shapes	Creates geometric figures and spatial motifs.	Good for crisp forms that other layers can answer.
 native_behavior_select_vines	*	action:behavior_select:vines	action	Vines	Grows tendrils that curl and branch.	Use it for reaching lines and organic melodic creep.
 native_behavior_select_pong	*	action:behavior_select:pong	action	Pong	Two CPU paddles rally a ball across the grid.	The ball plays a note on every step; after a miss it serves again from the middle.
-native_behavior_select_blockout	*	action:behavior_select:blockout	action	Blockout	A CPU paddle knocks a ball into a rainbow wall of blocks.	Breaks fire Off events, and a cleared row drops a fresh one on top.
+native_behavior_select_blockout	*	action:behavior_select:blockout	action	Blockout	A CPU paddle knocks a ball into a rainbow wall of blocks.	Each break plays an On event, and a cleared row drops a fresh one on top.
 native_navigate_back	*	action:navigate_back	action	Back	Returns to the parent browser level.	Use it like the hardware Back button when browsing synthetic folders.
 native_param_bind	*	action:param_bind	action	Bind Parameter	Puts this setting on the control you are picking for.	A setting another control already owns cannot be taken; you get a toast.
 native_binding_group_behavior_params	*	key:binding.group.behavior_params	group	Behavior Params	Targets from the selected layer's behavior settings.	Choose these to let modulation steer the active world-bubble itself.

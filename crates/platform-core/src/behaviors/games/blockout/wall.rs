@@ -47,6 +47,11 @@ pub(super) fn add_block(rows: &mut [BlockRow], x: u8, y: u8) {
     rows[TOP - usize::from(y)].blocks |= 1 << x;
 }
 
+/// The color of the blocks in row `y`.
+pub(super) fn block_color(rows: &[BlockRow], y: u8) -> [u8; 3] {
+    ROW_HUES[usize::from(rows[TOP - usize::from(y)].hue) % ROW_HUES.len()]
+}
+
 /// Breaks one block and returns whether that cleared its row: a cleared row leaves the wall and
 /// a fresh full row drops in on top, pushing the rows above the cleared one down.
 pub(super) fn break_block(rows: &mut Vec<BlockRow>, x: u8, y: u8) -> bool {
