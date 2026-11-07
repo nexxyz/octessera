@@ -179,6 +179,7 @@ impl NativeRunner {
                             && !self.display.ui.combined_modifier_held
                         {
                             if delta > 0 {
+                                self.mark_modifier_consumed();
                                 return self.handle_single_step_input();
                             }
                         } else {

@@ -280,3 +280,26 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
         .iter()
         .any(|(channel, _)| *channel == 0));
 }
+
+#[test]
+pub(crate) fn fn_encoder_single_step_consumes_the_fn_hint() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.transport.transport = RuntimeTransportState::Paused;
+    for input in [
+        json!({ "type": "button_fn", "pressed": true }),
+        json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+    ] {
+        runner
+            .send(HostMessage::DeviceInput {
+                input,
+                request_snapshot: None,
+            })
+            .unwrap();
+    }
+
+    assert_eq!(runner.transport.tick, 1);
+    assert_eq!(
+        runner.display.modifier_hint_started_at, None,
+        "a step used Fn, so no `Fn: nav/alt` hint follows"
+    );
+}
