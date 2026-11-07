@@ -182,6 +182,16 @@ point at them.
   starts fully open, so a sample plays exactly as recorded until you shape it. Give it a slow attack for swells, or a
   short decay and low sustain to chop a loop into stabs. Its Filter Env only
   moves the filter once **Env Amount** is off zero.
+- **Start and loops.** Each sample slot has its own **Start**, **Loop**,
+  **Loop Start** and **Loop End**, all in percent of the sample, right under
+  the slot's Browse row. **Start** skips the front of a sample (a sleepy
+  attack, a breath of silence) in either Note Mode. **Loop** only wakes up in
+  `hold`: `forward` keeps running round from Loop Start to Loop End, and
+  `ping-pong` bounces back and forth between them, for as long as the note is
+  held. Let go and the Amp Env release fades it out. Forward loops crossfade
+  their seam over 10 ms, so even a careless loop point won't click, though a
+  loop that sits on a steady part of the sound will be the smoothest. In
+  `oneshot` the sample just plays once, loop or no loop.
 - **MIDI.** A `MIDI Inst.` or `MIDI Drum` slot sends nothing until its
   **Enabled** is on (and `System > MIDI > MIDI Active` is on). MIDI never
   passes through the internal effects.
