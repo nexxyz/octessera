@@ -7,7 +7,7 @@ use crate::behavior::{
     BehaviorRenderPalette, DeviceInput, TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
-use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
+use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use crate::palette::{WHITE, YELLOW};
 use serde::{Deserialize, Serialize};
@@ -115,16 +115,8 @@ fn from_value(value: Value) -> BlockoutState {
     if !restored {
         serve(&mut state);
     }
-    state.trigger_types = tiles(&state)
-        .iter()
-        .map(|alive| {
-            if *alive {
-                TileTriggerType::Stable
-            } else {
-                TileTriggerType::None
-            }
-        })
-        .collect();
+    let tiles = tiles(&state);
+    state.trigger_types = trigger_types_from_tiles(&tiles, &tiles);
     state
 }
 
@@ -304,16 +296,7 @@ fn triggers(
     accents: &Accents,
 ) -> Vec<TileTriggerType> {
     let tiles = tiles(state);
-    let mut triggers = tiles
-        .iter()
-        .map(|alive| {
-            if *alive {
-                TileTriggerType::Stable
-            } else {
-                TileTriggerType::None
-            }
-        })
-        .collect::<Vec<_>>();
+    let mut triggers = trigger_types_from_tiles(&tiles, &tiles);
     for index in ball_before
         .into_iter()
         .chain(paddle_tiles(paddle_before))

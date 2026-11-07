@@ -49,7 +49,7 @@ pub(super) fn add_block(rows: &mut [BlockRow], x: u8, y: u8) {
 
 /// The color of the blocks in row `y`.
 pub(super) fn block_color(rows: &[BlockRow], y: u8) -> [u8; 3] {
-    ROW_HUES[usize::from(rows[TOP - usize::from(y)].hue) % ROW_HUES.len()]
+    ROW_HUES[usize::from(rows[TOP - usize::from(y)].hue)]
 }
 
 /// Breaks one block and returns whether that cleared its row: a cleared row leaves the wall and
@@ -81,11 +81,6 @@ pub(super) fn wall_blocks(rows: &[BlockRow]) -> impl Iterator<Item = (usize, [u8
     rows.iter().enumerate().flat_map(|(row, blocks)| {
         (0..GRID_WIDTH)
             .filter(move |x| blocks.blocks & (1 << x) != 0)
-            .map(move |x| {
-                (
-                    grid_index(x, TOP - row),
-                    ROW_HUES[usize::from(blocks.hue) % ROW_HUES.len()],
-                )
-            })
+            .map(move |x| (grid_index(x, TOP - row), ROW_HUES[usize::from(blocks.hue)]))
     })
 }
