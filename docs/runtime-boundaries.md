@@ -190,6 +190,16 @@ adapter, plus Orange-specific construction, audio recovery, and power handling.
   (`release-board-artifacts.yml`).
 - Raspberry runtime updates do not replace the full image, kernel, or device
   tree. Raspberry full-image update remains manual.
+- The Raspberry `octessera.service` (image and provisioned dev boards) runs as `pi` with
+  `ProtectSystem=strict`, `PrivateTmp=yes` and `ProtectControlGroups=yes`; it may write only
+  `/home/pi` (store, samples, recordings, restore), `/run`, `/var/lib/octessera` (show hold) and
+  `/opt/octessera`. It keeps `NoNewPrivileges=no` because its power, update, USB role and SD2
+  helpers run through `sudo -n` inside the unit, so those helpers share this sandbox (the updater
+  stages into `/opt/octessera`, the SD2 helper writes its state and lock files in `/run`). For the
+  same reason it carries none of the directives that imply `NoNewPrivileges` for a non-root
+  `User=` (for example `RestrictNamespaces=`, `LockPersonality=`, `ProtectKernelModules=` or
+  `ProtectKernelTunables=`), and no `ProtectHome=`, because everything it owns lives in
+  `/home/pi`.
 
 ## Vendored CPAL Boundary
 

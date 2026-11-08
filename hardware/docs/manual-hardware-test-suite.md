@@ -29,7 +29,10 @@ sudo visudo -cf /etc/sudoers.d/octessera-shutdown
 Expected:
 
 - `/etc/sudoers.d/octessera-shutdown` is root-owned mode `0440` and parses cleanly.
-- The runtime unit explicitly uses `NoNewPrivileges=no` for its fixed power commands.
+- The runtime unit explicitly uses `NoNewPrivileges=no` for its fixed sudo
+  helpers (power, update, USB role, SD2), next to `ProtectSystem=strict` with
+  `ReadWritePaths=/home/pi /run -/var/lib/octessera -/opt/octessera`.
+  `grep NoNewPrivs /proc/$(pidof octessera-pi)/status` shows `0`.
 - No broad `NOPASSWD: ALL` rule is required for octessera power controls.
 - On a fully assembled Pi, enable the service and separately replay the exact
   physical `System > Reboot` and `System > Shutdown` actions. Check the

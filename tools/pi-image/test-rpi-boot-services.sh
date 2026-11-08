@@ -58,6 +58,10 @@ printf '%s\n' 'pi ALL=(root) NOPASSWD: /usr/local/sbin/octessera-usb-gadget stor
 for required_line in \
     'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \
     'NoNewPrivileges=no' \
+    'ProtectSystem=strict' \
+    'ReadWritePaths=/home/pi /run -/var/lib/octessera -/opt/octessera' \
+    'PrivateTmp=yes' \
+    'ProtectControlGroups=yes' \
     'SupplementaryGroups=tty input' \
     'AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG' \
     'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG'; do
@@ -79,6 +83,7 @@ for unit in "$runtime" "$template" "$root/tools/pi-image/stage4-octessera/files/
     if [[ "$unit" != *audio-realtime.conf ]]; then
         [[ "$(grep -c "^SupplementaryGroups=" "$unit")" == 1 ]]
     fi
+    octessera_reject_file_match 'Raspberry runtime contains a sandbox directive that implies NoNewPrivileges for User=pi and breaks its sudo helpers.' -Eq '^(SystemCallFilter|SystemCallArchitectures|RestrictAddressFamilies|RestrictNamespaces|PrivateDevices|ProtectKernelTunables|ProtectKernelModules|ProtectKernelLogs|ProtectClock|MemoryDenyWriteExecute|RestrictRealtime|RestrictSUIDSGID|DynamicUser|LockPersonality)=' "$unit"
     octessera_reject_file_match 'Raspberry runtime contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$unit"
 done
 octessera_reject_file_match 'Raspberry constructor must not force a graphics mode or switch virtual terminals.' -Eiq 'chvt|xrandr|wlr-randr|modetest|video=|StandardInput=tty' "$root/tools/pi-image/stage4-octessera/03-boot-config/00-run.sh"
