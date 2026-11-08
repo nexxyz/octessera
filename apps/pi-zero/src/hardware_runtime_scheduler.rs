@@ -221,12 +221,16 @@ impl HardwareRuntimeScheduler {
             .min(max_sleep)
     }
 
-    /// While playing on the internal clock the runtime also wakes exactly when the next pulse is
-    /// due, so the tick only bounds UI work and adds nothing to musical timing.
+    /// The runtime also wakes exactly when the next internal pulse or scheduled note-off is due,
+    /// so the tick only bounds UI work and adds nothing to musical timing.
     fn with_next_pulse(&self, tick_due: Instant, playback: &PlaybackRuntime) -> Instant {
-        playback
-            .time_until_next_pulse()
-            .map_or(tick_due, |until| tick_due.min(self.last_tick_at + until))
+        [
+            playback.time_until_next_pulse(),
+            playback.time_until_next_scheduled_midi(),
+        ]
+        .into_iter()
+        .flatten()
+        .fold(tick_due, |due, until| due.min(self.last_tick_at + until))
     }
 
     fn display_snapshot_deadline(&self, runner: &NativeRunner) -> Option<Instant> {

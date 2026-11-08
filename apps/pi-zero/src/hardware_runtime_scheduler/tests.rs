@@ -280,6 +280,53 @@ fn scheduled_midi_idle_rebases_before_a_new_eight_millisecond_tick() {
 }
 
 #[test]
+fn scheduled_note_off_wakes_the_runtime_when_due_not_at_the_next_tick() {
+    let now = Instant::now();
+    let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig {
+        sync_source: SyncSource::External,
+        midi_out_enabled: true,
+        ..playback_runtime::RuntimeConfig::default()
+    });
+    let mut runner = TestRunner;
+    let mut host = TestHost::default();
+    let mut scheduler = HardwareRuntimeScheduler::new(now, 0);
+    playback
+        .ingest_runner_messages(
+            vec![RunnerMessage::MidiEvents {
+                events: vec![MusicalEvent::NoteOn {
+                    channel: 1,
+                    note: 64,
+                    velocity: 90,
+                    duration_ms: Some(20),
+                }],
+            }],
+            &mut host,
+        )
+        .expect("MIDI note should be accepted");
+    assert!(scheduler
+        .next_runtime_advance(now, &playback, None)
+        .is_none());
+    for tick in 1..=2 {
+        let at = now + PLAYBACK_TICK * tick;
+        let advance = scheduler
+            .next_runtime_advance(at, &playback, None)
+            .expect("tick should be due");
+        playback
+            .advance_duration_with_output(advance.elapsed, &mut runner, &mut host)
+            .expect("tick should advance");
+        scheduler.record_runtime_advance_complete(at, &playback, None);
+    }
+    let note_off_at = now + Duration::from_millis(20);
+    let advance = scheduler
+        .next_runtime_advance(note_off_at, &playback, None)
+        .expect("the note-off should wake the runtime when it is due");
+    playback
+        .advance_duration_with_output(advance.elapsed, &mut runner, &mut host)
+        .expect("note-off should flush");
+    assert_eq!(host.midi_messages.last(), Some(&vec![0x81, 64, 0]));
+}
+
+#[test]
 fn external_sync_keeps_runtime_event_driven() {
     let now = Instant::now();
     let mut scheduler = HardwareRuntimeScheduler::new(now, 0);

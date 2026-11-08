@@ -94,6 +94,14 @@ impl PlaybackRuntime {
         !self.scheduled_note_offs.is_empty()
     }
 
+    /// Time from the last advance until the earliest scheduled note-off is due.
+    pub fn time_until_next_scheduled_midi(&self) -> Option<Duration> {
+        self.scheduled_note_offs
+            .iter()
+            .map(|message| message.due_at.saturating_sub(self.now))
+            .min()
+    }
+
     pub fn last_snapshot(&self) -> Option<&Value> {
         self.presented_snapshot.as_ref()
     }
