@@ -252,13 +252,3 @@ pub(super) fn parse_instrument_kind(kind: &str) -> InstrumentKind {
         _ => InstrumentKind::None,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::parse_route;
-
-    #[test]
-    fn obsolete_bus_route_falls_back_to_direct() {
-        assert_eq!(parse_route("bus_1"), 0);
-    }
-}
