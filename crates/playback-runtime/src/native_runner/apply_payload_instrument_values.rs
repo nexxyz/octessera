@@ -61,7 +61,11 @@ pub(super) fn apply_instrument_mixer_payload(slot: &Value, instrument: &mut Nati
     if let Some(pan_pos) = mixer.get("panPos").and_then(Value::as_u64) {
         instrument.pan_pos = sanitize_pan_position_payload(pan_pos);
     }
-    if let Some(route) = mixer.get("route").and_then(Value::as_str) {
+    if let Some(route) = mixer
+        .get("route")
+        .and_then(Value::as_str)
+        .filter(|route| super::is_known_route(route))
+    {
         instrument.route = route.into();
     }
 }

@@ -11,6 +11,19 @@ use platform_core::{INSTRUMENT_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT};
 use serde_json::Map;
 
 const VELOCITY_CURVES: &[&str] = &["linear", "soft", "hard"];
+pub(crate) const INSTRUMENT_TYPES: &[&str] = &[
+    "none",
+    "synth",
+    "fm",
+    "pluck",
+    "drum",
+    "sampler",
+    "midi",
+    "midi_drum",
+];
+pub(crate) const NOTE_BEHAVIORS: &[&str] = &["oneshot", "hold"];
+pub(crate) const OSC_WAVEFORMS: &[&str] = &["sine", "triangle", "saw", "square", "pulse"];
+pub(crate) const FILTER_TYPES: &[&str] = &["lowpass", "highpass", "bandpass", "notch"];
 const VOICE_MODES: &[&str] = &[
     "none",
     "fixed12",
@@ -54,22 +67,8 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
     for (index, value) in instruments.iter().enumerate() {
         let path = format!("runtimeConfig.instruments[{index}]");
         let instrument = object_value(value, &path)?;
-        enum_field(
-            instrument,
-            "type",
-            &path,
-            &[
-                "none",
-                "synth",
-                "fm",
-                "pluck",
-                "drum",
-                "sampler",
-                "midi",
-                "midi_drum",
-            ],
-        )?;
-        enum_field(instrument, "noteBehavior", &path, &["oneshot", "hold"])?;
+        enum_field(instrument, "type", &path, INSTRUMENT_TYPES)?;
+        enum_field(instrument, "noteBehavior", &path, NOTE_BEHAVIORS)?;
         string_field(instrument, "name", &path)?;
         bool_field(instrument, "autoName", &path)?;
         if let Some(mixer) = object_field(instrument, "mixer", &path)? {
@@ -191,12 +190,7 @@ fn validate_synth(instrument: &Map<String, Value>, path: &str) -> Result<(), Str
     for osc in ["osc1", "osc2"] {
         if let Some(value) = object_field(synth, osc, &path)? {
             let osc_path = format!("{path}.{osc}");
-            enum_field(
-                value,
-                "waveform",
-                &osc_path,
-                &["sine", "triangle", "saw", "square", "pulse"],
-            )?;
+            enum_field(value, "waveform", &osc_path, OSC_WAVEFORMS)?;
             for (suffix, _, min, max) in SYNTH_NUMERIC_FIELDS {
                 if let Some(field) = suffix
                     .strip_prefix(osc)
@@ -438,12 +432,7 @@ fn validate_filter(parent: &Map<String, Value>, key: &str, path: &str) -> Result
         return Ok(());
     };
     let path = format!("{path}.{key}");
-    enum_field(
-        filter,
-        "type",
-        &path,
-        &["lowpass", "highpass", "bandpass", "notch"],
-    )?;
+    enum_field(filter, "type", &path, FILTER_TYPES)?;
     unsigned_field(filter, "cutoffHz", &path, 20, 20000)?;
     unsigned_field(filter, "resonance", &path, 0, 255)?;
     signed_field(filter, "envAmountPct", &path, -100, 100)?;
@@ -457,13 +446,16 @@ fn validate_route(object: &Map<String, Value>, path: &str) -> Result<(), String>
     let route = value
         .as_str()
         .ok_or_else(|| format!("{path}.route must be a string"))?;
-    let valid = route == "direct"
-        || route
-            .strip_prefix("fx_bus_")
-            .and_then(|value| value.parse::<usize>().ok())
-            .is_some_and(|index| index > 0 && index <= platform_core::BUS_COUNT);
-    if !valid {
+    if !is_known_route(route) {
         return Err(format!("{path}.route has unknown route `{route}`"));
     }
     Ok(())
+}
+
+pub(crate) fn is_known_route(route: &str) -> bool {
+    route == "direct"
+        || route
+            .strip_prefix("fx_bus_")
+            .and_then(|value| value.parse::<usize>().ok())
+            .is_some_and(|index| index > 0 && index <= platform_core::BUS_COUNT)
 }

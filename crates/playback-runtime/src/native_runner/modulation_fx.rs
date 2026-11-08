@@ -1,6 +1,7 @@
 use super::modulation_value::{
     apply_fx_param_binding_value, apply_fx_slot_type_value, apply_u8_value,
 };
+use super::play_fx_config::{is_play_fx_target, play_fx_types};
 use super::{derive_bus_name, fx_default_params, json, Value, PAN_POSITION_COUNT};
 
 pub(super) fn apply_fx_bus_binding_value(
@@ -64,7 +65,10 @@ pub(super) fn apply_play_fx_binding_value(selected: &mut Value, field: &str, val
     let mut object = selected.as_object().cloned().unwrap_or_default();
     let changed = match field {
         "type" => {
-            let Some(value) = value.as_str() else {
+            let Some(value) = value
+                .as_str()
+                .filter(|value| play_fx_types().any(|known| known == *value))
+            else {
                 return false;
             };
             let changed = object
@@ -79,7 +83,7 @@ pub(super) fn apply_play_fx_binding_value(selected: &mut Value, field: &str, val
             changed
         }
         "target" => {
-            let Some(value) = value.as_str() else {
+            let Some(value) = value.as_str().filter(|value| is_play_fx_target(value)) else {
                 return false;
             };
             let changed = object

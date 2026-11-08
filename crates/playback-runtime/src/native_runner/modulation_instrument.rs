@@ -1,6 +1,6 @@
 use super::{
-    apply_instrument_numeric_binding_value, set_json_path_string, synth_string_at, value_string_at,
-    Value,
+    apply_instrument_numeric_binding_value, is_known_route, set_json_path_string, synth_string_at,
+    value_string_at, Value, FILTER_TYPES, INSTRUMENT_TYPES, NOTE_BEHAVIORS, OSC_WAVEFORMS,
 };
 
 pub(super) fn apply_instrument_binding_value(
@@ -10,7 +10,10 @@ pub(super) fn apply_instrument_binding_value(
 ) -> bool {
     match field {
         "type" => {
-            let Some(value) = value.as_str() else {
+            let Some(value) = value
+                .as_str()
+                .filter(|value| INSTRUMENT_TYPES.contains(value))
+            else {
                 return false;
             };
             if instrument.kind != value {
@@ -20,7 +23,10 @@ pub(super) fn apply_instrument_binding_value(
             }
         }
         "noteBehavior" => {
-            let Some(value) = value.as_str() else {
+            let Some(value) = value
+                .as_str()
+                .filter(|value| NOTE_BEHAVIORS.contains(value))
+            else {
                 return false;
             };
             if instrument.note_behavior != value {
@@ -30,7 +36,7 @@ pub(super) fn apply_instrument_binding_value(
             }
         }
         "mixer.route" => {
-            let Some(value) = value.as_str() else {
+            let Some(value) = value.as_str().filter(|value| is_known_route(value)) else {
                 return false;
             };
             if instrument.route != value {
@@ -40,7 +46,7 @@ pub(super) fn apply_instrument_binding_value(
             }
         }
         "synth.osc1.waveform" => {
-            let Some(value) = value.as_str() else {
+            let Some(value) = value.as_str().filter(|value| OSC_WAVEFORMS.contains(value)) else {
                 return false;
             };
             if synth_string_at(instrument, &["osc1", "waveform"], "saw") != value {
@@ -50,7 +56,7 @@ pub(super) fn apply_instrument_binding_value(
             }
         }
         "synth.osc2.waveform" => {
-            let Some(value) = value.as_str() else {
+            let Some(value) = value.as_str().filter(|value| OSC_WAVEFORMS.contains(value)) else {
                 return false;
             };
             if synth_string_at(instrument, &["osc2", "waveform"], "square") != value {
@@ -60,7 +66,7 @@ pub(super) fn apply_instrument_binding_value(
             }
         }
         "synth.filter.type" => {
-            let Some(value) = value.as_str() else {
+            let Some(value) = value.as_str().filter(|value| FILTER_TYPES.contains(value)) else {
                 return false;
             };
             if synth_string_at(instrument, &["filter", "type"], "lowpass") != value {
@@ -70,7 +76,7 @@ pub(super) fn apply_instrument_binding_value(
             }
         }
         "sample.filter.type" => {
-            let Some(value) = value.as_str() else {
+            let Some(value) = value.as_str().filter(|value| FILTER_TYPES.contains(value)) else {
                 return false;
             };
             if value_string_at(&instrument.sample_filter, &["type"], "lowpass") != value {

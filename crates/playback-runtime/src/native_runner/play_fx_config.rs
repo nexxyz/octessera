@@ -160,13 +160,9 @@ pub(super) fn sanitize_play_fx_config(config: &Value) -> Value {
         .map(|(name, _)| *name)
         .find(|name| *name == play_fx_type(config))
         .unwrap_or("none");
-    let target_key = match play_fx_target_key(config) {
-        "master" | "fx_bus_1" | "fx_bus_2" | "instrument_1" | "instrument_2" | "instrument_3"
-        | "instrument_4" | "instrument_5" | "instrument_6" | "instrument_7" | "instrument_8" => {
-            play_fx_target_key(config)
-        }
-        _ => "master",
-    };
+    let target_key = Some(play_fx_target_key(config))
+        .filter(|key| is_play_fx_target(key))
+        .unwrap_or("master");
     let mut params = serde_json::Map::new();
     for spec in play_fx_param_specs(fx_type) {
         let value = config
@@ -180,6 +176,23 @@ pub(super) fn sanitize_play_fx_config(config: &Value) -> Value {
         );
     }
     json!({ "fxType": fx_type, "targetKey": target_key, "params": params })
+}
+
+pub(super) fn is_play_fx_target(key: &str) -> bool {
+    matches!(
+        key,
+        "master"
+            | "fx_bus_1"
+            | "fx_bus_2"
+            | "instrument_1"
+            | "instrument_2"
+            | "instrument_3"
+            | "instrument_4"
+            | "instrument_5"
+            | "instrument_6"
+            | "instrument_7"
+            | "instrument_8"
+    )
 }
 
 pub(super) fn play_fx_type(config: &Value) -> &str {
