@@ -1,5 +1,8 @@
 use super::modulation::RoutedMusicalEvents;
-use super::{DelayedRoutedEvents, LinkArpHeldNote, LinkEventTiming, NativeLinkArp, NativeRunner};
+use super::{
+    DelayedRoutedEvents, LinkArpHeldNote, LinkEventTiming, NativeLinkArp, NativeLinkLayer,
+    NativeRunner,
+};
 use crate::protocol::{TileHit, MIN_NOTE_DURATION_MS};
 use platform_core::{MusicalEvent, LAYER_COUNT};
 
@@ -55,10 +58,11 @@ impl NativeRunner {
         layer_index: usize,
         timing: LinkEventTiming,
         retrigger_count: u8,
-        arp: &NativeLinkArp,
+        link: &NativeLinkLayer,
         mut routed: RoutedMusicalEvents,
         midi_drum_channels: u16,
     ) -> RoutedMusicalEvents {
+        let arp = &link.arp;
         let mut immediate = RoutedMusicalEvents::default();
         // A MIDI Drum note-on is a struck tile: the arp re-times it like a Drum hit, never
         // re-pitches or re-lengthens it.
@@ -84,7 +88,7 @@ impl NativeRunner {
         } else {
             suppress_arp_note_offs(routed)
         };
-        let events = self.arp_routed_events(layer_index, source_routed, struck, arp);
+        let events = self.arp_routed_events(layer_index, source_routed, struck, link);
         for repeat in 0..=retrigger_count {
             for (offset, event) in events.iter().cloned() {
                 let remaining_steps = u16::from(timing.delay_steps)
@@ -182,8 +186,9 @@ impl NativeRunner {
         layer_index: usize,
         routed: RoutedMusicalEvents,
         midi_drum_notes: Vec<MusicalEvent>,
-        arp: &NativeLinkArp,
+        link: &NativeLinkLayer,
     ) -> Vec<(u16, RoutedMusicalEvents)> {
+        let arp = &link.arp;
         let mut out = Vec::new();
         let hits = routed
             .tiles
@@ -205,8 +210,8 @@ impl NativeRunner {
             };
             out.push((offset, event));
         }
-        out.extend(self.arp_events_for_lane(layer_index, routed.audio, arp, true));
-        out.extend(self.arp_events_for_lane(layer_index, routed.midi, arp, false));
+        out.extend(self.arp_events_for_lane(layer_index, routed.audio, link, true));
+        out.extend(self.arp_events_for_lane(layer_index, routed.midi, link, false));
         out
     }
 
@@ -214,9 +219,10 @@ impl NativeRunner {
         &mut self,
         layer_index: usize,
         events: Vec<MusicalEvent>,
-        arp: &NativeLinkArp,
+        link: &NativeLinkLayer,
         audio: bool,
     ) -> Vec<(u16, RoutedMusicalEvents)> {
+        let arp = &link.arp;
         let mut note_ons = Vec::new();
         let mut out = Vec::new();
         for event in events {
@@ -226,7 +232,7 @@ impl NativeRunner {
                 out.push((0, routed_single(event, audio)));
             }
         }
-        let ordered = self.ordered_arp_notes(layer_index, note_ons, &arp.mode);
+        let ordered = self.ordered_arp_notes(layer_index, note_ons, link);
         let ordered = if arp.mode == "octave_spread" {
             octave_spread_notes(ordered, arp.octave_spread)
         } else {
@@ -247,8 +253,9 @@ impl NativeRunner {
         &mut self,
         layer_index: usize,
         mut notes: Vec<MusicalEvent>,
-        mode: &str,
+        link: &NativeLinkLayer,
     ) -> Vec<MusicalEvent> {
+        let mode = link.arp.mode.as_str();
         if !matches!(mode, "direct" | "strum") {
             notes.sort_by_key(note_sort_key);
         }
@@ -273,7 +280,10 @@ impl NativeRunner {
                 notes
             }
             "random" => {
-                shuffle_notes(&mut notes, self.arp_random_state_mut(layer_index));
+                shuffle_notes(
+                    &mut notes,
+                    self.arp_random_state_mut(layer_index, link.seeded),
+                );
                 notes
             }
             _ => notes,

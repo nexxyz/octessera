@@ -113,3 +113,48 @@ fn voice_stealing_mode_takes_only_known_modes() {
         );
     }
 }
+
+#[test]
+fn link_enum_bindings_reject_values_outside_their_sets() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let before = runner.link_layers[0].clone();
+    assert!(!write(&mut runner, "layers.0.link.scanMode", "scan"));
+    assert!(!write(
+        &mut runner,
+        "layers.0.link.triggerProbabilityMode",
+        "half"
+    ));
+    assert_eq!(runner.link_layers[0], before);
+
+    for mode in ScanMode::ALL {
+        write(&mut runner, "layers.0.link.scanMode", mode.wire_name());
+        assert_eq!(runner.link_layers[0].scan_mode, mode);
+    }
+    for mode in TriggerProbabilityMode::ALL {
+        write(
+            &mut runner,
+            "layers.0.link.triggerProbabilityMode",
+            mode.wire_name(),
+        );
+        assert_eq!(runner.link_layers[0].trigger_probability_mode, mode);
+    }
+}
+
+#[test]
+fn unversioned_payload_ignores_unknown_link_values() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let before = runner.link_layers[0].clone();
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": { "layers": [{ "link": {
+                "scanMode": "scan",
+                "triggerProbabilityMode": "half",
+                "triggerProbabilityMap": ["medium", "low"],
+                "mapping": { "activate": { "action": "note_up" } }
+            } }] }
+        }))
+        .unwrap();
+    assert_eq!(runner.link_layers[0], before);
+    assert_eq!(runner.trigger_probability_maps[0][0], TileProbability::Full);
+    assert_eq!(runner.trigger_probability_maps[0][1], TileProbability::Low);
+}

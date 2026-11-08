@@ -3,10 +3,9 @@ use super::play_control::MIX_MASTER_COLUMN;
 use super::play_fx_config::play_fx_type;
 use super::play_fx_presentation::play_fx_color;
 use super::play_pages::{play_page_at, ActivePlayMode, PlayBank};
-use super::play_trigger_gate::TRIGGER_GATE_MODES;
 use super::{
-    pan_marker_left_tile, play_fx_tile_id, NativeRunner, BUS_COUNT, GRID_HEIGHT, GRID_WIDTH,
-    INSTRUMENT_COUNT, PLAY_FX_MAX_CONCURRENT,
+    pan_marker_left_tile, play_fx_tile_id, NativeRunner, TriggerProbabilityMode, BUS_COUNT,
+    GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, PLAY_FX_MAX_CONCURRENT,
 };
 use crate::native_runner::InstrumentType;
 
@@ -125,7 +124,7 @@ impl NativeRunner {
     pub(super) fn apply_play_trigger_gate_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
         for (row, layer) in self.link_layers.iter().enumerate().take(GRID_HEIGHT) {
-            for (x, candidate) in TRIGGER_GATE_MODES.into_iter().enumerate() {
+            for (x, candidate) in TriggerProbabilityMode::ALL.into_iter().enumerate() {
                 let color = trigger_gate_color(candidate);
                 self.set_display_led(
                     leds,
@@ -139,7 +138,7 @@ impl NativeRunner {
                 );
             }
         }
-        for (x, mode) in TRIGGER_GATE_MODES.into_iter().enumerate() {
+        for (x, mode) in TriggerProbabilityMode::ALL.into_iter().enumerate() {
             self.set_display_led(leds, x + 5, 0, trigger_gate_color(mode));
         }
     }
@@ -180,10 +179,9 @@ impl NativeRunner {
                 .get(row)
                 .map(|id| id != "none")
                 .unwrap_or(false);
-            let gated = self
-                .link_layers
-                .get(row)
-                .is_some_and(|layer| layer.trigger_probability_mode == "zero");
+            let gated = self.link_layers.get(row).is_some_and(|layer| {
+                layer.trigger_probability_mode == TriggerProbabilityMode::Zero
+            });
             let color = fn_layer_color(
                 configured,
                 row == self.active_layer_index,

@@ -1,6 +1,6 @@
 use super::{
     push_tick_events, trigger_probability_allows, LinkRoutingInput, NativeRunner,
-    RoutedMusicalEvents,
+    RoutedMusicalEvents, ScanMode,
 };
 use platform_core::{NativeBehaviorState, NativeLayerEngine, TileTriggerIntent};
 
@@ -56,7 +56,7 @@ impl NativeRunner {
             && self
                 .link_layers
                 .get(index)
-                .is_some_and(|layer| layer.scan_mode != "scanning")
+                .is_some_and(|layer| layer.scan_mode != ScanMode::Scanning)
     }
 
     fn advance_idle_layer(
@@ -102,10 +102,7 @@ impl NativeRunner {
                     continue;
                 };
                 let sense = self.link_layers.get(index);
-                let probability_map = self
-                    .trigger_probability_maps
-                    .get(index)
-                    .map_or(&[][..], Vec::as_slice);
+                let probability_map = self.trigger_probability_maps.get(index);
                 engine.tick_filtered(bpm, |intent| {
                     trigger_probability_allows(sense, probability_map, &mut rng, intent)
                 })?
@@ -118,7 +115,6 @@ impl NativeRunner {
                 LinkRoutingInput {
                     events: tick.events,
                     event_intents: &tick.event_intents,
-                    sense: self.link_layers.get(index).cloned(),
                     transpose_offset,
                 },
             )?;

@@ -98,8 +98,10 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn arp_random_state_mut(&mut self, layer_index: usize) -> &mut u32 {
-        if self.link_seeded(layer_index) {
+    /// The Link arp's random walk; `seeded` is the layer's Link Seeded, as routing has the
+    /// layer's Link lent out.
+    pub(super) fn arp_random_state_mut(&mut self, layer_index: usize, seeded: bool) -> &mut u32 {
+        if seeded {
             &mut self.seeded_link_streams.arp[layer_index]
         } else {
             &mut self.link_arp.random_state

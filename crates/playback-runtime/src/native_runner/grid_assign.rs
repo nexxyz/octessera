@@ -43,25 +43,23 @@ impl NativeRunner {
         }
         let next = self.next_probability_state(layer_index, x, y);
         for (x, y) in tiles {
-            self.set_probability_tile(layer_index, x, y, &next);
+            self.set_probability_tile(layer_index, x, y, next);
         }
         self.mark_config_dirty();
     }
 
-    pub(super) fn next_probability_state(&self, layer_index: usize, x: usize, y: usize) -> String {
-        let current = self
-            .trigger_probability_maps
+    pub(super) fn next_probability_state(
+        &self,
+        layer_index: usize,
+        x: usize,
+        y: usize,
+    ) -> TileProbability {
+        self.trigger_probability_maps
             .get(layer_index)
             .and_then(|map| map.get(y * GRID_WIDTH + x))
-            .map(String::as_str)
-            .unwrap_or("zero");
-        match current {
-            "zero" => "low",
-            "low" => "high",
-            "high" => "full",
-            _ => "zero",
-        }
-        .into()
+            .copied()
+            .unwrap_or(TileProbability::Zero)
+            .next()
     }
 
     pub(super) fn set_probability_tile(
@@ -69,13 +67,13 @@ impl NativeRunner {
         layer_index: usize,
         x: usize,
         y: usize,
-        value: &str,
+        value: TileProbability,
     ) {
         let Some(map) = self.trigger_probability_maps.get_mut(layer_index) else {
             return;
         };
         if let Some(tile) = map.get_mut(y * GRID_WIDTH + x) {
-            *tile = value.into();
+            *tile = value;
         }
     }
 

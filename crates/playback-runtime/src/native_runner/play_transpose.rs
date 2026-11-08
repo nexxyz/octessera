@@ -1,7 +1,8 @@
 use super::led_color::LedColor;
 use super::modulation_sampler::TransposedHeldNote;
 use super::{
-    InstrumentType, NativeRunner, RoutedMusicalEvents, GRID_HEIGHT, GRID_WIDTH, LAYER_COUNT,
+    InstrumentType, NativeRunner, RoutedMusicalEvents, TriggerAction, GRID_HEIGHT, GRID_WIDTH,
+    LAYER_COUNT,
 };
 use std::collections::BTreeMap;
 
@@ -241,21 +242,22 @@ impl NativeRunner {
             return false;
         };
         [
-            (sense.scanned_slot, sense.scanned_action.as_str()),
-            (
-                sense.scanned_empty_slot,
-                sense.scanned_empty_action.as_str(),
-            ),
-            (sense.activate_slot, sense.activate_action.as_str()),
-            (sense.stable_slot, sense.stable_action.as_str()),
-            (sense.deactivate_slot, sense.deactivate_action.as_str()),
+            (sense.scanned_slot, sense.scanned_action),
+            (sense.scanned_empty_slot, sense.scanned_empty_action),
+            (sense.activate_slot, sense.activate_action),
+            (sense.stable_slot, sense.stable_action),
+            (sense.deactivate_slot, sense.deactivate_action),
         ]
         .into_iter()
         .any(|(slot, action)| self.play_transpose_target_eligible(slot, action))
     }
 
-    pub(super) fn play_transpose_target_eligible(&self, slot: usize, action: &str) -> bool {
-        if !matches!(action, "note_on" | "note_off") {
+    pub(super) fn play_transpose_target_eligible(
+        &self,
+        slot: usize,
+        action: TriggerAction,
+    ) -> bool {
+        if action == TriggerAction::None {
             return false;
         }
         let Some(instrument) = self.instruments.get(slot) else {

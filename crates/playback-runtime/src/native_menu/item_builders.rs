@@ -48,6 +48,23 @@ pub(in crate::native_menu) fn enum_item(
     }
 }
 
+/// An enum row over every value of a saved value set, selecting `value`.
+pub(in crate::native_menu) fn wire_enum_item<T: Copy + PartialEq, const N: usize>(
+    label: impl Into<String>,
+    key: impl Into<String>,
+    values: [T; N],
+    wire_name: fn(T) -> &'static str,
+    value: T,
+) -> NativeMenuItem {
+    let selected = values.iter().position(|candidate| *candidate == value);
+    enum_item(
+        label,
+        key,
+        values.map(wire_name).to_vec(),
+        selected.unwrap_or(0),
+    )
+}
+
 pub(in crate::native_menu) fn number_item(
     label: impl Into<String>,
     key: impl Into<String>,

@@ -163,8 +163,8 @@ pub(crate) fn disabling_one_layer_leaves_another_layer_held() {
 #[test]
 pub(crate) fn repeated_layer_disable_is_idempotent_and_reenable_restores_gate_only() {
     let mut runner = held_keys_runner();
-    runner.trigger_gate_modes[0] = "custom".into();
-    runner.link_layers[0].trigger_probability_mode = "custom".into();
+    runner.trigger_gate_modes[0] = TriggerProbabilityMode::Custom;
+    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
     runner.transport.tick = 7;
     runner.transport.current_ppqn_pulse = 13;
     let _ = press_note(&mut runner, 2, 3);
@@ -180,13 +180,16 @@ pub(crate) fn repeated_layer_disable_is_idempotent_and_reenable_restores_gate_on
     assert_eq!(runner.transport.tick, 7);
     assert_eq!(runner.transport.current_ppqn_pulse, 13);
 
-    runner.apply_trigger_gate_mode_to_layer(0, "zero");
+    runner.apply_trigger_gate_mode_to_layer(0, TriggerProbabilityMode::Zero);
     let repeated_disable = runner.messages_with_snapshot().unwrap();
     assert!(routed_events(&repeated_disable, false).is_empty());
 
     let reenabled = disable_layer(&mut runner, 0);
-    assert_eq!(runner.trigger_gate_modes[0], "custom");
-    assert_eq!(runner.link_layers[0].trigger_probability_mode, "custom");
+    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Custom);
+    assert_eq!(
+        runner.link_layers[0].trigger_probability_mode,
+        TriggerProbabilityMode::Custom
+    );
     assert!(routed_events(&reenabled, false).is_empty());
 
     let new_note = press_note(&mut runner, 3, 3);

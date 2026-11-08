@@ -12,13 +12,13 @@ fn scanning_runner(scan_unit: &str, scanned_slot: usize) -> NativeRunner {
 
 fn configure_active_scan(runner: &mut NativeRunner, scan_unit: &str, scanned_slot: usize) {
     let layer = &mut runner.link_layers[runner.active_layer_index];
-    layer.scan_mode = "scanning".into();
+    layer.scan_mode = ScanMode::Scanning;
     layer.scan_axis = "rows".into();
     layer.scan_unit = scan_unit.into();
     layer.scan_sections = 1;
     layer.scanned_slot = scanned_slot;
-    layer.scanned_action = "note_on".into();
-    layer.scanned_empty_action = "none".into();
+    layer.scanned_action = TriggerAction::NoteOn;
+    layer.scanned_empty_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -157,12 +157,12 @@ fn active_and_inactive_sequencer_ticks_follow_their_own_trigger_probability_maps
         let mut runner = dual_scanning_runner();
         for layer in 0..2 {
             let state = if layer == blocked_layer {
-                "zero"
+                TileProbability::Zero
             } else {
-                "full"
+                TileProbability::Full
             };
-            runner.link_layers[layer].trigger_probability_mode = "custom".into();
-            runner.trigger_probability_maps[layer].fill(state.into());
+            runner.link_layers[layer].trigger_probability_mode = TriggerProbabilityMode::Custom;
+            runner.trigger_probability_maps[layer].fill(state);
         }
         runner.prime_sequencer_layer_origins();
         let events = runner.advance_due_layer_ticks().unwrap();
@@ -262,7 +262,7 @@ fn active_and_inactive_sequencers_emit_origin_ticks_with_route_ownership_after_c
 fn muted_sequencer_consumes_origin_tick_without_events() {
     let mut runner = scanning_runner("1/16", 0);
     add_tile(&mut runner, 0, 0);
-    runner.link_layers[0].trigger_probability_mode = "zero".into();
+    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Zero;
     arm_boundary(&mut runner, 95);
     runner.prime_sequencer_layer_origins();
 

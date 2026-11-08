@@ -35,8 +35,7 @@ impl NativeRunner {
         self.voice_stealing_mode = VoiceStealingMode::AutoBalanced;
         self.link_layers = default_link_layers();
         self.grid_assign = None;
-        self.trigger_probability_maps =
-            vec![vec!["full".into(); GRID_WIDTH * GRID_HEIGHT]; LAYER_COUNT];
+        self.trigger_probability_maps = vec![FULL_PROBABILITY_MAP; LAYER_COUNT];
         self.instruments = (0..INSTRUMENT_COUNT)
             .map(NativeInstrumentSlot::reset)
             .collect();
@@ -111,7 +110,7 @@ impl NativeRunner {
         self.faders = Default::default();
         self.aux_bindings.fill(None);
         self.shift_aux_bindings.fill(None);
-        self.trigger_gate_modes = vec!["full".into(); LAYER_COUNT];
+        self.trigger_gate_modes = vec![TriggerProbabilityMode::Full; LAYER_COUNT];
         self.trigger_gate_restore_modes = vec![None; LAYER_COUNT];
         self.play_live = Default::default();
         self.transpose.selected = vec![true; LAYER_COUNT];

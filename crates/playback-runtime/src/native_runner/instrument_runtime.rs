@@ -2,18 +2,14 @@ use super::*;
 
 pub(super) fn trigger_target(
     slot: usize,
-    action: &str,
+    action: TriggerAction,
     velocity: u8,
     duration_ms: u32,
 ) -> TriggerTarget {
     let action = if slot >= INSTRUMENT_COUNT {
         TriggerAction::None
     } else {
-        match action {
-            "note_off" => TriggerAction::NoteOff,
-            "none" => TriggerAction::None,
-            _ => TriggerAction::NoteOn,
-        }
+        action
     };
     TriggerTarget {
         action,

@@ -23,9 +23,9 @@ fn mixed_patch_runner() -> NativeRunner {
         delay_steps: 1,
         retrigger_count: 1,
     };
-    runner.link_layers[0].trigger_probability_mode = "custom".into();
+    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
     runner.link_layers[0].trigger_probability_high_pct = 70;
-    runner.trigger_probability_maps[0] = vec!["high".into(); GRID_WIDTH * GRID_HEIGHT];
+    runner.trigger_probability_maps[0] = [TileProbability::High; GRID_WIDTH * GRID_HEIGHT];
     runner.link_layers[1].arp.mode = "up".into();
     runner.link_layers[3].seeded = true;
     runner.link_layers[3].scanned_timing = LinkEventTiming {
@@ -33,13 +33,13 @@ fn mixed_patch_runner() -> NativeRunner {
         retrigger_count: 0,
     };
     let scanning_none = &mut runner.link_layers[6];
-    scanning_none.scan_mode = "scanning".into();
+    scanning_none.scan_mode = ScanMode::Scanning;
     scanning_none.scan_unit = "1/8".into();
     scanning_none.scanned_empty_slot = 1;
-    scanning_none.scanned_empty_action = "note_on".into();
-    scanning_none.trigger_probability_mode = "custom".into();
+    scanning_none.scanned_empty_action = TriggerAction::NoteOn;
+    scanning_none.trigger_probability_mode = TriggerProbabilityMode::Custom;
     scanning_none.trigger_probability_low_pct = 50;
-    runner.trigger_probability_maps[6] = vec!["low".into(); GRID_WIDTH * GRID_HEIGHT];
+    runner.trigger_probability_maps[6] = [TileProbability::Low; GRID_WIDTH * GRID_HEIGHT];
     runner
 }
 
@@ -47,16 +47,16 @@ fn mixed_patch_runner() -> NativeRunner {
 /// step, yet plays nothing and draws no probability at full chance.
 fn scan_none_layers_silently(runner: &mut NativeRunner) {
     for index in 5..LAYER_COUNT {
-        if runner.link_layers[index].scan_mode == "scanning" {
+        if runner.link_layers[index].scan_mode == ScanMode::Scanning {
             continue;
         }
         let step_pulses = runner.layer_step_rate_pulses(index);
         let layer = &mut runner.link_layers[index];
-        layer.scan_mode = "scanning".into();
+        layer.scan_mode = ScanMode::Scanning;
         layer.scan_unit = "1/8".into();
-        layer.scanned_action = "none".into();
-        layer.scanned_empty_action = "none".into();
-        assert_eq!(layer.trigger_probability_mode, "full");
+        layer.scanned_action = TriggerAction::None;
+        layer.scanned_empty_action = TriggerAction::None;
+        assert_eq!(layer.trigger_probability_mode, TriggerProbabilityMode::Full);
         assert_eq!(runner.step_pulses_for_layer(index), step_pulses);
     }
 }
@@ -103,13 +103,13 @@ fn eight_bar_trace(mut runner: NativeRunner) -> String {
         if pulse >= 4 * 96 + 36 && !late_scanner_started {
             late_scanner_started = true;
             let late_scanner = &mut runner.link_layers[7];
-            late_scanner.scan_mode = "scanning".into();
+            late_scanner.scan_mode = ScanMode::Scanning;
             late_scanner.scan_unit = "1/16".into();
             late_scanner.scan_axis = "columns".into();
             late_scanner.x_pitch_enabled = true;
             late_scanner.x_pitch_steps = 1;
             late_scanner.scanned_empty_slot = 0;
-            late_scanner.scanned_empty_action = "note_on".into();
+            late_scanner.scanned_empty_action = TriggerAction::NoteOn;
         }
         if pulse >= 6 * 96 && runner.active_layer_index == 0 {
             runner.select_active_layer(5).unwrap();

@@ -1,4 +1,4 @@
-use super::{NativeValueLane, Value, INSTRUMENT_COUNT};
+use super::{NativeValueLane, TriggerAction, Value, INSTRUMENT_COUNT};
 
 pub(super) fn assign_string(payload: &Value, key: &str, target: &mut String) {
     if let Some(value) = payload.get(key).and_then(Value::as_str) {
@@ -28,7 +28,12 @@ pub(super) fn assign_i32(payload: &Value, key: &str, target: &mut i32, min: i32,
     }
 }
 
-pub(super) fn assign_mapping(payload: &Value, key: &str, slot: &mut usize, action: &mut String) {
+pub(super) fn assign_mapping(
+    payload: &Value,
+    key: &str,
+    slot: &mut usize,
+    action: &mut TriggerAction,
+) {
     let Some(mapping) = payload.get(key) else {
         return;
     };
@@ -39,8 +44,12 @@ pub(super) fn assign_mapping(payload: &Value, key: &str, slot: &mut usize, actio
             *slot = parsed.min(INSTRUMENT_COUNT - 1);
         }
     }
-    if let Some(value) = mapping.get("action").and_then(Value::as_str) {
-        *action = value.into();
+    if let Some(value) = mapping
+        .get("action")
+        .and_then(Value::as_str)
+        .and_then(TriggerAction::from_wire_name)
+    {
+        *action = value;
     }
 }
 

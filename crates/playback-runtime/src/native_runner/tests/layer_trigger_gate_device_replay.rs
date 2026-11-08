@@ -158,7 +158,7 @@ pub(crate) fn physical_layer_gate_replay_releases_only_target_and_reopens_cleanl
         };
         assert_eq!(note_ons(&other_admission, other_midi).len(), 1);
 
-        runner.apply_trigger_gate_mode_to_layer(0, "zero");
+        runner.apply_trigger_gate_mode_to_layer(0, TriggerProbabilityMode::Zero);
         let repeated_disable = runner.messages_with_snapshot().unwrap();
         assert!(note_offs(&repeated_disable, target_midi).is_empty());
         assert!(note_offs(&repeated_disable, other_midi).is_empty());

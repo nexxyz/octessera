@@ -6,8 +6,8 @@ use super::pan_mapping::touch_pan_pos_from_grid_x;
 use super::play_fx_config::{play_fx_audio_params, play_fx_target_key, play_fx_type};
 use super::play_pages::PlayMode;
 use super::{
-    momentary_fx_target, play_fx_tile_id, NativePlayFxAssignment, NativeRunner, GRID_HEIGHT,
-    GRID_WIDTH, PLAY_FX_MAX_CONCURRENT, TRIGGER_GATE_MODES,
+    momentary_fx_target, play_fx_tile_id, NativePlayFxAssignment, NativeRunner,
+    TriggerProbabilityMode, GRID_HEIGHT, GRID_WIDTH, PLAY_FX_MAX_CONCURRENT,
 };
 
 pub(super) const MIX_MASTER_COLUMN: usize = 5;
@@ -255,8 +255,12 @@ impl NativeRunner {
 
     pub(super) fn handle_trigger_gate_grid_press(&mut self, x: usize, y: usize) {
         match (x, y) {
-            (0..=2, _) => self.apply_trigger_gate_mode_to_layer(y, TRIGGER_GATE_MODES[x]),
-            (5..=7, 0) => self.apply_trigger_gate_mode_to_all_layers(TRIGGER_GATE_MODES[x - 5]),
+            (0..=2, _) => {
+                self.apply_trigger_gate_mode_to_layer(y, TriggerProbabilityMode::ALL[x]);
+            }
+            (5..=7, 0) => {
+                self.apply_trigger_gate_mode_to_all_layers(TriggerProbabilityMode::ALL[x - 5]);
+            }
             _ => {}
         }
     }
@@ -276,28 +280,29 @@ impl NativeRunner {
         let current = self
             .link_layers
             .get(index)
-            .map(|layer| layer.trigger_probability_mode.clone())
-            .or_else(|| self.trigger_gate_modes.get(index).cloned())
-            .unwrap_or_else(|| "full".into());
-        if current == "zero" {
+            .map(|layer| layer.trigger_probability_mode)
+            .or_else(|| self.trigger_gate_modes.get(index).copied())
+            .unwrap_or(TriggerProbabilityMode::Full);
+        if current == TriggerProbabilityMode::Zero {
             let restore = self
                 .trigger_gate_restore_modes
                 .get(index)
-                .and_then(Clone::clone)
-                .unwrap_or_else(|| "full".into());
+                .copied()
+                .flatten()
+                .unwrap_or(TriggerProbabilityMode::Full);
             if let Some(mode) = self.trigger_gate_modes.get_mut(index) {
-                *mode = restore.clone();
+                *mode = restore;
             }
             if let Some(layer) = self.link_layers.get_mut(index) {
-                layer.trigger_probability_mode = restore.clone();
+                layer.trigger_probability_mode = restore;
             }
             if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
                 *slot = None;
             }
-            self.show_toast(format!("L{} triggers {}", index + 1, restore));
+            self.show_toast(format!("L{} triggers {}", index + 1, restore.wire_name()));
         } else {
             self.drain_layer_owned_notes(index);
-            self.apply_trigger_gate_mode_to_layer(index, "zero");
+            self.apply_trigger_gate_mode_to_layer(index, TriggerProbabilityMode::Zero);
             if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
                 *slot = Some(current);
             }

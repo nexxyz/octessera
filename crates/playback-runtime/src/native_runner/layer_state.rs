@@ -5,25 +5,22 @@ impl NativeRunner {
         &self,
         layer_index: usize,
     ) -> platform_core::MappingConfig {
-        self.mapping_config_for_sense(layer_index, self.link_layers.get(layer_index).cloned())
+        self.mapping_config_for_sense(layer_index, self.link_layers.get(layer_index))
     }
 
     pub(super) fn interpretation_profile_for_layer(
         &self,
         layer_index: usize,
     ) -> InterpretationProfile {
-        self.interpretation_profile_for_sense(
-            layer_index,
-            self.link_layers.get(layer_index).cloned(),
-        )
+        self.interpretation_profile_for_sense(layer_index, self.link_layers.get(layer_index))
     }
 
     pub(super) fn mapping_config_for_sense(
         &self,
         _layer_index: usize,
-        sense: Option<NativeLinkLayer>,
+        sense: Option<&NativeLinkLayer>,
     ) -> platform_core::MappingConfig {
-        let Some(sense) = sense.as_ref() else {
+        let Some(sense) = sense else {
             return self.base_mapping_config.clone();
         };
         let mut mapping = self.base_mapping_config.clone();
@@ -47,37 +44,32 @@ impl NativeRunner {
         };
         mapping.scale = platform_core::expand_note_set(&sense.scale, &sense.root)
             .expect("validated note set and root");
-        mapping.activate = trigger_target(sense.activate_slot, &sense.activate_action, 96, 150);
-        mapping.stable = trigger_target(sense.stable_slot, &sense.stable_action, 88, 130);
-        mapping.deactivate =
-            trigger_target(sense.deactivate_slot, &sense.deactivate_action, 68, 90);
-        mapping.scanned = trigger_target(sense.scanned_slot, &sense.scanned_action, 88, 130);
-        mapping.scanned_empty = trigger_target(
-            sense.scanned_empty_slot,
-            &sense.scanned_empty_action,
-            68,
-            90,
-        );
+        mapping.activate = trigger_target(sense.activate_slot, sense.activate_action, 96, 150);
+        mapping.stable = trigger_target(sense.stable_slot, sense.stable_action, 88, 130);
+        mapping.deactivate = trigger_target(sense.deactivate_slot, sense.deactivate_action, 68, 90);
+        mapping.scanned = trigger_target(sense.scanned_slot, sense.scanned_action, 88, 130);
+        mapping.scanned_empty =
+            trigger_target(sense.scanned_empty_slot, sense.scanned_empty_action, 68, 90);
         mapping
     }
 
     pub(super) fn interpretation_profile_for_sense(
         &self,
         _layer_index: usize,
-        sense: Option<NativeLinkLayer>,
+        sense: Option<&NativeLinkLayer>,
     ) -> InterpretationProfile {
-        let Some(sense) = sense.as_ref() else {
+        let Some(sense) = sense else {
             return self.interpretation_profile.clone();
         };
         let mut profile = self.interpretation_profile.clone();
         profile.event.enabled = sense.event_enabled;
-        profile.state.enabled = sense.state_notes_enabled || sense.scan_mode == "scanning";
+        profile.state.enabled = sense.state_notes_enabled || sense.scan_mode == ScanMode::Scanning;
         let sections = if sense.scan_sections <= 1 {
             None
         } else {
             Some(usize::from(sense.scan_sections))
         };
-        profile.state.tick = if sense.scan_mode == "scanning" {
+        profile.state.tick = if sense.scan_mode == ScanMode::Scanning {
             let reverse = sense.scan_direction == "reverse";
             if sense.scan_axis == "columns" {
                 TickStrategy::ScanColumnActive {

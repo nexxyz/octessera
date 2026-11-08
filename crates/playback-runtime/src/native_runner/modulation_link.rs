@@ -1,7 +1,7 @@
 use super::modulation_value::{
     apply_bool_value, apply_i32_value, apply_string_value, apply_u8_enum_value, apply_u8_value,
 };
-use super::{NativeLinkLayer, NativeValueLane, Value};
+use super::{NativeLinkLayer, NativeValueLane, ScanMode, TriggerProbabilityMode, Value};
 
 pub(super) fn apply_link_binding_value(
     layer: &mut NativeLinkLayer,
@@ -9,7 +9,7 @@ pub(super) fn apply_link_binding_value(
     value: Value,
 ) -> bool {
     match field {
-        "scanMode" => apply_scan_mode_value(&mut layer.scan_mode, value),
+        "scanMode" => apply_wire_value(&mut layer.scan_mode, value, ScanMode::from_wire_name),
         "scanAxis" => apply_string_value(&mut layer.scan_axis, value, &["rows", "columns"]),
         "scanUnit" => apply_string_value(
             &mut layer.scan_unit,
@@ -22,10 +22,10 @@ pub(super) fn apply_link_binding_value(
         "scanSections" => apply_u8_enum_value(&mut layer.scan_sections, value, 8),
         "eventEnabled" => apply_bool_value(&mut layer.event_enabled, value),
         "stateNotesEnabled" => apply_bool_value(&mut layer.state_notes_enabled, value),
-        "triggerProbabilityMode" => apply_string_value(
+        "triggerProbabilityMode" => apply_wire_value(
             &mut layer.trigger_probability_mode,
             value,
-            &["zero", "custom", "full"],
+            TriggerProbabilityMode::from_wire_name,
         ),
         "triggerProbabilityLowPct" => {
             apply_u8_value(&mut layer.trigger_probability_low_pct, value, 100)
@@ -83,11 +83,18 @@ fn apply_note_set_value(target: &mut String, value: Value) -> bool {
     apply_string_value(target, Value::String(value.into()), &[])
 }
 
-fn apply_scan_mode_value(target: &mut String, value: Value) -> bool {
-    let Some(value) = value.as_str() else {
+/// Writes a saved value-set value; a value outside the set changes nothing.
+fn apply_wire_value<T: Copy + PartialEq>(
+    target: &mut T,
+    value: Value,
+    from_wire_name: fn(&str) -> Option<T>,
+) -> bool {
+    let Some(value) = value.as_str().and_then(from_wire_name) else {
         return false;
     };
-    apply_string_value(target, Value::String(value.into()), &["none", "scanning"])
+    let changed = *target != value;
+    *target = value;
+    changed
 }
 
 fn apply_value_lane_binding_value(lane: &mut NativeValueLane, field: &str, value: Value) -> bool {

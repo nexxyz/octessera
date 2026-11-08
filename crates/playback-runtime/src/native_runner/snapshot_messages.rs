@@ -314,13 +314,11 @@ impl NativeRunner {
         let mut messages = Vec::new();
         self.apply_runtime_modulation(&result.mapped_intents, layer_index);
         let transpose_offset = self.play_transpose_offset_for_layer(layer_index);
-        let sense = self.link_layers.get(layer_index).cloned();
         let events = self.route_events_with_link_timing(
             layer_index,
             LinkRoutingInput {
                 events: result.events,
                 event_intents: &result.event_intents,
-                sense,
                 transpose_offset,
             },
         )?;

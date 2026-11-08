@@ -1,3 +1,6 @@
+use crate::native_runner::{ScanMode, TriggerProbabilityMode};
+use platform_core::TriggerAction;
+
 use super::link_axis::{axis_group, AxisMenuConfig};
 use super::link_sections::{
     arp_group, events_group, global_link_lfos_group, scanning_group, trigger_probability_group,
@@ -9,28 +12,28 @@ use super::{
 };
 pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
     NativeLinkLayerConfig {
-        scan_mode: "none".into(),
+        scan_mode: ScanMode::None,
         scan_axis: "rows".into(),
         scan_unit: "1/8".into(),
         scan_direction: "forward".into(),
         scan_sections: 1,
         scanned_slot: 0,
-        scanned_action: "note_on".into(),
+        scanned_action: TriggerAction::NoteOn,
         scanned_empty_slot: usize::MAX,
-        scanned_empty_action: "none".into(),
+        scanned_empty_action: TriggerAction::None,
         scanned_timing: Default::default(),
         scanned_empty_timing: Default::default(),
         event_enabled: true,
         activate_slot: 0,
-        activate_action: "note_on".into(),
+        activate_action: TriggerAction::NoteOn,
         activate_timing: Default::default(),
         stable_slot: 0,
-        stable_action: "note_on".into(),
+        stable_action: TriggerAction::NoteOn,
         stable_timing: Default::default(),
         deactivate_slot: 0,
-        deactivate_action: "note_on".into(),
+        deactivate_action: TriggerAction::NoteOn,
         deactivate_timing: Default::default(),
-        trigger_probability_mode: "full".into(),
+        trigger_probability_mode: TriggerProbabilityMode::Full,
         trigger_probability_low_pct: 0,
         trigger_probability_high_pct: 100,
         state_notes_enabled: true,

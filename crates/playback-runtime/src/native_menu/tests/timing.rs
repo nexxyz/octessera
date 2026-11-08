@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_runner::ScanMode;
 
 fn selected_option(root: &NativeMenuItem, key: &str) -> String {
     let item = find_item_by_key(root, key).expect("timing menu item");
@@ -21,7 +22,7 @@ fn item_with_label<'a>(item: &'a NativeMenuItem, label: &str) -> Option<&'a Nati
 pub(crate) fn invalid_timing_menu_labels_use_the_canonical_default() {
     let mut config = config();
     config.link_lfos[0].period = "invalid".into();
-    config.link_layers[0].scan_mode = "scanning".into();
+    config.link_layers[0].scan_mode = ScanMode::Scanning;
     config.link_layers[0].scan_unit = "invalid".into();
     config.fx_buses[0].slot1_type = "delay".into();
     config.fx_buses[0].slot1_params = serde_json::json!({

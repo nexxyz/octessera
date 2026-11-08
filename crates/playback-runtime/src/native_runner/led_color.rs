@@ -1,3 +1,5 @@
+use super::TriggerProbabilityMode;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct LedColor {
     pub r: u8,
@@ -45,10 +47,10 @@ impl LedColor {
     }
 }
 
-pub(super) fn trigger_gate_color(mode: &str) -> LedColor {
+pub(super) fn trigger_gate_color(mode: TriggerProbabilityMode) -> LedColor {
     match mode {
-        "zero" => LedColor::MAGENTA,
-        "custom" => LedColor::YELLOW,
-        _ => LedColor::GREEN,
+        TriggerProbabilityMode::Zero => LedColor::MAGENTA,
+        TriggerProbabilityMode::Custom => LedColor::YELLOW,
+        TriggerProbabilityMode::Full => LedColor::GREEN,
     }
 }

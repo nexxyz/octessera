@@ -41,7 +41,7 @@ pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
         .any(|tile| *tile));
     assert_eq!(runner.instruments[0].kind, InstrumentType::Synth);
     assert_eq!(runner.link_layers[0].activate_slot, 0);
-    assert_eq!(runner.link_layers[0].activate_action, "note_on");
+    assert_eq!(runner.link_layers[0].activate_action, TriggerAction::NoteOn);
     assert!(runner.input_events_while_paused);
 }
 
@@ -147,7 +147,7 @@ pub(crate) fn keys_behavior_reports_momentary_grid_interaction() {
 pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
-    assert_eq!(runner.link_layers[0].scan_mode, "none");
+    assert_eq!(runner.link_layers[0].scan_mode, ScanMode::None);
     assert_eq!(runner.link_layers[0].scan_axis, "columns");
     assert_eq!(runner.link_layers[0].scan_unit, "1/16");
     assert!(runner.link_layers[0].event_enabled);
@@ -165,7 +165,7 @@ pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     assert!(!runner.auto_save_default);
     assert!(runner.trigger_probability_maps[0]
         .iter()
-        .all(|tile| tile == "full"));
+        .all(|tile| *tile == TileProbability::Full));
 }
 
 #[test]
@@ -257,7 +257,7 @@ pub(crate) fn button_s_toggles_transport() {
 #[test]
 pub(crate) fn restart_section_reaches_the_active_scan_profile_on_the_lane_split_axis() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scan_axis = "columns".into();
     runner.link_layers[0].scan_sections = 2;
     runner.menu.rebuild(runner.menu_config());

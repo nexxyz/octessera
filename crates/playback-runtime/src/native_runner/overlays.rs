@@ -3,7 +3,7 @@ use super::play_pages::{ActivePlayMode, PlayMode};
 use super::scan_overlay::{scan_index_for_overlay, scan_section_count};
 use super::{
     display_index, native_binding_from_spec, DisplayTransientPresentation, NativeInstrumentSlot,
-    NativeParamBinding, NativeRunner, GRID_HEIGHT, GRID_WIDTH,
+    NativeParamBinding, NativeRunner, ScanMode, TileProbability, GRID_HEIGHT, GRID_WIDTH,
 };
 
 impl NativeRunner {
@@ -94,11 +94,11 @@ impl NativeRunner {
         };
         for y in 0..GRID_HEIGHT {
             for x in 0..GRID_WIDTH {
-                let color = match map.get(y * GRID_WIDTH + x).map(String::as_str) {
-                    Some("low") => LedColor::MAGENTA,
-                    Some("high") => LedColor::YELLOW,
-                    Some("full") => LedColor::GREEN,
-                    _ => LedColor::BLACK,
+                let color = match map[y * GRID_WIDTH + x] {
+                    TileProbability::Low => LedColor::MAGENTA,
+                    TileProbability::High => LedColor::YELLOW,
+                    TileProbability::Full => LedColor::GREEN,
+                    TileProbability::Zero => LedColor::BLACK,
                 };
                 self.set_display_led(leds, x, y, color);
             }
@@ -183,7 +183,7 @@ impl NativeRunner {
         let Some(sense) = self.link_layers.get(self.active_layer_index) else {
             return;
         };
-        if sense.scan_mode != "scanning" {
+        if sense.scan_mode != ScanMode::Scanning {
             return;
         }
         let reverse = sense.scan_direction == "reverse";

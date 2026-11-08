@@ -416,6 +416,41 @@ pub(crate) fn link_arp_rotating_and_random_vary() {
     );
 }
 
+#[test]
+fn routed_random_arp_draws_from_the_seeded_layer_stream() {
+    for seeded in [false, true] {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        runner.link_layers[0].arp.mode = "random".into();
+        runner.link_layers[0].seeded = seeded;
+        let shared_walk = runner.link_arp.random_state;
+        let intents: Vec<_> = (0..3)
+            .map(|x| {
+                Some(platform_core::TileTriggerIntent {
+                    x,
+                    y: 0,
+                    degree: 0,
+                    kind: platform_core::TileTriggerKind::Activate,
+                })
+            })
+            .collect();
+        runner
+            .route_events_with_link_timing(
+                0,
+                super::super::super::algorithm::LinkRoutingInput {
+                    events: vec![note_on(60), note_on(64), note_on(67)],
+                    event_intents: &intents,
+                    transpose_offset: 0,
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            runner.link_arp.random_state == shared_walk,
+            seeded,
+            "seeded={seeded}"
+        );
+    }
+}
+
 fn note_on(note: u8) -> platform_core::MusicalEvent {
     platform_core::MusicalEvent::NoteOn {
         channel: 0,

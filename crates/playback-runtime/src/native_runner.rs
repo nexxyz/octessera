@@ -113,6 +113,7 @@ mod layer_state;
 mod led_color;
 mod link_arp;
 mod link_routing;
+mod link_scan;
 mod local_patch_document;
 mod looper_config;
 mod menu_apply;
@@ -270,6 +271,7 @@ pub use config_documents::{
 pub use config_schema_validation::is_valid_fx_string_param;
 pub use config_snapshot::NativeConfigSnapshot;
 pub use instrument_type::InstrumentType;
+pub(crate) use link_scan::ScanMode;
 pub use persistence_intent::NativePersistenceIntent;
 pub(crate) use retired_config_keys::without_retired_keys;
 pub use runner_config::NativeRunnerConfig;
@@ -321,7 +323,6 @@ use outbox::NativeRunnerOutbox;
 use pan_position::*;
 use patch_device_payload::*;
 use patch_sample_path::*;
-use play_trigger_gate::*;
 use portable_patch_validation::*;
 use restart_settings::RestartSettingsState;
 use sample_assignment_payload::*;
@@ -331,6 +332,8 @@ use state_link::*;
 use state_types::*;
 use synth_config::*;
 use system_info::*;
+pub(crate) use trigger_probability::TriggerProbabilityMode;
+use trigger_probability::{TileProbability, TileProbabilityMap, FULL_PROBABILITY_MAP};
 use trigger_probability_payload::*;
 use user_data_restore_state::*;
 use velocity_curve::*;
@@ -410,11 +413,11 @@ pub struct NativeRunner {
     aux_auto_map_enabled: bool,
     aux_priority: String,
     param_mods: Vec<NativeParamMods>,
-    trigger_gate_modes: Vec<String>,
-    trigger_gate_restore_modes: Vec<Option<String>>,
+    trigger_gate_modes: Vec<TriggerProbabilityMode>,
+    trigger_gate_restore_modes: Vec<Option<TriggerProbabilityMode>>,
     play_live: play_pages::PlayLiveState,
     transpose: play_transpose::PlayTranspose,
-    trigger_probability_maps: Vec<Vec<String>>,
+    trigger_probability_maps: Vec<TileProbabilityMap>,
     layer_behavior_ids: Vec<String>,
     layer_names: Vec<String>,
     layer_auto_names: Vec<bool>,

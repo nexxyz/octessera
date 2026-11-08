@@ -53,8 +53,8 @@ fn pluck_transposed_held_notes_keep_internal_slot_and_mixer_route() {
     instrument.route = "fx_bus_2".into();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0] = instrument.clone();
-    assert!(runner.play_transpose_target_eligible(0, "note_on"));
-    assert!(runner.play_transpose_target_eligible(0, "note_off"));
+    assert!(runner.play_transpose_target_eligible(0, TriggerAction::NoteOn));
+    assert!(runner.play_transpose_target_eligible(0, TriggerAction::NoteOff));
     let intent = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,

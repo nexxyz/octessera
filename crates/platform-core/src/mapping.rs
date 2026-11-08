@@ -10,6 +10,24 @@ pub enum TriggerAction {
     NoteOff,
 }
 
+impl TriggerAction {
+    pub const ALL: [Self; 3] = [Self::None, Self::NoteOn, Self::NoteOff];
+
+    pub const fn wire_name(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::NoteOn => "note_on",
+            Self::NoteOff => "note_off",
+        }
+    }
+
+    pub fn from_wire_name(value: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|action| action.wire_name() == value)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TriggerTarget {
     pub action: TriggerAction,

@@ -38,6 +38,26 @@ const PLAY_MODES: [&str; 11] = [
     "trigger-gate",
 ];
 
+const SCAN_MODES: [&str; 2] = ["none", "scanning"];
+const LINK_ACTIONS: [&str; 3] = ["none", "note_on", "note_off"];
+const LINK_MAPPINGS: [&str; 5] = [
+    "scanned",
+    "scanned_empty",
+    "activate",
+    "stable",
+    "deactivate",
+];
+const TRIGGER_PROBABILITY_MODES: [&str; 3] = ["zero", "custom", "full"];
+const TILE_PROBABILITIES: [&str; 4] = ["zero", "low", "high", "full"];
+
+fn link_action(layer: usize, mapping: usize) -> &'static str {
+    LINK_ACTIONS[(layer + mapping) % LINK_ACTIONS.len()]
+}
+
+fn tile_probability(layer: usize, tile: usize) -> &'static str {
+    TILE_PROBABILITIES[(layer + tile) % TILE_PROBABILITIES.len()]
+}
+
 fn note_behavior(index: usize, kind: &str) -> &'static str {
     if index % 2 == 1 && !matches!(kind, "drum" | "midi_drum") {
         "hold"
@@ -83,6 +103,23 @@ fn every_enum_fixture(source: &str, voice_stealing: &str, play_mode: &str) -> Va
         instrument["sample"]["filter"]["type"] =
             json!(FILTER_TYPES[(index + 1) % FILTER_TYPES.len()]);
     }
+    for (index, layer) in runtime["layers"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .enumerate()
+    {
+        let link = &mut layer["link"];
+        link["scanMode"] = json!(SCAN_MODES[index % SCAN_MODES.len()]);
+        link["triggerProbabilityMode"] =
+            json!(TRIGGER_PROBABILITY_MODES[index % TRIGGER_PROBABILITY_MODES.len()]);
+        link["triggerProbabilityMap"] = json!((0..64)
+            .map(|tile| tile_probability(index, tile))
+            .collect::<Vec<_>>());
+        for (mapping, key) in LINK_MAPPINGS.iter().enumerate() {
+            link["mapping"][key]["action"] = json!(link_action(index, mapping));
+        }
+    }
     runtime["sound"]["voiceStealingMode"] = json!(voice_stealing);
     runtime["playMode"] = json!(play_mode);
     full["system"]["playMode"] = json!(play_mode);
@@ -113,6 +150,23 @@ fn every_saved_enum_value_loads_and_saves_byte_identically() {
         assert_eq!(runtime["sound"]["voiceStealingMode"], voice_stealing);
         assert_eq!(runtime["playMode"], play_mode);
         assert!(system["runtimeConfig"].get("playMode").is_none());
+        for (index, layer) in runtime["layers"].as_array().unwrap().iter().enumerate() {
+            let link = &layer["link"];
+            assert_eq!(link["scanMode"], SCAN_MODES[index % SCAN_MODES.len()]);
+            assert_eq!(
+                link["triggerProbabilityMode"],
+                TRIGGER_PROBABILITY_MODES[index % TRIGGER_PROBABILITY_MODES.len()]
+            );
+            for tile in 0..64 {
+                assert_eq!(
+                    link["triggerProbabilityMap"][tile],
+                    tile_probability(index, tile)
+                );
+            }
+            for (mapping, key) in LINK_MAPPINGS.iter().enumerate() {
+                assert_eq!(link["mapping"][key]["action"], link_action(index, mapping));
+            }
+        }
         for (index, kind) in INSTRUMENT_TYPES.iter().enumerate() {
             let instrument = &runtime["instruments"][index];
             assert_eq!(instrument["type"], *kind);

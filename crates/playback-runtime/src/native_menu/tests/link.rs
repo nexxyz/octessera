@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_runner::ScanMode;
 
 fn layer_item(menu: &NativeMenuModel, index: usize) -> &NativeMenuItem {
     let prefix = format!("L{}:", index + 1);
@@ -116,7 +117,7 @@ pub(crate) fn conditional_rows_follow_scan_lane_and_sampler_state() {
     assert_eq!(velocity.children[0].label, "Enabled");
 
     let mut cfg = config();
-    cfg.link_layers[0].scan_mode = "scanning".into();
+    cfg.link_layers[0].scan_mode = ScanMode::Scanning;
     cfg.link_layers[0].x_velocity.enabled = true;
     cfg.instrument_types[0] = InstrumentType::Sampler;
     cfg.instrument_sample_velocity_levels_enabled[0] = false;
@@ -206,7 +207,7 @@ pub(crate) fn pitch_note_params_use_canonical_note_name_display() {
 #[test]
 pub(crate) fn link_instrument_targets_show_the_full_name_only_on_the_selected_row() {
     let mut config = config();
-    config.link_layers[0].scan_mode = "scanning".into();
+    config.link_layers[0].scan_mode = ScanMode::Scanning;
     config.instrument_labels[0] = "I1: An Instrument Name Longer Than One OLED Line".into();
     let mut menu = NativeMenuModel::new(config);
     let key = "layers.0.link.mapping.scanned.slot";
@@ -274,7 +275,7 @@ pub(crate) fn link_event_instrument_targets_keep_item_specific_headings() {
 #[test]
 pub(crate) fn scanned_empty_instrument_target_keeps_its_heading() {
     let mut config = config();
-    config.link_layers[0].scan_mode = "scanning".into();
+    config.link_layers[0].scan_mode = ScanMode::Scanning;
     let mut menu = NativeMenuModel::new(config);
     assert!(menu.focus_item_key("layers.0.link.mapping.scanned_empty.slot"));
     let snapshot = menu.snapshot();

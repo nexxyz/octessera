@@ -6,13 +6,13 @@ fn scanning_runner(scan_sections: u8, scan_unit: &str) -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scan_axis = "rows".into();
     runner.link_layers[0].scan_unit = scan_unit.into();
     runner.link_layers[0].scan_sections = scan_sections;
     runner.link_layers[0].scanned_slot = 0;
-    runner.link_layers[0].scanned_action = "note_on".into();
-    runner.link_layers[0].scanned_empty_action = "none".into();
+    runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
+    runner.link_layers[0].scanned_empty_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -87,13 +87,13 @@ fn active_and_inactive_sequencer_replacements_keep_canonical_phase() {
     let mut runner = scanning_runner(1, "1/16");
     runner.select_layer_behavior(1, "sequencer").unwrap();
     runner.select_active_layer(1).unwrap();
-    runner.link_layers[1].scan_mode = "scanning".into();
+    runner.link_layers[1].scan_mode = ScanMode::Scanning;
     runner.link_layers[1].scan_axis = "rows".into();
     runner.link_layers[1].scan_unit = "1/8".into();
     runner.link_layers[1].event_enabled = false;
     runner.link_layers[1].scanned_slot = 0;
-    runner.link_layers[1].scanned_action = "note_on".into();
-    runner.link_layers[1].scanned_empty_action = "none".into();
+    runner.link_layers[1].scanned_action = TriggerAction::NoteOn;
+    runner.link_layers[1].scanned_empty_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -134,7 +134,7 @@ fn origin_prime_uses_each_scanning_layer_rate() {
     let mut runner = scanning_runner(1, "1/16");
     runner.select_layer_behavior(1, "sequencer").unwrap();
     runner.select_active_layer(1).unwrap();
-    runner.link_layers[1].scan_mode = "scanning".into();
+    runner.link_layers[1].scan_mode = ScanMode::Scanning;
     runner.link_layers[1].scan_axis = "rows".into();
     runner.link_layers[1].scan_unit = "1/8".into();
     runner.refresh_active_mapping_config();

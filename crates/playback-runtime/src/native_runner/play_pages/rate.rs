@@ -118,7 +118,7 @@ impl NativeRunner {
     fn layer_is_scanning(&self, layer: usize) -> bool {
         self.link_layers
             .get(layer)
-            .is_some_and(|link| link.scan_mode == "scanning")
+            .is_some_and(|link| link.scan_mode == super::super::ScanMode::Scanning)
     }
 
     fn play_rate_current_unit(&self, layer: usize, scan_view: bool) -> &'static str {

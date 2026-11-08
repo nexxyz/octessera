@@ -1,7 +1,9 @@
 use super::payload_assign::{
     apply_value_lane_payload, assign_bool, assign_i32, assign_mapping, assign_string, assign_u8,
 };
-use super::{LinkEventTiming, NativeLinkArp, NativeLinkLayer, Value};
+use super::{
+    LinkEventTiming, NativeLinkArp, NativeLinkLayer, ScanMode, TriggerProbabilityMode, Value,
+};
 
 pub(super) fn apply_link_payload(layer: &mut NativeLinkLayer, payload: &Value) {
     apply_scan_and_trigger_payload(layer, payload);
@@ -57,7 +59,13 @@ fn apply_arp_payload(layer: &mut NativeLinkLayer, payload: &Value) {
 }
 
 fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &Value) {
-    assign_scan_mode(payload, &mut layer.scan_mode);
+    if let Some(mode) = payload
+        .get("scanMode")
+        .and_then(Value::as_str)
+        .and_then(ScanMode::from_wire_name)
+    {
+        layer.scan_mode = mode;
+    }
     assign_string(payload, "scanAxis", &mut layer.scan_axis);
     assign_string(payload, "scanUnit", &mut layer.scan_unit);
     assign_string(payload, "scanDirection", &mut layer.scan_direction);
@@ -71,11 +79,13 @@ fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &Value) 
     if let Some(seeded) = payload.get("seeded").and_then(Value::as_bool) {
         layer.seeded = seeded;
     }
-    assign_string(
-        payload,
-        "triggerProbabilityMode",
-        &mut layer.trigger_probability_mode,
-    );
+    if let Some(mode) = payload
+        .get("triggerProbabilityMode")
+        .and_then(Value::as_str)
+        .and_then(TriggerProbabilityMode::from_wire_name)
+    {
+        layer.trigger_probability_mode = mode;
+    }
     assign_u8(
         payload,
         "triggerProbabilityLowPct",
@@ -88,12 +98,6 @@ fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &Value) 
         &mut layer.trigger_probability_high_pct,
         100,
     );
-}
-
-fn assign_scan_mode(payload: &Value, target: &mut String) {
-    if let Some(value) = payload.get("scanMode").and_then(Value::as_str) {
-        *target = value.into();
-    }
 }
 
 fn apply_mapping_payload(layer: &mut NativeLinkLayer, payload: &Value) {

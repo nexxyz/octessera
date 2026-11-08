@@ -336,8 +336,8 @@ fn fm_held_notes_transpose_and_route_to_internal_audio_on_the_original_slot() {
     instrument.route = "fx_bus_2".into();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0] = instrument.clone();
-    assert!(runner.play_transpose_target_eligible(0, "note_on"));
-    assert!(runner.play_transpose_target_eligible(0, "note_off"));
+    assert!(runner.play_transpose_target_eligible(0, TriggerAction::NoteOn));
+    assert!(runner.play_transpose_target_eligible(0, TriggerAction::NoteOff));
     let intent = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,

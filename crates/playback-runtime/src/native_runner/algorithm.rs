@@ -1,6 +1,8 @@
 use super::modulation::RoutedMusicalEvents;
 use super::trigger_probability::trigger_probability_allows;
-use super::{NativeRunner, RuntimeTransportState, SyncSource, TransportFlash, GRID_HEIGHT};
+use super::{
+    NativeRunner, RuntimeTransportState, ScanMode, SyncSource, TransportFlash, GRID_HEIGHT,
+};
 use crate::timing_units::{BAR_PULSES, BEAT_PULSES};
 use platform_core::DeviceInput;
 use swing::Swing;
@@ -28,12 +30,8 @@ impl NativeRunner {
         let paused = self.transport.transport != RuntimeTransportState::Playing
             && !self.input_events_while_paused;
         let bpm = self.transport.bpm as f32;
-        let sense = self.link_layers.get(layer_index).cloned();
-        let probability_map = self
-            .trigger_probability_maps
-            .get(layer_index)
-            .cloned()
-            .unwrap_or_default();
+        let sense = self.link_layers.get(layer_index);
+        let probability_map = self.trigger_probability_maps.get(layer_index);
         let mut rng = self.probability_rng(layer_index);
         let engine = if layer_index == self.active_layer_index {
             &mut self.engine
@@ -54,7 +52,7 @@ impl NativeRunner {
             });
         }
         let result = engine.on_input_with_events_filtered(input, bpm, |intent| {
-            trigger_probability_allows(sense.as_ref(), &probability_map, &mut rng, intent)
+            trigger_probability_allows(sense, probability_map, &mut rng, intent)
         })?;
         self.store_probability_rng(layer_index, rng);
         Ok(result)
@@ -66,10 +64,7 @@ impl NativeRunner {
         let layer_index = self.active_layer_index;
         let mut rng = self.probability_rng(layer_index);
         let sense = self.link_layers.get(layer_index);
-        let probability_map = self
-            .trigger_probability_maps
-            .get(layer_index)
-            .map_or(&[][..], Vec::as_slice);
+        let probability_map = self.trigger_probability_maps.get(layer_index);
         let result = self
             .engine
             .tick_filtered(self.transport.bpm as f32, |intent| {
@@ -120,7 +115,7 @@ impl NativeRunner {
                 && self
                     .link_layers
                     .get(index)
-                    .is_some_and(|layer| layer.scan_mode == "scanning")
+                    .is_some_and(|layer| layer.scan_mode == ScanMode::Scanning)
             {
                 let step_pulses = self.step_pulses_for_layer(index);
                 if let Some(accumulator) = self.transport.layer_pulse_accumulators.get_mut(index) {
@@ -136,7 +131,7 @@ impl NativeRunner {
 
     pub(super) fn step_pulses_for_layer(&self, index: usize) -> u32 {
         if let Some(layer) = self.link_layers.get(index) {
-            if layer.scan_mode == "scanning" {
+            if layer.scan_mode == ScanMode::Scanning {
                 return crate::timing_units::note_unit_to_pulses(&layer.scan_unit);
             }
         }
@@ -246,13 +241,11 @@ impl NativeRunner {
             push_tick_events(events, &mut self.transport.swung_events, offset, due_events);
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
             let transpose_offset = self.play_transpose_offset_for_layer(self.active_layer_index);
-            let sense = self.link_layers.get(self.active_layer_index).cloned();
             let tick_events = self.route_events_with_link_timing(
                 self.active_layer_index,
                 LinkRoutingInput {
                     events: tick.events,
                     event_intents: &tick.event_intents,
-                    sense,
                     transpose_offset,
                 },
             )?;

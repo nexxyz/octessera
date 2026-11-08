@@ -14,13 +14,13 @@ fn eighth_note_layer(swing: (u8, u8)) -> NativeRunner {
 
 fn start_eighth_note_layer(mut runner: NativeRunner, swing: (u8, u8)) -> NativeRunner {
     let layer = &mut runner.link_layers[0];
-    layer.scan_mode = "scanning".into();
+    layer.scan_mode = ScanMode::Scanning;
     layer.scan_axis = "rows".into();
     layer.scan_unit = "1/8".into();
     layer.scan_sections = 1;
     layer.scanned_slot = 0;
-    layer.scanned_action = "note_on".into();
-    layer.scanned_empty_action = "none".into();
+    layer.scanned_action = TriggerAction::NoteOn;
+    layer.scanned_empty_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

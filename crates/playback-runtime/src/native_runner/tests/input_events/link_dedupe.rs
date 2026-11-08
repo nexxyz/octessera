@@ -340,9 +340,9 @@ pub(crate) fn probability_filtering_happens_before_local_dedupe() {
     }
     payload["runtimeConfig"]["layers"][0]["build"]["savedState"]["cells"] = json!(cells);
     runner.apply_config_payload(payload).unwrap();
-    runner.link_layers[0].trigger_probability_mode = "custom".into();
-    runner.trigger_probability_maps[0].fill("full".into());
-    runner.trigger_probability_maps[0][5 * 8 + 3] = "zero".into();
+    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
+    runner.trigger_probability_maps[0].fill(TileProbability::Full);
+    runner.trigger_probability_maps[0][5 * 8 + 3] = TileProbability::Zero;
     runner.link_layers[0].x_velocity = NativeValueLane {
         enabled: true,
         from: 10,

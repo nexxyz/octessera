@@ -126,14 +126,11 @@ impl NativeRunner {
             aux_auto_map_enabled: seed.aux_auto_map_enabled,
             aux_priority: seed.aux_priority,
             param_mods: seed.param_mods,
-            trigger_gate_modes: vec!["full".into(); LAYER_COUNT],
+            trigger_gate_modes: vec![TriggerProbabilityMode::Full; LAYER_COUNT],
             trigger_gate_restore_modes: vec![None; LAYER_COUNT],
             play_live: Default::default(),
             transpose: Default::default(),
-            trigger_probability_maps: vec![
-                vec!["full".into(); GRID_WIDTH * GRID_HEIGHT];
-                LAYER_COUNT
-            ],
+            trigger_probability_maps: vec![FULL_PROBABILITY_MAP; LAYER_COUNT],
             layer_behavior_ids: seed.layer_behavior_ids,
             layer_names: seed.layer_names,
             layer_auto_names: seed.layer_auto_names,

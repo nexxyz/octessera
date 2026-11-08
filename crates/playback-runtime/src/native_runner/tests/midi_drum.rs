@@ -305,7 +305,7 @@ fn mute_disabled_output_and_a_closed_trigger_gate_block_midi_drum_notes() {
 
     let mode = std::mem::replace(
         &mut rig.runner.link_layers[0].trigger_probability_mode,
-        "zero".into(),
+        TriggerProbabilityMode::Zero,
     );
     rig.press(2, 3);
     assert!(rig.take_notes().is_empty(), "zero probability");

@@ -1,8 +1,8 @@
 use super::play_fx_config::{play_fx_param_specs, play_fx_target_key, play_fx_type};
 use super::{
     apply_value_lane_menu_state, json, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
-    set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, NativeLinkLayer,
-    NativeRunner, Value,
+    set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, set_wire_from_menu,
+    NativeLinkLayer, NativeRunner, ScanMode, TriggerAction, TriggerProbabilityMode, Value,
 };
 impl NativeRunner {
     pub(super) fn apply_play_fx_menu_state(&mut self) -> bool {
@@ -115,7 +115,12 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
     prefix: &str,
 ) -> bool {
     let mut changed = false;
-    changed |= set_string_from_menu(menu, &mut layer.scan_mode, &format!("{prefix}.scanMode"));
+    changed |= set_wire_from_menu(
+        menu,
+        &mut layer.scan_mode,
+        &format!("{prefix}.scanMode"),
+        ScanMode::from_wire_name,
+    );
     changed |= set_string_from_menu(menu, &mut layer.scan_axis, &format!("{prefix}.scanAxis"));
     changed |= set_string_from_menu(menu, &mut layer.scan_unit, &format!("{prefix}.scanUnit"));
     changed |= set_string_from_menu(
@@ -134,10 +139,11 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
         &mut layer.scanned_slot,
         &format!("{prefix}.mapping.scanned.slot"),
     );
-    changed |= set_string_from_menu(
+    changed |= set_wire_from_menu(
         menu,
         &mut layer.scanned_action,
         &format!("{prefix}.mapping.scanned.action"),
+        TriggerAction::from_wire_name,
     );
     changed |= set_u8_from_menu(
         menu,
@@ -156,10 +162,11 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
         &mut layer.scanned_empty_slot,
         &format!("{prefix}.mapping.scanned_empty.slot"),
     );
-    changed |= set_string_from_menu(
+    changed |= set_wire_from_menu(
         menu,
         &mut layer.scanned_empty_action,
         &format!("{prefix}.mapping.scanned_empty.action"),
+        TriggerAction::from_wire_name,
     );
     changed |= set_u8_from_menu(
         menu,
@@ -188,10 +195,11 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
         &mut layer.activate_slot,
         &format!("{prefix}.mapping.activate.slot"),
     );
-    changed |= set_string_from_menu(
+    changed |= set_wire_from_menu(
         menu,
         &mut layer.activate_action,
         &format!("{prefix}.mapping.activate.action"),
+        TriggerAction::from_wire_name,
     );
     changed |= set_u8_from_menu(
         menu,
@@ -210,10 +218,11 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
         &mut layer.stable_slot,
         &format!("{prefix}.mapping.stable.slot"),
     );
-    changed |= set_string_from_menu(
+    changed |= set_wire_from_menu(
         menu,
         &mut layer.stable_action,
         &format!("{prefix}.mapping.stable.action"),
+        TriggerAction::from_wire_name,
     );
     changed |= set_u8_from_menu(
         menu,
@@ -232,10 +241,11 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
         &mut layer.deactivate_slot,
         &format!("{prefix}.mapping.deactivate.slot"),
     );
-    changed |= set_string_from_menu(
+    changed |= set_wire_from_menu(
         menu,
         &mut layer.deactivate_action,
         &format!("{prefix}.mapping.deactivate.action"),
+        TriggerAction::from_wire_name,
     );
     changed |= set_u8_from_menu(
         menu,
@@ -258,10 +268,11 @@ pub(super) fn apply_link_probability_and_pitch_menu_state(
     prefix: &str,
 ) -> bool {
     let mut changed = false;
-    changed |= set_string_from_menu(
+    changed |= set_wire_from_menu(
         menu,
         &mut layer.trigger_probability_mode,
         &format!("{prefix}.triggerProbabilityMode"),
+        TriggerProbabilityMode::from_wire_name,
     );
     changed |= set_bool_from_menu(menu, &mut layer.seeded, &format!("{prefix}.seeded"));
     changed |= set_u8_from_menu(

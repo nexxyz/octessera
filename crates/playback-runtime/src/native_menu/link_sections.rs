@@ -1,8 +1,11 @@
 use super::{
     action_item, bool_item, enum_item, enum_item_from_strings, group, number_item,
-    parameter_picker_group_numeric, selected_index, slot_option_selected, NativeLinkArpConfig,
-    NativeLinkLayerConfig, NativeLinkLfoConfig, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+    parameter_picker_group_numeric, selected_index, slot_option_selected, wire_enum_item,
+    NativeLinkArpConfig, NativeLinkLayerConfig, NativeLinkLfoConfig, NativeMenuAction,
+    NativeMenuConfig, NativeMenuItem,
 };
+use crate::native_runner::{ScanMode, TriggerProbabilityMode};
+use platform_core::TriggerAction;
 
 pub(super) fn arp_group(prefix: &str, arp: &NativeLinkArpConfig) -> NativeMenuItem {
     group(
@@ -141,13 +144,14 @@ pub(super) fn scanning_group(
     sense: &NativeLinkLayerConfig,
     instrument_options: &[String],
 ) -> NativeMenuItem {
-    let mut children = vec![enum_item(
+    let mut children = vec![wire_enum_item(
         "Scan Mode",
         format!("{prefix}.scanMode"),
-        vec!["none", "scanning"],
-        selected_index(&["none", "scanning"], &sense.scan_mode),
+        ScanMode::ALL,
+        ScanMode::wire_name,
+        sense.scan_mode,
     )];
-    if sense.scan_mode == "scanning" {
+    if sense.scan_mode == ScanMode::Scanning {
         children.extend(vec![
             enum_item(
                 "Scan Axis",
@@ -179,11 +183,12 @@ pub(super) fn scanning_group(
                 instrument_options.to_vec(),
                 slot_option_selected(sense.scanned_slot, instrument_options.len()),
             ),
-            enum_item(
+            wire_enum_item(
                 "Action",
                 format!("{prefix}.mapping.scanned.action"),
-                vec!["none", "note_on", "note_off"],
-                selected_index(&["none", "note_on", "note_off"], &sense.scanned_action),
+                TriggerAction::ALL,
+                TriggerAction::wire_name,
+                sense.scanned_action,
             ),
             timing_item(
                 "Scan Delay",
@@ -203,14 +208,12 @@ pub(super) fn scanning_group(
                 instrument_options.to_vec(),
                 slot_option_selected(sense.scanned_empty_slot, instrument_options.len()),
             ),
-            enum_item(
+            wire_enum_item(
                 "Empty Act",
                 format!("{prefix}.mapping.scanned_empty.action"),
-                vec!["none", "note_on", "note_off"],
-                selected_index(
-                    &["none", "note_on", "note_off"],
-                    &sense.scanned_empty_action,
-                ),
+                TriggerAction::ALL,
+                TriggerAction::wire_name,
+                sense.scanned_empty_action,
             ),
             timing_item(
                 "Empty Delay",
@@ -251,7 +254,7 @@ pub(super) fn events_group(
         "Activate",
         "activate",
         sense.activate_slot,
-        &sense.activate_action,
+        sense.activate_action,
         sense.activate_timing,
         instrument_options,
     ));
@@ -260,7 +263,7 @@ pub(super) fn events_group(
         "Stable",
         "stable",
         sense.stable_slot,
-        &sense.stable_action,
+        sense.stable_action,
         sense.stable_timing,
         instrument_options,
     ));
@@ -269,7 +272,7 @@ pub(super) fn events_group(
         "Deactivate",
         "deactivate",
         sense.deactivate_slot,
-        &sense.deactivate_action,
+        sense.deactivate_action,
         sense.deactivate_timing,
         instrument_options,
     ));
@@ -284,11 +287,12 @@ pub(super) fn trigger_probability_group(
     group(
         "Trigger Prob.",
         vec![
-            enum_item(
+            wire_enum_item(
                 "Mode",
                 format!("{prefix}.triggerProbabilityMode"),
-                vec!["zero", "custom", "full"],
-                selected_index(&["zero", "custom", "full"], &sense.trigger_probability_mode),
+                TriggerProbabilityMode::ALL,
+                TriggerProbabilityMode::wire_name,
+                sense.trigger_probability_mode,
             ),
             number_item(
                 "Prob Low",
@@ -320,7 +324,7 @@ fn event_mapping_item(
     label: &str,
     key: &str,
     slot: usize,
-    action: &str,
+    action: TriggerAction,
     timing: super::LinkEventTimingConfig,
     instrument_options: &[String],
 ) -> Vec<NativeMenuItem> {
@@ -337,11 +341,12 @@ fn event_mapping_item(
             instrument_options.to_vec(),
             slot_option_selected(slot, instrument_options.len()),
         ),
-        enum_item(
+        wire_enum_item(
             format!("{short_label} Trig"),
             format!("{prefix}.mapping.{key}.action"),
-            vec!["none", "note_on", "note_off"],
-            selected_index(&["none", "note_on", "note_off"], action),
+            TriggerAction::ALL,
+            TriggerAction::wire_name,
+            action,
         ),
         timing_item(
             format!("{short_label} Delay"),

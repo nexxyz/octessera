@@ -191,7 +191,7 @@ fn shift_press_on_a_layer_that_is_not_scanning_changes_nothing() {
 
     shift_press(&mut runner, 5, 2);
     assert_eq!(toast(&runner), "L3: not scanning");
-    assert_eq!(runner.link_layers[2].scan_mode, "none");
+    assert_eq!(runner.link_layers[2].scan_mode, ScanMode::None);
     assert_eq!(runner.link_layers[2].scan_unit, "1/16");
     assert_eq!(runner.transport.layer_algorithm_step_pulses[2], step_rate);
     assert!(!runner.play_live.rate_resyncs[2]);
@@ -234,14 +234,14 @@ fn pressing_the_lit_step_rate_tile_resyncs_the_layer_to_the_next_bar() {
 fn scanning_rows_runner() -> NativeRunner {
     let mut runner = rate_runner();
     let link = &mut runner.link_layers[0];
-    link.scan_mode = "scanning".into();
+    link.scan_mode = ScanMode::Scanning;
     link.scan_axis = "rows".into();
     link.scan_unit = "1/8T".into();
     link.event_enabled = false;
     link.scanned_slot = 0;
-    link.scanned_action = "note_on".into();
+    link.scanned_action = TriggerAction::NoteOn;
     link.scanned_empty_slot = 0;
-    link.scanned_empty_action = "note_on".into();
+    link.scanned_empty_action = TriggerAction::NoteOn;
     link.y_pitch_enabled = true;
     link.y_pitch_steps = 1;
     runner.refresh_active_mapping_config();

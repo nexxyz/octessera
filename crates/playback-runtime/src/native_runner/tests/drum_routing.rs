@@ -146,7 +146,6 @@ fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_
             LinkRoutingInput {
                 events: vec![note(), note()],
                 event_intents: &[Some(intent(2, 0)), Some(intent(3, 0))],
-                sense: Some(runner.link_layers[0].clone()),
                 transpose_offset: 12,
             },
         )
@@ -181,7 +180,6 @@ fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_
                     },
                 ],
                 event_intents: &[Some(intent(2, 0)), Some(intent(3, 0)), Some(intent(2, 0))],
-                sense: Some(runner.link_layers[0].clone()),
                 transpose_offset: 0,
             },
         )
@@ -272,7 +270,7 @@ fn saved_hold_is_effectively_oneshot_and_probability_zero_blocks_behavior_hits()
         RunnerMessage::MidiEvents { .. } | RunnerMessage::MusicalEvents { .. }
     )));
 
-    runner.link_layers[0].trigger_probability_mode = "zero".into();
+    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Zero;
     runner.refresh_active_interpretation_profile();
     let blocked = runner
         .send(HostMessage::DeviceInput {

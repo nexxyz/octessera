@@ -205,7 +205,7 @@ pub(crate) fn snapshot_owns_inactive_grid_layer_link_audio_and_sample_config() {
         .unwrap();
     runner.layer_behavior_ids[1] = "sequencer".into();
     runner.link_layers[1].lowest_note = 37;
-    runner.trigger_probability_maps[1] = vec!["0:0:73".into()];
+    runner.trigger_probability_maps[1][0] = TileProbability::Low;
     runner.instruments[0].sample_paths[0] = Some("samples/captured.wav".into());
     runner.instruments[0].synth_config["opaqueExtension"] = json!({ "preserve": true });
     runner.fx_buses[0].volume_pct = 63;
@@ -236,7 +236,7 @@ pub(crate) fn snapshot_owns_inactive_grid_layer_link_audio_and_sample_config() {
         json!([4, 5])
     );
     assert_eq!(layers[1]["link"]["pitch"]["lowestNote"], 37);
-    assert_eq!(layers[1]["link"]["triggerProbabilityMap"][0], "0:0:73");
+    assert_eq!(layers[1]["link"]["triggerProbabilityMap"][0], "low");
     assert_eq!(
         payload["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["path"],
         "samples/captured.wav"

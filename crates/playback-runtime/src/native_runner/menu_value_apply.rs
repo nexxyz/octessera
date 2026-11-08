@@ -10,6 +10,24 @@ pub(super) fn set_string_from_menu(menu: &NativeMenuModel, target: &mut String, 
     false
 }
 
+/// Takes a value-set row's value; a value outside the set changes nothing.
+pub(super) fn set_wire_from_menu<T: Copy + PartialEq>(
+    menu: &NativeMenuModel,
+    target: &mut T,
+    key: &str,
+    from_wire_name: fn(&str) -> Option<T>,
+) -> bool {
+    let Some(value) = menu
+        .value_for_key(key)
+        .and_then(|value| from_wire_name(&value))
+    else {
+        return false;
+    };
+    let changed = *target != value;
+    *target = value;
+    changed
+}
+
 pub(super) fn set_bool_from_menu(menu: &NativeMenuModel, target: &mut bool, key: &str) -> bool {
     if let Some(value) = menu.value_for_key(key).map(|value| value == "true") {
         if *target != value {

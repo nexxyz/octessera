@@ -1,7 +1,10 @@
 use crate::native_runner::play_pages::PlayMode;
-use crate::native_runner::{AudioOptimization, AudioOutputSet, InstrumentType, UsbDataRole};
+use crate::native_runner::{
+    AudioOptimization, AudioOutputSet, InstrumentType, ScanMode, TriggerProbabilityMode,
+    UsbDataRole,
+};
 use crate::protocol::SyncSource;
-use platform_core::NoteBehavior;
+use platform_core::{NoteBehavior, TriggerAction};
 use realtime_engine::synth::{DspRuntimeConfig, VoiceStealingMode};
 
 use super::{NativeMenuAction, NativeMenuItem, NativeParamBindingSpec};
@@ -173,28 +176,28 @@ pub struct NativeAuxBindingConfig {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeLinkLayerConfig {
-    pub scan_mode: String,
+    pub scan_mode: ScanMode,
     pub scan_axis: String,
     pub scan_unit: String,
     pub scan_direction: String,
     pub scan_sections: u8,
     pub scanned_slot: usize,
-    pub scanned_action: String,
+    pub scanned_action: TriggerAction,
     pub scanned_empty_slot: usize,
-    pub scanned_empty_action: String,
+    pub scanned_empty_action: TriggerAction,
     pub scanned_timing: LinkEventTimingConfig,
     pub scanned_empty_timing: LinkEventTimingConfig,
     pub event_enabled: bool,
     pub activate_slot: usize,
-    pub activate_action: String,
+    pub activate_action: TriggerAction,
     pub activate_timing: LinkEventTimingConfig,
     pub stable_slot: usize,
-    pub stable_action: String,
+    pub stable_action: TriggerAction,
     pub stable_timing: LinkEventTimingConfig,
     pub deactivate_slot: usize,
-    pub deactivate_action: String,
+    pub deactivate_action: TriggerAction,
     pub deactivate_timing: LinkEventTimingConfig,
-    pub trigger_probability_mode: String,
+    pub trigger_probability_mode: TriggerProbabilityMode,
     pub trigger_probability_low_pct: u8,
     pub trigger_probability_high_pct: u8,
     pub state_notes_enabled: bool,

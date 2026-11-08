@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_runner::ScanMode;
 
 #[test]
 pub(crate) fn unavailable_sample_display_uses_basename_across_separators() {
@@ -125,7 +126,7 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
     }
 
     let mut scanning = config();
-    scanning.link_layers[0].scan_mode = "scanning".into();
+    scanning.link_layers[0].scan_mode = ScanMode::Scanning;
     scanning.link_layers[0].x_velocity.enabled = true;
     scanning.link_layers[0].x_filter_cutoff.enabled = true;
     scanning.link_layers[0].x_filter_resonance.enabled = true;

@@ -20,7 +20,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
         "Factory loaded"
     );
 
-    runner.link_layers[1].scan_mode = "scanning".into();
+    runner.link_layers[1].scan_mode = ScanMode::Scanning;
     runner.select_active_layer(1).unwrap();
     runner
         .send(HostMessage::DeviceInput {
@@ -142,7 +142,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
         .trigger_probability_maps
         .iter()
         .flatten()
-        .all(|mode| mode == "full"));
+        .all(|mode| *mode == TileProbability::Full));
     assert_eq!(runner.current_preset_name, None);
     assert_eq!(runner.preset_rename_source, None);
     assert_ne!(runner.preset_draft_name, "custom draft");
@@ -266,11 +266,11 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
         tune_semis: 0,
         tune_cents: 0,
     }];
-    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scan_axis = "rows".into();
     runner.link_layers[0].scan_unit = "1/16".into();
     runner.link_layers[0].scanned_slot = 0;
-    runner.link_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

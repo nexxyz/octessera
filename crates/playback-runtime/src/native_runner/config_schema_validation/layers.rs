@@ -5,6 +5,8 @@ use super::canonical::{
 use super::mapping_bindings::validate_mapping;
 use super::modulation::validate_layer_modulation;
 use super::Value;
+use crate::native_runner::trigger_probability::TileProbability;
+use crate::native_runner::{ScanMode, TriggerProbabilityMode};
 use crate::timing_units::NOTE_UNIT_OPTIONS;
 use platform_core::{note_set_ids, LAYER_COUNT, NOTE_SET_ROOTS};
 use serde_json::Map;
@@ -56,7 +58,12 @@ pub(super) fn validate_layers(runtime: &Map<String, Value>) -> Result<(), String
 }
 
 fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
-    enum_field(link, "scanMode", path, &["none", "scanning"])?;
+    enum_field(
+        link,
+        "scanMode",
+        path,
+        &ScanMode::ALL.map(ScanMode::wire_name),
+    )?;
     enum_field(link, "scanAxis", path, &["rows", "columns"])?;
     enum_field(link, "scanUnit", path, NOTE_UNIT_OPTIONS)?;
     enum_field(link, "scanDirection", path, &["forward", "reverse"])?;
@@ -70,7 +77,7 @@ fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
         link,
         "triggerProbabilityMode",
         path,
-        &["zero", "custom", "full"],
+        &TriggerProbabilityMode::ALL.map(TriggerProbabilityMode::wire_name),
     )?;
     for key in ["triggerProbabilityLowPct", "triggerProbabilityHighPct"] {
         unsigned_field(link, key, path, 0, 100)?;
@@ -80,7 +87,7 @@ fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
             enum_value(
                 value,
                 &format!("{path}.triggerProbabilityMap[{index}]"),
-                &["zero", "low", "high", "full"],
+                &TileProbability::ALL.map(TileProbability::wire_name),
             )?;
         }
     }

@@ -84,7 +84,7 @@ struct NativeLayerConfigSnapshot {
     name: String,
     auto_name: bool,
     link: NativeLinkLayer,
-    trigger_probability_map: Vec<String>,
+    trigger_probability_map: TileProbabilityMap,
     param_mods: Option<NativeParamMods>,
     saved_state: Option<(NativeBehavior, NativeBehaviorState)>,
 }
@@ -294,8 +294,8 @@ impl NativeConfigSnapshot {
                     trigger_probability_map: runner
                         .trigger_probability_maps
                         .get(index)
-                        .cloned()
-                        .unwrap_or_default(),
+                        .copied()
+                        .unwrap_or(FULL_PROBABILITY_MAP),
                     param_mods: runner.param_mods.get(index).cloned(),
                     saved_state,
                 }

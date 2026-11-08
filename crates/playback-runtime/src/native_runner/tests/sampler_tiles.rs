@@ -62,7 +62,6 @@ fn route(
             LinkRoutingInput {
                 events,
                 event_intents: intents,
-                sense: Some(runner.link_layers[0].clone()),
                 transpose_offset: 0,
             },
         )

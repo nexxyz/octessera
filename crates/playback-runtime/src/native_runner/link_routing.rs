@@ -9,7 +9,6 @@ use std::collections::HashMap;
 pub(super) struct LinkRoutingInput<'a> {
     pub(super) events: Vec<MusicalEvent>,
     pub(super) event_intents: &'a [Option<TileTriggerIntent>],
-    pub(super) sense: Option<super::NativeLinkLayer>,
     pub(super) transpose_offset: i8,
 }
 
@@ -67,7 +66,6 @@ impl NativeRunner {
             return routed;
         }
         let timing = link_timing_for_intents(sense, intents);
-        let arp = sense.map(|layer| layer.arp.clone());
         self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, timing.delay_steps);
         let retrigger_count = if routed_contains_held_note_on(&routed)
             || routed
@@ -79,12 +77,12 @@ impl NativeRunner {
         } else {
             timing.retrigger_count
         };
-        if let Some(arp) = arp.filter(|arp| arp.mode != "none") {
+        if let Some(link) = sense.filter(|link| link.arp.mode != "none") {
             return self.apply_link_arp_timing(
                 layer_index,
                 timing,
                 timing.retrigger_count,
-                &arp,
+                link,
                 routed,
                 midi_drum_channels,
             );
@@ -140,16 +138,23 @@ impl NativeRunner {
         });
     }
 
-    /// Routes with the runner's instrument slots lent out for the call instead
-    /// of cloned per tick or press; routing never reads `self.instruments`.
+    /// Routes with the runner's instrument slots and Link layers lent out for the call instead
+    /// of cloned per tick or press; routing never reads `self.instruments` or `self.link_layers`.
     pub(super) fn route_events_with_link_timing(
         &mut self,
         layer_index: usize,
         input: LinkRoutingInput<'_>,
     ) -> Result<RoutedMusicalEvents, String> {
         let instruments = std::mem::take(&mut self.instruments);
-        let routed = self.route_with_instruments(layer_index, input, &instruments);
+        let link_layers = std::mem::take(&mut self.link_layers);
+        let routed = self.route_with_instruments(
+            layer_index,
+            input,
+            &instruments,
+            link_layers.get(layer_index),
+        );
         self.instruments = instruments;
+        self.link_layers = link_layers;
         let mut routed = routed?;
         self.drop_muted_midi_note_ons(&mut routed);
         Ok(routed)
@@ -160,11 +165,11 @@ impl NativeRunner {
         layer_index: usize,
         input: LinkRoutingInput<'_>,
         instruments: &[super::NativeInstrumentSlot],
+        sense: Option<&super::NativeLinkLayer>,
     ) -> Result<RoutedMusicalEvents, String> {
         let LinkRoutingInput {
             events,
             event_intents,
-            sense,
             transpose_offset,
         } = input;
         if events.len() != event_intents.len() {
@@ -185,7 +190,7 @@ impl NativeRunner {
                     &[],
                     0,
                     instruments,
-                    sense.as_ref(),
+                    sense,
                     transpose_offset,
                     self.transpose.active_notes.get_mut(layer_index),
                 );
@@ -216,7 +221,7 @@ impl NativeRunner {
                 &grouped_intents,
                 0,
                 instruments,
-                sense.as_ref(),
+                sense,
                 transpose_offset,
                 self.transpose.active_notes.get_mut(layer_index),
             );
@@ -225,7 +230,7 @@ impl NativeRunner {
                 layer_index,
                 &grouped_intents,
                 routed,
-                sense.as_ref(),
+                sense,
                 midi_drum_channels,
             ));
             event_index = end;

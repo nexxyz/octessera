@@ -3,7 +3,7 @@ use super::canonical::{
     string_field, unsigned_field, unsigned_value_range,
 };
 use super::Value;
-use platform_core::{INSTRUMENT_COUNT, LAYER_COUNT};
+use platform_core::{TriggerAction, INSTRUMENT_COUNT, LAYER_COUNT};
 use serde_json::Map;
 
 pub(super) fn validate_bindings(runtime: &Map<String, Value>) -> Result<(), String> {
@@ -139,7 +139,7 @@ pub(super) fn validate_mapping(mapping: &Map<String, Value>, path: &str) -> Resu
             event,
             "action",
             &event_path,
-            &["none", "note_on", "note_off"],
+            &TriggerAction::ALL.map(TriggerAction::wire_name),
         )?;
         unsigned_field(event, "delaySteps", &event_path, 0, 16)?;
         unsigned_field(event, "retriggerCount", &event_path, 0, 8)?;

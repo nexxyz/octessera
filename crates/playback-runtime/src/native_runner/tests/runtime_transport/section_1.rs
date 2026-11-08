@@ -136,11 +136,11 @@ pub(crate) fn configured_scanning_sequencer_runner() -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scan_axis = "rows".into();
     runner.link_layers[0].scan_unit = "1/16".into();
     runner.link_layers[0].scanned_slot = 0;
-    runner.link_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -186,12 +186,12 @@ pub(crate) fn scanning_sequencer_emits_scanned_notes_with_state_notes_disabled()
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[0].scan_mode = "scanning".into();
+    runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scan_axis = "rows".into();
     runner.link_layers[0].scan_unit = "1/16".into();
     runner.link_layers[0].state_notes_enabled = false;
     runner.link_layers[0].scanned_slot = 0;
-    runner.link_layers[0].scanned_action = "note_on".into();
+    runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

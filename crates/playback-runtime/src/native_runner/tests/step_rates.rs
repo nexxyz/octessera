@@ -40,10 +40,10 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
     runner.transport.layer_algorithm_step_pulses[0] = 6;
     runner.transport.layer_algorithm_step_pulses[1] = 24;
     runner.transport.algorithm_step_pulses = 6;
-    runner.link_layers[0].scan_mode = "none".into();
-    runner.link_layers[1].scan_mode = "none".into();
-    runner.link_layers[0].stable_action = "note_on".into();
-    runner.link_layers[1].stable_action = "note_on".into();
+    runner.link_layers[0].scan_mode = ScanMode::None;
+    runner.link_layers[1].scan_mode = ScanMode::None;
+    runner.link_layers[0].stable_action = TriggerAction::NoteOn;
+    runner.link_layers[1].stable_action = TriggerAction::NoteOn;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

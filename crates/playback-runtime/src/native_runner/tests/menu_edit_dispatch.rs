@@ -74,7 +74,7 @@ fn every_editable_menu_row_is_accepted_by_the_edit_dispatch() {
     let mut seen = std::collections::BTreeSet::new();
     let mut rejected = rejected_edits(
         &|runner| {
-            runner.link_layers[0].scan_mode = "scanning".into();
+            runner.link_layers[0].scan_mode = ScanMode::Scanning;
         },
         &mut seen,
     );
