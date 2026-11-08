@@ -226,3 +226,96 @@ pub(crate) fn screen_sleep_zero_prevents_off_and_sleep() {
     assert_eq!(snapshot_from(&snapshot)["display"]["off"], false);
     assert_eq!(snapshot_from(&snapshot)["display"]["splash"], "");
 }
+
+fn setup_portal_status(phase: RuntimeSetupPortalPhase, revision: u64) -> HostMessage {
+    HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::SetupPortalStatus {
+            status: RuntimeSetupPortalStatus {
+                phase,
+                disposition: None,
+                portal_suffix: None,
+                reboot_required: false,
+                error_code: None,
+            },
+        }
+        .with_identity("setup-1".into(), Some(revision)),
+    }
+}
+
+#[test]
+pub(crate) fn setup_portal_phase_change_wakes_oled_and_restarts_sleep() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    runner.display.ui.dim_timer_seconds = 1;
+    runner.display.ui.screen_sleep_seconds = 60;
+    runner.stop_for_setup_portal();
+    runner
+        .send(setup_portal_status(RuntimeSetupPortalPhase::PortalReady, 1))
+        .unwrap();
+    runner.display.oled_mode = NativeOledMode::Off;
+    let stale_interaction = runner.display.last_interaction_at - Duration::from_secs(120);
+    runner.display.last_interaction_at = stale_interaction;
+
+    let before = Instant::now();
+    let messages = runner
+        .send(setup_portal_status(RuntimeSetupPortalPhase::Finalizing, 2))
+        .unwrap();
+    let after = Instant::now();
+
+    let snapshot = snapshot_from(&messages);
+    assert_eq!(snapshot["display"]["off"], false);
+    assert_eq!(snapshot["settings"]["ledsDimmed"], false);
+    let woke_at = runner.display.last_interaction_at;
+    assert!(before <= woke_at && woke_at <= after);
+
+    runner.display.oled_mode = NativeOledMode::Off;
+    runner.display.last_interaction_at = stale_interaction;
+    let repeated = runner
+        .send(setup_portal_status(RuntimeSetupPortalPhase::Finalizing, 3))
+        .unwrap();
+    assert_eq!(snapshot_from(&repeated)["display"]["off"], true);
+    assert_eq!(runner.display.last_interaction_at, stale_interaction);
+}
+
+#[test]
+pub(crate) fn setup_success_wakes_into_sys_info_popup_without_moving_the_menu() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.skip_startup_splash();
+    runner.display.ui.screen_sleep_seconds = 60;
+    assert!(runner.menu.focus_item_key("system.configureWifi"));
+    runner.stop_for_setup_portal();
+    runner
+        .send(setup_portal_status(RuntimeSetupPortalPhase::Finalizing, 1))
+        .unwrap();
+    runner.display.oled_mode = NativeOledMode::Off;
+    let label_before = runner.test_current_menu_label();
+
+    let before = Instant::now();
+    let messages = runner
+        .send(setup_portal_status(RuntimeSetupPortalPhase::Succeeded, 2))
+        .unwrap();
+    let woke_at = runner.display.last_interaction_at;
+    assert!(before <= woke_at && woke_at <= Instant::now());
+    let snapshot = snapshot_from(&messages);
+    assert_eq!(snapshot["display"]["off"], false);
+    assert_eq!(snapshot["display"]["title"], "Sys. Info");
+    assert_eq!(runner.test_current_menu_label(), label_before);
+
+    let closed = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: Some(true),
+        })
+        .unwrap();
+    assert!(runner.display.system_info_modal.is_none());
+    assert!(runner.display.confirm_dialog.is_none());
+    assert_eq!(runner.test_current_menu_label(), label_before);
+    assert_eq!(
+        snapshot_from(&closed)["display"]["title"],
+        "/SYS/Connections/Wi-Fi"
+    );
+}

@@ -35,8 +35,10 @@ steps.
 
 - The browser may disconnect while the settings apply. Leave the instrument
   powered and wait for the result on the OLED.
-- On success, the OLED jumps to `System > Maintenance > Sys. Info` and shows
-  the board's new Wi-Fi address; no reboot is needed.
+- The OLED wakes up whenever setup moves on, so it won't doze off on you
+  while you're busy on the phone.
+- On success, a Sys. Info popup shows the board's new Wi-Fi address; no reboot
+  is needed. Press Main or Back to close it.
 - If the OLED reports a failure or a timeout, close the message and open the
   portal again.
 - If it says **Wi-Fi chip stopped**, restart the instrument before trying again.

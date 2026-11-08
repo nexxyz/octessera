@@ -626,7 +626,7 @@ behavior primary red), so a mute never reads as a section color.
 3. Splash.
 4. Confirmation dialogs.
 5. The setup portal modal, then the Backup / Restore card. A successful setup closes its card and
-   opens Sys. Info with the menu on `System > Maintenance > Sys. Info`, so the new address shows.
+   opens the Sys. Info popup over the unchanged menu position, so the new address shows.
 6. System info and help.
 7. The menu with its footer. Context toasts never change LED overlay priority.
 
@@ -1175,6 +1175,9 @@ Save/Load, Panic, reboot, recording, and setup are actions, not saved fields.
   simulator multiplies the displayed image by `v / 16` to match.
 - Grid Bright scales matrix LED RGB intensity; Button Bright scales NeoKey LED intensity.
 - The Dim Timer applies an extra dim, with its visible floor, while the OLED stays on.
+- Device input and each setup-portal phase change wake the OLED, clear the dim, and restart both
+  timers. A repeated status with the same phase does not. Other runtime and transport messages
+  never wake it.
 - Once `OLED Sleep` turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 10 Hz
   sparse dim-star animation of independently pulsing stars. It ignores `ledsDimmed`, stays within
   the sleep dim scale, and keeps a zero-brightness blackout dark.

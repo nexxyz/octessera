@@ -349,9 +349,11 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - The browser's Applying page is provisional and an AP disconnect is expected; the OLED result is
   authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a
   default route, DNS, or ICMP.
-- Success hides the card, moves the menu to `Maintenance > Sys. Info`, opens the Sys. Info popup
-  and requests system info, so the new address is on screen; closing the popup leaves the cursor
-  on `Sys. Info`. A repeated success status does not reopen it. Timeout cards auto-hide, a failure
+- Each phase change wakes the OLED and restarts the sleep and dim timers, so the result is not
+  missed while the phone is busy; a repeated status with the same phase does not.
+- Success hides the card, opens the Sys. Info popup and requests system info, so the new address
+  is on screen. The menu stays where it was (`Connections > Wi-Fi > Setup Portal`); Main or Back
+  closes the popup. A repeated success status does not reopen it. Timeout cards auto-hide, a failure
   stays until dismissed, and a new `Open Portal` retries.
 - On Orange the coordinator reads the kernel log before launching the hotspot and once a second
   while the portal runs. The Wi-Fi chip's firmware crash (`WCN Assert` / `WCN: marlin power off`)

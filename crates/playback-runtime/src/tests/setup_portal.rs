@@ -153,9 +153,10 @@ fn identified_setup_portal_failure_uses_the_native_failed_modal() {
 }
 
 #[test]
-fn setup_portal_success_opens_sys_info_at_its_maintenance_entry() {
+fn setup_portal_success_shows_sys_info_without_moving_the_menu() {
     let (mut runtime, mut runner, mut host) =
         confirm_setup_portal_with_result(RuntimeSetupPortalPhase::Succeeded, None);
+    let label_before = runner.test_current_menu_label();
 
     assert!(host
         .effects
@@ -170,10 +171,8 @@ fn setup_portal_success_opens_sys_info_at_its_maintenance_entry() {
         &mut host,
         json!({ "type": "encoder_press", "id": "main" }),
     );
-    assert_eq!(
-        runner.test_current_menu_label().as_deref(),
-        Some("Sys. Info")
-    );
+    assert_eq!(runner.test_current_menu_label(), label_before);
+    assert_eq!(label_before.as_deref(), Some("Setup Portal"));
     let snapshot = runtime.last_snapshot().expect("presented snapshot");
-    assert_eq!(snapshot["display"]["title"], "/SYS/Maintenance");
+    assert_eq!(snapshot["display"]["title"], "/SYS/Connections/Wi-Fi");
 }
