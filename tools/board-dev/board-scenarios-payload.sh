@@ -76,6 +76,8 @@ start() {
   sudo -n mkdir -p "${dropin%/*}"
   printf '[Service]\nEnvironment=OCTESSERA_PI_STORE_DIR=%s %s\n' "$store" "$*" | sudo -n tee "$dropin" >/dev/null || return 1
   sudo -n systemctl daemon-reload
+  # Never run a scenario against the live store.
+  systemctl show -p Environment --value "$service" | grep -q "OCTESSERA_PI_STORE_DIR=$store" || { mark live_store_refused; return 1; }
   sudo -n systemctl restart "$service"
   for _ in $(seq 1 60); do
     sleep 1
