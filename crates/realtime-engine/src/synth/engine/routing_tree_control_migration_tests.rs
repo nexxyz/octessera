@@ -132,6 +132,7 @@ fn routing_tree_parameter_refresh_preserves_component_workers_after_counts_chang
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
             .expect("routing-tree runtime");
+    runtime.set_deadline_for_test(Duration::from_secs(1));
     let initial_mapping = [0, 1, 2].map(|slot| {
         engine
             .routing_tree_assignment
