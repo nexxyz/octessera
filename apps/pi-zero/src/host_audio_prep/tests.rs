@@ -406,7 +406,14 @@ fn failed_atomic_owner_broadcast_does_not_commit_owner_state() {
     assert_eq!(generations.instrument[0], 0);
     assert_eq!(generations.sample[0], 0);
     assert_eq!(*audio.sample_bank_signature.lock().unwrap(), "previous");
-    assert!(result_rx.try_recv().is_ok());
+    assert!(matches!(
+        result_rx.try_recv().unwrap(),
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RuntimeFailure { error },
+        } if error.domain == RuntimeErrorDomain::Audio
+            && error.code == RuntimeErrorCode::AudioThreadFailed
+            && error.operation == RuntimeOperation::AudioCommand
+    ));
     drop(generations);
     let _ = std::fs::remove_dir_all(root);
 }

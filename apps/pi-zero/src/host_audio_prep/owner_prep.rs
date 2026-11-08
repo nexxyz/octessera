@@ -6,7 +6,7 @@ use crate::audio::AudioService;
 use crate::audio_config_parse::{
     parse_normalized_instrument_slot_config, sample_bank_for_instrument,
 };
-use playback_runtime::HostMessage;
+use playback_runtime::{HostMessage, RuntimeStoreResult};
 use realtime_engine::synth::{
     prepare_fx_bus_slot, prepare_global_fx_slot, prepare_instrument_slot_config, validate_fx_type,
     DEFAULT_AUDIO_SAMPLE_RATE,
@@ -131,8 +131,11 @@ pub(super) fn process_owner_request(
                     ..
                 }
             );
-            if let Err(error) = audio.broadcast(prepared.event) {
-                send_audio_prep_result(result_tx, audio_queue_failure(error));
+            if let Err(error) = audio.send(prepared.event) {
+                send_audio_prep_result(
+                    result_tx,
+                    RuntimeStoreResult::RuntimeFailure { error: error.facts },
+                );
             } else if let Some((instrument_slot, generation)) = instrument_commit {
                 let commit_result =
                     commit_instrument_generation(audio, instrument_slot, generation, sample_owner);

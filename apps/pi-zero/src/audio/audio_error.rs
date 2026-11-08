@@ -3,6 +3,7 @@ use playback_runtime::{
     RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
 };
 use rodio_engine_source::QueueSendError;
+use std::sync::mpsc::TrySendError;
 
 pub(crate) fn audio_queue_error(error: AudioSendError) -> RuntimeAdapterError {
     let message = error.to_string();
@@ -15,6 +16,25 @@ pub(crate) fn audio_queue_error(error: AudioSendError) -> RuntimeAdapterError {
             message,
         ),
         AudioSendError::Lock => (RuntimeErrorCode::AudioThreadFailed, message),
+    };
+    RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
+        RuntimeErrorDomain::Audio,
+        code,
+        RuntimeOperation::AudioCommand,
+        Some(message),
+    ))
+}
+
+pub(super) fn prep_queue_error<T>(error: TrySendError<T>, operation: &str) -> RuntimeAdapterError {
+    let (code, message) = match error {
+        TrySendError::Full(_) => (
+            RuntimeErrorCode::OperationFailed,
+            format!("{operation} preparation queue is full"),
+        ),
+        TrySendError::Disconnected(_) => (
+            RuntimeErrorCode::AudioThreadFailed,
+            format!("{operation} preparation queue disconnected"),
+        ),
     };
     RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
         RuntimeErrorDomain::Audio,

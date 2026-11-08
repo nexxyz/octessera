@@ -14,7 +14,7 @@ mod audio_output;
 mod audio_recording_service;
 mod late_timed_events;
 pub(crate) use audio_defaults::default_pi_instruments;
-use audio_error::audio_queue_error;
+use audio_error::{audio_queue_error, prep_queue_error};
 #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
 pub(crate) use audio_output::drain_audio_load_status;
 #[cfg(test)]
@@ -188,7 +188,7 @@ impl AudioService {
         request_id: Option<String>,
         config: Value,
         samples_dir: PathBuf,
-    ) -> Result<(), String> {
+    ) -> Result<(), RuntimeAdapterError> {
         let previous = self.config_revision.fetch_max(revision, Ordering::AcqRel);
         let sequence = self.next_sequence();
         match self.control_tx.try_send(AudioControlRequest::FullConfig {
@@ -211,7 +211,7 @@ impl AudioService {
                     Ordering::AcqRel,
                     Ordering::Acquire,
                 );
-                Err(format!("audio prep queue failed: {error}"))
+                Err(prep_queue_error(error, "full audio configuration"))
             }
         }
     }
@@ -222,7 +222,7 @@ impl AudioService {
         generation: u64,
         config: Value,
         samples_dir: PathBuf,
-    ) -> Result<(), String> {
+    ) -> Result<(), RuntimeAdapterError> {
         self.control_tx
             .try_send(AudioControlRequest::InstrumentSlot {
                 sequence: self.next_sequence(),
@@ -231,7 +231,7 @@ impl AudioService {
                 config,
                 samples_dir,
             })
-            .map_err(|e| format!("audio prep queue failed: {e}"))
+            .map_err(|error| prep_queue_error(error, "instrument configuration"))
     }
 
     pub fn enqueue_fx_bus_slot(
@@ -241,7 +241,7 @@ impl AudioService {
         generation: u64,
         fx_type: String,
         params: std::collections::BTreeMap<String, Value>,
-    ) -> Result<(), String> {
+    ) -> Result<(), RuntimeAdapterError> {
         self.control_tx
             .try_send(AudioControlRequest::FxBusSlot {
                 sequence: self.next_sequence(),
@@ -251,7 +251,7 @@ impl AudioService {
                 fx_type,
                 params,
             })
-            .map_err(|e| format!("audio prep queue failed: {e}"))
+            .map_err(|error| prep_queue_error(error, "FX bus configuration"))
     }
 
     pub fn enqueue_global_fx_slot(
@@ -260,7 +260,7 @@ impl AudioService {
         generation: u64,
         fx_type: String,
         params: std::collections::BTreeMap<String, Value>,
-    ) -> Result<(), String> {
+    ) -> Result<(), RuntimeAdapterError> {
         self.control_tx
             .try_send(AudioControlRequest::GlobalFxSlot {
                 sequence: self.next_sequence(),
@@ -269,7 +269,7 @@ impl AudioService {
                 fx_type,
                 params,
             })
-            .map_err(|e| format!("audio prep queue failed: {e}"))
+            .map_err(|error| prep_queue_error(error, "global FX configuration"))
     }
 
     pub fn enqueue_sample_preview(
@@ -278,7 +278,7 @@ impl AudioService {
         path: String,
         velocity: u8,
         samples_dir: PathBuf,
-    ) -> Result<(), String> {
+    ) -> Result<(), RuntimeAdapterError> {
         let preview_generation = self.preview_generation.fetch_add(1, Ordering::AcqRel) + 1;
         self.control_tx
             .try_send(AudioControlRequest::SamplePreview {
@@ -289,7 +289,7 @@ impl AudioService {
                 samples_dir,
                 preview_token: preview_generation,
             })
-            .map_err(|e| format!("sample preview queue failed: {e}"))
+            .map_err(|error| prep_queue_error(error, "sample preview"))
     }
 
     pub fn drain_prep_results(&self, max_results: usize) -> Vec<HostMessage> {

@@ -375,6 +375,32 @@ fn failed_momentary_stop_keeps_current_state() {
 }
 
 #[test]
+fn pi_prep_lane_reports_full_and_disconnected_as_typed_audio_failures() {
+    let (audio, control_rx, _event_rx, _) = crate::audio::test_service_with_recording_dir(
+        std::env::temp_dir().join("octessera-pi-prep-lane-recordings"),
+    );
+    let command = RuntimeAudioCommand::SetInstrumentSlot {
+        instrument_slot: 0,
+        generation: 0,
+        config: serde_json::json!({ "type": "synth" }),
+    };
+    let send = || send_audio_command(Some(audio.clone()), &command, Path::new("samples"));
+    for _ in 0..crate::audio::AUDIO_PREP_QUEUE_CAPACITY {
+        send().unwrap();
+    }
+    let full = send().unwrap_err();
+    assert_eq!(full.facts.domain, RuntimeErrorDomain::Audio);
+    assert_eq!(full.facts.code, RuntimeErrorCode::OperationFailed);
+    assert_eq!(full.facts.operation, RuntimeOperation::AudioCommand);
+
+    drop(control_rx);
+    let disconnected = send().unwrap_err();
+    assert_eq!(disconnected.facts.domain, RuntimeErrorDomain::Audio);
+    assert_eq!(disconnected.facts.code, RuntimeErrorCode::AudioThreadFailed);
+    assert_eq!(disconnected.facts.operation, RuntimeOperation::AudioCommand);
+}
+
+#[test]
 fn pi_rejects_invalid_audio_slot_indices_at_the_adapter_boundary() {
     let error = send_audio_command(
         None,

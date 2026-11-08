@@ -74,14 +74,12 @@ pub fn send_audio_command(
             generation,
             config,
         } => {
-            audio
-                .enqueue_instrument_slot(
-                    *instrument_slot,
-                    *generation,
-                    config.clone(),
-                    samples_dir.to_path_buf(),
-                )
-                .map_err(audio_queue_failure)?;
+            audio.enqueue_instrument_slot(
+                *instrument_slot,
+                *generation,
+                config.clone(),
+                samples_dir.to_path_buf(),
+            )?;
             Ok(())
         }
         RuntimeAudioCommand::SetFxBusMixer {
@@ -208,15 +206,13 @@ pub fn send_audio_command(
             fx_type,
             params,
         } => {
-            audio
-                .enqueue_fx_bus_slot(
-                    *bus_index,
-                    *slot_index,
-                    *generation,
-                    fx_type.clone(),
-                    params.clone(),
-                )
-                .map_err(audio_queue_failure)?;
+            audio.enqueue_fx_bus_slot(
+                *bus_index,
+                *slot_index,
+                *generation,
+                fx_type.clone(),
+                params.clone(),
+            )?;
             Ok(())
         }
         RuntimeAudioCommand::SetGlobalFxSlot {
@@ -225,9 +221,12 @@ pub fn send_audio_command(
             fx_type,
             params,
         } => {
-            audio
-                .enqueue_global_fx_slot(*slot_index, *generation, fx_type.clone(), params.clone())
-                .map_err(audio_queue_failure)?;
+            audio.enqueue_global_fx_slot(
+                *slot_index,
+                *generation,
+                fx_type.clone(),
+                params.clone(),
+            )?;
             Ok(())
         }
         RuntimeAudioCommand::SetGlobalFxParam {
