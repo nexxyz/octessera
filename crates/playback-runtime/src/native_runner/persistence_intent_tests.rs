@@ -8,13 +8,6 @@ fn dirty_at(runner: &mut NativeRunner, due_at: Instant) -> u64 {
     runner.dirty_revision.unwrap()
 }
 
-fn sleep_until(target: Instant) {
-    let now = Instant::now();
-    if target > now {
-        std::thread::sleep(target - now);
-    }
-}
-
 #[test]
 fn intent_tracks_debounce_revision_and_never_serializes_state() {
     fn assert_send<T: Send + 'static>() {}
@@ -118,13 +111,11 @@ fn sixty_user_aux_edits_refresh_only_the_latest_native_persistence_intent() {
         })
         .unwrap();
     let serialization_calls = runner.behavior_state_serialization_calls.get();
-    let started = Instant::now() + Duration::from_millis(10);
     let mut latest_revision = runner.dirty_revision.unwrap_or(runner.config_revision);
+    let mut latest_due_at = None;
     let mut previous_eligible_revision = None;
 
     for turn in 0..60 {
-        let turn_at = started + Duration::from_millis(turn * 200);
-        sleep_until(turn_at);
         let old_revision = runner.config_revision;
         let old_value = runner.instruments[0].synth_config["osc1"]["levelPct"]
             .as_f64()
@@ -153,18 +144,19 @@ fn sixty_user_aux_edits_refresh_only_the_latest_native_persistence_intent() {
             Some(old_value + f64::from(delta))
         );
         let due_at = runner.pending.pending_autosave_payload_due_at.unwrap();
-        assert!(runner.persistence_intent_at(Instant::now()).is_none());
+        latest_due_at = Some(due_at);
+        assert!(runner
+            .persistence_intent_at(due_at - Duration::from_millis(1))
+            .is_none());
 
-        let eligibility_poll = due_at + Duration::from_millis(1);
-        sleep_until(eligibility_poll);
-        let intent = runner.persistence_intent_at(Instant::now()).unwrap();
+        let intent = runner.persistence_intent_at(due_at).unwrap();
         assert_eq!(intent.revision(), latest_revision);
         assert!(intent.default_eligible());
         assert!(!intent.backup_eligible());
         previous_eligible_revision = Some(intent.revision());
 
         let first_notification = runner
-            .flush_deferred_menu_apply_music_first(Instant::now())
+            .flush_deferred_menu_apply_music_first(due_at)
             .unwrap();
         assert!(first_notification
             .iter()
@@ -174,7 +166,7 @@ fn sixty_user_aux_edits_refresh_only_the_latest_native_persistence_intent() {
             .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
         let generation = runner.display.transients.generation();
         let repeated_notification = runner
-            .flush_deferred_menu_apply_music_first(Instant::now() + Duration::from_millis(8))
+            .flush_deferred_menu_apply_music_first(due_at + Duration::from_millis(8))
             .unwrap();
         assert!(repeated_notification.is_empty());
         assert_eq!(runner.display.transients.generation(), generation);
@@ -186,7 +178,9 @@ fn sixty_user_aux_edits_refresh_only_the_latest_native_persistence_intent() {
         })
         .unwrap();
 
-    let latest = runner.persistence_intent_at(Instant::now()).unwrap();
+    let latest = runner
+        .persistence_intent_at(latest_due_at.unwrap())
+        .unwrap();
     assert_eq!(latest.revision(), latest_revision);
     assert!(latest.default_eligible());
     assert_eq!(
