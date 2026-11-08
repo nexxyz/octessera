@@ -671,15 +671,17 @@ behavior primary red), so a mute never reads as a section color.
 - The CPU meter in the header's top right is three equal 2×5 bars (`x=120`, `123`, `126`,
   `y=0..4`) and is always shown on menu frames. It reads the highest load reported
   over the last 10 audio-load reports (about one second), in whole 5 % steps: persistent-worker
-  utilization on the boards, the audio block render ratio on the desktop, which has no persistent
-  workers. With `W` = `System > Audio > Engine > CPU Warn` (default 85): below
-  `W/3` rounded to the nearest multiple of 5 no bar is lit (all three dark gray: no significant
-  load); from there up to `floor(2W/3)` rounded down to a multiple of 5 one full green bar; from
-  there up to `W` two full yellow bars; at or above `W` three red bars. Unlit bars are dark gray.
-  For `W` = 85 that is gray below 30, green 30..54, yellow 55..84, red from 85. Green starts at
-  25/25/25/30/30/30 % and yellow at 45/50/50/55/60/60 % for `W` = 70/75/80/85/90/95.
+  utilization on the boards in Capacity mode, the audio block render ratio in Latency mode and on
+  the desktop, which have no persistent workers. With `W` = `System > Audio > Engine > CPU Warn`
+  (default 85): below `W/3` rounded to the nearest multiple of 5 no bar is lit (all three dark
+  gray: no significant load); from there up to `floor(2W/3)` rounded down to a multiple of 5 one
+  full green bar; from there up to `W` two full yellow bars; at or above `W` three red bars.
+  Unlit bars are dark gray. For `W` = 85 that is gray below 30, green 30..54, yellow 55..84, red
+  from 85. Green starts at 25/25/25/30/30/30 % and yellow at 45/50/50/55/60/60 % for `W` =
+  70/75/80/85/90/95.
 - There is no separate steady high-CPU icon and no steady-high state; the meter covers it.
-- A missed-quantum flash shows a red 5×5 square with a centre dot at `x=106..110`; the save flash
+- A missed-quantum flash shows a red 5×5 square with a centre dot at `x=106..110` (boards in
+  Capacity mode only: Latency and the desktop have no worker quanta to miss); the save flash
   a green 5×5 check mark at `x=113..117`. Both sit on the breadcrumb line (`y=0..4`) and may
   coexist.
 - A red `CLIP` in the small font sits at `x=88..103` on the breadcrumb line while the output

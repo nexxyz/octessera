@@ -54,23 +54,6 @@ impl AudioConstructionConfig {
     pub(super) const fn orange(profile: OrangeAudioProfile) -> Self {
         Self::Orange(profile)
     }
-
-    #[cfg(any(
-        feature = "hardware-orange-pi-zero-2w",
-        feature = "hardware-raspberry-pi-zero-2w"
-    ))]
-    pub(super) fn load_status_enabled(self) -> bool {
-        match self {
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-            Self::Raspberry(profile) => {
-                profile.optimization == playback_runtime::AudioOptimization::Capacity
-            }
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            Self::Orange(profile) => {
-                profile.optimization == playback_runtime::AudioOptimization::Capacity
-            }
-        }
-    }
 }
 
 #[cfg(any(
@@ -78,11 +61,10 @@ impl AudioConstructionConfig {
     feature = "hardware-raspberry-pi-zero-2w"
 ))]
 pub(super) fn load_status_sender_for_sink(
-    config: AudioConstructionConfig,
     sink: AudioSink,
     load_tx: &AudioLoadStatusSender,
 ) -> Option<AudioLoadStatusSender> {
-    (sink == AudioSink::Jack && config.load_status_enabled()).then(|| load_tx.clone())
+    (sink == AudioSink::Jack).then(|| load_tx.clone())
 }
 
 pub(super) type AudioSinkOpener = fn(

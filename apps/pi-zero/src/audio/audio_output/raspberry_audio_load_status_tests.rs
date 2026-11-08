@@ -1,31 +1,60 @@
-use super::audio_output_open::{load_status_sender_for_sink, AudioConstructionConfig};
-use super::audio_profile::RaspberryAudioProfile;
+use super::audio_output_open::load_status_sender_for_sink;
+use super::direct_cpal_tests::play_clipping_latency_jack_source;
 use super::AudioSink;
 use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{
-    AudioOptimization, AudioOutputSet, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
-    RuntimeConfig, SyncSource,
+    AudioOutputSet, NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, SyncSource,
 };
 use realtime_engine::synth::AudioLoadStatus;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 #[test]
-fn raspberry_load_status_sender_is_capacity_jack_only() {
+fn raspberry_load_status_sender_is_jack_only() {
     let (load_tx, _load_rx) = rodio_engine_source::audio_load_status_channel();
-    let capacity = AudioConstructionConfig::raspberry(RaspberryAudioProfile::from_optimization(
-        AudioOptimization::Capacity,
-    ));
-    let latency = AudioConstructionConfig::raspberry(RaspberryAudioProfile::from_optimization(
-        AudioOptimization::Latency,
-    ));
 
-    assert!(load_status_sender_for_sink(capacity, AudioSink::Jack, &load_tx).is_some());
-    assert!(load_status_sender_for_sink(capacity, AudioSink::Usb, &load_tx).is_none());
-    assert!(load_status_sender_for_sink(latency, AudioSink::Jack, &load_tx).is_none());
+    assert!(load_status_sender_for_sink(AudioSink::Jack, &load_tx).is_some());
+    assert!(load_status_sender_for_sink(AudioSink::Usb, &load_tx).is_none());
+    assert!(load_status_sender_for_sink(AudioSink::Hdmi, &load_tx).is_none());
 }
 
 #[test]
 fn raspberry_capacity_load_status_presentation_drains_status() {
+    let (mut playback, mut runner, mut host, root) = runtime_with_snapshot();
+
+    let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
+    assert!(load_tx.try_send(status(Some(0.9), true)));
+    let output = crate::audio::drain_audio_load_status(&load_rx, &mut playback, false);
+    crate::runtime_dispatch::process_runtime_output(&mut playback, &mut runner, &mut host, output)
+        .unwrap();
+
+    let snapshot = playback.last_snapshot().expect("runtime snapshot");
+    assert_eq!(
+        snapshot["workerUtilization"].as_f64(),
+        Some(f64::from(0.9_f32))
+    );
+    assert_eq!(snapshot["missedQuantumFlash"], true);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn raspberry_latency_jack_clipping_reaches_the_runtime() {
+    let (mut playback, mut runner, mut host, root) = runtime_with_snapshot();
+
+    let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
+    play_clipping_latency_jack_source(load_status_sender_for_sink(AudioSink::Jack, &load_tx));
+    let output = crate::audio::drain_audio_load_status(&load_rx, &mut playback, false);
+    crate::runtime_dispatch::process_runtime_output(&mut playback, &mut runner, &mut host, output)
+        .unwrap();
+
+    let (metrics, _) = playback.native_presentation_state();
+    assert!(metrics.output_clipping, "CLIP did not reach the runtime");
+    assert_eq!(metrics.worker_utilization, None);
+    assert!(!metrics.missed_quantum_flash);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+fn runtime_with_snapshot() -> (PlaybackRuntime, NativeRunner, PiHostAdapter, PathBuf) {
     let outputs = AudioOutputSet::jack();
     let root = crate::test_temp_dir::unique_temp_path("octessera-raspberry-audio-status");
     let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
@@ -52,20 +81,7 @@ fn raspberry_capacity_load_status_presentation_drains_status() {
         },
     )
     .unwrap();
-
-    let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
-    assert!(load_tx.try_send(status(Some(0.9), true)));
-    let output = crate::audio::drain_audio_load_status(&load_rx, &mut playback, false);
-    crate::runtime_dispatch::process_runtime_output(&mut playback, &mut runner, &mut host, output)
-        .unwrap();
-
-    let snapshot = playback.last_snapshot().expect("runtime snapshot");
-    assert_eq!(
-        snapshot["workerUtilization"].as_f64(),
-        Some(f64::from(0.9_f32))
-    );
-    assert_eq!(snapshot["missedQuantumFlash"], true);
-    let _ = std::fs::remove_dir_all(root);
+    (playback, runner, host, root)
 }
 
 fn status(worker_utilization: Option<f32>, missed_quantum_flash: bool) -> AudioLoadStatus {

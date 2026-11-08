@@ -60,13 +60,31 @@ pub(super) enum AudioSourceExecutionMode {
     RoutingTree,
 }
 
-struct StreamBuildOptions {
+pub(super) struct StreamBuildOptions {
     sink: AudioSink,
-    execution_mode: AudioSourceExecutionMode,
+    pub(super) execution_mode: AudioSourceExecutionMode,
     mix_taps: Option<MixTapState>,
     stream_health: AudioStreamHealth,
-    load_tx: Option<AudioLoadStatusSender>,
-    mirror_producers: PcmMirrorProducers,
+    pub(super) load_tx: Option<AudioLoadStatusSender>,
+    pub(super) mirror_producers: PcmMirrorProducers,
+}
+
+impl StreamBuildOptions {
+    pub(super) fn new(
+        sink: AudioSink,
+        execution_mode: AudioSourceExecutionMode,
+        source_options: EngineSourceOptions,
+        stream_health: AudioStreamHealth,
+    ) -> Self {
+        Self {
+            sink,
+            execution_mode,
+            mix_taps: source_options.mix_taps,
+            stream_health,
+            load_tx: source_options.load_tx,
+            mirror_producers: source_options.mirror_producers,
+        }
+    }
 }
 
 pub(super) struct EngineSourceOptions {
@@ -80,14 +98,15 @@ pub(super) fn build_engine_source(
     sample_rate: u32,
     execution_mode: AudioSourceExecutionMode,
     block_frames: usize,
-    _load_tx: Option<AudioLoadStatusSender>,
+    load_tx: Option<AudioLoadStatusSender>,
     mirror_producers: PcmMirrorProducers,
 ) -> Result<(EngineSource, Option<EngineSourceWorkerShutdownOwner>), RouteOpenError> {
     let mut source = match execution_mode {
-        AudioSourceExecutionMode::Inline => Ok((
-            EngineSource::with_block_frames(engine_rx, sample_rate, block_frames),
-            None,
-        )),
+        AudioSourceExecutionMode::Inline => {
+            let mut source = EngineSource::with_block_frames(engine_rx, sample_rate, block_frames);
+            source.set_load_status_tx(load_tx);
+            Ok((source, None))
+        }
         #[cfg(any(
             feature = "hardware-orange-pi-zero-2w",
             feature = "hardware-raspberry-pi-zero-2w"
@@ -97,7 +116,7 @@ pub(super) fn build_engine_source(
                 engine_rx,
                 sample_rate,
                 block_frames,
-                _load_tx,
+                load_tx,
                 crate::audio_priority::pi_worker_start_hook,
             );
             result
@@ -154,14 +173,7 @@ pub(super) fn build_cpal_stream(
     config.channels = 2;
     config.sample_rate = cpal::SampleRate(DEFAULT_AUDIO_SAMPLE_RATE);
     config.buffer_size = BufferSize::Fixed(profile.output_buffer_frames);
-    let options = StreamBuildOptions {
-        sink,
-        execution_mode,
-        mix_taps: source_options.mix_taps,
-        stream_health,
-        load_tx: source_options.load_tx,
-        mirror_producers: source_options.mirror_producers,
-    };
+    let options = StreamBuildOptions::new(sink, execution_mode, source_options, stream_health);
     match supported.sample_format() {
         SampleFormat::F32 => build_stream_with_mode::<f32>(
             &device,
@@ -207,23 +219,7 @@ pub(super) fn build_orange_cpal_stream(
     };
     let (sample_format, mut config) = crate::orange_audio::select_orange_stream_config(&device)?;
     config.buffer_size = BufferSize::Fixed(profile.output_buffer_frames);
-    let EngineSourceOptions {
-        mix_taps,
-        load_tx,
-        mirror_producers,
-    } = source_options;
-    let load_tx = (sink == AudioSink::Jack
-        && matches!(execution_mode, AudioSourceExecutionMode::RoutingTree))
-    .then_some(load_tx)
-    .flatten();
-    let options = StreamBuildOptions {
-        sink,
-        execution_mode,
-        mix_taps,
-        stream_health,
-        load_tx,
-        mirror_producers,
-    };
+    let options = StreamBuildOptions::new(sink, execution_mode, source_options, stream_health);
     match sample_format {
         SampleFormat::F32 => build_stream_with_mode::<f32>(
             &device,

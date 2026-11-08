@@ -355,6 +355,10 @@ impl EngineSource {
         }
     }
 
+    pub fn set_load_status_tx(&mut self, load_tx: Option<AudioLoadStatusSender>) {
+        self.load_tx = load_tx;
+    }
+
     pub fn set_pcm_mirror_producers(&mut self, producers: PcmMirrorProducers) {
         self.mirror_producers = producers;
     }

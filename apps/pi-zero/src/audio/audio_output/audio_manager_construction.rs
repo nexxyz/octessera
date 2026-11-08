@@ -17,8 +17,6 @@ impl AudioManager {
             feature = "hardware-raspberry-pi-zero-2w"
         ))]
         let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
-        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-        let load_status_enabled = construction.load_status_enabled();
         let selected_outputs = SelectedOutputs::new(outputs);
         let side_producers = [new_pcm_mirror().producer, new_pcm_mirror().producer];
         for sink in [AudioSink::Usb, AudioSink::Hdmi] {
@@ -37,11 +35,8 @@ impl AudioManager {
             feature = "hardware-orange-pi-zero-2w",
             feature = "hardware-raspberry-pi-zero-2w"
         ))]
-        let jack_load_tx = super::audio_output_open::load_status_sender_for_sink(
-            construction,
-            AudioSink::Jack,
-            &load_tx,
-        );
+        let jack_load_tx =
+            super::audio_output_open::load_status_sender_for_sink(AudioSink::Jack, &load_tx);
         #[cfg(not(any(
             feature = "hardware-orange-pi-zero-2w",
             feature = "hardware-raspberry-pi-zero-2w"
@@ -133,8 +128,6 @@ impl AudioManager {
                 feature = "hardware-raspberry-pi-zero-2w"
             ))]
             load_rx: Some(load_rx),
-            #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-            load_status_enabled,
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
             load_status_reset_pending: false,
         })

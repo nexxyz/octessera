@@ -78,8 +78,6 @@ pub struct AudioManager {
         feature = "hardware-raspberry-pi-zero-2w"
     ))]
     load_rx: Option<AudioLoadStatusReceiver>,
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-    load_status_enabled: bool,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     load_status_reset_pending: bool,
     _optional_recovery: [audio_optional_recovery::OptionalRecoveryWorker; 2],
@@ -200,9 +198,7 @@ impl AudioManager {
 
     #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
     pub(crate) fn take_load_status_receiver(&mut self) -> Option<AudioLoadStatusReceiver> {
-        self.load_status_enabled
-            .then(|| self.load_rx.take())
-            .flatten()
+        self.load_rx.take()
     }
 
     #[cfg(feature = "hardware-orange-pi-zero-2w")]

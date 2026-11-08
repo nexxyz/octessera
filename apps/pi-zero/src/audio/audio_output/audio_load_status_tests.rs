@@ -122,6 +122,35 @@ fn orange_status_drain_keeps_newest_and_absent_evidence_stays_hidden() {
     let _ = std::fs::remove_dir_all(root);
 }
 
+#[test]
+fn orange_latency_jack_clipping_reaches_the_runtime() {
+    let outputs = playback_runtime::AudioOutputSet::jack();
+    let mut manager = AudioManager::new_with_opener(
+        super::direct_cpal_tests::latency_config(),
+        AudioOpenPolicy::Outputs(outputs),
+        load_tx_capturing_opener,
+        new_registry(outputs),
+    )
+    .unwrap();
+    let (mut playback, mut runner, mut host, root) = runtime_with_snapshot(manager.service());
+    let jack_load_tx = OPENED_JACK_LOAD_TX.take();
+    assert!(
+        jack_load_tx.is_some(),
+        "Latency manager opened Jack without a load-status sender"
+    );
+
+    super::direct_cpal_tests::play_clipping_latency_jack_source(jack_load_tx);
+    let output = manager.drain_audio_load_status(&mut playback);
+    crate::orange_runtime::process_runtime_output(&mut playback, &mut runner, &mut host, output)
+        .unwrap();
+
+    let (metrics, _) = playback.native_presentation_state();
+    assert!(metrics.output_clipping, "CLIP did not reach the runtime");
+    assert_eq!(metrics.worker_utilization, None);
+    assert!(!metrics.missed_quantum_flash);
+    let _ = std::fs::remove_dir_all(root);
+}
+
 fn status(worker_utilization: Option<f32>, missed_quantum_flash: bool) -> AudioLoadStatus {
     AudioLoadStatus {
         ratio: 0.2,
@@ -202,4 +231,30 @@ fn test_opener(
         health: AudioStreamHealth::new(format!("{sink:?}")),
         _test_engine_rx: Some(Arc::new(std::sync::Mutex::new(engine_rx))),
     })
+}
+
+thread_local! {
+    static OPENED_JACK_LOAD_TX: std::cell::Cell<Option<AudioLoadStatusSender>> =
+        const { std::cell::Cell::new(None) };
+}
+
+fn load_tx_capturing_opener(
+    construction: AudioConstructionConfig,
+    sink: AudioSink,
+    recording_tap: Option<super::MixTapState>,
+    load_tx: Option<AudioLoadStatusSender>,
+    mirror_producers: rodio_engine_source::PcmMirrorProducers,
+    mirror_consumer: Option<rodio_engine_source::PcmMirrorConsumer>,
+) -> Result<OpenedAudioSink, crate::audio_route::RouteOpenError> {
+    if sink == AudioSink::Jack {
+        OPENED_JACK_LOAD_TX.set(load_tx.clone());
+    }
+    test_opener(
+        construction,
+        sink,
+        recording_tap,
+        load_tx,
+        mirror_producers,
+        mirror_consumer,
+    )
 }
