@@ -33,14 +33,16 @@ impl SynthEngine {
         let sample_active = self.render_sample_voices(&mut slot_out);
         let (preview, preview_active) = self.render_preview_sample_voices();
         let synth_active = self.render_synth_voices(&mut slot_out);
-        self.finish_serial_frame::<false>(
+        let output = self.finish_serial_frame::<false>(
             slot_out,
             sample_active,
             preview,
             preview_active,
             synth_active,
             0,
-        )
+        );
+        self.recover_from_nonfinite_output();
+        output
     }
 
     /// One frame's mix down to the master output; with `TAP` it also keeps `tapped_bus`'s
@@ -76,6 +78,7 @@ impl SynthEngine {
 
     /// The master stage of one frame: master FX and Global momentary FX while the master is
     /// active, the activity hold, master volume and the clamp; also returns whether it clipped.
+    /// A non-finite frame comes out silent, counts as clipped and marks the FX state for reset.
     #[inline]
     fn finish_master_frame(
         &mut self,
@@ -98,6 +101,10 @@ impl SynthEngine {
         self.sample_clock = self.sample_clock.saturating_add(1);
         let left = left * self.master_volume;
         let right = right * self.master_volume;
+        if !(left.is_finite() && right.is_finite()) {
+            self.master_nonfinite = true;
+            return (0.0, 0.0, true);
+        }
         let clipped = left.abs().max(right.abs()) > 1.0;
         (left.clamp(-1.0, 1.0), right.clamp(-1.0, 1.0), clipped)
     }
@@ -208,6 +215,7 @@ impl SynthEngine {
             left_out[frame] = left;
             right_out[frame] = right;
         }
+        self.recover_from_nonfinite_output();
     }
 
     #[cfg(feature = "routing-tree-executor")]
@@ -227,6 +235,33 @@ impl SynthEngine {
             clipped |= frame_clipped;
         }
         self.output_clipped |= clipped;
+        self.recover_from_nonfinite_output();
+    }
+
+    #[inline]
+    fn recover_from_nonfinite_output(&mut self) {
+        if std::mem::take(&mut self.master_nonfinite) {
+            self.silence_fx_state();
+        }
+    }
+
+    /// Clears the master and bus FX history a non-finite frame may have left behind; the
+    /// routing-tree workers clear the bus chains they hold when they see the new generation.
+    #[cold]
+    fn silence_fx_state(&mut self) {
+        for state in &mut self.master_slot_state {
+            state.silence();
+        }
+        for chain in &mut self.bus_chains {
+            chain.silence();
+        }
+        for spread in &mut self.bus_output_spread_state {
+            spread.silence();
+        }
+        #[cfg(feature = "routing-tree-executor")]
+        {
+            self.fx_silence_generation = self.fx_silence_generation.wrapping_add(1);
+        }
     }
 
     /// Whether the output went over full scale before the master clamp since the last call.

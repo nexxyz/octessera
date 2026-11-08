@@ -17,6 +17,12 @@ impl EqChannelState {
             high: EqBandState::new(),
         }
     }
+
+    pub(in crate::synth) fn clear_history(&mut self) {
+        self.low.filter.clear_history();
+        self.mid.filter.clear_history();
+        self.high.filter.clear_history();
+    }
 }
 
 #[derive(Clone, Debug)]

@@ -103,14 +103,20 @@ fn start_prewarmed_with_hold(
         parity: 0,
         partitions: home_partitions.0,
         bus_carriers: first_carriers,
-        routing_tree: Some(RoutingTreeOwnerData::new(first_bank)),
+        routing_tree: Some(RoutingTreeOwnerData::new(
+            first_bank,
+            engine.fx_silence_generation,
+        )),
     };
     let mut second_owner = OwnerEnvelope {
         runtime_generation: lifecycle.runtime_generation(),
         parity: 1,
         partitions: home_partitions.1,
         bus_carriers: second_carriers,
-        routing_tree: Some(RoutingTreeOwnerData::new(second_bank)),
+        routing_tree: Some(RoutingTreeOwnerData::new(
+            second_bank,
+            engine.fx_silence_generation,
+        )),
     };
     let Some(routing_first) = first_owner.routing_tree.as_mut() else {
         return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);

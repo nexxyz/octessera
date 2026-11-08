@@ -37,6 +37,10 @@ impl FxBusOutputSpreadState {
         )
     }
 
+    pub(super) fn silence(&mut self) {
+        self.buf.fill(0.0);
+    }
+
     #[cfg(all(test, feature = "routing-tree-executor"))]
     pub(super) fn state_for_test(&self) -> (usize, &[f32]) {
         (self.idx, &self.buf)

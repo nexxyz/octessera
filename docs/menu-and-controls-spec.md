@@ -694,7 +694,9 @@ behavior primary red), so a mute never reads as a section color.
   coexist.
 - A red `CLIP` in the small font sits at `x=88..103` on the breadcrumb line while the output
   clips: a render block had a sample whose magnitude after Master Vol was above 1.0 before the
-  final hard clamp (exactly 1.0 is not a clip). The audio source ORs the engine's per-block flag
+  final hard clamp (exactly 1.0 is not a clip), or a non-finite sample. A non-finite frame is
+  output as silence, and the engine then clears the master and bus FX history it may have
+  reached (delay lines, reverb combs, filter and envelope state). The audio source ORs the engine's per-block flag
   into each audio-load report (`AudioLoadStatus.output_clipped`), and the runtime holds `CLIP` for 2 s after the
   last clipped report. While it shows, the breadcrumb ends at `x=86` with the usual `..`; the rest
   of the time the header is unchanged. The hold is timed by the audio-load reports (every 100 ms),

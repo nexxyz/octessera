@@ -115,6 +115,15 @@ impl BusChainCarrier {
         self.owner.as_ref().map_or(0, BusChainOwner::cost_units)
     }
 
+    pub(super) fn silence(&mut self) {
+        if let Some(owner) = self.owner.as_mut() {
+            owner.silence();
+        }
+        if let Some(spread) = self.routing_tree_spread_state.as_mut() {
+            spread.silence();
+        }
+    }
+
     pub(super) fn within_worker_capacity(&self) -> bool {
         self.cost_units() <= SOURCE_WORKER_MAX_COST_UNITS
     }
@@ -412,6 +421,12 @@ impl BusChainOwner {
             self.render_hold_frames = hold_frames;
         } else {
             self.render_hold_frames = self.render_hold_frames.saturating_sub(1);
+        }
+    }
+
+    pub(super) fn silence(&mut self) {
+        for state in &mut self.slot_state {
+            state.silence();
         }
     }
 

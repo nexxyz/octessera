@@ -70,6 +70,9 @@ impl SynthEngine {
             signal_tap: master_signal_tap(),
             tapped_bus_sample: 0.0,
             output_clipped: false,
+            master_nonfinite: false,
+            #[cfg(feature = "routing-tree-executor")]
+            fx_silence_generation: 0,
         }
     }
 

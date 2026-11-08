@@ -119,10 +119,11 @@ pub(super) struct RoutingTreeOwnerData {
     pub(super) retired_preview_samples: [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
     pub(super) retired_momentary_fx:
         [Option<MomentaryFxState>; super::control::MOMENTARY_FX_CAPACITY],
+    pub(super) fx_silence_generation: u32,
 }
 
 impl RoutingTreeOwnerData {
-    pub(super) fn new(source_bank: Box<RoutingTreeSourceBank>) -> Self {
+    pub(super) fn new(source_bank: Box<RoutingTreeSourceBank>, fx_silence_generation: u32) -> Self {
         Self {
             scratch: RoutingTreeWorkerScratch::new(),
             output: RoutingTreeOutputBlock::new(),
@@ -132,6 +133,7 @@ impl RoutingTreeOwnerData {
             momentary_fx: Vec::with_capacity(super::control::MOMENTARY_FX_CAPACITY),
             retired_preview_samples: std::array::from_fn(|_| None),
             retired_momentary_fx: std::array::from_fn(|_| None),
+            fx_silence_generation,
         }
     }
 }
@@ -154,6 +156,7 @@ pub(super) struct RoutingTreeWorkerContext {
     pub(super) fx_activity_hold_frames: u32,
     pub(super) signal: Option<SignalSource>,
     pub(super) signal_tap: &'static SignalTap,
+    pub(super) fx_silence_generation: u32,
 }
 
 impl RoutingTreeWorkerContext {
@@ -202,6 +205,7 @@ impl RoutingTreeWorkerContext {
             fx_activity_hold_frames: engine.fx_activity_hold_frames,
             signal: engine.signal_tap.selected(),
             signal_tap: engine.signal_tap,
+            fx_silence_generation: engine.fx_silence_generation,
         })
     }
 }
@@ -229,6 +233,12 @@ pub(super) fn render_owner(
     let Some(mut routing) = owner.routing_tree.take() else {
         return Err(());
     };
+    if routing.fx_silence_generation != context.fx_silence_generation {
+        routing.fx_silence_generation = context.fx_silence_generation;
+        for carrier in owner.bus_carriers.iter_mut().flatten() {
+            carrier.silence();
+        }
+    }
     let result = if !routing.scratch.prepare(stamp.frames) || !routing.output.prepare(stamp.frames)
     {
         Err(())

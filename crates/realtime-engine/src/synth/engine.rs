@@ -37,6 +37,8 @@ mod lifecycle_tests;
 mod live_pitch_shift;
 mod momentary_fx_state;
 mod momentary_fx_voice;
+#[cfg(test)]
+mod nonfinite_output_tests;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;
@@ -282,6 +284,9 @@ pub struct SynthEngine {
     signal_tap: &'static SignalTap,
     tapped_bus_sample: f32,
     output_clipped: bool,
+    master_nonfinite: bool,
+    #[cfg(feature = "routing-tree-executor")]
+    fx_silence_generation: u32,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

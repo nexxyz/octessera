@@ -59,6 +59,30 @@ pub(in crate::synth) enum FxBusState {
     Vinyl(VinylState),
 }
 
+impl FxBusState {
+    /// Clears the signal history a non-finite sample can leave behind, in place and without
+    /// allocating.
+    pub(in crate::synth) fn silence(&mut self) {
+        match self {
+            FxBusState::None | FxBusState::Tremolo { .. } | FxBusState::AutoPan { .. } => {}
+            FxBusState::Delay { buf, .. }
+            | FxBusState::ModDelay { buf, .. }
+            | FxBusState::Glitch { buf, .. } => buf.fill(0.0),
+            FxBusState::FilterLfo { filt, .. } => filt.clear_history(),
+            FxBusState::Duck { env } | FxBusState::Compressor { env } => *env = 0.0,
+            FxBusState::Bitcrusher { last, .. } => *last = 0.0,
+            FxBusState::Reverb { bufs, lp, .. } => {
+                for buf in bufs {
+                    buf.fill(0.0);
+                }
+                *lp = [0.0; 4];
+            }
+            FxBusState::Eq { channel } => channel.clear_history(),
+            FxBusState::Vinyl(state) => *state = VinylState::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(in crate::synth) enum MasterFxState {
     None,
@@ -70,6 +94,20 @@ pub(in crate::synth) enum MasterFxState {
         right: Box<EqChannelState>,
     },
     Vinyl(VinylState),
+}
+
+impl MasterFxState {
+    pub(in crate::synth) fn silence(&mut self) {
+        match self {
+            MasterFxState::None => {}
+            MasterFxState::Compressor { env } => *env = 0.0,
+            MasterFxState::Eq { left, right } => {
+                left.clear_history();
+                right.clear_history();
+            }
+            MasterFxState::Vinyl(state) => *state = VinylState::new(),
+        }
+    }
 }
 
 pub(in crate::synth) fn fx_bus_state_from_params(

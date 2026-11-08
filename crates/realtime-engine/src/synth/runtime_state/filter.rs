@@ -92,6 +92,13 @@ impl BiquadState {
         self.pass_frames = other.pass_frames;
     }
 
+    pub(in crate::synth) fn clear_history(&mut self) {
+        self.x1 = 0.0;
+        self.x2 = 0.0;
+        self.y1 = 0.0;
+        self.y2 = 0.0;
+    }
+
     /// True while the prepared settings leave audio unchanged, so callers can skip the filter.
     pub(in crate::synth) fn is_open(&self) -> bool {
         self.pass_frames == OPEN
