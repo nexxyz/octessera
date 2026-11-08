@@ -16,7 +16,7 @@ fn runner_with_routes(target: Route, other: Route) -> NativeRunner {
     runner.transport.transport = RuntimeTransportState::Playing;
     configure_route(&mut runner, 0, target);
     configure_route(&mut runner, 1, other);
-    runner.midi_active = matches!(target, Route::Midi) || matches!(other, Route::Midi);
+    runner.midi.enabled = matches!(target, Route::Midi) || matches!(other, Route::Midi);
     runner.sync_engine_runtime_config();
     runner
 }

@@ -29,7 +29,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
         })
         .unwrap();
     runner.select_active_layer(0).unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
 
     let first = runner
@@ -103,7 +103,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.aux_auto_map_enabled = false;
     runner.display.ui.ghost_tiles = false;
     runner.display.ui.master_volume = 77;
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.shift_aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),
@@ -150,7 +150,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     assert!(!runner.aux_auto_map_enabled);
     assert!(!runner.display.ui.ghost_tiles);
     assert_eq!(runner.display.ui.master_volume, 77);
-    assert!(runner.midi_active);
+    assert!(runner.midi.enabled);
     assert_eq!(runner.audio_config_revision, 1);
     assert_eq!(
         runner.menu.value_for_key("instruments.0.type").as_deref(),
@@ -191,20 +191,20 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
 #[test]
 pub(crate) fn external_midi_realtime_respects_clock_in_and_start_stop_settings() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.transport.sync_source = SyncSource::External;
 
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
     assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
-    runner.midi_clock_in_enabled = true;
-    runner.midi_respond_to_start_stop = false;
+    runner.midi.clock_in_enabled = true;
+    runner.midi.respond_to_start_stop = false;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
     assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);
 
-    runner.midi_respond_to_start_stop = true;
+    runner.midi.respond_to_start_stop = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
     assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
-    runner.midi_clock_in_enabled = false;
+    runner.midi.clock_in_enabled = false;
     runner.send(HostMessage::MidiRealtimeStop).unwrap();
     assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
 }
@@ -213,8 +213,8 @@ pub(crate) fn external_midi_realtime_respects_clock_in_and_start_stop_settings()
 pub(crate) fn midi_active_gates_inbound_realtime_transport_messages() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.sync_source = SyncSource::External;
-    runner.midi_clock_in_enabled = true;
-    runner.midi_respond_to_start_stop = true;
+    runner.midi.clock_in_enabled = true;
+    runner.midi.respond_to_start_stop = true;
 
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
     assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);

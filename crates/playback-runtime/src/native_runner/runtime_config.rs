@@ -8,15 +8,15 @@ impl NativeRunner {
         RuntimeConfig {
             bpm: self.transport.bpm,
             sync_source: self.transport.sync_source.clone(),
-            midi_clock_out_enabled: self.midi_clock_out_enabled,
-            midi_out_enabled: self.midi_active
-                && (self.usb_midi_out_enabled || self.selected_midi_output_id.is_some()),
+            midi_clock_out_enabled: self.midi.clock_out_enabled,
+            midi_out_enabled: self.midi.enabled
+                && (self.usb_midi_out_enabled || self.midi.output_id.is_some()),
             midi_out_internal_channels: self.midi_internal_note_channels(),
         }
     }
 
     fn midi_internal_note_channels(&self) -> u16 {
-        if self.midi_send_instruments != "all" {
+        if self.midi.send_instruments != "all" {
             return 0;
         }
         (0..INSTRUMENT_COUNT)

@@ -9,7 +9,7 @@ fn mixed_patch_runner() -> NativeRunner {
     payload["runtimeConfig"]["layers"][5] = payload["runtimeConfig"]["layers"][6].clone();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     for (index, behavior_id) in runner.layer_behavior_ids.iter().enumerate() {
         assert_eq!(behavior_id == "none", index >= 5, "factory layer {index}");
     }

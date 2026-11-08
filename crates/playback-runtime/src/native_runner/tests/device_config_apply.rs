@@ -81,7 +81,7 @@ pub(super) fn board_runner(usb_data_role_available: bool) -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.menu.rebuild(runner.menu_config());
     runner
         .send(HostMessage::DeviceInput {
@@ -401,14 +401,8 @@ fn orange_usb_device_disable_restores_host_midi_selections() {
         .item_for_key("midi.input.name:Host In")
         .is_some());
     assert!(runner.menu.item_for_key("usb.midiOutEnabled").is_some());
-    assert_eq!(
-        runner.selected_midi_output_id.as_deref(),
-        Some("name:Host Out")
-    );
-    assert_eq!(
-        runner.selected_midi_input_id.as_deref(),
-        Some("name:Host In")
-    );
+    assert_eq!(runner.midi.output_id.as_deref(), Some("name:Host Out"));
+    assert_eq!(runner.midi.input_id.as_deref(), Some("name:Host In"));
 
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["usb"]["midiOutEnabled"] = json!(false);
@@ -419,14 +413,8 @@ fn orange_usb_device_disable_restores_host_midi_selections() {
             .system,
     );
 
-    assert_eq!(
-        reloaded.selected_midi_output_id.as_deref(),
-        Some("name:Host Out")
-    );
-    assert_eq!(
-        reloaded.selected_midi_input_id.as_deref(),
-        Some("name:Host In")
-    );
+    assert_eq!(reloaded.midi.output_id.as_deref(), Some("name:Host Out"));
+    assert_eq!(reloaded.midi.input_id.as_deref(), Some("name:Host In"));
 }
 
 #[test]
@@ -467,15 +455,9 @@ fn inactive_midi_retains_host_ids_through_usb_status_and_reload() {
             .iter()
             .any(|message| matches!(message, RunnerMessage::MidiEvents { .. })));
     }
-    assert!(!runner.midi_active);
-    assert_eq!(
-        runner.selected_midi_output_id.as_deref(),
-        Some("name:Host Out")
-    );
-    assert_eq!(
-        runner.selected_midi_input_id.as_deref(),
-        Some("name:Host In")
-    );
+    assert!(!runner.midi.enabled);
+    assert_eq!(runner.midi.output_id.as_deref(), Some("name:Host Out"));
+    assert_eq!(runner.midi.input_id.as_deref(), Some("name:Host In"));
 
     let baseline = runner.config_payload();
     let mut runner = reload_system_payload(split_system_patch_documents(&baseline).unwrap().system);
@@ -485,14 +467,8 @@ fn inactive_midi_retains_host_ids_through_usb_status_and_reload() {
     assert_eq!(saved["runtimeConfig"]["usb"]["midiOutEnabled"], false);
 
     let reloaded = reload_system_payload(saved);
-    assert!(!reloaded.midi_active);
+    assert!(!reloaded.midi.enabled);
     assert!(!reloaded.usb_midi_out_enabled);
-    assert_eq!(
-        reloaded.selected_midi_output_id.as_deref(),
-        Some("name:Host Out")
-    );
-    assert_eq!(
-        reloaded.selected_midi_input_id.as_deref(),
-        Some("name:Host In")
-    );
+    assert_eq!(reloaded.midi.output_id.as_deref(), Some("name:Host Out"));
+    assert_eq!(reloaded.midi.input_id.as_deref(), Some("name:Host In"));
 }

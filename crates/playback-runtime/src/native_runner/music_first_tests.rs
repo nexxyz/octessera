@@ -293,8 +293,8 @@ fn explicit_request_survives_capture_until_scene_is_accepted() {
 fn external_clock_resync_uses_music_first_only_while_already_playing() {
     let mut runner = playing_default();
     let mut legacy = playing_default();
-    runner.midi_active = true;
-    runner.midi_clock_in_enabled = true;
+    runner.midi.enabled = true;
+    runner.midi.clock_in_enabled = true;
     runner.transport.sync_source = SyncSource::External;
     runner.transport.current_ppqn_pulse = 95;
     runner.transport.pending_resync = true;
@@ -307,8 +307,8 @@ fn external_clock_resync_uses_music_first_only_while_already_playing() {
     assert_music_only(&no_clock);
     assert_eq!(runner.display.transients.generation(), generation);
     assert!(!runner.display_scene_pending());
-    legacy.midi_active = true;
-    legacy.midi_clock_in_enabled = true;
+    legacy.midi.enabled = true;
+    legacy.midi.clock_in_enabled = true;
     legacy.transport.sync_source = SyncSource::External;
     legacy.transport.current_ppqn_pulse = 95;
     legacy.transport.pending_resync = true;

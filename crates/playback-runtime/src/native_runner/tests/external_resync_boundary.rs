@@ -36,9 +36,9 @@ fn add_tile(runner: &mut NativeRunner, x: usize, y: usize) {
 }
 
 fn arm_boundary(runner: &mut NativeRunner, current_ppqn_pulse: u64) {
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.transport.sync_source = SyncSource::External;
-    runner.midi_clock_in_enabled = true;
+    runner.midi.clock_in_enabled = true;
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.current_ppqn_pulse = current_ppqn_pulse;
     runner.transport.pending_resync = true;

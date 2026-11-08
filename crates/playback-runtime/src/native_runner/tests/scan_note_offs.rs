@@ -12,9 +12,9 @@ fn scanned_empty_note_off_runtime(
     })
     .unwrap();
     runner.instruments[0].note_behavior = NoteBehavior::from_wire_name(note_behavior).unwrap();
-    runner.midi_active = true;
-    runner.selected_midi_output_id = Some("out-1".into());
-    runner.midi_send_instruments = "all".into();
+    runner.midi.enabled = true;
+    runner.midi.output_id = Some("out-1".into());
+    runner.midi.send_instruments = "all".into();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scan_axis = ScanAxis::Columns;

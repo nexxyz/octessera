@@ -129,8 +129,8 @@ fn picked_midi_ports_save_system_without_a_save_action_and_reload() {
     assert_eq!(runner.reboot_blocked_by_pending_saves(), None);
 
     let reloaded = reload_system_payload(saved);
-    assert_eq!(reloaded.selected_midi_output_id.as_deref(), Some("out1"));
-    assert_eq!(reloaded.selected_midi_input_id.as_deref(), Some("in1"));
+    assert_eq!(reloaded.midi.output_id.as_deref(), Some("out1"));
+    assert_eq!(reloaded.midi.input_id.as_deref(), Some("in1"));
 }
 
 #[test]
@@ -183,8 +183,22 @@ fn failed_connect_of_a_saved_port_keeps_it_and_a_later_connect_reports_ok() {
             .iter()
             .any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveSystem { .. })));
         assert_eq!(runner.midi_status.as_deref(), Some(status));
-        assert_eq!(runner.selected_midi_output_id.as_deref(), Some("out1"));
-        assert_eq!(runner.selected_midi_input_id.as_deref(), Some("in1"));
+        assert_eq!(runner.midi.output_id.as_deref(), Some("out1"));
+        assert_eq!(runner.midi.input_id.as_deref(), Some("in1"));
         assert_eq!(runner.pending.system_persistence.dirty_revision, None);
     }
+}
+
+#[test]
+fn a_null_midi_port_clears_it_and_an_absent_port_keeps_it() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["midi"]["outId"] = json!("out1");
+    payload["runtimeConfig"]["midi"]["inId"] = json!("in1");
+    runner.apply_config_payload(payload).unwrap();
+    assert_eq!(runner.midi.output_id.as_deref(), Some("out1"));
+
+    runner.apply_midi_payload(&json!({ "midi": { "outId": null } }));
+    assert_eq!(runner.midi.output_id, None);
+    assert_eq!(runner.midi.input_id.as_deref(), Some("in1"));
 }

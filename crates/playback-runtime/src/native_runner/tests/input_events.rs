@@ -338,7 +338,7 @@ pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_tile_color()
     .unwrap();
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scan_axis = ScanAxis::Rows;
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
     runner

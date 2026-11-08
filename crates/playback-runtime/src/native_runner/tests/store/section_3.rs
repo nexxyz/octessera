@@ -72,9 +72,9 @@ pub(crate) fn device_config_apply_keeps_the_patch_aux_layout() {
 #[test]
 pub(crate) fn preset_load_preserves_local_midi_selection_without_select_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi_active = true;
-    runner.selected_midi_output_id = Some("local-out".into());
-    runner.selected_midi_input_id = Some("local-in".into());
+    runner.midi.enabled = true;
+    runner.midi.output_id = Some("local-out".into());
+    runner.midi.input_id = Some("local-in".into());
 
     let messages = runner
         .send(HostMessage::RuntimeResult {
@@ -94,9 +94,9 @@ pub(crate) fn preset_load_preserves_local_midi_selection_without_select_effects(
         })
         .unwrap();
 
-    assert!(runner.midi_active);
-    assert_eq!(runner.selected_midi_output_id.as_deref(), Some("local-out"));
-    assert_eq!(runner.selected_midi_input_id.as_deref(), Some("local-in"));
+    assert!(runner.midi.enabled);
+    assert_eq!(runner.midi.output_id.as_deref(), Some("local-out"));
+    assert_eq!(runner.midi.input_id.as_deref(), Some("local-in"));
     assert!(!messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }

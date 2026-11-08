@@ -7,7 +7,7 @@ const VELOCITY_TARGET: &str = "midiCc.0.target.sound.velocityScalePct";
 
 fn midi_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner
 }
 
@@ -173,7 +173,7 @@ fn disabled_midi_ignores_control_changes_and_learn() {
     let mut runner = midi_runner();
     map_velocity_to_cc1(&mut runner);
     send_cc_bytes(&mut runner, &[[0xB0, 1, 127]]);
-    runner.midi_active = false;
+    runner.midi.enabled = false;
 
     send_cc_bytes(&mut runner, &[[0xB0, 1, 0]]);
     assert_eq!(velocity(&runner), 200);

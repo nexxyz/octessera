@@ -97,9 +97,9 @@ impl NativeRunner {
         &mut self,
         pulses: u32,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if !self.midi_active
+        if !self.midi.enabled
             || self.transport.sync_source != SyncSource::External
-            || !self.midi_clock_in_enabled
+            || !self.midi.clock_in_enabled
         {
             return self.clock_status_messages();
         }
@@ -195,9 +195,9 @@ impl NativeRunner {
     }
 
     fn should_ignore_external_start_stop(&self) -> bool {
-        !self.midi_active
+        !self.midi.enabled
             || (self.transport.sync_source == SyncSource::External
-                && (!self.midi_clock_in_enabled || !self.midi_respond_to_start_stop))
+                && (!self.midi.clock_in_enabled || !self.midi.respond_to_start_stop))
     }
 }
 

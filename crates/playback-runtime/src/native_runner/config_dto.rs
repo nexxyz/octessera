@@ -16,6 +16,15 @@ pub(super) use runtime::{
     WifiDto,
 };
 
+/// Reads a field whose null means "clear" apart from its absence, which means "keep".
+fn deserialize_nullable<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    Ok(Some(serde::Deserialize::deserialize(deserializer)?))
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct ConfigDto {
     kind: String,

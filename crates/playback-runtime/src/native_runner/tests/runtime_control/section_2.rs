@@ -42,9 +42,9 @@ pub(crate) fn shift_space_stops_internal_and_external_arms_resync() {
 #[test]
 pub(crate) fn external_resync_splits_clock_batch_at_measure_boundary() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.transport.sync_source = SyncSource::External;
-    runner.midi_clock_in_enabled = true;
+    runner.midi.clock_in_enabled = true;
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.current_ppqn_pulse = 95;
     runner.transport.layer_pulse_accumulators[0] = 5;

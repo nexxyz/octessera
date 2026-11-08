@@ -15,16 +15,16 @@ impl NativeRunner {
             "midiSyncMode" => Some(self.fast_sync_source_menu_key()),
             "midiEnabled" => Some(self.fast_midi_active_menu_key()),
             "midi.clockOutEnabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
-                bool_changed(&mut runner.midi_clock_out_enabled, value)
+                bool_changed(&mut runner.midi.clock_out_enabled, value)
             })),
             "midi.clockInEnabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
-                bool_changed(&mut runner.midi_clock_in_enabled, value)
+                bool_changed(&mut runner.midi.clock_in_enabled, value)
             })),
             "midi.respondToStartStop" => Some(self.fast_bool_menu_key(key, |runner, value| {
-                bool_changed(&mut runner.midi_respond_to_start_stop, value)
+                bool_changed(&mut runner.midi.respond_to_start_stop, value)
             })),
             "midi.sendInstruments" => Some(self.fast_string_menu_key(key, |runner, value| {
-                value_changed(&mut runner.midi_send_instruments, value)
+                value_changed(&mut runner.midi.send_instruments, value)
             })),
             "audioOutputs.usb" | "audioOutputs.hdmi" => Some(self.fast_audio_outputs_menu_key(key)),
             "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),
@@ -230,7 +230,7 @@ impl NativeRunner {
         else {
             return false;
         };
-        if bool_changed(&mut self.midi_active, value) {
+        if bool_changed(&mut self.midi.enabled, value) {
             if !value {
                 self.drain_all_layer_engine_notes();
                 self.drain_all_play_transpose_notes();

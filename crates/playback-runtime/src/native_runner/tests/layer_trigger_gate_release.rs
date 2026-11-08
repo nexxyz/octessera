@@ -105,7 +105,7 @@ pub(crate) fn disabling_layer_drains_external_midi_note_with_midi_routing() {
     runner.instruments[0].kind = InstrumentType::Midi;
     runner.instruments[0].midi_enabled = true;
     runner.instruments[0].midi_channel = 3;
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.sync_engine_runtime_config();
 
     let pressed = press_note(&mut runner, 2, 3);
@@ -135,7 +135,7 @@ pub(crate) fn disabling_one_layer_leaves_another_layer_held() {
     runner.instruments[1].midi_channel = 4;
     runner.link_layers[1].activate_slot = 1;
     runner.link_layers[1].event_enabled = true;
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.sync_engine_runtime_config();
 
     let layer_zero_press = press_note(&mut runner, 2, 3);
@@ -232,7 +232,7 @@ fn configure_shared_route(runner: &mut NativeRunner, route: SharedRoute) {
     runner.link_layers[1].activate_slot = 0;
     runner.link_layers[1].event_enabled = true;
     if matches!(route, SharedRoute::Midi) {
-        runner.midi_active = true;
+        runner.midi.enabled = true;
     }
     runner.sync_engine_runtime_config();
 }

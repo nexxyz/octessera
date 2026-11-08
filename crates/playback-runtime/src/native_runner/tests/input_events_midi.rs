@@ -11,8 +11,8 @@ fn midi_hold_runner() -> NativeRunner {
     runner.instruments[0].kind = InstrumentType::Midi;
     runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.instruments[0].midi_enabled = true;
-    runner.midi_active = true;
-    runner.selected_midi_output_id = Some("out-1".into());
+    runner.midi.enabled = true;
+    runner.midi.output_id = Some("out-1".into());
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.menu.rebuild(runner.menu_config());
     runner.refresh_active_mapping_config();
@@ -23,9 +23,9 @@ fn midi_hold_runner() -> NativeRunner {
 #[test]
 pub(crate) fn usb_device_midi_routes_notes_and_internal_clock_without_host_selection() {
     let mut runner = midi_hold_runner();
-    runner.selected_midi_output_id = None;
+    runner.midi.output_id = None;
     runner.usb_midi_out_enabled = true;
-    runner.midi_clock_out_enabled = true;
+    runner.midi.clock_out_enabled = true;
     runner.sync_engine_runtime_config();
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let mut host = FakeHost::default();
@@ -41,7 +41,7 @@ pub(crate) fn usb_device_midi_routes_notes_and_internal_clock_without_host_selec
         )
         .unwrap();
     assert!(runtime.config().midi_out_enabled);
-    assert!(runner.selected_midi_output_id.is_none());
+    assert!(runner.midi.output_id.is_none());
 
     runtime
         .dispatch_host_message(
@@ -62,7 +62,7 @@ pub(crate) fn usb_device_midi_routes_notes_and_internal_clock_without_host_selec
     runtime.advance(500, &mut runner, &mut host).unwrap();
     assert!(host.midi_messages.iter().any(|message| message == &[0xF8]));
 
-    runner.midi_active = false;
+    runner.midi.enabled = false;
     runtime
         .dispatch_host_message(
             HostMessage::DeviceInput {
@@ -136,7 +136,7 @@ pub(crate) fn disabling_global_midi_drains_held_midi_notes_before_gate_changes()
         message,
         RunnerMessage::RuntimeConfigChanged { config } if !config.midi_out_enabled
     )));
-    assert!(!runner.midi_active);
+    assert!(!runner.midi.enabled);
 }
 
 #[test]
@@ -145,7 +145,7 @@ pub(crate) fn midi_enabled_user_edit_marks_system_dirty() {
     runner.auto_save_default = true;
     runner.config_dirty = false;
     let marks_before = runner.fast_autosave_marks;
-    assert!(!runner.midi_active);
+    assert!(!runner.midi.enabled);
     assert!(runner.menu.focus_item_key("midiEnabled"));
     runner
         .send(HostMessage::DeviceInput {
@@ -160,7 +160,7 @@ pub(crate) fn midi_enabled_user_edit_marks_system_dirty() {
         })
         .unwrap();
 
-    assert!(runner.midi_active);
+    assert!(runner.midi.enabled);
     assert!(runner.pending.system_persistence.dirty_revision.is_some());
     assert_eq!(runner.fast_autosave_marks, marks_before);
     assert!(runner.pending.pending_autosave_payload_due_at.is_none());

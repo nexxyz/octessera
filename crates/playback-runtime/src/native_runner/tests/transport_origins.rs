@@ -7,7 +7,7 @@ pub(crate) fn transport_stop_drains_active_and_inactive_held_notes_to_their_rout
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.instruments[1].note_behavior = NoteBehavior::Hold;
     runner.instruments[1].kind = InstrumentType::Midi;
@@ -70,7 +70,7 @@ pub(crate) fn pause_continue_and_manual_single_step_preserve_phase_but_stop_star
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.link_layers[0].scan_unit = "1/16".into();
@@ -119,7 +119,7 @@ pub(crate) fn pause_continue_and_manual_single_step_preserve_phase_but_stop_star
 #[test]
 pub(crate) fn transport_origin_resets_probability_rng_but_pause_continue_and_panic_do_not() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
     runner.trigger_probability_rng = 42;
 
@@ -153,9 +153,9 @@ pub(crate) fn transport_origin_resets_probability_rng_but_pause_continue_and_pan
 #[test]
 pub(crate) fn external_clock_advances_only_while_enabled_and_playing() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.transport.sync_source = SyncSource::External;
-    runner.midi_clock_in_enabled = true;
+    runner.midi.clock_in_enabled = true;
     runner.transport.current_ppqn_pulse = 7;
 
     runner
@@ -184,13 +184,13 @@ pub(crate) fn external_clock_advances_only_while_enabled_and_playing() {
     assert_eq!(runner.transport.current_ppqn_pulse, 2);
 
     runner.send(HostMessage::MidiRealtimeContinue).unwrap();
-    runner.midi_clock_in_enabled = false;
+    runner.midi.clock_in_enabled = false;
     runner
         .send(HostMessage::MidiRealtimeClock { pulses: 3 })
         .unwrap();
     assert_eq!(runner.transport.current_ppqn_pulse, 2);
 
-    runner.midi_clock_in_enabled = true;
+    runner.midi.clock_in_enabled = true;
     runner.transport.sync_source = SyncSource::Internal;
     runner
         .send(HostMessage::MidiRealtimeClock { pulses: 3 })
@@ -201,9 +201,9 @@ pub(crate) fn external_clock_advances_only_while_enabled_and_playing() {
 #[test]
 pub(crate) fn pending_external_resync_waits_for_playable_clocks() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi_active = true;
+    runner.midi.enabled = true;
     runner.transport.sync_source = SyncSource::External;
-    runner.midi_clock_in_enabled = true;
+    runner.midi.clock_in_enabled = true;
     runner.transport.current_ppqn_pulse = 95;
     runner.transport.pending_resync = true;
 

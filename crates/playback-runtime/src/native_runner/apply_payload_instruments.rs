@@ -6,9 +6,10 @@ use super::apply_payload_mixer_values::*;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::play_pages::{ActivePlayMode, PlayMode};
 use super::{
-    velocity_curve_from_id, AudioOptimization, AudioOutputSet, NativeRunner, SyncSource,
+    velocity_curve_from_id, AudioOptimization, AudioOutputSet, MidiDto, NativeRunner, SyncSource,
     UsbDataRole, Value, VoiceStealingMode,
 };
+use serde::Deserialize;
 
 impl NativeRunner {
     pub(super) fn apply_instruments_payload(&mut self, runtime: &Value) {
@@ -296,12 +297,17 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_midi_payload(&mut self, runtime: &Value) {
-        let Some(midi) = runtime.get("midi") else {
+        let Some(Ok(midi)) = runtime.get("midi").map(MidiDto::deserialize) else {
             return;
         };
-        self.apply_midi_active_payload(midi);
-        self.apply_midi_port_payload(midi);
-        self.apply_midi_sync_payload(midi);
+        self.midi.apply(&midi);
+        if let Some(sync_mode) = &midi.sync_mode {
+            self.transport.sync_source = if sync_mode == "external" {
+                SyncSource::External
+            } else {
+                SyncSource::Internal
+            };
+        }
         self.queue_midi_selection_effects();
     }
 
@@ -339,51 +345,14 @@ impl NativeRunner {
         }
     }
 
-    fn apply_midi_active_payload(&mut self, midi: &Value) {
-        if let Some(enabled) = midi.get("enabled").and_then(Value::as_bool) {
-            self.midi_active = enabled;
-        }
-    }
-
-    fn apply_midi_port_payload(&mut self, midi: &Value) {
-        if let Some(out_id) = midi.get("outId") {
-            self.selected_midi_output_id = out_id.as_str().map(str::to_string);
-        }
-        if let Some(in_id) = midi.get("inId") {
-            self.selected_midi_input_id = in_id.as_str().map(str::to_string);
-        }
-    }
-
-    fn apply_midi_sync_payload(&mut self, midi: &Value) {
-        if let Some(sync_mode) = midi.get("syncMode").and_then(Value::as_str) {
-            self.transport.sync_source = if sync_mode == "external" {
-                SyncSource::External
-            } else {
-                SyncSource::Internal
-            };
-        }
-        if let Some(value) = midi.get("clockOutEnabled").and_then(Value::as_bool) {
-            self.midi_clock_out_enabled = value;
-        }
-        if let Some(value) = midi.get("clockInEnabled").and_then(Value::as_bool) {
-            self.midi_clock_in_enabled = value;
-        }
-        if let Some(value) = midi.get("respondToStartStop").and_then(Value::as_bool) {
-            self.midi_respond_to_start_stop = value;
-        }
-        if let Some(value) = midi.get("sendInstruments").and_then(Value::as_str) {
-            self.midi_send_instruments = value.into();
-        }
-    }
-
     fn queue_midi_selection_effects(&mut self) {
         self.outbox
             .push_platform_effect(RuntimePlatformEffect::MidiSelectOutput {
-                id: self.selected_midi_output_id.clone(),
+                id: self.midi.output_id.clone(),
             });
         self.outbox
             .push_platform_effect(RuntimePlatformEffect::MidiSelectInput {
-                id: self.selected_midi_input_id.clone(),
+                id: self.midi.input_id.clone(),
             });
     }
 }

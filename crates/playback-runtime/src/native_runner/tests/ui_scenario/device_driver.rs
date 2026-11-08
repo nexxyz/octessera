@@ -13,7 +13,7 @@ pub(super) struct DeviceDriver {
 impl DeviceDriver {
     pub(super) fn new() -> Self {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.midi_active = true;
+        runner.midi.enabled = true;
         let messages = runner
             .send(HostMessage::DeviceInput {
                 input: json!({ "type": "other" }),
@@ -74,8 +74,8 @@ impl DeviceDriver {
 
     pub(super) fn configure_external_clock(&mut self) {
         self.runner.transport.sync_source = SyncSource::External;
-        self.runner.midi_clock_in_enabled = true;
-        self.runner.midi_respond_to_start_stop = true;
+        self.runner.midi.clock_in_enabled = true;
+        self.runner.midi.respond_to_start_stop = true;
         self.refresh_snapshot();
     }
 

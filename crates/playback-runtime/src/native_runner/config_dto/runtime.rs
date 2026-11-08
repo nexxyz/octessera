@@ -295,25 +295,27 @@ pub struct BluetoothDto {
 #[serde(rename_all = "camelCase")]
 pub struct MidiDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) enabled: Option<bool>,
-    pub(super) out_id: Option<Option<String>>,
-    pub(super) in_id: Option<Option<String>>,
+    pub(in crate::native_runner) enabled: Option<bool>,
+    #[serde(default, deserialize_with = "super::deserialize_nullable")]
+    pub(in crate::native_runner) out_id: Option<Option<String>>,
+    #[serde(default, deserialize_with = "super::deserialize_nullable")]
+    pub(in crate::native_runner) in_id: Option<Option<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) sync_mode: Option<String>,
+    pub(in crate::native_runner) sync_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) clock_out_enabled: Option<bool>,
+    pub(in crate::native_runner) clock_out_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) clock_in_enabled: Option<bool>,
+    pub(in crate::native_runner) clock_in_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) respond_to_start_stop: Option<bool>,
+    pub(in crate::native_runner) respond_to_start_stop: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) send_instruments: Option<String>,
+    pub(in crate::native_runner) send_instruments: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) channel: Option<u8>,
+    pub(in crate::native_runner) channel: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity: Option<u8>,
+    pub(in crate::native_runner) velocity: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) duration_ms: Option<u16>,
+    pub(in crate::native_runner) duration_ms: Option<u16>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

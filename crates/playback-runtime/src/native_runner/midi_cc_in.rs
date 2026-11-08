@@ -103,7 +103,7 @@ impl NativeRunner {
         &mut self,
         change: MidiControlChange,
     ) -> Result<Vec<RunnerMessage>, String> {
-        if !self.midi_active {
+        if !self.midi.enabled {
             return self.messages_without_snapshot();
         }
         if let Some(learn) = self.midi_cc_learn.take() {
@@ -126,7 +126,7 @@ impl NativeRunner {
     }
 
     pub(super) fn start_midi_cc_learn(&mut self, slot: usize) {
-        if !self.midi_active {
+        if !self.midi.enabled {
             self.show_toast("Learn: MIDI is off");
             return;
         }

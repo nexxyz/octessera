@@ -1,5 +1,5 @@
 use super::ParamModsDto;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -23,10 +23,10 @@ pub struct BuildDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) behavior_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default, deserialize_with = "deserialize_nullable_value")]
+    #[serde(default, deserialize_with = "super::deserialize_nullable")]
     pub(super) behavior_config: Option<Option<Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default, deserialize_with = "deserialize_nullable_value")]
+    #[serde(default, deserialize_with = "super::deserialize_nullable")]
     pub(super) saved_state: Option<Option<Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) behavior_config_history: Option<std::collections::BTreeMap<String, Value>>,
@@ -34,13 +34,6 @@ pub struct BuildDto {
     pub(super) seeded: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) step_rate: Option<String>,
-}
-
-fn deserialize_nullable_value<'de, D>(deserializer: D) -> Result<Option<Option<Value>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Ok(Some(Option::<Value>::deserialize(deserializer)?))
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

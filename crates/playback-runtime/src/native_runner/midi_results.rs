@@ -28,15 +28,15 @@ impl NativeRunner {
                 selected_out_id,
                 selected_in_id,
             } => {
-                let selection_changed = self.selected_midi_output_id != selected_out_id
-                    || self.selected_midi_input_id != selected_in_id;
+                let selection_changed =
+                    self.midi.output_id != selected_out_id || self.midi.input_id != selected_in_id;
                 self.midi_status = Some(if ok {
                     "MIDI ok".into()
                 } else {
                     message.unwrap_or_else(|| "MIDI error".into())
                 });
-                self.selected_midi_output_id = selected_out_id;
-                self.selected_midi_input_id = selected_in_id;
+                self.midi.output_id = selected_out_id;
+                self.midi.input_id = selected_in_id;
                 if selection_changed {
                     self.mark_system_dirty();
                     self.save_system_change();

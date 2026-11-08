@@ -21,8 +21,8 @@ impl Rig {
             ..NativeRunnerConfig::default()
         })
         .unwrap();
-        runner.midi_active = true;
-        runner.selected_midi_output_id = Some("out-1".into());
+        runner.midi.enabled = true;
+        runner.midi.output_id = Some("out-1".into());
         runner.transport.transport = RuntimeTransportState::Playing;
         runner.menu.rebuild(runner.menu_config());
         runner.refresh_active_mapping_config();

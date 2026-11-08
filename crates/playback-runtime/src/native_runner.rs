@@ -178,6 +178,7 @@ mod link_config;
 mod link_payload;
 mod link_payload_apply;
 mod midi_results;
+mod midi_settings;
 mod missing_samples;
 mod modulation_assignment_validation;
 mod modulation_audio;
@@ -381,7 +382,7 @@ pub struct NativeRunner {
     emitted_route_note_owners: Vec<BTreeSet<(bool, u8, u8)>>,
     emitted_route_tile_owners: Vec<BTreeSet<(u8, u8)>>,
     display: NativeDisplayState,
-    midi_active: bool,
+    midi: midi_settings::NativeMidiSettings,
     preset_names: Vec<String>,
     current_preset_name: Option<String>,
     preset_draft_name: String,
@@ -393,14 +394,8 @@ pub struct NativeRunner {
     bluetooth: bluetooth::NativeBluetoothState,
     /// Board Wi-Fi radio switch; it lasts across reboots and Live Show Mode never changes it.
     wifi_enabled: bool,
-    selected_midi_output_id: Option<String>,
-    selected_midi_input_id: Option<String>,
     input_events_while_paused: bool,
     voice_stealing_mode: VoiceStealingMode,
-    midi_clock_out_enabled: bool,
-    midi_clock_in_enabled: bool,
-    midi_respond_to_start_stop: bool,
-    midi_send_instruments: String,
     audio_outputs: AudioOutputSet,
     usb_data_role: UsbDataRole,
     usb_midi_out_enabled: bool,
