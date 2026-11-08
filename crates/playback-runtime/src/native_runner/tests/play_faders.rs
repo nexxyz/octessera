@@ -300,3 +300,24 @@ fn whole_binding_bounds_save_as_integers_and_older_float_saves_still_load() {
     older["runtimeConfig"]["faders"]["sliders"][0]["target"]["max"] = json!(200.0);
     assert!(crate::split_system_patch_documents(&older).is_ok());
 }
+
+#[test]
+fn a_slider_sets_a_behavior_row_of_an_inactive_layer() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.layer_behavior_ids[2] = "brain".into();
+    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.menu.rebuild(runner.menu_config());
+    bind(
+        &mut runner,
+        "play.faders.0.target",
+        "layers.2.build.behaviorConfig.randomSeedCells",
+    );
+    open_faders(&mut runner);
+
+    tap(&mut runner, 0, 7);
+    assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 20);
+    assert_eq!(toast(&runner), "F1: Spawn Count 20");
+    tap(&mut runner, 0, 0);
+    assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 0);
+    assert_eq!(runner.active_layer_index, 0);
+}
