@@ -74,7 +74,7 @@ done
 if [[ " ${scenarios[*]} " == *" boot "* ]]; then
   live=/home/pi/presets
   [ "$board" = opi ] && live=/var/lib/octessera/presets
-  remote ssh "sudo -n sha256sum $live/system.json $live/default.patch.json $live/recovery-save.json" > "$out/live-hashes-before.log"
+  remote ssh "sudo -n find $live -maxdepth 1 -name '*.json' -exec sha256sum {} + | sort -k2" > "$out/live-hashes-before.log"
   remote ssh "sudo -n systemctl reboot" || true
   echo "rebooting $board; no SSH for 90 s"
   sleep 90

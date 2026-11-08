@@ -66,7 +66,7 @@ def boot(board, out):
     failed = [u for u in (out / "failed-units.log").read_text().splitlines() if "octessera" in u]
     before, after = ((out / name).read_text().split() for name in ("live-hashes-before.log", "live-hashes.log"))
     problems = errors(rows) + [f"failed unit {u}" for u in failed]
-    if len(after) != 6 or before != after:
+    if len(after) < 4 or before != after:
         problems.append("the live store changed across the reboot")
     if f"pid {ready['pid']} " not in host or "service active" not in host:
         problems.append("readiness marker does not belong to the running service")

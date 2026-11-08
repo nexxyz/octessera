@@ -23,7 +23,7 @@ else
   gadget_unit=octessera-orange-usb-gadget.service
   media="/var/lib/octessera/recordings /var/lib/octessera/screen-recordings"
 fi
-hashes() { sudo -n sha256sum "$live/system.json" "$live/default.patch.json" "$live/recovery-save.json"; }
+hashes() { sudo -n find "$live" -maxdepth 1 -name '*.json' -exec sha256sum {} + | sort -k2; }
 gadget_functions() { sudo -n sh -c 'ls /sys/kernel/config/usb_gadget/*/configs/*/ 2>/dev/null' | tr '\n' ' '; }
 
 if [ "$mode" = boot ]; then
@@ -61,14 +61,20 @@ configure() {
 import json, sys
 path = sys.argv[1]
 system = json.load(open(path))
+config = system["runtimeConfig"]
 for pair in sys.argv[2:]:
     key, value = pair.split("=", 1)
-    system["runtimeConfig"][key] = json.loads(value)
+    config[key] = json.loads(value)
+# board-keys.py types on a uinput keyboard: off the terminal HDMI mode, and on the Raspberry over Bluetooth.
+if config["hdmi"]["mode"] == "terminal":
+    config["hdmi"]["mode"] = "live-grid"
+config["bluetooth"]["enabled"] = True
 json.dump(system, open(path, "w"), separators=(",", ":"))
 PY
 }
 start() {
-  printf '[Service]\nEnvironment=OCTESSERA_PI_STORE_DIR=%s %s\n' "$store" "$*" | sudo -n tee "$dropin" >/dev/null
+  sudo -n mkdir -p "${dropin%/*}"
+  printf '[Service]\nEnvironment=OCTESSERA_PI_STORE_DIR=%s %s\n' "$store" "$*" | sudo -n tee "$dropin" >/dev/null || return 1
   sudo -n systemctl daemon-reload
   sudo -n systemctl restart "$service"
   for _ in $(seq 1 60); do
@@ -193,6 +199,7 @@ usb_midi() {
   local setup
   for setup in usb_midi usb_midi_swing; do
     prepare "$setup"
+    [ "$setup" = usb_midi ] && gadget_from_clone
     start OCTESSERA_RUNTIME_TIMING_TRACE=1 OCTESSERA_PI_UI_PROFILE=1 || return
     sleep 5
     gate "$setup" || return
@@ -200,6 +207,7 @@ usb_midi() {
 }
 usb_midi_cc() {
   prepare usb_midi_cc
+  gadget_from_clone
   start OCTESSERA_RUNTIME_TIMING_TRACE=1 || return
   sleep 5
   gate usb_midi_cc || return

@@ -84,6 +84,7 @@ def main():
             allow_keyboard(config)
             music["playFx"]["assignments"] = [{"config": TAPE_STOP, "x": 3, "y": 3}]
         if setup == "usb_audio_clip":
+            allow_keyboard(config)
             config["masterVolume"] = 100
             patch_layers(music, {0: (0, {(x, y) for x in range(8) for y in range(8)})})
             instruments[0].update(type="synth", name="Synth", autoName=True, noteBehavior="oneshot")
