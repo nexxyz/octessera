@@ -1,5 +1,4 @@
 mod host_adapter_audio;
-mod host_adapter_audio_validation;
 mod host_adapter_drum;
 mod host_adapter_musical;
 mod host_adapter_platform_effects;

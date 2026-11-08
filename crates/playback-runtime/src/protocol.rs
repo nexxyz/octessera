@@ -1,4 +1,5 @@
 mod audio;
+mod audio_command_validation;
 mod bluetooth;
 mod messages;
 pub(crate) mod oled;
@@ -12,6 +13,8 @@ mod user_data_restore;
 mod user_data_transfer;
 
 #[cfg(test)]
+mod audio_command_validation_tests;
+#[cfg(test)]
 mod audio_tests;
 #[cfg(test)]
 mod setup_portal_tests;
@@ -23,6 +26,7 @@ mod user_data_restore_tests;
 mod user_data_transfer_tests;
 
 pub use audio::{RuntimeAudioCommand, RuntimeMomentaryFxTarget};
+pub use audio_command_validation::{invalid_audio_command, validate_audio_command};
 pub use bluetooth::{
     RuntimeBluetoothDevice, RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind,
     RuntimeBluetoothPairing, RuntimeBluetoothStatus,

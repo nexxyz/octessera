@@ -80,7 +80,7 @@ are in [`board-profiles.md`](board-profiles.md).
 
 - Output adapters (`apps/desktop/src-tauri/src/`)
   - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
-  - desktop and board adapters validate string-path controls into fixed native parameter IDs before audio transport, prepare structural owners and momentary payloads off-callback, and preserve playback-runtime generations/epochs unchanged. Safe latest-value controls bypass preparation queues; complete configs, owner replacements, and previews use bounded preparation lanes
+  - desktop and board adapters first run the shared `playback_runtime::validate_audio_command` (slot/bus ranges, parameter paths, finite values, FX types and string params, full-config and instrument-slot parsing), keep only adapter-state checks such as momentary epochs, and map string-path controls into fixed native parameter IDs before audio transport, prepare structural owners and momentary payloads off-callback, and preserve playback-runtime generations/epochs unchanged. Safe latest-value controls bypass preparation queues; complete configs, owner replacements, and previews use bounded preparation lanes
   - desktop `AudioRuntime` retains the rodio `Sink` and constructs the inline `EngineSource` with the existing load-status sender, wrapping that final source once with the desktop recording tap; desktop does not select the Orange routing-tree capacity path or create source-worker lifecycle state
   - the test-only `headless` feature (`apps/desktop/src-tauri/src/headless.rs`) wires the same runtime, host adapter, sample preparation and recording tap without Tauri or a sound card, pulls the engine's audio itself and advances the runtime by exactly the audio it rendered; it adds no runtime behavior and is not built into the app
   - MIDI input/output uses Tauri-side midir adapters
@@ -108,7 +108,7 @@ are in [`board-profiles.md`](board-profiles.md).
   - accepts control latency and skipped intermediate scalar values to protect musical timing. Notes, Drum hits, and CC remain ordered and are never coalesced. A full or disconnected control lane reports typed overload; terminal retirement pressure fails closed for new NoteOn while preserving NoteOff, CC, and panic service
   - is the only path for Synth, FM, Plucked, Drum, and Sampler internal audio before device output
   - shared JSON audio configuration normalization and FX shape/type validation live in `realtime-engine`; desktop and Pi retain sample preparation, preview/bank orchestration, and typed error adaptation
-  - desktop and Pi return the same typed audio-command/config failures, preserve revision identity for full-config preparation, and route `SamplePreview` through the selected realtime instrument path
+  - desktop and Pi return the same typed audio-command/config failures (one shared validation, and a full or disconnected preparation lane reports Audio `OperationFailed` or `AudioThreadFailed` on both), preserve revision identity for full-config preparation, and route `SamplePreview` through the selected realtime instrument path
 
 ## Orange production service
 

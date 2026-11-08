@@ -1,14 +1,12 @@
 use crate::audio::AudioService;
 mod host_audio_command_validation;
-use host_audio_command_validation::{
-    audio_queue_failure, index_u8, invalid_audio_command, momentary_fx_target,
-    validate_audio_command,
+use host_audio_command_validation::{audio_queue_failure, index_u8, momentary_fx_target};
+use playback_runtime::{
+    invalid_audio_command, validate_audio_command, RuntimeAdapterError, RuntimeAudioCommand,
 };
-use playback_runtime::{RuntimeAdapterError, RuntimeAudioCommand};
 use realtime_engine::synth::{
-    prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, validate_momentary_fx_type,
-    DrumParamId, FmParamId, PluckParamId, SampleBankParamId, SynthParamId,
-    DEFAULT_AUDIO_SAMPLE_RATE,
+    prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, DrumParamId, FmParamId,
+    PluckParamId, SampleBankParamId, SynthParamId, DEFAULT_AUDIO_SAMPLE_RATE,
 };
 use rodio_engine_source::EngineEvent;
 use std::path::Path;
@@ -18,7 +16,7 @@ pub fn send_audio_command(
     command: &RuntimeAudioCommand,
     samples_dir: &Path,
 ) -> Result<(), RuntimeAdapterError> {
-    validate_audio_command(command, samples_dir)?;
+    validate_audio_command(command)?;
     let Some(audio) = audio else {
         return Ok(());
     };
@@ -250,7 +248,6 @@ pub fn send_audio_command(
             params,
             target,
         } => {
-            validate_momentary_fx_type(fx_type).map_err(invalid_audio_command)?;
             let prepared = prepare_momentary_fx_start_with_epoch(
                 id.clone(),
                 *epoch,

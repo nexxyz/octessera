@@ -1,19 +1,14 @@
-use super::host_adapter_audio_validation::{
-    ensure_finite, ensure_optional_finite, invalid_audio_command, validate_bus_index,
-    validate_bus_slot, validate_global_slot, validate_instrument_slot, validate_momentary_target,
-    validate_param_values,
-};
-use crate::audio_config::{normalize_config, parse_instrument_slot_config};
 use crate::audio_prep_service::AudioPrepEnqueueResult;
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use playback_runtime::{
-    RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorCode, RuntimeErrorDomain,
-    RuntimeErrorFacts, RuntimeMomentaryFxTarget, RuntimeOperation,
+    invalid_audio_command, validate_audio_command, RuntimeAdapterError, RuntimeAudioCommand,
+    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeMomentaryFxTarget,
+    RuntimeOperation,
 };
 use realtime_engine::synth::{
-    prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, validate_fx_type,
-    validate_momentary_fx_type, FmParamId, MomentaryFxTarget, PluckParamId, SampleBankParamId,
-    SynthParamId, DEFAULT_AUDIO_SAMPLE_RATE, SAMPLE_SLOTS_PER_INSTRUMENT,
+    prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, validate_momentary_fx_type,
+    FmParamId, MomentaryFxTarget, PluckParamId, SampleBankParamId, SynthParamId,
+    DEFAULT_AUDIO_SAMPLE_RATE,
 };
 use rodio_engine_source::EngineEvent;
 
@@ -40,24 +35,22 @@ impl DesktopPlaybackHostAdapter {
         &mut self,
         command: &RuntimeAudioCommand,
     ) -> Result<(), RuntimeAdapterError> {
+        validate_audio_command(command)?;
         match command {
             RuntimeAudioCommand::SetAudioConfig {
                 revision,
                 request_id,
                 generation,
                 config,
-            } => {
-                normalize_config(config).map_err(invalid_audio_command)?;
-                prep_result(
-                    self.audio.audio_control.enqueue_full_config(
-                        *revision,
-                        *generation,
-                        request_id.clone(),
-                        config.clone(),
-                    ),
-                    "full audio configuration",
-                )
-            }
+            } => prep_result(
+                self.audio.audio_control.enqueue_full_config(
+                    *revision,
+                    *generation,
+                    request_id.clone(),
+                    config.clone(),
+                ),
+                "full audio configuration",
+            ),
             RuntimeAudioCommand::SetDspConfig { generation, config } => self.send_engine_event(
                 EngineEvent::SetDspConfig {
                     generation: *generation,
@@ -68,79 +61,62 @@ impl DesktopPlaybackHostAdapter {
             RuntimeAudioCommand::SetMasterVolume {
                 generation,
                 volume_pct,
-            } => {
-                ensure_finite(*volume_pct, "master volume")?;
-                self.send_engine_event(
-                    EngineEvent::SetMasterVolume {
-                        generation: *generation,
-                        volume_pct: *volume_pct,
-                    },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
+            } => self.send_engine_event(
+                EngineEvent::SetMasterVolume {
+                    generation: *generation,
+                    volume_pct: *volume_pct,
+                },
+                playback_runtime::RuntimeOperation::AudioCommand,
+            ),
             RuntimeAudioCommand::SetInstrumentMixer {
                 instrument_slot,
                 generation,
                 volume_pct,
                 pan_pos,
-            } => {
-                validate_instrument_slot(*instrument_slot)?;
-                ensure_optional_finite(*volume_pct, "instrument volume")?;
-                self.send_engine_event(
-                    EngineEvent::SetInstrumentMixer {
-                        instrument_slot: *instrument_slot as u8,
-                        generation: *generation,
-                        volume_pct: *volume_pct,
-                        pan_pos: *pan_pos,
-                    },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
+            } => self.send_engine_event(
+                EngineEvent::SetInstrumentMixer {
+                    instrument_slot: *instrument_slot as u8,
+                    generation: *generation,
+                    volume_pct: *volume_pct,
+                    pan_pos: *pan_pos,
+                },
+                playback_runtime::RuntimeOperation::AudioCommand,
+            ),
             RuntimeAudioCommand::SetInstrumentSlot {
                 instrument_slot,
                 generation,
                 config,
-            } => {
-                validate_instrument_slot(*instrument_slot)?;
-                parse_instrument_slot_config(config).map_err(invalid_audio_command)?;
-                prep_result(
-                    self.audio.audio_control.enqueue_instrument_slot(
-                        *instrument_slot,
-                        *generation,
-                        config.clone(),
-                    ),
-                    "instrument configuration",
-                )
-            }
+            } => prep_result(
+                self.audio.audio_control.enqueue_instrument_slot(
+                    *instrument_slot,
+                    *generation,
+                    config.clone(),
+                ),
+                "instrument configuration",
+            ),
             RuntimeAudioCommand::SetFxBusMixer {
                 bus_index,
                 generation,
                 pan_pos,
                 volume_pct,
-            } => {
-                validate_bus_index(*bus_index)?;
-                ensure_optional_finite(*volume_pct, "FX bus volume")?;
-                self.send_engine_event(
-                    EngineEvent::SetFxBusMixer {
-                        bus_index: *bus_index as u8,
-                        generation: *generation,
-                        pan_pos: *pan_pos,
-                        volume_pct: *volume_pct,
-                    },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
+            } => self.send_engine_event(
+                EngineEvent::SetFxBusMixer {
+                    bus_index: *bus_index as u8,
+                    generation: *generation,
+                    pan_pos: *pan_pos,
+                    volume_pct: *volume_pct,
+                },
+                playback_runtime::RuntimeOperation::AudioCommand,
+            ),
             RuntimeAudioCommand::SetSynthParam {
                 instrument_slot,
                 generation,
                 path,
                 value,
             } => {
-                validate_instrument_slot(*instrument_slot)?;
                 let param = SynthParamId::from_path(path).ok_or_else(|| {
                     invalid_audio_command(format!("unsupported synth parameter path `{path}`"))
                 })?;
-                ensure_finite(*value, "synth parameter")?;
                 self.send_engine_event(
                     EngineEvent::SetSynthParam {
                         instrument_slot: *instrument_slot as u8,
@@ -157,11 +133,9 @@ impl DesktopPlaybackHostAdapter {
                 path,
                 value,
             } => {
-                validate_instrument_slot(*instrument_slot)?;
                 let param = FmParamId::from_path(path).ok_or_else(|| {
                     invalid_audio_command(format!("unsupported FM parameter path `{path}`"))
                 })?;
-                ensure_finite(*value, "FM parameter")?;
                 self.send_engine_event(
                     EngineEvent::SetFmParam {
                         instrument_slot: *instrument_slot as u8,
@@ -178,11 +152,9 @@ impl DesktopPlaybackHostAdapter {
                 path,
                 value,
             } => {
-                validate_instrument_slot(*instrument_slot)?;
                 let param = PluckParamId::from_path(path).ok_or_else(|| {
                     invalid_audio_command(format!("unsupported Plucked parameter path `{path}`"))
                 })?;
-                ensure_finite(*value, "Plucked parameter")?;
                 self.send_engine_event(
                     EngineEvent::SetPluckParam {
                         instrument_slot: *instrument_slot as u8,
@@ -208,11 +180,9 @@ impl DesktopPlaybackHostAdapter {
                 path,
                 value,
             } => {
-                validate_instrument_slot(*instrument_slot)?;
                 let param = SampleBankParamId::from_path(path).ok_or_else(|| {
                     invalid_audio_command(format!("unsupported sample parameter path `{path}`"))
                 })?;
-                ensure_finite(*value, "sample parameter")?;
                 self.send_engine_event(
                     EngineEvent::SetSampleBankParam {
                         instrument_slot: *instrument_slot as u8,
@@ -229,80 +199,60 @@ impl DesktopPlaybackHostAdapter {
                 generation,
                 param,
                 value,
-            } => {
-                validate_bus_index(*bus_index)?;
-                validate_bus_slot(*slot_index)?;
-                ensure_finite(*value, "FX bus parameter")?;
-                self.send_engine_event(
-                    EngineEvent::SetFxBusParam {
-                        bus_index: *bus_index as u8,
-                        slot_index: *slot_index as u8,
-                        generation: *generation,
-                        param: *param,
-                        value: *value,
-                    },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
+            } => self.send_engine_event(
+                EngineEvent::SetFxBusParam {
+                    bus_index: *bus_index as u8,
+                    slot_index: *slot_index as u8,
+                    generation: *generation,
+                    param: *param,
+                    value: *value,
+                },
+                playback_runtime::RuntimeOperation::AudioCommand,
+            ),
             RuntimeAudioCommand::SetFxBusSlot {
                 bus_index,
                 slot_index,
                 generation,
                 fx_type,
                 params,
-            } => {
-                validate_bus_index(*bus_index)?;
-                validate_bus_slot(*slot_index)?;
-                validate_fx_type(fx_type).map_err(invalid_audio_command)?;
-                validate_param_values(fx_type, params)?;
-                prep_result(
-                    self.audio.audio_control.enqueue_fx_bus_slot(
-                        *bus_index,
-                        *slot_index,
-                        *generation,
-                        fx_type.clone(),
-                        params.clone(),
-                    ),
-                    "FX bus configuration",
-                )
-            }
+            } => prep_result(
+                self.audio.audio_control.enqueue_fx_bus_slot(
+                    *bus_index,
+                    *slot_index,
+                    *generation,
+                    fx_type.clone(),
+                    params.clone(),
+                ),
+                "FX bus configuration",
+            ),
             RuntimeAudioCommand::SetGlobalFxSlot {
                 slot_index,
                 generation,
                 fx_type,
                 params,
-            } => {
-                validate_global_slot(*slot_index)?;
-                validate_fx_type(fx_type).map_err(invalid_audio_command)?;
-                validate_param_values(fx_type, params)?;
-                prep_result(
-                    self.audio.audio_control.enqueue_global_fx_slot(
-                        *slot_index,
-                        *generation,
-                        fx_type.clone(),
-                        params.clone(),
-                    ),
-                    "global FX configuration",
-                )
-            }
+            } => prep_result(
+                self.audio.audio_control.enqueue_global_fx_slot(
+                    *slot_index,
+                    *generation,
+                    fx_type.clone(),
+                    params.clone(),
+                ),
+                "global FX configuration",
+            ),
             RuntimeAudioCommand::SetGlobalFxParam {
                 slot_index,
                 generation,
                 param,
                 value,
-            } => {
-                validate_global_slot(*slot_index)?;
-                ensure_finite(*value, "global FX parameter")?;
-                self.send_engine_event(
-                    EngineEvent::SetGlobalFxParam {
-                        slot_index: *slot_index as u8,
-                        generation: *generation,
-                        param: *param,
-                        value: *value,
-                    },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
+            } => self.send_engine_event(
+                EngineEvent::SetGlobalFxParam {
+                    slot_index: *slot_index as u8,
+                    generation: *generation,
+                    param: *param,
+                    value: *value,
+                },
+                playback_runtime::RuntimeOperation::AudioCommand,
+            ),
             RuntimeAudioCommand::MomentaryFxStart {
                 id,
                 epoch,
@@ -310,8 +260,6 @@ impl DesktopPlaybackHostAdapter {
                 params,
                 target,
             } => {
-                validate_momentary_fx_type(fx_type).map_err(invalid_audio_command)?;
-                validate_momentary_target(target)?;
                 let prepared = prepare_momentary_fx_start_with_epoch(
                     id.clone(),
                     *epoch,
@@ -373,23 +321,15 @@ impl DesktopPlaybackHostAdapter {
             }
             RuntimeAudioCommand::SamplePreview {
                 instrument_slot,
-                sample_slot,
                 path,
                 velocity,
+                ..
             } => prep_result(
-                {
-                    validate_instrument_slot(*instrument_slot)?;
-                    if *sample_slot >= SAMPLE_SLOTS_PER_INSTRUMENT {
-                        return Err(invalid_audio_command(format!(
-                            "invalid sample slot {sample_slot}"
-                        )));
-                    }
-                    self.audio.audio_control.enqueue_sample_preview(
-                        *instrument_slot,
-                        path.clone(),
-                        *velocity,
-                    )
-                },
+                self.audio.audio_control.enqueue_sample_preview(
+                    *instrument_slot,
+                    path.clone(),
+                    *velocity,
+                ),
                 "sample preview",
             ),
         }

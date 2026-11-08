@@ -1,11 +1,8 @@
-use super::host_adapter_audio_validation::{
-    ensure_finite, invalid_audio_command, validate_instrument_slot,
-};
 use super::host_adapter_musical::{
     invalid_musical_event, validate_musical_channel, validate_musical_range,
 };
 use super::DesktopPlaybackHostAdapter;
-use playback_runtime::{RuntimeAdapterError, RuntimeOperation, TileHit};
+use playback_runtime::{invalid_audio_command, RuntimeAdapterError, RuntimeOperation, TileHit};
 use realtime_engine::synth::DrumParamId;
 use rodio_engine_source::EngineEvent;
 
@@ -18,14 +15,9 @@ impl DesktopPlaybackHostAdapter {
         path: &str,
         value: f32,
     ) -> Result<(), RuntimeAdapterError> {
-        validate_instrument_slot(instrument_slot)?;
         let param = DrumParamId::from_path(path).ok_or_else(|| {
             invalid_audio_command(format!("unsupported Drum parameter path `{path}`"))
         })?;
-        if voice >= 8 || (!param.is_voice_param() && voice != 0) {
-            return Err(invalid_audio_command(format!("invalid Drum voice {voice}")));
-        }
-        ensure_finite(value, "Drum parameter")?;
         self.send_engine_event(
             EngineEvent::SetDrumParam {
                 instrument_slot: instrument_slot as u8,
