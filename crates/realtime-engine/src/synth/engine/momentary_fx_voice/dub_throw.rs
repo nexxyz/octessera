@@ -1,6 +1,7 @@
-use super::{pct_param, pulses_len, synced_len, synced_pulses, GainRamp, ENVELOPE_MS, SLOWEST_BPM};
+use super::{pct_param, pulses_len, synced_len, synced_pulses, GainRamp, ENVELOPE_MS};
 use crate::synth::fx::{fx_bus_state_from_params, process_delay, FxBusState};
 use crate::synth::fx_params::FxBusParams;
+use crate::synth::types::MIN_TEMPO_BPM;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -59,7 +60,7 @@ impl DubThrowVoice {
         sample_rate: u32,
     ) -> Self {
         let pulses = synced_pulses(params_map, "timePulses", DEFAULT_PULSES).max(LONGEST_PULSES);
-        let max_len = pulses_len(pulses, SLOWEST_BPM, sample_rate);
+        let max_len = pulses_len(pulses, MIN_TEMPO_BPM, sample_rate);
         let line = FxBusParams::Delay {
             time_ms: max_len * 1_000.0 / sample_rate as f32,
             feedback: 0.0,

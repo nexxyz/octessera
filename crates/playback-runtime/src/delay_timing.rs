@@ -1,14 +1,13 @@
+use realtime_engine::synth::{MAX_TEMPO_BPM, MIN_TEMPO_BPM};
 use serde_json::{json, Map, Value};
 
 use crate::timing_units::{note_unit_to_pulses, DEFAULT_NOTE_UNIT, NOTE_UNIT_OPTIONS};
 
 pub(crate) const DELAY_TIME_MIN_MS: i32 = 1;
 pub(crate) const DELAY_TIME_MAX_MS: i32 = 2000;
-pub(crate) const MIN_VISIBLE_BPM: f64 = 40.0;
-pub(crate) const MAX_VISIBLE_BPM: f64 = 240.0;
 
 pub(crate) fn clamp_visible_bpm(value: f64) -> f64 {
-    value.clamp(MIN_VISIBLE_BPM, MAX_VISIBLE_BPM)
+    value.clamp(f64::from(MIN_TEMPO_BPM), f64::from(MAX_TEMPO_BPM))
 }
 
 pub(crate) fn visible_bpm_u16(value: f64) -> u16 {

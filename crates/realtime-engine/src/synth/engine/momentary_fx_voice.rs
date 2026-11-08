@@ -1,5 +1,6 @@
 use super::momentary_fx_state::MomentaryFxKind;
 use crate::synth::runtime_state::ms_to_samples;
+use crate::synth::types::{MAX_TEMPO_BPM, MIN_TEMPO_BPM};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -40,8 +41,6 @@ pub(super) const ENVELOPE_MS: u32 = 5;
 const HANDOFF_MS: u32 = 10;
 /// Tempo-synced lengths follow `tempoBpm`, which the runtime resolves from the transport.
 const DEFAULT_BPM: f32 = 120.0;
-const SLOWEST_BPM: f32 = 40.0;
-const FASTEST_BPM: f32 = 240.0;
 const PULSES_PER_BEAT: f32 = 24.0;
 
 /// The DSP state of a Play FX, with its parameters next to it. The type is chosen once per frame
@@ -298,7 +297,7 @@ fn synced_len(
     fallback_pulses: f32,
     sample_rate: u32,
 ) -> f32 {
-    let bpm = param_f32(params, "tempoBpm", DEFAULT_BPM).clamp(SLOWEST_BPM, FASTEST_BPM);
+    let bpm = param_f32(params, "tempoBpm", DEFAULT_BPM).clamp(MIN_TEMPO_BPM, MAX_TEMPO_BPM);
     pulses_len(
         synced_pulses(params, key, fallback_pulses),
         bpm,

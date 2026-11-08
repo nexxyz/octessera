@@ -35,6 +35,9 @@ pub const MAX_CONTROL_EVENTS_PER_CALLBACK: usize = 256;
 /// Largest pitch offset a grid tile may carry: a stamped tile tune and fine plus a followed
 /// Play Transpose stay well inside four octaves.
 pub const TILE_PITCH_CENTS_LIMIT: i16 = 4_800;
+/// The transport tempo range; tempo-synced engine lengths clamp to it too.
+pub const MIN_TEMPO_BPM: f32 = 40.0;
+pub const MAX_TEMPO_BPM: f32 = 240.0;
 pub const SAMPLE_VOICE_RETIREMENT_CAPACITY: usize =
     SAMPLE_VOICE_LANE_CAPACITY + (2 * MAX_CONTROL_EVENTS_PER_CALLBACK);
 pub(super) const VOICE_PARTITION_COUNT: usize = 2;
