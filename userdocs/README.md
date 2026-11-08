@@ -43,10 +43,12 @@ I'd go for the Orange.
 ## 4. Make music
 
 The shipped patch is wired up and ready. Layer 1 runs a `life` colony into a
-bright plucky synth, Layer 2 a drum `sequencer`, Layer 3 a `looper` into a
-kalimba and Layer 4 a bass line, at 110 BPM with a little swing. Layer 5 is a
-`twinkle` sky that sleeps until you wake it, and every instrument is one of the
-factory presets, so `Preset > Load` on any slot is a quick "what else could
+bright plucky synth, Layer 2 a `sequencer` beat on sampled kick, clap and open
+hat, Layer 3 a `looper` into a kalimba and Layer 4 a bass line, at 110 BPM with
+a little swing. Layer 5 is a `twinkle` sky that sleeps until you wake it, and
+Layer 6 lets `raindrops` fall onto the synth drum kit, so a stray tom or rim
+shot lands wherever a drop hits the bottom row. The synth instruments are all
+factory presets, so `Preset > Load` on any of them is a quick "what else could
 this be?".
 
 1. Press **Play** (or **Space** in the simulator).
@@ -65,7 +67,7 @@ this be?".
    them. Two at a time, one of each kind.
 5. In **Build**, draw a few tiles on Layer 1, or swap its behavior for `brain`
    or `raindrops`. Then try `Shape > I3 > Plucked > Preset > Load > Koto` and
-   `Shape > I2 > Drum > Kit > Load > Brush`.
+   `Shape > I6 > Drum > Kit > Load > Hand Perc`.
 
 **Save what you like.** Auto Save is off, so your edits live in memory until
 you save them: `System > Saves > Default > Save Patch`, or a named preset under

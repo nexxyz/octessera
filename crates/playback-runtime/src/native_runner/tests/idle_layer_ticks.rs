@@ -1,11 +1,12 @@
 use super::*;
 
-/// The factory patch (Life, two Sequencers, a Looper and a gated Twinkle over three `none` layers)
-/// with swing,
+/// The factory patch with its Raindrops layer emptied (Life, two Sequencers, a Looper and a gated
+/// Twinkle over three `none` layers) with swing,
 /// Link delays and retrigs, an arp, shared and seeded probability and a scanning `none` layer.
 fn mixed_patch_runner() -> NativeRunner {
-    let payload: Value =
+    let mut payload: Value =
         serde_json::from_str(include_str!("../../../../../config/default.json")).unwrap();
+    payload["runtimeConfig"]["layers"][5] = payload["runtimeConfig"]["layers"][6].clone();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.midi_active = true;

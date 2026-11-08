@@ -176,7 +176,7 @@ fn shipped_default_modes_preserve_native_pixels_and_source() {
         &[255, 255, 0]
     );
     runner.display.hdmi.mode = "active-behavior".into();
-    runner.display.hdmi.source_layer_index = 5;
+    runner.display.hdmi.source_layer_index = 6;
     let empty_source = verify_hardware(&runner, OledPresentationMetrics::default(), None);
     assert_eq!(empty_source.hdmi.mode, NativeHdmiMode::ActiveBehavior);
     assert_eq!(empty_source.hdmi.source_behavior_id, "none");

@@ -38,12 +38,16 @@ Data sources the spec relies on:
 - Shipped defaults: `config/defaults/base.json` with the `desktop.json` and `pi.json` overrides.
   The shipped patch (also what `Load Factory` restores):
   - L1 `life` 1/16 into I1 Synth Bright Pluck on B1 (its saved colony is pinned by
-    `factory_life_layer.json`); L2 `sequencer` scanning 1/8 into I2 Drum Default kit (kick, snare,
-    eighth hats with the open hat on x7, a Low rim on x5), Trigger Prob. `custom` with the offbeat
-    hats High and the rim Low; L3 `looper` into I3 Plucked Kalimba, hold, on B1; L4 `sequencer` bass
-    into I4 FM Swell Bass on B2; L5 `twinkle` 1/8, Seeded, at Trigger Prob. `zero`, into I5 FM Glass
-    on B1, one octave above L1. L6-L8 and I6-I8 are empty. Every instrument is its named factory
-    preset.
+    `factory_life_layer.json`); L2 `sequencer` scanning 1/8 into I2 Sampler (slot 1
+    `Drum/kick/Kick2.wav` on y0 at x0/2/4/6, slot 2 the hip-hop clap on y1 at x2/6, slot 3 the mini
+    open hihat on y2 at the odd columns; every tile at full chance); L3 `looper` into I3 Plucked
+    Kalimba, hold, on B1; L4 `sequencer` bass into I4 FM Swell Bass on B2; L5 `twinkle` 1/8, Seeded,
+    at Trigger Prob. `zero`, into I5 FM Glass at Volume 45 on B1, one octave above L1; L6
+    `raindrops` 1/16, Seeded, Spawn Interval 5, Splash Radius 0, into I6 Drum Default kit, direct,
+    Pan Pos 19 (R3). I6 stamps only the bottom row (x0..x7: low tom, rim High, closed hat Medium,
+    high tom, snare High, closed hat Medium, rim, high tom High), so only landing drops play; L6
+    Link `X Axis > Velocity` 112..127 and Trigger Prob. `custom` (x0/2/5/6 High, x1/3/4/7 Low)
+    keep them sparse. L7-L8 and I7-I8 are empty. Every instrument except the Sampler is its named factory preset.
   - 110 BPM, swing 5:4. B1 `Delay+Reverb+Duck` (delay 1/8 note mode, reverb Mix 20 %, duck from
     I2); B2 bitcrusher and saturator; global compressor.
   - LFO1 on, I1 Osc 2 Pulse Width, `2/1`, 29 %; LFO2 off, I3 Plucked Brightness, `1/1`, 43 %.

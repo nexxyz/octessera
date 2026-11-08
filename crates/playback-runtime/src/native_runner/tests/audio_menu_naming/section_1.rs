@@ -103,7 +103,8 @@ pub(crate) fn factory_payload_uses_display_style_auto_names() {
     let payload = super::super::native_factory_payload();
     let runtime = &payload["runtimeConfig"];
     assert_eq!(runtime["instruments"][0]["name"], "Synth");
-    assert_eq!(runtime["instruments"][1]["name"], "Drum");
+    assert_eq!(runtime["instruments"][1]["name"], "Sampler");
+    assert_eq!(runtime["instruments"][5]["name"], "Drum");
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     assert_eq!(runner.fx_buses[0].name, "Delay+Reverb+Duck");

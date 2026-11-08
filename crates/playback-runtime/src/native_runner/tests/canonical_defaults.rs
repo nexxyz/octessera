@@ -259,14 +259,14 @@ fn factory_instruments_are_their_named_presets() {
     let instruments = &base["runtimeConfig"]["instruments"];
     for (slot, block, family, id, defaults) in [
         (0, "synth", "synth", "bright_pluck", synth_default_config()),
-        (1, "drum", "drum", "default", drum_default_config()),
         (2, "pluck", "pluck", "kalimba", pluck_default_config()),
         (3, "fm", "fm", "swell_bass", fm_default_config()),
         (4, "fm", "fm", "glass", fm_default_config()),
+        (5, "drum", "drum", "default", drum_default_config()),
     ] {
         let mut preset = instrument_preset_config(family, id, defaults).unwrap();
         let saved = &instruments[slot][block];
-        if slot == 1 {
+        if slot == 5 {
             preset["assignments"] = saved["assignments"].clone();
         }
         assert_eq!(*saved, preset, "I{} is {family} {id}", slot + 1);

@@ -385,196 +385,6 @@
       },
       {
         "autoName": true,
-        "drum": {
-          "amp": {
-            "gainPct": 80,
-            "velocitySensitivityPct": 100
-          },
-          "ampEnv": {
-            "attackMs": 0,
-            "decayMs": 0,
-            "releaseMs": 30,
-            "sustainPct": 100
-          },
-          "assignments": [
-            {
-              "voice": 0,
-              "x": 0,
-              "y": 0
-            },
-            {
-              "voice": 0,
-              "x": 4,
-              "y": 0
-            },
-            {
-              "voice": 1,
-              "x": 2,
-              "y": 1
-            },
-            {
-              "voice": 1,
-              "x": 6,
-              "y": 1
-            },
-            {
-              "voice": 2,
-              "x": 0,
-              "y": 2
-            },
-            {
-              "voice": 2,
-              "x": 1,
-              "y": 2
-            },
-            {
-              "voice": 2,
-              "x": 2,
-              "y": 2
-            },
-            {
-              "voice": 2,
-              "x": 3,
-              "y": 2
-            },
-            {
-              "voice": 2,
-              "x": 4,
-              "y": 2
-            },
-            {
-              "voice": 2,
-              "x": 5,
-              "y": 2
-            },
-            {
-              "voice": 2,
-              "x": 6,
-              "y": 2
-            },
-            {
-              "voice": 3,
-              "x": 7,
-              "y": 2
-            },
-            {
-              "level": "low",
-              "voice": 7,
-              "x": 5,
-              "y": 3
-            }
-          ],
-          "filter": {
-            "cutoffHz": 20000,
-            "envAmountPct": 0,
-            "keyTrackingPct": 0,
-            "resonance": 0,
-            "type": "lowpass"
-          },
-          "filterEnv": {
-            "attackMs": 5,
-            "decayMs": 120,
-            "releaseMs": 180,
-            "sustainPct": 70
-          },
-          "followPitch": false,
-          "followTranspose": false,
-          "velocityLevels": {
-            "high": 120,
-            "low": 45,
-            "medium": 85
-          },
-          "voices": [
-            {
-              "attackMs": 0,
-              "decayMs": 420,
-              "levelPct": 100,
-              "noiseMixPct": 12,
-              "sound": "kick",
-              "sweepMs": 55,
-              "sweepSemis": 24,
-              "tonePct": 35,
-              "tuneSemis": 0
-            },
-            {
-              "attackMs": 0,
-              "decayMs": 220,
-              "levelPct": 100,
-              "noiseMixPct": 80,
-              "sound": "snare",
-              "sweepMs": 25,
-              "sweepSemis": 3,
-              "tonePct": 70,
-              "tuneSemis": 0
-            },
-            {
-              "attackMs": 0,
-              "decayMs": 85,
-              "levelPct": 100,
-              "noiseMixPct": 95,
-              "sound": "closed_hat",
-              "sweepMs": 0,
-              "sweepSemis": 0,
-              "tonePct": 90,
-              "tuneSemis": 0
-            },
-            {
-              "attackMs": 0,
-              "decayMs": 650,
-              "levelPct": 100,
-              "noiseMixPct": 95,
-              "sound": "open_hat",
-              "sweepMs": 0,
-              "sweepSemis": 0,
-              "tonePct": 85,
-              "tuneSemis": 0
-            },
-            {
-              "attackMs": 0,
-              "decayMs": 500,
-              "levelPct": 100,
-              "noiseMixPct": 15,
-              "sound": "low_tom",
-              "sweepMs": 70,
-              "sweepSemis": 8,
-              "tonePct": 50,
-              "tuneSemis": 0
-            },
-            {
-              "attackMs": 0,
-              "decayMs": 320,
-              "levelPct": 100,
-              "noiseMixPct": 15,
-              "sound": "high_tom",
-              "sweepMs": 50,
-              "sweepSemis": 6,
-              "tonePct": 60,
-              "tuneSemis": 0
-            },
-            {
-              "attackMs": 0,
-              "decayMs": 240,
-              "levelPct": 100,
-              "noiseMixPct": 95,
-              "sound": "clap",
-              "sweepMs": 0,
-              "sweepSemis": 0,
-              "tonePct": 80,
-              "tuneSemis": 0
-            },
-            {
-              "attackMs": 0,
-              "decayMs": 95,
-              "levelPct": 100,
-              "noiseMixPct": 35,
-              "sound": "rim",
-              "sweepMs": 0,
-              "sweepSemis": 0,
-              "tonePct": 80,
-              "tuneSemis": 0
-            }
-          ]
-        },
         "midi": {
           "channel": 1,
           "durationMs": 120,
@@ -586,7 +396,7 @@
           "route": "direct",
           "volume": 100
         },
-        "name": "Drum",
+        "name": "Sampler",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -867,7 +677,7 @@
             "waveform": "square"
           }
         },
-        "type": "drum"
+        "type": "sampler"
       },
       {
         "autoName": true,
@@ -1288,7 +1098,7 @@
         "mixer": {
           "panPos": 16,
           "route": "fx_bus_1",
-          "volume": 100
+          "volume": 45
         },
         "name": "FM",
         "noteBehavior": "oneshot",
@@ -1430,6 +1240,175 @@
       },
       {
         "autoName": true,
+        "drum": {
+          "amp": {
+            "gainPct": 80,
+            "velocitySensitivityPct": 100
+          },
+          "ampEnv": {
+            "attackMs": 0,
+            "decayMs": 0,
+            "releaseMs": 30,
+            "sustainPct": 100
+          },
+          "assignments": [
+            {
+              "voice": 4,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "level": "high",
+              "voice": 7,
+              "x": 1,
+              "y": 0
+            },
+            {
+              "level": "medium",
+              "voice": 2,
+              "x": 2,
+              "y": 0
+            },
+            {
+              "voice": 5,
+              "x": 3,
+              "y": 0
+            },
+            {
+              "level": "high",
+              "voice": 1,
+              "x": 4,
+              "y": 0
+            },
+            {
+              "level": "medium",
+              "voice": 2,
+              "x": 5,
+              "y": 0
+            },
+            {
+              "voice": 7,
+              "x": 6,
+              "y": 0
+            },
+            {
+              "level": "high",
+              "voice": 5,
+              "x": 7,
+              "y": 0
+            }
+          ],
+          "filter": {
+            "cutoffHz": 20000,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 0,
+            "type": "lowpass"
+          },
+          "filterEnv": {
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
+          },
+          "followPitch": false,
+          "followTranspose": false,
+          "velocityLevels": {
+            "high": 120,
+            "low": 45,
+            "medium": 85
+          },
+          "voices": [
+            {
+              "attackMs": 0,
+              "decayMs": 420,
+              "levelPct": 100,
+              "noiseMixPct": 12,
+              "sound": "kick",
+              "sweepMs": 55,
+              "sweepSemis": 24,
+              "tonePct": 35,
+              "tuneSemis": 0
+            },
+            {
+              "attackMs": 0,
+              "decayMs": 220,
+              "levelPct": 100,
+              "noiseMixPct": 80,
+              "sound": "snare",
+              "sweepMs": 25,
+              "sweepSemis": 3,
+              "tonePct": 70,
+              "tuneSemis": 0
+            },
+            {
+              "attackMs": 0,
+              "decayMs": 85,
+              "levelPct": 100,
+              "noiseMixPct": 95,
+              "sound": "closed_hat",
+              "sweepMs": 0,
+              "sweepSemis": 0,
+              "tonePct": 90,
+              "tuneSemis": 0
+            },
+            {
+              "attackMs": 0,
+              "decayMs": 650,
+              "levelPct": 100,
+              "noiseMixPct": 95,
+              "sound": "open_hat",
+              "sweepMs": 0,
+              "sweepSemis": 0,
+              "tonePct": 85,
+              "tuneSemis": 0
+            },
+            {
+              "attackMs": 0,
+              "decayMs": 500,
+              "levelPct": 100,
+              "noiseMixPct": 15,
+              "sound": "low_tom",
+              "sweepMs": 70,
+              "sweepSemis": 8,
+              "tonePct": 50,
+              "tuneSemis": 0
+            },
+            {
+              "attackMs": 0,
+              "decayMs": 320,
+              "levelPct": 100,
+              "noiseMixPct": 15,
+              "sound": "high_tom",
+              "sweepMs": 50,
+              "sweepSemis": 6,
+              "tonePct": 60,
+              "tuneSemis": 0
+            },
+            {
+              "attackMs": 0,
+              "decayMs": 240,
+              "levelPct": 100,
+              "noiseMixPct": 95,
+              "sound": "clap",
+              "sweepMs": 0,
+              "sweepSemis": 0,
+              "tonePct": 80,
+              "tuneSemis": 0
+            },
+            {
+              "attackMs": 0,
+              "decayMs": 95,
+              "levelPct": 100,
+              "noiseMixPct": 35,
+              "sound": "rim",
+              "sweepMs": 0,
+              "sweepSemis": 0,
+              "tonePct": 80,
+              "tuneSemis": 0
+            }
+          ]
+        },
         "midi": {
           "channel": 1,
           "durationMs": 120,
@@ -1437,11 +1416,11 @@
           "velocity": 100
         },
         "mixer": {
-          "panPos": 16,
+          "panPos": 19,
           "route": "direct",
           "volume": 100
         },
-        "name": "None",
+        "name": "Drum",
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
@@ -1577,7 +1556,7 @@
             "waveform": "square"
           }
         },
-        "type": "none"
+        "type": "drum"
       },
       {
         "autoName": true,
@@ -2249,7 +2228,26 @@
             "tiles": [
               true,
               false,
+              true,
               false,
+              true,
+              false,
+              true,
+              false,
+              false,
+              false,
+              true,
+              false,
+              false,
+              false,
+              true,
+              false,
+              false,
+              true,
+              false,
+              true,
+              false,
+              true,
               false,
               true,
               false,
@@ -2257,26 +2255,7 @@
               false,
               false,
               false,
-              true,
               false,
-              false,
-              false,
-              true,
-              false,
-              true,
-              true,
-              true,
-              true,
-              true,
-              true,
-              true,
-              true,
-              false,
-              false,
-              false,
-              false,
-              false,
-              true,
               false,
               false,
               false,
@@ -2394,19 +2373,19 @@
             "full",
             "full",
             "full",
-            "high",
-            "full",
-            "high",
-            "full",
-            "high",
-            "full",
-            "high",
             "full",
             "full",
             "full",
             "full",
             "full",
-            "low",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
+            "full",
             "full",
             "full",
             "full",
@@ -2442,7 +2421,7 @@
             "full",
             "full"
           ],
-          "triggerProbabilityMode": "custom",
+          "triggerProbabilityMode": "full",
           "x": {
             "filterCutoff": {
               "curve": "linear",
@@ -3476,8 +3455,148 @@
         "build": {
           "behaviorConfig": null,
           "behaviorConfigHistory": {},
-          "behaviorId": "none",
-          "seeded": false
+          "behaviorId": "raindrops",
+          "savedState": {
+            "autoDropInterval": 5,
+            "drops": [],
+            "rings": [],
+            "spawnStep": 0,
+            "splashRadius": 0,
+            "tiles": [
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "triggerTypes": [
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none",
+              "none"
+            ]
+          },
+          "seeded": true,
+          "stepRate": "1/16"
         },
         "link": {
           "arp": {
@@ -3488,7 +3607,7 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": false,
+          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -3497,7 +3616,7 @@
               "slot": 5
             },
             "deactivate": {
-              "action": "note_off",
+              "action": "none",
               "delaySteps": 0,
               "retriggerCount": 0,
               "slot": 5
@@ -3534,19 +3653,19 @@
           "scanMode": "none",
           "scanSections": 1,
           "scanUnit": "1/16",
-          "seeded": false,
+          "seeded": true,
           "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
-            "full",
+            "high",
+            "low",
+            "high",
+            "low",
+            "low",
+            "high",
+            "high",
+            "low",
             "full",
             "full",
             "full",
@@ -3604,7 +3723,7 @@
             "full",
             "full"
           ],
-          "triggerProbabilityMode": "full",
+          "triggerProbabilityMode": "custom",
           "x": {
             "filterCutoff": {
               "curve": "linear",
@@ -3629,8 +3748,8 @@
             "to": 7,
             "velocity": {
               "curve": "linear",
-              "enabled": false,
-              "from": 1,
+              "enabled": true,
+              "from": 112,
               "gridOffset": 0,
               "to": 127
             }
@@ -3666,7 +3785,7 @@
             }
           }
         },
-        "name": "none",
+        "name": "raindrops",
         "paramMods": {
           "x": [
             null,
