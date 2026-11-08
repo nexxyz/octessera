@@ -132,6 +132,10 @@ adapter, plus Orange-specific construction, audio recovery, and power handling.
   exist from startup; an unselected one is inactive, so the Jack mix only checks one flag for it.
   The side outputs start, stop and reopen on one worker per output on both boards, off the runtime
   thread, and never restart the Jack stream.
+- A panic inside a board's Jack or mirror output callback is caught there: that stream outputs
+  silence from then on without touching its source again and is marked terminal. A terminal Jack
+  stream ends the runtime with the Jack audio fault, and the service restarts it; a terminal
+  mirror is reported Faulted and stays route-local until it is selected again.
 - The image constructs the AHUB0 vendor dummy-codec route and the exact
   `octessera-dac` playback card (`hw:CARD=octesseradac,DEV=0`); no manual or
   experimental audio overlay is used. The optional routes are UAC2

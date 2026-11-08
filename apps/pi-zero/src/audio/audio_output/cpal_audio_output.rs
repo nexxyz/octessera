@@ -6,7 +6,9 @@ use super::audio_stream_lifecycle::{
     AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
     AudioStreamShutdownReport, PlayableAudioStream,
 };
-use super::cpal_audio_callback::{fill_callback_with_scheduler, CallbackSource};
+use super::cpal_audio_callback::{
+    fill_callback_with_scheduler, fill_unless_panicked, CallbackSource,
+};
 use super::AudioSink;
 use super::MixTapState;
 use crate::audio_priority::CallbackSchedulingHandle;
@@ -296,20 +298,23 @@ where
     let callback_scheduler = scheduler.clone();
     let callback_health = stream_health.clone();
     let mut worker_health_reported = false;
+    let mut callback_panicked = false;
     let (mut callback_source, retirement_waiter) =
         CallbackSource::new(source, shutdown_owner.is_some());
     let stream = device.build_output_stream(
         config,
         move |data: &mut [T], _| {
-            fill_callback_with_scheduler(
-                data,
-                &mut callback_source,
-                mix_taps.as_ref(),
-                &callback_health,
-                report_worker_health,
-                &mut worker_health_reported,
-                &callback_scheduler,
-            );
+            fill_unless_panicked(data, &mut callback_panicked, &callback_health, |data| {
+                fill_callback_with_scheduler(
+                    data,
+                    &mut callback_source,
+                    mix_taps.as_ref(),
+                    &callback_health,
+                    report_worker_health,
+                    &mut worker_health_reported,
+                    &callback_scheduler,
+                );
+            });
         },
         move |error| stream_health.log(error),
         None,

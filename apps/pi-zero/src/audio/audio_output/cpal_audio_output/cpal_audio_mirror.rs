@@ -1,6 +1,6 @@
 use super::super::audio_stream_lifecycle::{AudioStreamBuildError, AudioStreamLifecycle};
 use super::super::cpal_audio_callback::{
-    fill_mirror_callback_with_scheduler, MirrorCallbackSource,
+    fill_mirror_callback_with_scheduler, fill_unless_panicked, MirrorCallbackSource,
 };
 use super::super::AudioSink;
 use super::{
@@ -92,10 +92,18 @@ where
     let scheduler = callback_scheduler_for_sink(sink);
     let callback_scheduler = scheduler.clone();
     let mut callback_source = MirrorCallbackSource::new(consumer);
+    let callback_health = stream_health.clone();
+    let mut callback_panicked = false;
     let stream = device.build_output_stream(
         config,
         move |data: &mut [T], _| {
-            fill_mirror_callback_with_scheduler(data, &mut callback_source, &callback_scheduler);
+            fill_unless_panicked(data, &mut callback_panicked, &callback_health, |data| {
+                fill_mirror_callback_with_scheduler(
+                    data,
+                    &mut callback_source,
+                    &callback_scheduler,
+                );
+            });
         },
         move |error| stream_health.log(error),
         None,

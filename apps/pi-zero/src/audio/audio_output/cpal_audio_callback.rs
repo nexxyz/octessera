@@ -5,6 +5,7 @@ use crate::audio_stream_health::AudioStreamHealth;
 use cpal::Sample;
 use realtime_engine::synth::SourceWorkerHealth;
 use rodio_engine_source::{EngineSource, PcmMirrorConsumer};
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::mpsc;
 
 pub(crate) struct CallbackSource {
@@ -150,6 +151,24 @@ pub(super) fn fill_mirror_callback_with_scheduler<T>(
     }
 }
 
+/// Runs one callback fill. A panic leaves this stream silent from then on, without touching its
+/// source again, and marks the stream terminal so the runtime's audio fault handling replaces it.
+pub(super) fn fill_unless_panicked<T>(
+    data: &mut [T],
+    panicked: &mut bool,
+    callback_health: &AudioStreamHealth,
+    fill: impl FnOnce(&mut [T]),
+) where
+    T: Sample + cpal::FromSample<f32>,
+{
+    if !*panicked && catch_unwind(AssertUnwindSafe(|| fill(&mut *data))).is_ok() {
+        return;
+    }
+    *panicked = true;
+    silence_output(data);
+    callback_health.mark_callback_terminal();
+}
+
 pub(super) fn mark_worker_terminal<T>(
     data: &mut [T],
     callback_health: &AudioStreamHealth,
@@ -243,5 +262,7 @@ fn float_to_i16(value: f32) -> i16 {
 
 #[cfg(test)]
 mod mirror_tests;
+#[cfg(test)]
+mod panic_tests;
 #[cfg(test)]
 mod tests;
