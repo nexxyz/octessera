@@ -1,8 +1,24 @@
-use super::{NativeValueLane, TriggerAction, Value, INSTRUMENT_COUNT};
+use super::{LaneCurve, NativeValueLane, TriggerAction, Value, INSTRUMENT_COUNT};
 
 pub(super) fn assign_string(payload: &Value, key: &str, target: &mut String) {
     if let Some(value) = payload.get(key).and_then(Value::as_str) {
         *target = value.into();
+    }
+}
+
+/// Takes a saved value-set value; a value outside the set changes nothing.
+pub(super) fn assign_wire<T>(
+    payload: &Value,
+    key: &str,
+    target: &mut T,
+    from_wire_name: fn(&str) -> Option<T>,
+) {
+    if let Some(value) = payload
+        .get(key)
+        .and_then(Value::as_str)
+        .and_then(from_wire_name)
+    {
+        *target = value;
     }
 }
 
@@ -44,13 +60,7 @@ pub(super) fn assign_mapping(
             *slot = parsed.min(INSTRUMENT_COUNT - 1);
         }
     }
-    if let Some(value) = mapping
-        .get("action")
-        .and_then(Value::as_str)
-        .and_then(TriggerAction::from_wire_name)
-    {
-        *action = value;
-    }
+    assign_wire(mapping, "action", action, TriggerAction::from_wire_name);
 }
 
 pub(super) fn apply_value_lane_payload(target: &mut NativeValueLane, payload: &Value) {
@@ -58,9 +68,10 @@ pub(super) fn apply_value_lane_payload(target: &mut NativeValueLane, payload: &V
     assign_u8(payload, "from", &mut target.from, 127);
     assign_u8(payload, "to", &mut target.to, 127);
     assign_i32(payload, "gridOffset", &mut target.grid_offset, -7, 7);
-    if let Some(curve) = payload.get("curve").and_then(Value::as_str) {
-        if matches!(curve, "linear" | "curve") {
-            target.curve = curve.into();
-        }
-    }
+    assign_wire(
+        payload,
+        "curve",
+        &mut target.curve,
+        LaneCurve::from_wire_name,
+    );
 }

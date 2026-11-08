@@ -1,8 +1,9 @@
 use super::{
-    enum_item, group, mark_active, number_item, selected_index, NativeLinkLayerConfig,
-    NativeMenuItem,
+    enum_item, group, mark_active, number_item, selected_index, wire_enum_item,
+    NativeLinkLayerConfig, NativeMenuItem,
 };
 use crate::native_menu::{NativeMenuAction, NativeMenuPick, NativeMenuValue};
+use platform_core::RangeMode;
 
 pub(super) fn note_mapping_group(
     layer_index: usize,
@@ -43,11 +44,12 @@ pub(super) fn note_mapping_group(
                 platform_core::NOTE_SET_ROOTS.to_vec(),
                 selected_index(platform_core::NOTE_SET_ROOTS, &sense.root),
             ),
-            enum_item(
+            wire_enum_item(
                 "Out of Range",
                 format!("{prefix}.pitch.outOfRange"),
-                vec!["clamp", "wrap"],
-                selected_index(&["clamp", "wrap"], &sense.out_of_range),
+                RangeMode::ALL,
+                RangeMode::wire_name,
+                sense.out_of_range,
             ),
         ],
     )

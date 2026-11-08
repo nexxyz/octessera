@@ -37,11 +37,7 @@ impl NativeRunner {
         } else {
             0
         };
-        mapping.range_mode = if sense.out_of_range == "clamp" {
-            RangeMode::Clamp
-        } else {
-            RangeMode::Wrap
-        };
+        mapping.range_mode = sense.out_of_range;
         mapping.scale = platform_core::expand_note_set(&sense.scale, &sense.root)
             .expect("validated note set and root");
         mapping.activate = trigger_target(sense.activate_slot, sense.activate_action, 96, 150);
@@ -70,8 +66,8 @@ impl NativeRunner {
             Some(usize::from(sense.scan_sections))
         };
         profile.state.tick = if sense.scan_mode == ScanMode::Scanning {
-            let reverse = sense.scan_direction == "reverse";
-            if sense.scan_axis == "columns" {
+            let reverse = sense.scan_direction == ScanDirection::Reverse;
+            if sense.scan_axis == ScanAxis::Columns {
                 TickStrategy::ScanColumnActive {
                     sections,
                     reverse,

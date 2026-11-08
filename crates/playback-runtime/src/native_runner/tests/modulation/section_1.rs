@@ -25,14 +25,14 @@ pub(crate) fn link_value_lanes_load_into_runner_and_menu_curve_edits_apply() {
     assert_eq!(runner.link_layers[0].x_velocity.from, 12);
     assert_eq!(runner.link_layers[0].x_velocity.to, 99);
     assert_eq!(runner.link_layers[0].x_velocity.grid_offset, 2);
-    assert_eq!(runner.link_layers[0].x_velocity.curve, "curve");
+    assert_eq!(runner.link_layers[0].x_velocity.curve, LaneCurve::Curve);
     assert!(runner.link_layers[0].y_filter_resonance.enabled);
 
     runner.menu.rebuild(runner.menu_config());
     runner
         .edit_menu_key("layers.0.link.x.velocity.curve", -1)
         .unwrap();
-    assert_eq!(runner.link_layers[0].x_velocity.curve, "linear");
+    assert_eq!(runner.link_layers[0].x_velocity.curve, LaneCurve::Linear);
 }
 
 #[test]

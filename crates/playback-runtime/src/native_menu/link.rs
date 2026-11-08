@@ -1,5 +1,7 @@
-use crate::native_runner::{ScanMode, TriggerProbabilityMode};
-use platform_core::TriggerAction;
+use crate::native_runner::{
+    ArpMode, ArpSource, LaneCurve, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode,
+};
+use platform_core::{RangeMode, TriggerAction};
 
 use super::link_axis::{axis_group, AxisMenuConfig};
 use super::link_sections::{
@@ -13,9 +15,9 @@ use super::{
 pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
     NativeLinkLayerConfig {
         scan_mode: ScanMode::None,
-        scan_axis: "rows".into(),
+        scan_axis: ScanAxis::Rows,
         scan_unit: "1/8".into(),
-        scan_direction: "forward".into(),
+        scan_direction: ScanDirection::Forward,
         scan_sections: 1,
         scanned_slot: 0,
         scanned_action: TriggerAction::NoteOn,
@@ -43,7 +45,7 @@ pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
         starting_note: 60,
         scale: "chromatic".into(),
         root: "C".into(),
-        out_of_range: "wrap".into(),
+        out_of_range: RangeMode::Wrap,
         x_pitch_enabled: true,
         x_pitch_steps: 1,
         x_pitch_restart_each_section: false,
@@ -61,8 +63,8 @@ pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
         y_filter_cutoff: value_lane_config(20, 127),
         y_filter_resonance: value_lane_config(10, 90),
         arp: NativeLinkArpConfig {
-            mode: "none".into(),
-            source: "simultaneous".into(),
+            mode: ArpMode::None,
+            source: ArpSource::Simultaneous,
             step_interval_steps: 1,
             note_length_ms: 120,
             gate_pct: 80,
@@ -77,7 +79,7 @@ fn value_lane_config(from: u8, to: u8) -> NativeValueLaneConfig {
         from,
         to,
         grid_offset: 0,
-        curve: "linear".into(),
+        curve: LaneCurve::Linear,
     }
 }
 

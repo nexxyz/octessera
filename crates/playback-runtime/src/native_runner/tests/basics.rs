@@ -148,7 +148,7 @@ pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
     assert_eq!(runner.link_layers[0].scan_mode, ScanMode::None);
-    assert_eq!(runner.link_layers[0].scan_axis, "columns");
+    assert_eq!(runner.link_layers[0].scan_axis, ScanAxis::Columns);
     assert_eq!(runner.link_layers[0].scan_unit, "1/16");
     assert!(runner.link_layers[0].event_enabled);
     assert!(!runner.link_layers[1].event_enabled);
@@ -157,7 +157,7 @@ pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     assert_eq!(runner.link_layers[0].highest_note, 74);
     assert_eq!(runner.link_layers[0].scale, "major_pentatonic");
     assert_eq!(runner.link_layers[0].root, "D");
-    assert_eq!(runner.link_layers[0].out_of_range, "clamp");
+    assert_eq!(runner.link_layers[0].out_of_range, RangeMode::Clamp);
     assert_eq!(runner.link_layers[0].x_pitch_steps, 0);
     assert_eq!(runner.link_layers[0].y_pitch_steps, 1);
     assert_eq!(runner.display.ui.master_volume, 73);
@@ -258,7 +258,7 @@ pub(crate) fn button_s_toggles_transport() {
 pub(crate) fn restart_section_reaches_the_active_scan_profile_on_the_lane_split_axis() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "columns".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Columns;
     runner.link_layers[0].scan_sections = 2;
     runner.menu.rebuild(runner.menu_config());
     let key = "layers.0.link.y.pitch.restartEachSection";

@@ -4,51 +4,28 @@ use super::{
     NativeLinkArpConfig, NativeLinkLayerConfig, NativeLinkLfoConfig, NativeMenuAction,
     NativeMenuConfig, NativeMenuItem,
 };
-use crate::native_runner::{ScanMode, TriggerProbabilityMode};
+use crate::native_runner::{
+    ArpMode, ArpSource, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode,
+};
 use platform_core::TriggerAction;
 
 pub(super) fn arp_group(prefix: &str, arp: &NativeLinkArpConfig) -> NativeMenuItem {
     group(
         "Arp",
         vec![
-            enum_item(
+            wire_enum_item(
                 "Mode",
                 format!("{prefix}.mode"),
-                vec![
-                    "none",
-                    "direct",
-                    "up",
-                    "down",
-                    "bounce",
-                    "outside_in",
-                    "rotating",
-                    "random",
-                    "octave_spread",
-                    "chord_strike",
-                    "strum",
-                ],
-                selected_index(
-                    &[
-                        "none",
-                        "direct",
-                        "up",
-                        "down",
-                        "bounce",
-                        "outside_in",
-                        "rotating",
-                        "random",
-                        "octave_spread",
-                        "chord_strike",
-                        "strum",
-                    ],
-                    &arp.mode,
-                ),
+                ArpMode::ALL,
+                ArpMode::wire_name,
+                arp.mode,
             ),
-            enum_item(
+            wire_enum_item(
                 "Source",
                 format!("{prefix}.source"),
-                vec!["simultaneous", "held"],
-                selected_index(&["simultaneous", "held"], &arp.source),
+                ArpSource::ALL,
+                ArpSource::wire_name,
+                arp.source,
             ),
             number_item(
                 "Step",
@@ -153,11 +130,12 @@ pub(super) fn scanning_group(
     )];
     if sense.scan_mode == ScanMode::Scanning {
         children.extend(vec![
-            enum_item(
+            wire_enum_item(
                 "Scan Axis",
                 format!("{prefix}.scanAxis"),
-                vec!["rows", "columns"],
-                selected_index(&["rows", "columns"], &sense.scan_axis),
+                ScanAxis::ALL,
+                ScanAxis::wire_name,
+                sense.scan_axis,
             ),
             enum_item(
                 "Scan Unit",
@@ -165,11 +143,12 @@ pub(super) fn scanning_group(
                 crate::timing_units::NOTE_UNIT_OPTIONS.to_vec(),
                 crate::timing_units::note_unit_selection_index(&sense.scan_unit),
             ),
-            enum_item(
+            wire_enum_item(
                 "Scan Dir",
                 format!("{prefix}.scanDirection"),
-                vec!["forward", "reverse"],
-                selected_index(&["forward", "reverse"], &sense.scan_direction),
+                ScanDirection::ALL,
+                ScanDirection::wire_name,
+                sense.scan_direction,
             ),
             enum_item(
                 "Sections",

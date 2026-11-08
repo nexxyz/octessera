@@ -26,7 +26,7 @@ fn mixed_patch_runner() -> NativeRunner {
     runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
     runner.link_layers[0].trigger_probability_high_pct = 70;
     runner.trigger_probability_maps[0] = [TileProbability::High; GRID_WIDTH * GRID_HEIGHT];
-    runner.link_layers[1].arp.mode = "up".into();
+    runner.link_layers[1].arp.mode = ArpMode::Up;
     runner.link_layers[3].seeded = true;
     runner.link_layers[3].scanned_timing = LinkEventTiming {
         delay_steps: 2,
@@ -105,7 +105,7 @@ fn eight_bar_trace(mut runner: NativeRunner) -> String {
             let late_scanner = &mut runner.link_layers[7];
             late_scanner.scan_mode = ScanMode::Scanning;
             late_scanner.scan_unit = "1/16".into();
-            late_scanner.scan_axis = "columns".into();
+            late_scanner.scan_axis = ScanAxis::Columns;
             late_scanner.x_pitch_enabled = true;
             late_scanner.x_pitch_steps = 1;
             late_scanner.scanned_empty_slot = 0;

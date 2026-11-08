@@ -163,14 +163,14 @@ pub(crate) fn link_velocity_and_filter_lanes_modulate_mapped_events() {
             from: 10,
             to: 110,
             grid_offset: 0,
-            curve: "linear".into(),
+            curve: LaneCurve::Linear,
         },
         y_filter_cutoff: NativeValueLane {
             enabled: true,
             from: 20,
             to: 120,
             grid_offset: 0,
-            curve: "linear".into(),
+            curve: LaneCurve::Linear,
         },
         ..NativeLinkLayer::default()
     };
@@ -216,7 +216,7 @@ pub(crate) fn midi_instrument_channel_remaps_note_and_cc_events() {
             from: 20,
             to: 120,
             grid_offset: 0,
-            curve: "linear".into(),
+            curve: LaneCurve::Linear,
         },
         ..NativeLinkLayer::default()
     };

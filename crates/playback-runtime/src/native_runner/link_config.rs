@@ -5,9 +5,9 @@ pub(super) fn link_layer_configs(layers: &[NativeLinkLayer]) -> Vec<NativeLinkLa
         .iter()
         .map(|layer| NativeLinkLayerConfig {
             scan_mode: layer.scan_mode,
-            scan_axis: layer.scan_axis.clone(),
+            scan_axis: layer.scan_axis,
             scan_unit: layer.scan_unit.clone(),
-            scan_direction: layer.scan_direction.clone(),
+            scan_direction: layer.scan_direction,
             scan_sections: layer.scan_sections,
             scanned_slot: layer.scanned_slot,
             scanned_action: layer.scanned_action,
@@ -35,7 +35,7 @@ pub(super) fn link_layer_configs(layers: &[NativeLinkLayer]) -> Vec<NativeLinkLa
             starting_note: layer.starting_note,
             scale: layer.scale.clone(),
             root: layer.root.clone(),
-            out_of_range: layer.out_of_range.clone(),
+            out_of_range: layer.out_of_range,
             x_pitch_enabled: layer.x_pitch_enabled,
             x_pitch_steps: layer.x_pitch_steps,
             x_pitch_restart_each_section: layer.x_pitch_restart_each_section,
@@ -53,8 +53,8 @@ pub(super) fn link_layer_configs(layers: &[NativeLinkLayer]) -> Vec<NativeLinkLa
             y_filter_cutoff: value_lane_config(&layer.y_filter_cutoff),
             y_filter_resonance: value_lane_config(&layer.y_filter_resonance),
             arp: crate::native_menu::NativeLinkArpConfig {
-                mode: layer.arp.mode.clone(),
-                source: layer.arp.source.clone(),
+                mode: layer.arp.mode,
+                source: layer.arp.source,
                 step_interval_steps: layer.arp.step_interval_steps,
                 note_length_ms: layer.arp.note_length_ms,
                 gate_pct: layer.arp.gate_pct,
@@ -77,6 +77,6 @@ pub(super) fn value_lane_config(lane: &NativeValueLane) -> NativeValueLaneConfig
         from: lane.from,
         to: lane.to,
         grid_offset: lane.grid_offset,
-        curve: lane.curve.clone(),
+        curve: lane.curve,
     }
 }

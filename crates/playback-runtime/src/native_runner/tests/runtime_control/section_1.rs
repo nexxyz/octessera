@@ -267,7 +267,7 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
         tune_cents: 0,
     }];
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.link_layers[0].scan_unit = "1/16".into();
     runner.link_layers[0].scanned_slot = 0;
     runner.link_layers[0].scanned_action = TriggerAction::NoteOn;

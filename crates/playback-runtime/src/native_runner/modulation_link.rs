@@ -1,7 +1,10 @@
 use super::modulation_value::{
     apply_bool_value, apply_i32_value, apply_string_value, apply_u8_enum_value, apply_u8_value,
 };
-use super::{NativeLinkLayer, NativeValueLane, ScanMode, TriggerProbabilityMode, Value};
+use super::{
+    LaneCurve, NativeLinkLayer, NativeValueLane, RangeMode, ScanAxis, ScanDirection, ScanMode,
+    TriggerProbabilityMode, Value,
+};
 
 pub(super) fn apply_link_binding_value(
     layer: &mut NativeLinkLayer,
@@ -10,15 +13,17 @@ pub(super) fn apply_link_binding_value(
 ) -> bool {
     match field {
         "scanMode" => apply_wire_value(&mut layer.scan_mode, value, ScanMode::from_wire_name),
-        "scanAxis" => apply_string_value(&mut layer.scan_axis, value, &["rows", "columns"]),
+        "scanAxis" => apply_wire_value(&mut layer.scan_axis, value, ScanAxis::from_wire_name),
         "scanUnit" => apply_string_value(
             &mut layer.scan_unit,
             value,
             crate::timing_units::NOTE_UNIT_OPTIONS,
         ),
-        "scanDirection" => {
-            apply_string_value(&mut layer.scan_direction, value, &["forward", "reverse"])
-        }
+        "scanDirection" => apply_wire_value(
+            &mut layer.scan_direction,
+            value,
+            ScanDirection::from_wire_name,
+        ),
         "scanSections" => apply_u8_enum_value(&mut layer.scan_sections, value, 8),
         "eventEnabled" => apply_bool_value(&mut layer.event_enabled, value),
         "stateNotesEnabled" => apply_bool_value(&mut layer.state_notes_enabled, value),
@@ -39,7 +44,7 @@ pub(super) fn apply_link_binding_value(
         "pitch.scale" => apply_note_set_value(&mut layer.scale, value),
         "pitch.root" => apply_string_value(&mut layer.root, value, platform_core::NOTE_SET_ROOTS),
         "pitch.outOfRange" => {
-            apply_string_value(&mut layer.out_of_range, value, &["clamp", "wrap"])
+            apply_wire_value(&mut layer.out_of_range, value, RangeMode::from_wire_name)
         }
         "x.pitch.enabled" => apply_bool_value(&mut layer.x_pitch_enabled, value),
         "x.pitch.steps" => apply_i32_value(&mut layer.x_pitch_steps, value, -16, 16),
@@ -103,7 +108,7 @@ fn apply_value_lane_binding_value(lane: &mut NativeValueLane, field: &str, value
         "from" => apply_u8_value(&mut lane.from, value, 127),
         "to" => apply_u8_value(&mut lane.to, value, 127),
         "gridOffset" => apply_i32_value(&mut lane.grid_offset, value, -7, 7),
-        "curve" => apply_string_value(&mut lane.curve, value, &["linear", "curve"]),
+        "curve" => apply_wire_value(&mut lane.curve, value, LaneCurve::from_wire_name),
         _ => false,
     }
 }

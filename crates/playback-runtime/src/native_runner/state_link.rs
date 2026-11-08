@@ -4,9 +4,9 @@ impl Default for NativeLinkLayer {
     fn default() -> Self {
         Self {
             scan_mode: ScanMode::None,
-            scan_axis: "columns".into(),
+            scan_axis: ScanAxis::Columns,
             scan_unit: "1/16".into(),
-            scan_direction: "forward".into(),
+            scan_direction: ScanDirection::Forward,
             scan_sections: 1,
             scanned_slot: 0,
             scanned_action: TriggerAction::NoteOn,
@@ -34,7 +34,7 @@ impl Default for NativeLinkLayer {
             starting_note: 60,
             scale: "major_pentatonic".into(),
             root: "D".into(),
-            out_of_range: "clamp".into(),
+            out_of_range: RangeMode::Clamp,
             x_pitch_enabled: true,
             x_pitch_steps: 0,
             x_pitch_restart_each_section: false,
@@ -59,9 +59,9 @@ impl Default for NativeLinkLayer {
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct NativeLinkLayer {
     pub(super) scan_mode: ScanMode,
-    pub(super) scan_axis: String,
+    pub(super) scan_axis: ScanAxis,
     pub(super) scan_unit: String,
-    pub(super) scan_direction: String,
+    pub(super) scan_direction: ScanDirection,
     pub(super) scan_sections: u8,
     pub(super) scanned_slot: usize,
     pub(super) scanned_action: TriggerAction,
@@ -89,7 +89,7 @@ pub(super) struct NativeLinkLayer {
     pub(super) starting_note: u8,
     pub(super) scale: String,
     pub(super) root: String,
-    pub(super) out_of_range: String,
+    pub(super) out_of_range: RangeMode,
     pub(super) x_pitch_enabled: bool,
     pub(super) x_pitch_steps: i32,
     pub(super) x_pitch_restart_each_section: bool,
@@ -111,10 +111,10 @@ pub(super) struct NativeLinkLayer {
 
 pub(super) const GLOBAL_LFO_COUNT: usize = 8;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct NativeLinkArp {
-    pub(super) mode: String,
-    pub(super) source: String,
+    pub(super) mode: ArpMode,
+    pub(super) source: ArpSource,
     pub(super) step_interval_steps: u8,
     pub(super) note_length_ms: u16,
     pub(super) gate_pct: u8,
@@ -150,13 +150,43 @@ pub(super) struct LinkArpHeldNote {
     pub(super) velocity: u8,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct NativeValueLane {
     pub(super) enabled: bool,
     pub(super) from: u8,
     pub(super) to: u8,
     pub(super) grid_offset: i32,
-    pub(super) curve: String,
+    pub(super) curve: LaneCurve,
+}
+
+/// How a value lane maps grid position to value: straight, or squared for a gentler start.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LaneCurve {
+    Linear,
+    Curve,
+}
+
+impl LaneCurve {
+    pub(crate) const ALL: [Self; 2] = [Self::Linear, Self::Curve];
+
+    pub(crate) const fn wire_name(self) -> &'static str {
+        match self {
+            Self::Linear => "linear",
+            Self::Curve => "curve",
+        }
+    }
+
+    pub(crate) fn from_wire_name(value: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|curve| curve.wire_name() == value)
+    }
+}
+
+impl serde::Serialize for LaneCurve {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.wire_name())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -182,8 +212,8 @@ pub(super) struct NativeParamMods {
 impl Default for NativeLinkArp {
     fn default() -> Self {
         Self {
-            mode: "none".into(),
-            source: "simultaneous".into(),
+            mode: ArpMode::None,
+            source: ArpSource::Simultaneous,
             step_interval_steps: 1,
             note_length_ms: 120,
             gate_pct: 80,
@@ -211,7 +241,7 @@ impl NativeValueLane {
             from: 1,
             to: 127,
             grid_offset: 0,
-            curve: "linear".into(),
+            curve: LaneCurve::Linear,
         }
     }
 
@@ -221,7 +251,7 @@ impl NativeValueLane {
             from: 20,
             to: 127,
             grid_offset: 0,
-            curve: "linear".into(),
+            curve: LaneCurve::Linear,
         }
     }
 
@@ -231,7 +261,7 @@ impl NativeValueLane {
             from: 10,
             to: 90,
             grid_offset: 0,
-            curve: "linear".into(),
+            curve: LaneCurve::Linear,
         }
     }
 }

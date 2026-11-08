@@ -1,7 +1,7 @@
 use super::modulation::RoutedMusicalEvents;
 use super::{
-    DelayedRoutedEvents, LinkArpHeldNote, LinkEventTiming, NativeLinkArp, NativeLinkLayer,
-    NativeRunner,
+    ArpMode, ArpSource, DelayedRoutedEvents, LinkArpHeldNote, LinkEventTiming, NativeLinkArp,
+    NativeLinkLayer, NativeRunner,
 };
 use crate::protocol::{TileHit, MIN_NOTE_DURATION_MS};
 use platform_core::{MusicalEvent, LAYER_COUNT};
@@ -72,7 +72,7 @@ impl NativeRunner {
         routed.midi = midi;
         self.update_link_arp_held_notes(layer_index, &routed);
         self.update_link_arp_held_tiles(layer_index, &routed);
-        let source_routed = if arp.source == "held" {
+        let source_routed = if arp.source == ArpSource::Held {
             let mut source = non_note_routed_events(&routed);
             source.tiles = routed
                 .tiles
@@ -203,7 +203,7 @@ impl NativeRunner {
                     .map(|note| routed_single(note, false)),
             );
         for (index, event) in hits.enumerate() {
-            let offset = if matches!(arp.mode.as_str(), "direct" | "chord_strike") {
+            let offset = if arp.mode.is_simultaneous() {
                 0
             } else {
                 (index as u16).saturating_mul(u16::from(arp.step_interval_steps))
@@ -233,13 +233,13 @@ impl NativeRunner {
             }
         }
         let ordered = self.ordered_arp_notes(layer_index, note_ons, link);
-        let ordered = if arp.mode == "octave_spread" {
+        let ordered = if arp.mode == ArpMode::OctaveSpread {
             octave_spread_notes(ordered, arp.octave_spread)
         } else {
             ordered
         };
         out.extend(ordered.into_iter().enumerate().map(|(index, event)| {
-            let offset = if matches!(arp.mode.as_str(), "direct" | "chord_strike") {
+            let offset = if arp.mode.is_simultaneous() {
                 0
             } else {
                 (index as u16).saturating_mul(u16::from(arp.step_interval_steps))
@@ -255,15 +255,15 @@ impl NativeRunner {
         mut notes: Vec<MusicalEvent>,
         link: &NativeLinkLayer,
     ) -> Vec<MusicalEvent> {
-        let mode = link.arp.mode.as_str();
-        if !matches!(mode, "direct" | "strum") {
+        let mode = link.arp.mode;
+        if !matches!(mode, ArpMode::Direct | ArpMode::Strum) {
             notes.sort_by_key(note_sort_key);
         }
         match mode {
-            "down" => notes.into_iter().rev().collect(),
-            "bounce" => bounce_notes(notes),
-            "outside_in" => outside_in_notes(notes),
-            "rotating" => {
+            ArpMode::Down => notes.into_iter().rev().collect(),
+            ArpMode::Bounce => bounce_notes(notes),
+            ArpMode::OutsideIn => outside_in_notes(notes),
+            ArpMode::Rotating => {
                 let phase = self
                     .link_arp
                     .rotating_phase
@@ -279,7 +279,7 @@ impl NativeRunner {
                 }
                 notes
             }
-            "random" => {
+            ArpMode::Random => {
                 shuffle_notes(
                     &mut notes,
                     self.arp_random_state_mut(layer_index, link.seeded),

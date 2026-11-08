@@ -6,9 +6,11 @@ use super::mapping_bindings::validate_mapping;
 use super::modulation::validate_layer_modulation;
 use super::Value;
 use crate::native_runner::trigger_probability::TileProbability;
-use crate::native_runner::{ScanMode, TriggerProbabilityMode};
+use crate::native_runner::{
+    ArpMode, ArpSource, LaneCurve, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode,
+};
 use crate::timing_units::NOTE_UNIT_OPTIONS;
-use platform_core::{note_set_ids, LAYER_COUNT, NOTE_SET_ROOTS};
+use platform_core::{note_set_ids, RangeMode, LAYER_COUNT, NOTE_SET_ROOTS};
 use serde_json::Map;
 
 pub(super) fn validate_layers(runtime: &Map<String, Value>) -> Result<(), String> {
@@ -64,9 +66,19 @@ fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
         path,
         &ScanMode::ALL.map(ScanMode::wire_name),
     )?;
-    enum_field(link, "scanAxis", path, &["rows", "columns"])?;
+    enum_field(
+        link,
+        "scanAxis",
+        path,
+        &ScanAxis::ALL.map(ScanAxis::wire_name),
+    )?;
     enum_field(link, "scanUnit", path, NOTE_UNIT_OPTIONS)?;
-    enum_field(link, "scanDirection", path, &["forward", "reverse"])?;
+    enum_field(
+        link,
+        "scanDirection",
+        path,
+        &ScanDirection::ALL.map(ScanDirection::wire_name),
+    )?;
     unsigned_field(link, "scanSections", path, 1, 8)?;
     if let Some(value) = link.get("scanSections") {
         if !matches!(value.as_u64(), Some(1 | 2 | 4 | 8)) {
@@ -92,12 +104,17 @@ fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
         }
     }
     if let Some(arp) = object_field(link, "arp", path)? {
-        enum_field(arp, "mode", &format!("{path}.arp"), ARP_MODES)?;
+        enum_field(
+            arp,
+            "mode",
+            &format!("{path}.arp"),
+            &ArpMode::ALL.map(ArpMode::wire_name),
+        )?;
         enum_field(
             arp,
             "source",
             &format!("{path}.arp"),
-            &["simultaneous", "held"],
+            &ArpSource::ALL.map(ArpSource::wire_name),
         )?;
         signed_field(arp, "stepIntervalSteps", &format!("{path}.arp"), 1, 16)?;
         signed_field(arp, "noteLengthMs", &format!("{path}.arp"), 10, 2000)?;
@@ -118,7 +135,7 @@ fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
             pitch,
             "outOfRange",
             &format!("{path}.pitch"),
-            &["clamp", "wrap"],
+            &RangeMode::ALL.map(RangeMode::wire_name),
         )?;
     }
     for axis in ["x", "y"] {
@@ -144,22 +161,13 @@ fn validate_axis(axis: &Map<String, Value>, path: &str) -> Result<(), String> {
             unsigned_field(lane, "from", &lane_path, 0, 127)?;
             unsigned_field(lane, "to", &lane_path, 0, 127)?;
             signed_field(lane, "gridOffset", &lane_path, -7, 7)?;
-            enum_field(lane, "curve", &lane_path, &["linear", "curve"])?;
+            enum_field(
+                lane,
+                "curve",
+                &lane_path,
+                &LaneCurve::ALL.map(LaneCurve::wire_name),
+            )?;
         }
     }
     Ok(())
 }
-
-const ARP_MODES: &[&str] = &[
-    "none",
-    "direct",
-    "up",
-    "down",
-    "bounce",
-    "outside_in",
-    "rotating",
-    "random",
-    "octave_spread",
-    "chord_strike",
-    "strum",
-];

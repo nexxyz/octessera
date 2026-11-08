@@ -20,7 +20,7 @@ pub(crate) fn active_life_notes_stay_in_mapping_after_menu_changes_and_navigatio
     runner.link_layers[0].lowest_note = 50;
     runner.link_layers[0].starting_note = 57;
     runner.link_layers[0].highest_note = 74;
-    runner.link_layers[0].out_of_range = "clamp".into();
+    runner.link_layers[0].out_of_range = RangeMode::Clamp;
     runner.refresh_active_mapping_config();
 
     let tick_messages = pulse(&mut runner);

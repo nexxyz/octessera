@@ -1,6 +1,5 @@
-use super::{
-    bool_item, enum_item, group, number_item, selected_index, NativeMenuItem, NativeValueLaneConfig,
-};
+use super::{bool_item, group, number_item, wire_enum_item, NativeMenuItem, NativeValueLaneConfig};
+use crate::native_runner::LaneCurve;
 
 pub(super) struct AxisMenuConfig<'a> {
     pub(super) offset_limit: i32,
@@ -91,11 +90,12 @@ fn lane_group(
                 offset_limit,
                 1,
             ),
-            enum_item(
+            wire_enum_item(
                 "Curve",
                 format!("{prefix}.curve"),
-                vec!["linear", "curve"],
-                selected_index(&["linear", "curve"], &lane.curve),
+                LaneCurve::ALL,
+                LaneCurve::wire_name,
+                lane.curve,
             ),
         ]);
     }

@@ -112,6 +112,7 @@ mod layer_replacement;
 mod layer_state;
 mod led_color;
 mod link_arp;
+mod link_arp_mode;
 mod link_routing;
 mod link_scan;
 mod local_patch_document;
@@ -271,7 +272,8 @@ pub use config_documents::{
 pub use config_schema_validation::is_valid_fx_string_param;
 pub use config_snapshot::NativeConfigSnapshot;
 pub use instrument_type::InstrumentType;
-pub(crate) use link_scan::ScanMode;
+pub(crate) use link_arp_mode::{ArpMode, ArpSource};
+pub(crate) use link_scan::{ScanAxis, ScanDirection, ScanMode};
 pub use persistence_intent::NativePersistenceIntent;
 pub(crate) use retired_config_keys::without_retired_keys;
 pub use runner_config::NativeRunnerConfig;
@@ -279,6 +281,7 @@ pub use snapshot_scene::{
     NativeControlButtonPresentation, NativeGridPresentation, NativeHardwarePresentation,
     NativeHdmiMode, NativeHdmiPresentation, NativeLedPresentation, PresentationScene,
 };
+pub(crate) use state_link::LaneCurve;
 pub use usb_data_role::UsbDataRole;
 pub(crate) use user_data_patch_document::{
     apply_user_data_patch_payload, normalize_user_data_patch_payload,

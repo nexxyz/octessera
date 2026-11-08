@@ -2,7 +2,8 @@ use super::play_fx_config::{play_fx_param_specs, play_fx_target_key, play_fx_typ
 use super::{
     apply_value_lane_menu_state, json, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
     set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, set_wire_from_menu,
-    NativeLinkLayer, NativeRunner, ScanMode, TriggerAction, TriggerProbabilityMode, Value,
+    ArpMode, ArpSource, NativeLinkLayer, NativeRunner, RangeMode, ScanAxis, ScanDirection,
+    ScanMode, TriggerAction, TriggerProbabilityMode, Value,
 };
 impl NativeRunner {
     pub(super) fn apply_play_fx_menu_state(&mut self) -> bool {
@@ -40,20 +41,19 @@ pub(super) fn apply_link_arp_menu_state(
     layer: &mut NativeLinkLayer,
     prefix: &str,
 ) -> bool {
-    let before = layer.arp.clone();
-    if let Some(mode) = menu.value_for_key(&format!("{prefix}.mode")) {
-        layer.arp.mode = match mode.as_str() {
-            "none" | "direct" | "up" | "down" | "bounce" | "outside_in" | "rotating" | "random"
-            | "octave_spread" | "chord_strike" | "strum" => mode,
-            _ => "none".into(),
-        };
-    }
-    if let Some(source) = menu.value_for_key(&format!("{prefix}.source")) {
-        layer.arp.source = match source.as_str() {
-            "simultaneous" | "held" => source,
-            _ => "simultaneous".into(),
-        };
-    }
+    let before = layer.arp;
+    set_wire_from_menu(
+        menu,
+        &mut layer.arp.mode,
+        &format!("{prefix}.mode"),
+        ArpMode::from_wire_name,
+    );
+    set_wire_from_menu(
+        menu,
+        &mut layer.arp.source,
+        &format!("{prefix}.source"),
+        ArpSource::from_wire_name,
+    );
     changed_set_u8(
         menu,
         &mut layer.arp.step_interval_steps,
@@ -121,12 +121,18 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
         &format!("{prefix}.scanMode"),
         ScanMode::from_wire_name,
     );
-    changed |= set_string_from_menu(menu, &mut layer.scan_axis, &format!("{prefix}.scanAxis"));
+    changed |= set_wire_from_menu(
+        menu,
+        &mut layer.scan_axis,
+        &format!("{prefix}.scanAxis"),
+        ScanAxis::from_wire_name,
+    );
     changed |= set_string_from_menu(menu, &mut layer.scan_unit, &format!("{prefix}.scanUnit"));
-    changed |= set_string_from_menu(
+    changed |= set_wire_from_menu(
         menu,
         &mut layer.scan_direction,
         &format!("{prefix}.scanDirection"),
+        ScanDirection::from_wire_name,
     );
     changed |= set_u8_enum_from_menu(
         menu,
@@ -307,10 +313,11 @@ pub(super) fn apply_link_probability_and_pitch_menu_state(
     );
     changed |= set_string_from_menu(menu, &mut layer.scale, &format!("{prefix}.pitch.scale"));
     changed |= set_string_from_menu(menu, &mut layer.root, &format!("{prefix}.pitch.root"));
-    changed |= set_string_from_menu(
+    changed |= set_wire_from_menu(
         menu,
         &mut layer.out_of_range,
         &format!("{prefix}.pitch.outOfRange"),
+        RangeMode::from_wire_name,
     );
     changed
 }

@@ -164,8 +164,8 @@ fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_
 
     runner.link_layers[0].activate_timing.delay_steps = 0;
     runner.link_layers[0].activate_timing.retrigger_count = 0;
-    runner.link_layers[0].arp.mode = "up".into();
-    runner.link_layers[0].arp.source = "held".into();
+    runner.link_layers[0].arp.mode = ArpMode::Up;
+    runner.link_layers[0].arp.source = ArpSource::Held;
     runner.link_layers[0].arp.step_interval_steps = 1;
     let arp = runner
         .route_events_with_link_timing(

@@ -118,12 +118,16 @@ fn voice_stealing_mode_takes_only_known_modes() {
 fn link_enum_bindings_reject_values_outside_their_sets() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let before = runner.link_layers[0].clone();
-    assert!(!write(&mut runner, "layers.0.link.scanMode", "scan"));
-    assert!(!write(
-        &mut runner,
-        "layers.0.link.triggerProbabilityMode",
-        "half"
-    ));
+    for (key, value) in [
+        ("layers.0.link.scanMode", "scan"),
+        ("layers.0.link.scanAxis", "diagonal"),
+        ("layers.0.link.scanDirection", "backward"),
+        ("layers.0.link.triggerProbabilityMode", "half"),
+        ("layers.0.link.pitch.outOfRange", "fold"),
+        ("layers.0.link.x.velocity.curve", "exponential"),
+    ] {
+        assert!(!write(&mut runner, key, value), "{key} accepted {value}");
+    }
     assert_eq!(runner.link_layers[0], before);
 
     for mode in ScanMode::ALL {
@@ -148,9 +152,14 @@ fn unversioned_payload_ignores_unknown_link_values() {
         .apply_config_payload(json!({
             "runtimeConfig": { "layers": [{ "link": {
                 "scanMode": "scan",
+                "scanAxis": "diagonal",
+                "scanDirection": "backward",
                 "triggerProbabilityMode": "half",
                 "triggerProbabilityMap": ["medium", "low"],
-                "mapping": { "activate": { "action": "note_up" } }
+                "mapping": { "activate": { "action": "note_up" } },
+                "pitch": { "outOfRange": "fold" },
+                "x": { "velocity": { "curve": "exponential" } },
+                "arp": { "mode": "sideways", "source": "notes" }
             } }] }
         }))
         .unwrap();

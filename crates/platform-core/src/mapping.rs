@@ -44,6 +44,21 @@ pub enum RangeMode {
     Wrap,
 }
 
+impl RangeMode {
+    pub const ALL: [Self; 2] = [Self::Clamp, Self::Wrap];
+
+    pub const fn wire_name(self) -> &'static str {
+        match self {
+            Self::Clamp => "clamp",
+            Self::Wrap => "wrap",
+        }
+    }
+
+    pub fn from_wire_name(value: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|mode| mode.wire_name() == value)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MappingConfig {
     #[serde(rename = "baseMidiNote")]

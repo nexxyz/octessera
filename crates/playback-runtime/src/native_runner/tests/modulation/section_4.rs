@@ -10,7 +10,7 @@ fn lane(from: u8, to: u8, curve: &str) -> NativeValueLane {
         from,
         to,
         grid_offset: 0,
-        curve: curve.into(),
+        curve: LaneCurve::from_wire_name(curve).unwrap(),
     }
 }
 
@@ -117,13 +117,13 @@ pub(crate) fn link_binding_curve_accepts_only_named_lane_curves() {
         "x.velocity.curve",
         json!("curve")
     ));
-    assert_eq!(link.x_velocity.curve, "curve");
+    assert_eq!(link.x_velocity.curve, LaneCurve::Curve);
     assert!(!apply_link_binding_value(
         &mut link,
         "x.velocity.curve",
         json!("exp")
     ));
-    assert_eq!(link.x_velocity.curve, "curve");
+    assert_eq!(link.x_velocity.curve, LaneCurve::Curve);
 }
 
 #[test]

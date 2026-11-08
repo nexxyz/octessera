@@ -348,7 +348,7 @@ pub(crate) fn probability_filtering_happens_before_local_dedupe() {
         from: 10,
         to: 110,
         grid_offset: 0,
-        curve: "linear".into(),
+        curve: LaneCurve::Linear,
     };
     runner.transport.transport = RuntimeTransportState::Playing;
 

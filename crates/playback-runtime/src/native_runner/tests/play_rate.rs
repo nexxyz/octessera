@@ -235,7 +235,7 @@ fn scanning_rows_runner() -> NativeRunner {
     let mut runner = rate_runner();
     let link = &mut runner.link_layers[0];
     link.scan_mode = ScanMode::Scanning;
-    link.scan_axis = "rows".into();
+    link.scan_axis = ScanAxis::Rows;
     link.scan_unit = "1/8T".into();
     link.event_enabled = false;
     link.scanned_slot = 0;

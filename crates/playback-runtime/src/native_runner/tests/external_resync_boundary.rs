@@ -13,7 +13,7 @@ fn scanning_runner(scan_unit: &str, scanned_slot: usize) -> NativeRunner {
 fn configure_active_scan(runner: &mut NativeRunner, scan_unit: &str, scanned_slot: usize) {
     let layer = &mut runner.link_layers[runner.active_layer_index];
     layer.scan_mode = ScanMode::Scanning;
-    layer.scan_axis = "rows".into();
+    layer.scan_axis = ScanAxis::Rows;
     layer.scan_unit = scan_unit.into();
     layer.scan_sections = 1;
     layer.scanned_slot = scanned_slot;
@@ -281,7 +281,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
     runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.sync_engine_runtime_config();
     runner.link_layers[0].scanned_timing.delay_steps = 2;
-    runner.link_layers[0].arp.mode = "direct".into();
+    runner.link_layers[0].arp.mode = ArpMode::Direct;
     runner.delayed_link_events[0].push(DelayedRoutedEvents {
         remaining_steps: 1,
         events: RoutedMusicalEvents {

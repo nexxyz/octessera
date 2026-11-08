@@ -72,7 +72,7 @@ pub(crate) fn pause_continue_and_manual_single_step_preserve_phase_but_stop_star
     .unwrap();
     runner.midi_active = true;
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.link_layers[0].scan_unit = "1/16".into();
     runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_interpretation_profile();

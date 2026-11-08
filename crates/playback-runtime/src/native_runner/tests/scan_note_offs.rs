@@ -17,7 +17,7 @@ fn scanned_empty_note_off_runtime(
     runner.midi_send_instruments = "all".into();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "columns".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Columns;
     runner.link_layers[0].scan_unit = "1/8".into();
     runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.link_layers[0].scanned_empty_action = TriggerAction::NoteOff;

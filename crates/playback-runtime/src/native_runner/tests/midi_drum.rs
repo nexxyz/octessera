@@ -323,7 +323,7 @@ fn an_octave_spread_arp_never_re_pitches_or_re_lengthens_a_midi_drum_note() {
     rig.press(2, 3);
     rig.back();
     let arp = &mut rig.runner.link_layers[0].arp;
-    arp.mode = "octave_spread".into();
+    arp.mode = ArpMode::OctaveSpread;
     arp.octave_spread = 2;
     arp.note_length_ms = 400;
 

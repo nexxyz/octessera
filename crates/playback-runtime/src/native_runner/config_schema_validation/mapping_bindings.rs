@@ -3,7 +3,7 @@ use super::canonical::{
     string_field, unsigned_field, unsigned_value_range,
 };
 use super::Value;
-use platform_core::{TriggerAction, INSTRUMENT_COUNT, LAYER_COUNT};
+use platform_core::{RangeMode, TriggerAction, INSTRUMENT_COUNT, LAYER_COUNT};
 use serde_json::Map;
 
 pub(super) fn validate_bindings(runtime: &Map<String, Value>) -> Result<(), String> {
@@ -167,7 +167,12 @@ pub(super) fn validate_mapping_config(value: &Value) -> Result<(), String> {
     if starting < base || starting > max || max < base {
         return Err("mappingConfig MIDI note range is invalid".into());
     }
-    enum_field(object, "rangeMode", "mappingConfig", &["clamp", "wrap"])?;
+    enum_field(
+        object,
+        "rangeMode",
+        "mappingConfig",
+        &RangeMode::ALL.map(RangeMode::wire_name),
+    )?;
     let scale = object
         .get("scale")
         .and_then(Value::as_array)

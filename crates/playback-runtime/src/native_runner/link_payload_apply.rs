@@ -1,8 +1,10 @@
 use super::payload_assign::{
     apply_value_lane_payload, assign_bool, assign_i32, assign_mapping, assign_string, assign_u8,
+    assign_wire,
 };
 use super::{
-    LinkEventTiming, NativeLinkArp, NativeLinkLayer, ScanMode, TriggerProbabilityMode, Value,
+    ArpMode, ArpSource, LinkEventTiming, NativeLinkArp, NativeLinkLayer, RangeMode, ScanAxis,
+    ScanDirection, ScanMode, TriggerProbabilityMode, Value,
 };
 
 pub(super) fn apply_link_payload(layer: &mut NativeLinkLayer, payload: &Value) {
@@ -20,21 +22,8 @@ fn apply_arp_payload(layer: &mut NativeLinkLayer, payload: &Value) {
         return;
     };
     let mut next = NativeLinkArp::default();
-    if let Some(mode) = arp.get("mode").and_then(Value::as_str) {
-        next.mode = match mode {
-            "direct" | "up" | "down" | "bounce" | "outside_in" | "rotating" | "random"
-            | "octave_spread" | "chord_strike" | "strum" => mode,
-            _ => "none",
-        }
-        .into();
-    }
-    if let Some(source) = arp.get("source").and_then(Value::as_str) {
-        next.source = match source {
-            "simultaneous" | "held" => source,
-            _ => "simultaneous",
-        }
-        .into();
-    }
+    assign_wire(arp, "mode", &mut next.mode, ArpMode::from_wire_name);
+    assign_wire(arp, "source", &mut next.source, ArpSource::from_wire_name);
     if let Some(value) = arp.get("stepIntervalSteps").and_then(Value::as_i64) {
         if let Ok(value) = u8::try_from(value.clamp(1, 16)) {
             next.step_interval_steps = value;
@@ -59,16 +48,25 @@ fn apply_arp_payload(layer: &mut NativeLinkLayer, payload: &Value) {
 }
 
 fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &Value) {
-    if let Some(mode) = payload
-        .get("scanMode")
-        .and_then(Value::as_str)
-        .and_then(ScanMode::from_wire_name)
-    {
-        layer.scan_mode = mode;
-    }
-    assign_string(payload, "scanAxis", &mut layer.scan_axis);
+    assign_wire(
+        payload,
+        "scanMode",
+        &mut layer.scan_mode,
+        ScanMode::from_wire_name,
+    );
+    assign_wire(
+        payload,
+        "scanAxis",
+        &mut layer.scan_axis,
+        ScanAxis::from_wire_name,
+    );
     assign_string(payload, "scanUnit", &mut layer.scan_unit);
-    assign_string(payload, "scanDirection", &mut layer.scan_direction);
+    assign_wire(
+        payload,
+        "scanDirection",
+        &mut layer.scan_direction,
+        ScanDirection::from_wire_name,
+    );
     assign_u8(payload, "scanSections", &mut layer.scan_sections, 8);
     if let Some(enabled) = payload.get("eventEnabled").and_then(Value::as_bool) {
         layer.event_enabled = enabled;
@@ -79,13 +77,12 @@ fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &Value) 
     if let Some(seeded) = payload.get("seeded").and_then(Value::as_bool) {
         layer.seeded = seeded;
     }
-    if let Some(mode) = payload
-        .get("triggerProbabilityMode")
-        .and_then(Value::as_str)
-        .and_then(TriggerProbabilityMode::from_wire_name)
-    {
-        layer.trigger_probability_mode = mode;
-    }
+    assign_wire(
+        payload,
+        "triggerProbabilityMode",
+        &mut layer.trigger_probability_mode,
+        TriggerProbabilityMode::from_wire_name,
+    );
     assign_u8(
         payload,
         "triggerProbabilityLowPct",
@@ -166,7 +163,12 @@ fn apply_pitch_payload(layer: &mut NativeLinkLayer, payload: &Value) {
     assign_u8(pitch, "startingNote", &mut layer.starting_note, 127);
     assign_string(pitch, "scale", &mut layer.scale);
     assign_string(pitch, "root", &mut layer.root);
-    assign_string(pitch, "outOfRange", &mut layer.out_of_range);
+    assign_wire(
+        pitch,
+        "outOfRange",
+        &mut layer.out_of_range,
+        RangeMode::from_wire_name,
+    );
 }
 
 fn apply_axis_payload(layer: &mut NativeLinkLayer, payload: &Value, axis: &str) {

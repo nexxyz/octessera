@@ -3,7 +3,8 @@ use super::play_pages::{ActivePlayMode, PlayMode};
 use super::scan_overlay::{scan_index_for_overlay, scan_section_count};
 use super::{
     display_index, native_binding_from_spec, DisplayTransientPresentation, NativeInstrumentSlot,
-    NativeParamBinding, NativeRunner, ScanMode, TileProbability, GRID_HEIGHT, GRID_WIDTH,
+    NativeParamBinding, NativeRunner, ScanAxis, ScanDirection, ScanMode, TileProbability,
+    GRID_HEIGHT, GRID_WIDTH,
 };
 
 impl NativeRunner {
@@ -186,8 +187,8 @@ impl NativeRunner {
         if sense.scan_mode != ScanMode::Scanning {
             return;
         }
-        let reverse = sense.scan_direction == "reverse";
-        if sense.scan_axis == "columns" {
+        let reverse = sense.scan_direction == ScanDirection::Reverse;
+        if sense.scan_axis == ScanAxis::Columns {
             let sections = scan_section_count(sense.scan_sections, GRID_HEIGHT);
             if sections > 1 {
                 let section_height = (GRID_HEIGHT / sections).max(1);

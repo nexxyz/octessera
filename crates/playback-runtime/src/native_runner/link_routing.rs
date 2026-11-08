@@ -1,6 +1,6 @@
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
 use super::modulation_sampler::event_channel;
-use super::{DelayedRoutedEvents, LinkEventTiming, NativeRunner};
+use super::{ArpMode, DelayedRoutedEvents, LinkEventTiming, NativeRunner};
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, TileTriggerIntent, TileTriggerKind};
@@ -77,7 +77,7 @@ impl NativeRunner {
         } else {
             timing.retrigger_count
         };
-        if let Some(link) = sense.filter(|link| link.arp.mode != "none") {
+        if let Some(link) = sense.filter(|link| link.arp.mode != ArpMode::None) {
             return self.apply_link_arp_timing(
                 layer_index,
                 timing,

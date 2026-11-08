@@ -15,7 +15,7 @@ fn eighth_note_layer(swing: (u8, u8)) -> NativeRunner {
 fn start_eighth_note_layer(mut runner: NativeRunner, swing: (u8, u8)) -> NativeRunner {
     let layer = &mut runner.link_layers[0];
     layer.scan_mode = ScanMode::Scanning;
-    layer.scan_axis = "rows".into();
+    layer.scan_axis = ScanAxis::Rows;
     layer.scan_unit = "1/8".into();
     layer.scan_sections = 1;
     layer.scanned_slot = 0;

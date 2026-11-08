@@ -6,9 +6,9 @@ pub(super) fn link_layer_payload(
 ) -> Value {
     json!({
         "scanMode": layer.scan_mode,
-        "scanAxis": layer.scan_axis.clone(),
+        "scanAxis": layer.scan_axis,
         "scanUnit": layer.scan_unit.clone(),
-        "scanDirection": layer.scan_direction.clone(),
+        "scanDirection": layer.scan_direction,
         "scanSections": layer.scan_sections,
         "eventEnabled": layer.event_enabled,
         "triggerProbabilityMode": layer.trigger_probability_mode,
@@ -30,7 +30,7 @@ pub(super) fn link_layer_payload(
             "startingNote": layer.starting_note,
             "scale": layer.scale.clone(),
             "root": layer.root.clone(),
-            "outOfRange": layer.out_of_range.clone()
+            "outOfRange": layer.out_of_range
         },
         "x": {
             "from": layer.x_from,
@@ -57,8 +57,8 @@ pub(super) fn link_layer_payload(
             "filterResonance": value_lane_payload(&layer.y_filter_resonance)
         },
         "arp": {
-            "mode": layer.arp.mode.clone(),
-            "source": layer.arp.source.clone(),
+            "mode": layer.arp.mode,
+            "source": layer.arp.source,
             "stepIntervalSteps": layer.arp.step_interval_steps,
             "noteLengthMs": layer.arp.note_length_ms,
             "gatePct": layer.arp.gate_pct,

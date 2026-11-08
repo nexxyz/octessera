@@ -133,8 +133,8 @@ fn held_tiles_do_not_retrigger_and_arp_suppresses_tile_releases() {
     );
     assert!(runner.take_due_link_events(0).is_empty());
 
-    runner.link_layers[0].arp.mode = "up".into();
-    runner.link_layers[0].arp.source = "notes".into();
+    runner.link_layers[0].arp.mode = ArpMode::Up;
+    runner.link_layers[0].arp.source = ArpSource::Simultaneous;
     let released = route(
         &mut runner,
         vec![off()],

@@ -7,7 +7,7 @@ fn scanning_runner(scan_sections: u8, scan_unit: &str) -> NativeRunner {
     })
     .unwrap();
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.link_layers[0].scan_unit = scan_unit.into();
     runner.link_layers[0].scan_sections = scan_sections;
     runner.link_layers[0].scanned_slot = 0;
@@ -88,7 +88,7 @@ fn active_and_inactive_sequencer_replacements_keep_canonical_phase() {
     runner.select_layer_behavior(1, "sequencer").unwrap();
     runner.select_active_layer(1).unwrap();
     runner.link_layers[1].scan_mode = ScanMode::Scanning;
-    runner.link_layers[1].scan_axis = "rows".into();
+    runner.link_layers[1].scan_axis = ScanAxis::Rows;
     runner.link_layers[1].scan_unit = "1/8".into();
     runner.link_layers[1].event_enabled = false;
     runner.link_layers[1].scanned_slot = 0;
@@ -135,7 +135,7 @@ fn origin_prime_uses_each_scanning_layer_rate() {
     runner.select_layer_behavior(1, "sequencer").unwrap();
     runner.select_active_layer(1).unwrap();
     runner.link_layers[1].scan_mode = ScanMode::Scanning;
-    runner.link_layers[1].scan_axis = "rows".into();
+    runner.link_layers[1].scan_axis = ScanAxis::Rows;
     runner.link_layers[1].scan_unit = "1/8".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();

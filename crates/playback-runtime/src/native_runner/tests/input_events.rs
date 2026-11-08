@@ -204,7 +204,7 @@ pub(crate) fn trigger_probability_custom_zero_tile_suppresses_transport_events()
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 24;
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.link_layers[0].scan_unit = "1/4".into();
     runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
@@ -337,7 +337,7 @@ pub(crate) fn scan_progress_overlay_is_dim_white_and_preserves_live_tile_color()
     })
     .unwrap();
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.midi_active = true;
     runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
@@ -396,8 +396,8 @@ pub(crate) fn reverse_scan_direction_starts_from_last_lane() {
     })
     .unwrap();
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "rows".into();
-    runner.link_layers[0].scan_direction = "reverse".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Rows;
+    runner.link_layers[0].scan_direction = ScanDirection::Reverse;
     runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
 
@@ -419,7 +419,7 @@ pub(crate) fn scan_sections_limit_overlay_to_current_section_lane() {
     })
     .unwrap();
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.link_layers[0].scan_sections = 2;
     runner.transport.tick = 0;
     runner.refresh_active_interpretation_profile();
@@ -485,7 +485,7 @@ fn scanning_sequencer_runner() -> NativeRunner {
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 24;
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.link_layers[0].scan_unit = "1/4".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();

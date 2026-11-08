@@ -1,10 +1,10 @@
 use crate::native_runner::play_pages::PlayMode;
 use crate::native_runner::{
-    AudioOptimization, AudioOutputSet, InstrumentType, ScanMode, TriggerProbabilityMode,
-    UsbDataRole,
+    ArpMode, ArpSource, AudioOptimization, AudioOutputSet, InstrumentType, LaneCurve, ScanAxis,
+    ScanDirection, ScanMode, TriggerProbabilityMode, UsbDataRole,
 };
 use crate::protocol::SyncSource;
-use platform_core::{NoteBehavior, TriggerAction};
+use platform_core::{NoteBehavior, RangeMode, TriggerAction};
 use realtime_engine::synth::{DspRuntimeConfig, VoiceStealingMode};
 
 use super::{NativeMenuAction, NativeMenuItem, NativeParamBindingSpec};
@@ -177,9 +177,9 @@ pub struct NativeAuxBindingConfig {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeLinkLayerConfig {
     pub scan_mode: ScanMode,
-    pub scan_axis: String,
+    pub scan_axis: ScanAxis,
     pub scan_unit: String,
-    pub scan_direction: String,
+    pub scan_direction: ScanDirection,
     pub scan_sections: u8,
     pub scanned_slot: usize,
     pub scanned_action: TriggerAction,
@@ -207,7 +207,7 @@ pub struct NativeLinkLayerConfig {
     pub starting_note: u8,
     pub scale: String,
     pub root: String,
-    pub out_of_range: String,
+    pub out_of_range: RangeMode,
     pub x_pitch_enabled: bool,
     pub x_pitch_steps: i32,
     pub x_pitch_restart_each_section: bool,
@@ -229,8 +229,8 @@ pub struct NativeLinkLayerConfig {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeLinkArpConfig {
-    pub mode: String,
-    pub source: String,
+    pub mode: ArpMode,
+    pub source: ArpSource,
     pub step_interval_steps: u8,
     pub note_length_ms: u16,
     pub gate_pct: u8,
@@ -277,7 +277,7 @@ pub struct NativeValueLaneConfig {
     pub from: u8,
     pub to: u8,
     pub grid_offset: i32,
-    pub curve: String,
+    pub curve: LaneCurve,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

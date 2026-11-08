@@ -1,4 +1,4 @@
-use super::super::{NativeLinkLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
+use super::super::{LaneCurve, NativeLinkLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{MusicalEvent, TileTriggerIntent};
 
 pub(in super::super) fn cc_events_from_intent(
@@ -84,7 +84,7 @@ pub(in super::super) fn value_from_lane(index: usize, size: usize, lane: &Native
     let size = size.max(1);
     let shifted = ((index as i32 + lane.grid_offset).rem_euclid(size as i32)) as f32;
     let norm = (shifted / (size.saturating_sub(1).max(1) as f32)).clamp(0.0, 1.0);
-    let shaped = if lane.curve == "curve" {
+    let shaped = if lane.curve == LaneCurve::Curve {
         norm * norm
     } else {
         norm

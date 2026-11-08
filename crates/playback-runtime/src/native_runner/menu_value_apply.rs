@@ -108,7 +108,12 @@ pub(super) fn apply_value_lane_menu_state(
         -7,
         7,
     );
-    changed |= set_string_from_menu(menu, &mut lane.curve, &format!("{prefix}.curve"));
+    changed |= set_wire_from_menu(
+        menu,
+        &mut lane.curve,
+        &format!("{prefix}.curve"),
+        LaneCurve::from_wire_name,
+    );
     changed
 }
 

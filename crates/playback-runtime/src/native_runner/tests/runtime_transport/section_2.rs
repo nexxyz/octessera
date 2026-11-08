@@ -19,7 +19,7 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
     }];
     runner.layer_behavior_ids[1] = "sequencer".into();
     runner.link_layers[1].scan_mode = ScanMode::Scanning;
-    runner.link_layers[1].scan_axis = "rows".into();
+    runner.link_layers[1].scan_axis = ScanAxis::Rows;
     runner.link_layers[1].scan_unit = "1/16".into();
     runner.link_layers[1].scanned_slot = 1;
     runner.link_layers[1].scanned_action = TriggerAction::NoteOn;
@@ -60,7 +60,7 @@ pub(crate) fn triplet_scan_unit_advances_at_expected_pulse_count() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = "rows".into();
+    runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.link_layers[0].scan_unit = "1/8T".into();
     runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_mapping_config();
@@ -108,7 +108,7 @@ pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_pha
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.layer_behavior_ids[1] = "sequencer".into();
     runner.link_layers[1].scan_mode = ScanMode::Scanning;
-    runner.link_layers[1].scan_axis = "rows".into();
+    runner.link_layers[1].scan_axis = ScanAxis::Rows;
     runner.link_layers[1].scan_unit = "1/16".into();
     runner.link_layers[1].scanned_slot = 1;
     runner.link_layers[1].scanned_action = TriggerAction::NoteOn;
@@ -166,7 +166,7 @@ pub(crate) fn switching_to_scanning_layer_restores_its_visual_scan_tick() {
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.layer_behavior_ids[1] = "sequencer".into();
     runner.link_layers[1].scan_mode = ScanMode::Scanning;
-    runner.link_layers[1].scan_axis = "columns".into();
+    runner.link_layers[1].scan_axis = ScanAxis::Columns;
     runner.link_layers[1].scan_unit = "1/16".into();
 
     runner.select_active_layer(1).unwrap();
