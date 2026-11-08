@@ -4,6 +4,7 @@ import ipaddress
 import json
 import os
 import re
+import secrets
 import signal
 import stat
 import subprocess
@@ -29,6 +30,7 @@ WIFI_OFF_FILE = "/var/lib/octessera/show-hold/wifi-off"
 PORTAL_WINDOW_SECONDS = 600
 INTERNAL_APPLY_SECONDS = 60
 RADIO_CHECK_SECONDS = 1.0
+PASSPHRASE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"
 
 
 class SetupFailure(Exception):
@@ -74,21 +76,21 @@ def consume_request(profile):
         os.close(descriptor)
 
 
-def _status(phase, disposition=None, portal_suffix=None, error_code=None):
+def _status(phase, disposition=None, portal_suffix=None, error_code=None, portal_passphrase=None):
     if phase == "starting":
-        if disposition != "accepted" or portal_suffix is not None or error_code is not None:
+        if disposition != "accepted" or portal_suffix is not None or portal_passphrase is not None or error_code is not None:
             raise ValueError("invalid starting status")
     elif phase == "portal_ready":
-        if disposition is not None or error_code is not None or not isinstance(portal_suffix, str) or len(portal_suffix) != 4 or any(character not in "0123456789abcdef" for character in portal_suffix):
+        if disposition is not None or error_code is not None or not isinstance(portal_suffix, str) or len(portal_suffix) != 4 or any(character not in "0123456789abcdef" for character in portal_suffix) or not isinstance(portal_passphrase, str) or len(portal_passphrase) != 8 or any(character not in PASSPHRASE_ALPHABET for character in portal_passphrase):
             raise ValueError("invalid portal status")
     elif phase in ("finalizing", "succeeded"):
-        if disposition is not None or portal_suffix is not None or error_code is not None:
+        if disposition is not None or portal_suffix is not None or portal_passphrase is not None or error_code is not None:
             raise ValueError("invalid terminal status")
     elif phase == "failed":
-        if disposition is not None or portal_suffix is not None or error_code not in ("operation_failed", "radio_restart_required"):
+        if disposition is not None or portal_suffix is not None or portal_passphrase is not None or error_code not in ("operation_failed", "radio_restart_required"):
             raise ValueError("invalid failure status")
     elif phase == "timed_out":
-        if disposition is not None or portal_suffix is not None or error_code != "unavailable":
+        if disposition is not None or portal_suffix is not None or portal_passphrase is not None or error_code != "unavailable":
             raise ValueError("invalid timeout status")
     else:
         raise ValueError("invalid setup phase")
@@ -97,6 +99,8 @@ def _status(phase, disposition=None, portal_suffix=None, error_code=None):
         value["disposition"] = disposition
     if portal_suffix is not None:
         value["portalSuffix"] = portal_suffix
+    if portal_passphrase is not None:
+        value["portalPassphrase"] = portal_passphrase
     value["rebootRequired"] = False
     if error_code is not None:
         value["errorCode"] = error_code
@@ -183,6 +187,7 @@ class Coordinator:
         self.staged = None
         self.staged_at = None
         self.portal_suffix = None
+        self.portal_passphrase = "".join(secrets.choice(PASSPHRASE_ALPHABET) for _ in range(8))
         self.stop_requested = False
         self.terminal_published = False
         self.radio_checked_at = None
@@ -195,10 +200,10 @@ class Coordinator:
         self.staged_at = self.clock()
         self.staged = dict(value)
 
-    def publish(self, phase, disposition=None, portal_suffix=None, error_code=None, terminal=False):
+    def publish(self, phase, disposition=None, portal_suffix=None, error_code=None, terminal=False, portal_passphrase=None):
         if terminal and self.terminal_published:
             return
-        write_status(_status(phase, disposition, portal_suffix, error_code), self.profile)
+        write_status(_status(phase, disposition, portal_suffix, error_code, portal_passphrase), self.profile)
         if terminal:
             self.terminal_published = True
 
@@ -264,6 +269,7 @@ class Coordinator:
             raise SetupFailure("operation_failed")
         self.process = self.process_factory(
             ["/usr/local/bin/wifi-connect", "--portal-ssid", f"Octessera Setup {self.portal_suffix}", "--portal-interface", INTERFACE, "--portal-gateway", setup_http.AP_ADDRESS, "--portal-listening-port", "80", "--ui-directory", "/usr/local/share/octessera-setup-ui"],
+            env=dict(os.environ, PORTAL_PASSPHRASE=self.portal_passphrase),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -427,7 +433,7 @@ class Coordinator:
             self.wait_for_portal_readiness(outer_deadline)
             portal_ready_at = self.clock()
             portal_deadline = self.portal_window_deadline(portal_ready_at, outer_deadline)
-            self.publish("portal_ready", portal_suffix=self.portal_suffix)
+            self.publish("portal_ready", portal_suffix=self.portal_suffix, portal_passphrase=self.portal_passphrase)
             self.wait_for_stage(portal_deadline)
             self.wait_for_apply(outer_deadline)
             outcome = ("succeeded", None)

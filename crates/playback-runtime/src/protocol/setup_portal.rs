@@ -1,10 +1,11 @@
-use super::RuntimeErrorCode;
+use super::{RuntimeErrorCode, USER_DATA_TRANSFER_CODE_ALPHABET};
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 
 pub const SETUP_PORTAL_SUFFIX_MAX_CHARS: usize = 4;
+const SETUP_PORTAL_PASSPHRASE_CHARS: usize = 8;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -64,6 +65,7 @@ pub struct RuntimeSetupPortalStatus {
     pub phase: RuntimeSetupPortalPhase,
     pub disposition: Option<RuntimeSetupPortalDisposition>,
     pub portal_suffix: Option<String>,
+    pub portal_passphrase: Option<String>,
     pub reboot_required: bool,
     pub error_code: Option<RuntimeSetupPortalErrorCode>,
 }
@@ -75,6 +77,14 @@ impl RuntimeSetupPortalStatus {
         }
         if let Some(suffix) = self.portal_suffix.as_deref() {
             validate_portal_suffix(suffix)?;
+        }
+        if let Some(passphrase) = self.portal_passphrase.as_deref() {
+            validate_portal_passphrase(passphrase)?;
+            if self.phase != RuntimeSetupPortalPhase::PortalReady {
+                return Err(
+                    "only portal_ready setup portal status can contain portalPassphrase".into(),
+                );
+            }
         }
         match self.phase {
             RuntimeSetupPortalPhase::Starting => {
@@ -166,6 +176,20 @@ impl RuntimeSetupPortalStatus {
     }
 }
 
+fn validate_portal_passphrase(value: &str) -> Result<(), String> {
+    if value.len() != SETUP_PORTAL_PASSPHRASE_CHARS
+        || !value
+            .bytes()
+            .all(|character| USER_DATA_TRANSFER_CODE_ALPHABET.contains(&character))
+    {
+        return Err(
+            "setup portal portalPassphrase must be eight characters from the clear code alphabet"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
 fn validate_portal_suffix(value: &str) -> Result<(), String> {
     if value.len() != SETUP_PORTAL_SUFFIX_MAX_CHARS
         || !value
@@ -185,13 +209,16 @@ impl Serialize for RuntimeSetupPortalStatus {
         S: Serializer,
     {
         self.validate().map_err(serde::ser::Error::custom)?;
-        let mut state = serializer.serialize_struct("RuntimeSetupPortalStatus", 5)?;
+        let mut state = serializer.serialize_struct("RuntimeSetupPortalStatus", 6)?;
         state.serialize_field("phase", &self.phase)?;
         if let Some(disposition) = &self.disposition {
             state.serialize_field("disposition", disposition)?;
         }
         if let Some(portal_suffix) = &self.portal_suffix {
             state.serialize_field("portalSuffix", portal_suffix)?;
+        }
+        if let Some(portal_passphrase) = &self.portal_passphrase {
+            state.serialize_field("portalPassphrase", portal_passphrase)?;
         }
         state.serialize_field("rebootRequired", &false)?;
         if let Some(error_code) = &self.error_code {
@@ -212,6 +239,7 @@ impl<'de> Deserialize<'de> for RuntimeSetupPortalStatus {
                 "phase",
                 "disposition",
                 "portalSuffix",
+                "portalPassphrase",
                 "rebootRequired",
                 "errorCode",
             ],
@@ -236,6 +264,7 @@ impl<'de> Visitor<'de> for RuntimeSetupPortalStatusVisitor {
         let mut phase = None;
         let mut disposition = None;
         let mut portal_suffix = None;
+        let mut portal_passphrase = None;
         let mut reboot_required = None;
         let mut error_code = None;
         while let Some(field) = map.next_key::<RuntimeSetupPortalStatusField>()? {
@@ -258,6 +287,12 @@ impl<'de> Visitor<'de> for RuntimeSetupPortalStatusVisitor {
                     }
                     portal_suffix = Some(map.next_value()?);
                 }
+                RuntimeSetupPortalStatusField::PortalPassphrase => {
+                    if portal_passphrase.is_some() {
+                        return Err(serde::de::Error::duplicate_field("portalPassphrase"));
+                    }
+                    portal_passphrase = Some(map.next_value()?);
+                }
                 RuntimeSetupPortalStatusField::RebootRequired => {
                     if reboot_required.is_some() {
                         return Err(serde::de::Error::duplicate_field("rebootRequired"));
@@ -276,6 +311,7 @@ impl<'de> Visitor<'de> for RuntimeSetupPortalStatusVisitor {
             phase: phase.ok_or_else(|| serde::de::Error::missing_field("phase"))?,
             disposition,
             portal_suffix,
+            portal_passphrase,
             reboot_required: reboot_required
                 .ok_or_else(|| serde::de::Error::missing_field("rebootRequired"))?,
             error_code,
@@ -291,6 +327,7 @@ enum RuntimeSetupPortalStatusField {
     Phase,
     Disposition,
     PortalSuffix,
+    PortalPassphrase,
     RebootRequired,
     ErrorCode,
 }

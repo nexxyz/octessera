@@ -26,6 +26,7 @@ fn portal_status(phase: RuntimeSetupPortalPhase) -> RuntimeStoreResult {
         status: RuntimeSetupPortalStatus {
             phase,
             disposition,
+            portal_passphrase: suffix.as_ref().map(|_| "k7Mx9pQ2".into()),
             portal_suffix: suffix,
             reboot_required: false,
             error_code,
@@ -131,6 +132,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             vec![
                 "Hotspot:",
                 "Octessera Setup 1a2f",
+                "Password: k7Mx9pQ2",
                 "Open 192.168.42.1",
                 "Portal: 10 minutes",
                 "Hide",
@@ -188,6 +190,18 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
         );
         assert!(lines.len() <= 7);
         assert!(lines.iter().all(|line| line.chars().count() <= 28));
+        if phase == RuntimeSetupPortalPhase::PortalReady {
+            let laid_out = crate::oled_frame::layout_card_body(
+                &lines,
+                Some(lines.len() - 1),
+                crate::oled_frame::CARD_BODY_RECT,
+            );
+            assert_eq!(
+                laid_out.iter().map(|row| &row.text).collect::<Vec<_>>(),
+                lines.iter().collect::<Vec<_>>(),
+                "the ready card must show every line unwrapped"
+            );
+        }
         assert_eq!(
             snapshot["selectedRow"].as_u64(),
             Some((lines.len() - 1) as u64)
@@ -205,6 +219,7 @@ pub(crate) fn already_running_is_presented_as_the_same_starting_lifecycle() {
             phase: RuntimeSetupPortalPhase::Starting,
             disposition: Some(RuntimeSetupPortalDisposition::AlreadyRunning),
             portal_suffix: None,
+            portal_passphrase: None,
             reboot_required: false,
             error_code: None,
         },
@@ -454,6 +469,7 @@ pub(crate) fn stopped_wifi_chip_failure_asks_for_a_restart() {
                     phase: RuntimeSetupPortalPhase::Failed,
                     disposition: None,
                     portal_suffix: None,
+                    portal_passphrase: None,
                     reboot_required: false,
                     error_code: Some(RuntimeSetupPortalErrorCode::RadioRestartRequired),
                 },

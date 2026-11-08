@@ -343,9 +343,14 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - `Open Portal` stops and resets playback, clears note state, and sends MIDI panic/all-notes-off
   cleanup. Playback never auto-resumes. It emits the typed setup portal effect, and opening the
   portal switches the Wi-Fi setting back on and removes the switch file before the radio comes on.
-- The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>` and
-  `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`, `failed`, `timed_out`, or desktop
-  `unsupported`. The modal ranks after confirmation dialogs and ahead of system info and help.
+- The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>`,
+  `Password: <passphrase>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`,
+  `failed`, `timed_out`, or desktop `unsupported`. The modal ranks after confirmation dialogs and
+  ahead of system info and help.
+- The hotspot is WPA2-protected. Each portal start draws a fresh 8-character passphrase from the
+  clear code alphabet (no `0`, `O`, `1`, `I`, `l` or `o`); the coordinator hands it to wifi-connect
+  through `PORTAL_PASSPHRASE` and publishes it only in the `portal_ready` status
+  (`portalPassphrase`), which later phases replace.
 - The browser's Applying page is provisional and an AP disconnect is expected; the OLED result is
   authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a
   default route, DNS, or ICMP.

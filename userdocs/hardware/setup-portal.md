@@ -12,15 +12,17 @@ steps.
    confirm **Open Portal**. If you had switched Wi-Fi off, this turns it back
    on.
 2. On a phone or computer, join `Octessera Setup <suffix>`, exactly as shown on
-   the OLED.
+   the OLED, with the password on the line below it. Every portal gets a fresh
+   one, so last time's password won't work. It skips look-alikes such as `0`
+   and `O` or `1` and `l`, so what you read is what you type.
 3. Browse to `http://192.168.42.1`.
 4. Fill in the country and Wi-Fi network, set the local device password, choose
    the SSH mode, and optionally enter a hostname.
 5. Press **Apply setup**.
 
-> **Heads-up:** The setup hotspot is open to anyone in range until setup
-> finishes. Open it while you are there, finish promptly, and do not leave it
-> running in a public place. The portal closes by itself after 10 minutes.
+> **Heads-up:** Anyone who can read the OLED can join the setup hotspot and
+> configure the instrument until setup finishes. Open it while you are there
+> and finish promptly. The portal closes by itself after 10 minutes.
 
 ## What the portal sets
 

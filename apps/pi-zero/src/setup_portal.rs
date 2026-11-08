@@ -212,6 +212,7 @@ fn failure_message(session: &PendingRequest, failure: SetupPortalFailure) -> Hos
         phase: RuntimeSetupPortalPhase::Failed,
         disposition: None,
         portal_suffix: None,
+        portal_passphrase: None,
         reboot_required: false,
         error_code: Some(failure.setup_error_code()),
     };
@@ -231,6 +232,7 @@ pub(crate) fn starting_message(
                 phase: RuntimeSetupPortalPhase::Starting,
                 disposition: Some(disposition),
                 portal_suffix: None,
+                portal_passphrase: None,
                 reboot_required: false,
                 error_code: None,
             },
@@ -249,6 +251,7 @@ pub(crate) fn start_failure_message(
                 phase: RuntimeSetupPortalPhase::Failed,
                 disposition: None,
                 portal_suffix: None,
+                portal_passphrase: None,
                 reboot_required: false,
                 error_code: Some(failure.setup_error_code()),
             },

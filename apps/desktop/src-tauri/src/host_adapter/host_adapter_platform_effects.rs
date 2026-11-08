@@ -116,6 +116,7 @@ impl DesktopPlaybackHostAdapter {
                         phase: RuntimeSetupPortalPhase::Unsupported,
                         disposition: None,
                         portal_suffix: None,
+                        portal_passphrase: None,
                         reboot_required: false,
                         error_code: Some(RuntimeSetupPortalErrorCode::Unsupported),
                     },

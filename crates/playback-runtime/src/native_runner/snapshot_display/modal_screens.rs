@@ -71,15 +71,23 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
         ),
         RuntimeSetupPortalPhase::PortalReady => (
             "Wi-Fi Setup".to_string(),
-            vec![
-                "Hotspot:".into(),
-                format!(
+            [
+                Some("Hotspot:".into()),
+                Some(format!(
                     "Octessera Setup {}",
                     state.status.portal_suffix.as_deref().unwrap_or("----")
-                ),
-                "Open 192.168.42.1".into(),
-                "Portal: 10 minutes".into(),
-            ],
+                )),
+                state
+                    .status
+                    .portal_passphrase
+                    .as_deref()
+                    .map(|passphrase| format!("Password: {passphrase}")),
+                Some("Open 192.168.42.1".into()),
+                Some("Portal: 10 minutes".into()),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
             "Hide",
         ),
         RuntimeSetupPortalPhase::Finalizing => (

@@ -95,6 +95,7 @@ fn setup_status(phase: RuntimeSetupPortalPhase) -> Value {
         }
         RuntimeSetupPortalPhase::PortalReady => {
             status["portalSuffix"] = json!("abcd");
+            status["portalPassphrase"] = json!("k7Mx9pQ2");
         }
         RuntimeSetupPortalPhase::Failed => {
             status["errorCode"] = json!("operation_failed");
@@ -242,7 +243,7 @@ fn setup_service_publishes_fixed_marker_and_already_running_disposition() {
     assert!(matches!(
         result(second.poll_one().unwrap()),
         RuntimeStoreResult::Identified { result, .. }
-            if matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::PortalReady)
+            if matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::PortalReady && status.portal_passphrase.as_deref() == Some("k7Mx9pQ2"))
     ));
 }
 
@@ -273,6 +274,39 @@ fn backend_status_envelope_round_trips_all_image_phases_and_requires_type() {
         }))
         .is_err()
     );
+}
+
+#[test]
+fn portal_passphrase_is_optional_clear_and_only_in_portal_ready() {
+    let parse = |status: Value| {
+        serde_json::from_value::<protocol::ValidatedStatusEnvelope>(json!({
+            "schema": 1,
+            "status": status,
+        }))
+    };
+    let ready = setup_status(RuntimeSetupPortalPhase::PortalReady);
+    let parsed = parse(ready.clone()).unwrap().status;
+    assert_eq!(parsed.portal_passphrase.as_deref(), Some("k7Mx9pQ2"));
+
+    let mut without = ready.clone();
+    without.as_object_mut().unwrap().remove("portalPassphrase");
+    assert_eq!(parse(without).unwrap().status.portal_passphrase, None);
+
+    for passphrase in [
+        "k7Mx9pQ",
+        "k7Mx9pQ2a",
+        "k7Mx9pQ0",
+        "k7Mx9pQO",
+        "k7Mx9pQ1",
+        "k7Mx9pQl",
+    ] {
+        let mut status = ready.clone();
+        status["portalPassphrase"] = json!(passphrase);
+        assert!(parse(status).is_err(), "{passphrase}");
+    }
+    let mut finalizing = setup_status(RuntimeSetupPortalPhase::Finalizing);
+    finalizing["portalPassphrase"] = json!("k7Mx9pQ2");
+    assert!(parse(finalizing).is_err());
 }
 
 #[cfg(any(unix, windows))]
