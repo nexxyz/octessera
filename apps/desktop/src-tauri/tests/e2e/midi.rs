@@ -1,7 +1,7 @@
 //! MIDI through the headless stack: internal notes copied by Send MIDI `all inst.` (with I4
 //! made a Drum), their end on a Mix mute and on the switch back to `MIDI inst.`, a MIDI Drum's
-//! stamped notes, and a MIDI CC In mapping swept from an input port, kept across Save Patch and
-//! a restart.
+//! stamped notes, a MIDI CC In mapping swept from an input port, kept across Save Patch and a
+//! restart, and a CC Learn from the input port kept by Auto Save.
 use crate::device_menu::{confirm, open, press_back, select, set_number, set_until, tap};
 use crate::support::{reload_differences, seed_scenario_store, session_root};
 use octessera_desktop_lib::headless::{HeadlessSession, PlayedMidi};
@@ -386,4 +386,46 @@ fn midi_drum_stamps_and_a_cc_in_mapping_play_and_survive_a_restart() {
     play(&mut second);
     render_pulses(&mut second, 4 * BAR);
     assert_drum_stamps_play(&second, 0, "after the restart");
+}
+
+/// Link > MIDI CC In > CC2 > Learn takes the next CC from the input port, and Auto Save keeps it
+/// without a Save Patch.
+#[test]
+fn cc_learn_from_the_input_port_auto_saves() {
+    let root = session_root("midi-cc-learn");
+    let _ = std::fs::remove_dir_all(&root);
+    seed_scenario_store(&root);
+    let mut session = start(&root);
+    enable_midi(&mut session);
+    open(&mut session, &["System", "Saves", "Default"]);
+    set_until(&mut session, "Auto Save", |session| {
+        config(session)["autoSaveDefault"] == true
+    });
+    open(&mut session, &["Link", "MIDI CC In", "CC2"]);
+    select(&mut session, "Learn");
+    tap(&mut session, press_main());
+
+    session.midi_in(&[0xB3, 20, 64]).unwrap();
+    let learned = &config(&session)["midiCcMappings"][1];
+    assert_eq!(
+        (&learned["cc"], &learned["channel"]),
+        (&20.into(), &4.into())
+    );
+
+    let saved_path = root.join("store").join("default.patch.json");
+    let saved_cc = || -> Option<Value> {
+        let saved: Value =
+            serde_json::from_str(&std::fs::read_to_string(&saved_path).ok()?).ok()?;
+        Some(saved["runtimeConfig"]["midiCcMappings"][1]["cc"].clone())
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while saved_cc() != Some(20.into()) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the learned CC was not auto-saved: {:?}",
+            saved_cc()
+        );
+        session.render(256).unwrap();
+        session.settle().unwrap();
+    }
 }
