@@ -106,7 +106,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        run: rustup toolchain install
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Check format
@@ -121,7 +121,7 @@ jobs:
       - name: Install Linux audio build deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        run: rustup toolchain install
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run clippy (exclude platform audio apps)
@@ -144,7 +144,7 @@ jobs:
       - name: Install Linux audio build deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        run: rustup toolchain install
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run Rust tests (exclude platform audio apps)
@@ -185,9 +185,7 @@ jobs:
       - name: Install Linux audio build deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
+        run: rustup toolchain install
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Rust cache
@@ -212,7 +210,7 @@ jobs:
       - name: Install Linux audio build deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        run: rustup toolchain install
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Run canonical host tests
@@ -227,9 +225,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          target: aarch64-unknown-linux-gnu
+        run: rustup toolchain install
       - name: Install ARM GCC
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
       - name: Rust cache
@@ -274,9 +270,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          target: aarch64-unknown-linux-gnu
+        run: rustup toolchain install
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Install cross (prebuilt binary)
@@ -314,6 +308,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Setup Rust
+        run: rustup toolchain install
       - name: Validate Raspberry profile boundaries
         run: |
           sudo apt-get update
@@ -375,6 +371,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Setup Rust
+        run: rustup toolchain install
       - name: Fetch locked Cargo metadata inputs
         run: cargo fetch --locked
       - name: Run lightweight legal packaging tests
@@ -483,7 +481,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        run: rustup toolchain install
       - name: Rust cache
         uses: Swatinem/rust-cache@v2.9.1
       - name: Install deps

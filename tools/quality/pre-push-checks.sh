@@ -72,7 +72,7 @@ for feature in hardware-raspberry-pi-zero-2w hardware-orange-pi-zero-2w; do
   cargo test -p octessera-pi --no-default-features --features "$feature profiling"
   cargo clippy -p octessera-pi --no-default-features --features "$feature" --bin octessera-pi -- -W clippy::cognitive_complexity -D warnings
 done'
-  printf 'FROM rust:1-bookworm\nRUN rustup component add clippy && apt-get update && apt-get install -y --no-install-recommends pkg-config libasound2-dev && rm -rf /var/lib/apt/lists/*\n' |
+  printf 'FROM rust:1.99.0-bookworm\nRUN rustup component add clippy rustfmt llvm-tools && rustup target add aarch64-unknown-linux-gnu && apt-get update && apt-get install -y --no-install-recommends pkg-config libasound2-dev && rm -rf /var/lib/apt/lists/*\n' |
     MSYS2_ARG_CONV_EXCL='*' wsl.exe docker build -q -t octessera-pi-host-tests - >/dev/null || return 1
   MSYS2_ARG_CONV_EXCL='*' wsl.exe docker run -i --rm \
     -v "$root_wsl:/src" -w /src \

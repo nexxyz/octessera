@@ -7,7 +7,7 @@ param(
   [ValidateSet("aarch64-unknown-linux-gnu")]
   [string]$Target = "aarch64-unknown-linux-gnu",
   [ValidatePattern("^[A-Za-z0-9][A-Za-z0-9._/:@-]{0,127}$")]
-  [string]$Image = "rust:1-bookworm",
+  [string]$Image = "rust:1.99.0-bookworm",
   [switch]$Profiling,
   [switch]$DryRun
 )

@@ -100,7 +100,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - run: pnpm install --frozen-lockfile
       - run: pnpm run tauri:build
@@ -166,7 +166,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - name: Install Ubuntu build dependencies
         run: |
