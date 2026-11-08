@@ -74,7 +74,7 @@ pub(crate) fn load_default_result_applies_patch_without_device_fields() {
 
     assert_eq!(runner.active_layer_index, 1);
     assert_eq!(runner.behavior.id(), "sequencer");
-    assert_eq!(runner.instruments[0].note_behavior, "hold");
+    assert_eq!(runner.instruments[0].note_behavior, NoteBehavior::Hold);
     assert_eq!(runner.note_behaviors[0], NoteBehavior::Hold);
     assert_ne!(runner.display.ui.master_volume, 88);
     assert_eq!(runner.display.ui.master_volume, 73);

@@ -1,4 +1,6 @@
+use crate::native_runner::InstrumentType;
 use crate::protocol::SyncSource;
+use platform_core::NoteBehavior;
 
 use super::binding_picker_rows::name_parameter_pickers;
 use super::fx::{fx_buses_group, global_fx_group};
@@ -162,11 +164,7 @@ pub(super) fn instrument_item(
     index: usize,
     label: &str,
 ) -> NativeMenuItem {
-    let kind = config
-        .instrument_types
-        .get(index)
-        .map(String::as_str)
-        .unwrap_or("synth");
+    let kind = instrument_kind(config, index);
     let route = config
         .instrument_routes
         .get(index)
@@ -189,7 +187,7 @@ pub(super) fn instrument_item(
             .instrument_names
             .get(index)
             .map(String::as_str)
-            .unwrap_or(kind),
+            .unwrap_or(kind.wire_name()),
         kind,
         auto_name: config
             .instrument_auto_names
@@ -199,8 +197,8 @@ pub(super) fn instrument_item(
         note_behavior: config
             .instrument_note_behaviors
             .get(index)
-            .map(String::as_str)
-            .unwrap_or("oneshot"),
+            .copied()
+            .unwrap_or(NoteBehavior::Oneshot),
         route,
         volume: config.instrument_volumes.get(index).copied().unwrap_or(100),
         pan_pos: config
@@ -357,7 +355,7 @@ pub(super) fn instrument_item_label(
 ) -> String {
     let short = instrument_breadcrumb_label(config, index, base_label);
     let suffix = match instrument_kind(config, index) {
-        "midi" => format!(
+        InstrumentType::Midi => format!(
             "ch{}",
             config
                 .instrument_midi_channels
@@ -365,7 +363,7 @@ pub(super) fn instrument_item_label(
                 .copied()
                 .unwrap_or(1)
         ),
-        "midi_drum" => format!(
+        InstrumentType::MidiDrum => format!(
             "ch{}",
             config
                 .instrument_midi_drums
@@ -374,7 +372,7 @@ pub(super) fn instrument_item_label(
                 .unwrap_or_default()
                 .channel
         ),
-        "none" => return short,
+        InstrumentType::None => return short,
         _ => compact_route_postfix(
             config
                 .instrument_routes
@@ -392,16 +390,17 @@ fn instrument_breadcrumb_label(
     base_label: &str,
 ) -> String {
     let prefix = base_label.split_whitespace().next().unwrap_or(base_label);
-    let kind = super::format_values::instrument_kind_label(instrument_kind(config, index));
+    let kind =
+        super::format_values::instrument_kind_label(instrument_kind(config, index).wire_name());
     format!("{prefix} {kind}")
 }
 
-fn instrument_kind(config: &NativeMenuConfig, index: usize) -> &str {
+fn instrument_kind(config: &NativeMenuConfig, index: usize) -> InstrumentType {
     config
         .instrument_types
         .get(index)
-        .map(String::as_str)
-        .unwrap_or("synth")
+        .copied()
+        .unwrap_or(InstrumentType::Synth)
 }
 
 fn compact_route_postfix(route: &str) -> String {

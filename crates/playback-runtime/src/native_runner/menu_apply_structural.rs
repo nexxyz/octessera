@@ -1,5 +1,5 @@
 use super::grid_assign::GridAssign;
-use super::{derive_instrument_name, NativeRunner};
+use super::{derive_instrument_name, InstrumentType, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn commit_behavior_structural_draft(&mut self) -> Result<(), String> {
@@ -113,6 +113,7 @@ impl NativeRunner {
         let Some(kind) = self
             .menu
             .value_for_key(&format!("instruments.{index}.type"))
+            .and_then(|kind| InstrumentType::from_wire_name(&kind))
         else {
             return;
         };
@@ -130,7 +131,7 @@ impl NativeRunner {
             self.grid_assign = None;
         }
         if instrument.auto_name {
-            instrument.name = derive_instrument_name(index, &instrument.kind);
+            instrument.name = derive_instrument_name(index, instrument.kind);
         }
         self.drain_play_transpose_instrument_notes(index);
         self.show_instrument_identity_rows(index);

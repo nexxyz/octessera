@@ -8,6 +8,7 @@ use super::{
     pan_marker_left_tile, play_fx_tile_id, NativeRunner, BUS_COUNT, GRID_HEIGHT, GRID_WIDTH,
     INSTRUMENT_COUNT, PLAY_FX_MAX_CONCURRENT,
 };
+use crate::native_runner::InstrumentType;
 
 impl NativeRunner {
     pub(super) fn apply_fn_overlay(&self, leds: &mut [LedColor]) {
@@ -38,7 +39,8 @@ impl NativeRunner {
         for x in 0..INSTRUMENT_COUNT.min(GRID_WIDTH) {
             let instrument = self.instruments.get(x);
             let y = volume_row(instrument.map_or(0, |inst| inst.volume));
-            let (toggle, marker) = if instrument.map(|inst| inst.kind.as_str()) == Some("none") {
+            let (toggle, marker) = if instrument.map(|inst| inst.kind) == Some(InstrumentType::None)
+            {
                 (LedColor::SYSTEM.dim(4), LedColor::SYSTEM.dim(4))
             } else if self.instrument_muted(x) {
                 (LedColor::RED, LedColor::GREEN.dim(4))
@@ -79,7 +81,7 @@ impl NativeRunner {
             };
             let (pan_pos, color) = self.play_pan_target(instrument);
             let left = pan_marker_left_tile(pan_pos);
-            let value = if instrument.kind == "none" {
+            let value = if instrument.kind == InstrumentType::None {
                 color.dim(4)
             } else {
                 color

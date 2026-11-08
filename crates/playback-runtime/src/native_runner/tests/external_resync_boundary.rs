@@ -135,11 +135,11 @@ fn dual_scanning_runner() -> NativeRunner {
     })
     .unwrap();
     runner.select_layer_behavior(1, "sequencer").unwrap();
-    runner.instruments[0].note_behavior = "hold".into();
-    runner.instruments[1].kind = "midi".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
+    runner.instruments[1].kind = InstrumentType::Midi;
     runner.instruments[1].midi_enabled = true;
     runner.instruments[1].midi_channel = 1;
-    runner.instruments[1].note_behavior = "hold".into();
+    runner.instruments[1].note_behavior = NoteBehavior::Hold;
     runner.select_active_layer(1).unwrap();
     configure_active_scan(&mut runner, "1/8", 1);
     add_tile(&mut runner, 0, 0);
@@ -278,7 +278,7 @@ fn muted_sequencer_consumes_origin_tick_without_events() {
 #[test]
 fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
     let mut runner = scanning_runner("1/16", 0);
-    runner.instruments[0].note_behavior = "hold".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.sync_engine_runtime_config();
     runner.link_layers[0].scanned_timing.delay_steps = 2;
     runner.link_layers[0].arp.mode = "direct".into();

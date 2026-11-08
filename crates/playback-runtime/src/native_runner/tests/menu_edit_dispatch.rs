@@ -82,7 +82,7 @@ fn every_editable_menu_row_is_accepted_by_the_edit_dispatch() {
     for kind in ["fm", "pluck", "drum", "sampler", "midi", "midi_drum"] {
         rejected.extend(rejected_edits(
             &|runner| {
-                runner.instruments[0].kind = kind.into();
+                runner.instruments[0].kind = InstrumentType::from_wire_name(kind).unwrap();
             },
             &mut seen,
         ));

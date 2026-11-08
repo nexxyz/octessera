@@ -267,7 +267,7 @@ pub(crate) fn rejected_config_does_not_drain_live_held_notes() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].note_behavior = "hold".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.sync_engine_runtime_config();
     runner
         .send(HostMessage::DeviceInput {

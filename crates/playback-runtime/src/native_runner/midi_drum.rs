@@ -1,4 +1,5 @@
 //! MIDI Drum: an instrument slot whose stamped tiles send MIDI notes instead of sound.
+use crate::native_runner::InstrumentType;
 
 use super::grid_assign::GridAssign;
 use super::led_color::LedColor;
@@ -102,7 +103,7 @@ fn set_clamped<T: TryFrom<i32>>(field: &mut T, value: i32, (min, max): (u16, u16
 pub(super) fn midi_drum_channels(instruments: &[NativeInstrumentSlot]) -> u16 {
     instruments
         .iter()
-        .filter(|instrument| instrument.kind == "midi_drum")
+        .filter(|instrument| instrument.kind == InstrumentType::MidiDrum)
         .filter_map(NativeInstrumentSlot::midi_output_channel)
         .fold(0, |mask, channel| mask | 1 << channel)
 }
@@ -110,9 +111,9 @@ pub(super) fn midi_drum_channels(instruments: &[NativeInstrumentSlot]) -> u16 {
 impl NativeInstrumentSlot {
     /// The 0-based channel a MIDI Inst. or MIDI Drum slot sends on while it is enabled.
     pub(super) fn midi_output_channel(&self) -> Option<u8> {
-        let (enabled, channel) = match self.kind.as_str() {
-            "midi" => (self.midi_enabled, self.midi_channel),
-            "midi_drum" => (
+        let (enabled, channel) = match self.kind {
+            InstrumentType::Midi => (self.midi_enabled, self.midi_channel),
+            InstrumentType::MidiDrum => (
                 self.midi_drum.settings.enabled,
                 self.midi_drum.settings.channel,
             ),
@@ -144,7 +145,7 @@ impl NativeRunner {
         let Some(settings) = self
             .instruments
             .get(slot)
-            .filter(|instrument| instrument.kind == "midi_drum")
+            .filter(|instrument| instrument.kind == InstrumentType::MidiDrum)
             .map(|instrument| instrument.midi_drum.settings)
         else {
             return;
@@ -205,7 +206,7 @@ impl NativeRunner {
         let Some(drum) = self
             .instruments
             .get_mut(slot)
-            .filter(|instrument| instrument.kind == "midi_drum" && !tiles.is_empty())
+            .filter(|instrument| instrument.kind == InstrumentType::MidiDrum && !tiles.is_empty())
             .map(|instrument| &mut instrument.midi_drum)
         else {
             return;

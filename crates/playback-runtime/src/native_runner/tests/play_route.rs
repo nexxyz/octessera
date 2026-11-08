@@ -345,7 +345,7 @@ fn duck_source_on_a_slot_that_turned_midi_stays_lit_and_ignores_presses() {
     runner
         .apply_or_schedule_menu_key("instruments.0.type")
         .unwrap();
-    assert_eq!(runner.instruments[0].kind, "midi");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Midi);
     assert_eq!(tile(&runner, 0, 7), red(1));
     runner.config_dirty = false;
 

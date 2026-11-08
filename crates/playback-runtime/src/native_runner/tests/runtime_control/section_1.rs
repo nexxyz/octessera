@@ -97,7 +97,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.preset_rename_source = Some("old".into());
     runner.preset_draft_name = "custom draft".into();
     runner.preset_names = vec!["old".into()];
-    runner.instruments[0].kind = "synth".into();
+    runner.instruments[0].kind = InstrumentType::Synth;
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.grid_assign = Some(GridAssign::PlayFx(json!({ "type": "delay" })));
     runner.aux_auto_map_enabled = false;
@@ -130,7 +130,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     assert!(runner
         .instruments
         .iter()
-        .all(|instrument| instrument.kind == "none"));
+        .all(|instrument| instrument.kind == InstrumentType::None));
     assert!(runner
         .fx_buses
         .iter()
@@ -257,7 +257,7 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].sample_assignments = vec![NativeSampleAssignment {
         x: 0,
         y: 0,

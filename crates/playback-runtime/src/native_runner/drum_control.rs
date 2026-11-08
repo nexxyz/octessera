@@ -1,5 +1,6 @@
 use super::grid_assign::GridAssign;
 use super::NativeRunner;
+use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 
 impl NativeRunner {
@@ -7,7 +8,7 @@ impl NativeRunner {
         if self
             .instruments
             .get(slot)
-            .is_none_or(|instrument| instrument.kind != "drum")
+            .is_none_or(|instrument| instrument.kind != InstrumentType::Drum)
             || voice >= 8
         {
             return;
@@ -24,7 +25,7 @@ impl NativeRunner {
             || self
                 .instruments
                 .get(slot)
-                .is_none_or(|instrument| instrument.kind != "drum")
+                .is_none_or(|instrument| instrument.kind != InstrumentType::Drum)
         {
             return;
         }

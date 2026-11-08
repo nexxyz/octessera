@@ -253,7 +253,7 @@ pub(crate) fn synth_gain_edits_into_config_payload() {
 #[test]
 pub(crate) fn sampler_tune_edits_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
     runner
@@ -301,7 +301,7 @@ pub(crate) fn sampler_tune_edits_into_config_payload() {
 #[test]
 pub(crate) fn sampler_extended_params_edit_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
 

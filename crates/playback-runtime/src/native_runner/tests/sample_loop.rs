@@ -9,9 +9,9 @@ const SAMPLER: [&str; 4] = ["Shape", "Instruments", "I1: Sampler direct", "Sampl
 
 fn sampler_runner(note_behavior: &str) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "sampler".into();
-    runner.instruments[0].note_behavior = note_behavior.into();
+    runner.instruments[0].note_behavior = NoteBehavior::from_wire_name(note_behavior).unwrap();
     runner.instruments[0].sample_paths[0] = Some("samples/loop.wav".into());
     runner.menu.rebuild(runner.menu_config());
     runner.menu.open_labels(&SAMPLER);
@@ -222,7 +222,7 @@ fn oneshot_ignores_a_saved_loop_and_switching_note_mode_resends_the_slot() {
     .into_iter()
     .flat_map(|event| input(&mut runner, event))
     .collect::<Vec<_>>();
-    assert_eq!(runner.instruments[0].note_behavior, "oneshot");
+    assert_eq!(runner.instruments[0].note_behavior, NoteBehavior::Oneshot);
     assert!(messages.iter().any(|message| matches!(message,
         RunnerMessage::AudioCommands { commands } if commands.iter().any(|command| matches!(command,
             RuntimeAudioCommand::SetInstrumentSlot { instrument_slot: 0, config, .. }

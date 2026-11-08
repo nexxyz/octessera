@@ -271,9 +271,9 @@ fn assert_replacement_releases_held_note(midi: bool) {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].note_behavior = "hold".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
     if midi {
-        runner.instruments[0].kind = "midi".into();
+        runner.instruments[0].kind = InstrumentType::Midi;
         runner.instruments[0].midi_enabled = true;
         runner.instruments[0].midi_channel = 3;
     }

@@ -33,7 +33,7 @@ fn factory_load_lists_are_type_specific_and_emit_exact_platform_effects() {
         ("drum", "drum", "kit", presets("drum")),
     ] {
         let mut cfg = config();
-        cfg.instrument_types[0] = kind.into();
+        cfg.instrument_types[0] = InstrumentType::from_wire_name(kind).unwrap();
         let mut menu = NativeMenuModel::new(cfg);
         for (id, label) in choices {
             let key = format!("{effect_kind}.{family}.0.{id}");
@@ -65,7 +65,7 @@ fn factory_load_lists_are_type_specific_and_emit_exact_platform_effects() {
     }
     for kind in ["midi", "none"] {
         let mut cfg = config();
-        cfg.instrument_types[0] = kind.into();
+        cfg.instrument_types[0] = InstrumentType::from_wire_name(kind).unwrap();
         let menu = NativeMenuModel::new(cfg);
         for key in [
             "synth.preset.0.init",
@@ -114,7 +114,7 @@ fn factory_load_help_has_specific_confirmation_and_selector_copy() {
         ),
     ] {
         let mut cfg = config();
-        cfg.instrument_types[0] = kind.into();
+        cfg.instrument_types[0] = InstrumentType::from_wire_name(kind).unwrap();
         let menu = NativeMenuModel::new(cfg);
         let targets = menu.help_targets();
         let action = targets
@@ -155,7 +155,7 @@ fn factory_load_help_has_specific_confirmation_and_selector_copy() {
 fn sampler_kit_precedes_unchanged_sample_rows_with_or_without_velocity_levels() {
     for enabled in [false, true] {
         let mut cfg = config();
-        cfg.instrument_types[0] = "sampler".into();
+        cfg.instrument_types[0] = InstrumentType::Sampler;
         cfg.instrument_sample_velocity_levels_enabled[0] = enabled;
         let menu = NativeMenuModel::new(cfg);
         let sampler = &menu.root.children[2].children[0].children[0].children[2];
@@ -197,7 +197,7 @@ fn sampler_kit_precedes_unchanged_sample_rows_with_or_without_velocity_levels() 
 #[test]
 fn drum_volume_is_selected_after_twelve_body_rows_without_losing_scroll() {
     let mut cfg = config();
-    cfg.instrument_types[0] = "drum".into();
+    cfg.instrument_types[0] = InstrumentType::Drum;
     let mut menu = NativeMenuModel::new(cfg);
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(menu.focus_current_group_label("Drum"));

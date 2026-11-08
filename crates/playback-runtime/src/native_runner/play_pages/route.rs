@@ -1,3 +1,4 @@
+use crate::native_runner::InstrumentType;
 use serde_json::Value;
 
 use super::super::led_color::LedColor;
@@ -261,9 +262,12 @@ impl NativeRunner {
     }
 
     fn instrument_has_audio(&self, index: usize) -> bool {
-        self.instruments
-            .get(index)
-            .is_some_and(|slot| !matches!(slot.kind.as_str(), "none" | "midi" | "midi_drum"))
+        self.instruments.get(index).is_some_and(|slot| {
+            !matches!(
+                slot.kind,
+                InstrumentType::None | InstrumentType::Midi | InstrumentType::MidiDrum
+            )
+        })
     }
 
     fn override_mixer_payload(&self, config: &mut Value) {

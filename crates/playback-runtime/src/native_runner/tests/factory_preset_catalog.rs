@@ -117,7 +117,12 @@ fn every_factory_preset_override_is_inside_its_parameter_range() {
                     preset.id
                 )))
                 .unwrap();
-            assert_eq!(runner.instruments[0].kind, family, "{family} {}", preset.id);
+            assert_eq!(
+                runner.instruments[0].kind.wire_name(),
+                family,
+                "{family} {}",
+                preset.id
+            );
             validate_config_payload(&runner.config_payload())
                 .unwrap_or_else(|error| panic!("{family} {}: {error}", preset.id));
             runner.menu.rebuild(runner.menu_config());

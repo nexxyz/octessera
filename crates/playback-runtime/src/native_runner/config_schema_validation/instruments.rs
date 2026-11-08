@@ -1,3 +1,4 @@
+use super::super::InstrumentType;
 use super::super::SYNTH_NUMERIC_FIELDS;
 use super::canonical::{
     array_field, bool_field, enum_field, enum_value, object_field, object_value, signed_field,
@@ -7,22 +8,11 @@ use super::Value;
 use crate::native_menu::{
     MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES, MIDI_DRUM_VELOCITIES,
 };
-use platform_core::{INSTRUMENT_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT};
+use platform_core::{NoteBehavior, INSTRUMENT_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT};
 use realtime_engine::synth::VoiceStealingMode;
 use serde_json::Map;
 
 const VELOCITY_CURVES: &[&str] = &["linear", "soft", "hard"];
-pub(crate) const INSTRUMENT_TYPES: &[&str] = &[
-    "none",
-    "synth",
-    "fm",
-    "pluck",
-    "drum",
-    "sampler",
-    "midi",
-    "midi_drum",
-];
-pub(crate) const NOTE_BEHAVIORS: &[&str] = &["oneshot", "hold"];
 pub(crate) const OSC_WAVEFORMS: &[&str] = &["sine", "triangle", "saw", "square", "pulse"];
 pub(crate) const FILTER_TYPES: &[&str] = &["lowpass", "highpass", "bandpass", "notch"];
 
@@ -60,8 +50,18 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
     for (index, value) in instruments.iter().enumerate() {
         let path = format!("runtimeConfig.instruments[{index}]");
         let instrument = object_value(value, &path)?;
-        enum_field(instrument, "type", &path, INSTRUMENT_TYPES)?;
-        enum_field(instrument, "noteBehavior", &path, NOTE_BEHAVIORS)?;
+        enum_field(
+            instrument,
+            "type",
+            &path,
+            &InstrumentType::ALL.map(InstrumentType::wire_name),
+        )?;
+        enum_field(
+            instrument,
+            "noteBehavior",
+            &path,
+            &NoteBehavior::ALL.map(NoteBehavior::wire_name),
+        )?;
         string_field(instrument, "name", &path)?;
         bool_field(instrument, "autoName", &path)?;
         if let Some(mixer) = object_field(instrument, "mixer", &path)? {

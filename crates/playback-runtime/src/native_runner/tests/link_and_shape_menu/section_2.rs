@@ -15,7 +15,7 @@ pub(crate) fn snapshot_exposes_platform_sized_instrument_slots() {
 #[test]
 pub(crate) fn voice_menu_visibility_follows_instrument_type() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
 
@@ -48,7 +48,7 @@ pub(crate) fn voice_menu_visibility_follows_instrument_type() {
         .iter()
         .any(|line| line.as_str().unwrap_or("").trim() == "Synth >"));
 
-    runner.instruments[0].kind = "midi".into();
+    runner.instruments[0].kind = InstrumentType::Midi;
     runner.instruments[0].name = "midi".into();
     runner.menu.rebuild(runner.menu_config());
     let midi = runner.snapshot().unwrap();
@@ -64,7 +64,7 @@ pub(crate) fn voice_menu_visibility_follows_instrument_type() {
 #[test]
 pub(crate) fn midi_instrument_params_edit_through_menu() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "midi".into();
+    runner.instruments[0].kind = InstrumentType::Midi;
     runner.instruments[0].name = "midi".into();
     runner.menu.rebuild(runner.menu_config());
     runner
@@ -138,7 +138,7 @@ pub(crate) fn midi_instrument_params_edit_through_menu() {
 #[test]
 pub(crate) fn instrument_clone_and_reset_actions_update_slots() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "kit".into();
     runner.instruments[0].auto_name = false;
     runner.instruments[1] = NativeInstrumentSlot::reset(1);
@@ -156,7 +156,7 @@ pub(crate) fn instrument_clone_and_reset_actions_update_slots() {
         runner.display.toast.as_ref().unwrap().message,
         "Cloned to I2"
     );
-    assert_eq!(runner.instruments[1].kind, "sampler");
+    assert_eq!(runner.instruments[1].kind, InstrumentType::Sampler);
     assert_eq!(runner.instruments[1].name, "Sampler");
     assert!(runner.instruments[1].auto_name);
     assert!(!runner.instruments[1].midi_enabled);
@@ -176,7 +176,7 @@ pub(crate) fn instrument_clone_and_reset_actions_update_slots() {
     confirm_current_dialog(&mut runner);
 
     assert_eq!(runner.display.toast.as_ref().unwrap().message, "Reset I2");
-    assert_eq!(runner.instruments[1].kind, "none");
+    assert_eq!(runner.instruments[1].kind, InstrumentType::None);
     assert_eq!(runner.instruments[1].name, "None");
     assert_eq!(runner.instruments[1].midi_channel, 2);
 }

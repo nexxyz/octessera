@@ -42,7 +42,7 @@ pub(crate) fn play_fx_payload_sanitizes_type_target_and_params() {
 #[test]
 pub(crate) fn sample_assign_mode_supports_shift_row_and_fn_shift_column() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.grid_assign = Some(GridAssign::Sample {
         slot: 0,
         sample_slot: 2,
@@ -70,7 +70,7 @@ pub(crate) fn sample_assign_mode_supports_shift_row_and_fn_shift_column() {
 #[test]
 pub(crate) fn sample_assignment_stamps_tune_and_level_and_an_exact_restamp_clears() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].tile_stamp = NativeTileStamp {
         tune_semis: 5,
         tune_cents: -10,
@@ -205,7 +205,7 @@ pub(crate) fn link_velocity_and_filter_lanes_modulate_mapped_events() {
 #[test]
 pub(crate) fn midi_instrument_channel_remaps_note_and_cc_events() {
     let mut instrument = NativeInstrumentSlot {
-        kind: "midi".into(),
+        kind: InstrumentType::Midi,
         midi_channel: 10,
         ..NativeInstrumentSlot::new(0)
     };
@@ -253,7 +253,7 @@ pub(crate) fn midi_instrument_channel_remaps_note_and_cc_events() {
 pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
     let mut instruments = vec![NativeInstrumentSlot::new(0), NativeInstrumentSlot::new(1)];
     instruments.push(NativeInstrumentSlot {
-        kind: "midi".into(),
+        kind: InstrumentType::Midi,
         midi_enabled: true,
         midi_channel: 2,
         ..NativeInstrumentSlot::new(2)

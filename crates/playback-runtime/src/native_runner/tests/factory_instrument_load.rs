@@ -36,7 +36,7 @@ fn factory_load_cancel_and_back_do_not_change_patch_or_send_audio() {
         ("drum", "drum.kit:0:heavy"),
         ("synth", "synth.preset:0:saw_lead"),
     ] {
-        runner.instruments[0].kind = kind.into();
+        runner.instruments[0].kind = InstrumentType::from_wire_name(kind).unwrap();
         runner.menu.rebuild(runner.menu_config());
         let before = runner.config_payload();
         for use_back in [false, true] {
@@ -80,12 +80,13 @@ fn factory_load_confirm_replaces_one_slot_only_and_schedules_autosave() {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.auto_save_default = true;
         let _ = runner.messages_with_snapshot().unwrap();
-        runner.instruments[2].kind = kind.into();
-        runner.instruments[2].name = derive_instrument_name(2, kind);
+        runner.instruments[2].kind = InstrumentType::from_wire_name(kind).unwrap();
+        runner.instruments[2].name =
+            derive_instrument_name(2, InstrumentType::from_wire_name(kind).unwrap());
         runner.instruments[2].volume = 37;
         runner.instruments[2].pan_pos = 3;
         runner.instruments[2].route = "fx_bus_2".into();
-        runner.instruments[2].note_behavior = "hold".into();
+        runner.instruments[2].note_behavior = NoteBehavior::Hold;
         let before = runner.instruments.clone();
         runner.menu.rebuild(runner.menu_config());
         let opened = open_action(&mut runner, key);
@@ -101,7 +102,10 @@ fn factory_load_confirm_replaces_one_slot_only_and_schedules_autosave() {
         assert_eq!(current.pan_pos, before[2].pan_pos);
         assert_eq!(current.route, before[2].route);
         assert_eq!(current.note_behavior, before[2].note_behavior);
-        assert_eq!(current.name, derive_instrument_name(2, kind));
+        assert_eq!(
+            current.name,
+            derive_instrument_name(2, InstrumentType::from_wire_name(kind).unwrap())
+        );
         assert_eq!(&runner.instruments[..2], &before[..2]);
         assert_eq!(&runner.instruments[3..], &before[3..]);
         assert!(runner.config_dirty);

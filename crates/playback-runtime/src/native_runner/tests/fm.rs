@@ -61,7 +61,7 @@ fn fm_defaults_validate_and_legacy_config_loads_without_a_schema_bump() {
     legacy["runtimeConfig"]["instruments"][0]["type"] = json!("fm");
     runner.apply_config_payload(legacy).unwrap();
     assert_eq!(runner.config_payload()["schemaVersion"], 2);
-    assert_eq!(runner.instruments[0].kind, "fm");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Fm);
     assert_eq!(runner.instruments[0].name, "FM");
     assert_eq!(runner.instruments[0].fm_config, defaults);
 }
@@ -243,7 +243,7 @@ fn fm_saved_state_survives_type_switch_round_trip_clone_reset_and_audio_payload(
     runner.apply_config_payload(synth_payload).unwrap();
     assert_eq!(runner.instruments[0].fm_config, fm);
     runner.apply_config_payload(saved).unwrap();
-    assert_eq!(runner.instruments[0].kind, "fm");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Fm);
     assert_eq!(runner.instruments[0].fm_config, fm);
 
     runner.instruments[1] = NativeInstrumentSlot::reset(1);
@@ -251,7 +251,7 @@ fn fm_saved_state_survives_type_switch_round_trip_clone_reset_and_audio_payload(
         .execute_menu_action(NativeMenuAction::CloneInstrument { index: 0 })
         .unwrap();
     confirm_current_dialog(&mut runner);
-    assert_eq!(runner.instruments[1].kind, "fm");
+    assert_eq!(runner.instruments[1].kind, InstrumentType::Fm);
     assert_eq!(runner.instruments[1].fm_config, fm);
     runner
         .execute_menu_action(NativeMenuAction::ResetInstrument { index: 1 })
@@ -332,7 +332,7 @@ fn fm_held_notes_transpose_and_route_to_internal_audio_on_the_original_slot() {
     use std::collections::BTreeMap;
 
     let mut instrument = NativeInstrumentSlot::new(0);
-    instrument.kind = "fm".into();
+    instrument.kind = InstrumentType::Fm;
     instrument.route = "fx_bus_2".into();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0] = instrument.clone();

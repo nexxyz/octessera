@@ -4,7 +4,7 @@ use super::*;
 pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
     runner
@@ -127,7 +127,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
 #[test]
 pub(crate) fn sample_browser_shows_favourite_toggle_and_updates_runtime_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "sampler".into();
     runner.sample_browser = Some(NativeSampleBrowser {
         instrument_slot: 0,
@@ -214,7 +214,7 @@ pub(crate) fn sample_browser_shows_non_deletable_builtin_favourites() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.sample_browser = Some(NativeSampleBrowser {
         instrument_slot: 0,
         sample_slot: 0,

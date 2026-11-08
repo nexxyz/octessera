@@ -160,7 +160,7 @@ fn an_inactive_or_missing_action_toasts_and_runs_nothing() {
     press_key(&mut runner, "play.faders.tile.action.sample.0");
     press_key(&mut runner, "play.faders.tile.shiftAction.none");
     map_tile(&mut runner, 7, 7);
-    assert_ne!(runner.instruments[0].kind, "sampler");
+    assert_ne!(runner.instruments[0].kind, InstrumentType::Sampler);
 
     tap(&mut runner, 7, 7);
     assert_eq!(toast(&runner), "Tile: Assign not active");

@@ -23,7 +23,7 @@ pub(crate) fn instrument_page_breadcrumb_uses_the_short_model_name() {
     );
 
     let mut midi = config();
-    midi.instrument_types[0] = "midi".into();
+    midi.instrument_types[0] = InstrumentType::Midi;
     midi.instrument_midi_channels[0] = 3;
     assert_eq!(
         instrument_page(midi),
@@ -34,7 +34,7 @@ pub(crate) fn instrument_page_breadcrumb_uses_the_short_model_name() {
     );
 
     let mut none = config();
-    none.instrument_types[0] = "none".into();
+    none.instrument_types[0] = InstrumentType::None;
     assert_eq!(
         instrument_page(none),
         ("I1: None".into(), "/S/Instruments/I1: None".into())

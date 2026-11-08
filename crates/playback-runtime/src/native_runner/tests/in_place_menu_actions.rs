@@ -183,12 +183,12 @@ fn instrument_slot_commands(messages: &[RunnerMessage]) -> Vec<usize> {
 fn clone_and_reset_instrument_update_menu_and_audio() {
     let mut runner = runner_with_instrument("fm");
     let target = 5;
-    runner.instruments[target].kind = "none".into();
-    runner.instruments[target].name = derive_instrument_name(target, "none");
+    runner.instruments[target].kind = InstrumentType::None;
+    runner.instruments[target].name = derive_instrument_name(target, InstrumentType::None);
     runner.menu.rebuild(runner.menu_config());
     let rebuilds = runner.menu.rebuild_count;
     let cloned = confirm_key(&mut runner, "instruments.0.clone");
-    assert_eq!(runner.instruments[target].kind, "fm");
+    assert_eq!(runner.instruments[target].kind, InstrumentType::Fm);
     assert_eq!(instrument_slot_commands(&cloned), vec![target]);
     assert_matches_fresh_build(&runner, rebuilds);
 
@@ -207,8 +207,9 @@ fn factory_sound_and_synth_preset_loads_update_their_instrument_in_place() {
         ("synth", "synth.preset.2.organ"),
     ] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.instruments[2].kind = kind.into();
-        runner.instruments[2].name = derive_instrument_name(2, kind);
+        runner.instruments[2].kind = InstrumentType::from_wire_name(kind).unwrap();
+        runner.instruments[2].name =
+            derive_instrument_name(2, InstrumentType::from_wire_name(kind).unwrap());
         runner.menu.rebuild(runner.menu_config());
         let rebuilds = runner.menu.rebuild_count;
 
@@ -249,7 +250,7 @@ fn instrument_type_route_and_auto_name_edits_update_in_place() {
         assert_eq!(runner.instruments[1].name == name, !auto_name);
         assert_matches_fresh_build(&runner, rebuilds);
     }
-    assert_eq!(runner.instruments[1].kind, "drum");
+    assert_eq!(runner.instruments[1].kind, InstrumentType::Drum);
 }
 
 #[test]

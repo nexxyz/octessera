@@ -15,7 +15,7 @@ fn fm_device_type_switch_and_numeric_encoder_edits_emit_prepared_slot_and_scalar
             .unwrap()
     };
     let switched = turn(&mut runner, 3);
-    assert_eq!(runner.instruments[0].kind, "fm");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Fm);
     assert!(switched.iter().any(|message| matches!(message,
         RunnerMessage::AudioCommands { commands } if commands.iter().any(|command| matches!(command,
             RuntimeAudioCommand::SetInstrumentSlot { instrument_slot: 0, config, .. }
@@ -92,7 +92,7 @@ fn fm_device_type_switch_and_numeric_encoder_edits_emit_prepared_slot_and_scalar
     assert!(runner.menu.focus_item_key("instruments.0.type"));
     runner.menu.state.editing = true;
     turn(&mut runner, -3);
-    assert_eq!(runner.instruments[0].kind, "synth");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Synth);
     turn(&mut runner, 3);
     assert_eq!(runner.instruments[0].fm_config, fm);
 }
@@ -114,7 +114,7 @@ fn fm_fine_cents_device_edit_shows_split_value_then_selected_value_and_typed_com
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.instruments[0].kind, "fm");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Fm);
 
     let key = "instruments.0.fm.ratioFineCents";
     assert!(runner.menu.focus_item_key(key));

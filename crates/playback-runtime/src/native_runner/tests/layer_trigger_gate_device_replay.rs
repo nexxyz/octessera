@@ -23,11 +23,11 @@ fn runner_with_routes(target: Route, other: Route) -> NativeRunner {
 
 fn configure_route(runner: &mut NativeRunner, layer: usize, route: Route) {
     let mut instrument = NativeInstrumentSlot::new(layer);
-    instrument.note_behavior = "hold".into();
+    instrument.note_behavior = NoteBehavior::Hold;
     match route {
         Route::Synth => {}
         Route::Sample => {
-            instrument.kind = "sampler".into();
+            instrument.kind = InstrumentType::Sampler;
             instrument.sample_assignments = vec![NativeSampleAssignment {
                 x: 2,
                 y: 3,
@@ -38,7 +38,7 @@ fn configure_route(runner: &mut NativeRunner, layer: usize, route: Route) {
             }];
         }
         Route::Midi => {
-            instrument.kind = "midi".into();
+            instrument.kind = InstrumentType::Midi;
             instrument.midi_enabled = true;
             instrument.midi_channel = (layer + 3) as u8;
         }

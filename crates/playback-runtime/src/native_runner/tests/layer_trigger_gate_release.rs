@@ -7,7 +7,7 @@ fn held_keys_runner() -> NativeRunner {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.instruments[0].note_behavior = "hold".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.sync_engine_runtime_config();
     runner
 }
@@ -71,7 +71,7 @@ pub(crate) fn disabling_layer_drains_internal_synth_note_with_transpose_routing(
 #[test]
 pub(crate) fn disabling_layer_drains_internal_sample_note_with_sample_routing() {
     let mut runner = held_keys_runner();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].sample_assignments = vec![NativeSampleAssignment {
         x: 2,
         y: 3,
@@ -102,7 +102,7 @@ pub(crate) fn disabling_layer_drains_internal_sample_note_with_sample_routing() 
 #[test]
 pub(crate) fn disabling_layer_drains_external_midi_note_with_midi_routing() {
     let mut runner = held_keys_runner();
-    runner.instruments[0].kind = "midi".into();
+    runner.instruments[0].kind = InstrumentType::Midi;
     runner.instruments[0].midi_enabled = true;
     runner.instruments[0].midi_channel = 3;
     runner.midi_active = true;
@@ -129,8 +129,8 @@ pub(crate) fn disabling_layer_drains_external_midi_note_with_midi_routing() {
 pub(crate) fn disabling_one_layer_leaves_another_layer_held() {
     let mut runner = held_keys_runner();
     runner.instruments[1] = NativeInstrumentSlot::new(1);
-    runner.instruments[1].kind = "midi".into();
-    runner.instruments[1].note_behavior = "hold".into();
+    runner.instruments[1].kind = InstrumentType::Midi;
+    runner.instruments[1].note_behavior = NoteBehavior::Hold;
     runner.instruments[1].midi_enabled = true;
     runner.instruments[1].midi_channel = 4;
     runner.link_layers[1].activate_slot = 1;
@@ -204,11 +204,11 @@ enum SharedRoute {
 
 fn configure_shared_route(runner: &mut NativeRunner, route: SharedRoute) {
     for instrument in runner.instruments.iter_mut().take(2) {
-        instrument.note_behavior = "hold".into();
+        instrument.note_behavior = NoteBehavior::Hold;
         match route {
             SharedRoute::Synth => {}
             SharedRoute::Sample => {
-                instrument.kind = "sampler".into();
+                instrument.kind = InstrumentType::Sampler;
                 instrument.sample_assignments = vec![NativeSampleAssignment {
                     x: 2,
                     y: 3,
@@ -219,7 +219,7 @@ fn configure_shared_route(runner: &mut NativeRunner, route: SharedRoute) {
                 }];
             }
             SharedRoute::Midi => {
-                instrument.kind = "midi".into();
+                instrument.kind = InstrumentType::Midi;
                 instrument.midi_enabled = true;
                 instrument.midi_channel = 3;
             }

@@ -72,14 +72,14 @@ fn pluck_defaults_validate_bounds_and_roundtrip_inactive_type_clone_reset() {
     runner.apply_config_payload(synth).unwrap();
     assert_eq!(runner.instruments[0].pluck_config, pluck);
     runner.apply_config_payload(saved).unwrap();
-    assert_eq!(runner.instruments[0].kind, "pluck");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Pluck);
     assert_eq!(runner.instruments[0].pluck_config, pluck);
     runner.instruments[1] = NativeInstrumentSlot::reset(1);
     runner
         .execute_menu_action(NativeMenuAction::CloneInstrument { index: 0 })
         .unwrap();
     confirm_current_dialog(&mut runner);
-    assert_eq!(runner.instruments[1].kind, "pluck");
+    assert_eq!(runner.instruments[1].kind, InstrumentType::Pluck);
     assert_eq!(runner.instruments[1].pluck_config, pluck);
     runner
         .execute_menu_action(NativeMenuAction::ResetInstrument { index: 1 })
@@ -121,7 +121,7 @@ fn old_complete_pluck_config_resets_only_missing_fields_and_rejects_invalid_valu
             .remove(field);
     }
     runner.apply_config_payload(legacy).unwrap();
-    assert_eq!(runner.instruments[0].kind, "pluck");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Pluck);
     assert_eq!(runner.instruments[0].pluck_config["pickDepthPct"], 65);
     assert_eq!(runner.instruments[0].pluck_config["dispersionPct"], 0);
     assert_eq!(runner.instruments[0].pluck_config["bodyAmountPct"], 0);

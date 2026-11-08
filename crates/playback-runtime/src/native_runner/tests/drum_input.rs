@@ -121,7 +121,7 @@ fn a_press_outside_the_grid_stamps_nothing_shows_no_toast_and_leaves_the_config_
     assert!(runner.display.toast.is_none());
     assert!(!runner.config_dirty);
 
-    runner.instruments[1].kind = "sampler".into();
+    runner.instruments[1].kind = InstrumentType::Sampler;
     runner.grid_assign = Some(GridAssign::Sample {
         slot: 1,
         sample_slot: 0,
@@ -218,7 +218,7 @@ fn stamped_drum_level_scales_velocity_and_follow_pitch_and_transpose_are_opt_in(
 fn follow_transpose_lets_a_layer_that_only_feeds_drums_or_samples_transpose() {
     let mut runner = drum_runner();
     for slot in 0..4 {
-        runner.instruments[slot].kind = "drum".into();
+        runner.instruments[slot].kind = InstrumentType::Drum;
     }
     runner.transpose.selected[0] = true;
     runner.transpose.enabled[0] = true;
@@ -229,7 +229,7 @@ fn follow_transpose_lets_a_layer_that_only_feeds_drums_or_samples_transpose() {
     assert_eq!(runner.play_transpose_offsets_for_routing()[0], 5);
 
     runner.instruments[0].drum_config["followTranspose"] = json!(false);
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     assert_eq!(runner.play_transpose_offsets_for_routing()[0], 0);
     runner.instruments[0].sample_follow_transpose = true;
     assert_eq!(runner.play_transpose_offsets_for_routing()[0], 5);

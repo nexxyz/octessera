@@ -3,7 +3,7 @@ use crate::native_menu::binding_picker::keep_numeric_binding_item;
 
 fn drum_menu() -> NativeMenuModel {
     let mut cfg = config();
-    cfg.instrument_types[0] = "drum".into();
+    cfg.instrument_types[0] = InstrumentType::Drum;
     NativeMenuModel::new(cfg)
 }
 
@@ -122,7 +122,7 @@ fn drum_voice_labels_follow_current_sound_and_style_defaults() {
         (7, 95, 80, 0, 0, 35, 100),
     ] {
         let mut cfg = config();
-        cfg.instrument_types[0] = "drum".into();
+        cfg.instrument_types[0] = InstrumentType::Drum;
         cfg.instrument_drum_selected_voices[0] = index;
         let menu = NativeMenuModel::new(cfg);
         for (field, value, min, max, step) in [
@@ -146,7 +146,7 @@ fn drum_voice_labels_follow_current_sound_and_style_defaults() {
     }
 
     let mut cfg = config();
-    cfg.instrument_types[0] = "drum".into();
+    cfg.instrument_types[0] = InstrumentType::Drum;
     cfg.instrument_drum_configs[0] = serde_json::json!({"voices": [{
         "sound": "snare", "tuneSemis": -3, "decayMs": 314, "tonePct": 44, "attackMs": 12
     }]});
@@ -305,7 +305,7 @@ fn drum_slot_filter_volume_actions_and_binding_picker_keep_voice_scope() {
         );
     }
     let mut cfg = config();
-    cfg.instrument_types[0] = "drum".into();
+    cfg.instrument_types[0] = InstrumentType::Drum;
     let picker = NativeMenuModel::new(cfg.clone())
         .item_for_key("xy:x")
         .unwrap();

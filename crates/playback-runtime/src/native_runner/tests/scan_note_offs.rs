@@ -11,7 +11,7 @@ fn scanned_empty_note_off_runtime(
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].note_behavior = note_behavior.into();
+    runner.instruments[0].note_behavior = NoteBehavior::from_wire_name(note_behavior).unwrap();
     runner.midi_active = true;
     runner.selected_midi_output_id = Some("out-1".into());
     runner.midi_send_instruments = "all".into();

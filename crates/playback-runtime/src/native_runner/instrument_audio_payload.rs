@@ -1,4 +1,5 @@
 use super::{sample_assignments_payload, NativeInstrumentSlot, NativeTileStamp, Value};
+use crate::native_runner::InstrumentType;
 use serde_json::json;
 
 fn tile_stamp_payload(stamp: &NativeTileStamp) -> Value {
@@ -26,7 +27,7 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
         .collect::<Vec<_>>();
     json!({
         "type": instrument.kind,
-        "noteBehavior": if matches!(instrument.kind.as_str(), "drum" | "midi_drum") { "oneshot" } else { &instrument.note_behavior },
+        "noteBehavior": if matches!(instrument.kind, InstrumentType::Drum | InstrumentType::MidiDrum) { "oneshot" } else { instrument.note_behavior.wire_name() },
         "autoName": instrument.auto_name,
         "name": instrument.name,
         "synth": instrument.synth_config,
@@ -75,6 +76,6 @@ pub(super) fn instrument_payload_owns_sample_bank(payload: &Value) -> bool {
     payload
         .get("type")
         .and_then(Value::as_str)
-        .is_some_and(|kind| kind == "sampler")
+        .is_some_and(|kind| kind == InstrumentType::Sampler.wire_name())
         && payload.get("sample").is_some_and(Value::is_object)
 }

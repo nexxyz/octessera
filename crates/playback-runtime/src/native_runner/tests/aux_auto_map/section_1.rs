@@ -107,7 +107,7 @@ pub(crate) fn auto_map_updates_synth_filter_and_prefixes_selected_row() {
 #[test]
 pub(crate) fn auto_map_press_enters_sample_assign_and_prefixes_assign_action() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.menu.rebuild(runner.menu_config());
     runner
         .menu

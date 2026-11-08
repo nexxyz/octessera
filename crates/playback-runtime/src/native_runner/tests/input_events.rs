@@ -48,7 +48,7 @@ pub(crate) fn keys_with_hold_note_behavior_sustains_until_release() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.instruments[0].note_behavior, "hold");
+    assert_eq!(runner.instruments[0].note_behavior, NoteBehavior::Hold);
 
     let press = runner
         .send(HostMessage::DeviceInput {

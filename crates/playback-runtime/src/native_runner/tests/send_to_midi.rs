@@ -20,8 +20,8 @@ impl Rig {
             ..NativeRunnerConfig::default()
         })
         .unwrap();
-        runner.instruments[0].kind = kind.into();
-        runner.instruments[0].note_behavior = "hold".into();
+        runner.instruments[0].kind = InstrumentType::from_wire_name(kind).unwrap();
+        runner.instruments[0].note_behavior = NoteBehavior::Hold;
         runner.instruments[0].midi_enabled = kind == "midi";
         runner.instruments[0].midi_channel = MIDI_CHANNEL + 1;
         runner.link_layers[0].x_filter_cutoff.enabled = true;

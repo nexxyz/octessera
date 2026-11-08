@@ -108,7 +108,7 @@ pub(crate) fn a_parameter_picker_points_at_its_binding_and_opens_on_its_path() {
 #[test]
 pub(crate) fn the_loaded_sample_row_opens_the_browser_on_the_loaded_file() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].sample_paths[0] = Some("Drums/kick.wav".into());
     runner.menu.rebuild(runner.menu_config());
     assert!(runner

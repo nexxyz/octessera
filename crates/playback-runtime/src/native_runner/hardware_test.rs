@@ -1,5 +1,6 @@
 //! System > Maintenance > Hardware Test: a guided check of the grid LEDs and pads, the four keys,
 //! the encoders and the audio path, driven entirely by the instrument's own controls.
+use crate::native_runner::InstrumentType;
 
 use super::led_color::LedColor;
 use super::snapshot_display::DisplaySnapshot;
@@ -307,7 +308,12 @@ impl NativeRunner {
         let tone_slot = self
             .instruments
             .iter()
-            .position(|instrument| matches!(instrument.kind.as_str(), "synth" | "fm" | "pluck"))
+            .position(|instrument| {
+                matches!(
+                    instrument.kind,
+                    InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck
+                )
+            })
             .map(|slot| slot as u8);
         self.display.hardware_test = Some(NativeHardwareTest::new(tone_slot));
     }

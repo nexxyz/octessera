@@ -1,27 +1,29 @@
 use super::apply_payload_mixer_values::nested_u64;
 use super::sample_assignment_payload::tile_offset;
 use super::{
-    sample_assignment_from_payload, sanitize_pan_position_payload, NativeInstrumentSlot,
-    NativeSamplePlayback, NativeTileStamp, Value, SAMPLE_SLOT_COUNT,
+    sample_assignment_from_payload, sanitize_pan_position_payload, InstrumentType,
+    NativeInstrumentSlot, NativeSamplePlayback, NativeTileStamp, Value, SAMPLE_SLOT_COUNT,
 };
 use crate::native_menu::{SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT};
+use platform_core::NoteBehavior;
 
 pub(super) fn apply_instrument_identity_payload(
     slot: &Value,
     instrument: &mut NativeInstrumentSlot,
 ) {
-    if let Some(kind) = slot.get("type").and_then(Value::as_str) {
-        if matches!(
-            kind,
-            "none" | "synth" | "fm" | "pluck" | "drum" | "sampler" | "midi" | "midi_drum"
-        ) {
-            instrument.kind = kind.into();
-        }
+    if let Some(kind) = slot
+        .get("type")
+        .and_then(Value::as_str)
+        .and_then(InstrumentType::from_wire_name)
+    {
+        instrument.kind = kind;
     }
-    if let Some(note_behavior) = slot.get("noteBehavior").and_then(Value::as_str) {
-        if matches!(note_behavior, "oneshot" | "hold") {
-            instrument.note_behavior = note_behavior.into();
-        }
+    if let Some(note_behavior) = slot
+        .get("noteBehavior")
+        .and_then(Value::as_str)
+        .and_then(NoteBehavior::from_wire_name)
+    {
+        instrument.note_behavior = note_behavior;
     }
     if let Some(auto_name) = slot.get("autoName").and_then(Value::as_bool) {
         instrument.auto_name = auto_name;

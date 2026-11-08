@@ -280,7 +280,7 @@ pub(crate) fn global_sound_and_note_behavior_modulation_syncs_engine_once() {
         0,
     );
 
-    assert_eq!(runner.instruments[0].note_behavior, "hold");
+    assert_eq!(runner.instruments[0].note_behavior, NoteBehavior::Hold);
     assert_eq!(runner.note_behaviors[0], platform_core::NoteBehavior::Hold);
     assert_eq!(runner.global_sound.note_length_ms, 2000);
     assert_eq!(runner.engine_runtime_sync_calls, 1);

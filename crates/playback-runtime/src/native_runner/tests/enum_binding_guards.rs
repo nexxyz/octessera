@@ -32,8 +32,8 @@ fn instrument_enum_bindings_reject_values_outside_their_sets() {
     ] {
         assert!(write(&mut runner, key, value), "{key} rejected {value}");
     }
-    assert_eq!(runner.instruments[0].kind, "fm");
-    assert_eq!(runner.instruments[0].note_behavior, "hold");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Fm);
+    assert_eq!(runner.instruments[0].note_behavior, NoteBehavior::Hold);
     assert_eq!(runner.instruments[0].route, "fx_bus_2");
 }
 
@@ -66,6 +66,32 @@ fn unversioned_payload_ignores_an_unknown_instrument_route() {
         }))
         .unwrap();
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
+}
+
+#[test]
+fn every_instrument_type_and_note_behavior_saves_its_wire_name() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    for kind in InstrumentType::ALL {
+        runner.instruments[1].kind = InstrumentType::None;
+        write(&mut runner, "instruments.1.type", kind.wire_name());
+        assert_eq!(runner.instruments[1].kind, kind);
+        assert_eq!(
+            runner.config_payload()["runtimeConfig"]["instruments"][1]["type"],
+            kind.wire_name()
+        );
+    }
+    for behavior in NoteBehavior::ALL {
+        assert_eq!(json!(behavior), behavior.wire_name());
+        write(
+            &mut runner,
+            "instruments.1.noteBehavior",
+            behavior.wire_name(),
+        );
+        assert_eq!(runner.instruments[1].note_behavior, behavior);
+    }
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["instruments"][1]["type"] = json!("synthh");
+    assert!(runner.apply_config_payload(payload).is_err());
 }
 
 #[test]

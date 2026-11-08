@@ -1,5 +1,6 @@
 use super::super::{portable_patch_projection, split_system_patch_documents};
 use super::*;
+use crate::native_runner::InstrumentType;
 use crate::{NativeRunner, NativeRunnerConfig};
 use serde_json::json;
 use std::time::{Duration, Instant};
@@ -9,7 +10,7 @@ fn runner_with_local_samples() -> NativeRunner {
     runner.instruments[0].sample_paths[0] = Some("userdata/User Kit/custom.wav".into());
     runner.instruments[1].sample_paths[7] = Some("sd-card/octessera/samples/kick.wav".into());
     runner.instruments[1].sample_paths[6] = Some("sd-card/octessera/samples/missing.wav".into());
-    runner.instruments[1].kind = "sampler".into();
+    runner.instruments[1].kind = InstrumentType::Sampler;
     runner.display.ui.display_brightness = 7;
     runner.audio_outputs = crate::AudioOutputSet::from_flags(false, true, false).unwrap();
     runner

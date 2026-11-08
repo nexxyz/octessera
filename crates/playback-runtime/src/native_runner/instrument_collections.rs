@@ -22,10 +22,10 @@ pub(super) fn instrument_auto_names(instruments: &[NativeInstrumentSlot]) -> Vec
         .collect()
 }
 
-pub(super) fn instrument_note_behaviors(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
+pub(super) fn instrument_note_behaviors(instruments: &[NativeInstrumentSlot]) -> Vec<NoteBehavior> {
     instruments
         .iter()
-        .map(|instrument| instrument.note_behavior.clone())
+        .map(|instrument| instrument.note_behavior)
         .collect()
 }
 
@@ -34,8 +34,10 @@ pub(super) fn note_behaviors_from_instruments(
 ) -> Vec<NoteBehavior> {
     let mut note_behaviors = vec![NoteBehavior::Oneshot; 16];
     for (index, instrument) in instruments.iter().enumerate().take(note_behaviors.len()) {
-        note_behaviors[index] = if !matches!(instrument.kind.as_str(), "drum" | "midi_drum")
-            && instrument.note_behavior == "hold"
+        note_behaviors[index] = if !matches!(
+            instrument.kind,
+            InstrumentType::Drum | InstrumentType::MidiDrum
+        ) && instrument.note_behavior == NoteBehavior::Hold
         {
             NoteBehavior::Hold
         } else {
@@ -45,10 +47,10 @@ pub(super) fn note_behaviors_from_instruments(
     note_behaviors
 }
 
-pub(super) fn instrument_types(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
+pub(super) fn instrument_types(instruments: &[NativeInstrumentSlot]) -> Vec<InstrumentType> {
     instruments
         .iter()
-        .map(|instrument| instrument.kind.clone())
+        .map(|instrument| instrument.kind)
         .collect()
 }
 

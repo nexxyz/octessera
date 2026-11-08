@@ -9,7 +9,10 @@ const LFO_VOLUME_TARGET: &str = "linkLfos.0.target.instruments.0.mixer.volume";
 fn lfo_target_pickers_gain_and_lose_the_instruments_group_like_a_fresh_build() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     confirm_key(&mut runner, "system.clearAll");
-    assert!(runner.instruments.iter().all(|slot| slot.kind == "none"));
+    assert!(runner
+        .instruments
+        .iter()
+        .all(|slot| slot.kind == InstrumentType::None));
     assert!(runner.menu.item_for_key(LFO_VOLUME_TARGET).is_none());
     let rebuilds = runner.menu.rebuild_count;
 
@@ -17,7 +20,7 @@ fn lfo_target_pickers_gain_and_lose_the_instruments_group_like_a_fresh_build() {
         enter_edit(&mut runner, "instruments.0.type");
         turn(&mut runner, delta);
         press(&mut runner);
-        assert_eq!(runner.instruments[0].kind, kind);
+        assert_eq!(runner.instruments[0].kind.wire_name(), kind);
         assert_eq!(
             runner.menu.item_for_key(LFO_VOLUME_TARGET).is_some(),
             kind == "synth"
@@ -34,7 +37,7 @@ fn reset_keeps_the_focus_on_the_emptied_instrument() {
     confirm_key(&mut runner, "instruments.0.clone");
     assert_eq!(runner.menu.current_key(), Some("instruments.0.clone"));
     confirm_key(&mut runner, "instruments.0.reset");
-    assert_eq!(runner.instruments[0].kind, "none");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::None);
     assert_eq!(runner.menu.current_key(), Some("instruments.0.type"));
     assert_matches_fresh_build(&runner, rebuilds);
 }

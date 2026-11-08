@@ -1,6 +1,8 @@
 use super::binding_tree::binding_tree_from_menu_item;
 use super::voice::{instrument_group, InstrumentMenuConfig};
 use super::{NativeMenuConfig, NativeMenuItem};
+use crate::native_runner::InstrumentType;
+use platform_core::NoteBehavior;
 
 pub(super) fn instrument_binding_groups(
     config: &NativeMenuConfig,
@@ -32,8 +34,8 @@ pub(super) fn instrument_binding_source(
         kind: config
             .instrument_types
             .get(index)
-            .map(String::as_str)
-            .unwrap_or("none"),
+            .copied()
+            .unwrap_or(InstrumentType::None),
         auto_name: config
             .instrument_auto_names
             .get(index)
@@ -42,8 +44,8 @@ pub(super) fn instrument_binding_source(
         note_behavior: config
             .instrument_note_behaviors
             .get(index)
-            .map(String::as_str)
-            .unwrap_or("oneshot"),
+            .copied()
+            .unwrap_or(NoteBehavior::Oneshot),
         route: config
             .instrument_routes
             .get(index)

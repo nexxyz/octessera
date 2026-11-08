@@ -1,6 +1,8 @@
 use super::led_color::LedColor;
 use super::modulation_sampler::TransposedHeldNote;
-use super::{NativeRunner, RoutedMusicalEvents, GRID_HEIGHT, GRID_WIDTH, LAYER_COUNT};
+use super::{
+    InstrumentType, NativeRunner, RoutedMusicalEvents, GRID_HEIGHT, GRID_WIDTH, LAYER_COUNT,
+};
 use std::collections::BTreeMap;
 
 pub(super) fn play_transpose_offset_at(x: usize, y: usize) -> Option<i8> {
@@ -259,11 +261,11 @@ impl NativeRunner {
         let Some(instrument) = self.instruments.get(slot) else {
             return false;
         };
-        match instrument.kind.as_str() {
-            "synth" | "fm" | "pluck" => true,
-            "midi" => instrument.midi_enabled,
-            "sampler" => instrument.sample_follow_transpose,
-            "drum" => instrument
+        match instrument.kind {
+            InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck => true,
+            InstrumentType::Midi => instrument.midi_enabled,
+            InstrumentType::Sampler => instrument.sample_follow_transpose,
+            InstrumentType::Drum => instrument
                 .drum_config
                 .get("followTranspose")
                 .and_then(serde_json::Value::as_bool)

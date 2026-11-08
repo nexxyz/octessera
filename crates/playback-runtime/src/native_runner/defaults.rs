@@ -1,12 +1,12 @@
 use crate::native_menu::format_values::{fx_type_label, instrument_kind_label};
 
 use super::{
-    json, NativeFxBus, NativeInstrumentSlot, NativeLinkLayer, Value, BUS_COUNT,
+    json, InstrumentType, NativeFxBus, NativeInstrumentSlot, NativeLinkLayer, Value, BUS_COUNT,
     GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT, LAYER_COUNT,
 };
 
-pub(super) fn derive_instrument_name(_index: usize, kind: &str) -> String {
-    instrument_kind_label(kind).into()
+pub(super) fn derive_instrument_name(_index: usize, kind: InstrumentType) -> String {
+    instrument_kind_label(kind.wire_name()).into()
 }
 
 pub(super) fn derive_bus_name(bus: &NativeFxBus) -> String {

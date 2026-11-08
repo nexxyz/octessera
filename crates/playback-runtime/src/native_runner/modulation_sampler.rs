@@ -1,4 +1,5 @@
 use super::NativeLinkLayer;
+use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, TileTriggerIntent};
 use std::collections::BTreeMap;
@@ -122,10 +123,13 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
         }
         let mut event = event.clone();
         if let Some(instrument) = instruments.get(channel as usize).filter(|instrument| {
-            matches!(instrument.kind.as_str(), "drum" | "sampler" | "midi_drum")
+            matches!(
+                instrument.kind,
+                InstrumentType::Drum | InstrumentType::Sampler | InstrumentType::MidiDrum
+            )
         }) {
             match &mut event {
-                MusicalEvent::NoteOn { .. } if instrument.kind == "midi_drum" => {
+                MusicalEvent::NoteOn { .. } if instrument.kind == InstrumentType::MidiDrum => {
                     routed.midi.extend(instrument.midi_drum_note_on(intent));
                     continue;
                 }
@@ -140,7 +144,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                     {
                         *velocity = pulses_velocity;
                     }
-                    let hit = if instrument.kind == "drum" {
+                    let hit = if instrument.kind == InstrumentType::Drum {
                         drum_hit_for_intent(
                             instruments,
                             channel,
@@ -159,11 +163,11 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                             *note,
                         )
                     };
-                    if let (Some(hit), None, Some(active_notes), "sampler") = (
+                    if let (Some(hit), None, Some(active_notes), InstrumentType::Sampler) = (
                         &hit,
                         *duration_ms,
                         active_transpose_notes.as_deref_mut(),
-                        instrument.kind.as_str(),
+                        instrument.kind,
                     ) {
                         active_notes.entry((channel, *note)).or_default().push(
                             TransposedHeldNote {
@@ -178,7 +182,7 @@ pub(super) fn apply_sampler_assignments_for_instruments_routed(
                     continue;
                 }
                 MusicalEvent::NoteOff { note, .. } => {
-                    if instrument.kind == "sampler" {
+                    if instrument.kind == InstrumentType::Sampler {
                         let tile = tile_hits::tile_index(intent.x, intent.y);
                         match take_held_tile(
                             active_transpose_notes.as_deref_mut(),
@@ -256,8 +260,8 @@ fn prepare_note_on_with_intent(
     let Some(instrument) = instruments.get(original_channel as usize) else {
         return false;
     };
-    let held_note = match instrument.kind.as_str() {
-        "synth" | "fm" | "pluck" => {
+    let held_note = match instrument.kind {
+        InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck => {
             transpose_note(note, transpose_offset);
             Some(TransposedHeldNote {
                 routed_channel: *channel,
@@ -266,7 +270,7 @@ fn prepare_note_on_with_intent(
                 sampler_tile: None,
             })
         }
-        "midi" if instrument.midi_enabled => {
+        InstrumentType::Midi if instrument.midi_enabled => {
             transpose_note(note, transpose_offset);
             *channel = instrument.midi_channel.saturating_sub(1).min(15);
             Some(TransposedHeldNote {
@@ -276,7 +280,7 @@ fn prepare_note_on_with_intent(
                 sampler_tile: None,
             })
         }
-        "midi" => return true,
+        InstrumentType::Midi => return true,
         _ => None,
     };
     if duration_ms.is_none() {
@@ -316,13 +320,15 @@ fn prepare_note_off_with_intent(
     let Some(instrument) = instruments.get(original_channel as usize) else {
         return false;
     };
-    match instrument.kind.as_str() {
-        "synth" | "fm" | "pluck" => transpose_note(note, transpose_offset),
-        "midi" if instrument.midi_enabled => {
+    match instrument.kind {
+        InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck => {
+            transpose_note(note, transpose_offset)
+        }
+        InstrumentType::Midi if instrument.midi_enabled => {
             transpose_note(note, transpose_offset);
             *channel = instrument.midi_channel.saturating_sub(1).min(15);
         }
-        "midi" => return true,
+        InstrumentType::Midi => return true,
         _ => {}
     }
     false
@@ -346,7 +352,7 @@ fn instrument_route(
     let Some(instrument) = instruments.get(slot_channel as usize) else {
         return InstrumentRoute::InternalAudio;
     };
-    if !matches!(instrument.kind.as_str(), "midi" | "midi_drum") {
+    if !instrument.kind.is_midi() {
         return InstrumentRoute::InternalAudio;
     }
     if instrument.midi_output_channel().is_some() {
@@ -363,14 +369,15 @@ fn route_event_without_intent(
     midi: &mut Vec<MusicalEvent>,
 ) {
     let channel = event_channel(&event);
-    if instruments
-        .get(channel as usize)
-        .is_some_and(|instrument| matches!(instrument.kind.as_str(), "drum" | "midi_drum"))
-        && matches!(
-            event,
-            MusicalEvent::NoteOn { .. } | MusicalEvent::NoteOff { .. }
+    if instruments.get(channel as usize).is_some_and(|instrument| {
+        matches!(
+            instrument.kind,
+            InstrumentType::Drum | InstrumentType::MidiDrum
         )
-    {
+    }) && matches!(
+        event,
+        MusicalEvent::NoteOn { .. } | MusicalEvent::NoteOff { .. }
+    ) {
         return;
     }
     match instrument_route(instruments, channel) {

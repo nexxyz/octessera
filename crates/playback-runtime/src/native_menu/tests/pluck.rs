@@ -3,7 +3,7 @@ use crate::native_menu::binding_picker::keep_numeric_binding_item;
 
 fn pluck_menu() -> NativeMenuModel {
     let mut cfg = config();
-    cfg.instrument_types[0] = "pluck".into();
+    cfg.instrument_types[0] = InstrumentType::Pluck;
     NativeMenuModel::new(cfg)
 }
 
@@ -158,7 +158,7 @@ fn plucked_defaults_ranges_and_saved_values_stay_in_own_block() {
     );
 
     let mut cfg = config();
-    cfg.instrument_types[0] = "pluck".into();
+    cfg.instrument_types[0] = InstrumentType::Pluck;
     cfg.instrument_pluck_configs[0] = serde_json::json!({
         "decayMs": 2300, "brightnessPct": 37, "pickPositionPct": 12,
         "amp": { "gainPct": 24 }, "filter": { "cutoffHz": 4000, "type": "notch" }
@@ -270,7 +270,7 @@ fn plucked_picker_offers_six_numeric_controls_without_structural_targets() {
         assert!(find_item_by_key(&picker, &key).is_none(), "{key}");
     }
     let mut cfg = config();
-    cfg.instrument_types[0] = "pluck".into();
+    cfg.instrument_types[0] = InstrumentType::Pluck;
     let picker = NativeMenuModel::new(cfg).item_for_key("xy:x").unwrap();
     let numeric = keep_numeric_binding_item(picker, "xy:x").unwrap();
     assert!(find_item_by_key(&numeric, "xy:x.instruments.0.type").is_none());

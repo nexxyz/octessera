@@ -64,7 +64,7 @@ fn system_document_changes_device_state_without_disturbing_live_patch_runtime() 
             ..NativeRunnerConfig::default()
         })
         .unwrap();
-        runner.instruments[0].note_behavior = "hold".into();
+        runner.instruments[0].note_behavior = NoteBehavior::Hold;
         runner.sync_engine_runtime_config();
         runner
             .send(HostMessage::DeviceInput {
@@ -138,7 +138,7 @@ fn system_audio_changes_queue_existing_config_commands_without_resetting_live_pa
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].note_behavior = "hold".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.sync_engine_runtime_config();
     runner
         .send(HostMessage::DeviceInput {

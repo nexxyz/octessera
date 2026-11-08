@@ -5,7 +5,7 @@ fn stopped_music_first_grid_edit_defers_payload_serialization_to_pi_autosave() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
     runner.auto_save_default = true;
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.grid_assign = Some(GridAssign::Sample {
         slot: 0,
         sample_slot: 0,

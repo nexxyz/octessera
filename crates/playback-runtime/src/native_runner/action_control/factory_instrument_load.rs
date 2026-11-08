@@ -1,6 +1,7 @@
 use super::super::{
     derive_instrument_name, drum_config::drum_default_config, fm_default_config,
-    pluck_default_config, synth_default_config, NativeRunner, NativeSampleAvailability, Value,
+    pluck_default_config, synth_default_config, InstrumentType, NativeRunner,
+    NativeSampleAvailability, Value,
 };
 use crate::instrument_presets::instrument_preset_config;
 use crate::native_menu::SAMPLER_KITS;
@@ -58,10 +59,12 @@ impl NativeRunner {
             FactoryLoad::Preset(family, _) => *family,
             FactoryLoad::SampleKit(_) => "sampler",
         };
+        let kind = InstrumentType::from_wire_name(type_name)
+            .ok_or_else(|| format!("unknown factory instrument type `{type_name}`"))?;
         let instrument = &mut self.instruments[slot];
-        instrument.kind = type_name.into();
+        instrument.kind = kind;
         if instrument.auto_name {
-            instrument.name = derive_instrument_name(slot, type_name);
+            instrument.name = derive_instrument_name(slot, kind);
         }
         match load {
             FactoryLoad::Preset("synth", config) => {

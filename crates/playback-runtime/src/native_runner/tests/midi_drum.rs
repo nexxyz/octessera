@@ -48,7 +48,7 @@ impl Rig {
         if turns > 0 {
             rig.turn("instruments.0.type", turns as i32);
         }
-        assert_eq!(rig.runner.instruments[0].kind, kind);
+        assert_eq!(rig.runner.instruments[0].kind.wire_name(), kind);
         rig.take_notes();
         rig
     }
@@ -173,7 +173,7 @@ fn type_picker_names_midi_inst_and_midi_drum_and_auto_labels_follow() {
     assert_eq!(rig.runner.instruments[0].name, "MIDI Inst.");
 
     rig.turn("instruments.0.type", 4);
-    assert_eq!(rig.runner.instruments[0].kind, "midi_drum");
+    assert_eq!(rig.runner.instruments[0].kind, InstrumentType::MidiDrum);
     assert!(rig.runner.menu.focus_item_key("instruments.0.type"));
     assert!(rig
         .runner
@@ -340,7 +340,7 @@ fn changing_the_type_leaves_midi_drum_assign_mode() {
     rig.press_main_on("midiDrum.assign.0");
     assert!(rig.runner.grid_assign.is_some());
     rig.turn("instruments.0.type", -1);
-    assert_eq!(rig.runner.instruments[0].kind, "drum");
+    assert_eq!(rig.runner.instruments[0].kind, InstrumentType::Drum);
     assert!(rig.runner.grid_assign.is_none());
 }
 
@@ -370,7 +370,7 @@ fn midi_drum_stamps_and_settings_survive_a_patch_save_and_load() {
             payload: Some(documents.patch.clone()),
         })
         .unwrap();
-    assert_eq!(reloaded.instruments[0].kind, "midi_drum");
+    assert_eq!(reloaded.instruments[0].kind, InstrumentType::MidiDrum);
     assert_eq!(reloaded.instruments[0].midi_drum, saved);
 
     let mut old_patch = documents.patch;

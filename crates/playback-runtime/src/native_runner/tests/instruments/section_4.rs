@@ -40,7 +40,7 @@ pub(crate) fn play_transpose_offsets_note_based_routes_but_not_default_sampler_t
         std::slice::from_ref(&intent),
         0,
         &[NativeInstrumentSlot {
-            kind: "midi".into(),
+            kind: InstrumentType::Midi,
             midi_enabled: true,
             midi_channel: 3,
             ..NativeInstrumentSlot::new(0)
@@ -69,7 +69,7 @@ pub(crate) fn play_transpose_offsets_note_based_routes_but_not_default_sampler_t
             std::slice::from_ref(&intent),
             0,
             &[NativeInstrumentSlot {
-                kind: "sampler".into(),
+                kind: InstrumentType::Sampler,
                 sample_follow_transpose: follow_transpose,
                 sample_follow_pitch: follow_pitch,
                 sample_assignments: vec![NativeSampleAssignment {
@@ -221,7 +221,7 @@ pub(crate) fn sampler_hold_release_uses_the_final_routed_note_without_intent() {
         kind: platform_core::TileTriggerKind::Activate,
     };
     let instruments = [NativeInstrumentSlot {
-        kind: "sampler".into(),
+        kind: InstrumentType::Sampler,
         sample_assignments: vec![NativeSampleAssignment {
             x: 2,
             y: 3,
@@ -362,7 +362,7 @@ pub(crate) fn play_transpose_retarget_drains_held_note_before_new_offset() {
 pub(crate) fn play_transpose_disable_drains_midi_held_note_to_routed_channel() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "transpose".into();
-    runner.instruments[0].kind = "midi".into();
+    runner.instruments[0].kind = InstrumentType::Midi;
     runner.instruments[0].midi_enabled = true;
     runner.instruments[0].midi_channel = 3;
     runner.transpose.active_notes[0]
@@ -399,7 +399,7 @@ pub(crate) fn play_transpose_release_uses_stored_route_after_midi_is_disabled() 
         kind: platform_core::TileTriggerKind::Activate,
     };
     let instruments = [NativeInstrumentSlot {
-        kind: "midi".into(),
+        kind: InstrumentType::Midi,
         midi_enabled: false,
         midi_channel: 9,
         ..NativeInstrumentSlot::new(0)

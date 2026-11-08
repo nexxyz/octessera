@@ -116,7 +116,7 @@ pub(crate) fn deactivate_note_off_uses_deactivate_timing() {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.instruments[0].note_behavior = "hold".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.link_layers[0].deactivate_timing.delay_steps = 1;
     let press = runner
         .send(HostMessage::DeviceInput {

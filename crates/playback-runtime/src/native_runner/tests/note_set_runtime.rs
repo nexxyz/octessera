@@ -148,7 +148,11 @@ pub(crate) fn major_triad_mapping_precedes_play_transpose_for_synth_and_midi() {
         layer.starting_note = 60;
         layer.scale = "major_triad".into();
         layer.root = "C".into();
-        runner.instruments[0].kind = if midi { "midi" } else { "synth" }.into();
+        runner.instruments[0].kind = if midi {
+            InstrumentType::Midi
+        } else {
+            InstrumentType::Synth
+        };
         runner.instruments[0].midi_enabled = midi;
         runner.refresh_active_mapping_config();
         let intent = platform_core::TileTriggerIntent {

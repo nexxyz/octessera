@@ -196,7 +196,7 @@ pub(crate) fn same_note_from_two_layers_remains_two_events() {
 pub(crate) fn same_external_midi_destination_from_two_mappings_remains_two_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     for instrument in runner.instruments.iter_mut().take(2) {
-        instrument.kind = "midi".into();
+        instrument.kind = InstrumentType::Midi;
         instrument.midi_enabled = true;
         instrument.midi_channel = 4;
     }
@@ -238,7 +238,7 @@ pub(crate) fn same_external_midi_destination_from_two_mappings_remains_two_event
 #[test]
 pub(crate) fn sampler_tiles_with_the_same_sample_and_pitch_dedupe_to_one_voice() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].sample_assignments = vec![
         NativeSampleAssignment {
             x: 2,

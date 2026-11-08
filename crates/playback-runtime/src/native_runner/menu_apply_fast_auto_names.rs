@@ -16,7 +16,7 @@ impl NativeRunner {
             }
             instrument.auto_name = auto_name;
             if auto_name {
-                instrument.name = derive_instrument_name(index, &instrument.kind);
+                instrument.name = derive_instrument_name(index, instrument.kind);
             }
             self.show_instrument_identity_rows(index);
         } else {

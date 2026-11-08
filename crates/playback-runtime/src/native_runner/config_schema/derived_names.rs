@@ -1,4 +1,4 @@
-use super::super::{derive_bus_name_from_slots, derive_instrument_name, Value};
+use super::super::{derive_bus_name_from_slots, derive_instrument_name, InstrumentType, Value};
 use serde_json::Map;
 
 pub(super) fn canonicalize_partial_payload_names(payload: &mut Value, current: &Value) {
@@ -187,34 +187,23 @@ fn effective_auto_name(value: &Map<String, Value>, current: Option<&Map<String, 
         .unwrap_or(true)
 }
 
-fn effective_instrument_kind<'a>(
-    value: &'a Map<String, Value>,
-    current: Option<&'a Map<String, Value>>,
-) -> &'a str {
-    value
-        .get("type")
-        .and_then(Value::as_str)
-        .filter(|kind| is_valid_instrument_kind(kind))
-        .or_else(|| {
-            current
-                .and_then(|current| current.get("type"))
-                .and_then(Value::as_str)
-        })
-        .unwrap_or("none")
+fn effective_instrument_kind(
+    value: &Map<String, Value>,
+    current: Option<&Map<String, Value>>,
+) -> InstrumentType {
+    instrument_kind(value.get("type"))
+        .or_else(|| instrument_kind(current.and_then(|current| current.get("type"))))
+        .unwrap_or(InstrumentType::None)
 }
 
-fn normalized_instrument_kind(value: Option<&Value>) -> &str {
-    value
-        .and_then(Value::as_str)
-        .filter(|kind| is_valid_instrument_kind(kind))
-        .unwrap_or("none")
+fn normalized_instrument_kind(value: Option<&Value>) -> InstrumentType {
+    instrument_kind(value).unwrap_or(InstrumentType::None)
 }
 
-fn is_valid_instrument_kind(kind: &str) -> bool {
-    matches!(
-        kind,
-        "none" | "synth" | "fm" | "pluck" | "drum" | "sampler" | "midi" | "midi_drum"
-    )
+fn instrument_kind(value: Option<&Value>) -> Option<InstrumentType> {
+    value
+        .and_then(Value::as_str)
+        .and_then(InstrumentType::from_wire_name)
 }
 
 fn normalized_partial_bus_slots(

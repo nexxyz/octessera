@@ -8,8 +8,8 @@ fn midi_hold_runner() -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].kind = "midi".into();
-    runner.instruments[0].note_behavior = "hold".into();
+    runner.instruments[0].kind = InstrumentType::Midi;
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.instruments[0].midi_enabled = true;
     runner.midi_active = true;
     runner.selected_midi_output_id = Some("out-1".into());

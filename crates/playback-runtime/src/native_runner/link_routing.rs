@@ -1,6 +1,7 @@
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
 use super::modulation_sampler::event_channel;
 use super::{DelayedRoutedEvents, LinkEventTiming, NativeRunner};
+use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, TileTriggerIntent, TileTriggerKind};
 use std::collections::HashMap;
@@ -250,7 +251,7 @@ fn dedupe_sampler_tile_hits(hits: &mut Vec<TileHit>, instruments: &[super::Nativ
     for hit in hits.drain(..) {
         let sampler = instruments
             .get(usize::from(hit.instrument_slot))
-            .is_some_and(|instrument| instrument.kind == "sampler");
+            .is_some_and(|instrument| instrument.kind == InstrumentType::Sampler);
         let existing = deduped.iter_mut().find(|other| {
             sampler
                 && hit.velocity > 0

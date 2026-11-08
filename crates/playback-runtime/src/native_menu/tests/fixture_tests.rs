@@ -97,7 +97,7 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
     dynamic.midi_inputs = vec![("0".into(), "In".into())];
     dynamic.instrument_labels = vec!["I1: sampler".into()];
     dynamic.instrument_names = vec!["sampler".into()];
-    dynamic.instrument_types = vec!["sampler".into()];
+    dynamic.instrument_types = vec![InstrumentType::Sampler];
     dynamic.sample_browser = Some(NativeSampleBrowserConfig {
         instrument_slot: 0,
         sample_slot: 0,
@@ -146,7 +146,7 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
         "midi_drum",
     ] {
         let mut cfg = config();
-        cfg.instrument_types[0] = instrument_type.into();
+        cfg.instrument_types[0] = InstrumentType::from_wire_name(instrument_type).unwrap();
         cfg.instrument_sample_velocity_levels_enabled[0] = true;
         configs.push(cfg);
     }
@@ -247,7 +247,7 @@ fn find_path_by_key(item: &NativeMenuItem, key: &str) -> Option<Vec<usize>> {
 #[test]
 pub(crate) fn sample_browser_label_includes_selected_slot_context_without_body_rows() {
     let mut cfg = config();
-    cfg.instrument_types[0] = "sampler".into();
+    cfg.instrument_types[0] = InstrumentType::Sampler;
     cfg.instrument_sample_slots[0] = 2;
     cfg.sample_browser = Some(NativeSampleBrowserConfig {
         instrument_slot: 0,
@@ -271,7 +271,7 @@ pub(crate) fn sample_browser_label_includes_selected_slot_context_without_body_r
 #[test]
 pub(crate) fn loaded_sample_row_shows_filename_idle_and_full_path_when_selected() {
     let mut cfg = config();
-    cfg.instrument_types[0] = "sampler".into();
+    cfg.instrument_types[0] = InstrumentType::Sampler;
     cfg.instrument_sample_slots[0] = 2;
     cfg.instrument_sample_paths[0][2] = Some("Drum/kick/long-sample-file.wav".into());
 
@@ -304,7 +304,7 @@ pub(crate) fn loaded_sample_row_shows_filename_idle_and_full_path_when_selected(
 #[test]
 pub(crate) fn unavailable_loaded_sample_row_shows_na_filename_but_keeps_source_key() {
     let mut cfg = config();
-    cfg.instrument_types[0] = "sampler".into();
+    cfg.instrument_types[0] = InstrumentType::Sampler;
     cfg.instrument_sample_slots[0] = 2;
     cfg.instrument_sample_paths[0][2] = Some("userdata/User Kit/missing.wav".into());
     cfg.instrument_sample_availability[0][2] = NativeSampleAvailability::Unavailable;
@@ -340,7 +340,7 @@ pub(crate) fn unavailable_loaded_sample_row_shows_na_filename_but_keeps_source_k
 #[test]
 pub(crate) fn sample_browser_empty_and_long_name_rows_preserve_display_contract() {
     let mut cfg = config();
-    cfg.instrument_types[0] = "sampler".into();
+    cfg.instrument_types[0] = InstrumentType::Sampler;
     cfg.sample_favourite_dirs.clear();
     cfg.sample_builtin_favourite_dirs.clear();
     cfg.sample_browser = Some(NativeSampleBrowserConfig {

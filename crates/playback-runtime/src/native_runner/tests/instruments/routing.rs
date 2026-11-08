@@ -12,7 +12,7 @@ pub(crate) fn synth_and_sampler_events_route_to_audio_while_midi_routes_to_midi(
 
     for kind in ["synth", "sampler"] {
         let mut instrument = NativeInstrumentSlot {
-            kind: kind.into(),
+            kind: InstrumentType::from_wire_name(kind).unwrap(),
             ..NativeInstrumentSlot::new(0)
         };
         if kind == "sampler" {
@@ -63,7 +63,7 @@ pub(crate) fn synth_and_sampler_events_route_to_audio_while_midi_routes_to_midi(
     }
 
     let instruments = vec![NativeInstrumentSlot {
-        kind: "midi".into(),
+        kind: InstrumentType::Midi,
         midi_enabled: true,
         midi_channel: 2,
         ..NativeInstrumentSlot::new(0)

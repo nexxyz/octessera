@@ -95,7 +95,7 @@ pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
         .apply_patch_payload_preserving_device(pi_default)
         .unwrap();
     for (index, instrument_type, name) in [(2, "pluck", "Plucked"), (3, "fm", "FM")] {
-        assert_eq!(runner.instruments[index].kind, instrument_type);
+        assert_eq!(runner.instruments[index].kind.wire_name(), instrument_type);
         assert_eq!(runner.instruments[index].name, name);
         assert!(runner.instruments[index].auto_name);
     }

@@ -118,7 +118,7 @@ pub(crate) fn conditional_rows_follow_scan_lane_and_sampler_state() {
     let mut cfg = config();
     cfg.link_layers[0].scan_mode = "scanning".into();
     cfg.link_layers[0].x_velocity.enabled = true;
-    cfg.instrument_types[0] = "sampler".into();
+    cfg.instrument_types[0] = InstrumentType::Sampler;
     cfg.instrument_sample_velocity_levels_enabled[0] = false;
     let menu = NativeMenuModel::new(cfg);
     let layer = layer_item(&menu, 0);

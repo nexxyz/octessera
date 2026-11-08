@@ -6,8 +6,8 @@ pub(super) fn default_sample_availability() -> Vec<Vec<NativeSampleAvailability>
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct NativeInstrumentSlot {
-    pub(super) kind: String,
-    pub(super) note_behavior: String,
+    pub(super) kind: InstrumentType,
+    pub(super) note_behavior: NoteBehavior,
     pub(super) auto_name: bool,
     pub(super) name: String,
     pub(super) volume: u8,
@@ -88,7 +88,7 @@ pub(super) struct NativeSampleBrowser {
 
 impl NativeInstrumentSlot {
     pub(super) fn new(index: usize) -> Self {
-        let kind = "synth".to_string();
+        let kind = InstrumentType::Synth;
         let synth_config = synth_default_config();
         let sample_amp_env =
             json!({ "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 5 });
@@ -104,9 +104,9 @@ impl NativeInstrumentSlot {
             .cloned()
             .unwrap_or_else(|| json!({}));
         Self {
-            name: derive_instrument_name(index, &kind),
+            name: derive_instrument_name(index, kind),
             kind,
-            note_behavior: "oneshot".into(),
+            note_behavior: NoteBehavior::Oneshot,
             auto_name: true,
             volume: 100,
             pan_pos: PAN_POSITION_COUNT / 2,
@@ -144,8 +144,8 @@ impl NativeInstrumentSlot {
 
     pub(super) fn reset(index: usize) -> Self {
         let mut slot = Self::new(index);
-        slot.kind = "none".into();
-        slot.name = derive_instrument_name(index, "none");
+        slot.kind = InstrumentType::None;
+        slot.name = derive_instrument_name(index, InstrumentType::None);
         slot.auto_name = true;
         slot.midi_enabled = false;
         slot.midi_channel = (index + 1).min(16) as u8;

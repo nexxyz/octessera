@@ -142,7 +142,7 @@ pub(crate) fn mix_volume_marker_stays_on_rows_one_to_seven_and_none_slots_ignore
     let mut runner = mix_runner();
     runner.instruments[0].volume = 0;
     runner.instruments[1].volume = 7;
-    runner.instruments[3].kind = "none".into();
+    runner.instruments[3].kind = InstrumentType::None;
 
     assert_eq!(tile(&runner, 0, 1), led_rgb(platform_core::palette::GREEN));
     assert_eq!(tile(&runner, 1, 1), led_rgb(platform_core::palette::GREEN));
@@ -303,8 +303,8 @@ fn midi_runner() -> NativeRunner {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     let mut instrument = NativeInstrumentSlot::new(0);
-    instrument.note_behavior = "hold".into();
-    instrument.kind = "midi".into();
+    instrument.note_behavior = NoteBehavior::Hold;
+    instrument.kind = InstrumentType::Midi;
     instrument.midi_enabled = true;
     instrument.midi_channel = 3;
     runner.instruments[0] = instrument;

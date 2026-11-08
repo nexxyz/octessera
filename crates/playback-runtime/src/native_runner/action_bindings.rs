@@ -1,4 +1,5 @@
 use crate::native_menu::NativeMenuAction;
+use crate::native_runner::InstrumentType;
 use crate::protocol::RunnerMessage;
 
 use super::toast_text::bank_head;
@@ -317,7 +318,7 @@ impl NativeRunner {
                 .is_none_or(|(instrument_slot, _, _)| {
                     self.instruments
                         .get(instrument_slot)
-                        .is_some_and(|instrument| instrument.kind == "sampler")
+                        .is_some_and(|instrument| instrument.kind == InstrumentType::Sampler)
                 }),
             _ => true,
         }

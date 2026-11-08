@@ -1,4 +1,5 @@
 use super::{NativeRunner, NativeSampleAssignment, NativeTileStamp, GRID_HEIGHT, GRID_WIDTH};
+use crate::native_runner::InstrumentType;
 use serde_json::{json, Value};
 
 impl NativeRunner {
@@ -122,7 +123,7 @@ impl NativeRunner {
         let Some(assignments) = self
             .instruments
             .get_mut(slot)
-            .filter(|instrument| instrument.kind == "drum" && !tiles.is_empty())
+            .filter(|instrument| instrument.kind == InstrumentType::Drum && !tiles.is_empty())
             .and_then(|instrument| instrument.drum_config.get_mut("assignments"))
             .and_then(Value::as_array_mut)
         else {

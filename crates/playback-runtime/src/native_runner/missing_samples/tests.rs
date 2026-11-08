@@ -1,10 +1,10 @@
-use super::super::{NativeRunnerConfig, NativeSampleAvailability};
+use super::super::{InstrumentType, NativeRunnerConfig, NativeSampleAvailability};
 use super::*;
 use crate::{CoreRunner, HostMessage, RuntimeStoreResult};
 
 fn runner_with_two_samples() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[1].kind = "sampler".into();
+    runner.instruments[1].kind = InstrumentType::Sampler;
     runner.instruments[1].sample_paths[0] = Some("samples/Drum/kick/Kick2.wav".into());
     runner.instruments[1].sample_paths[1] = Some("userdata/User Kit/gone.wav".into());
     runner

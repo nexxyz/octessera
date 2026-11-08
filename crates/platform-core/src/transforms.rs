@@ -9,6 +9,23 @@ pub enum NoteBehavior {
     Oneshot,
 }
 
+impl NoteBehavior {
+    pub const ALL: [Self; 2] = [Self::Oneshot, Self::Hold];
+
+    pub const fn wire_name(self) -> &'static str {
+        match self {
+            Self::Hold => "hold",
+            Self::Oneshot => "oneshot",
+        }
+    }
+
+    pub fn from_wire_name(value: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|behavior| behavior.wire_name() == value)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum VelocityCurve {

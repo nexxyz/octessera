@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn sampler_picker_keeps_rendered_targets_but_not_unrendered_filter_or_envelopes() {
     let mut sampler_config = config();
-    sampler_config.instrument_types[0] = "sampler".into();
+    sampler_config.instrument_types[0] = InstrumentType::Sampler;
     sampler_config.instrument_sample_velocity_levels_enabled[0] = true;
     let menu = NativeMenuModel::new(sampler_config);
     let picker = menu.item_for_key("aux:0:turn").expect("Aux binding picker");
@@ -46,7 +46,7 @@ fn sampler_picker_keeps_rendered_targets_but_not_unrendered_filter_or_envelopes(
     }
 
     let mut fm_config = config();
-    fm_config.instrument_types[0] = "fm".into();
+    fm_config.instrument_types[0] = InstrumentType::Fm;
     let fm_menu = NativeMenuModel::new(fm_config);
     let fm_picker = fm_menu
         .item_for_key("aux:0:turn")

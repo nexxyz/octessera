@@ -1,5 +1,6 @@
 use super::modulation_target::Endpoint;
 use super::{NativeParamBinding, NativeRunner, Value};
+use crate::native_runner::InstrumentType;
 use crate::protocol::RuntimeAudioCommand;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -35,12 +36,12 @@ pub(super) fn queue_changed_instrument_commands(
             runner.queue_instrument_slot_config(index);
             continue;
         }
-        if matches!(instrument.kind.as_str(), "midi" | "midi_drum")
-            || field.starts_with("synth.") && instrument.kind != "synth"
-            || field.starts_with("fm.") && instrument.kind != "fm"
-            || field.starts_with("pluck.") && instrument.kind != "pluck"
-            || field.starts_with("drum.") && instrument.kind != "drum"
-            || field.starts_with("sample.") && instrument.kind != "sampler"
+        if instrument.kind.is_midi()
+            || field.starts_with("synth.") && instrument.kind != InstrumentType::Synth
+            || field.starts_with("fm.") && instrument.kind != InstrumentType::Fm
+            || field.starts_with("pluck.") && instrument.kind != InstrumentType::Pluck
+            || field.starts_with("drum.") && instrument.kind != InstrumentType::Drum
+            || field.starts_with("sample.") && instrument.kind != InstrumentType::Sampler
         {
             continue;
         }
@@ -87,11 +88,11 @@ fn instrument_audio_command_for_kind(
     field: &str,
     value: &Value,
 ) -> Option<RuntimeAudioCommand> {
-    if field.starts_with("synth.") && instrument.kind != "synth"
-        || field.starts_with("sample.") && instrument.kind != "sampler"
-        || field.starts_with("fm.") && instrument.kind != "fm"
-        || field.starts_with("pluck.") && instrument.kind != "pluck"
-        || field.starts_with("drum.") && instrument.kind != "drum"
+    if field.starts_with("synth.") && instrument.kind != InstrumentType::Synth
+        || field.starts_with("sample.") && instrument.kind != InstrumentType::Sampler
+        || field.starts_with("fm.") && instrument.kind != InstrumentType::Fm
+        || field.starts_with("pluck.") && instrument.kind != InstrumentType::Pluck
+        || field.starts_with("drum.") && instrument.kind != InstrumentType::Drum
     {
         return None;
     }
@@ -144,7 +145,7 @@ pub(super) fn materialize_endpoint(
     match endpoint {
         Endpoint::InstrumentMixer { index } => {
             let instrument = runner.instruments.get(*index)?;
-            if matches!(instrument.kind.as_str(), "midi" | "midi_drum") {
+            if instrument.kind.is_midi() {
                 return None;
             }
             Some(RuntimeAudioCommand::SetInstrumentMixer {

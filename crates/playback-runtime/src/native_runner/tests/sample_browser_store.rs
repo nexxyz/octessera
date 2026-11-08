@@ -13,7 +13,7 @@ pub(crate) fn open_browser(dir: &str) -> NativeSampleBrowser {
 
 fn sampler_with_path(path: &str) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].sample_paths[0] = Some(path.into());
     runner.menu.rebuild(runner.menu_config());
     runner

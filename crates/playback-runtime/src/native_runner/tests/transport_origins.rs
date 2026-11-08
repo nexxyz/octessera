@@ -8,9 +8,9 @@ pub(crate) fn transport_stop_drains_active_and_inactive_held_notes_to_their_rout
     })
     .unwrap();
     runner.midi_active = true;
-    runner.instruments[0].note_behavior = "hold".into();
-    runner.instruments[1].note_behavior = "hold".into();
-    runner.instruments[1].kind = "midi".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
+    runner.instruments[1].note_behavior = NoteBehavior::Hold;
+    runner.instruments[1].kind = InstrumentType::Midi;
     runner.instruments[1].midi_enabled = true;
     runner.instruments[1].midi_channel = 3;
     runner.link_layers[1].event_enabled = true;

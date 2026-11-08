@@ -1,4 +1,5 @@
 use crate::native_menu::NativeMenuAction;
+use crate::native_runner::InstrumentType;
 use crate::protocol::RuntimePlatformEffect;
 
 mod factory_instrument_load;
@@ -349,14 +350,14 @@ impl NativeRunner {
         let Some(target_index) = self
             .instruments
             .iter()
-            .position(|instrument| instrument.kind == "none")
+            .position(|instrument| instrument.kind == InstrumentType::None)
         else {
             self.show_toast("All slots in use");
             return;
         };
         let mut clone = source;
         clone.auto_name = true;
-        clone.name = derive_instrument_name(target_index, &clone.kind);
+        clone.name = derive_instrument_name(target_index, clone.kind);
         clone.midi_enabled = false;
         clone.midi_drum.settings.enabled = false;
         clone.midi_channel = (target_index + 1).min(16) as u8;

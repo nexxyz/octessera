@@ -1,5 +1,6 @@
-use crate::native_runner::{AudioOptimization, AudioOutputSet, UsbDataRole};
+use crate::native_runner::{AudioOptimization, AudioOutputSet, InstrumentType, UsbDataRole};
 use crate::protocol::SyncSource;
+use platform_core::NoteBehavior;
 use realtime_engine::synth::{DspRuntimeConfig, VoiceStealingMode};
 
 use super::{NativeMenuAction, NativeMenuItem, NativeParamBindingSpec};
@@ -30,9 +31,9 @@ pub struct NativeMenuConfig {
     pub shift_aux_bindings: Vec<NativeAuxBindingConfig>,
     pub instrument_labels: Vec<String>,
     pub instrument_names: Vec<String>,
-    pub instrument_types: Vec<String>,
+    pub instrument_types: Vec<InstrumentType>,
     pub instrument_auto_names: Vec<bool>,
-    pub instrument_note_behaviors: Vec<String>,
+    pub instrument_note_behaviors: Vec<NoteBehavior>,
     pub instrument_routes: Vec<String>,
     pub instrument_volumes: Vec<u8>,
     pub instrument_pan_positions: Vec<u8>,

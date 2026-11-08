@@ -61,7 +61,7 @@ fn assert_reboot_allowed(runner: &mut NativeRunner) {
 #[test]
 fn sample_favorites_save_system_when_set_and_removed() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "sampler".into();
     runner.sample_browser = Some(NativeSampleBrowser {
         instrument_slot: 0,

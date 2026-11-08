@@ -39,7 +39,7 @@ pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
         .tiles
         .iter()
         .any(|tile| *tile));
-    assert_eq!(runner.instruments[0].kind, "synth");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Synth);
     assert_eq!(runner.link_layers[0].activate_slot, 0);
     assert_eq!(runner.link_layers[0].activate_action, "note_on");
     assert!(runner.input_events_while_paused);

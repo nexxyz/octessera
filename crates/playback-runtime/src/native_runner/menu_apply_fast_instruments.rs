@@ -1,4 +1,6 @@
+use crate::native_runner::InstrumentType;
 use crate::protocol::RuntimeAudioCommand;
+use platform_core::NoteBehavior;
 
 use super::menu_apply_fast_values::*;
 use super::NativeRunner;
@@ -98,7 +100,11 @@ impl NativeRunner {
     }
 
     fn fast_instrument_note_behavior_key(&mut self, index: usize, key: &str) -> bool {
-        let Some(value) = self.menu.value_for_key(key) else {
+        let Some(value) = self
+            .menu
+            .value_for_key(key)
+            .and_then(|value| NoteBehavior::from_wire_name(&value))
+        else {
             return false;
         };
         let Some(instrument) = self.instruments.get_mut(index) else {
@@ -108,7 +114,7 @@ impl NativeRunner {
             return false;
         }
         instrument.note_behavior = value;
-        let sampler = instrument.kind == "sampler";
+        let sampler = instrument.kind == InstrumentType::Sampler;
         self.sync_engine_runtime_config();
         if !self.rebase_and_recompose_modulation_key(key) && sampler {
             self.queue_instrument_slot_config(index);

@@ -1,5 +1,6 @@
 use super::modulation::RoutedMusicalEvents;
 use super::{NativeRunner, Value, BUS_COUNT, INSTRUMENT_COUNT};
+use crate::native_runner::InstrumentType;
 use crate::protocol::RuntimeAudioCommand;
 use platform_core::MusicalEvent;
 
@@ -12,7 +13,7 @@ impl NativeRunner {
         if self
             .instruments
             .get(index)
-            .is_none_or(|instrument| instrument.kind == "none")
+            .is_none_or(|instrument| instrument.kind == InstrumentType::None)
         {
             return;
         }

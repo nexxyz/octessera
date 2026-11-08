@@ -104,6 +104,7 @@ mod help_text;
 mod instrument_audio_payload;
 mod instrument_collections;
 mod instrument_runtime;
+mod instrument_type;
 mod json_path;
 mod layer_behavior_config;
 mod layer_replacement;
@@ -267,6 +268,7 @@ pub use config_documents::{
 };
 pub use config_schema_validation::is_valid_fx_string_param;
 pub use config_snapshot::NativeConfigSnapshot;
+pub use instrument_type::InstrumentType;
 pub use persistence_intent::NativePersistenceIntent;
 pub(crate) use retired_config_keys::without_retired_keys;
 pub use runner_config::NativeRunnerConfig;

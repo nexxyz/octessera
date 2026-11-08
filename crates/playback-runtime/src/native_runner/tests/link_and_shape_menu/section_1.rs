@@ -154,7 +154,7 @@ pub(crate) fn behavior_none_hides_step_config_and_reset_but_preserves_step_rate(
 #[test]
 pub(crate) fn instrument_none_hides_note_mode_params_and_slot_actions() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "none".into();
+    runner.instruments[0].kind = InstrumentType::None;
     runner.menu.rebuild(runner.menu_config());
     let instrument_items = &runner.menu.root.children[2].children[0].children[0].children;
 
@@ -206,7 +206,7 @@ pub(crate) fn entering_layer_row_updates_active_layer_index() {
 #[test]
 pub(crate) fn instrument_list_shows_compact_name_labels() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[1].kind = "sampler".into();
+    runner.instruments[1].kind = InstrumentType::Sampler;
     runner.instruments[1].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
 

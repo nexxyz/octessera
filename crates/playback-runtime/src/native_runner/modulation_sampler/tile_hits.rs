@@ -1,6 +1,7 @@
 use super::super::drum_config::{drum_velocity_level, drum_voice_midi_note};
 use super::super::sample_assignment_payload::tile_offset;
 use super::super::{NativeInstrumentSlot, NativeSampleAssignment, GRID_WIDTH};
+use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::TileTriggerIntent;
 use realtime_engine::synth::TILE_PITCH_CENTS_LIMIT;
@@ -22,7 +23,7 @@ pub(in super::super) fn drum_hit_for_intent(
     link_note: Option<u8>,
 ) -> Option<TileHit> {
     let instrument = instruments.get(slot as usize)?;
-    if instrument.kind != "drum" {
+    if instrument.kind != InstrumentType::Drum {
         return None;
     }
     let assignment = instrument

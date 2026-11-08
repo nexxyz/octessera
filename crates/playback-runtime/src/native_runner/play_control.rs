@@ -1,3 +1,4 @@
+use crate::native_runner::InstrumentType;
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
 use super::grid_assign::GridAssign;
@@ -134,7 +135,7 @@ impl NativeRunner {
                 if self
                     .instruments
                     .get(x)
-                    .is_some_and(|instrument| instrument.kind != "none")
+                    .is_some_and(|instrument| instrument.kind != InstrumentType::None)
                 {
                     let volume = ((y as f32 / (GRID_HEIGHT - 1) as f32) * 100.0).round() as i32;
                     self.set_play_menu_number(&format!("instruments.{x}.mixer.volume"), volume);
@@ -168,7 +169,7 @@ impl NativeRunner {
         let Some(instrument) = self
             .instruments
             .get(y)
-            .filter(|instrument| instrument.kind != "none")
+            .filter(|instrument| instrument.kind != InstrumentType::None)
         else {
             return;
         };

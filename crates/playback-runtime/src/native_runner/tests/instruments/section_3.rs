@@ -4,7 +4,7 @@ use crate::native_runner::modulation_sampler::apply_sampler_assignments_for_inst
 #[test]
 pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].sample_assignments = vec![NativeSampleAssignment {
         x: 2,
         y: 3,

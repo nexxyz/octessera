@@ -20,7 +20,7 @@ fn numeric_binding(key: &str, min: f64, max: f64) -> NativeParamBinding {
 #[test]
 fn instrument_scalar_target_matrix_excludes_fm_enums_and_structural_sample_controls() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "fm".into();
+    runner.instruments[0].kind = InstrumentType::Fm;
     runner.menu.rebuild(runner.menu_config());
     let tone = runner.resolve_aux_auto_map("", Some("instruments.0.fm.index"), None);
     assert_eq!(
@@ -95,7 +95,7 @@ fn instrument_scalar_target_matrix_excludes_fm_enums_and_structural_sample_contr
 #[test]
 fn fm_live_link_lfo_uses_scalar_endpoint_and_release_restores_base() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "fm".into();
+    runner.instruments[0].kind = InstrumentType::Fm;
     runner.link_lfos[0].enabled = true;
     runner.link_lfos[0].target = Some(numeric_binding("instruments.0.fm.index", 0.0, 100.0));
     runner.link_lfos[0].phase_pulses = 3;
@@ -114,7 +114,7 @@ fn fm_live_link_lfo_uses_scalar_endpoint_and_release_restores_base() {
 #[test]
 fn runner_only_sample_modulation_does_not_replace_audio_slot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     for (field, min, max) in [
         ("sample.baseVelocity", 1.0, 127.0),
         ("sample.velocityLevels.high", 1.0, 127.0),

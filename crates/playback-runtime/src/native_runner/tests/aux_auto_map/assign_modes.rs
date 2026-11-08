@@ -26,7 +26,7 @@ fn hint(runner: &NativeRunner, layer: &str, index: usize) -> Value {
 #[test]
 fn sampler_assign_drops_the_auto_map_from_caps_hints_and_turns_but_keeps_manual_bindings() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.menu.rebuild(runner.menu_config());
     runner.skip_startup_splash();
     runner.aux_bindings[2] = Some(NativeAuxBinding {

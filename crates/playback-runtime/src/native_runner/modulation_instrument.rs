@@ -1,7 +1,8 @@
 use super::{
     apply_instrument_numeric_binding_value, is_known_route, set_json_path_string, synth_string_at,
-    value_string_at, Value, FILTER_TYPES, INSTRUMENT_TYPES, NOTE_BEHAVIORS, OSC_WAVEFORMS,
+    value_string_at, InstrumentType, Value, FILTER_TYPES, OSC_WAVEFORMS,
 };
+use platform_core::NoteBehavior;
 
 pub(super) fn apply_instrument_binding_value(
     instrument: &mut super::NativeInstrumentSlot,
@@ -10,27 +11,21 @@ pub(super) fn apply_instrument_binding_value(
 ) -> bool {
     match field {
         "type" => {
-            let Some(value) = value
-                .as_str()
-                .filter(|value| INSTRUMENT_TYPES.contains(value))
-            else {
+            let Some(value) = value.as_str().and_then(InstrumentType::from_wire_name) else {
                 return false;
             };
             if instrument.kind != value {
-                instrument.kind = value.into();
+                instrument.kind = value;
             } else {
                 return false;
             }
         }
         "noteBehavior" => {
-            let Some(value) = value
-                .as_str()
-                .filter(|value| NOTE_BEHAVIORS.contains(value))
-            else {
+            let Some(value) = value.as_str().and_then(NoteBehavior::from_wire_name) else {
                 return false;
             };
             if instrument.note_behavior != value {
-                instrument.note_behavior = value.into();
+                instrument.note_behavior = value;
             } else {
                 return false;
             }

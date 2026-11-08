@@ -32,7 +32,7 @@ fn system_store_load_result_updates_device_display_without_disturbing_patch_runt
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].note_behavior = "hold".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.sync_engine_runtime_config();
     runner
         .send(HostMessage::DeviceInput {

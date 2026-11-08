@@ -15,12 +15,14 @@ mod synth;
 mod tile_stamp_items;
 
 use crate::instrument_presets::instrument_presets;
+use crate::native_runner::InstrumentType;
 use drum::drum_group;
 use fm::fm_group;
 use midi::midi_group;
 pub(super) use midi_drum::gm_percussion_name;
 use midi_drum::midi_drum_group;
 use mixer::mixer_group;
+use platform_core::NoteBehavior;
 use pluck::pluck_group;
 use sampler::sampler_group;
 use synth::synth_group;
@@ -29,9 +31,9 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) index: usize,
     pub(super) label: String,
     pub(super) name: &'a str,
-    pub(super) kind: &'a str,
+    pub(super) kind: InstrumentType,
     pub(super) auto_name: bool,
-    pub(super) note_behavior: &'a str,
+    pub(super) note_behavior: NoteBehavior,
     pub(super) route: &'a str,
     pub(super) volume: u8,
     pub(super) pan_pos: u8,
@@ -111,14 +113,14 @@ pub(super) fn factory_preset_choices(
 pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuItem {
     let prefix = format!("instruments.{}", config.index);
     let type_selected = match config.kind {
-        "none" => 0,
-        "sampler" => 2,
-        "midi" => 3,
-        "fm" => 4,
-        "pluck" => 5,
-        "drum" => 6,
-        "midi_drum" => 7,
-        _ => 1,
+        InstrumentType::None => 0,
+        InstrumentType::Synth => 1,
+        InstrumentType::Sampler => 2,
+        InstrumentType::Midi => 3,
+        InstrumentType::Fm => 4,
+        InstrumentType::Pluck => 5,
+        InstrumentType::Drum => 6,
+        InstrumentType::MidiDrum => 7,
     };
     let mut children = vec![enum_item(
         "Type",
@@ -135,7 +137,7 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
         ],
         type_selected,
     )];
-    if config.kind == "none" {
+    if config.kind == InstrumentType::None {
         children.push(bool_item(
             "Auto Label",
             format!("{prefix}.autoName"),
@@ -144,36 +146,43 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
         children.push(text_item("Name", format!("{prefix}.name"), config.name, 32));
         return group(config.label.clone(), children);
     }
-    if !matches!(config.kind, "drum" | "midi_drum") {
+    if !matches!(config.kind, InstrumentType::Drum | InstrumentType::MidiDrum) {
         children.push(enum_item(
             "Note Mode",
             format!("{prefix}.noteBehavior"),
             vec!["oneshot", "hold"],
-            selected_index(&["oneshot", "hold"], config.note_behavior),
+            selected_index(&["oneshot", "hold"], config.note_behavior.wire_name()),
         ));
     }
-    if config.kind == "synth" {
+    if config.kind == InstrumentType::Synth {
         children.push(synth_group(&config, &prefix));
     }
-    if config.kind == "fm" {
+    if config.kind == InstrumentType::Fm {
         children.push(fm_group(&config, &prefix));
     }
-    if config.kind == "pluck" {
+    if config.kind == InstrumentType::Pluck {
         children.push(pluck_group(&config, &prefix));
     }
-    if config.kind == "drum" {
+    if config.kind == InstrumentType::Drum {
         children.push(drum_group(&config, &prefix));
     }
-    if config.kind == "sampler" {
+    if config.kind == InstrumentType::Sampler {
         children.push(sampler_group(&config, &prefix));
     }
-    if config.kind == "midi" {
+    if config.kind == InstrumentType::Midi {
         children.push(midi_group(&config, &prefix));
     }
-    if config.kind == "midi_drum" {
+    if config.kind == InstrumentType::MidiDrum {
         children.push(midi_drum_group(&config, &prefix));
     }
-    if matches!(config.kind, "synth" | "sampler" | "fm" | "pluck" | "drum") {
+    if matches!(
+        config.kind,
+        InstrumentType::Synth
+            | InstrumentType::Sampler
+            | InstrumentType::Fm
+            | InstrumentType::Pluck
+            | InstrumentType::Drum
+    ) {
         children.push(mixer_group(&config, &prefix));
         children.push(signal_item(format!("signal.instrument.{}", config.index)));
     }

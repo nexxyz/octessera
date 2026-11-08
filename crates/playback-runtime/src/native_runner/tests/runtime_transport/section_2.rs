@@ -8,7 +8,7 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.instruments[1].kind = "sampler".into();
+    runner.instruments[1].kind = InstrumentType::Sampler;
     runner.instruments[1].sample_assignments = vec![NativeSampleAssignment {
         x: 0,
         y: 0,

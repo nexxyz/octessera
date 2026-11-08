@@ -2,7 +2,7 @@ use super::*;
 
 fn instrument_runner(kind: &str) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = kind.into();
+    runner.instruments[0].kind = InstrumentType::from_wire_name(kind).unwrap();
     runner.menu.rebuild(runner.menu_config());
     runner.transport.transport = RuntimeTransportState::Playing;
     let _ = runner.messages_with_snapshot().unwrap();

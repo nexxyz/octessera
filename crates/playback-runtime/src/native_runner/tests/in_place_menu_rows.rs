@@ -64,7 +64,7 @@ fn assert_detents_match_fresh_build(runner: &mut NativeRunner, key: &str, deltas
 
 pub(super) fn runner_with_instrument(kind: &str) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = kind.into();
+    runner.instruments[0].kind = InstrumentType::from_wire_name(kind).unwrap();
     runner.menu.rebuild(runner.menu_config());
     runner
 }

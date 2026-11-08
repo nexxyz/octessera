@@ -47,8 +47,8 @@ fn numeric_binding(key: &str, min: f64, max: f64) -> NativeParamBinding {
 #[test]
 fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "fm".into();
-    runner.instruments[1].kind = "synth".into();
+    runner.instruments[0].kind = InstrumentType::Fm;
+    runner.instruments[1].kind = InstrumentType::Synth;
     runner.menu.rebuild(runner.menu_config());
     let _ = runner.messages_with_snapshot().unwrap();
     assert!(runner
@@ -117,7 +117,7 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
 #[test]
 fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[1].kind = "synth".into();
+    runner.instruments[1].kind = InstrumentType::Synth;
     runner.menu.rebuild(runner.menu_config());
     runner.transport.transport = RuntimeTransportState::Playing;
     let _ = runner.messages_with_snapshot().unwrap();
@@ -174,7 +174,7 @@ fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
 #[test]
 fn held_fm_xy_menu_edit_rebases_without_double_command_then_release_restores_new_base() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "fm".into();
+    runner.instruments[0].kind = InstrumentType::Fm;
     runner.menu.rebuild(runner.menu_config());
     runner.active_play_mode = "xy".into();
     runner.xy.smoothing_ms = 0;

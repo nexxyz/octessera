@@ -7,6 +7,7 @@ use crate::protocol::{
     HostMessage, RunnerMessage, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
 };
 use crate::CoreRunner;
+use platform_core::NoteBehavior;
 use serde_json::{json, Value};
 
 fn local_documents() -> (Value, Value) {
@@ -109,7 +110,7 @@ fn setting_only_system_save_remains_available_with_local_samples() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].note_behavior = "hold".into();
+    runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.instruments[0].sample_paths[0] = Some("userdata/User Kit/custom.wav".into());
     runner.instruments[1].sample_paths[7] = Some("sd-card/octessera/samples/kick.wav".into());
     runner.sync_engine_runtime_config();

@@ -2,7 +2,7 @@ use super::*;
 
 fn fm_menu() -> NativeMenuModel {
     let mut cfg = config();
-    cfg.instrument_types[0] = "fm".into();
+    cfg.instrument_types[0] = InstrumentType::Fm;
     NativeMenuModel::new(cfg)
 }
 
@@ -99,7 +99,7 @@ fn fm_type_and_eight_group_rows_use_standard_navigation() {
 #[test]
 fn fm_picker_exposes_only_selected_continuous_controls() {
     let mut cfg = config();
-    cfg.instrument_types[0] = "fm".into();
+    cfg.instrument_types[0] = InstrumentType::Fm;
     cfg.instrument_fm_configs[0] = serde_json::json!({
         "index": 87, "amp": { "gainPct": 23 },
         "filter": { "cutoffHz": 4000, "resonance": 64, "type": "notch" },
@@ -282,7 +282,7 @@ fn fm_defaults_ranges_and_saved_values_are_independent_from_synth() {
     );
 
     let mut cfg = config();
-    cfg.instrument_types[0] = "fm".into();
+    cfg.instrument_types[0] = InstrumentType::Fm;
     cfg.instrument_fm_configs[0] = serde_json::json!({
         "ratio": "0.5", "index": 87, "filter": { "type": "notch", "cutoffHz": 4000 },
         "amp": { "gainPct": 23 }, "indexEnv": { "decayMs": 400 }

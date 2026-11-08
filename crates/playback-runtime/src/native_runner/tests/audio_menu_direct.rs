@@ -112,7 +112,7 @@ pub(crate) fn fast_path_audio_param_still_applies_immediately() {
 pub(crate) fn sampler_fast_path_uses_direct_audio_command_without_revision_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("instruments.0.sample.tuneSemis"));
@@ -402,7 +402,7 @@ pub(crate) fn osc_level_edit_reaches_audio_as_a_direct_synth_command() {
 #[test]
 pub(crate) fn sampler_filter_edit_reaches_audio_as_a_direct_sample_bank_command() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "sampler".into();
     runner.menu.rebuild(runner.menu_config());
     let _ = runner.messages_with_snapshot().unwrap();
@@ -431,7 +431,7 @@ pub(crate) fn instrument_type_edit_rebuilds_only_that_audio_slot() {
     runner.edit_menu_key("instruments.0.type", 1).unwrap();
     let messages = runner.messages_with_snapshot().unwrap();
 
-    assert_eq!(runner.instruments[0].kind, "sampler");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Sampler);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }

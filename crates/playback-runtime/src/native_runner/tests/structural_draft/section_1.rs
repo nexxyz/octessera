@@ -187,7 +187,7 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
         .menu
         .value_for_key("instruments.0.synth.amp.gainPct")
         .is_none());
-    assert_eq!(runner.instruments[0].kind, "sampler");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Sampler);
     assert_eq!(runner.audio_config_revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -201,7 +201,7 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
     assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
 
     let messages = press_main(&mut runner);
-    assert_eq!(runner.instruments[0].kind, "sampler");
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Sampler);
     assert_eq!(runner.audio_config_revision, 0);
     assert_no_audio_commands(&messages);
     assert_no_store_save_default(&messages);

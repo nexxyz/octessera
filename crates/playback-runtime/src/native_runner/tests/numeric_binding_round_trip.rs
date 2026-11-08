@@ -81,7 +81,7 @@ fn assert_targets_with_prefix(runner: &mut NativeRunner, prefix: &str) -> usize 
 fn every_offered_instrument_target_writes_the_value_its_menu_row_shows() {
     for kind in INSTRUMENT_KINDS {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.instruments[0].kind = (*kind).into();
+        runner.instruments[0].kind = InstrumentType::from_wire_name(kind).unwrap();
         let checked = assert_targets_with_prefix(&mut runner, "instruments.0.");
         assert!(checked >= 2, "{kind} offered {checked} numeric targets");
         for binding in offered_keys(&mut runner, "number", "instruments.0.") {

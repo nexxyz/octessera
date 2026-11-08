@@ -34,8 +34,8 @@ fn sampler_runner(note_behavior: &str) -> NativeRunner {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.instruments[0].kind = "sampler".into();
-    runner.instruments[0].note_behavior = note_behavior.into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
+    runner.instruments[0].note_behavior = NoteBehavior::from_wire_name(note_behavior).unwrap();
     runner.instruments[0].sample_assignments = [(1, 2), (2, 2), (3, 2)]
         .into_iter()
         .map(|(x, sample_slot)| NativeSampleAssignment {

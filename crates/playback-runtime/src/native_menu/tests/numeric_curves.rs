@@ -14,7 +14,7 @@ fn curve_of(menu: &NativeMenuModel, key: &str) -> NumberCurve {
 #[test]
 fn times_frequencies_and_rates_get_curved_encoder_steps() {
     let mut cfg = config();
-    cfg.instrument_types[0] = "fm".into();
+    cfg.instrument_types[0] = InstrumentType::Fm;
     let menu = NativeMenuModel::new(cfg);
     let time = NumberCurve::Time { units_per_ms: 1 };
     assert_eq!(curve_of(&menu, "instruments.0.fm.ampEnv.attackMs"), time);

@@ -103,7 +103,7 @@ pub(crate) fn midi_device_event_precedes_snapshot_and_status() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.instruments[0].kind = "midi".into();
+    runner.instruments[0].kind = InstrumentType::Midi;
     runner.instruments[0].midi_enabled = true;
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.refresh_active_mapping_config();

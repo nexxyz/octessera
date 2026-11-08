@@ -3,7 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn turning_instrument_and_bus_auto_name_on_replaces_manual_names() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "manual inst".into();
     runner.instruments[0].auto_name = false;
     runner.fx_buses[0].slot1_type = "delay".into();

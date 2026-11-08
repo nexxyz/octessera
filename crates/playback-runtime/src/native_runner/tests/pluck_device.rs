@@ -28,7 +28,7 @@ fn assert_scalar(messages: &[RunnerMessage], path: &str) {
 #[test]
 fn pluck_menu_numeric_device_edits_emit_only_targeted_scalar() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "pluck".into();
+    runner.instruments[0].kind = InstrumentType::Pluck;
     runner.menu.rebuild(runner.menu_config());
     let _ = runner.messages_with_snapshot().unwrap();
     for (field, delta) in [
@@ -82,8 +82,8 @@ fn pluck_menu_numeric_device_edits_emit_only_targeted_scalar() {
 #[test]
 fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "pluck".into();
-    runner.instruments[1].kind = "synth".into();
+    runner.instruments[0].kind = InstrumentType::Pluck;
+    runner.instruments[1].kind = InstrumentType::Synth;
     runner.menu.rebuild(runner.menu_config());
     let _ = runner.messages_with_snapshot().unwrap();
     let other = runner.instruments[1].clone();
@@ -140,7 +140,7 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
 #[test]
 fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "pluck".into();
+    runner.instruments[0].kind = InstrumentType::Pluck;
     runner.menu.rebuild(runner.menu_config());
     runner.active_play_mode = "xy".into();
     runner.xy.smoothing_ms = 0;
@@ -215,7 +215,7 @@ fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
 #[test]
 fn pluck_live_lfo_targets_recompose_as_scalars_without_ring_replacement_commands() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "pluck".into();
+    runner.instruments[0].kind = InstrumentType::Pluck;
     runner.transport.transport = RuntimeTransportState::Playing;
     for (field, min, max) in [("decayMs", 100.0, 5000.0), ("brightnessPct", 0.0, 100.0)] {
         let key = format!("instruments.0.pluck.{field}");

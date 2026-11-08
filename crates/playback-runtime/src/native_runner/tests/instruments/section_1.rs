@@ -150,7 +150,7 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
 #[test]
 pub(crate) fn sample_slot_menu_is_one_based_but_payload_remains_zero_based_and_back_exits_assign() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.menu.rebuild(runner.menu_config());
 
     assert_eq!(

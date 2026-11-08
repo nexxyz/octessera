@@ -176,7 +176,7 @@ fn an_aux_type_change_closes_the_signal_view_before_it_shows_a_midi_source() {
             &mut runner,
             json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
         );
-        assert_eq!(runner.instruments[0].kind, kind);
+        assert_eq!(runner.instruments[0].kind.wire_name(), kind);
         assert!(runner.shown_full_screen_signal().is_none(), "{kind}");
         assert!(presented(&mut runner).display.signal.is_none(), "{kind}");
         assert_eq!(tap.selected(), None, "{kind}");

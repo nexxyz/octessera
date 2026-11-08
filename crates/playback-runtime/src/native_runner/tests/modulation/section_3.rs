@@ -4,7 +4,7 @@ use super::*;
 pub(crate) fn assignment_mode_wins_over_fn_layer_navigation_and_autosaves() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;
-    runner.instruments[0].kind = "sampler".into();
+    runner.instruments[0].kind = InstrumentType::Sampler;
     runner.grid_assign = Some(GridAssign::Sample {
         slot: 0,
         sample_slot: 1,

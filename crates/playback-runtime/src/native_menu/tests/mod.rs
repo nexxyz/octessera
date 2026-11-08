@@ -1,4 +1,6 @@
 use super::*;
+use crate::native_runner::InstrumentType;
+use platform_core::NoteBehavior;
 use platform_core::AUX_ENCODER_COUNT;
 use platform_core::LAYER_COUNT;
 
