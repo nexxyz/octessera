@@ -8,6 +8,7 @@ use crate::native_menu::{
     MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES, MIDI_DRUM_VELOCITIES,
 };
 use platform_core::{INSTRUMENT_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT};
+use realtime_engine::synth::VoiceStealingMode;
 use serde_json::Map;
 
 const VELOCITY_CURVES: &[&str] = &["linear", "soft", "hard"];
@@ -24,14 +25,6 @@ pub(crate) const INSTRUMENT_TYPES: &[&str] = &[
 pub(crate) const NOTE_BEHAVIORS: &[&str] = &["oneshot", "hold"];
 pub(crate) const OSC_WAVEFORMS: &[&str] = &["sine", "triangle", "saw", "square", "pulse"];
 pub(crate) const FILTER_TYPES: &[&str] = &["lowpass", "highpass", "bandpass", "notch"];
-const VOICE_MODES: &[&str] = &[
-    "none",
-    "fixed12",
-    "fixed16",
-    "auto-soft",
-    "auto-balanced",
-    "auto-hard",
-];
 
 pub(super) fn validate_sound(runtime: &Map<String, Value>) -> Result<(), String> {
     let Some(sound) = object_field(runtime, "sound", "runtimeConfig")? else {
@@ -48,7 +41,7 @@ pub(super) fn validate_sound(runtime: &Map<String, Value>) -> Result<(), String>
         sound,
         "voiceStealingMode",
         "runtimeConfig.sound",
-        VOICE_MODES,
+        &VoiceStealingMode::ALL.map(VoiceStealingMode::wire_name),
     )?;
     enum_field(
         sound,

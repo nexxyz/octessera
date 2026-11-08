@@ -7,7 +7,7 @@ use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::play_pages::is_play_mode;
 use super::{
     velocity_curve_from_id, AudioOptimization, AudioOutputSet, NativeRunner, SyncSource,
-    UsbDataRole, Value,
+    UsbDataRole, Value, VoiceStealingMode,
 };
 
 impl NativeRunner {
@@ -116,8 +116,8 @@ impl NativeRunner {
             .and_then(|sound| sound.get("voiceStealingMode"))
             .and_then(Value::as_str)
         {
-            if let Some(mode) = super::normalize_voice_stealing_mode(value) {
-                self.voice_stealing_mode = mode.into();
+            if let Some(mode) = VoiceStealingMode::from_wire_name(value) {
+                self.voice_stealing_mode = mode;
             }
         }
         if let Some(value) = sound

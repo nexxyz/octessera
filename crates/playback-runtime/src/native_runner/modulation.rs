@@ -129,9 +129,9 @@ impl NativeRunner {
 
     fn apply_voice_stealing_binding(&mut self, value: Value) -> bool {
         if let Some(value) = value.as_str() {
-            if let Some(mode) = super::normalize_voice_stealing_mode(value) {
+            if let Some(mode) = super::VoiceStealingMode::from_wire_name(value) {
                 if self.voice_stealing_mode != mode {
-                    self.voice_stealing_mode = mode.into();
+                    self.voice_stealing_mode = mode;
                     self.commit_full_configuration_runtime_plan();
                     return true;
                 }

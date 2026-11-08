@@ -67,3 +67,23 @@ fn unversioned_payload_ignores_an_unknown_instrument_route() {
         .unwrap();
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
 }
+
+#[test]
+fn voice_stealing_mode_takes_only_known_modes() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(!write(&mut runner, "sound.voiceStealingMode", "fixed13"));
+    runner
+        .apply_config_payload(json!({
+            "runtimeConfig": { "sound": { "voiceStealingMode": "fixed13" } }
+        }))
+        .unwrap();
+    assert_eq!(runner.voice_stealing_mode, VoiceStealingMode::AutoBalanced);
+    for mode in VoiceStealingMode::ALL {
+        write(&mut runner, "sound.voiceStealingMode", mode.wire_name());
+        assert_eq!(runner.voice_stealing_mode, mode);
+        assert_eq!(
+            runner.config_payload()["runtimeConfig"]["sound"]["voiceStealingMode"],
+            mode.wire_name()
+        );
+    }
+}

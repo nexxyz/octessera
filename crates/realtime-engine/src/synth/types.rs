@@ -59,20 +59,46 @@ pub enum MomentaryFxTarget {
     Instrument { index: usize },
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum VoiceStealingMode {
-    #[serde(rename = "none")]
     None,
-    #[serde(rename = "fixed12")]
     Fixed12,
-    #[serde(rename = "fixed16")]
     Fixed16,
-    #[serde(rename = "auto-soft")]
     AutoSoft,
-    #[serde(rename = "auto-balanced")]
     AutoBalanced,
-    #[serde(rename = "auto-hard")]
     AutoHard,
+}
+
+impl VoiceStealingMode {
+    pub const ALL: [Self; 6] = [
+        Self::None,
+        Self::Fixed12,
+        Self::Fixed16,
+        Self::AutoSoft,
+        Self::AutoBalanced,
+        Self::AutoHard,
+    ];
+
+    pub const fn wire_name(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Fixed12 => "fixed12",
+            Self::Fixed16 => "fixed16",
+            Self::AutoSoft => "auto-soft",
+            Self::AutoBalanced => "auto-balanced",
+            Self::AutoHard => "auto-hard",
+        }
+    }
+
+    pub fn from_wire_name(value: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|mode| mode.wire_name() == value)
+    }
+}
+
+impl Serialize for VoiceStealingMode {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.wire_name())
+    }
 }
 
 /// The slowest render block since the previous status, and what it handled.

@@ -2,7 +2,9 @@ use crate::protocol::RuntimeAudioCommand;
 
 use super::menu_apply_fast::value_changed;
 use super::{AudioOutputSet, NativeRunner};
-use realtime_engine::synth::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
+use realtime_engine::synth::{
+    BusIdleThreshold, DspRuntimeConfig, VoiceStealingMode, WorkerWarningThreshold,
+};
 
 impl NativeRunner {
     pub(super) fn apply_runtime_menu_key_fast(&mut self, key: &str) -> Option<bool> {
@@ -383,10 +385,10 @@ impl NativeRunner {
         let Some(value) = self.menu.value_for_key("sound.voiceStealingMode") else {
             return false;
         };
-        let Some(mode) = super::normalize_voice_stealing_mode(&value) else {
+        let Some(mode) = VoiceStealingMode::from_wire_name(&value) else {
             return false;
         };
-        if value_changed(&mut self.voice_stealing_mode, mode.into()) {
+        if value_changed(&mut self.voice_stealing_mode, mode) {
             self.commit_full_configuration_runtime_plan();
             self.rebase_and_recompose_modulation_key("sound.voiceStealingMode");
             self.mark_fast_autosave_dirty();

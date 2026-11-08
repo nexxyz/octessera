@@ -157,7 +157,7 @@ impl NativeRunner {
                 .expect("native note length must fit the menu value"),
             velocity_scale_pct: self.global_sound.velocity_scale_pct,
             velocity_curve: velocity_curve_id(self.global_sound.velocity_curve).into(),
-            voice_stealing_mode: self.voice_stealing_mode.clone(),
+            voice_stealing_mode: self.voice_stealing_mode,
             auto_save_default: self.auto_save_default,
             rolling_backups: self.rolling_backups,
             ghost_tiles: self.display.ui.ghost_tiles,

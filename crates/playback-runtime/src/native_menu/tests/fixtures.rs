@@ -165,7 +165,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         note_length_ms: 150,
         velocity_scale_pct: 100,
         velocity_curve: "linear".into(),
-        voice_stealing_mode: "auto-balanced".into(),
+        voice_stealing_mode: realtime_engine::synth::VoiceStealingMode::AutoBalanced,
         auto_save_default: true,
         rolling_backups: true,
         aux_auto_hints: true,

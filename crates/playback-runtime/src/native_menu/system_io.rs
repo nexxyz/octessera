@@ -61,7 +61,7 @@ pub(super) fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeM
                 "auto-hard",
                 "none",
             ],
-            &config.voice_stealing_mode,
+            config.voice_stealing_mode.wire_name(),
         ),
     ));
     let engine_children = vec![

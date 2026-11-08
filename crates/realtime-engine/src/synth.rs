@@ -22,8 +22,7 @@ mod types;
 
 pub use audio_config::{
     normalize_audio_config, normalize_fx_slot, normalize_instrument_slot_config,
-    parse_voice_stealing_mode, NormalizedAudioConfig, NormalizedInstrumentSlot,
-    NormalizedSampleConfig,
+    NormalizedAudioConfig, NormalizedInstrumentSlot, NormalizedSampleConfig,
 };
 pub use dsp_config::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
 #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]

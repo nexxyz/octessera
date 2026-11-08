@@ -172,7 +172,11 @@ pub fn normalize_audio_config(config: &Value) -> Result<NormalizedAudioConfig, S
         voice_stealing_mode: config
             .voice_stealing_mode
             .as_deref()
-            .map(parse_voice_stealing_mode),
+            .map(|value| {
+                VoiceStealingMode::from_wire_name(value)
+                    .ok_or_else(|| format!("unknown voice stealing mode `{value}`"))
+            })
+            .transpose()?,
     })
 }
 
@@ -208,17 +212,6 @@ pub fn normalize_fx_slot(value: &Value) -> Result<FxBusSlotConfig, String> {
             })
         }
         _ => Err("expected slot string or object".to_string()),
-    }
-}
-
-pub fn parse_voice_stealing_mode(raw: &str) -> VoiceStealingMode {
-    match raw {
-        "none" => VoiceStealingMode::None,
-        "fixed12" => VoiceStealingMode::Fixed12,
-        "fixed16" => VoiceStealingMode::Fixed16,
-        "auto-soft" => VoiceStealingMode::AutoSoft,
-        "auto-hard" => VoiceStealingMode::AutoHard,
-        _ => VoiceStealingMode::AutoBalanced,
     }
 }
 

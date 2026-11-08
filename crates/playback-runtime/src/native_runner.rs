@@ -32,7 +32,7 @@ use platform_core::{
 };
 #[cfg(test)]
 use platform_core::{MusicalEvent, TileTriggerIntent};
-use realtime_engine::synth::DspRuntimeConfig;
+use realtime_engine::synth::{DspRuntimeConfig, VoiceStealingMode};
 use serde_json::{json, Value};
 #[cfg(any(test, feature = "test-support"))]
 use std::cell::Cell;
@@ -387,7 +387,7 @@ pub struct NativeRunner {
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
     input_events_while_paused: bool,
-    voice_stealing_mode: String,
+    voice_stealing_mode: VoiceStealingMode,
     midi_clock_out_enabled: bool,
     midi_clock_in_enabled: bool,
     midi_respond_to_start_stop: bool,

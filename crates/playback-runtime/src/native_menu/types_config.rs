@@ -1,6 +1,6 @@
 use crate::native_runner::{AudioOptimization, AudioOutputSet, UsbDataRole};
 use crate::protocol::SyncSource;
-use realtime_engine::synth::DspRuntimeConfig;
+use realtime_engine::synth::{DspRuntimeConfig, VoiceStealingMode};
 
 use super::{NativeMenuAction, NativeMenuItem, NativeParamBindingSpec};
 
@@ -82,7 +82,7 @@ pub struct NativeMenuConfig {
     pub note_length_ms: u16,
     pub velocity_scale_pct: u16,
     pub velocity_curve: String,
-    pub voice_stealing_mode: String,
+    pub voice_stealing_mode: VoiceStealingMode,
     pub auto_save_default: bool,
     pub rolling_backups: bool,
     pub ghost_tiles: bool,

@@ -27,6 +27,24 @@ fn normalizes_shared_config_and_preserves_sample_paths() {
 }
 
 #[test]
+fn voice_stealing_modes_parse_by_wire_name_and_reject_unknown_names() {
+    for mode in VoiceStealingMode::ALL {
+        let config = normalize_audio_config(&serde_json::json!({
+            "voiceStealingMode": mode.wire_name(),
+            "instruments": []
+        }))
+        .unwrap();
+        assert_eq!(config.voice_stealing_mode, Some(mode));
+        assert_eq!(serde_json::json!(mode), mode.wire_name());
+    }
+    assert!(normalize_audio_config(&serde_json::json!({
+        "voiceStealingMode": "auto-balancedd",
+        "instruments": []
+    }))
+    .is_err());
+}
+
+#[test]
 fn rejects_malformed_and_unknown_fx_slots() {
     for value in [
         serde_json::json!({ "params": {} }),

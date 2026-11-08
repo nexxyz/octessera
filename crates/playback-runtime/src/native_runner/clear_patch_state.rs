@@ -32,7 +32,7 @@ impl NativeRunner {
         self.transport.bpm = 120.0;
         self.transport.swing_a = 4;
         self.transport.swing_b = 4;
-        self.voice_stealing_mode = "auto-balanced".into();
+        self.voice_stealing_mode = VoiceStealingMode::AutoBalanced;
         self.link_layers = default_link_layers();
         self.grid_assign = None;
         self.trigger_probability_maps =

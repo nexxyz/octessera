@@ -32,7 +32,7 @@ pub(crate) fn voice_stealing_param_mod_is_transient_until_audio_config_replay() 
                 .iter()
                 .any(|command| matches!(command, RuntimeAudioCommand::SetAudioConfig { .. }))
     )));
-    assert_eq!(runner.voice_stealing_mode, "auto-hard");
+    assert_eq!(runner.voice_stealing_mode, VoiceStealingMode::AutoHard);
 }
 
 #[test]
