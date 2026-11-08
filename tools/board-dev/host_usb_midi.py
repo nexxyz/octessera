@@ -1,8 +1,9 @@
 """Closed-loop USB MIDI timing test against a board running the usb_midi scenario (run on the host).
 
-usage: host_usb_midi.py <Raspberry|Orange> <straight|swing> <result.json>
+usage: host_usb_midi.py <Raspberry|Orange> <straight|swing|cc> <result.json>
 straight: Start, 24 PPQN clock at 100 BPM for 120 s, 140 BPM for 60 s, Stop. swing: 100 BPM for 30 s
-with the board on Swing 4:5. Every incoming message is stamped with perf_counter while the same loop
+with the board on Swing 4:5. cc: 100 BPM for 36 s with CC1 at 16, 48 and 96 for 12 s each; the board
+maps CC1 to Vel Scale, so the mirrored Drum's velocity must follow each value from the next step on. Every incoming message is stamped with perf_counter while the same loop
 sends the clock, so the stamps share the clock's time base. Intervals near a clock pulse the host
 itself sent more than 1 ms late are left out of the interval checks and counted. Needs python-rtmidi.
 """
@@ -18,13 +19,16 @@ DRUM, MIDI_DRUM = 0, 9
 TOLERANCE_MS = 2.0
 HOST_LATE_S = 0.001
 DURATION_TOLERANCE_MS = 3.0
+CC_STEPS = [(0.0, 16), (12.0, 48), (24.0, 96)]
+# One 1/8 step at 100 BPM plus a margin: a CC applies from the next step on.
+CC_SETTLE_S = 0.35
 
 
 def port(ports, name):
     return next(i for i, label in enumerate(ports) if name in label and "Octessera" in label)
 
 
-def drive(name, segments):
+def drive(name, segments, ccs=()):
     ctypes.windll.winmm.timeBeginPeriod(1)
     ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), 0x80)
     ctypes.windll.kernel32.SetThreadPriority(ctypes.windll.kernel32.GetCurrentThread(), 15)
@@ -32,7 +36,8 @@ def drive(name, segments):
     midi_in.ignore_types(sysex=True, timing=False, active_sense=True)
     midi_in.open_port(port(midi_in.get_ports(), name))
     midi_out.open_port(port(midi_out.get_ports(), name))
-    received, ticks, changes, late = [], [], [], []
+    received, ticks, changes, late, sent_ccs = [], [], [], [], []
+    pending_ccs = list(ccs)
 
     def until(deadline):
         while (now := time.perf_counter()) < deadline:
@@ -49,6 +54,10 @@ def drive(name, segments):
         changes.append((due, bpm))
         for _ in range(round(seconds * bpm * 24 / 60)):
             until(due)
+            while pending_ccs and due - sent >= pending_ccs[0][0]:
+                value = pending_ccs.pop(0)[1]
+                midi_out.send_message([0xB0, 1, value])
+                sent_ccs.append((time.perf_counter(), value))
             midi_out.send_message([0xF8])
             ticks.append(time.perf_counter())
             if ticks[-1] - due > HOST_LATE_S:
@@ -60,11 +69,12 @@ def drive(name, segments):
     until(stop + 3.0)
     midi_in.close_port()
     midi_out.close_port()
-    return {"start": sent, "stop": stop, "ticks": ticks, "changes": changes, "received": received, "host_late": late}
+    return {"start": sent, "stop": stop, "ticks": ticks, "changes": changes, "received": received, "host_late": late,
+            "ccs": sent_ccs}
 
 
 def notes(received):
-    """(channel, note, on, off) for every note-on, off None when it never ended."""
+    """(channel, note, on, off, velocity) for every note-on, off None when it never ended."""
     held, found = {}, []
     for t, message in received:
         status = message[0] & 0xF0
@@ -72,7 +82,7 @@ def notes(received):
             continue
         key = (message[0] & 0x0F, message[1])
         if status == 0x90 and message[2] > 0:
-            entry = [key[0], key[1], t, None]
+            entry = [key[0], key[1], t, None, message[2]]
             found.append(entry)
             held.setdefault(key, []).append(entry)
         elif held.get(key):
@@ -85,7 +95,25 @@ def span(values):
             "mean": round(statistics.fmean(values), 2)} if values else {"n": 0}
 
 
+def analyze_cc(run):
+    """Each CC value's window must play one velocity, and the velocities must rise with the values."""
+    problems, windows = [], []
+    drum = [n for n in notes(run["received"]) if n[0] == DRUM]
+    bounds = [t for t, _ in run["ccs"]] + [run["stop"]]
+    for (sent, value), end in zip(run["ccs"], bounds[1:]):
+        velocities = sorted({n[4] for n in drum if sent + CC_SETTLE_S <= n[2] < end})
+        windows.append({"cc": value, "velocities": velocities})
+        if len(velocities) != 1:
+            problems.append(f"CC1 {value}: Drum velocities {velocities} from one step after it, not one value")
+    played = [w["velocities"][0] for w in windows if len(w["velocities"]) == 1]
+    if len(played) == len(windows) and played != sorted(set(played)):
+        problems.append(f"Drum velocities {played} do not rise with CC1 {[w['cc'] for w in windows]}")
+    return problems, {"windows": windows, "ccs_sent": len(run["ccs"])}
+
+
 def analyze(run, phase):
+    if phase == "cc":
+        return analyze_cc(run)
     problems, metrics = [], {}
     found = notes(run["received"])
     drum = [n for n in found if n[0] == DRUM]
@@ -143,8 +171,8 @@ def analyze(run, phase):
 
 def main():
     name, phase, result = sys.argv[1:4]
-    segments = [(100, 120), (140, 60)] if phase == "straight" else [(100, 30)]
-    run = drive(name, segments)
+    segments = {"straight": [(100, 120), (140, 60)], "swing": [(100, 30)], "cc": [(100, 36)]}[phase]
+    run = drive(name, segments, CC_STEPS if phase == "cc" else ())
     problems, metrics = analyze(run, phase)
     with open(result, "w") as out:
         json.dump({"phase": phase, "problems": problems, "metrics": metrics, "run": run}, out)

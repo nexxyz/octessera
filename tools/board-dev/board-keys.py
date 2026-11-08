@@ -2,8 +2,9 @@
 
 usage: board-keys.py <usb|bt> <mark-log> <label> "<steps>" [seconds]
 steps: space-separated tokens: a key name with an optional *N repeat, wait:<s>, gap:<s> (pause after
-each tap, default 0.12), or mark:<name> (writes "<uptime> <label>_<name>" to the mark log). A key may
-be a chord like alt+r: the modifiers are held around each tap. Grid keys use their US keycaps (4..0 -,
+each tap, default 0.12), hold:<key>:<s> (holds one key down that long), or mark:<name> (writes
+"<uptime> <label>_<name>" to the mark log). A key may be a chord like alt+r: the modifiers are held
+around each tap. Grid keys use their US keycaps (4..0 -,
 r..p [, f..l ; ', c..m , . /). With seconds, the steps repeat until that much time has passed.
 """
 import fcntl
@@ -46,6 +47,14 @@ def main():
                 time.sleep(float(value))
             elif kind == "gap":
                 gap = float(value)
+            elif kind == "hold":
+                key, _, held_seconds = value.rpartition(":")
+                emit(fd, EV_KEY, KEYS[key], 1)
+                emit(fd, EV_SYN, 0, 0)
+                time.sleep(float(held_seconds))
+                emit(fd, EV_KEY, KEYS[key], 0)
+                emit(fd, EV_SYN, 0, 0)
+                time.sleep(gap)
             elif kind == "mark":
                 with open(log, "a") as out:
                     out.write(f"{open('/proc/uptime').read().split()[0]} {label}_{value}\n")

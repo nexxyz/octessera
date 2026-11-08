@@ -237,6 +237,25 @@ def usb_midi(board, out):
     return problems, "; ".join(evidence)
 
 
+def usb_midi_cc(board, out):
+    result = json.loads((out / "usb-midi-cc.json").read_text())
+    underruns, late, worst, journal_errors = window_counts(out, "usb_midi_cc_ready", "usb_midi_cc_go")
+    problems = result["problems"] + journal_errors
+    if underruns or late:
+        problems.append(f"{underruns} underruns and {late} late timed events (timing smoke: 0 and 0)")
+    return problems, (f"{json.dumps(result['metrics'])}, {underruns} underruns, {late} late timed events, "
+                      f"worst runtime_late {worst}us")
+
+
+def usb_audio_fx(board, out):
+    result = json.loads((out / "usb-audio-fx.json").read_text())
+    underruns, _, worst, _ = window_counts(out, "fx_hold", "fx_release")
+    problems = result["problems"] + window_errors(out, "usb_audio_fx")
+    if underruns:
+        problems.append(f"{underruns} underruns while the tape stop was held")
+    return problems, f"{json.dumps(result['metrics'])}, {underruns} underruns, worst runtime_late {worst}us"
+
+
 def clip_frames(avi):
     probe = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(avi)],
                                       capture_output=True, check=True).stdout)

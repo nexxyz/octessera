@@ -2,12 +2,12 @@
 # Runs on the board, started by board-scenarios.sh. "boot" collects cold-boot evidence from the live
 # service. "run" (started detached) drives the given scenarios with the virtual keyboard on the real
 # service with a cloned store, then restores the service (and the USB gadget, if a scenario rebuilt it)
-# and removes the clone and any recordings. usb_midi and usb_audio wait at gates for the host's part:
+# and removes the clone and any recordings. The usb_ scenarios wait at gates for the host's part:
 # the payload touches <gate>.ready and goes on once the host touches <gate>.go.
 #
 #   board-scenarios-payload.sh <rpi|opi> <root> boot
 #   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap
-#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_audio
+#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_audio|usb_audio_fx
 # Root reads privileged files; the redirects deliberately write as the unprivileged payload user.
 # shellcheck disable=SC2024
 set -u
@@ -197,6 +197,20 @@ usb_midi() {
     sleep 5
     gate "$setup" || return
   done
+}
+usb_midi_cc() {
+  prepare usb_midi_cc
+  start OCTESSERA_RUNTIME_TIMING_TRACE=1 || return
+  sleep 5
+  gate usb_midi_cc || return
+}
+# Holds the tape stop on Play FX tile (3, 3), key 7, while the host captures USB Audio.
+usb_audio_fx() {
+  prepare usb_audio_fx
+  gadget_from_clone
+  start OCTESSERA_TIMING_AUTOPLAY=1 || return
+  gate usb_audio_fx || return
+  keys fx "esc*8 wait:5 shift+ctrl+/ wait:2 mark:hold hold:7:6 mark:release wait:12"
 }
 usb_audio() {
   prepare usb_audio

@@ -6,17 +6,18 @@
 #
 #   tools/board-dev/board-scenarios.sh rpi pi@<PI_HOST> [scenario ...]
 #   tools/board-dev/board-scenarios.sh opi octessera@<ORANGE_HOST> [scenario ...]
-# Scenarios: boot save_restore recording oled soak keymap usb_midi usb_audio (default: all). boot
-# really reboots the board and only reads the live service; the others run detached on a cloned store.
-# usb_midi and usb_audio are driven from this host over the board's USB connection (host_usb_midi.py,
-# host_usb_audio.py) and use SSH only between their measurements; the rest use none until they end.
+# Scenarios: boot save_restore recording oled soak keymap usb_midi usb_midi_cc usb_audio usb_audio_fx
+# (default: all). boot really reboots the board and only reads the live service; the others run
+# detached on a cloned store. The usb_ ones are driven from this host over the board's USB connection
+# (host_usb_midi.py, host_usb_audio.py) and use SSH only between their measurements; the rest use none
+# until they end.
 # Results and evidence land in target/board-scenarios/<board>-<stamp>/, PASS/FAIL lines in summary.txt.
 set -euo pipefail
 board=${1:?board: rpi or opi} target=${2:?target: user@host}
 shift 2
 [[ "$board" == rpi || "$board" == opi ]] || { echo "board must be rpi or opi" >&2; exit 2; }
 scenarios=("$@")
-[ ${#scenarios[@]} -gt 0 ] || scenarios=(boot save_restore recording oled soak keymap usb_midi usb_audio)
+[ ${#scenarios[@]} -gt 0 ] || scenarios=(boot save_restore recording oled soak keymap usb_midi usb_midi_cc usb_audio usb_audio_fx)
 soak_seconds=${OCTESSERA_SCENARIO_SOAK_SECONDS:-1500}
 cd "$(git rev-parse --show-toplevel)"
 port=Raspberry
@@ -65,7 +66,7 @@ for scenario in "${scenarios[@]}"; do
     oled) run+=("$scenario"); wait=$((wait + 120)) ;;
     soak) run+=("$scenario"); wait=$((wait + soak_seconds + 60)) ;;
     keymap) run+=("$scenario"); wait=$((wait + 45)) ;;
-    usb_midi | usb_audio) ;;
+    usb_midi | usb_midi_cc | usb_audio | usb_audio_fx) ;;
     *) echo "unknown scenario: $scenario" >&2; exit 2 ;;
   esac
 done
@@ -94,7 +95,7 @@ if [ ${#run[@]} -gt 0 ]; then
     oled-before-system.json oled-trace.txt soak-proc.log recording.avi keymap-patch.json
 fi
 
-for scenario in usb_midi usb_audio; do
+for scenario in usb_midi usb_midi_cc usb_audio usb_audio_fx; do
   [[ " ${scenarios[*]} " == *" $scenario "* ]] || continue
   upload
   remote ssh "setsid nohup taskset -c 0 bash $root/board-scenarios-payload.sh $board $root run 0 $scenario > $root/host.log 2>&1 < /dev/null &"
@@ -105,6 +106,13 @@ for scenario in usb_midi usb_audio; do
       await_gate "$gate" && { python tools/board-dev/host_usb_midi.py "$port" "$phase" "$out/usb-midi-$phase.json" || true; }
       open_gate "$gate"
     done
+    collect
+  elif [ "$scenario" = usb_midi_cc ]; then
+    await_gate usb_midi_cc && { python tools/board-dev/host_usb_midi.py "$port" cc "$out/usb-midi-cc.json" || true; }
+    open_gate usb_midi_cc
+    collect
+  elif [ "$scenario" = usb_audio_fx ]; then
+    await_gate usb_audio_fx && open_gate usb_audio_fx && { python tools/board-dev/host_usb_audio.py 40 "$out/usb-audio-fx" fx || true; }
     collect
   else
     await_gate usb_audio && { python tools/board-dev/host_usb_audio.py 90 "$out/usb-audio-level" \

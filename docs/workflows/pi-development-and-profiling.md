@@ -306,7 +306,7 @@ tools/board-dev/board-scenarios.sh opi "$OrangeTarget"
 ```
 
 Name scenarios to run a subset: `boot save_restore recording oled soak keymap
-usb_midi usb_audio`.
+usb_midi usb_midi_cc usb_audio usb_audio_fx`.
 
 - `boot` reboots the board and only reads the live service: kernel, splash,
   service, audio and menu-ready times from the journal and readiness marker, an
@@ -342,8 +342,8 @@ usb_midi usb_audio`.
   Left Alt + `;`. The autosaved tiles must be exactly the world-space set
   (x 0..7, y 0), (0, 4..7) and (6, 5).
 
-`usb_midi` and `usb_audio` are driven from this host over the board's USB
-connection, so plug both boards in and install `python-rtmidi`,
+`usb_midi`, `usb_midi_cc`, `usb_audio` and `usb_audio_fx` are driven from this
+host over the board's USB connection, so plug both boards in and install `python-rtmidi`,
 `sounddevice` and `numpy` (`pip install python-rtmidi sounddevice numpy`);
 `ffmpeg` decodes the recording. The payload waits at a gate for each host
 measurement, and SSH is used only between measurements. Run one board at a
@@ -364,6 +364,11 @@ on the Orange, `Octessera Line In` on the Raspberry).
   and no late timed events, like the timing smoke. Windows timestamps are good
   to about 1 ms; intervals next to a clock pulse the host itself sent more
   than 1 ms late are skipped and counted.
+- `usb_midi_cc` is `usb_midi` with CC1 on any channel mapped to Vel Scale.
+  `host_usb_midi.py` sends Start and 100 BPM clock for 36 s with CC1 at 16, 48
+  and 96 for 12 s each. From one step after each CC, the mirrored Drum must
+  play a single velocity, and the three velocities must rise with the CC
+  values. The journal must show no underruns and no late timed events.
 - `usb_audio` turns USB Audio on in the clone and rebuilds the USB gadget from
   it (the cleanup rebuilds it from the live store). `host_usb_audio.py` waits
   for the capture device and records 90 s of the store's own patch through
@@ -378,6 +383,13 @@ on the Orange, `Octessera Line In` on the Raspberry).
   recording shows the red `CLIP` in the OLED header; after Master Vol goes
   down to 20, `CLIP` must clear 2 to 3 s after the recording's last clipped
   sample.
+- `usb_audio_fx` is `usb_audio` with a tape stop on master mapped to Play FX
+  tile (3, 3). With the store's own patch playing, `board-keys.py` opens the
+  FX page (Shift+Ctrl+`/`, that is Shift+Fn + the right column's bottom tile)
+  and holds key `7` for 6 s while `host_usb_audio.py ... fx` records 40 s. The
+  level must fall at least 20 dB below the take's opening level for 3 s or
+  more and come back within 3 dB of it after the release, with no underruns
+  while held.
 
 Each run writes its evidence and a `summary.txt` of PASS/FAIL lines to
 `target/board-scenarios/<board>-<stamp>/`. Afterwards the payload restores the

@@ -5,7 +5,9 @@ setups:
   usb_midi        external sync on USB MIDI, Send MIDI all inst.; L1 steps a Drum on every bottom tile
                   at 1/8, L2 a MIDI Drum with two stamped tiles; no autoplay
   usb_midi_swing  usb_midi with Swing 4:5
+  usb_midi_cc     usb_midi with CC1 (any channel) mapped to Vel Scale
   usb_audio       USB Audio on, the store's own patch and Master Vol
+  usb_audio_fx    usb_audio with a tape stop on master mapped to Play FX tile (3, 3)
   usb_audio_clip  USB Audio on, Master Vol 100, eight synth notes per step pushed past full scale
   keymap          Auto Save on, L1 a sequencer with an empty grid, keyboard capture allowed
 """
@@ -15,6 +17,9 @@ from pathlib import Path
 
 MIDI_DRUM_TILES = [(0, 1, 38), (4, 1, 42)]
 MIDI_DRUM_MS = 150
+VEL_SCALE = {"invert": False, "key": "sound.velocityScalePct", "kind": "number", "label": "Velocity Scale",
+             "max": 200, "min": 0, "step": 1}
+TAPE_STOP = {"fxType": "tape_stop", "params": {"startMs": 300, "stopMs": 200}, "targetKey": "master"}
 
 
 def none_layer(layer):
@@ -34,6 +39,13 @@ def sequencer(layer, slot, tiles):
     actions = {"activate": "note_on", "deactivate": "note_off", "scanned": "note_on", "scanned_empty": "none", "stable": "none"}
     link["mapping"] = {event: {"action": action, "delaySteps": 0, "retriggerCount": 0, "slot": slot}
                        for event, action in actions.items()}
+
+
+def allow_keyboard(config):
+    """board-keys.py types on a uinput keyboard: off the terminal HDMI mode, and on the Raspberry over Bluetooth."""
+    if config["hdmi"]["mode"] == "terminal":
+        config["hdmi"]["mode"] = "live-grid"
+    config["bluetooth"]["enabled"] = True
 
 
 def patch_layers(music, layers):
@@ -64,8 +76,13 @@ def main():
         instruments[7]["midiDrum"].update(enabled=True, channel=10, durationMs=MIDI_DRUM_MS, assignments=[
             {"x": x, "y": y, "note": note, "velocity": 100} for x, y, note in MIDI_DRUM_TILES])
         music["transport"].update(swingA=4, swingB=5 if setup == "usb_midi_swing" else 4)
+        if setup == "usb_midi_cc":
+            music["midiCcMappings"][0].update(cc=1, channel=0, target=VEL_SCALE)
     elif setup.startswith("usb_audio"):
         config["audioOutputs"]["usb"] = True
+        if setup == "usb_audio_fx":
+            allow_keyboard(config)
+            music["playFx"]["assignments"] = [{"config": TAPE_STOP, "x": 3, "y": 3}]
         if setup == "usb_audio_clip":
             config["masterVolume"] = 100
             patch_layers(music, {0: (0, {(x, y) for x in range(8) for y in range(8)})})
@@ -85,9 +102,7 @@ def main():
             music["sound"].update(noteLengthMs=240, velocityScalePct=200)
     elif setup == "keymap":
         config["autoSaveDefault"] = True
-        if config["hdmi"]["mode"] == "terminal":
-            config["hdmi"]["mode"] = "live-grid"
-        config["bluetooth"]["enabled"] = True
+        allow_keyboard(config)
         patch_layers(music, {0: (0, set())})
     else:
         sys.exit(f"unknown setup {setup}")

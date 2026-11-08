@@ -1,13 +1,15 @@
 """Captures a board's USB Audio output on the host and checks level, dropouts and clipping (run on the host).
 
-usage: host_usb_audio.py <seconds> <result-stem> [baseline.json]
+usage: host_usb_audio.py <seconds> <result-stem> [baseline.json | fx]
 Waits for the board's capture device, records <stem>.wav and writes <stem>.json. It records through
 WASAPI in exclusive mode: shared-mode capture (ffmpeg dshow) runs the Windows microphone effects,
 which filtered the clipped tops and slowly turned the level down. Windows does not name the board in
 its capture device ("Octessera Audio", "Octessera Line In"), so only one board may have USB Audio on.
 With a baseline file the take is a level run: RMS within 3 dB of the baseline (recorded by the first
 run), no exact-zero run of 64 frames or more while sounding, and no full-scale sample. Without one
-it only reports the full-scale runs a clipping patch should show. Needs numpy and sounddevice.
+it only reports the full-scale runs a clipping patch should show. With fx the take holds a tape stop
+on master: the level must fall at least 20 dB below the take's opening level for 3 s or more, then
+come back within 3 dB of it. Needs numpy and sounddevice.
 """
 import json
 import sys
@@ -19,6 +21,8 @@ import numpy as np
 import sounddevice
 
 FULL_SCALE = 32767
+FX_DIP_DB = 20
+FX_DIP_S = 3
 # The first seconds after the host opens the stream are judged apart: there the board's USB stream
 # can still be settling, and the take starts with the host's own leading silence.
 STARTUP_S = 2
@@ -46,6 +50,28 @@ def runs(mask):
     return list(zip(edges[::2], edges[1::2] - edges[::2]))
 
 
+def analyze_fx(level, rate):
+    """A held tape stop: a long dip well below the opening level, and the level back after it."""
+    block = rate // 20
+    blocks = 20 * np.log10(np.sqrt(np.mean(level[: len(level) // block * block].reshape(-1, block, level.shape[1]) ** 2,
+                                           axis=(1, 2))) + 1e-12)
+    before = float(np.median(blocks[: len(blocks) // 4]))
+    dips = runs(blocks < before - FX_DIP_DB)
+    start, length = (int(value) for value in max(dips, key=lambda run: run[1], default=(0, 0)))
+    after = blocks[start + length + 20:]
+    back = float(np.median(after)) if len(after) else float("-inf")
+    metrics = {"opening_rms_dbfs": round(before, 2), "dip_s": round(length / 20, 2),
+               "dip_start_s": round(start / 20, 2), "after_rms_dbfs": round(back, 2)}
+    problems = []
+    if before < -50:
+        problems.append("the take is silent before the hold")
+    if length < FX_DIP_S * 20:
+        problems.append(f"the level dipped {FX_DIP_DB} dB below the opening for only {length / 20:.2f} s")
+    if abs(back - before) > 3:
+        problems.append(f"after the release the level is {back:.2f} dBFS, not within 3 dB of {before:.2f}")
+    return problems, metrics
+
+
 def analyze(path, baseline):
     with wave.open(str(path)) as take:
         rate = take.getframerate()
@@ -59,6 +85,8 @@ def analyze(path, baseline):
             and (s == 0 or sounding[s - 1])]
     dropouts = [gap for gap in gaps if gap[0] >= STARTUP_S * rate]
     frames, level = frames[STARTUP_S * rate:], level[STARTUP_S * rate:]
+    if baseline == "fx":
+        return analyze_fx(level, rate)
     rms = float(20 * np.log10(np.sqrt(np.mean(level ** 2)) + 1e-12))
     loud = np.abs(frames).max(axis=1) >= FULL_SCALE
     flat = [int(n) for _, n in runs(loud) if n >= 3]
@@ -93,7 +121,7 @@ def analyze(path, baseline):
 
 def main():
     seconds, stem = float(sys.argv[1]), Path(sys.argv[2])
-    baseline = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+    baseline = None if len(sys.argv) < 4 else "fx" if sys.argv[3] == "fx" else Path(sys.argv[3])
     wav = stem.with_suffix(".wav")
     frames = sounddevice.rec(int((seconds + STARTUP_S) * 44100), samplerate=44100, channels=2, dtype="int16", device=device(),
                              extra_settings=sounddevice.WasapiSettings(exclusive=True))
