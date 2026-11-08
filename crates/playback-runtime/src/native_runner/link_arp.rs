@@ -1,6 +1,6 @@
 use super::modulation::RoutedMusicalEvents;
 use super::{DelayedRoutedEvents, LinkArpHeldNote, LinkEventTiming, NativeLinkArp, NativeRunner};
-use crate::protocol::TileHit;
+use crate::protocol::{TileHit, MIN_NOTE_DURATION_MS};
 use platform_core::{MusicalEvent, LAYER_COUNT};
 
 const LINK_ARP_RANDOM_SEED: u32 = 0x4f43_5441;
@@ -329,7 +329,8 @@ fn routed_single(event: MusicalEvent, audio: bool) -> RoutedMusicalEvents {
 
 fn finite_arp_note(mut event: MusicalEvent, arp: &NativeLinkArp) -> MusicalEvent {
     if let MusicalEvent::NoteOn { duration_ms, .. } = &mut event {
-        let duration = (u32::from(arp.note_length_ms) * u32::from(arp.gate_pct) / 100).max(1);
+        let duration = (u32::from(arp.note_length_ms) * u32::from(arp.gate_pct) / 100)
+            .max(MIN_NOTE_DURATION_MS);
         *duration_ms = Some(duration);
     }
     event

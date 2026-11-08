@@ -105,6 +105,37 @@ pub(crate) fn link_arp_orders_simultaneous_batches_with_finite_notes() {
 }
 
 #[test]
+pub(crate) fn link_arp_floors_short_gated_notes_at_ten_ms_on_both_lanes() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.link_layers[0].arp.mode = "direct".into();
+    runner.link_layers[0].arp.note_length_ms = 50;
+    runner.link_layers[0].arp.gate_pct = 10;
+    let intent = platform_core::TileTriggerIntent {
+        x: 0,
+        y: 0,
+        degree: 0,
+        kind: platform_core::TileTriggerKind::Activate,
+    };
+    let routed = RoutedMusicalEvents {
+        audio: vec![note_on(60)],
+        midi: vec![note_on(62)],
+        tiles: Vec::new(),
+    };
+
+    let immediate = runner.apply_link_timing(0, &[intent], routed);
+    for event in immediate.audio.iter().chain(&immediate.midi) {
+        assert!(matches!(
+            event,
+            platform_core::MusicalEvent::NoteOn {
+                duration_ms: Some(10),
+                ..
+            }
+        ));
+    }
+    assert_eq!(immediate.audio.len() + immediate.midi.len(), 2);
+}
+
+#[test]
 pub(crate) fn link_arp_passes_non_note_events_through() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.link_layers[0].arp.mode = "up".into();
