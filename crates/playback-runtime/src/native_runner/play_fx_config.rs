@@ -94,7 +94,7 @@ const PLAY_FX_PARAMS: [(&str, &[PlayFxParam]); 11] = [
         &[
             param("delayNote", "Time", 7, 2, 9, 1),
             param("feedbackPct", "Feedback", 55, 0, 90, 1),
-            param("mixPct", "Mix", 70, 0, 100, 1),
+            param("mixPct", "Mix", 40, 0, 100, 1),
         ],
     ),
     (

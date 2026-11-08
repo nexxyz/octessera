@@ -4745,7 +4745,7 @@
             "params": {
               "delayNote": 7,
               "feedbackPct": 55,
-              "mixPct": 70
+              "mixPct": 40
             },
             "targetKey": "master"
           },
@@ -4758,7 +4758,7 @@
             "params": {
               "delayNote": 5,
               "feedbackPct": 45,
-              "mixPct": 60
+              "mixPct": 50
             },
             "targetKey": "master"
           },
@@ -4784,7 +4784,7 @@
             "params": {
               "delayNote": 9,
               "feedbackPct": 80,
-              "mixPct": 80
+              "mixPct": 30
             },
             "targetKey": "master"
           },

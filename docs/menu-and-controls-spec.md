@@ -61,8 +61,8 @@ Data sources the spec relies on:
     |---|---|---|---|---|
     | 7 | stutter 8 Hz 100 %, 16 Hz 100 % | freeze 500 ms, 2000 ms | sweep 50/0 120-180 ms, 20/60 120-300 ms | pitch +12, +7 |
     | 6 | stutter 4 Hz 100 %, 32 Hz 60 % | freeze 100 ms, 1500 ms at 50 % | sweep 10/30 1500-1500 ms, 70/80 40-80 ms | pitch -12, -5 |
-    | 5 | tape_stop 700/300 ms, fast 200/100 ms | reverse 250 ms, 125 ms | gate 1/16, 1/8 smooth 40 | dub 1/4 55/70, 1/8 45/60 |
-    | 4 | tape_stop slow 1600/700 ms, 1200/40 ms | reverse 500 ms, 1000 ms at 60 % | gate 1/16T depth 80, 1/32 hard | dub 1/8T 65/70, 1/2 80/80 |
+    | 5 | tape_stop 700/300 ms, fast 200/100 ms | reverse 250 ms, 125 ms | gate 1/16, 1/8 smooth 40 | dub 1/4 55/40, 1/8 45/50 |
+    | 4 | tape_stop slow 1600/700 ms, 1200/40 ms | reverse 500 ms, 1000 ms at 60 % | gate 1/16T depth 80, 1/32 hard | dub 1/8T 65/70, 1/2 80/30 |
     | 3 | wash 80/60 2.5 s, 100/85 6 s | hp_riser 60/30 2 s, 80/60 4 s | crush 12 bit /2 at 60 %, 8 bit /4 | |
     | 2 | wash 50/40 0.8 s, 95/100 4 s | hp_riser 40/10 0.5 s, 95/75 8 s | crush 5 bit /10, 2 bit /24 | |
 

@@ -121,23 +121,13 @@ fn held_play_fx_tile_filters_only_while_held() {
     );
 }
 
-/// Dub throw's default Mix adds its echoes to the hot scenario mix up to full scale; Mix 40
-/// keeps the take below it.
-fn below_full_scale(fx_type: &str) -> impl FnOnce(&mut ScenarioBuilder) + '_ {
-    move |take| {
-        if fx_type == "dub_throw" {
-            take.set_number("Mix", "play.fx.params.mixPct", 40);
-        }
-    }
-}
-
 #[test]
 fn self_releasing_play_fx_are_heard_while_held_and_gone_after_their_tail() {
     const SECONDS: f64 = 30.0;
     let (press, release) = (PRESS_BAR as f64, RELEASE_BAR as f64);
     for fx_type in SELF_RELEASING_TYPES {
-        let dry = play(fx_type, below_full_scale(fx_type), false, SECONDS);
-        let held = play(fx_type, below_full_scale(fx_type), true, SECONDS);
+        let dry = play(fx_type, |_| {}, false, SECONDS);
+        let held = play(fx_type, |_| {}, true, SECONDS);
         let end = SECONDS / bar_seconds(&dry.session);
         assert_eq!(held.played.start_frame, dry.played.start_frame, "{fx_type}");
         let wavs = format!("audio in {:?} and {:?}", held.wav, dry.wav);
