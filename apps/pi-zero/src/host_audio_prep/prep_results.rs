@@ -39,15 +39,12 @@ pub(super) fn send_missing_samples(result_tx: &Sender<HostMessage>, paths: Vec<S
 }
 
 pub(super) fn audio_prep_success(revision: u64, request_id: Option<String>) -> RuntimeStoreResult {
-    identify_audio_prep_result(
-        RuntimeStoreResult::OperationSucceeded {
-            operation: RuntimeOperation::AudioCommand,
-            request_id: None,
-            revision: Some(revision),
-        },
-        request_id,
-        revision,
-    )
+    RuntimeStoreResult::OperationSucceeded {
+        operation: RuntimeOperation::AudioCommand,
+        request_id: None,
+        revision: Some(revision),
+    }
+    .with_optional_identity(request_id, Some(revision))
 }
 
 pub(super) fn audio_prep_failure(
@@ -55,18 +52,15 @@ pub(super) fn audio_prep_failure(
     request_id: Option<String>,
     message: String,
 ) -> RuntimeStoreResult {
-    identify_audio_prep_result(
-        RuntimeStoreResult::RuntimeFailure {
-            error: RuntimeErrorFacts::new(
-                RuntimeErrorDomain::Audio,
-                RuntimeErrorCode::OperationFailed,
-                RuntimeOperation::AudioCommand,
-                Some(message),
-            ),
-        },
-        request_id,
-        revision,
-    )
+    RuntimeStoreResult::RuntimeFailure {
+        error: RuntimeErrorFacts::new(
+            RuntimeErrorDomain::Audio,
+            RuntimeErrorCode::OperationFailed,
+            RuntimeOperation::AudioCommand,
+            Some(message),
+        ),
+    }
+    .with_optional_identity(request_id, Some(revision))
 }
 
 pub(super) fn audio_config_failure(
@@ -74,18 +68,15 @@ pub(super) fn audio_config_failure(
     request_id: Option<String>,
     message: String,
 ) -> RuntimeStoreResult {
-    identify_audio_prep_result(
-        RuntimeStoreResult::RuntimeFailure {
-            error: RuntimeErrorFacts::new(
-                RuntimeErrorDomain::Audio,
-                RuntimeErrorCode::InvalidPayload,
-                RuntimeOperation::AudioCommand,
-                Some(message),
-            ),
-        },
-        request_id,
-        revision,
-    )
+    RuntimeStoreResult::RuntimeFailure {
+        error: RuntimeErrorFacts::new(
+            RuntimeErrorDomain::Audio,
+            RuntimeErrorCode::InvalidPayload,
+            RuntimeOperation::AudioCommand,
+            Some(message),
+        ),
+    }
+    .with_optional_identity(request_id, Some(revision))
 }
 
 pub(super) fn owner_failure(message: String) -> RuntimeStoreResult {
@@ -107,16 +98,5 @@ pub(super) fn audio_queue_failure(message: String) -> RuntimeStoreResult {
             RuntimeOperation::AudioCommand,
             Some(message),
         ),
-    }
-}
-
-pub(super) fn identify_audio_prep_result(
-    result: RuntimeStoreResult,
-    request_id: Option<String>,
-    revision: u64,
-) -> RuntimeStoreResult {
-    match request_id {
-        Some(request_id) => result.with_identity(request_id, Some(revision)),
-        None => result,
     }
 }

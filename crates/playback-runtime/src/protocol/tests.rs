@@ -462,3 +462,18 @@ fn runtime_error_metadata_json_uses_stable_typed_fields() {
     .unwrap();
     assert_eq!(status_without_error.error, None);
 }
+
+#[test]
+fn optional_identity_wraps_only_when_a_request_id_is_present() {
+    let result = RuntimeStoreResult::SaveDefaultResult {
+        ok: true,
+        is_auto: None,
+    };
+    assert_eq!(result.clone().with_optional_identity(None, Some(3)), result);
+    assert_eq!(
+        result
+            .clone()
+            .with_optional_identity(Some("audio-3".into()), Some(3)),
+        result.with_identity("audio-3".into(), Some(3))
+    );
+}

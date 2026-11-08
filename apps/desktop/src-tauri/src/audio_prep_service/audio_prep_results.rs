@@ -21,15 +21,12 @@ pub(super) fn full_prep_success(
     request_id: Option<String>,
     _generation: u64,
 ) -> RuntimeStoreResult {
-    identify_audio_prep_result(
-        RuntimeStoreResult::OperationSucceeded {
-            operation: RuntimeOperation::AudioCommand,
-            request_id: None,
-            revision: Some(revision),
-        },
-        request_id,
-        revision,
-    )
+    RuntimeStoreResult::OperationSucceeded {
+        operation: RuntimeOperation::AudioCommand,
+        request_id: None,
+        revision: Some(revision),
+    }
+    .with_optional_identity(request_id, Some(revision))
 }
 
 pub(super) fn full_prep_failure(
@@ -70,7 +67,7 @@ pub(super) fn full_prep_failure(
             }
         }
     };
-    identify_audio_prep_result(result, request_id, revision)
+    result.with_optional_identity(request_id, Some(revision))
 }
 
 pub(super) fn full_prep_failure_from_queue(
@@ -78,11 +75,8 @@ pub(super) fn full_prep_failure_from_queue(
     request_id: Option<String>,
     error: QueueSendError,
 ) -> RuntimeStoreResult {
-    identify_audio_prep_result(
-        queue_failure(RuntimeOperation::AudioCommand, error),
-        request_id,
-        revision,
-    )
+    queue_failure(RuntimeOperation::AudioCommand, error)
+        .with_optional_identity(request_id, Some(revision))
 }
 
 pub(super) fn owner_prep_failure(error: AudioPrepError) -> RuntimeStoreResult {
@@ -140,16 +134,5 @@ fn queue_failure(operation: RuntimeOperation, error: QueueSendError) -> RuntimeS
             operation,
             Some(error.to_string()),
         ),
-    }
-}
-
-fn identify_audio_prep_result(
-    result: RuntimeStoreResult,
-    request_id: Option<String>,
-    revision: u64,
-) -> RuntimeStoreResult {
-    match request_id {
-        Some(request_id) => result.with_identity(request_id, Some(revision)),
-        None => result,
     }
 }

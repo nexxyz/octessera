@@ -176,6 +176,13 @@ impl RuntimeStoreResult {
         }
     }
 
+    pub fn with_optional_identity(self, request_id: Option<String>, revision: Option<u64>) -> Self {
+        match request_id {
+            Some(request_id) => self.with_identity(request_id, revision),
+            None => self,
+        }
+    }
+
     pub fn operation(&self) -> RuntimeOperation {
         match self {
             Self::ListPresetsResult { .. } => RuntimeOperation::StoreListPresets,
