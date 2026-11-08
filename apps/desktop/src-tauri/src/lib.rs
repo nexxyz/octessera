@@ -2,6 +2,7 @@ mod audio_config;
 mod audio_prep_service;
 mod audio_thread;
 mod commands;
+mod contained_audio_source;
 mod desktop_platform_service;
 #[cfg(feature = "headless")]
 pub mod headless;

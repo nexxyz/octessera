@@ -1,10 +1,12 @@
+use crate::contained_audio_source::ContainedAudioSource;
 use crate::late_timed_events::late_timed_events_counter;
 use crate::recording::{RecordingEngineSource, RecordingTapState};
-use playback_runtime::RunnerMessage;
+use playback_runtime::{RunnerMessage, RuntimeAdapterError};
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
-use rodio::{OutputStream, OutputStreamHandle, Sink};
+use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
 use rodio_engine_source::{AudioLoadStatusSender, EngineEventReceiver, EngineSource};
 use serde_json::Value;
+use std::sync::mpsc::Sender;
 
 pub(crate) struct AudioRuntime {
     _stream: OutputStream,
@@ -29,12 +31,18 @@ impl AudioRuntime {
         &mut self,
         control_rx: EngineEventReceiver,
         load_tx: AudioLoadStatusSender,
+        failure_tx: Sender<RuntimeAdapterError>,
     ) -> Result<(), String> {
         self.stop();
         let mut engine =
             EngineSource::with_load_status_tx(control_rx, DEFAULT_AUDIO_SAMPLE_RATE, Some(load_tx));
         engine.set_late_timed_events_counter(late_timed_events_counter());
-        let source = RecordingEngineSource::new(engine, self.recording_tap.clone());
+        let block_samples = engine.block_frames() * usize::from(engine.channels());
+        let source = ContainedAudioSource::new(
+            RecordingEngineSource::new(engine, self.recording_tap.clone()),
+            block_samples,
+            failure_tx,
+        );
         let sink = match Sink::try_new(&self.handle) {
             Ok(sink) => sink,
             Err(error) => {

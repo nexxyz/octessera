@@ -1,3 +1,4 @@
+use crate::contained_audio_source::panic_message;
 use crate::recording::RecordingTapState;
 use crate::types::AudioRuntime;
 use playback_runtime::{
@@ -44,7 +45,7 @@ pub(crate) fn spawn_audio_engine_thread(
         use std::panic::{catch_unwind, AssertUnwindSafe};
         let result = catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
             let mut audio = AudioRuntime::new(recording_tap)?;
-            audio.start_engine(control_rx, load_tx)?;
+            audio.start_engine(control_rx, load_tx, failure_tx.clone())?;
             let (_keepalive, shutdown_rx) = std::sync::mpsc::channel::<()>();
             while shutdown_rx
                 .recv_timeout(std::time::Duration::from_secs(60))
@@ -64,11 +65,7 @@ pub(crate) fn spawn_audio_engine_thread(
                 )));
             }
             Err(panic) => {
-                let msg = panic
-                    .downcast_ref::<&str>()
-                    .copied()
-                    .or_else(|| panic.downcast_ref::<String>().map(|s| s.as_str()))
-                    .unwrap_or("unknown panic");
+                let msg = panic_message(panic.as_ref());
                 eprintln!("audio thread panicked: {msg}");
                 let _ = failure_tx.send(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
                     RuntimeErrorDomain::Audio,
