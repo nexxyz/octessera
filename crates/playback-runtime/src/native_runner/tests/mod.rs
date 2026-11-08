@@ -73,6 +73,7 @@ mod config_snapshot;
 mod config_transactions;
 mod construction_defaults;
 mod controls;
+mod default_patch_bindings;
 mod device_config_apply;
 mod dim_sleep;
 mod display_animations;
