@@ -132,6 +132,8 @@ const PRE_LOOP_FRAME_HASH: u64 = 0x5ddd_1cc7_5005_fd99;
 
 #[test]
 fn default_playback_renders_bit_identically_to_the_pre_loop_engine() {
-    assert_eq!(identity_hash_blocks(), PRE_LOOP_BLOCK_HASH);
-    assert_eq!(identity_hash_frames(), PRE_LOOP_FRAME_HASH);
+    let why = "pins non-looping sampler output bit for bit; a deliberate sampler DSP change must \
+               update PRE_LOOP_BLOCK_HASH and PRE_LOOP_FRAME_HASH";
+    assert_eq!(identity_hash_blocks(), PRE_LOOP_BLOCK_HASH, "{why}");
+    assert_eq!(identity_hash_frames(), PRE_LOOP_FRAME_HASH, "{why}");
 }
