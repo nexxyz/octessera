@@ -2292,7 +2292,7 @@
       "modified": true,
       "upstream_status": "modified-local-vendoring",
       "provenance_source": "third_party/cpal-0.15.3/PROVENANCE.md",
-      "provenance_sha256": "4dc9ecf0f1f57b9d74127b34b048fb6fdd2eb8524c9263606890411b8e814924"
+      "provenance_sha256": "9072c613741c91a6cffc7aca89b2c56fa2719f91490a6ae2dd2c7c03eaa5da8e"
     },
     {
       "name": "cpufeatures",
