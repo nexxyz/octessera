@@ -103,6 +103,36 @@ fn write_wav(path: &PathBuf, samples: &[f32], rate: u32) {
     let _ = std::fs::write(path, bytes);
 }
 
+/// RIFF chunks under `bytes` (after a form type), with LIST chunks opened up in place.
+fn riff_chunks(bytes: &[u8]) -> Vec<([u8; 4], &[u8])> {
+    let mut chunks = Vec::new();
+    let mut at = 0;
+    while at + 8 <= bytes.len() {
+        let id: [u8; 4] = bytes[at..at + 4].try_into().unwrap();
+        let size = u32::from_le_bytes(bytes[at + 4..at + 8].try_into().unwrap()) as usize;
+        let body = &bytes[at + 8..(at + 8 + size).min(bytes.len())];
+        if &id == b"LIST" {
+            chunks.extend(riff_chunks(&body[4..]));
+        } else {
+            chunks.push((id, body));
+        }
+        at += 8 + size + size % 2;
+    }
+    chunks
+}
+
+/// The chunks of a RIFF file of type `form` (`WAVE`, `AVI `).
+pub fn riff_form<'a>(bytes: &'a [u8], form: &[u8; 4]) -> Vec<([u8; 4], &'a [u8])> {
+    assert_eq!(&bytes[0..4], b"RIFF");
+    assert_eq!(
+        u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize,
+        bytes.len() - 8,
+        "RIFF size"
+    );
+    assert_eq!(&bytes[8..12], form);
+    riff_chunks(&bytes[12..])
+}
+
 /// The length of a 4/4 bar at the session's patch tempo, in seconds.
 pub fn bar_seconds(session: &HeadlessSession) -> f64 {
     let bpm = session.config_payload()["runtimeConfig"]["transport"]["bpm"]

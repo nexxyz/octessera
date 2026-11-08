@@ -13,6 +13,7 @@ mod performance_pass;
 mod play_fx;
 mod preset_loads;
 mod recording;
+mod sample_loop;
 mod save_reload;
 mod sequencer_pages;
 mod soak;

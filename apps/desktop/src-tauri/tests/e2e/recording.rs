@@ -1,6 +1,6 @@
 //! The device recorder driven from System > Recording during playback: a WAV take, then an
 //! Audio+Video take, each checked against the audio the session rendered over the same span.
-use crate::support::{session, session_root};
+use crate::support::{riff_form, session, session_root};
 use octessera_desktop_lib::headless::{HeadlessSession, PlayedScenario};
 use playback_runtime::scenario::{press_main, turn, BAR};
 use std::path::{Path, PathBuf};
@@ -8,35 +8,6 @@ use std::path::{Path, PathBuf};
 /// AVI audio advances one 20 fps video frame every 2,205 frames.
 const AUDIO_FRAMES_PER_VIDEO_FRAME: usize = 2_205;
 const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
-
-/// RIFF chunks under `bytes` (after a form type), with LIST chunks opened up in place.
-fn riff_chunks(bytes: &[u8]) -> Vec<([u8; 4], &[u8])> {
-    let mut chunks = Vec::new();
-    let mut at = 0;
-    while at + 8 <= bytes.len() {
-        let id: [u8; 4] = bytes[at..at + 4].try_into().unwrap();
-        let size = u32::from_le_bytes(bytes[at + 4..at + 8].try_into().unwrap()) as usize;
-        let body = &bytes[at + 8..(at + 8 + size).min(bytes.len())];
-        if &id == b"LIST" {
-            chunks.extend(riff_chunks(&body[4..]));
-        } else {
-            chunks.push((id, body));
-        }
-        at += 8 + size + size % 2;
-    }
-    chunks
-}
-
-fn riff_form<'a>(bytes: &'a [u8], form: &[u8; 4]) -> Vec<([u8; 4], &'a [u8])> {
-    assert_eq!(&bytes[0..4], b"RIFF");
-    assert_eq!(
-        u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize,
-        bytes.len() - 8,
-        "RIFF size"
-    );
-    assert_eq!(&bytes[8..12], form);
-    riff_chunks(&bytes[12..])
-}
 
 /// 16-bit stereo 44.1 kHz PCM, as both formats carry it.
 fn assert_pcm_format(format: &[u8]) {
