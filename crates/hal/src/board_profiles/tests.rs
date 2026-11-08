@@ -21,6 +21,14 @@ fn rpi_profile_matches_legacy_pinmap_constants() {
 }
 
 #[test]
+fn rpi_profile_names_its_exact_alsa_outputs() {
+    let outputs = RASPBERRY_PI_ZERO_2W.alsa_outputs;
+    assert_eq!(outputs.jack, "hw:CARD=sndrpihifiberry,DEV=0");
+    assert_eq!(outputs.usb, "hw:CARD=UAC2Gadget,DEV=0");
+    assert_eq!(outputs.hdmi, "hw:CARD=vc4hdmi,DEV=0");
+}
+
+#[test]
 fn profile_ids_are_distinct_and_rpi_alias_is_stable() {
     assert_eq!(RASPBERRY_PI_ZERO_2W.id, RASPBERRY_PI_ZERO_2W_ID);
     assert_ne!(RASPBERRY_PI_ZERO_2W_ID, ORANGE_PI_ZERO_2W_ID);

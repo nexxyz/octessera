@@ -13,8 +13,9 @@ files. Each change is limited to Octessera's fixed hardware/audio contracts:
 - `src/error.rs` — adds typed busy, unsupported, and fault variants used to
   report ALSA device and stream failures without collapsing them into generic
   backend errors.
-- `src/lib.rs` — defines the fixed Raspberry Pi and Orange Pi PCM identities
-  and the shared exact-output allowlist.
+- `src/lib.rs` — adds `alsa_exact_output_device`, which opens exactly the
+  ALSA output PCM the caller names, without enumeration or fallback. The board
+  PCM names live in Octessera's HAL board profiles, not here.
 - `src/host/alsa/enumerate.rs` — preserves null-hint filtering and only yields
   ALSA devices whose handles open successfully, using simpler iterator flow.
 - `src/host/alsa/mod.rs` — implements exact PCM opening, ALSA errno

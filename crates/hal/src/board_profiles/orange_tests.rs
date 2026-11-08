@@ -20,6 +20,10 @@ fn orange_profile_selects_typed_linux_devices_without_raspberry_pins() {
     assert_eq!(ORANGE_PI_ZERO_2W.devices.gpio.chip_label, "300b000.pinctrl");
     assert_eq!(ORANGE_PI_ZERO_2W.devices.gpio.dc_offset, 270);
     assert_eq!(ORANGE_PI_ZERO_2W.devices.gpio.reset_offset, 76);
+    let outputs = ORANGE_PI_ZERO_2W.devices.alsa_outputs;
+    assert_eq!(outputs.jack, "hw:CARD=octesseradac,DEV=0");
+    assert_eq!(outputs.usb, "hw:CARD=UAC2Gadget,DEV=0");
+    assert_eq!(outputs.hdmi, "hw:CARD=HDMI,DEV=0");
 }
 
 #[test]

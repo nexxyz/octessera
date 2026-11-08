@@ -274,10 +274,11 @@ fn select_output_device(
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn raspberry_pcm_name(sink: AudioSink) -> &'static str {
+    let outputs = octessera_hal::board_profiles::RASPBERRY_PI_ZERO_2W.alsa_outputs;
     match sink {
-        AudioSink::Jack => cpal::ALSA_RASPBERRY_JACK_PCM,
-        AudioSink::Usb => cpal::ALSA_RASPBERRY_USB_PCM,
-        AudioSink::Hdmi => cpal::ALSA_RASPBERRY_HDMI_PCM,
+        AudioSink::Jack => outputs.jack,
+        AudioSink::Usb => outputs.usb,
+        AudioSink::Hdmi => outputs.hdmi,
     }
 }
 

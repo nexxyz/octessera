@@ -288,12 +288,6 @@ pub struct Device {
 }
 
 pub(crate) fn exact_output_device(name: &str) -> Result<Device, DevicesError> {
-    if !crate::ALSA_EXACT_OUTPUT_PCMS.contains(&name) {
-        return Err(BackendSpecificError {
-            description: format!("unsupported exact ALSA output PCM: {name:?}"),
-        }
-        .into());
-    }
     Ok(Device {
         name: name.to_owned(),
         handles: Arc::new(Mutex::new(DeviceHandles::default())),
@@ -1646,19 +1640,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn exact_output_device_accepts_only_approved_pcm_names() {
-        for name in crate::ALSA_EXACT_OUTPUT_PCMS {
-            let device = exact_output_device(name).unwrap();
-            assert_eq!(device.name().unwrap(), *name);
-            let handles = device.handles.lock().unwrap();
-            assert!(handles.playback.is_none());
-            assert!(handles.capture.is_none());
-        }
-    }
-
-    #[test]
-    fn exact_output_device_rejects_other_pcm_names() {
-        assert!(exact_output_device("hw:CARD=H616,DEV=0").is_err());
+    fn exact_output_device_names_the_pcm_without_opening_it() {
+        let name = "hw:CARD=UAC2Gadget,DEV=0";
+        let device = exact_output_device(name).unwrap();
+        assert_eq!(device.name().unwrap(), name);
+        let handles = device.handles.lock().unwrap();
+        assert!(handles.playback.is_none());
+        assert!(handles.capture.is_none());
     }
 
     #[test]

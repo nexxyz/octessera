@@ -3,9 +3,11 @@ use cpal::traits::DeviceTrait;
 use cpal::{SampleFormat, StreamConfig};
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 
-pub(crate) const ORANGE_AUDIO_DEVICE_NAME: &str = cpal::ALSA_ORANGE_JACK_PCM;
-pub(crate) const ORANGE_UAC2_AUDIO_DEVICE_NAME: &str = cpal::ALSA_ORANGE_USB_PCM;
-pub(crate) const ORANGE_HDMI_AUDIO_DEVICE_NAME: &str = cpal::ALSA_ORANGE_HDMI_PCM;
+const ORANGE_ALSA_OUTPUTS: octessera_hal::board_profiles::AlsaOutputPcms =
+    octessera_hal::board_profiles::ORANGE_PI_ZERO_2W_DEVICES.alsa_outputs;
+pub(crate) const ORANGE_AUDIO_DEVICE_NAME: &str = ORANGE_ALSA_OUTPUTS.jack;
+pub(crate) const ORANGE_UAC2_AUDIO_DEVICE_NAME: &str = ORANGE_ALSA_OUTPUTS.usb;
+pub(crate) const ORANGE_HDMI_AUDIO_DEVICE_NAME: &str = ORANGE_ALSA_OUTPUTS.hdmi;
 pub(crate) const ORANGE_AUDIO_CHANNELS: u16 = 2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

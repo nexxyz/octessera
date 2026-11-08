@@ -95,6 +95,14 @@ impl OrangeEncoderPins {
     }
 }
 
+/// The board's exact ALSA output PCMs; audio opens these names and no others.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AlsaOutputPcms {
+    pub jack: &'static str,
+    pub usb: &'static str,
+    pub hdmi: &'static str,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DeviceDescriptor {
     pub path: &'static str,
@@ -118,6 +126,7 @@ pub struct OrangePiDevices {
     pub gpio: OrangeGpioDescriptor,
     pub seesaw_int: u32,
     pub encoders: [OrangeEncoderPins; 1 + platform_core::AUX_ENCODER_COUNT],
+    pub alsa_outputs: AlsaOutputPcms,
 }
 
 pub const RASPBERRY_PI_ZERO_2W_ID: &str = "raspberry-pi-zero-2w";
@@ -141,6 +150,7 @@ pub struct BoardProfile {
     pub neokey_addr: u16,
     pub seesaw_int: u8,
     pub trellis_addrs: [u16; 4],
+    pub alsa_outputs: AlsaOutputPcms,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -183,6 +193,11 @@ pub const RASPBERRY_PI_ZERO_2W: BoardProfile = BoardProfile {
     neokey_addr: 0x3F,
     seesaw_int: 15,
     trellis_addrs: [0x2E, 0x2F, 0x30, 0x31],
+    alsa_outputs: AlsaOutputPcms {
+        jack: "hw:CARD=sndrpihifiberry,DEV=0",
+        usb: "hw:CARD=UAC2Gadget,DEV=0",
+        hdmi: "hw:CARD=vc4hdmi,DEV=0",
+    },
 };
 
 pub const ORANGE_PI_ZERO_2W: OrangeBoardProfile = OrangeBoardProfile {
@@ -211,6 +226,11 @@ pub const ORANGE_PI_ZERO_2W: OrangeBoardProfile = OrangeBoardProfile {
             OrangeEncoderPins::with_uart_conflict(13, 7, 8, 227, 269, 224, "UART0 TX"),
             OrangeEncoderPins::qualified(37, 18, 15, 272, 228, 261),
         ],
+        alsa_outputs: AlsaOutputPcms {
+            jack: "hw:CARD=octesseradac,DEV=0",
+            usb: "hw:CARD=UAC2Gadget,DEV=0",
+            hdmi: "hw:CARD=HDMI,DEV=0",
+        },
     },
 };
 
