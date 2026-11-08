@@ -194,8 +194,8 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.menu.open_labels(&["Build", "L2: life"]);
     runner.menu.select_label("Layer Label");
-    runner.xy_touch.active = true;
-    runner.xy_touch.x = 0.23;
+    runner.xy.touch.active = true;
+    runner.xy.touch.x = 0.23;
     runner.active_play_fx = vec![("mixer.volume".into(), "instruments.0".into())];
     runner.grid_assign = Some(GridAssign::Sample {
         slot: 1,
@@ -205,7 +205,7 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     let before_snapshot = runner.snapshot().unwrap();
     let before_transport = runner.transport.clone();
     let before_audio_revision = runner.audio_config_revision;
-    let before_xy_touch = runner.xy_touch.clone();
+    let before_xy_touch = runner.xy.touch.clone();
     let before_active_play_fx = runner.active_play_fx.clone();
     let before_sample_assign = runner.grid_assign.clone();
     let mut invalid = before_payload.clone();
@@ -219,7 +219,7 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     assert_eq!(runner.audio_config_revision, before_audio_revision);
     assert_eq!(runner.menu.state.stack, vec![0, 1]);
     assert_eq!(runner.menu.state.cursor, 2);
-    assert_eq!(runner.xy_touch, before_xy_touch);
+    assert_eq!(runner.xy.touch, before_xy_touch);
     assert_eq!(runner.active_play_fx, before_active_play_fx);
     assert_eq!(runner.grid_assign, before_sample_assign);
 }

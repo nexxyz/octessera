@@ -18,15 +18,15 @@ fn volume_binding(step: f64) -> NativeParamBinding {
 
 fn runner_with_xy() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_x_binding = Some(volume_binding(1.0));
-    runner.xy_y_binding = Some(volume_binding(1.0));
+    runner.xy.x_binding = Some(volume_binding(1.0));
+    runner.xy.y_binding = Some(volume_binding(1.0));
     runner
 }
 
 #[test]
 pub(crate) fn xy_smoothing_defaults_persists_in_config_and_patch_payloads() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert_eq!(runner.xy_smoothing_ms, 80);
+    assert_eq!(runner.xy.smoothing_ms, 80);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["xy"]["smoothingMs"],
         80
@@ -57,14 +57,14 @@ pub(crate) fn xy_smoothing_defaults_persists_in_config_and_patch_payloads() {
         })
         .unwrap();
     assert_eq!(
-        runner.xy_smoothing_ms, 82,
+        runner.xy.smoothing_ms, 82,
         "fine time steps are 1 ms below 100 ms"
     );
 
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["xy"]["smoothingMs"] = json!(120);
     runner.apply_config_payload(payload).unwrap();
-    assert_eq!(runner.xy_smoothing_ms, 120);
+    assert_eq!(runner.xy.smoothing_ms, 120);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["xy"]["smoothingMs"],
         120
@@ -76,54 +76,54 @@ pub(crate) fn xy_smoothing_defaults_persists_in_config_and_patch_payloads() {
     let mut curved = runner.config_payload();
     curved["runtimeConfig"]["xy"]["smoothingMs"] = json!(3750);
     runner.apply_config_payload(curved).unwrap();
-    assert_eq!(runner.xy_smoothing_ms, 3750);
+    assert_eq!(runner.xy.smoothing_ms, 3750);
 }
 
 #[test]
 pub(crate) fn xy_smoothing_off_jumps_before_target_conversion() {
     let mut runner = runner_with_xy();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.instruments[0].volume = 0;
     let now = Instant::now();
 
     runner.handle_play_xy_press_at(7, 0, now);
 
-    assert_eq!(runner.xy_touch.display_x, 1.0);
-    assert_eq!(runner.xy_touch.display_y, 0.0);
-    assert_eq!(runner.xy_touch.x, 1.0);
-    assert_eq!(runner.xy_touch.y, 0.0);
+    assert_eq!(runner.xy.touch.display_x, 1.0);
+    assert_eq!(runner.xy.touch.display_y, 0.0);
+    assert_eq!(runner.xy.touch.x, 1.0);
+    assert_eq!(runner.xy.touch.y, 0.0);
     assert_eq!(runner.instruments[0].volume, 100);
 }
 
 #[test]
 pub(crate) fn xy_smoothing_uses_elapsed_time_and_stays_monotonic() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 100;
+    runner.xy.smoothing_ms = 100;
     let start = Instant::now();
 
     runner.handle_play_xy_press_at(7, 7, start);
-    assert_eq!(runner.xy_touch.x, 0.5);
-    assert_eq!(runner.xy_touch.y, 0.5);
+    assert_eq!(runner.xy.touch.x, 0.5);
+    assert_eq!(runner.xy.touch.y, 0.5);
 
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(25))
         .unwrap();
-    assert!((runner.xy_touch.x - 0.625).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 0.625).abs() < 0.0001);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(50))
         .unwrap();
-    assert!((runner.xy_touch.x - 0.75).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 0.75).abs() < 0.0001);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(100))
         .unwrap();
-    assert_eq!(runner.xy_touch.x, 1.0);
-    assert!(runner.xy_x_glide.is_none());
+    assert_eq!(runner.xy.touch.x, 1.0);
+    assert!(runner.xy.x_glide.is_none());
 }
 
 #[test]
 pub(crate) fn xy_smoothing_axes_glide_independently() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 100;
+    runner.xy.smoothing_ms = 100;
     let start = Instant::now();
 
     runner.handle_play_xy_press_at(7, 0, start);
@@ -131,58 +131,58 @@ pub(crate) fn xy_smoothing_axes_glide_independently() {
         .advance_xy_smoothing_at(start + Duration::from_millis(50))
         .unwrap();
 
-    assert!((runner.xy_touch.x - 0.75).abs() < 0.0001);
-    assert!((runner.xy_touch.y - 0.25).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 0.75).abs() < 0.0001);
+    assert!((runner.xy.touch.y - 0.25).abs() < 0.0001);
 }
 
 #[test]
 pub(crate) fn xy_smoothing_retargets_from_current_mapped_value() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 100;
+    runner.xy.smoothing_ms = 100;
     let start = Instant::now();
 
     runner.handle_play_xy_press_at(7, 0, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(40))
         .unwrap();
-    assert!((runner.xy_touch.x - 0.7).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 0.7).abs() < 0.0001);
 
     runner.handle_play_xy_press_at(0, 0, start + Duration::from_millis(40));
-    assert!((runner.xy_touch.x - 0.7).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 0.7).abs() < 0.0001);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(90))
         .unwrap();
-    assert!((runner.xy_touch.x - 0.35).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 0.35).abs() < 0.0001);
 }
 
 #[test]
 pub(crate) fn xy_smoothing_duration_change_advances_old_glide_before_retargeting() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 100;
+    runner.xy.smoothing_ms = 100;
     let start = Instant::now();
 
     runner.handle_play_xy_press_at(7, 7, start);
-    assert!((runner.xy_touch.x - 0.5).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 0.5).abs() < 0.0001);
     let changed_at = start + Duration::from_millis(40);
     runner.set_xy_smoothing_ms_at(200, changed_at);
 
-    assert!((runner.xy_touch.x - 0.7).abs() < 0.0001);
-    let replacement = runner.xy_x_glide.as_ref().unwrap();
+    assert!((runner.xy.touch.x - 0.7).abs() < 0.0001);
+    let replacement = runner.xy.x_glide.as_ref().unwrap();
     assert!((replacement.from - 0.7).abs() < 0.0001);
     assert_eq!(replacement.target, 1.0);
     assert_eq!(replacement.duration, Duration::from_millis(200));
     runner
         .advance_xy_smoothing_at(changed_at + Duration::from_millis(100))
         .unwrap();
-    assert!((runner.xy_touch.x - 0.85).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 0.85).abs() < 0.0001);
 }
 
 #[test]
 pub(crate) fn xy_smoothing_physical_menu_change_rebases_old_glide() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = crate::native_menu::XY_GLIDE_MAX_MS.unsigned_abs() as u16;
+    runner.xy.smoothing_ms = crate::native_menu::XY_GLIDE_MAX_MS.unsigned_abs() as u16;
     runner.handle_play_xy_press_at(7, 7, Instant::now());
-    let old_glide = runner.xy_x_glide.clone().unwrap();
+    let old_glide = runner.xy.x_glide.clone().unwrap();
 
     assert!(runner.menu.focus_item_key("play.xy.smoothingMs"));
     runner.menu.state.editing = true;
@@ -205,8 +205,8 @@ pub(crate) fn xy_smoothing_physical_menu_change_rebases_old_glide() {
         })
         .unwrap();
 
-    assert_eq!(runner.xy_smoothing_ms, 92);
-    let replacement = runner.xy_x_glide.as_ref().unwrap();
+    assert_eq!(runner.xy.smoothing_ms, 92);
+    let replacement = runner.xy.x_glide.as_ref().unwrap();
     assert_eq!(replacement.duration, Duration::from_millis(92));
     assert_eq!(replacement.target, old_glide.target);
     assert!(replacement.started_at >= old_glide.started_at);
@@ -216,20 +216,20 @@ pub(crate) fn xy_smoothing_physical_menu_change_rebases_old_glide() {
 #[test]
 pub(crate) fn xy_smoothing_config_replacement_rebases_from_old_duration() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 500;
+    runner.xy.smoothing_ms = 500;
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["xy"]["smoothingMs"] = json!(200);
     let start = Instant::now() - Duration::from_millis(100);
     runner.handle_play_xy_press_at(7, 7, start);
-    let old_glide = runner.xy_x_glide.clone().unwrap();
-    let before = runner.xy_touch.x;
+    let old_glide = runner.xy.x_glide.clone().unwrap();
+    let before = runner.xy.touch.x;
 
     runner.apply_config_payload(payload).unwrap();
     let after = Instant::now();
 
-    assert_eq!(runner.xy_smoothing_ms, 200);
-    assert!(runner.xy_touch.x >= before);
-    if let Some(replacement) = runner.xy_x_glide.as_ref() {
+    assert_eq!(runner.xy.smoothing_ms, 200);
+    assert!(runner.xy.touch.x >= before);
+    if let Some(replacement) = runner.xy.x_glide.as_ref() {
         let elapsed = replacement
             .started_at
             .saturating_duration_since(old_glide.started_at);
@@ -239,7 +239,7 @@ pub(crate) fn xy_smoothing_config_replacement_rebases_from_old_duration() {
         assert_eq!(replacement.target, old_glide.target);
         assert!((replacement.from - expected_from).abs() < 0.0001);
     } else {
-        assert_eq!(runner.xy_touch.x, old_glide.target);
+        assert_eq!(runner.xy.touch.x, old_glide.target);
         assert!(after.saturating_duration_since(old_glide.started_at) >= old_glide.duration);
     }
 }
@@ -247,8 +247,8 @@ pub(crate) fn xy_smoothing_config_replacement_rebases_from_old_duration() {
 #[test]
 pub(crate) fn xy_smoothing_happens_before_target_step_conversion() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 100;
-    runner.xy_x_binding = Some(volume_binding(10.0));
+    runner.xy.smoothing_ms = 100;
+    runner.xy.x_binding = Some(volume_binding(10.0));
     runner.instruments[0].volume = 0;
     let start = Instant::now();
 
@@ -257,34 +257,36 @@ pub(crate) fn xy_smoothing_happens_before_target_step_conversion() {
         .advance_xy_smoothing_at(start + Duration::from_millis(50))
         .unwrap();
 
-    assert!((runner.xy_touch.x - 0.75).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 0.75).abs() < 0.0001);
     assert_eq!(runner.instruments[0].volume, 80);
 }
 
 #[test]
 pub(crate) fn xy_inversion_retargets_only_mapped_axis() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 100;
+    runner.xy.smoothing_ms = 100;
     let start = Instant::now();
 
     runner.handle_play_xy_press_at(0, 7, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(50))
         .unwrap();
-    runner.xy_invert_x = true;
+    runner.xy.invert_x = true;
     let unaffected_deadline = runner
-        .xy_y_glide
+        .xy
+        .y_glide
         .as_ref()
         .map(|glide| glide.started_at + glide.duration)
         .expect("Y glide should be active before X inversion");
     let _ = runner.resample_xy_runtime_sources_at(start + Duration::from_millis(50), false);
 
-    assert_eq!(runner.xy_touch.display_x, 0.0);
-    assert!((runner.xy_touch.x - 0.25).abs() < 0.0001);
-    assert!((runner.xy_touch.y - 0.75).abs() < 0.0001);
+    assert_eq!(runner.xy.touch.display_x, 0.0);
+    assert!((runner.xy.touch.x - 0.25).abs() < 0.0001);
+    assert!((runner.xy.touch.y - 0.75).abs() < 0.0001);
     assert_eq!(
         runner
-            .xy_y_glide
+            .xy
+            .y_glide
             .as_ref()
             .map(|glide| glide.started_at + glide.duration),
         Some(unaffected_deadline)
@@ -292,41 +294,41 @@ pub(crate) fn xy_inversion_retargets_only_mapped_axis() {
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(100))
         .unwrap();
-    assert!((runner.xy_touch.x - 0.625).abs() < 0.0001);
-    assert_eq!(runner.xy_touch.y, 1.0);
-    assert!(runner.xy_y_glide.is_none());
+    assert!((runner.xy.touch.x - 0.625).abs() < 0.0001);
+    assert_eq!(runner.xy.touch.y, 1.0);
+    assert!(runner.xy.y_glide.is_none());
 }
 
 #[test]
 pub(crate) fn xy_sample_hold_finishes_an_in_progress_glide() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 100;
-    runner.xy_release = "sample-hold".into();
+    runner.xy.smoothing_ms = 100;
+    runner.xy.release = "sample-hold".into();
     let start = Instant::now();
 
     runner.handle_play_xy_press_at(7, 7, start);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(40))
         .unwrap();
-    assert!(runner.xy_x_glide.is_some());
+    assert!(runner.xy.x_glide.is_some());
     runner.handle_play_xy_release_at(start + Duration::from_millis(40));
-    assert!(!runner.xy_touch.active);
+    assert!(!runner.xy.touch.active);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(100))
         .unwrap();
 
-    assert_eq!(runner.xy_touch.x, 1.0);
-    assert_eq!(runner.xy_touch.y, 1.0);
-    assert!(runner.xy_x_glide.is_none());
-    assert!(runner.xy_y_glide.is_none());
+    assert_eq!(runner.xy.touch.x, 1.0);
+    assert_eq!(runner.xy.touch.y, 1.0);
+    assert!(runner.xy.x_glide.is_none());
+    assert!(runner.xy.y_glide.is_none());
 }
 
 #[test]
 pub(crate) fn xy_smoothing_quantized_steps_dirty_only_changed_persistent_values() {
     let mut runner = runner_with_xy();
-    runner.xy_smoothing_ms = 100;
-    runner.xy_x_binding = Some(volume_binding(10.0));
-    runner.xy_y_binding = None;
+    runner.xy.smoothing_ms = 100;
+    runner.xy.x_binding = Some(volume_binding(10.0));
+    runner.xy.y_binding = None;
     runner.instruments[0].volume = 0;
     runner.auto_save_default = true;
     runner.config_revision = 0;
@@ -371,8 +373,8 @@ pub(crate) fn xy_smoothing_quantized_steps_dirty_only_changed_persistent_values(
 #[test]
 pub(crate) fn xy_reset_center_moves_marker_now_and_glides_mapped_axes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 100;
-    runner.xy_release = "reset-center".into();
+    runner.xy.smoothing_ms = 100;
+    runner.xy.release = "reset-center".into();
     let start = Instant::now();
 
     runner.handle_play_xy_press_at(7, 7, start);
@@ -380,25 +382,25 @@ pub(crate) fn xy_reset_center_moves_marker_now_and_glides_mapped_axes() {
         .advance_xy_smoothing_at(start + Duration::from_millis(100))
         .unwrap();
     runner.handle_play_xy_release_at(start + Duration::from_millis(100));
-    assert_eq!(runner.xy_touch.display_x, 0.5);
-    assert_eq!(runner.xy_touch.display_y, 0.5);
-    assert_eq!(runner.xy_touch.x, 1.0);
-    assert_eq!(runner.xy_touch.y, 1.0);
+    assert_eq!(runner.xy.touch.display_x, 0.5);
+    assert_eq!(runner.xy.touch.display_y, 0.5);
+    assert_eq!(runner.xy.touch.x, 1.0);
+    assert_eq!(runner.xy.touch.y, 1.0);
 
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(150))
         .unwrap();
-    assert_eq!(runner.xy_touch.x, 0.75);
-    assert_eq!(runner.xy_touch.y, 0.75);
+    assert_eq!(runner.xy.touch.x, 0.75);
+    assert_eq!(runner.xy.touch.y, 0.75);
     runner
         .advance_xy_smoothing_at(start + Duration::from_millis(200))
         .unwrap();
-    assert_eq!(runner.xy_touch.x, 0.5);
-    assert_eq!(runner.xy_touch.y, 0.5);
+    assert_eq!(runner.xy.touch.x, 0.5);
+    assert_eq!(runner.xy.touch.y, 0.5);
 
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.handle_play_xy_press_at(7, 7, start + Duration::from_millis(100));
     runner.handle_play_xy_release_at(start + Duration::from_millis(100));
-    assert_eq!(runner.xy_touch.x, 0.5);
-    assert_eq!(runner.xy_touch.y, 0.5);
+    assert_eq!(runner.xy.touch.x, 0.5);
+    assert_eq!(runner.xy.touch.y, 0.5);
 }

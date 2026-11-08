@@ -91,8 +91,8 @@ impl NativeRunner {
                 };
                 lanes.get_mut(slot.min(1))
             }
-            BindingTarget::PlayX => Some(&mut self.xy_x_binding),
-            BindingTarget::PlayY => Some(&mut self.xy_y_binding),
+            BindingTarget::PlayX => Some(&mut self.xy.x_binding),
+            BindingTarget::PlayY => Some(&mut self.xy.y_binding),
             BindingTarget::MidiCc(slot) => Some(&mut self.midi_cc_mappings[slot].target),
             BindingTarget::Fader { column, shifted } => {
                 Some(self.fader_target_mut(column, shifted))

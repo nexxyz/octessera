@@ -43,7 +43,7 @@ fn note_key(event: &MusicalEvent) -> Option<(u8, u8)> {
 #[test]
 pub(crate) fn disabling_layer_drains_internal_synth_note_with_transpose_routing() {
     let mut runner = held_keys_runner();
-    runner.play_transpose_offsets[0] = 7;
+    runner.transpose.offsets[0] = 7;
 
     let pressed = press_note(&mut runner, 2, 3);
     let pressed_events = routed_events(&pressed, false);
@@ -65,7 +65,7 @@ pub(crate) fn disabling_layer_drains_internal_synth_note_with_transpose_routing(
     assert!(released_events
         .iter()
         .all(|event| matches!(event, MusicalEvent::NoteOff { .. })));
-    assert!(runner.play_transpose_active_notes[0].is_empty());
+    assert!(runner.transpose.active_notes[0].is_empty());
 }
 
 #[test]
@@ -331,7 +331,7 @@ pub(crate) fn transpose_drain_preserves_another_layer_owner_for_final_disable() 
     runner.select_active_layer(1).unwrap();
     let _ = press_note(&mut runner, 2, 3);
     runner.select_active_layer(0).unwrap();
-    runner.play_transpose_selected[1] = false;
+    runner.transpose.selected[1] = false;
 
     runner.active_play_mode = "transpose".into();
     let transpose = runner
@@ -390,21 +390,21 @@ pub(crate) fn trigger_gate_page_zero_only_blocks_future_admission() {
 #[test]
 pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_phase() {
     let mut runner = held_keys_runner();
-    runner.link_arp_random_state = 123;
-    runner.link_arp_held_notes[0].push(LinkArpHeldNote {
+    runner.link_arp.random_state = 123;
+    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
         audio: true,
         channel: 0,
         note: 60,
         velocity: 100,
     });
-    runner.link_arp_held_notes[1].push(LinkArpHeldNote {
+    runner.link_arp.held_notes[1].push(LinkArpHeldNote {
         audio: true,
         channel: 0,
         note: 64,
         velocity: 100,
     });
-    runner.link_arp_rotating_phase[0] = 3;
-    runner.link_arp_rotating_phase[1] = 7;
+    runner.link_arp.rotating_phase[0] = 3;
+    runner.link_arp.rotating_phase[1] = 7;
     runner.delayed_link_events[0].push(DelayedRoutedEvents {
         remaining_steps: 2,
         events: RoutedMusicalEvents::default(),
@@ -416,11 +416,11 @@ pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_
 
     let _ = disable_layer(&mut runner, 0);
 
-    assert_eq!(runner.link_arp_random_state, 123);
-    assert!(runner.link_arp_held_notes[0].is_empty());
-    assert_eq!(runner.link_arp_rotating_phase[0], 0);
+    assert_eq!(runner.link_arp.random_state, 123);
+    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert_eq!(runner.link_arp.rotating_phase[0], 0);
     assert!(runner.delayed_link_events[0].is_empty());
-    assert_eq!(runner.link_arp_held_notes[1].len(), 1);
-    assert_eq!(runner.link_arp_rotating_phase[1], 7);
+    assert_eq!(runner.link_arp.held_notes[1].len(), 1);
+    assert_eq!(runner.link_arp.rotating_phase[1], 7);
     assert_eq!(runner.delayed_link_events[1].len(), 1);
 }

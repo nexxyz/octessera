@@ -307,14 +307,13 @@ use instrument_audio_payload::*;
 use instrument_collections::*;
 use instrument_runtime::*;
 use json_path::*;
-use link_arp::LINK_ARP_RANDOM_SEED;
 use link_config::*;
 use link_payload::*;
 use local_patch_document::*;
 use menu_value_apply::*;
 use modulation_instrument_numeric::*;
 use modulation_process::ModulationProcessState;
-use modulation_sampler::{RoutedMusicalEvents, TransposedHeldNote};
+use modulation_sampler::RoutedMusicalEvents;
 use outbox::NativeRunnerOutbox;
 use pan_position::*;
 use patch_device_payload::*;
@@ -350,18 +349,6 @@ const OLED_SHUTDOWN_SPLASH_FAILSAFE_MS: u64 = 30_000;
 const AUTO_SAVE_FLASH_MS: u64 = 650;
 const DEFERRED_MENU_APPLY_MS: u64 = 24;
 
-pub(super) fn normalize_voice_stealing_mode(value: &str) -> Option<&'static str> {
-    match value {
-        "none" | "off" => Some("none"),
-        "fixed12" => Some("fixed12"),
-        "fixed16" => Some("fixed16"),
-        "auto-soft" | "lenient" => Some("auto-soft"),
-        "auto-balanced" | "balanced" => Some("auto-balanced"),
-        "auto-hard" | "aggressive" => Some("auto-hard"),
-        _ => None,
-    }
-}
-
 pub struct NativeRunner {
     engine: NativeLayerEngine,
     layer_engines: Vec<Option<NativeLayerEngine>>,
@@ -381,10 +368,7 @@ pub struct NativeRunner {
     note_behaviors: Vec<NoteBehavior>,
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
-    link_arp_held_notes: Vec<Vec<LinkArpHeldNote>>,
-    link_arp_held_tiles: Vec<Vec<crate::protocol::TileHit>>,
-    link_arp_rotating_phase: Vec<usize>,
-    link_arp_random_state: u32,
+    link_arp: link_arp::LinkArpState,
     emitted_route_note_owners: Vec<BTreeSet<(bool, u8, u8)>>,
     emitted_route_tile_owners: Vec<BTreeSet<(u8, u8)>>,
     display: NativeDisplayState,
@@ -419,26 +403,14 @@ pub struct NativeRunner {
     grid_assign: Option<GridAssign>,
     play_fx_assignments: Vec<NativePlayFxAssignment>,
     active_play_fx: Vec<(String, String)>,
-    xy_touch: NativeXyTouch,
-    xy_release: String,
-    xy_smoothing_ms: u16,
-    xy_invert_x: bool,
-    xy_invert_y: bool,
-    xy_x_glide: Option<NativeXyGlide>,
-    xy_y_glide: Option<NativeXyGlide>,
-    xy_x_binding: Option<NativeParamBinding>,
-    xy_y_binding: Option<NativeParamBinding>,
+    xy: NativeXyState,
     aux_auto_map_enabled: bool,
     aux_priority: String,
     param_mods: Vec<NativeParamMods>,
     trigger_gate_modes: Vec<String>,
     trigger_gate_restore_modes: Vec<Option<String>>,
     play_live: play_pages::PlayLiveState,
-    play_transpose_selected: Vec<bool>,
-    play_transpose_enabled: Vec<bool>,
-    play_transpose_offsets: Vec<i8>,
-    play_transpose_active_notes: Vec<BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
-    pending_transpose_note_offs: RoutedMusicalEvents,
+    transpose: play_transpose::PlayTranspose,
     trigger_probability_maps: Vec<Vec<String>>,
     layer_behavior_ids: Vec<String>,
     layer_names: Vec<String>,

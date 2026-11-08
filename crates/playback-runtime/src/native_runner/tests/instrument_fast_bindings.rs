@@ -80,7 +80,7 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
     assert_eq!(runner.instruments[1], untouched);
 
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.menu.rebuild(runner.menu_config());
     assert!(runner
         .menu
@@ -90,7 +90,7 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
         json!({ "type": "encoder_press", "id": "main" }),
     );
     assert_eq!(
-        runner.xy_x_binding.as_ref().unwrap().key,
+        runner.xy.x_binding.as_ref().unwrap().key,
         "instruments.0.fm.filter.cutoffHz"
     );
     let _ = runner.messages_with_snapshot().unwrap();
@@ -101,7 +101,7 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(saved).unwrap();
     assert_eq!(
-        restored.xy_x_binding.unwrap().key,
+        restored.xy.x_binding.unwrap().key,
         "instruments.0.fm.filter.cutoffHz"
     );
     assert_eq!(
@@ -134,8 +134,8 @@ fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
     assert_eq!(runner.instruments[1], second);
 
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_x_binding = Some(numeric_binding(
+    runner.xy.smoothing_ms = 0;
+    runner.xy.x_binding = Some(numeric_binding(
         "instruments.0.synth.filter.cutoffHz",
         0.0,
         255.0,
@@ -148,8 +148,8 @@ fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
     sample_config["runtimeConfig"]["instruments"][0]["type"] = json!("sampler");
     runner.apply_config_payload(sample_config).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_x_binding = Some(numeric_binding(
+    runner.xy.smoothing_ms = 0;
+    runner.xy.x_binding = Some(numeric_binding(
         "instruments.0.sample.filter.cutoffHz",
         0.0,
         255.0,
@@ -177,8 +177,8 @@ fn held_fm_xy_menu_edit_rebases_without_double_command_then_release_restores_new
     runner.instruments[0].kind = "fm".into();
     runner.menu.rebuild(runner.menu_config());
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_x_binding = Some(numeric_binding("instruments.0.fm.index", 0.0, 100.0));
+    runner.xy.smoothing_ms = 0;
+    runner.xy.x_binding = Some(numeric_binding("instruments.0.fm.index", 0.0, 100.0));
     let _ = runner.messages_with_snapshot().unwrap();
     let messages = input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
     assert_only_scalar(&messages, 0, "fm.index");
@@ -211,8 +211,8 @@ fn held_fm_xy_menu_edit_rebases_without_double_command_then_release_restores_new
 fn synth_gain_xy_then_aux_edit_persists_composed_gain_without_replacing_slot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_x_binding = Some(numeric_binding(
+    runner.xy.smoothing_ms = 0;
+    runner.xy.x_binding = Some(numeric_binding(
         "instruments.0.synth.amp.gainPct",
         0.0,
         100.0,

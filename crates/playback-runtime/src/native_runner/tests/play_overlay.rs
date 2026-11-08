@@ -148,9 +148,9 @@ pub(crate) fn assignment_overlays_suppress_fn_navigation_overlay() {
 pub(crate) fn play_transpose_overlay_distinguishes_selected_center_and_potential_keys() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "transpose".into();
-    runner.play_transpose_offsets[0] = 7;
-    runner.play_transpose_selected.fill(false);
-    runner.play_transpose_selected[0] = true;
+    runner.transpose.offsets[0] = 7;
+    runner.transpose.selected.fill(false);
+    runner.transpose.selected[0] = true;
 
     let snapshot = runner.snapshot().unwrap();
     let tiles = led_tiles(&snapshot);

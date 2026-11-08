@@ -205,24 +205,24 @@ pub(crate) fn system_info_popup_distinguishes_unavailable_state() {
 pub(crate) fn physical_owner_fast_handlers_apply_voice_limit_and_play_xy_keys() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.modulation_process_calls = 0;
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
 
     turn_menu_key_physical(&mut runner, "sound.voiceStealingMode", 1);
     assert_eq!(runner.voice_stealing_mode, "auto-hard");
     assert_eq!(runner.audio_config_revision, 1);
 
     turn_menu_key_physical(&mut runner, "play.xy.release", 1);
-    assert_eq!(runner.xy_release, "reset-center");
+    assert_eq!(runner.xy.release, "reset-center");
 
     runner.instruments[0].volume = 50;
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 0.25,
         y: 0.5,
         display_x: 0.25,
         display_y: 0.5,
         active: true,
     };
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
         kind: "number".into(),
@@ -239,10 +239,10 @@ pub(crate) fn physical_owner_fast_handlers_apply_voice_limit_and_play_xy_keys() 
     assert_eq!(runner.instruments[0].volume, 25);
 
     turn_menu_key_physical(&mut runner, "play.xy.invertX", 1);
-    assert!(runner.xy_invert_x);
+    assert!(runner.xy.invert_x);
     assert_eq!(runner.instruments[0].volume, 75);
     turn_menu_key_physical(&mut runner, "play.xy.invertY", 1);
-    assert!(runner.xy_invert_y);
+    assert!(runner.xy.invert_y);
 }
 
 fn turn_menu_key_physical(runner: &mut NativeRunner, key: &str, delta: i8) {

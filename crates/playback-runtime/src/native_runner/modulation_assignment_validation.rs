@@ -105,12 +105,12 @@ fn current_bindings(
         (
             "xy:x",
             ModulationSourceId::play_x(),
-            runner.xy_x_binding.as_ref(),
+            runner.xy.x_binding.as_ref(),
         ),
         (
             "xy:y",
             ModulationSourceId::play_y(),
-            runner.xy_y_binding.as_ref(),
+            runner.xy.y_binding.as_ref(),
         ),
     ] {
         if let Some(binding) = changed_binding(key, binding, changes) {

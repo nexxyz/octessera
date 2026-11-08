@@ -155,22 +155,22 @@ fn apply_xy_touch_payload(runner: &mut NativeRunner, runtime: &Value) {
         return;
     };
     if let Some(x) = xy_touch.get("x").and_then(Value::as_f64) {
-        runner.xy_touch.x = (x as f32).clamp(0.0, 1.0);
-        runner.xy_touch.display_x = runner.xy_touch.x;
+        runner.xy.touch.x = (x as f32).clamp(0.0, 1.0);
+        runner.xy.touch.display_x = runner.xy.touch.x;
     }
     if let Some(y) = xy_touch.get("y").and_then(Value::as_f64) {
-        runner.xy_touch.y = (y as f32).clamp(0.0, 1.0);
-        runner.xy_touch.display_y = runner.xy_touch.y;
+        runner.xy.touch.y = (y as f32).clamp(0.0, 1.0);
+        runner.xy.touch.display_y = runner.xy.touch.y;
     }
     if let Some(active) = xy_touch.get("active").and_then(Value::as_bool) {
-        runner.xy_touch.active = active;
+        runner.xy.touch.active = active;
     }
 }
 
 fn apply_xy_release_payload(runner: &mut NativeRunner, runtime: &Value) {
     if let Some(xy_release) = runtime.get("xyRelease").and_then(Value::as_str) {
         if matches!(xy_release, "sample-hold" | "reset-center") {
-            runner.xy_release = xy_release.into();
+            runner.xy.release = xy_release.into();
         }
     }
 }
@@ -218,15 +218,15 @@ fn apply_global_xy_binding_payload(runner: &mut NativeRunner, runtime: &Value) {
     let Some(xy) = runtime.get("xy") else {
         return;
     };
-    runner.xy_x_binding = xy.get("x").and_then(param_binding_from_payload);
-    runner.xy_y_binding = xy.get("y").and_then(param_binding_from_payload);
+    runner.xy.x_binding = xy.get("x").and_then(param_binding_from_payload);
+    runner.xy.y_binding = xy.get("y").and_then(param_binding_from_payload);
     if let Some(invert) = xy.get("xInvert").and_then(Value::as_bool) {
-        runner.xy_invert_x = invert;
+        runner.xy.invert_x = invert;
     }
     if let Some(invert) = xy.get("yInvert").and_then(Value::as_bool) {
-        runner.xy_invert_y = invert;
+        runner.xy.invert_y = invert;
     }
     if let Some(smoothing_ms) = xy.get("smoothingMs").and_then(Value::as_u64) {
-        runner.xy_smoothing_ms = super::normalize_xy_smoothing_ms(smoothing_ms);
+        runner.xy.smoothing_ms = super::normalize_xy_smoothing_ms(smoothing_ms);
     }
 }

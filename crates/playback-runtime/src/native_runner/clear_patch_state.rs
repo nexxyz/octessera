@@ -94,21 +94,17 @@ impl NativeRunner {
         }
         self.play_mode = "mix".into();
         self.active_play_mode = "none".into();
-        self.xy_touch = NativeXyTouch {
-            x: 0.5,
-            y: 0.5,
-            display_x: 0.5,
-            display_y: 0.5,
-            active: false,
+        self.xy = NativeXyState {
+            touch: NativeXyTouch::default(),
+            release: "sample-hold".into(),
+            smoothing_ms: DEFAULT_XY_SMOOTHING_MS,
+            invert_x: false,
+            invert_y: false,
+            x_glide: None,
+            y_glide: None,
+            x_binding: None,
+            y_binding: None,
         };
-        self.xy_x_binding = None;
-        self.xy_y_binding = None;
-        self.xy_release = "sample-hold".into();
-        self.xy_smoothing_ms = DEFAULT_XY_SMOOTHING_MS;
-        self.xy_invert_x = false;
-        self.xy_invert_y = false;
-        self.xy_x_glide = None;
-        self.xy_y_glide = None;
         self.param_mods = vec![NativeParamMods::default(); LAYER_COUNT];
         self.midi_cc_mappings = super::midi_cc_in::default_midi_cc_mappings();
         self.midi_cc_learn = None;
@@ -118,10 +114,10 @@ impl NativeRunner {
         self.trigger_gate_modes = vec!["full".into(); LAYER_COUNT];
         self.trigger_gate_restore_modes = vec![None; LAYER_COUNT];
         self.play_live = Default::default();
-        self.play_transpose_selected = vec![true; LAYER_COUNT];
-        self.play_transpose_enabled = vec![true; LAYER_COUNT];
-        self.play_transpose_offsets = vec![0; LAYER_COUNT];
-        self.play_transpose_active_notes = vec![BTreeMap::new(); LAYER_COUNT];
+        self.transpose.selected = vec![true; LAYER_COUNT];
+        self.transpose.enabled = vec![true; LAYER_COUNT];
+        self.transpose.offsets = vec![0; LAYER_COUNT];
+        self.transpose.active_notes = vec![BTreeMap::new(); LAYER_COUNT];
         self.display.help_popup = None;
         self.display.confirm_dialog = None;
         self.pending.pending_menu_apply = None;

@@ -162,7 +162,7 @@ impl NativeRunner {
                 matches!(event, MusicalEvent::NoteOff { channel: held, .. } if *held == channel)
             });
             let released = self.release_layer_owned_route_notes(layer_index, held);
-            self.pending_transpose_note_offs.extend(released);
+            self.transpose.pending_note_offs.extend(released);
         }
     }
 

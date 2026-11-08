@@ -279,6 +279,33 @@ pub(super) struct NativeXyTouch {
     pub(super) active: bool,
 }
 
+impl Default for NativeXyTouch {
+    /// Centered and not pressed.
+    fn default() -> Self {
+        Self {
+            x: 0.5,
+            y: 0.5,
+            display_x: 0.5,
+            display_y: 0.5,
+            active: false,
+        }
+    }
+}
+
+/// The Play XY surface: the live touch and glides, and the saved axis bindings and options.
+#[derive(Clone, Debug)]
+pub(super) struct NativeXyState {
+    pub(super) touch: NativeXyTouch,
+    pub(super) release: String,
+    pub(super) smoothing_ms: u16,
+    pub(super) invert_x: bool,
+    pub(super) invert_y: bool,
+    pub(super) x_glide: Option<NativeXyGlide>,
+    pub(super) y_glide: Option<NativeXyGlide>,
+    pub(super) x_binding: Option<NativeParamBinding>,
+    pub(super) y_binding: Option<NativeParamBinding>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct NativeXyGlide {
     pub(super) from: f32,

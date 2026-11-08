@@ -57,11 +57,13 @@ impl NativeRunner {
             faders: self.faders.menu_config(),
             param_mods: param_mod_configs(&self.param_mods),
             xy_x_binding: self
-                .xy_x_binding
+                .xy
+                .x_binding
                 .as_ref()
                 .map(param_binding_spec_from_native),
             xy_y_binding: self
-                .xy_y_binding
+                .xy
+                .y_binding
                 .as_ref()
                 .map(param_binding_spec_from_native),
             aux_auto_map_enabled: self.aux_auto_map_enabled,
@@ -202,10 +204,10 @@ impl NativeRunner {
             play_fx_type: play_fx_type(&self.play_fx_selected).into(),
             play_fx_target: play_fx_target_key(&self.play_fx_selected).into(),
             play_fx_params: play_fx_params_map(&self.play_fx_selected),
-            xy_release: self.xy_release.clone(),
-            xy_smoothing_ms: self.xy_smoothing_ms,
-            xy_invert_x: self.xy_invert_x,
-            xy_invert_y: self.xy_invert_y,
+            xy_release: self.xy.release.clone(),
+            xy_smoothing_ms: self.xy.smoothing_ms,
+            xy_invert_x: self.xy.invert_x,
+            xy_invert_y: self.xy.invert_y,
             bpm: crate::delay_timing::visible_bpm_u16(self.transport.bpm),
             swing_a: self.transport.swing_a,
             swing_b: self.transport.swing_b,

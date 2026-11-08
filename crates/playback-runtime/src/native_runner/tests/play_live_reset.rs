@@ -17,7 +17,7 @@ fn play_live(runner: &mut NativeRunner) {
     runner.handle_play_route_press(0, 5);
     assert_ne!(runner.play_live.fx_overrides, Default::default());
     runner.play_live.xy_latched = true;
-    runner.xy_touch.display_x = 0.9;
+    runner.xy.touch.display_x = 0.9;
     runner.play_live.rate_resyncs[2] = true;
     runner.play_live.tempo_taps.push(Instant::now());
 }
@@ -28,7 +28,7 @@ fn assert_live_play_ended(runner: &NativeRunner, load: &str) {
     assert!(!live.bus_mutes.contains(&true), "{load}");
     assert_eq!(live.fx_overrides, Default::default(), "{load}");
     assert!(!live.xy_latched, "{load}");
-    assert_eq!(runner.xy_touch.display_x, 0.5, "{load}: the latch let go");
+    assert_eq!(runner.xy.touch.display_x, 0.5, "{load}: the latch let go");
     assert!(!live.rate_resyncs.contains(&true), "{load}");
     assert!(live.tempo_taps.is_empty(), "{load}");
 }

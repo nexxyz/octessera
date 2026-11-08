@@ -70,7 +70,7 @@ pub(crate) fn note_set_bindings_write_all_current_options() {
 #[test]
 pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_autosave() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: NOTE_SET_KEY.into(),
         label: Some("Set".into()),
         kind: "enum".into(),
@@ -82,7 +82,7 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
         options: platform_core::note_set_ids().map(str::to_string).collect(),
         invert: false,
     });
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,
         display_x: 0.5,
@@ -95,14 +95,14 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
         .modulation_process
         .has_source(crate::native_runner::modulation_source::ModulationSourceId::play_x()));
 
-    runner.link_arp_held_notes[0].push(LinkArpHeldNote {
+    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
         audio: true,
         channel: 0,
         note: 60,
         velocity: 100,
     });
-    runner.link_arp_rotating_phase[0] = 7;
-    runner.link_arp_random_state = 123;
+    runner.link_arp.rotating_phase[0] = 7;
+    runner.link_arp.random_state = 123;
     runner.config_dirty = false;
     runner.dirty_revision = None;
     runner.pending.pending_autosave_payload_due_at = None;
@@ -129,9 +129,9 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
     assert!(runner
         .modulation_process
         .has_source(crate::native_runner::modulation_source::ModulationSourceId::play_x()));
-    assert!(runner.link_arp_held_notes[0].is_empty());
-    assert_eq!(runner.link_arp_rotating_phase[0], 0);
-    assert_eq!(runner.link_arp_random_state, 123);
+    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert_eq!(runner.link_arp.rotating_phase[0], 0);
+    assert_eq!(runner.link_arp.random_state, 123);
     assert!(runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
     assert_eq!(runner.pending.pending_save_revision, None);
@@ -161,9 +161,9 @@ pub(crate) fn major_triad_mapping_precedes_play_transpose_for_synth_and_midi() {
             std::slice::from_ref(&intent),
             &runner.mapping_config,
         );
-        runner.play_transpose_enabled[0] = true;
-        runner.play_transpose_selected[0] = true;
-        runner.play_transpose_offsets[0] = 1;
+        runner.transpose.enabled[0] = true;
+        runner.transpose.selected[0] = true;
+        runner.transpose.offsets[0] = 1;
         let messages = runner
             .messages_with_input_result(platform_core::NativeInputResult {
                 events: mapped.events,

@@ -1,5 +1,7 @@
 use super::led_color::LedColor;
-use super::{NativeRunner, RoutedMusicalEvents, GRID_HEIGHT, GRID_WIDTH};
+use super::modulation_sampler::TransposedHeldNote;
+use super::{NativeRunner, RoutedMusicalEvents, GRID_HEIGHT, GRID_WIDTH, LAYER_COUNT};
+use std::collections::BTreeMap;
 
 pub(super) fn play_transpose_offset_at(x: usize, y: usize) -> Option<i8> {
     if x == 0 || y == 0 || y == 7 || x >= GRID_WIDTH || y >= GRID_HEIGHT {
@@ -26,6 +28,29 @@ pub(super) fn play_transpose_offset_at(x: usize, y: usize) -> Option<i8> {
     Some((semitone + octave * 12) as i8)
 }
 
+/// The Transpose page's live state per layer, never saved: the selection, the on/off state and
+/// offset, the transposed notes still held, and the note-offs a retarget leaves to send.
+#[derive(Clone, Debug)]
+pub(super) struct PlayTranspose {
+    pub(super) selected: Vec<bool>,
+    pub(super) enabled: Vec<bool>,
+    pub(super) offsets: Vec<i8>,
+    pub(super) active_notes: Vec<BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
+    pub(super) pending_note_offs: RoutedMusicalEvents,
+}
+
+impl Default for PlayTranspose {
+    fn default() -> Self {
+        Self {
+            selected: vec![true; LAYER_COUNT],
+            enabled: vec![true; LAYER_COUNT],
+            offsets: vec![0; LAYER_COUNT],
+            active_notes: vec![BTreeMap::new(); LAYER_COUNT],
+            pending_note_offs: RoutedMusicalEvents::default(),
+        }
+    }
+}
+
 impl NativeRunner {
     pub(super) fn handle_play_transpose_grid_press(&mut self, x: usize, y: usize) {
         if x == 0 {
@@ -37,14 +62,14 @@ impl NativeRunner {
         };
         let mut changed = 0;
         let mut drain_layers = Vec::new();
-        for layer in 0..self.play_transpose_offsets.len() {
-            if self.play_transpose_selected.get(layer) == Some(&true)
-                && self.play_transpose_enabled.get(layer) == Some(&true)
+        for layer in 0..self.transpose.offsets.len() {
+            if self.transpose.selected.get(layer) == Some(&true)
+                && self.transpose.enabled.get(layer) == Some(&true)
                 && self.play_transpose_layer_eligible(layer)
-                && self.play_transpose_offsets[layer] != offset
+                && self.transpose.offsets[layer] != offset
             {
                 drain_layers.push(layer);
-                self.play_transpose_offsets[layer] = offset;
+                self.transpose.offsets[layer] = offset;
                 changed += 1;
             }
         }
@@ -55,17 +80,17 @@ impl NativeRunner {
     }
 
     pub(super) fn toggle_all_play_transpose_layers(&mut self) {
-        let any_off = (0..self.play_transpose_enabled.len()).any(|layer| {
+        let any_off = (0..self.transpose.enabled.len()).any(|layer| {
             self.play_transpose_layer_eligible(layer)
-                && self.play_transpose_enabled.get(layer) != Some(&true)
+                && self.transpose.enabled.get(layer) != Some(&true)
         });
-        for layer in 0..self.play_transpose_enabled.len() {
+        for layer in 0..self.transpose.enabled.len() {
             if self.play_transpose_layer_eligible(layer) {
-                self.play_transpose_enabled[layer] = any_off;
+                self.transpose.enabled[layer] = any_off;
             }
         }
         if !any_off {
-            let layers = (0..self.play_transpose_enabled.len()).collect::<Vec<_>>();
+            let layers = (0..self.transpose.enabled.len()).collect::<Vec<_>>();
             self.drain_play_transpose_layers(&layers);
         }
         self.show_toast(if any_off {
@@ -76,17 +101,17 @@ impl NativeRunner {
     }
 
     pub(super) fn play_transpose_offsets_for_routing(&self) -> Vec<i8> {
-        (0..self.play_transpose_offsets.len())
+        (0..self.transpose.offsets.len())
             .map(|layer| self.play_transpose_offset_for_layer(layer))
             .collect()
     }
 
     /// The semitones Play Transpose shifts a layer's notes by; 0 when it does not apply.
     pub(super) fn play_transpose_offset_for_layer(&self, layer: usize) -> i8 {
-        match self.play_transpose_offsets.get(layer) {
+        match self.transpose.offsets.get(layer) {
             Some(&offset)
-                if self.play_transpose_enabled.get(layer) == Some(&true)
-                    && self.play_transpose_selected.get(layer) == Some(&true)
+                if self.transpose.enabled.get(layer) == Some(&true)
+                    && self.transpose.selected.get(layer) == Some(&true)
                     && self.play_transpose_layer_eligible(layer) =>
             {
                 offset
@@ -99,8 +124,8 @@ impl NativeRunner {
         self.dim_leds(leds, 4);
         for layer in 0..GRID_HEIGHT {
             let eligible = self.play_transpose_layer_eligible(layer);
-            let selected = self.play_transpose_selected.get(layer) == Some(&true);
-            let enabled = self.play_transpose_enabled.get(layer) == Some(&true);
+            let selected = self.transpose.selected.get(layer) == Some(&true);
+            let enabled = self.transpose.enabled.get(layer) == Some(&true);
             let color = if eligible && selected && enabled {
                 LedColor::GREEN
             } else if eligible && selected {
@@ -112,13 +137,13 @@ impl NativeRunner {
             };
             self.set_display_led(leds, 0, layer, color);
         }
-        let selected_offsets = (0..self.play_transpose_offsets.len())
+        let selected_offsets = (0..self.transpose.offsets.len())
             .filter(|layer| {
-                self.play_transpose_enabled.get(*layer) == Some(&true)
-                    && self.play_transpose_selected.get(*layer) == Some(&true)
+                self.transpose.enabled.get(*layer) == Some(&true)
+                    && self.transpose.selected.get(*layer) == Some(&true)
                     && self.play_transpose_layer_eligible(*layer)
             })
-            .map(|layer| self.play_transpose_offsets[layer])
+            .map(|layer| self.transpose.offsets[layer])
             .collect::<Vec<_>>();
         for y in 1..=6 {
             for x in 1..GRID_WIDTH {
@@ -138,24 +163,23 @@ impl NativeRunner {
     }
 
     fn toggle_play_transpose_layer(&mut self, layer: usize) {
-        if layer >= self.play_transpose_selected.len() || !self.play_transpose_layer_eligible(layer)
-        {
+        if layer >= self.transpose.selected.len() || !self.play_transpose_layer_eligible(layer) {
             return;
         }
-        self.play_transpose_selected[layer] = !self.play_transpose_selected[layer];
-        if !self.play_transpose_selected[layer] {
+        self.transpose.selected[layer] = !self.transpose.selected[layer];
+        if !self.transpose.selected[layer] {
             self.drain_play_transpose_layers(&[layer]);
         }
     }
 
     pub(super) fn drain_all_play_transpose_notes(&mut self) {
-        let layers = (0..self.play_transpose_active_notes.len()).collect::<Vec<_>>();
+        let layers = (0..self.transpose.active_notes.len()).collect::<Vec<_>>();
         self.drain_play_transpose_layers(&layers);
     }
 
     pub(super) fn drain_play_transpose_instrument_notes(&mut self, instrument_index: usize) {
         let mut drained_by_layer = Vec::new();
-        for (layer_index, active_notes) in self.play_transpose_active_notes.iter_mut().enumerate() {
+        for (layer_index, active_notes) in self.transpose.active_notes.iter_mut().enumerate() {
             let mut layer_drained = RoutedMusicalEvents::default();
             let keys = active_notes
                 .keys()
@@ -179,7 +203,7 @@ impl NativeRunner {
             self.forget_layer_owned_route_note_offs(layer_index, &layer_drained);
             drained.extend(layer_drained);
         }
-        self.pending_transpose_note_offs.extend(drained);
+        self.transpose.pending_note_offs.extend(drained);
     }
 
     pub(super) fn drain_play_transpose_layers(&mut self, layers: &[usize]) {
@@ -194,7 +218,7 @@ impl NativeRunner {
         let mut drained = RoutedMusicalEvents::default();
         for layer in layers {
             let mut layer_drained = RoutedMusicalEvents::default();
-            let Some(active_notes) = self.play_transpose_active_notes.get_mut(*layer) else {
+            let Some(active_notes) = self.transpose.active_notes.get_mut(*layer) else {
                 continue;
             };
             for held_notes in std::mem::take(active_notes).into_values() {
@@ -207,7 +231,7 @@ impl NativeRunner {
             }
             drained.extend(layer_drained);
         }
-        self.pending_transpose_note_offs.extend(drained);
+        self.transpose.pending_note_offs.extend(drained);
     }
 
     fn play_transpose_layer_eligible(&self, layer: usize) -> bool {

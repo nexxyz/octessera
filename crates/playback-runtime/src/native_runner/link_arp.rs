@@ -1,29 +1,51 @@
 use super::modulation::RoutedMusicalEvents;
 use super::{DelayedRoutedEvents, LinkArpHeldNote, LinkEventTiming, NativeLinkArp, NativeRunner};
-use platform_core::MusicalEvent;
+use crate::protocol::TileHit;
+use platform_core::{MusicalEvent, LAYER_COUNT};
 
-pub(super) const LINK_ARP_RANDOM_SEED: u32 = 0x4f43_5441;
+const LINK_ARP_RANDOM_SEED: u32 = 0x4f43_5441;
+
+/// The Link arp's live state: per layer the notes and tiles it holds and its rotating phase,
+/// and the random walk all layers share.
+#[derive(Debug)]
+pub(super) struct LinkArpState {
+    pub(super) held_notes: Vec<Vec<LinkArpHeldNote>>,
+    pub(super) held_tiles: Vec<Vec<TileHit>>,
+    pub(super) rotating_phase: Vec<usize>,
+    pub(super) random_state: u32,
+}
+
+impl Default for LinkArpState {
+    fn default() -> Self {
+        Self {
+            held_notes: vec![Vec::new(); LAYER_COUNT],
+            held_tiles: vec![Vec::new(); LAYER_COUNT],
+            rotating_phase: vec![0; LAYER_COUNT],
+            random_state: LINK_ARP_RANDOM_SEED,
+        }
+    }
+}
 
 impl NativeRunner {
     pub(super) fn clear_all_link_arp_state(&mut self) {
-        for held in &mut self.link_arp_held_notes {
+        for held in &mut self.link_arp.held_notes {
             held.clear();
         }
-        for held in &mut self.link_arp_held_tiles {
+        for held in &mut self.link_arp.held_tiles {
             held.clear();
         }
-        self.link_arp_rotating_phase.fill(0);
-        self.link_arp_random_state = LINK_ARP_RANDOM_SEED;
+        self.link_arp.rotating_phase.fill(0);
+        self.link_arp.random_state = LINK_ARP_RANDOM_SEED;
     }
 
     pub(super) fn clear_link_arp_state_for_layer(&mut self, layer_index: usize) {
-        if let Some(held) = self.link_arp_held_notes.get_mut(layer_index) {
+        if let Some(held) = self.link_arp.held_notes.get_mut(layer_index) {
             held.clear();
         }
-        if let Some(held) = self.link_arp_held_tiles.get_mut(layer_index) {
+        if let Some(held) = self.link_arp.held_tiles.get_mut(layer_index) {
             held.clear();
         }
-        if let Some(phase) = self.link_arp_rotating_phase.get_mut(layer_index) {
+        if let Some(phase) = self.link_arp.rotating_phase.get_mut(layer_index) {
             *phase = 0;
         }
     }
@@ -55,7 +77,7 @@ impl NativeRunner {
                 .cloned()
                 .collect();
             source.extend(self.held_notes_as_routed(layer_index));
-            if let Some(held) = self.link_arp_held_tiles.get(layer_index) {
+            if let Some(held) = self.link_arp.held_tiles.get(layer_index) {
                 source.tiles.extend(held.iter().cloned());
             }
             source
@@ -88,7 +110,7 @@ impl NativeRunner {
             .filter(|hit| self.is_held_tile(layer_index, hit))
             .cloned()
             .collect::<Vec<_>>();
-        let Some(held) = self.link_arp_held_tiles.get_mut(layer_index) else {
+        let Some(held) = self.link_arp.held_tiles.get_mut(layer_index) else {
             return;
         };
         for hit in &routed.tiles {
@@ -100,7 +122,7 @@ impl NativeRunner {
     }
 
     fn update_link_arp_held_notes(&mut self, layer_index: usize, routed: &RoutedMusicalEvents) {
-        let Some(held) = self.link_arp_held_notes.get_mut(layer_index) else {
+        let Some(held) = self.link_arp.held_notes.get_mut(layer_index) else {
             return;
         };
         for (audio, events) in [(true, &routed.audio), (false, &routed.midi)] {
@@ -134,7 +156,8 @@ impl NativeRunner {
     fn held_notes_as_routed(&self, layer_index: usize) -> RoutedMusicalEvents {
         let mut routed = RoutedMusicalEvents::default();
         for held in self
-            .link_arp_held_notes
+            .link_arp
+            .held_notes
             .get(layer_index)
             .into_iter()
             .flatten()
@@ -235,7 +258,8 @@ impl NativeRunner {
             "outside_in" => outside_in_notes(notes),
             "rotating" => {
                 let phase = self
-                    .link_arp_rotating_phase
+                    .link_arp
+                    .rotating_phase
                     .get(layer_index)
                     .copied()
                     .unwrap_or(0);
@@ -243,7 +267,7 @@ impl NativeRunner {
                     let len = notes.len();
                     notes.rotate_left(phase % len);
                 }
-                if let Some(stored) = self.link_arp_rotating_phase.get_mut(layer_index) {
+                if let Some(stored) = self.link_arp.rotating_phase.get_mut(layer_index) {
                     *stored = stored.wrapping_add(1);
                 }
                 notes

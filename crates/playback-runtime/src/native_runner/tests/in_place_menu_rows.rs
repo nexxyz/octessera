@@ -93,7 +93,7 @@ fn sample_entry(name: &str, path: &str, is_dir: bool) -> SampleEntry {
 #[test]
 fn binding_range_detents_update_their_rows_in_place() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
         kind: "number".into(),
@@ -109,7 +109,7 @@ fn binding_range_detents_update_their_rows_in_place() {
 
     assert_detents_match_fresh_build(&mut runner, "xy:x.rangeMin", &[10, 10, 20]);
     assert_detents_match_fresh_build(&mut runner, "xy:x.rangeMax", &[-30, -40, -20]);
-    let binding = runner.xy_x_binding.as_ref().unwrap();
+    let binding = runner.xy.x_binding.as_ref().unwrap();
     assert!(binding.user_min.is_some() && binding.user_max.is_some());
 }
 

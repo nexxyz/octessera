@@ -101,14 +101,14 @@ pub(crate) fn global_lfos_sum_shared_instrument_mixer_target_once() {
 pub(crate) fn keyed_base_rebase_preserves_xy_source_and_clear_restores_new_base() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].volume = 30;
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,
         display_x: 0.5,
         display_y: 0.5,
         active: true,
     };
-    runner.xy_x_binding = Some(volume_binding());
+    runner.xy.x_binding = Some(volume_binding());
     runner.refresh_xy_runtime_sources();
     runner.process_modulation_step(false).unwrap();
     assert_eq!(runner.instruments[0].volume, 50);

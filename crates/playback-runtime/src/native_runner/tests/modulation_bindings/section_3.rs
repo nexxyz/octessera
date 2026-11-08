@@ -164,7 +164,8 @@ pub(crate) fn physical_layer_and_play_xy_assignments_refresh_and_round_trip() {
     );
     assert_eq!(
         runner
-            .xy_x_binding
+            .xy
+            .x_binding
             .as_ref()
             .map(|binding| binding.key.as_str()),
         Some("instruments.0.mixer.panPos")
@@ -181,7 +182,8 @@ pub(crate) fn physical_layer_and_play_xy_assignments_refresh_and_round_trip() {
     );
     assert_eq!(
         restored
-            .xy_x_binding
+            .xy
+            .x_binding
             .as_ref()
             .map(|binding| binding.key.as_str()),
         Some("instruments.0.mixer.panPos")

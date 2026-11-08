@@ -213,9 +213,9 @@ impl NativeRunner {
         self.play_live.xy_held_tile = Some((x, y));
         let physical_x = x.min(GRID_WIDTH - 1) as f32 / (GRID_WIDTH - 1) as f32;
         let physical_y = y.min(GRID_HEIGHT - 1) as f32 / (GRID_HEIGHT - 1) as f32;
-        self.xy_touch.display_x = physical_x;
-        self.xy_touch.display_y = physical_y;
-        self.xy_touch.active = true;
+        self.xy.touch.display_x = physical_x;
+        self.xy.touch.display_y = physical_y;
+        self.xy.touch.active = true;
         if self.retarget_xy_runtime_sources_at(now, false) {
             if let Err(error) = self.process_dirty_modulation_step(true) {
                 self.show_modulation_unavailable(&error);
@@ -229,17 +229,17 @@ impl NativeRunner {
 
     pub(super) fn handle_play_xy_release_at(&mut self, now: std::time::Instant) {
         self.play_live.xy_held_tile = None;
-        if self.xy_release == "reset-center" && !self.play_live.xy_latched {
-            self.xy_touch.display_x = 0.5;
-            self.xy_touch.display_y = 0.5;
-            self.xy_touch.active = false;
+        if self.xy.release == "reset-center" && !self.play_live.xy_latched {
+            self.xy.touch.display_x = 0.5;
+            self.xy.touch.display_y = 0.5;
+            self.xy.touch.active = false;
             if self.retarget_xy_runtime_sources_at(now, true) {
                 if let Err(error) = self.process_dirty_modulation_step(true) {
                     self.show_modulation_unavailable(&error);
                 }
             }
         } else {
-            self.xy_touch.active = false;
+            self.xy.touch.active = false;
         }
     }
 

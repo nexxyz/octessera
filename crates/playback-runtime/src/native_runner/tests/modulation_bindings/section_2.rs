@@ -4,9 +4,9 @@ use super::*;
 pub(crate) fn play_xy_binding_updates_native_runtime_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_invert_x = true;
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.smoothing_ms = 0;
+    runner.xy.invert_x = true;
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "sound.velocityScalePct".into(),
         label: Some("Velocity Scale".into()),
         kind: "number".into(),
@@ -59,7 +59,7 @@ pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
         .unwrap();
 
     assert_eq!(
-        runner.xy_x_binding.as_ref().unwrap().key,
+        runner.xy.x_binding.as_ref().unwrap().key,
         "instruments.0.synth.filter.cutoffHz"
     );
     assert_eq!(
@@ -74,13 +74,13 @@ pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
 pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.fx_buses[0].slot1_params = json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
     runner.global_fx_slots[0] = "vinyl".into();
     runner.global_fx_params[0] =
         json!({ "cracklePct": 8, "saturationPct": 15, "warpDepthPct": 5, "mixPct": 100 });
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "layers.0.link.x.pitch.steps".into(),
         label: Some("Steps".into()),
         kind: "number".into(),
@@ -92,7 +92,7 @@ pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
         options: vec![],
         invert: false,
     });
-    runner.xy_y_binding = Some(NativeParamBinding {
+    runner.xy.y_binding = Some(NativeParamBinding {
         key: "mixer.buses.0.slot1.params.feedback".into(),
         label: Some("Feedback".into()),
         kind: "number".into(),
@@ -159,12 +159,12 @@ pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.fx_buses[0].slot3_type = "eq".into();
     runner.fx_buses[0].slot3_params = json!({ "midQ": 1.0, "mixPct": 100 });
     runner.global_fx_slots[0] = "eq".into();
     runner.global_fx_params[0] = json!({ "midQ": 1.0, "mixPct": 100 });
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "mixer.buses.0.slot3.params.midQ".into(),
         label: Some("Mid Q".into()),
         kind: "number".into(),
@@ -176,7 +176,7 @@ pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
         options: vec![],
         invert: false,
     });
-    runner.xy_y_binding = Some(NativeParamBinding {
+    runner.xy.y_binding = Some(NativeParamBinding {
         key: "mixer.master.slots.0.params.midQ".into(),
         label: Some("Mid Q".into()),
         kind: "number".into(),
@@ -244,9 +244,9 @@ pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
         runner.aux_bindings[1].as_ref().unwrap().turn_key.as_deref(),
         Some("sound.noteLengthMs")
     );
-    assert!(runner.xy_x_binding.is_none());
+    assert!(runner.xy.x_binding.is_none());
     assert_eq!(
-        runner.xy_y_binding.as_ref().unwrap().key,
+        runner.xy.y_binding.as_ref().unwrap().key,
         "instruments.0.mixer.volume"
     );
 }
@@ -255,8 +255,8 @@ pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
 pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.smoothing_ms = 0;
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
         kind: "number".into(),
@@ -291,8 +291,8 @@ pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
 pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_invert_x = true;
+    runner.xy.smoothing_ms = 0;
+    runner.xy.invert_x = true;
     runner
         .apply_config_payload(json!({
             "runtimeConfig": {
@@ -314,8 +314,8 @@ pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
         .unwrap();
 
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    let binding = runner.xy_x_binding.as_ref().unwrap();
+    runner.xy.smoothing_ms = 0;
+    let binding = runner.xy.x_binding.as_ref().unwrap();
     assert_eq!(binding.user_min, Some(10.0));
     assert_eq!(binding.user_max, Some(90.0));
     runner
@@ -330,9 +330,9 @@ pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
     runner.set_param_binding_range_value("xy:x", false, 42);
     assert_eq!(runner.instruments[0].volume, 42);
 
-    runner.xy_invert_x = false;
-    runner.xy_x_binding.as_mut().unwrap().user_min = None;
-    runner.xy_x_binding.as_mut().unwrap().user_max = Some(60.0);
+    runner.xy.invert_x = false;
+    runner.xy.x_binding.as_mut().unwrap().user_min = None;
+    runner.xy.x_binding.as_mut().unwrap().user_max = Some(60.0);
     runner.refresh_xy_runtime_sources();
     runner.process_modulation_step(false).unwrap();
     assert_eq!(runner.instruments[0].volume, 43);
@@ -358,7 +358,7 @@ pub(crate) fn enum_and_bool_bindings_drop_user_ranges_on_load() {
         }))
         .unwrap();
 
-    let binding = runner.xy_x_binding.as_ref().unwrap();
+    let binding = runner.xy.x_binding.as_ref().unwrap();
     assert_eq!(binding.kind, "enum");
     assert_eq!(binding.user_min, None);
     assert_eq!(binding.user_max, None);
@@ -368,7 +368,7 @@ pub(crate) fn enum_and_bool_bindings_drop_user_ranges_on_load() {
 pub(crate) fn range_rows_edit_xy_and_param_mod_bindings_only() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.play_mode = "xy".into();
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
         kind: "number".into(),
@@ -398,7 +398,7 @@ pub(crate) fn range_rows_edit_xy_and_param_mod_bindings_only() {
     runner.menu.state.editing = true;
     runner.menu.turn(25);
     runner.apply_current_menu_edit().unwrap();
-    assert_eq!(runner.xy_x_binding.as_ref().unwrap().user_min, Some(25.0));
+    assert_eq!(runner.xy.x_binding.as_ref().unwrap().user_min, Some(25.0));
     assert_eq!(runner.param_mods[0].x[0].as_ref().unwrap().user_min, None);
 
     assert!(runner.menu.focus_item_key("param:0:x:0.rangeMax"));
@@ -409,7 +409,7 @@ pub(crate) fn range_rows_edit_xy_and_param_mod_bindings_only() {
         runner.param_mods[0].x[0].as_ref().unwrap().user_max,
         Some(24.0)
     );
-    assert_eq!(runner.xy_x_binding.as_ref().unwrap().user_max, None);
+    assert_eq!(runner.xy.x_binding.as_ref().unwrap().user_max, None);
 }
 
 #[test]
@@ -469,11 +469,11 @@ pub(crate) fn instrument_filter_aux_and_xy_bindings_survive_config_load() {
         Some("instruments.1.sample.filter.cutoffHz")
     );
     assert_eq!(
-        runner.xy_x_binding.as_ref().unwrap().key,
+        runner.xy.x_binding.as_ref().unwrap().key,
         "instruments.0.synth.filter.cutoffHz"
     );
     assert_eq!(
-        runner.xy_y_binding.as_ref().unwrap().key,
+        runner.xy.y_binding.as_ref().unwrap().key,
         "instruments.0.synth.filter.resonance"
     );
 }

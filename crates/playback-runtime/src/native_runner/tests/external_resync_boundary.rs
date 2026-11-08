@@ -295,7 +295,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
             tiles: Vec::new(),
         },
     });
-    runner.link_arp_held_notes[0].push(LinkArpHeldNote {
+    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
         audio: true,
         channel: 0,
         note: 99,
@@ -315,7 +315,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
         .audio
         .iter()
         .all(|event| !matches!(event, platform_core::MusicalEvent::NoteOn { note: 99, .. })));
-    assert!(runner.link_arp_held_notes[0]
+    assert!(runner.link_arp.held_notes[0]
         .iter()
         .all(|held| held.note != 99));
 }

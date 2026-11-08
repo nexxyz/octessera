@@ -12,10 +12,12 @@ pub(super) fn normalize_xy_smoothing_ms(value: u64) -> u16 {
 impl NativeRunner {
     pub fn next_xy_glide_deadline(&self) -> Option<Instant> {
         [
-            self.xy_x_glide
+            self.xy
+                .x_glide
                 .as_ref()
                 .and_then(|glide| glide.started_at.checked_add(glide.duration)),
-            self.xy_y_glide
+            self.xy
+                .y_glide
                 .as_ref()
                 .and_then(|glide| glide.started_at.checked_add(glide.duration)),
         ]
@@ -26,49 +28,49 @@ impl NativeRunner {
 
     pub(super) fn retarget_xy_runtime_sources_at(&mut self, now: Instant, force: bool) -> bool {
         let targets = [
-            if self.xy_invert_x {
-                1.0 - self.xy_touch.display_x
+            if self.xy.invert_x {
+                1.0 - self.xy.touch.display_x
             } else {
-                self.xy_touch.display_x
+                self.xy.touch.display_x
             },
-            if self.xy_invert_y {
-                1.0 - self.xy_touch.display_y
+            if self.xy.invert_y {
+                1.0 - self.xy.touch.display_y
             } else {
-                self.xy_touch.display_y
+                self.xy.touch.display_y
             },
         ];
         self.retarget_xy_axis(true, targets[0], now, force);
         self.retarget_xy_axis(false, targets[1], now, force);
         if force {
-            self.set_xy_runtime_sources_forced([self.xy_touch.x, self.xy_touch.y])
+            self.set_xy_runtime_sources_forced([self.xy.touch.x, self.xy.touch.y])
         } else {
-            self.set_xy_runtime_sources([self.xy_touch.x, self.xy_touch.y])
+            self.set_xy_runtime_sources([self.xy.touch.x, self.xy.touch.y])
         }
     }
 
     pub(super) fn set_xy_smoothing_ms_at(&mut self, value: u64, now: Instant) -> bool {
-        self.xy_smoothing_ms = normalize_xy_smoothing_ms(value);
+        self.xy.smoothing_ms = normalize_xy_smoothing_ms(value);
         self.retarget_xy_runtime_sources_at(now, true)
     }
 
     pub(super) fn advance_xy_smoothing_at(&mut self, now: Instant) -> Result<(), String> {
-        let x_changed = advance_xy_axis(&mut self.xy_touch.x, &mut self.xy_x_glide, now);
-        let y_changed = advance_xy_axis(&mut self.xy_touch.y, &mut self.xy_y_glide, now);
+        let x_changed = advance_xy_axis(&mut self.xy.touch.x, &mut self.xy.x_glide, now);
+        let y_changed = advance_xy_axis(&mut self.xy.touch.y, &mut self.xy.y_glide, now);
         if !(x_changed || y_changed) {
             return Ok(());
         }
-        if self.set_xy_runtime_sources([self.xy_touch.x, self.xy_touch.y]) {
+        if self.set_xy_runtime_sources([self.xy.touch.x, self.xy.touch.y]) {
             self.process_dirty_modulation_step(true)?;
         }
         Ok(())
     }
 
     fn retarget_xy_axis(&mut self, x_axis: bool, target: f32, now: Instant, force: bool) {
-        let smoothing_ms = self.xy_smoothing_ms;
+        let smoothing_ms = self.xy.smoothing_ms;
         let (value, glide) = if x_axis {
-            (&mut self.xy_touch.x, &mut self.xy_x_glide)
+            (&mut self.xy.touch.x, &mut self.xy.x_glide)
         } else {
-            (&mut self.xy_touch.y, &mut self.xy_y_glide)
+            (&mut self.xy.touch.y, &mut self.xy.y_glide)
         };
         let target_unchanged = glide
             .as_ref()

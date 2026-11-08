@@ -85,14 +85,14 @@ pub(crate) fn keyed_layer_algorithm_step_rebases_held_discrete_source() {
     .unwrap();
     let key = "algorithmStep";
     runner.active_play_mode = "xy".into();
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,
         display_x: 1.0,
         display_y: 0.5,
         active: true,
     };
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: key.into(),
         label: Some("Step Rate".into()),
         kind: "enum".into(),
@@ -134,14 +134,14 @@ pub(crate) fn unchanged_modulation_avoids_state_serialization_rebuild_and_autosa
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.select_layer_behavior(1, "brain").unwrap();
     runner.layer_behavior_configs[1] = json!({ "randomSeedCells": 4 });
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.2,
         display_x: 0.5,
         display_y: 0.2,
         active: true,
     };
-    runner.xy_y_binding = Some(NativeParamBinding {
+    runner.xy.y_binding = Some(NativeParamBinding {
         key: "layers.1.build.behaviorConfig.randomSeedCells".into(),
         label: Some("Spawn Count".into()),
         kind: "number".into(),
@@ -185,7 +185,7 @@ pub(crate) fn per_layer_step_rate_xy_binding_round_trips_from_payload() {
     runner.apply_config_payload(payload).unwrap();
 
     assert_eq!(
-        runner.xy_x_binding.as_ref().unwrap().key,
+        runner.xy.x_binding.as_ref().unwrap().key,
         "layers.2.algorithmStep"
     );
 }
@@ -196,14 +196,14 @@ pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values(
     runner.layer_behavior_ids[2] = "none".into();
     runner.transport.layer_algorithm_step_pulses[2] = 24;
     runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 1.0,
         y: 1.0,
         display_x: 1.0,
         display_y: 1.0,
         active: true,
     };
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "layers.2.algorithmStep".into(),
         label: Some("Step Rate".into()),
         kind: "enum".into(),
@@ -219,7 +219,7 @@ pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values(
             .collect(),
         invert: false,
     });
-    runner.xy_y_binding = Some(NativeParamBinding {
+    runner.xy.y_binding = Some(NativeParamBinding {
         key: "layers.2.build.behaviorConfig.randomSeedCells".into(),
         label: Some("Spawn Count".into()),
         kind: "number".into(),

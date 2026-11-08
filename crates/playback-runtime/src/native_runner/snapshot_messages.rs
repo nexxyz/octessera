@@ -253,7 +253,7 @@ impl NativeRunner {
     }
 
     pub(super) fn append_pending_transpose_note_offs(&mut self, messages: &mut Vec<RunnerMessage>) {
-        let events = std::mem::take(&mut self.pending_transpose_note_offs);
+        let events = std::mem::take(&mut self.transpose.pending_note_offs);
         if !events.audio.is_empty() {
             messages.push(RunnerMessage::MusicalEvents {
                 events: events.audio,

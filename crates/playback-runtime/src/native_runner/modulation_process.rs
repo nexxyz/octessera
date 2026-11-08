@@ -299,7 +299,7 @@ impl NativeRunner {
     }
 
     pub(super) fn refresh_xy_runtime_sources(&mut self) {
-        let _ = self.set_xy_runtime_sources([self.xy_touch.x, self.xy_touch.y]);
+        let _ = self.set_xy_runtime_sources([self.xy.touch.x, self.xy.touch.y]);
     }
 
     pub(super) fn resample_xy_runtime_sources(&mut self) {
@@ -323,17 +323,17 @@ impl NativeRunner {
     }
 
     fn set_xy_runtime_sources_with_force(&mut self, normalized: [f32; 2], force: bool) -> bool {
-        let active = self.xy_touch.active;
+        let active = self.xy.touch.active;
         let mut changed = false;
         for (source, binding, normalized) in [
             (
                 ModulationSourceId::play_x(),
-                self.xy_x_binding.clone(),
+                self.xy.x_binding.clone(),
                 normalized[0],
             ),
             (
                 ModulationSourceId::play_y(),
-                self.xy_y_binding.clone(),
+                self.xy.y_binding.clone(),
                 normalized[1],
             ),
         ] {

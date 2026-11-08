@@ -331,8 +331,8 @@ pub(crate) fn play_transpose_tracks_clamped_explicit_release_notes() {
 pub(crate) fn play_transpose_retarget_drains_held_note_before_new_offset() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "transpose".into();
-    runner.play_transpose_offsets[0] = 7;
-    runner.play_transpose_active_notes[0]
+    runner.transpose.offsets[0] = 7;
+    runner.transpose.active_notes[0]
         .entry((0, 60))
         .or_default()
         .push(TransposedHeldNote {
@@ -354,8 +354,8 @@ pub(crate) fn play_transpose_retarget_drains_held_note_before_new_offset() {
         RunnerMessage::MusicalEvents { events }
             if events == &vec![MusicalEvent::NoteOff { channel: 0, note: 67 }]
     )));
-    assert!(runner.play_transpose_active_notes[0].is_empty());
-    assert_eq!(runner.play_transpose_offsets[0], 12);
+    assert!(runner.transpose.active_notes[0].is_empty());
+    assert_eq!(runner.transpose.offsets[0], 12);
 }
 
 #[test]
@@ -365,7 +365,7 @@ pub(crate) fn play_transpose_disable_drains_midi_held_note_to_routed_channel() {
     runner.instruments[0].kind = "midi".into();
     runner.instruments[0].midi_enabled = true;
     runner.instruments[0].midi_channel = 3;
-    runner.play_transpose_active_notes[0]
+    runner.transpose.active_notes[0]
         .entry((0, 60))
         .or_default()
         .push(TransposedHeldNote {
@@ -387,7 +387,7 @@ pub(crate) fn play_transpose_disable_drains_midi_held_note_to_routed_channel() {
         RunnerMessage::MidiEvents { events }
             if events == &vec![MusicalEvent::NoteOff { channel: 2, note: 67 }]
     )));
-    assert!(runner.play_transpose_active_notes[0].is_empty());
+    assert!(runner.transpose.active_notes[0].is_empty());
 }
 
 #[test]
@@ -442,7 +442,7 @@ pub(crate) fn play_transpose_release_uses_stored_route_after_midi_is_disabled() 
 #[test]
 pub(crate) fn play_transpose_instrument_route_change_drains_all_original_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_transpose_active_notes[0].insert(
+    runner.transpose.active_notes[0].insert(
         (0, 60),
         vec![TransposedHeldNote {
             routed_channel: 2,
@@ -451,7 +451,7 @@ pub(crate) fn play_transpose_instrument_route_change_drains_all_original_notes()
             sampler_tile: None,
         }],
     );
-    runner.play_transpose_active_notes[1].insert(
+    runner.transpose.active_notes[1].insert(
         (0, 64),
         vec![TransposedHeldNote {
             routed_channel: 2,
@@ -472,14 +472,14 @@ pub(crate) fn play_transpose_instrument_route_change_drains_all_original_notes()
                 MusicalEvent::NoteOff { channel: 2, note: 71 },
             ]
     )));
-    assert!(runner.play_transpose_active_notes[0].is_empty());
-    assert!(runner.play_transpose_active_notes[1].is_empty());
+    assert!(runner.transpose.active_notes[0].is_empty());
+    assert!(runner.transpose.active_notes[1].is_empty());
 }
 
 #[test]
 pub(crate) fn clear_patch_state_preserves_pending_transpose_note_offs() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_transpose_active_notes[0].insert(
+    runner.transpose.active_notes[0].insert(
         (0, 60),
         vec![TransposedHeldNote {
             routed_channel: 0,

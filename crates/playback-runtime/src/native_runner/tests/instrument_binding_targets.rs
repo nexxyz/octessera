@@ -224,7 +224,7 @@ fn inert_sample_bindings_reject_new_actions_but_legacy_config_still_loads() {
                 .unwrap();
             assert!(runner.aux_bindings[0].is_none(), "{target} {field}");
             assert!(runner.shift_aux_bindings[0].is_none(), "{target} {field}");
-            assert!(runner.xy_x_binding.is_none(), "{target} {field}");
+            assert!(runner.xy.x_binding.is_none(), "{target} {field}");
             assert!(runner.param_mods[0].x[0].is_none(), "{target} {field}");
             assert!(runner.link_lfos[0].target.is_none(), "{target} {field}");
         }
@@ -243,9 +243,9 @@ fn inert_sample_bindings_reject_new_actions_but_legacy_config_still_loads() {
         runner.aux_bindings[0].as_ref().unwrap().turn_key.as_deref(),
         Some(legacy_key)
     );
-    assert_eq!(runner.xy_x_binding.as_ref().unwrap().key, legacy_key);
+    assert_eq!(runner.xy.x_binding.as_ref().unwrap().key, legacy_key);
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     let _ = runner.messages_with_snapshot().unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {

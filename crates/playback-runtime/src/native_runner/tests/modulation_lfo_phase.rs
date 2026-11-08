@@ -237,14 +237,14 @@ pub(crate) fn active_lfo_tick_does_not_reapply_unrelated_held_xy_source() {
     .unwrap();
     runner.select_layer_behavior(1, "brain").unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,
         display_x: 1.0,
         display_y: 0.5,
         active: true,
     };
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "layers.1.build.behaviorConfig.randomSeedCells".into(),
         label: Some("Seed Tiles".into()),
         kind: "number".into(),
@@ -277,14 +277,14 @@ pub(crate) fn active_lfo_tick_does_not_reapply_unrelated_held_xy_source() {
 pub(crate) fn active_lfo_tick_does_no_work_for_unrelated_held_source() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[1].volume = 100;
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,
         display_x: 0.5,
         display_y: 0.5,
         active: true,
     };
-    runner.xy_x_binding = Some(volume_binding_for(1));
+    runner.xy.x_binding = Some(volume_binding_for(1));
     runner.refresh_xy_runtime_sources();
     runner.process_modulation_step(false).unwrap();
     let _ = runner.outbox.drain_audio_commands();

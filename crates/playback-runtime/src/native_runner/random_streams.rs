@@ -102,7 +102,7 @@ impl NativeRunner {
         if self.link_seeded(layer_index) {
             &mut self.seeded_link_streams.arp[layer_index]
         } else {
-            &mut self.link_arp_random_state
+            &mut self.link_arp.random_state
         }
     }
 

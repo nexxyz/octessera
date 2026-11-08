@@ -28,7 +28,7 @@ fn xy_runner(release: &str) -> NativeRunner {
     runner
         .apply_or_schedule_menu_key("play.xy.release")
         .unwrap();
-    assert_eq!(runner.xy_release, release);
+    assert_eq!(runner.xy.release, release);
     open_xy_page(&mut runner);
     let _ = runner.messages_with_snapshot().unwrap();
     runner.config_dirty = false;
@@ -57,9 +57,9 @@ fn shift_press_latches_the_position_even_with_center_release() {
     let saved = runner.config_payload();
 
     shift_tap(&mut runner, 6, 5);
-    assert!(!runner.xy_touch.active);
-    assert!((runner.xy_touch.display_x - 6.0 / 7.0).abs() < 0.0001);
-    assert!((runner.xy_touch.display_y - 5.0 / 7.0).abs() < 0.0001);
+    assert!(!runner.xy.touch.active);
+    assert!((runner.xy.touch.display_x - 6.0 / 7.0).abs() < 0.0001);
+    assert!((runner.xy.touch.display_y - 5.0 / 7.0).abs() < 0.0001);
     assert_eq!(tile(&runner, 6, 5), led_rgb(platform_core::palette::WHITE));
     assert!(!runner.config_dirty, "the latch is live only");
     assert_eq!(
@@ -68,8 +68,8 @@ fn shift_press_latches_the_position_even_with_center_release() {
     );
 
     tap(&mut runner, 2, 2);
-    assert_eq!(runner.xy_touch.display_x, 0.5);
-    assert_eq!(runner.xy_touch.display_y, 0.5);
+    assert_eq!(runner.xy.touch.display_x, 0.5);
+    assert_eq!(runner.xy.touch.display_y, 0.5);
     assert_ne!(tile(&runner, 3, 4), led_rgb(platform_core::palette::WHITE));
 }
 
@@ -77,11 +77,11 @@ fn shift_press_latches_the_position_even_with_center_release() {
 fn latch_behaves_like_hold_under_sample_hold() {
     let mut runner = xy_runner("sample-hold");
     shift_tap(&mut runner, 1, 6);
-    assert!((runner.xy_touch.display_x - 1.0 / 7.0).abs() < 0.0001);
+    assert!((runner.xy.touch.display_x - 1.0 / 7.0).abs() < 0.0001);
     assert_eq!(tile(&runner, 1, 6), led_rgb(platform_core::palette::WHITE));
 
     tap(&mut runner, 5, 2);
-    assert!((runner.xy_touch.display_x - 5.0 / 7.0).abs() < 0.0001);
+    assert!((runner.xy.touch.display_x - 5.0 / 7.0).abs() < 0.0001);
     assert_eq!(
         tile(&runner, 5, 2),
         led_rgb(dim_rgb(platform_core::palette::GRAY, 2))
@@ -97,7 +97,7 @@ fn clear_all_and_patch_load_drop_the_latch() {
     runner.apply_config_payload(payload).unwrap();
     assert!(!runner.play_live.xy_latched);
     assert_eq!(
-        (runner.xy_touch.display_x, runner.xy_touch.display_y),
+        (runner.xy.touch.display_x, runner.xy.touch.display_y),
         (0.5, 0.5),
         "center release recentres once the latch is gone"
     );

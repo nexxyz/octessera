@@ -354,7 +354,7 @@ pub(crate) fn physical_fx_menu_sibling_edits_rematerialize_owned_endpoints() {
 pub(crate) fn binding_fx_sibling_edits_rematerialize_owned_endpoints() {
     let mut runner = setup_eq_lfo_runner();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     let binding = |key: &str| NativeParamBinding {
         key: key.into(),
         label: Some("Low Gain".into()),
@@ -367,8 +367,8 @@ pub(crate) fn binding_fx_sibling_edits_rematerialize_owned_endpoints() {
         options: vec![],
         invert: false,
     };
-    runner.xy_x_binding = Some(binding("mixer.buses.0.slot3.params.lowGainDb"));
-    runner.xy_y_binding = Some(binding("mixer.master.slots.0.params.lowGainDb"));
+    runner.xy.x_binding = Some(binding("mixer.buses.0.slot3.params.lowGainDb"));
+    runner.xy.y_binding = Some(binding("mixer.master.slots.0.params.lowGainDb"));
     let _ = runner.messages_with_snapshot().unwrap();
     let messages = runner
         .send(HostMessage::DeviceInput {

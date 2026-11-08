@@ -220,9 +220,9 @@ fn follow_transpose_lets_a_layer_that_only_feeds_drums_or_samples_transpose() {
     for slot in 0..4 {
         runner.instruments[slot].kind = "drum".into();
     }
-    runner.play_transpose_selected[0] = true;
-    runner.play_transpose_enabled[0] = true;
-    runner.play_transpose_offsets[0] = 5;
+    runner.transpose.selected[0] = true;
+    runner.transpose.enabled[0] = true;
+    runner.transpose.offsets[0] = 5;
     assert_eq!(runner.play_transpose_offsets_for_routing()[0], 0);
 
     runner.instruments[0].drum_config["followTranspose"] = json!(true);

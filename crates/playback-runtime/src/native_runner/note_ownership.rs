@@ -6,26 +6,28 @@ use platform_core::MusicalEvent;
 
 impl NativeRunner {
     pub(super) fn drain_layer_owned_notes(&mut self, layer_index: usize) {
-        let audio_start = self.pending_transpose_note_offs.audio.len();
-        let midi_start = self.pending_transpose_note_offs.midi.len();
-        let tiles_start = self.pending_transpose_note_offs.tiles.len();
+        let audio_start = self.transpose.pending_note_offs.audio.len();
+        let midi_start = self.transpose.pending_note_offs.midi.len();
+        let tiles_start = self.transpose.pending_note_offs.tiles.len();
         self.clear_delayed_link_events_for_layer(layer_index);
         self.drain_layer_engine_notes(layer_index);
         self.drain_play_transpose_layers_for_layer_disable(layer_index);
         let mut drained = RoutedMusicalEvents {
             audio: self
-                .pending_transpose_note_offs
+                .transpose
+                .pending_note_offs
                 .audio
                 .split_off(audio_start),
-            midi: self.pending_transpose_note_offs.midi.split_off(midi_start),
+            midi: self.transpose.pending_note_offs.midi.split_off(midi_start),
             tiles: self
-                .pending_transpose_note_offs
+                .transpose
+                .pending_note_offs
                 .tiles
                 .split_off(tiles_start),
         };
         drained.extend(self.layer_owned_route_note_offs(layer_index));
         let released = self.release_layer_owned_route_notes(layer_index, drained);
-        self.pending_transpose_note_offs.extend(released);
+        self.transpose.pending_note_offs.extend(released);
         self.clear_layer_replacement_state(layer_index);
         self.clear_layer_emitted_route_notes(layer_index);
     }
@@ -74,7 +76,8 @@ impl NativeRunner {
     pub(super) fn is_held_tile(&self, layer_index: usize, hit: &TileHit) -> bool {
         hit.velocity > 0
             && self
-                .play_transpose_active_notes
+                .transpose
+                .active_notes
                 .get(layer_index)
                 .is_some_and(|notes| {
                     notes.values().flatten().any(|held| {

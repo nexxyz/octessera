@@ -90,17 +90,13 @@ impl NativeRunner {
     }
 
     fn copy_live_runtime_state_from(&mut self, source: &NativeRunner) {
-        self.xy_touch = source.xy_touch.clone();
-        self.xy_x_glide = source.xy_x_glide.clone();
-        self.xy_y_glide = source.xy_y_glide.clone();
+        self.xy.touch = source.xy.touch.clone();
+        self.xy.x_glide = source.xy.x_glide.clone();
+        self.xy.y_glide = source.xy.y_glide.clone();
         self.active_play_fx = source.active_play_fx.clone();
         self.trigger_gate_modes = source.trigger_gate_modes.clone();
         self.trigger_gate_restore_modes = source.trigger_gate_restore_modes.clone();
-        self.play_transpose_selected = source.play_transpose_selected.clone();
-        self.play_transpose_enabled = source.play_transpose_enabled.clone();
-        self.play_transpose_offsets = source.play_transpose_offsets.clone();
-        self.play_transpose_active_notes = source.play_transpose_active_notes.clone();
-        self.pending_transpose_note_offs = source.pending_transpose_note_offs.clone();
+        self.transpose = source.transpose.clone();
         self.grid_assign = source
             .grid_assign
             .clone()
@@ -133,7 +129,7 @@ impl NativeRunner {
             return Ok(());
         }
         self.drain_all_layer_engine_notes();
-        candidate.pending_transpose_note_offs = self.pending_transpose_note_offs.clone();
+        candidate.transpose.pending_note_offs = self.transpose.pending_note_offs.clone();
         candidate.preserve_sample_availability_from(self);
         let focused_key = self.menu.current_key().map(str::to_owned);
         if self.menu.is_built() {

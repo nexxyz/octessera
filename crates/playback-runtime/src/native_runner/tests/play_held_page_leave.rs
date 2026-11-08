@@ -130,21 +130,21 @@ fn a_held_xy_touch_ends_on_release_after_a_page_switch() {
     assert_eq!(runner.active_play_mode, "xy");
 
     let _ = press(&mut runner, 6, 5);
-    assert!(runner.xy_touch.active);
+    assert!(runner.xy.touch.active);
     button(&mut runner, "button_fn", true);
     let _ = press(&mut runner, GRID_WIDTH - 1, 0);
     let _ = release(&mut runner, GRID_WIDTH - 1, 0);
     button(&mut runner, "button_fn", false);
     assert_eq!(runner.active_play_mode, "mix");
     assert!(
-        runner.xy_touch.active,
+        runner.xy.touch.active,
         "another tile's release keeps the hold"
     );
 
     let _ = release(&mut runner, 6, 5);
-    assert!(!runner.xy_touch.active);
+    assert!(!runner.xy.touch.active);
     assert_eq!(
-        (runner.xy_touch.display_x, runner.xy_touch.display_y),
+        (runner.xy.touch.display_x, runner.xy.touch.display_y),
         (0.5, 0.5)
     );
 }

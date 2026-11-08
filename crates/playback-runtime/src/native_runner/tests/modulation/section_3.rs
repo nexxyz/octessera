@@ -70,9 +70,9 @@ pub(crate) fn play_mix_grid_edit_autosaves_persistent_volume_change() {
 pub(crate) fn play_xy_touch_persists_and_release_behavior_matches_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_invert_x = true;
-    runner.xy_release = "reset-center".into();
+    runner.xy.smoothing_ms = 0;
+    runner.xy.invert_x = true;
+    runner.xy.release = "reset-center".into();
 
     runner
         .send(HostMessage::DeviceInput {
@@ -80,9 +80,9 @@ pub(crate) fn play_xy_touch_persists_and_release_behavior_matches_config() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.xy_touch.x, 1.0);
-    assert_eq!(runner.xy_touch.y, 1.0);
-    assert!(runner.xy_touch.active);
+    assert_eq!(runner.xy.touch.x, 1.0);
+    assert_eq!(runner.xy.touch.y, 1.0);
+    assert!(runner.xy.touch.active);
 
     runner
         .send(HostMessage::DeviceInput {
@@ -90,9 +90,9 @@ pub(crate) fn play_xy_touch_persists_and_release_behavior_matches_config() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.xy_touch.x, 0.5);
-    assert_eq!(runner.xy_touch.y, 0.5);
-    assert!(!runner.xy_touch.active);
+    assert_eq!(runner.xy.touch.x, 0.5);
+    assert_eq!(runner.xy.touch.y, 0.5);
+    assert!(!runner.xy.touch.active);
 
     let payload = runner.config_payload();
     assert_eq!(payload["runtimeConfig"]["xyRelease"], "reset-center");
@@ -100,18 +100,18 @@ pub(crate) fn play_xy_touch_persists_and_release_behavior_matches_config() {
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(payload).unwrap();
-    assert_eq!(restored.xy_release, "reset-center");
-    assert!(restored.xy_invert_x);
+    assert_eq!(restored.xy.release, "reset-center");
+    assert!(restored.xy.invert_x);
 }
 
 #[test]
 pub(crate) fn play_xy_overlay_marks_physical_touch_with_inverted_modulation() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_invert_x = true;
-    runner.xy_invert_y = true;
-    runner.xy_release = "sample-hold".into();
+    runner.xy.smoothing_ms = 0;
+    runner.xy.invert_x = true;
+    runner.xy.invert_y = true;
+    runner.xy.release = "sample-hold".into();
 
     let pressed = runner
         .send(HostMessage::DeviceInput {
@@ -119,8 +119,8 @@ pub(crate) fn play_xy_overlay_marks_physical_touch_with_inverted_modulation() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!((runner.xy_touch.x - 6.0 / 7.0).abs() < 0.0001);
-    assert!((runner.xy_touch.y - 1.0 / 7.0).abs() < 0.0001);
+    assert!((runner.xy.touch.x - 6.0 / 7.0).abs() < 0.0001);
+    assert!((runner.xy.touch.y - 1.0 / 7.0).abs() < 0.0001);
     let snapshot = snapshot_from(&pressed);
     let tiles = led_tiles(&snapshot);
     assert_eq!(
@@ -134,7 +134,7 @@ pub(crate) fn play_xy_overlay_marks_physical_touch_with_inverted_modulation() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(!runner.xy_touch.active);
+    assert!(!runner.xy.touch.active);
     let snapshot = snapshot_from(&released);
     let tiles = led_tiles(&snapshot);
     assert_eq!(
@@ -147,8 +147,8 @@ pub(crate) fn play_xy_overlay_marks_physical_touch_with_inverted_modulation() {
 pub(crate) fn play_xy_reset_center_overlay_returns_to_center() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_release = "reset-center".into();
+    runner.xy.smoothing_ms = 0;
+    runner.xy.release = "reset-center".into();
 
     runner
         .send(HostMessage::DeviceInput {
@@ -165,8 +165,8 @@ pub(crate) fn play_xy_reset_center_overlay_returns_to_center() {
     let snapshot = snapshot_from(&released);
     let tiles = led_tiles(&snapshot);
 
-    assert_eq!(runner.xy_touch.x, 0.5);
-    assert_eq!(runner.xy_touch.y, 0.5);
+    assert_eq!(runner.xy.touch.x, 0.5);
+    assert_eq!(runner.xy.touch.y, 0.5);
     assert_eq!(
         tiles[display_index(4, 4)],
         led_rgb(dim_rgb(platform_core::palette::GRAY, 4))
@@ -210,9 +210,9 @@ pub(crate) fn param_mod_binding_updates_native_runtime_config() {
 pub(crate) fn repeated_xy_input_does_not_dirty_or_reemit_the_same_result() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.instruments[0].volume = 50;
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
         kind: "number".into(),
@@ -256,7 +256,7 @@ pub(crate) fn repeated_xy_input_does_not_dirty_or_reemit_the_same_result() {
 pub(crate) fn xy_menu_removal_recomposes_the_held_target_to_its_base() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.instruments[0].volume = 50;
     let binding = NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
@@ -270,7 +270,7 @@ pub(crate) fn xy_menu_removal_recomposes_the_held_target_to_its_base() {
         options: vec![],
         invert: false,
     };
-    runner.xy_x_binding = Some(binding.clone());
+    runner.xy.x_binding = Some(binding.clone());
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 0 }),

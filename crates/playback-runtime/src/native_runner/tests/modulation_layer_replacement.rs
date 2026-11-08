@@ -5,14 +5,14 @@ pub(crate) fn keyed_behavior_menu_leaf_recomposes_with_one_target_replacement() 
     let mut runner = brain_target_runner();
     let key = "layers.1.build.behaviorConfig.randomSeedCells";
     runner.active_play_mode = "xy".into();
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,
         display_x: 1.0,
         display_y: 0.5,
         active: true,
     };
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: key.into(),
         label: Some("Seed Tiles".into()),
         kind: "number".into(),
@@ -71,14 +71,14 @@ pub(crate) fn aux_behavior_turn_recomposes_held_value_with_one_replacement() {
     let mut runner = brain_target_runner();
     let key = "layers.1.build.behaviorConfig.randomSeedCells";
     runner.active_play_mode = "xy".into();
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,
         display_x: 1.0,
         display_y: 0.5,
         active: true,
     };
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: key.into(),
         label: Some("Seed Tiles".into()),
         kind: "number".into(),
@@ -119,7 +119,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
         .messages_with_snapshot()
         .expect("initial runtime snapshot");
     runner.active_play_mode = "xy".into();
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,
         display_x: 0.5,
@@ -127,7 +127,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
         active: true,
     };
     let key = "layers.1.build.behaviorConfig.randomSeedCells";
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: key.into(),
         label: Some("Seed Tiles".into()),
         kind: "number".into(),

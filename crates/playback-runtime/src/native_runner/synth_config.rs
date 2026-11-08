@@ -180,6 +180,18 @@ pub(super) fn synth_scalar_field(suffix: &str) -> Option<(&'static [&'static str
         .map(|&(_, path, min, max)| (path, min, max))
 }
 
+pub(super) fn normalize_voice_stealing_mode(value: &str) -> Option<&'static str> {
+    match value {
+        "none" | "off" => Some("none"),
+        "fixed12" => Some("fixed12"),
+        "fixed16" => Some("fixed16"),
+        "auto-soft" | "lenient" => Some("auto-soft"),
+        "auto-balanced" | "balanced" => Some("auto-balanced"),
+        "auto-hard" | "aggressive" => Some("auto-hard"),
+        _ => None,
+    }
+}
+
 pub(super) fn cutoff_display_to_hz(display: i32) -> i32 {
     let t = f64::from(display.clamp(0, 255)) / 255.0;
     (20.0 * (20_000.0_f64 / 20.0).ln().mul_add(t, 0.0).exp()).round() as i32

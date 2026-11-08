@@ -186,7 +186,7 @@ impl NativeRunner {
                     instruments,
                     sense.as_ref(),
                     transpose_offset,
-                    self.play_transpose_active_notes.get_mut(layer_index),
+                    self.transpose.active_notes.get_mut(layer_index),
                 );
                 self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
                 out.extend(routed);
@@ -217,7 +217,7 @@ impl NativeRunner {
                 instruments,
                 sense.as_ref(),
                 transpose_offset,
-                self.play_transpose_active_notes.get_mut(layer_index),
+                self.transpose.active_notes.get_mut(layer_index),
             );
             let routed = dedupe_note_ons_in_group(routed, instruments);
             out.extend(self.apply_link_timing_with_sense(

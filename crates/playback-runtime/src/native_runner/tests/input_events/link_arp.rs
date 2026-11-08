@@ -49,7 +49,7 @@ pub(crate) fn link_arp_menu_apply_paths_round_trip_held_source() {
     assert_eq!(runner.link_layers[0].arp.source, "held");
     assert_eq!(runner.link_layers[0].arp.mode, "up");
 
-    runner.link_arp_held_notes[0].push(LinkArpHeldNote {
+    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
         audio: true,
         channel: 0,
         note: 60,
@@ -57,7 +57,7 @@ pub(crate) fn link_arp_menu_apply_paths_round_trip_held_source() {
     });
     runner.menu.turn_key("layers.0.link.arp.mode", -2);
     assert!(runner.apply_menu_key_fast("layers.0.link.arp.mode"));
-    assert!(runner.link_arp_held_notes[0].is_empty());
+    assert!(runner.link_arp.held_notes[0].is_empty());
     runner.menu.turn_key("layers.0.link.arp.mode", 2);
 
     runner.link_layers[0].arp = NativeLinkArp::default();
@@ -308,7 +308,7 @@ pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
         },
     );
     assert!(finite.audio.is_empty());
-    assert!(runner.link_arp_held_notes[0].is_empty());
+    assert!(runner.link_arp.held_notes[0].is_empty());
 
     runner.apply_link_timing(
         0,
@@ -319,11 +319,11 @@ pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
             tiles: Vec::new(),
         },
     );
-    assert!(!runner.link_arp_held_notes[0].is_empty());
-    runner.link_arp_random_state = 123;
+    assert!(!runner.link_arp.held_notes[0].is_empty());
+    runner.link_arp.random_state = 123;
     runner.reset_transport_position();
-    assert!(runner.link_arp_held_notes[0].is_empty());
-    assert_eq!(runner.link_arp_random_state, 0x4f43_5441);
+    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert_eq!(runner.link_arp.random_state, 0x4f43_5441);
 }
 
 #[test]

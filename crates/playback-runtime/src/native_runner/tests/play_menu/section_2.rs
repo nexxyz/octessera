@@ -291,7 +291,7 @@ fn press_grid(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessag
 pub(crate) fn play_transpose_layer_selection_controls_routing() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = "transpose".into();
-    runner.play_transpose_offsets[0] = 7;
+    runner.transpose.offsets[0] = 7;
     assert_eq!(runner.play_transpose_offsets_for_routing()[0], 7);
 
     runner
@@ -301,7 +301,7 @@ pub(crate) fn play_transpose_layer_selection_controls_routing() {
         })
         .unwrap();
 
-    assert!(!runner.play_transpose_selected[0]);
+    assert!(!runner.transpose.selected[0]);
     assert_eq!(runner.play_transpose_offsets_for_routing()[0], 0);
 }
 

@@ -65,14 +65,14 @@ fn pan_on_a_bus_routed_instrument_edits_the_bus_row_and_keeps_its_own_pan() {
 fn mix_press_under_xy_modulation_moves_the_base_it_returns_to() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].volume = 30;
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,
         display_x: 0.5,
         display_y: 0.5,
         active: true,
     };
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
         kind: "number".into(),

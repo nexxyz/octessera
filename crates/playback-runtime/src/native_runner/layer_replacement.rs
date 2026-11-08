@@ -130,7 +130,8 @@ impl NativeRunner {
         let instruments = self.instruments.clone();
         let sense = self.link_layers.get(layer_index).cloned();
         let transpose_offset = self
-            .play_transpose_offsets
+            .transpose
+            .offsets
             .get(layer_index)
             .copied()
             .unwrap_or(0);
@@ -141,15 +142,15 @@ impl NativeRunner {
             &instruments,
             sense.as_ref(),
             transpose_offset,
-            self.play_transpose_active_notes.get_mut(layer_index),
+            self.transpose.active_notes.get_mut(layer_index),
         );
-        self.pending_transpose_note_offs.extend(routed);
+        self.transpose.pending_note_offs.extend(routed);
     }
 
     pub(super) fn clear_layer_replacement_state(&mut self, layer_index: usize) {
         self.clear_delayed_link_events_for_layer(layer_index);
         self.clear_link_arp_state_for_layer(layer_index);
-        if let Some(active_notes) = self.play_transpose_active_notes.get_mut(layer_index) {
+        if let Some(active_notes) = self.transpose.active_notes.get_mut(layer_index) {
             active_notes.clear();
         }
     }

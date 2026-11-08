@@ -145,7 +145,7 @@ fn aux_and_xy_next_hit_voice_targets_emit_only_voice_scoped_scalars() {
     assert_eq!(runner.instruments[1], other);
 
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.menu.rebuild(runner.menu_config());
     assert!(runner
         .menu
@@ -155,7 +155,7 @@ fn aux_and_xy_next_hit_voice_targets_emit_only_voice_scoped_scalars() {
         json!({ "type": "encoder_press", "id": "main" }),
     );
     assert_eq!(
-        runner.xy_x_binding.as_ref().unwrap().key,
+        runner.xy.x_binding.as_ref().unwrap().key,
         "instruments.0.drum.voices.2.decayMs"
     );
     let _ = runner.messages_with_snapshot().unwrap();

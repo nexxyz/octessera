@@ -33,9 +33,9 @@ fn fx_binding(key: &str, min: f64, max: f64, step: f64) -> NativeParamBinding {
 #[test]
 pub(crate) fn patch_transaction_discards_held_xy_source_and_captured_base() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.instruments[0].volume = 50;
-    runner.xy_x_binding = Some(volume_binding());
+    runner.xy.x_binding = Some(volume_binding());
     runner.active_play_mode = "xy".into();
     runner
         .send(HostMessage::DeviceInput {
@@ -58,9 +58,9 @@ pub(crate) fn patch_transaction_discards_held_xy_source_and_captured_base() {
 #[test]
 pub(crate) fn config_transaction_resamples_active_xy_against_candidate_inversion() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.instruments[0].volume = 50;
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 0.25,
         y: 0.5,
         display_x: 0.25,
@@ -81,15 +81,15 @@ pub(crate) fn config_transaction_resamples_active_xy_against_candidate_inversion
     runner.apply_config_payload(config).unwrap();
 
     assert_eq!(runner.instruments[0].volume, 75);
-    assert!(runner.xy_touch.active);
+    assert!(runner.xy.touch.active);
 }
 
 #[test]
 pub(crate) fn config_load_captures_changed_xy_owner_then_clear_restores_loaded_base() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.instruments[1].volume = 20;
-    runner.xy_touch = NativeXyTouch {
+    runner.xy.touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,
         display_x: 1.0,

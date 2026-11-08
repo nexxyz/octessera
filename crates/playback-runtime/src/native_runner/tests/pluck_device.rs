@@ -111,7 +111,7 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
     assert_eq!(runner.instruments[1], other);
 
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
+    runner.xy.smoothing_ms = 0;
     runner.menu.rebuild(runner.menu_config());
     assert!(runner
         .menu
@@ -121,7 +121,7 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
         json!({ "type": "encoder_press", "id": "main" }),
     );
     assert_eq!(
-        runner.xy_x_binding.as_ref().unwrap().key,
+        runner.xy.x_binding.as_ref().unwrap().key,
         "instruments.0.pluck.filter.cutoffHz"
     );
     let _ = runner.messages_with_snapshot().unwrap();
@@ -132,7 +132,7 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.apply_config_payload(saved).unwrap();
     assert_eq!(
-        loaded.xy_x_binding.unwrap().key,
+        loaded.xy.x_binding.unwrap().key,
         "instruments.0.pluck.filter.cutoffHz"
     );
 }
@@ -143,8 +143,8 @@ fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
     runner.instruments[0].kind = "pluck".into();
     runner.menu.rebuild(runner.menu_config());
     runner.active_play_mode = "xy".into();
-    runner.xy_smoothing_ms = 0;
-    runner.xy_x_binding = Some(NativeParamBinding {
+    runner.xy.smoothing_ms = 0;
+    runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.pluck.brightnessPct".into(),
         label: None,
         kind: "number".into(),

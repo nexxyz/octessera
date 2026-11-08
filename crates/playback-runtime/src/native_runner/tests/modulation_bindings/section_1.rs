@@ -40,7 +40,7 @@ pub(crate) fn menu_binding_actions_update_param_xy_and_aux_targets() {
         "instruments.0.mixer.volume"
     );
     assert_eq!(
-        runner.xy_x_binding.as_ref().unwrap().key,
+        runner.xy.x_binding.as_ref().unwrap().key,
         "instruments.0.mixer.volume"
     );
     assert_eq!(
@@ -96,7 +96,7 @@ pub(crate) fn representative_selector_actions_update_link_aux_and_play_xy_bindin
             .and_then(|binding| binding.turn_key.as_deref()),
         Some(binding.key.as_str())
     );
-    assert_eq!(runner.xy_y_binding.as_ref().unwrap().key, binding.key);
+    assert_eq!(runner.xy.y_binding.as_ref().unwrap().key, binding.key);
 }
 
 pub(crate) fn collect_set_binding_keys(

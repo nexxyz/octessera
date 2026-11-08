@@ -325,7 +325,7 @@ impl NativeRunner {
             return self.messages_with_snapshot();
         }
         let fx_effects = self.play_fx_release_effects(x, y);
-        let xy_held = self.xy_touch.active && self.play_live.xy_held_tile == Some((x, y));
+        let xy_held = self.xy.touch.active && self.play_live.xy_held_tile == Some((x, y));
         if self.active_play_mode != "none" || !fx_effects.is_empty() || xy_held {
             self.release_fader_tile(x, y);
             if self.active_play_mode == "xy" || xy_held {

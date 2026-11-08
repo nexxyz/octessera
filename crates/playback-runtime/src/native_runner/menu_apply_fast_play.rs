@@ -9,7 +9,7 @@ impl NativeRunner {
         if !matches!(value.as_str(), "sample-hold" | "reset-center") {
             return false;
         }
-        if value_changed(&mut self.xy_release, value) {
+        if value_changed(&mut self.xy.release, value) {
             self.mark_fast_autosave_dirty();
         }
         true
@@ -20,7 +20,7 @@ impl NativeRunner {
             return false;
         };
         let value = super::normalize_xy_smoothing_ms(value.max(0) as u64);
-        if value_changed(&mut self.xy_smoothing_ms, value) {
+        if value_changed(&mut self.xy.smoothing_ms, value) {
             if self.set_xy_smoothing_ms_at(u64::from(value), std::time::Instant::now()) {
                 if let Err(error) = self.process_dirty_modulation_step(false) {
                     self.show_modulation_unavailable(&error);
@@ -41,9 +41,9 @@ impl NativeRunner {
             return false;
         };
         let changed = if x_axis {
-            value_changed(&mut self.xy_invert_x, value)
+            value_changed(&mut self.xy.invert_x, value)
         } else {
-            value_changed(&mut self.xy_invert_y, value)
+            value_changed(&mut self.xy.invert_y, value)
         };
         if changed {
             self.resample_xy_runtime_sources();
