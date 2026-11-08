@@ -7,12 +7,12 @@ use super::sample_voice::SampleBufferView;
 use crate::synth::SampleBuffer;
 
 /// The forward loop's seam crossfade, in seconds of the sample itself.
-const LOOP_CROSSFADE_SECONDS: f32 = 0.010;
+const LOOP_CROSSFADE_SECONDS: f64 = 0.010;
 
 #[inline(always)]
-fn lerp_at(source: &SampleBufferView, pos: f32) -> f32 {
-    let frame = pos.floor() as usize;
-    let frac = pos - frame as f32;
+fn lerp_at(source: &SampleBufferView, pos: f64) -> f32 {
+    let frame = pos as usize;
+    let frac = (pos - frame as f64) as f32;
     let next_frame = (frame + 1).min(source.frames() - 1);
     source.mono_frame(frame) * (1.0 - frac) + source.mono_frame(next_frame) * frac
 }
@@ -20,7 +20,7 @@ fn lerp_at(source: &SampleBufferView, pos: f32) -> f32 {
 /// Reads the input at `pos` and moves `pos` on by `step`; `None` once a one-shot read has run
 /// off the end of the sample.
 pub(super) trait SampleCursor: Copy {
-    fn read(&mut self, source: &SampleBufferView, pos: &mut f32, step: f32) -> Option<f32>;
+    fn read(&mut self, source: &SampleBufferView, pos: &mut f64, step: f64) -> Option<f32>;
     fn into_loop(self) -> SampleVoiceLoop;
 }
 
@@ -36,9 +36,9 @@ impl SampleVoiceLoop {
 
     /// The cursor for a voice and the frame it starts on. A loop that would be shorter than two
     /// frames plays once instead; a looping start past Loop End begins at Loop Start.
-    pub(super) fn start(playback: &SamplePlaybackConfig, buffer: &SampleBuffer) -> (Self, f32) {
+    pub(super) fn start(playback: &SamplePlaybackConfig, buffer: &SampleBuffer) -> (Self, f64) {
         let frames = buffer.samples.len() / usize::from(buffer.channels.max(1));
-        let at = |pct: f32| (frames as f32 * pct / 100.0).floor();
+        let at = |pct: f32| (frames as f64 * f64::from(pct) / 100.0).floor();
         let start = at(playback.start_pct);
         let loop_start = at(playback.loop_start_pct);
         let loop_end = at(playback.loop_end_pct);
@@ -48,13 +48,13 @@ impl SampleVoiceLoop {
         }
         let start = if start >= loop_end { loop_start } else { start };
         let cursor = if playback.loop_mode == SampleLoopMode::Forward {
-            let fade = (LOOP_CROSSFADE_SECONDS * buffer.sample_rate as f32)
+            let fade = (LOOP_CROSSFADE_SECONDS * f64::from(buffer.sample_rate))
                 .round()
                 .min((loop_frames / 2.0).floor());
             Self::Forward(ForwardLoop {
                 end: loop_end,
                 fade_start: loop_end - fade,
-                inverse_fade: if fade > 0.0 { 1.0 / fade } else { 0.0 },
+                inverse_fade: if fade > 0.0 { (1.0 / fade) as f32 } else { 0.0 },
                 jump: loop_frames - fade,
             })
         } else {
@@ -74,7 +74,7 @@ pub(super) struct OnceThrough;
 
 impl SampleCursor for OnceThrough {
     #[inline(always)]
-    fn read(&mut self, source: &SampleBufferView, pos: &mut f32, step: f32) -> Option<f32> {
+    fn read(&mut self, source: &SampleBufferView, pos: &mut f64, step: f64) -> Option<f32> {
         if *pos >= source.end_position() {
             return None;
         }
@@ -92,19 +92,19 @@ impl SampleCursor for OnceThrough {
 /// Loop Start, then jumps on past them, so the seam never steps.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ForwardLoop {
-    end: f32,
-    fade_start: f32,
+    end: f64,
+    fade_start: f64,
     inverse_fade: f32,
-    jump: f32,
+    jump: f64,
 }
 
 impl SampleCursor for ForwardLoop {
     #[inline(always)]
-    fn read(&mut self, source: &SampleBufferView, pos: &mut f32, step: f32) -> Option<f32> {
+    fn read(&mut self, source: &SampleBufferView, pos: &mut f64, step: f64) -> Option<f32> {
         let at = *pos;
         let mut input = lerp_at(source, at);
         if at >= self.fade_start {
-            let blend = (at - self.fade_start) * self.inverse_fade;
+            let blend = (at - self.fade_start) as f32 * self.inverse_fade;
             input += (lerp_at(source, at - self.jump) - input) * blend;
         }
         let next = at + step;
@@ -125,14 +125,14 @@ impl SampleCursor for ForwardLoop {
 /// position, so the waveform stays continuous.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct PingPongLoop {
-    start: f32,
-    end: f32,
+    start: f64,
+    end: f64,
     reverse: bool,
 }
 
 impl SampleCursor for PingPongLoop {
     #[inline(always)]
-    fn read(&mut self, source: &SampleBufferView, pos: &mut f32, step: f32) -> Option<f32> {
+    fn read(&mut self, source: &SampleBufferView, pos: &mut f64, step: f64) -> Option<f32> {
         let input = lerp_at(source, *pos);
         if self.reverse {
             let next = *pos - step;

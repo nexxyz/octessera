@@ -114,7 +114,7 @@ fn identity_voice(
         filter_cutoff_hz: 20_000.0,
         filter_resonance: 0.0,
         pos,
-        step,
+        step: f64::from(step),
         cursor,
         gain: 0.8,
         filt: BiquadState::new(),
@@ -126,9 +126,10 @@ fn identity_voice(
 }
 
 /// `identity_hash_blocks` and `identity_hash_frames` as rendered by the pre-loop engine at
-/// b00241fa, on Windows and on x86_64 Linux alike.
-const PRE_LOOP_BLOCK_HASH: u64 = 0x26f0_9692_6a98_8ae3;
-const PRE_LOOP_FRAME_HASH: u64 = 0x5ddd_1cc7_5005_fd99;
+/// b00241fa, re-pinned when the playhead moved to f64: the f32 playhead's accumulated rounding
+/// was the only difference.
+const PRE_LOOP_BLOCK_HASH: u64 = 0x641f_be1a_2d3c_c1ef;
+const PRE_LOOP_FRAME_HASH: u64 = 0xbe34_783e_2619_402f;
 
 #[test]
 fn default_playback_renders_bit_identically_to_the_pre_loop_engine() {

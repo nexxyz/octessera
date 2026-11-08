@@ -145,8 +145,8 @@ fn render_scalar(voice: &mut SampleVoice, frames: usize) -> (Vec<f32>, Vec<bool>
 fn sample_voice(
     samples: Vec<f32>,
     channels: u16,
-    pos: f32,
-    step: f32,
+    pos: f64,
+    step: f64,
     cutoff_hz: f32,
     resonance: f32,
 ) -> SampleVoice {

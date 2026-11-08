@@ -94,7 +94,7 @@ impl SynthEngine {
             store_retired_preview_buffer(&mut retired.preview_sample_buffers, buffer);
             return retired;
         }
-        let step = buffer.sample_rate as f32 / self.sample_rate as f32;
+        let step = f64::from(buffer.sample_rate) / f64::from(self.sample_rate);
         let order = self.preview_sample_next_order;
         self.preview_sample_next_order = self.preview_sample_next_order.saturating_add(1);
         let preview_slot = self

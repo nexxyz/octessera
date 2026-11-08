@@ -23,7 +23,7 @@ fn sample_buffer_view_matches_scalar_reads_at_one_and_two_frame_edges() {
         let view = SampleBufferView::from_buffer(&buffer);
         let frames = buffer.samples.len() / channels as usize;
         assert_eq!(view.frames(), frames);
-        assert_eq!(view.end_position().to_bits(), (frames as f32).to_bits());
+        assert_eq!(view.end_position().to_bits(), (frames as f64).to_bits());
         for frame in 0..frames {
             let base = frame * channels as usize;
             let expected = if channels == 1 {
@@ -64,7 +64,7 @@ fn prepared_sample_view_preserves_exact_last_frame_and_mid_block_completion() {
     for (actual, expected) in output.iter().zip(scalar_output) {
         assert_eq!(actual.to_bits(), expected.to_bits());
     }
-    assert_eq!(exact_last.pos.to_bits(), 1.0_f32.to_bits());
+    assert_eq!(exact_last.pos.to_bits(), 1.0_f64.to_bits());
     assert!(exact_last.active);
     assert_eq!(exact_last.filt, exact_last_scalar.filt);
 
@@ -76,7 +76,7 @@ fn prepared_sample_view_preserves_exact_last_frame_and_mid_block_completion() {
     for (actual, expected) in block_output.iter().zip(scalar_output) {
         assert_eq!(actual.to_bits(), expected.to_bits());
     }
-    assert_eq!(block.pos.to_bits(), 3.0_f32.to_bits());
+    assert_eq!(block.pos.to_bits(), 3.0_f64.to_bits());
     assert!(!block.active);
     assert_eq!(block.filt, scalar.filt);
 }
@@ -180,8 +180,8 @@ fn render_scalar(voice: &mut SampleVoice, frames: usize) -> (Vec<f32>, Vec<bool>
 fn sample_voice(
     samples: Vec<f32>,
     channels: u16,
-    pos: f32,
-    step: f32,
+    pos: f64,
+    step: f64,
     cutoff_hz: f32,
     resonance: f32,
 ) -> SampleVoice {

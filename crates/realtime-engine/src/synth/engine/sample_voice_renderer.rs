@@ -129,7 +129,7 @@ fn render_sample_source_block(
         return 0;
     };
     let buffer_frames = buffer.samples.len() / buffer.channels as usize;
-    if buffer_frames == 0 || voice.pos >= buffer_frames as f32 {
+    if buffer_frames == 0 || voice.pos >= buffer_frames as f64 {
         voice.active = false;
         return 0;
     }
@@ -203,7 +203,7 @@ fn render_source_block_with(
 /// own loop with no filter work at all.
 struct PlainSampleRead<'a> {
     view: &'a SampleBufferView<'a>,
-    step: f32,
+    step: f64,
     gain: f32,
 }
 
@@ -212,7 +212,7 @@ impl PlainSampleRead<'_> {
     fn frames(
         &self,
         cursor: &mut impl SampleCursor,
-        pos: &mut f32,
+        pos: &mut f64,
         samples: &mut [f32],
         mut filter: impl FnMut(f32) -> f32,
     ) -> (usize, bool) {

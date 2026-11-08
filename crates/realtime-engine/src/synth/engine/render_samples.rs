@@ -94,8 +94,8 @@ impl SynthEngine {
         let vel_sens = (velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
         let gain = (gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
         let pitch_semis = tune_semis + f32::from(pitch_cents) / 100.0;
-        let pitch = 2.0_f32.powf(pitch_semis / 12.0);
-        let step = pitch * sample_rate as f32 / self.sample_rate as f32;
+        let step = 2.0_f64.powf(f64::from(pitch_semis) / 12.0) * f64::from(sample_rate)
+            / f64::from(self.sample_rate);
         self.sample_voice_pool.compact_slot_lanes(slot);
         let active = self.sample_voice_pool.sounding_count_for_slot(slot);
         let first_inactive_lane = self.sample_voice_pool.first_inactive_lane();
@@ -317,12 +317,12 @@ fn render_preview_frame(
     for voice in voices.iter_mut().flatten() {
         let view = SampleBufferView::from_buffer(&voice.buffer);
         let voice_frames = view.frames();
-        if voice_frames == 0 || voice.pos >= voice_frames as f32 {
-            voice.pos = voice_frames as f32;
+        if voice_frames == 0 || voice.pos >= voice_frames as f64 {
+            voice.pos = voice_frames as f64;
             continue;
         }
-        let source_frame = voice.pos.floor() as usize;
-        let frac = voice.pos - source_frame as f32;
+        let source_frame = voice.pos as usize;
+        let frac = (voice.pos - source_frame as f64) as f32;
         let next_frame = (source_frame + 1).min(voice_frames - 1);
         out += view.mono_frame(source_frame) * (1.0 - frac) + view.mono_frame(next_frame) * frac;
         voice.pos += voice.step;
@@ -337,7 +337,7 @@ fn take_completed_previews(
     std::array::from_fn(|index| {
         let complete = voices[index].as_ref().is_some_and(|voice| {
             let frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
-            frames == 0 || voice.pos >= frames as f32
+            frames == 0 || voice.pos >= frames as f64
         });
         if complete {
             voices[index].take()

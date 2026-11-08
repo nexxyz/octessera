@@ -12,7 +12,7 @@ pub(super) struct SampleBufferView<'a> {
     samples: &'a [f32],
     channels: usize,
     frames: usize,
-    end_position: f32,
+    end_position: f64,
 }
 
 impl<'a> SampleBufferView<'a> {
@@ -25,7 +25,7 @@ impl<'a> SampleBufferView<'a> {
             samples: buffer.samples.as_ref(),
             channels,
             frames,
-            end_position: frames as f32,
+            end_position: frames as f64,
         }
     }
 
@@ -33,7 +33,7 @@ impl<'a> SampleBufferView<'a> {
         self.frames
     }
 
-    pub(super) fn end_position(&self) -> f32 {
+    pub(super) fn end_position(&self) -> f64 {
         self.end_position
     }
 
@@ -67,8 +67,8 @@ pub(super) struct SampleVoice {
     pub(super) buffer: Option<SampleBuffer>,
     pub(super) filter_cutoff_hz: f32,
     pub(super) filter_resonance: f32,
-    pub(super) pos: f32,
-    pub(super) step: f32,
+    pub(super) pos: f64,
+    pub(super) step: f64,
     /// Where the next read goes: on to the end, or round the slot's loop.
     pub(super) cursor: super::sample_voice_loop::SampleVoiceLoop,
     pub(super) gain: f32,
@@ -107,8 +107,8 @@ impl SampleVoice {
 /// A browser audition: the file at its own pitch and level, mixed straight into the master.
 pub(super) struct PreviewSampleVoice {
     pub(super) buffer: SampleBuffer,
-    pub(super) pos: f32,
-    pub(super) step: f32,
+    pub(super) pos: f64,
+    pub(super) step: f64,
 }
 
 pub(super) fn sample_slot_for_note(note: u8) -> usize {
