@@ -103,6 +103,14 @@ fn write_wav(path: &PathBuf, samples: &[f32], rate: u32) {
     let _ = std::fs::write(path, bytes);
 }
 
+/// The length of a 4/4 bar at the session's patch tempo, in seconds.
+pub fn bar_seconds(session: &HeadlessSession) -> f64 {
+    let bpm = session.config_payload()["runtimeConfig"]["transport"]["bpm"]
+        .as_f64()
+        .expect("a patch tempo");
+    4.0 * 60.0 / bpm
+}
+
 /// Bar position (0-based, may be fractional) of a time in the take.
 pub struct Timeline<'a> {
     pub session: &'a HeadlessSession,
@@ -111,7 +119,8 @@ pub struct Timeline<'a> {
 
 impl Timeline<'_> {
     fn frame_at(&self, bar: f64) -> usize {
-        self.played.start_frame + (bar * 2.0 * f64::from(self.session.sample_rate())) as usize
+        self.played.start_frame
+            + (bar * bar_seconds(self.session) * f64::from(self.session.sample_rate())) as usize
     }
 
     /// RMS level in dBFS between two bar positions.

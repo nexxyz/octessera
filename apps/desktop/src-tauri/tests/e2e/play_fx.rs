@@ -1,15 +1,24 @@
-//! A momentary Play FX mapped from the menu and held on its tile during playback: a filter
-//! sweep at its default cutoff, compared with the same take played dry.
-use crate::support::{assert_clean_audio, builder, keep_audio, session};
+//! Momentary Play FX mapped from the menu and held on their tile during playback, each take
+//! compared with the same take played dry: a filter sweep at its default cutoff, and the seven
+//! types that finish their release on their own, heard while held and gone after their tail.
+use crate::support::{assert_clean_audio, bar_seconds, builder, keep_audio, session};
 use octessera_desktop_lib::headless::{HeadlessSession, PlayedScenario};
-use playback_runtime::scenario::{grid, BAR};
+use playback_runtime::scenario::{grid, ScenarioBuilder, BAR};
 use std::path::PathBuf;
 
 const FX_TILE: (usize, usize) = (3, 3);
 const PRESS_BAR: u64 = 4;
 const RELEASE_BAR: u64 = 6;
-/// One bar at 120 BPM, in seconds.
-const BAR_SECONDS: f64 = 2.0;
+/// The types after `pitch_shift`, which run out their release by themselves.
+const SELF_RELEASING_TYPES: [&str; 7] = [
+    "tape_stop",
+    "reverse",
+    "trance_gate",
+    "dub_throw",
+    "wash",
+    "hp_riser",
+    "crush",
+];
 
 struct Take {
     session: HeadlessSession,
@@ -19,10 +28,8 @@ struct Take {
 
 impl Take {
     fn frames(&self, from_bar: f64, to_bar: f64) -> std::ops::Range<usize> {
-        let at = |bar: f64| {
-            self.played.start_frame
-                + (bar * BAR_SECONDS * f64::from(self.session.sample_rate())) as usize
-        };
+        let frames_per_bar = bar_seconds(&self.session) * f64::from(self.session.sample_rate());
+        let at = |bar: f64| self.played.start_frame + (bar * frames_per_bar) as usize;
         at(from_bar)..at(to_bar)
     }
 
@@ -52,14 +59,13 @@ impl Take {
     }
 }
 
-/// The default patch with a filter sweep mapped to `FX_TILE`, optionally held from `PRESS_BAR`
-/// to `RELEASE_BAR`.
-fn play(hold: bool) -> Take {
+/// The scenario patch with `fx_type` mapped to `FX_TILE` (after `edit` sets its rows), played
+/// for `seconds` and held from `PRESS_BAR` to `RELEASE_BAR` when `hold`.
+fn play(fx_type: &str, edit: impl FnOnce(&mut ScenarioBuilder), hold: bool, seconds: f64) -> Take {
     let mut take = builder();
     take.open(&["Play", "FX"]);
-    take.set_value("FX Type", "play.fx.type", "filter_sweep");
-    take.set_number("Sweep In", "play.fx.params.sweepInMs", 10);
-    take.set_number("Sweep Out", "play.fx.params.sweepOutMs", 10);
+    take.set_value("FX Type", "play.fx.type", fx_type);
+    edit(&mut take);
     take.enter("Map to Grid");
     take.tap_now(FX_TILE.0, FX_TILE.1);
     take.checkpoint("fx mapped");
@@ -67,9 +73,9 @@ fn play(hold: bool) -> Take {
         take.at(PRESS_BAR * BAR, true, grid(FX_TILE.0, FX_TILE.1, true));
         take.at(RELEASE_BAR * BAR, true, grid(FX_TILE.0, FX_TILE.1, false));
     }
-    let name = format!("play-fx-{}", if hold { "held" } else { "dry" });
+    let name = format!("play-fx-{fx_type}-{}", if hold { "held" } else { "dry" });
     let mut session = session(&name);
-    let played = session.play_scenario(&take.build(), 0.0, 16.0).unwrap();
+    let played = session.play_scenario(&take.build(), 0.0, seconds).unwrap();
     let wav = keep_audio(&session, &name);
     assert_clean_audio(&session, &name);
     Take {
@@ -79,10 +85,18 @@ fn play(hold: bool) -> Take {
     }
 }
 
+fn play_filter_sweep(hold: bool) -> Take {
+    let edit = |take: &mut ScenarioBuilder| {
+        take.set_number("Sweep In", "play.fx.params.sweepInMs", 10);
+        take.set_number("Sweep Out", "play.fx.params.sweepOutMs", 10);
+    };
+    play("filter_sweep", edit, hold, 16.0)
+}
+
 #[test]
 fn held_play_fx_tile_filters_only_while_held() {
-    let dry = play(false);
-    let held = play(true);
+    let dry = play_filter_sweep(false);
+    let held = play_filter_sweep(true);
     assert_eq!(held.played.start_frame, dry.played.start_frame);
     let (press, release) = (PRESS_BAR as f64, RELEASE_BAR as f64);
     let wavs = format!("audio in {:?} and {:?}", held.wav, dry.wav);
@@ -105,4 +119,42 @@ fn held_play_fx_tile_filters_only_while_held() {
         silent_difference(release + 0.02, 8.0),
         "the dry sound is not back after the release, {wavs}"
     );
+}
+
+/// Dub throw's default Mix adds its echoes to the hot scenario mix up to full scale; Mix 40
+/// keeps the take below it.
+fn below_full_scale(fx_type: &str) -> impl FnOnce(&mut ScenarioBuilder) + '_ {
+    move |take| {
+        if fx_type == "dub_throw" {
+            take.set_number("Mix", "play.fx.params.mixPct", 40);
+        }
+    }
+}
+
+#[test]
+fn self_releasing_play_fx_are_heard_while_held_and_gone_after_their_tail() {
+    const SECONDS: f64 = 30.0;
+    let (press, release) = (PRESS_BAR as f64, RELEASE_BAR as f64);
+    for fx_type in SELF_RELEASING_TYPES {
+        let dry = play(fx_type, below_full_scale(fx_type), false, SECONDS);
+        let held = play(fx_type, below_full_scale(fx_type), true, SECONDS);
+        let end = SECONDS / bar_seconds(&dry.session);
+        assert_eq!(held.played.start_frame, dry.played.start_frame, "{fx_type}");
+        let wavs = format!("audio in {:?} and {:?}", held.wav, dry.wav);
+        let difference = |from: f64, to: f64| held.difference_db(&dry, from, to);
+        assert!(
+            difference(0.0, press - 0.02) < -120.0,
+            "{fx_type}: the takes differ before the press, {wavs}"
+        );
+        let heard = difference(press + 0.25, release - 0.02);
+        assert!(
+            heard > -40.0,
+            "{fx_type}: held only {heard:.1} dB off dry, {wavs}"
+        );
+        let left = difference(end - 2.0, end - 0.1);
+        assert!(
+            left < -120.0,
+            "{fx_type}: {left:.1} dB off dry long after the release, {wavs}"
+        );
+    }
 }
