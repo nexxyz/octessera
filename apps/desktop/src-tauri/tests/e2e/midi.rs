@@ -66,6 +66,12 @@ fn play(session: &mut HeadlessSession) {
 fn render_pulses(session: &mut HeadlessSession, pulses: u64) {
     let target = session.transport_pulse() + pulses;
     while session.transport_pulse() < target {
+        assert!(
+            session.is_playing(),
+            "the transport stopped at pulse {}; the OLED shows {:?}",
+            session.transport_pulse(),
+            session.title()
+        );
         session.render(64).unwrap();
     }
 }

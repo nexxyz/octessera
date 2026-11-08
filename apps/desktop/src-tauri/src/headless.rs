@@ -233,14 +233,19 @@ impl HeadlessSession {
 
     /// Waits (in wall time) until sample preparation and other host services have gone quiet
     /// and a stopped recording has been written, so audio and files that depend on them are
-    /// ready before the clock moves on.
+    /// ready before the clock moves on. Fails when they are still busy after 20 s.
     pub fn settle(&mut self) -> Result<(), String> {
         let mut quiet_since = Instant::now();
         let deadline = Instant::now() + Duration::from_secs(20);
-        while (quiet_since.elapsed() < Duration::from_millis(250)
-            || self.adapter.inner.recording_stop_pending())
-            && Instant::now() < deadline
+        while quiet_since.elapsed() < Duration::from_millis(250)
+            || self.adapter.inner.recording_stop_pending()
         {
+            if Instant::now() >= deadline {
+                return Err(format!(
+                    "host services still busy after 20 s; the OLED shows {:?}",
+                    self.title()
+                ));
+            }
             if self.poll_services()? {
                 quiet_since = Instant::now();
             }
