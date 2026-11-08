@@ -89,8 +89,8 @@ fn complete_valid_pair_is_accepted_without_rewriting_documents() {
         serde_json::from_str(BUNDLED_DEFAULT_CONFIG).expect("bundled default");
     let documents =
         playback_runtime::split_system_patch_documents(&bundled).expect("native projection");
-    persistence::atomic_write_json(&root.join("system.json"), &documents.system).unwrap();
-    persistence::atomic_write_json(&root.join("default.patch.json"), &documents.patch).unwrap();
+    store_files::write_json_atomically(&root.join("system.json"), &documents.system).unwrap();
+    store_files::write_json_atomically(&root.join("default.patch.json"), &documents.patch).unwrap();
     let system_bytes = fs::read(root.join("system.json")).unwrap();
     let patch_bytes = fs::read(root.join("default.patch.json")).unwrap();
 

@@ -25,6 +25,7 @@ media-recording = { path = "../../../crates/media-recording" }
 playback-runtime = { path = "../../../crates/playback-runtime" }
 realtime-engine = { path = "../../../crates/realtime-engine" }
 rodio-engine-source = { path = "../../../crates/rodio-engine-source" }
+store-files = { path = "../../../crates/store-files" }
 midir = "0.10"
 rodio = "0.20"
 serde_json = "1"

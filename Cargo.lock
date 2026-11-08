@@ -2819,6 +2819,7 @@ dependencies = [
  "rodio-engine-source",
  "serde",
  "serde_json",
+ "store-files",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -2858,6 +2859,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "simple_logger",
+ "store-files",
  "zbus",
 ]
 
@@ -3931,6 +3933,13 @@ name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
+
+[[package]]
+name = "store-files"
+version = "0.8.15"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "string_cache"

@@ -1,8 +1,21 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-pub(crate) fn atomic_write_json(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
+const KEPT_BACKUPS: usize = 20;
+
+pub fn read_json_file(path: &Path) -> Result<Option<serde_json::Value>, String> {
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    serde_json::from_str(&content)
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
+pub fn write_json_atomically(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -13,8 +26,8 @@ pub(crate) fn atomic_write_json(path: &Path, payload: &serde_json::Value) -> Res
             .and_then(|name| name.to_str())
             .unwrap_or("json"),
         std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
             .map_err(|e| e.to_string())?
             .as_nanos()
     ));
@@ -36,6 +49,30 @@ pub(crate) fn atomic_write_json(path: &Path, payload: &serde_json::Value) -> Res
         let _ = fs::remove_file(&tmp);
     }
     result
+}
+
+pub fn write_rotated_backup(dir: &Path, payload: &serde_json::Value) -> Result<(), String> {
+    fs::create_dir_all(dir).map_err(|error| error.to_string())?;
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_millis();
+    write_json_atomically(&dir.join(format!("bak-{millis}.json")), payload)?;
+    let mut paths = Vec::new();
+    for entry in fs::read_dir(dir).map_err(|error| error.to_string())? {
+        let path = entry.map_err(|error| error.to_string())?.path();
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if name.starts_with("bak-") && name.ends_with(".json") {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    for path in paths.iter().take(paths.len().saturating_sub(KEPT_BACKUPS)) {
+        fs::remove_file(path).map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 #[cfg(not(windows))]
@@ -79,28 +116,4 @@ fn wide_path(path: &std::ffi::OsStr) -> Vec<u16> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn atomic_json_write_overwrites_existing_file() {
-        let dir = crate::test_temp_dir::unique_temp_path("octessera-pi-atomic");
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("default.json");
-        std::fs::write(&path, "{\"old\":true}").unwrap();
-
-        atomic_write_json(&path, &serde_json::json!({ "new": true })).unwrap();
-
-        let saved = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(
-            serde_json::from_str::<serde_json::Value>(&saved).unwrap(),
-            serde_json::json!({ "new": true })
-        );
-        assert!(std::fs::read_dir(&dir).unwrap().all(|entry| !entry
-            .unwrap()
-            .file_name()
-            .to_string_lossy()
-            .contains(".tmp-")));
-        let _ = std::fs::remove_dir_all(dir);
-    }
-}
+mod tests;

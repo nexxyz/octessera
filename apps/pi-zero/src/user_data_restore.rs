@@ -1,9 +1,9 @@
-use crate::persistence::atomic_write_json;
 use crate::user_data_archive::{self, StagedRestore};
 use serde_json::Value;
 use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
+use store_files::write_json_atomically;
 
 mod transaction;
 #[cfg(test)]
@@ -170,16 +170,16 @@ fn build_store_tree(
     restored: &playback_runtime::user_data_bundle::UserDataArchiveReconstruction,
 ) -> Result<(), String> {
     fs::create_dir_all(new_store.join("patches")).map_err(io_error)?;
-    atomic_write_json(&new_store.join("system.json"), &restored.system)?;
-    atomic_write_json(
+    write_json_atomically(&new_store.join("system.json"), &restored.system)?;
+    write_json_atomically(
         &crate::platform_service::default_patch_path(new_store),
         &restored.default_patch,
     )?;
-    atomic_write_json(
+    write_json_atomically(
         &crate::platform_service::current_patch_path(new_store),
         &restored.current_patch,
     )?;
-    atomic_write_json(
+    write_json_atomically(
         &crate::platform_service::recovery_patch_path(new_store),
         &restored.current_patch,
     )?;
@@ -196,7 +196,7 @@ fn build_store_tree(
     }
     for preset in &bundle.presets {
         let path = crate::platform_service::preset_patch_path(new_store, &preset.display_name)?;
-        atomic_write_json(&path, &preset.patch)?;
+        write_json_atomically(&path, &preset.patch)?;
     }
     copy_regular_if_present(
         &old_store.join("device.json"),

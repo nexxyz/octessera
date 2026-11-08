@@ -3,8 +3,6 @@ use std::path::PathBuf;
 
 use tauri::Manager;
 
-use crate::persistence;
-
 const BUNDLED_DEFAULT_CONFIG: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../config/generated/desktop/default.json"
@@ -127,13 +125,13 @@ fn ensure_split_documents(dir: &std::path::Path) -> Result<(), DesktopStoreStart
             let documents = split_system_patch_documents(&bundled).map_err(|error| {
                 DesktopStoreStartupError::ParseBundledDefault { source: error }
             })?;
-            persistence::atomic_write_json(&system_path, &documents.system).map_err(|source| {
+            store_files::write_json_atomically(&system_path, &documents.system).map_err(|source| {
                 DesktopStoreStartupError::SeedDocument {
                     path: system_path.clone(),
                     source,
                 }
             })?;
-            persistence::atomic_write_json(&patch_path, &documents.patch).map_err(|source| {
+            store_files::write_json_atomically(&patch_path, &documents.patch).map_err(|source| {
                 DesktopStoreStartupError::SeedDocument {
                     path: patch_path.clone(),
                     source,

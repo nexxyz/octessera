@@ -1,16 +1,6 @@
-use crate::persistence::atomic_write_json;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-
-pub(crate) fn load_json(path: &Path) -> Result<Option<serde_json::Value>, String> {
-    if !path.is_file() {
-        return Ok(None);
-    }
-    let content = std::fs::read_to_string(path).map_err(|error| error.to_string())?;
-    serde_json::from_str(&content)
-        .map(Some)
-        .map_err(|error| error.to_string())
-}
+pub(crate) use store_files::{read_json_file as load_json, write_json_atomically as save_json};
 
 pub(crate) fn default_patch_path(store_dir: &Path) -> PathBuf {
     store_dir.join("default.patch.json")
@@ -48,10 +38,6 @@ pub(crate) fn validate_named_preset_document(
     let system = load_json(&store_dir.join("system.json"))?
         .ok_or_else(|| "System settings are missing".to_string())?;
     playback_runtime::compose_system_patch_documents(&system, patch).map(|_| ())
-}
-
-pub(crate) fn save_json(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
-    atomic_write_json(path, payload)
 }
 
 pub(super) fn delete_preset_payload(store_dir: &Path, name: &str) -> bool {
@@ -101,26 +87,5 @@ pub(crate) fn preset_patch_path(store_dir: &Path, name: &str) -> Result<PathBuf,
 }
 
 pub(crate) fn save_backup(store_dir: &Path, payload: &serde_json::Value) -> Result<(), String> {
-    let dir = store_dir.join("backups");
-    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
-    let millis = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|error| error.to_string())?
-        .as_millis();
-    save_json(&dir.join(format!("bak-{millis}.json")), payload)?;
-    let mut paths = Vec::new();
-    for entry in std::fs::read_dir(&dir).map_err(|error| error.to_string())? {
-        let path = entry.map_err(|error| error.to_string())?.path();
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-            continue;
-        };
-        if name.starts_with("bak-") && name.ends_with(".json") {
-            paths.push(path);
-        }
-    }
-    paths.sort();
-    for path in paths.iter().take(paths.len().saturating_sub(20)) {
-        std::fs::remove_file(path).map_err(|error| error.to_string())?;
-    }
-    Ok(())
+    store_files::write_rotated_backup(&store_dir.join("backups"), payload)
 }

@@ -31,7 +31,7 @@ class DependencyLicenseTests(unittest.TestCase):
 
     def test_workspace_license_inheritance_and_digest(self) -> None:
         records = workspace_license_records(ROOT, cargo_metadata(ROOT))
-        self.assertEqual(len(records), 9)
+        self.assertEqual(len(records), 10)
         self.assertEqual({record["resolved_license_file"] for record in records}, {"LICENSE"})
         self.assertEqual(len({record["license_sha256"] for record in records}), 1)
 

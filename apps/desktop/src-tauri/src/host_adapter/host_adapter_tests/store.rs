@@ -1,5 +1,5 @@
 use super::{platform_request, temp_store_dir, test_adapter};
-use crate::persistence::{atomic_write_json, valid_preset_name};
+use crate::persistence::valid_preset_name;
 use playback_runtime::{HostAdapter, HostMessage, RuntimePlatformEffect, RuntimeStoreResult};
 use std::time::Instant;
 
@@ -40,6 +40,7 @@ fn preset_host_paths_reject_unsafe_names_and_filter_list() {
     std::fs::create_dir_all(presets.join("patches")).unwrap();
     std::fs::write(presets.join("patches").join("safe.json"), "{}").unwrap();
     std::fs::write(presets.join("patches").join(" bad .json"), "{}").unwrap();
+    std::fs::create_dir_all(presets.join("patches").join("folder.json")).unwrap();
 
     assert_eq!(
         adapter.list_preset_names().unwrap(),
@@ -105,27 +106,6 @@ fn preset_store_uses_only_canonical_patch_files() {
     assert!(adapter.delete_preset_payload("Jam").unwrap());
     assert!(!presets.join("patches").join("Jam.json").exists());
     let _ = std::fs::remove_dir_all(&adapter.store_dir);
-}
-
-#[test]
-fn atomic_json_write_overwrites_existing_file() {
-    let dir = temp_store_dir("atomic-overwrite");
-    let path = dir.join("default.patch.json");
-    std::fs::write(&path, "{\"old\":true}").unwrap();
-
-    atomic_write_json(&path, &serde_json::json!({ "new": true })).unwrap();
-
-    let saved = std::fs::read_to_string(&path).unwrap();
-    assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&saved).unwrap(),
-        serde_json::json!({ "new": true })
-    );
-    assert!(std::fs::read_dir(&dir).unwrap().all(|entry| !entry
-        .unwrap()
-        .file_name()
-        .to_string_lossy()
-        .contains(".tmp-")));
-    let _ = std::fs::remove_dir_all(dir);
 }
 
 #[test]

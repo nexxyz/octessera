@@ -79,7 +79,6 @@ mod orange_oled_suspend;
 mod orange_oled_suspend_policy;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_reboot;
-mod persistence;
 #[cfg(feature = "native-audio")]
 mod pi_boot_config;
 mod pi_host_core;

@@ -10,7 +10,7 @@
     "machine_output_checked": false,
     "limitation": "cargo-about 0.9.1 is advisory here: custom first-party license-file metadata and policy review are not represented by its accepted identifiers, so the checked inventory is rendered from Cargo.lock, manifests, and the exact reviewed policy instead."
   },
-  "cargo_lock_sha256": "ffcfcd0ab40799da1015082a14481e204b5d81cb855e70fc11d17acd04d5cd7f",
+  "cargo_lock_sha256": "87cc119836674a5ce5e7aebbab146ea84219ba6e43152e25ad64ad20a791d8e2",
   "package_count": 569,
   "license_classes": {
     "permissive": 557,
@@ -17565,6 +17565,13 @@
     },
     {
       "name": "rodio-engine-source",
+      "version": "0.8.15",
+      "manifest_license_file": "../../LICENSE",
+      "resolved_license_file": "LICENSE",
+      "license_sha256": "9e76f2fa5532f48c98722374943d2f21b5c7e71e047ba67d71a799f46646174a"
+    },
+    {
+      "name": "store-files",
       "version": "0.8.15",
       "manifest_license_file": "../../LICENSE",
       "resolved_license_file": "LICENSE",

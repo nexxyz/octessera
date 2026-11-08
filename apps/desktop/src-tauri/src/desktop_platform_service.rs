@@ -1,5 +1,4 @@
 use crate::midi;
-use crate::persistence::atomic_write_json;
 use crate::samples;
 use playback_runtime::{
     HostMessage, MidiPort, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
@@ -9,6 +8,7 @@ use playback_runtime::{
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::thread;
+use store_files::write_json_atomically;
 
 mod host_system_info;
 
@@ -170,7 +170,7 @@ fn shape_save_system_result(
     store_dir: &std::path::Path,
     payload: &serde_json::Value,
 ) -> Vec<HostMessage> {
-    let result = match atomic_write_json(&store_dir.join("system.json"), payload) {
+    let result = match write_json_atomically(&store_dir.join("system.json"), payload) {
         Ok(()) => RuntimeStoreResult::SaveSystemResult { ok: true },
         Err(message) => RuntimeStoreResult::RuntimeFailure {
             error: RuntimeErrorFacts::new(

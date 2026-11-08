@@ -13,6 +13,7 @@ media-recording = { path = "../../crates/media-recording" }
 octessera-hal = { path = "../../crates/hal" }
 platform-core = { path = "../../crates/platform-core" }
 playback-runtime = { path = "../../crates/playback-runtime" }
+store-files = { path = "../../crates/store-files" }
 realtime-engine = { path = "../../crates/realtime-engine", optional = true }
 rodio-engine-source = { path = "../../crates/rodio-engine-source", optional = true }
 cpal = { version = "0.15", optional = true }
