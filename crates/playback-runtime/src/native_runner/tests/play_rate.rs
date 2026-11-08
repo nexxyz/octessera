@@ -46,7 +46,10 @@ fn rate_runner() -> NativeRunner {
     for button in ["button_fn", "button_shift"] {
         let _ = input(&mut runner, json!({ "type": button, "pressed": false }));
     }
-    assert_eq!(runner.active_play_mode, "rate");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Rate)
+    );
     assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: Rate");
     runner
 }

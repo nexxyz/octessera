@@ -110,7 +110,7 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
     assert_scalar(&aux, "pluck.decayMs");
     assert_eq!(runner.instruments[1], other);
 
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.menu.rebuild(runner.menu_config());
     assert!(runner
@@ -142,7 +142,7 @@ fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = InstrumentType::Pluck;
     runner.menu.rebuild(runner.menu_config());
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.pluck.brightnessPct".into(),

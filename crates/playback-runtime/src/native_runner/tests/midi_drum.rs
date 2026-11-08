@@ -105,10 +105,13 @@ impl Rig {
 
     fn toggle_mute(&mut self) {
         self.press_with(&["button_fn"], GRID_WIDTH - 1, 0);
-        assert_eq!(self.runner.active_play_mode, "mix");
+        assert_eq!(
+            self.runner.active_play_mode,
+            ActivePlayMode::Page(PlayMode::Mix)
+        );
         self.press(0, 0);
         self.press_with(&["button_fn"], 0, 0);
-        assert_eq!(self.runner.active_play_mode, "none");
+        assert_eq!(self.runner.active_play_mode, ActivePlayMode::None);
     }
 
     fn back(&mut self) {

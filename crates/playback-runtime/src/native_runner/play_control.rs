@@ -4,6 +4,7 @@ use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 use super::grid_assign::GridAssign;
 use super::pan_mapping::touch_pan_pos_from_grid_x;
 use super::play_fx_config::{play_fx_audio_params, play_fx_target_key, play_fx_type};
+use super::play_pages::PlayMode;
 use super::{
     momentary_fx_target, play_fx_tile_id, NativePlayFxAssignment, NativeRunner, GRID_HEIGHT,
     GRID_WIDTH, PLAY_FX_MAX_CONCURRENT, TRIGGER_GATE_MODES,
@@ -127,11 +128,16 @@ impl NativeRunner {
         self.show_toast(toast);
     }
 
-    pub(super) fn handle_play_grid_press(&mut self, x: usize, y: usize) {
-        match self.active_play_mode.as_str() {
-            "mix" if self.display.ui.shift_held => self.handle_play_mix_bus_press(x, y),
-            "mix" if y == 0 => self.toggle_instrument_mute(x),
-            "mix" => {
+    pub(super) fn handle_play_grid_press(
+        &mut self,
+        mode: PlayMode,
+        x: usize,
+        y: usize,
+    ) -> Vec<RuntimePlatformEffect> {
+        match mode {
+            PlayMode::Mix if self.display.ui.shift_held => self.handle_play_mix_bus_press(x, y),
+            PlayMode::Mix if y == 0 => self.toggle_instrument_mute(x),
+            PlayMode::Mix => {
                 if self
                     .instruments
                     .get(x)
@@ -141,15 +147,18 @@ impl NativeRunner {
                     self.set_play_menu_number(&format!("instruments.{x}.mixer.volume"), volume);
                 }
             }
-            "pan" => self.handle_play_pan_press(x, y),
-            "route" => self.handle_play_route_press(x, y),
-            "tempo" => self.handle_play_tempo_press(x, y),
-            "lfo" => self.handle_play_lfo_press(x, y),
-            "faders" => self.handle_play_faders_press(x, y),
-            "rate" => self.handle_play_rate_press(x, y),
-            "xy" => self.handle_play_xy_press(x, y),
-            _ => {}
+            PlayMode::Pan => self.handle_play_pan_press(x, y),
+            PlayMode::Route => self.handle_play_route_press(x, y),
+            PlayMode::Tempo => self.handle_play_tempo_press(x, y),
+            PlayMode::Lfo => self.handle_play_lfo_press(x, y),
+            PlayMode::Faders => self.handle_play_faders_press(x, y),
+            PlayMode::Rate => self.handle_play_rate_press(x, y),
+            PlayMode::Xy => self.handle_play_xy_press(x, y),
+            PlayMode::TriggerGate => self.handle_trigger_gate_grid_press(x, y),
+            PlayMode::Transpose => self.handle_play_transpose_grid_press(x, y),
+            PlayMode::Fx => return self.play_fx_press_effects(x, y),
         }
+        Vec::new()
     }
 
     /// The Mix page's Shift view: buses B1..B4 in columns 0..3, master in column 5.

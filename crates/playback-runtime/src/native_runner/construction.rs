@@ -106,7 +106,7 @@ impl NativeRunner {
             midi_respond_to_start_stop: seed.midi_respond_to_start_stop,
             midi_send_instruments: seed.midi_send_instruments,
             play_mode: seed.play_mode,
-            active_play_mode: "none".into(),
+            active_play_mode: ActivePlayMode::None,
             drum_selected_voices: vec![0; INSTRUMENT_COUNT],
             play_fx_selected: seed.play_fx_selected,
             grid_assign: None,

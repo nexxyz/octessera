@@ -330,7 +330,7 @@ pub(crate) fn play_transpose_tracks_clamped_explicit_release_notes() {
 #[test]
 pub(crate) fn play_transpose_retarget_drains_held_note_before_new_offset() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "transpose".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Transpose);
     runner.transpose.offsets[0] = 7;
     runner.transpose.active_notes[0]
         .entry((0, 60))
@@ -361,7 +361,7 @@ pub(crate) fn play_transpose_retarget_drains_held_note_before_new_offset() {
 #[test]
 pub(crate) fn play_transpose_disable_drains_midi_held_note_to_routed_channel() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "transpose".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Transpose);
     runner.instruments[0].kind = InstrumentType::Midi;
     runner.instruments[0].midi_enabled = true;
     runner.instruments[0].midi_channel = 3;

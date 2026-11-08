@@ -22,7 +22,7 @@ fn open_page(runner: &mut NativeRunner, row: usize, mode: &str) {
     let _ = input(runner, json!({ "type": "button_fn", "pressed": true }));
     let _ = press(runner, GRID_WIDTH - 1, row);
     let _ = input(runner, json!({ "type": "button_fn", "pressed": false }));
-    assert_eq!(runner.active_play_mode, mode);
+    assert_eq!(runner.active_play_mode.wire_name(), mode);
 }
 
 #[test]

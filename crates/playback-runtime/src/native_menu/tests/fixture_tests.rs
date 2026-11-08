@@ -167,7 +167,7 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
 
     for play_mode in ["mix", "pan", "fx", "trigger-gate", "xy"] {
         let mut cfg = config();
-        cfg.play_mode = play_mode.into();
+        cfg.play_mode = PlayMode::from_wire_name(play_mode).unwrap();
         cfg.play_fx_type = "stutter".into();
         cfg.play_fx_params
             .insert("rateHz".into(), serde_json::json!(8));
@@ -176,7 +176,7 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
 
     for fx_type in ["stutter", "freeze", "filter_sweep", "pitch_shift"] {
         let mut cfg = config();
-        cfg.play_mode = "fx".into();
+        cfg.play_mode = PlayMode::Fx;
         cfg.play_fx_type = fx_type.into();
         configs.push(cfg);
     }

@@ -6,9 +6,12 @@ mod fader_tiles;
 pub(crate) mod faders;
 mod fx_tempo;
 mod lfo;
+mod play_mode;
 mod rate;
 mod route;
 mod tempo;
+
+pub(crate) use play_mode::{ActivePlayMode, PlayMode};
 
 /// The right-column page banks: Fn + tile is technical, Shift+Fn + tile musical.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,13 +22,13 @@ pub(crate) enum PlayBank {
 
 /// One Play page: its saved mode, its Play menu row, and its right-column bank row.
 pub(crate) struct PlayPage {
-    pub(crate) mode: &'static str,
+    pub(crate) mode: PlayMode,
     pub(crate) label: &'static str,
     pub(crate) bank: PlayBank,
     pub(crate) row: usize,
 }
 
-const fn page(mode: &'static str, label: &'static str, bank: PlayBank, row: usize) -> PlayPage {
+const fn page(mode: PlayMode, label: &'static str, bank: PlayBank, row: usize) -> PlayPage {
     PlayPage {
         mode,
         label,
@@ -36,24 +39,20 @@ const fn page(mode: &'static str, label: &'static str, bank: PlayBank, row: usiz
 
 /// Every Play page in menu order: the technical bank, then the musical bank, bottom row first.
 pub(crate) const PLAY_PAGES: [PlayPage; 11] = [
-    page("mix", "Mix", PlayBank::Technical, 0),
-    page("pan", "Pan", PlayBank::Technical, 1),
-    page("route", "Route", PlayBank::Technical, 2),
-    page("tempo", "Tempo", PlayBank::Technical, 3),
-    page("lfo", "LFO", PlayBank::Technical, 4),
-    page("faders", "Faders", PlayBank::Technical, 5),
-    page("fx", "FX", PlayBank::Musical, 0),
-    page("xy", "XY", PlayBank::Musical, 1),
-    page("transpose", "Transpose", PlayBank::Musical, 2),
-    page("rate", "Rate", PlayBank::Musical, 3),
-    page("trigger-gate", "Trigger Gate", PlayBank::Musical, 4),
+    page(PlayMode::Mix, "Mix", PlayBank::Technical, 0),
+    page(PlayMode::Pan, "Pan", PlayBank::Technical, 1),
+    page(PlayMode::Route, "Route", PlayBank::Technical, 2),
+    page(PlayMode::Tempo, "Tempo", PlayBank::Technical, 3),
+    page(PlayMode::Lfo, "LFO", PlayBank::Technical, 4),
+    page(PlayMode::Faders, "Faders", PlayBank::Technical, 5),
+    page(PlayMode::Fx, "FX", PlayBank::Musical, 0),
+    page(PlayMode::Xy, "XY", PlayBank::Musical, 1),
+    page(PlayMode::Transpose, "Transpose", PlayBank::Musical, 2),
+    page(PlayMode::Rate, "Rate", PlayBank::Musical, 3),
+    page(PlayMode::TriggerGate, "Trigger Gate", PlayBank::Musical, 4),
 ];
 
-pub(crate) fn is_play_mode(mode: &str) -> bool {
-    PLAY_PAGES.iter().any(|page| page.mode == mode)
-}
-
-pub(super) fn play_page_at(bank: PlayBank, row: usize) -> Option<&'static str> {
+pub(super) fn play_page_at(bank: PlayBank, row: usize) -> Option<PlayMode> {
     PLAY_PAGES
         .iter()
         .find(|page| page.bank == bank && page.row == row)
@@ -97,16 +96,17 @@ impl NativeRunner {
         let Some(next_mode) = play_page_at(bank, y) else {
             return;
         };
-        self.play_mode = next_mode.into();
-        self.active_play_mode = self.play_mode.clone();
-        self.menu.focus_item_key(&format!("play.page.{next_mode}"));
+        self.play_mode = next_mode;
+        self.active_play_mode = ActivePlayMode::Page(next_mode);
+        self.menu
+            .focus_item_key(&format!("play.page.{}", next_mode.wire_name()));
         self.show_toast(format!("Play: {}", play_mode_label(next_mode)));
     }
 }
 
-fn play_mode_label(mode: &str) -> &str {
+fn play_mode_label(mode: PlayMode) -> &'static str {
     PLAY_PAGES
         .iter()
         .find(|page| page.mode == mode)
-        .map_or(mode, |page| page.label)
+        .map_or(mode.wire_name(), |page| page.label)
 }

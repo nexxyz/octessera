@@ -244,7 +244,7 @@ fn inert_sample_bindings_reject_new_actions_but_legacy_config_still_loads() {
         Some(legacy_key)
     );
     assert_eq!(runner.xy.x_binding.as_ref().unwrap().key, legacy_key);
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     let _ = runner.messages_with_snapshot().unwrap();
     let messages = runner

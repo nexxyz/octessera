@@ -95,7 +95,7 @@ impl NativeRunner {
     }
 
     pub fn test_active_play_mode(&self) -> &str {
-        &self.active_play_mode
+        self.active_play_mode.wire_name()
     }
 
     pub fn test_transport_pulse(&self) -> u64 {

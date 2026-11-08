@@ -32,6 +32,7 @@ use platform_core::{
 };
 #[cfg(test)]
 use platform_core::{MusicalEvent, TileTriggerIntent};
+use play_pages::{ActivePlayMode, PlayMode};
 use realtime_engine::synth::{DspRuntimeConfig, VoiceStealingMode};
 use serde_json::{json, Value};
 #[cfg(any(test, feature = "test-support"))]
@@ -398,8 +399,8 @@ pub struct NativeRunner {
     usb_data_role: UsbDataRole,
     usb_midi_out_enabled: bool,
     recording_max_minutes: u16,
-    play_mode: String,
-    active_play_mode: String,
+    play_mode: PlayMode,
+    active_play_mode: ActivePlayMode,
     drum_selected_voices: Vec<usize>,
     play_fx_selected: Value,
     grid_assign: Option<GridAssign>,

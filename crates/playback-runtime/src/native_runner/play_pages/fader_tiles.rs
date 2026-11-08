@@ -1,3 +1,4 @@
+use super::{ActivePlayMode, PlayMode};
 use serde_json::{json, Value};
 
 use super::super::aux_binding_payload_apply::parse_aux_press_action;
@@ -144,7 +145,8 @@ fn tile_from_payload(value: &Value) -> Option<NativeFaderTile> {
 
 impl NativeRunner {
     pub(in crate::native_runner) fn fader_action_tile(&self, x: usize) -> bool {
-        self.active_play_mode == "faders" && x >= self.faders.first_action_column()
+        self.active_play_mode == ActivePlayMode::Page(PlayMode::Faders)
+            && x >= self.faders.first_action_column()
     }
 
     /// A plain press runs an action tile's action or steps a param tile up, Shift + press runs
@@ -215,7 +217,7 @@ impl NativeRunner {
             return;
         }
         self.grid_assign = Some(GridAssign::FaderTiles);
-        self.active_play_mode = "faders".into();
+        self.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
         self.show_toast("Tile map: press tiles to assign");
     }
 

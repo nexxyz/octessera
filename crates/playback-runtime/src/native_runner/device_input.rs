@@ -1,3 +1,4 @@
+use super::play_pages::{ActivePlayMode, PlayMode};
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 use std::time::Instant;
 
@@ -265,7 +266,10 @@ impl NativeRunner {
         if self.handle_grid_assign_press(x, y) {
             return self.messages_with_snapshot();
         }
-        if self.active_play_mode == "transpose" && x == 0 && self.display.ui.shift_held {
+        if self.active_play_mode == ActivePlayMode::Page(PlayMode::Transpose)
+            && x == 0
+            && self.display.ui.shift_held
+        {
             self.toggle_all_play_transpose_layers();
         } else if self.display.ui.combined_modifier_held && x == 0 {
             self.toggle_layer_trigger_gate(display_layer_index_from_y(y));
@@ -273,7 +277,7 @@ impl NativeRunner {
             self.select_play_page_from_fn_grid(PlayBank::Musical, y);
         } else if self.display.ui.fn_held && x == 0 && !self.display.ui.shift_held {
             self.select_active_layer(display_layer_index_from_y(y))?;
-            self.active_play_mode = "none".into();
+            self.active_play_mode = ActivePlayMode::None;
         } else if self.display.ui.fn_held
             && x == super::GRID_WIDTH - 1
             && !self.display.ui.shift_held
@@ -281,30 +285,24 @@ impl NativeRunner {
             self.select_play_page_from_fn_grid(PlayBank::Technical, y);
         } else if self.display.ui.shift_held
             && !self.display.ui.fn_held
-            && self.active_play_mode == "none"
+            && self.active_play_mode == ActivePlayMode::None
         {
             if !self.handle_param_mod_grid_press(x, y) {
                 self.mark_grid_input_dirty();
                 let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
                 return self.messages_with_input_result(result);
             }
-        } else if self.active_play_mode != "none"
+        } else if self.active_play_mode != ActivePlayMode::None
             && (self.display.ui.fn_held || self.display.ui.combined_modifier_held)
         {
             // The navigation overlay hides the page, so a stray tile must not edit it.
         } else if self.fader_action_tile(x) {
             return self.handle_fader_tile_press(x, y);
-        } else if self.active_play_mode == "trigger-gate" {
-            self.handle_trigger_gate_grid_press(x, y);
-        } else if self.active_play_mode == "transpose" {
-            self.handle_play_transpose_grid_press(x, y);
-        } else if self.active_play_mode == "fx" {
-            let effects = self.play_fx_press_effects(x, y);
+        } else if let ActivePlayMode::Page(mode) = self.active_play_mode {
+            let effects = self.handle_play_grid_press(mode, x, y);
             if !effects.is_empty() {
                 return self.messages_with_effects(effects);
             }
-        } else if self.active_play_mode != "none" {
-            self.handle_play_grid_press(x, y);
         } else {
             self.mark_grid_input_dirty();
             let result = self.active_engine_input_result(DeviceInput::GridPress { x, y })?;
@@ -326,9 +324,9 @@ impl NativeRunner {
         }
         let fx_effects = self.play_fx_release_effects(x, y);
         let xy_held = self.xy.touch.active && self.play_live.xy_held_tile == Some((x, y));
-        if self.active_play_mode != "none" || !fx_effects.is_empty() || xy_held {
+        if self.active_play_mode != ActivePlayMode::None || !fx_effects.is_empty() || xy_held {
             self.release_fader_tile(x, y);
-            if self.active_play_mode == "xy" || xy_held {
+            if self.active_play_mode == ActivePlayMode::Page(PlayMode::Xy) || xy_held {
                 self.handle_play_xy_release();
             }
             if !fx_effects.is_empty() {

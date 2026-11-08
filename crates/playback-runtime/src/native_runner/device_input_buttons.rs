@@ -1,3 +1,4 @@
+use super::play_pages::ActivePlayMode;
 use crate::native_menu::{NativeMenuAction, NativeMenuPressResult};
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 
@@ -171,8 +172,8 @@ impl NativeRunner {
                 self.rebuild_engine(self.behavior)?;
             }
         } else {
-            if self.active_play_mode != "none" {
-                self.active_play_mode = "none".into();
+            if self.active_play_mode != ActivePlayMode::None {
+                self.active_play_mode = ActivePlayMode::None;
             }
             let editing_key = self
                 .menu

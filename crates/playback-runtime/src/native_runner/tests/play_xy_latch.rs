@@ -44,7 +44,7 @@ fn open_xy_page(runner: &mut NativeRunner) {
     for button in ["button_fn", "button_shift"] {
         let _ = input(runner, json!({ "type": button, "pressed": false }));
     }
-    assert_eq!(runner.active_play_mode, "xy");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Xy));
 }
 
 fn tile(runner: &NativeRunner, x: usize, y: usize) -> Value {

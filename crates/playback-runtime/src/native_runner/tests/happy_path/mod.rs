@@ -185,11 +185,11 @@ pub(crate) fn play_pages_fx_mapping_and_momentary_use_are_usable() {
     ] {
         assert!(runner.menu.focus_item_key(key), "missing {key}");
         assert_snapshot(press_main(&mut runner));
-        assert_eq!(runner.active_play_mode, mode);
+        assert_eq!(runner.active_play_mode.wire_name(), mode);
     }
     assert!(runner.menu.focus_item_key("play.page.fx"));
     let _ = press_main(&mut runner);
-    assert_eq!(runner.active_play_mode, "fx");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Fx));
     edit_key_to_value(&mut runner, "play.fx.type", "stutter", 1);
     assert!(runner
         .menu

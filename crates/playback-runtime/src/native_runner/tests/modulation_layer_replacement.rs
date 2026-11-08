@@ -4,7 +4,7 @@ use super::*;
 pub(crate) fn keyed_behavior_menu_leaf_recomposes_with_one_target_replacement() {
     let mut runner = brain_target_runner();
     let key = "layers.1.build.behaviorConfig.randomSeedCells";
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,
@@ -70,7 +70,7 @@ pub(crate) fn keyed_behavior_menu_leaf_recomposes_with_one_target_replacement() 
 pub(crate) fn aux_behavior_turn_recomposes_held_value_with_one_replacement() {
     let mut runner = brain_target_runner();
     let key = "layers.1.build.behaviorConfig.randomSeedCells";
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,
@@ -118,7 +118,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
     runner
         .messages_with_snapshot()
         .expect("initial runtime snapshot");
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.5,

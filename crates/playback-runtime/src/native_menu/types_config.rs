@@ -1,3 +1,4 @@
+use crate::native_runner::play_pages::PlayMode;
 use crate::native_runner::{AudioOptimization, AudioOutputSet, InstrumentType, UsbDataRole};
 use crate::protocol::SyncSource;
 use platform_core::NoteBehavior;
@@ -126,7 +127,7 @@ pub struct NativeMenuConfig {
     pub bluetooth_paired: Vec<(String, String)>,
     pub bluetooth_found: Vec<(String, String)>,
     pub bluetooth_searching: bool,
-    pub play_mode: String,
+    pub play_mode: PlayMode,
     pub play_fx_type: String,
     pub play_fx_target: String,
     pub play_fx_params: serde_json::Map<String, serde_json::Value>,

@@ -1,4 +1,5 @@
 use super::led_color::LedColor;
+use super::play_pages::{ActivePlayMode, PlayMode};
 use super::scan_overlay::{scan_index_for_overlay, scan_section_count};
 use super::{
     display_index, native_binding_from_spec, DisplayTransientPresentation, NativeInstrumentSlot,
@@ -11,19 +12,21 @@ impl NativeRunner {
         leds: &mut [LedColor],
         transient: DisplayTransientPresentation,
     ) {
-        match self.active_play_mode.as_str() {
-            "mix" => self.apply_play_mix_overlay(leds),
-            "pan" => self.apply_play_pan_overlay(leds),
-            "route" => self.apply_play_route_overlay(leds),
-            "tempo" => self.apply_play_tempo_overlay(leds, transient),
-            "lfo" => self.apply_play_lfo_overlay(leds),
-            "faders" => self.apply_play_faders_overlay(leds),
-            "fx" => self.apply_play_fx_overlay(leds),
-            "trigger-gate" => self.apply_play_trigger_gate_overlay(leds),
-            "transpose" => self.apply_play_transpose_overlay(leds),
-            "rate" => self.apply_play_rate_overlay(leds),
-            "xy" => self.apply_play_xy_overlay(leds),
-            _ => {}
+        let ActivePlayMode::Page(mode) = self.active_play_mode else {
+            return;
+        };
+        match mode {
+            PlayMode::Mix => self.apply_play_mix_overlay(leds),
+            PlayMode::Pan => self.apply_play_pan_overlay(leds),
+            PlayMode::Route => self.apply_play_route_overlay(leds),
+            PlayMode::Tempo => self.apply_play_tempo_overlay(leds, transient),
+            PlayMode::Lfo => self.apply_play_lfo_overlay(leds),
+            PlayMode::Faders => self.apply_play_faders_overlay(leds),
+            PlayMode::Fx => self.apply_play_fx_overlay(leds),
+            PlayMode::TriggerGate => self.apply_play_trigger_gate_overlay(leds),
+            PlayMode::Transpose => self.apply_play_transpose_overlay(leds),
+            PlayMode::Rate => self.apply_play_rate_overlay(leds),
+            PlayMode::Xy => self.apply_play_xy_overlay(leds),
         }
     }
 

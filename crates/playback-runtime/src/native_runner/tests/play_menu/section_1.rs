@@ -30,14 +30,14 @@ pub(crate) fn play_transpose_page_round_trips_through_runtime_config() {
         .unwrap();
     let payload = runner.config_payload();
 
-    assert_eq!(runner.play_mode, "transpose");
+    assert_eq!(runner.play_mode, PlayMode::Transpose);
     assert_eq!(payload["runtimeConfig"]["playMode"], "transpose");
     assert!(payload["runtimeConfig"].get("playTranspose").is_none());
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(payload).unwrap();
-    assert_eq!(restored.play_mode, "transpose");
-    assert_eq!(restored.active_play_mode, "none");
+    assert_eq!(restored.play_mode, PlayMode::Transpose);
+    assert_eq!(restored.active_play_mode, ActivePlayMode::None);
 }
 
 #[test]
@@ -52,8 +52,8 @@ pub(crate) fn play_page_fast_path_applies_immediately_without_deferred_flush() {
         .unwrap();
     assert_eq!(snapshot_from(&changed)["playMode"], "pan");
     assert_eq!(snapshot_from(&changed)["activePlayMode"], "pan");
-    assert_eq!(runner.play_mode, "pan");
-    assert_eq!(runner.active_play_mode, "pan");
+    assert_eq!(runner.play_mode, PlayMode::Pan);
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Pan));
     assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
 }
 
@@ -75,8 +75,8 @@ pub(crate) fn parameterless_play_pages_select_without_entering_empty_page() {
             })
             .unwrap();
 
-        assert_eq!(runner.play_mode, mode);
-        assert_eq!(runner.active_play_mode, mode);
+        assert_eq!(runner.play_mode.wire_name(), mode);
+        assert_eq!(runner.active_play_mode.wire_name(), mode);
         assert_eq!(runner.menu.state.stack, vec![3]);
         assert_eq!(snapshot_from(&messages)["display"]["title"], "/Play");
     }
@@ -106,16 +106,16 @@ pub(crate) fn parameterized_play_pages_remain_enterable() {
 #[test]
 pub(crate) fn play_mode_edits_outside_play_page_do_not_activate_overlay() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_mode = "mix".into();
-    runner.active_play_mode = "none".into();
+    runner.play_mode = PlayMode::Mix;
+    runner.active_play_mode = ActivePlayMode::None;
     runner.menu.rebuild(runner.menu_config());
 
     assert!(runner.menu.focus_item_key("play.page.pan"));
     runner.menu.open_labels(&["Build"]);
     runner.apply_or_schedule_menu_key("play.page.pan").unwrap();
 
-    assert_eq!(runner.play_mode, "pan");
-    assert_eq!(runner.active_play_mode, "none");
+    assert_eq!(runner.play_mode, PlayMode::Pan);
+    assert_eq!(runner.active_play_mode, ActivePlayMode::None);
 }
 
 #[test]
@@ -149,8 +149,8 @@ pub(crate) fn fn_grid_context_changes_show_oled_toasts() {
 #[test]
 pub(crate) fn play_fx_type_turn_updates_params_immediately() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_mode = "fx".into();
-    runner.active_play_mode = "fx".into();
+    runner.play_mode = PlayMode::Fx;
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("play.fx.type"));
     runner.menu.state.editing = true;
@@ -206,8 +206,8 @@ pub(crate) fn pitch_play_fx_mapping_normalizes_complete_params() {
 #[test]
 pub(crate) fn play_fx_none_exposes_type_without_effect_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_mode = "fx".into();
-    runner.active_play_mode = "fx".into();
+    runner.play_mode = PlayMode::Fx;
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
     runner.play_fx_selected["fxType"] = json!("none");
     runner.menu.rebuild(runner.menu_config());
 
@@ -257,8 +257,8 @@ pub(crate) fn changing_play_page_uses_static_visible_menu_rows() {
 #[test]
 pub(crate) fn entering_play_menu_activates_selected_page_and_overlay() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_mode = "pan".into();
-    runner.active_play_mode = "none".into();
+    runner.play_mode = PlayMode::Pan;
+    runner.active_play_mode = ActivePlayMode::None;
     runner.menu.rebuild(runner.menu_config());
 
     for _ in 0..3 {
@@ -274,7 +274,7 @@ pub(crate) fn entering_play_menu_activates_selected_page_and_overlay() {
         })
         .unwrap();
 
-    assert_eq!(runner.active_play_mode, "pan");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Pan));
     let snapshot = snapshot_from(&entered);
     assert_eq!(snapshot["display"]["title"], "/Play");
     assert_eq!(snapshot["playMode"], "pan");

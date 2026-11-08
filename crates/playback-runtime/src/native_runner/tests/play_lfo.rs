@@ -52,7 +52,7 @@ fn lfo_runner() -> NativeRunner {
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );
-    assert_eq!(runner.active_play_mode, "lfo");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Lfo));
     assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: LFO");
     runner
 }

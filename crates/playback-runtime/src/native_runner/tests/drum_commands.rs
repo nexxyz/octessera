@@ -144,7 +144,7 @@ fn aux_and_xy_next_hit_voice_targets_emit_only_voice_scoped_scalars() {
     );
     assert_eq!(runner.instruments[1], other);
 
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.menu.rebuild(runner.menu_config());
     assert!(runner

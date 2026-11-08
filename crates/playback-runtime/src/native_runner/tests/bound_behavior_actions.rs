@@ -90,7 +90,10 @@ fn bound_runner() -> NativeRunner {
 fn bound_behavior_clicks_run_on_their_own_layer_whichever_is_active() {
     let mut runner = bound_runner();
     held(&mut runner, "button_fn", |runner| tap(runner, 7, 5));
-    assert_eq!(runner.active_play_mode, "faders");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Faders)
+    );
 
     tap(&mut runner, 7, 7);
     assert_eq!(toast(&runner), "Tile: L5 Reseed Stars");

@@ -25,7 +25,7 @@ fn fn_press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage>
 
 fn open_mix_page(runner: &mut NativeRunner) {
     let _ = fn_press(runner, GRID_WIDTH - 1, 0);
-    assert_eq!(runner.active_play_mode, "mix");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Mix));
 }
 
 fn mix_runner() -> NativeRunner {
@@ -350,7 +350,7 @@ pub(crate) fn muting_a_midi_slot_releases_held_notes_and_blocks_new_ones() {
     );
 
     let _ = fn_press(&mut runner, 0, 0);
-    assert_eq!(runner.active_play_mode, "none");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::None);
     let blocked = press(&mut runner, 3, 4);
     assert_eq!(midi_note_ons(&blocked), 0);
 

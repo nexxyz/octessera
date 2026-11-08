@@ -243,7 +243,7 @@ fn drum_assignment_leds_use_world_to_display_index_and_override_play_fn_navigati
     assign_voice(&mut runner, 2);
     press(&mut runner, 2, 7);
     runner.grid_assign = None;
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
             "drum.assign:0:1".into(),

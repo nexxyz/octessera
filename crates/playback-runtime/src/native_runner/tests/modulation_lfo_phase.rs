@@ -236,7 +236,7 @@ pub(crate) fn active_lfo_tick_does_not_reapply_unrelated_held_xy_source() {
     })
     .unwrap();
     runner.select_layer_behavior(1, "brain").unwrap();
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,

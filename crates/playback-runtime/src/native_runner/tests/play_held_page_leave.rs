@@ -38,7 +38,7 @@ fn fx_runner() -> NativeRunner {
         config: json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
     });
     open_musical_page(&mut runner, 0);
-    assert_eq!(runner.active_play_mode, "fx");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Fx));
     runner
 }
 
@@ -65,7 +65,7 @@ fn assert_release_stops_the_held_fx(leave: impl FnOnce(&mut NativeRunner)) {
     assert_eq!(runner.active_play_fx.len(), 1);
 
     leave(&mut runner);
-    assert_ne!(runner.active_play_mode, "fx");
+    assert_ne!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Fx));
 
     let messages = release(&mut runner, 3, 4);
     assert_eq!(stops(&messages), vec!["momentary-fx:3:4".to_string()]);
@@ -94,7 +94,7 @@ fn a_held_play_fx_stops_on_release_after_a_page_switch() {
         let _ = press(runner, GRID_WIDTH - 1, 0);
         let _ = release(runner, GRID_WIDTH - 1, 0);
         button(runner, "button_fn", false);
-        assert_eq!(runner.active_play_mode, "mix");
+        assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Mix));
     });
 }
 
@@ -127,7 +127,7 @@ fn a_held_xy_touch_ends_on_release_after_a_page_switch() {
         .apply_or_schedule_menu_key("play.xy.release")
         .unwrap();
     open_musical_page(&mut runner, 1);
-    assert_eq!(runner.active_play_mode, "xy");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Xy));
 
     let _ = press(&mut runner, 6, 5);
     assert!(runner.xy.touch.active);
@@ -135,7 +135,7 @@ fn a_held_xy_touch_ends_on_release_after_a_page_switch() {
     let _ = press(&mut runner, GRID_WIDTH - 1, 0);
     let _ = release(&mut runner, GRID_WIDTH - 1, 0);
     button(&mut runner, "button_fn", false);
-    assert_eq!(runner.active_play_mode, "mix");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Mix));
     assert!(
         runner.xy.touch.active,
         "another tile's release keeps the hold"

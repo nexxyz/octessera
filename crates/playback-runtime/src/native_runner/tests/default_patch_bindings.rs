@@ -44,7 +44,10 @@ fn shipped_runner(payload: &str) -> NativeRunner {
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );
-    assert_eq!(runner.active_play_mode, "faders");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Faders)
+    );
     runner
 }
 

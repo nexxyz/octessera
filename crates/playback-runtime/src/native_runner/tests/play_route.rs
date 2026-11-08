@@ -50,7 +50,10 @@ fn open_route_page(runner: &mut NativeRunner) {
     let _ = input(runner, json!({ "type": "button_fn", "pressed": true }));
     let opened = press(runner, GRID_WIDTH - 1, 2);
     let _ = input(runner, json!({ "type": "button_fn", "pressed": false }));
-    assert_eq!(runner.active_play_mode, "route");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Route)
+    );
     assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: Route");
 }
 

@@ -68,7 +68,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
     ));
 
     let mut fx_config = config();
-    fx_config.play_mode = "fx".into();
+    fx_config.play_mode = PlayMode::Fx;
     let fx_menu = NativeMenuModel::new(fx_config);
     let fx_labels = fx_menu.root.children[3]
         .children
@@ -100,7 +100,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
     assert!(fx_labels.contains(&"Target"));
 
     let mut trigger_gate_config = config();
-    trigger_gate_config.play_mode = "trigger-gate".into();
+    trigger_gate_config.play_mode = PlayMode::TriggerGate;
     let trigger_gate_menu = NativeMenuModel::new(trigger_gate_config);
     let trigger_gate_labels = trigger_gate_menu.root.children[3]
         .children
@@ -128,7 +128,7 @@ pub(crate) fn play_spec_rows_show_only_selected_play_page_controls() {
 #[test]
 pub(crate) fn xy_menu_orders_and_formats_smoothing() {
     let mut config = config();
-    config.play_mode = "xy".into();
+    config.play_mode = PlayMode::Xy;
     let mut menu = NativeMenuModel::new(config);
     let xy = play_page(&menu, "XY");
     let labels = xy
@@ -183,7 +183,7 @@ pub(crate) fn xy_menu_orders_and_formats_smoothing() {
 #[test]
 pub(crate) fn play_fx_page_is_flat_and_shows_selected_type_params() {
     let mut config = config();
-    config.play_mode = "fx".into();
+    config.play_mode = PlayMode::Fx;
     config.play_fx_type = "stutter".into();
     config
         .play_fx_params
@@ -217,7 +217,7 @@ pub(crate) fn play_fx_page_is_flat_and_shows_selected_type_params() {
 #[test]
 pub(crate) fn pitch_fx_page_exposes_independent_slide_rows() {
     let mut config = config();
-    config.play_mode = "fx".into();
+    config.play_mode = PlayMode::Fx;
     config.play_fx_type = "pitch_shift".into();
     let mut menu = NativeMenuModel::new(config);
     menu.open_labels(&["Play", "FX"]);
@@ -246,7 +246,7 @@ pub(crate) fn pitch_fx_page_exposes_independent_slide_rows() {
 #[test]
 pub(crate) fn play_aux_map_rows_show_the_mapped_controls() {
     let mut config = config();
-    config.play_mode = "fx".into();
+    config.play_mode = PlayMode::Fx;
     config.play_fx_type = "stutter".into();
     let menu = NativeMenuModel::new(config);
     let aux_map = play_page(&menu, "FX")
@@ -279,7 +279,7 @@ pub(crate) fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targ
     ));
 
     let mut xy_config = config();
-    xy_config.play_mode = "xy".into();
+    xy_config.play_mode = PlayMode::Xy;
     let xy_menu = NativeMenuModel::new(xy_config);
     assert!(contains_set_binding(
         &xy_menu.browsable_root(),
@@ -337,7 +337,7 @@ pub(crate) fn parameter_picker_includes_behavior_link_fx_and_global_fx_families(
         serde_json::json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
     cfg.global_fx_slots[0] = "vinyl".into();
     cfg.global_fx_params[0] = serde_json::json!({ "cracklePct": 8, "saturationPct": 15, "warpDepthPct": 5, "mixPct": 100 });
-    cfg.play_mode = "xy".into();
+    cfg.play_mode = PlayMode::Xy;
     cfg.play_fx_type = "stutter".into();
     let menu = NativeMenuModel::new(cfg);
 

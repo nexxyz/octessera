@@ -1,4 +1,4 @@
-use super::play_pages::PLAY_PAGES;
+use super::play_pages::{ActivePlayMode, PlayMode, PLAY_PAGES};
 use super::*;
 use crate::native_menu::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SHAPE_LABEL};
 
@@ -82,19 +82,19 @@ impl NativeRunner {
     pub(super) fn enter_root_group(&mut self, label: Option<&str>) {
         match label {
             Some(PLAY_LABEL) => {
-                self.active_play_mode = self.play_mode.clone();
+                self.active_play_mode = ActivePlayMode::Page(self.play_mode);
             }
             Some(BUILD_LABEL) => {
                 self.menu.state.cursor = self.active_layer_index.min(GRID_HEIGHT.saturating_sub(1));
-                self.active_play_mode = "none".into();
+                self.active_play_mode = ActivePlayMode::None;
             }
             Some(LINK_LABEL) => {
                 let active_label = format!("L{}:", self.active_layer_index + 1);
                 let _ = self.menu.focus_current_group_label(&active_label);
-                self.active_play_mode = "none".into();
+                self.active_play_mode = ActivePlayMode::None;
             }
             Some(SHAPE_LABEL) | Some("System") => {
-                self.active_play_mode = "none".into();
+                self.active_play_mode = ActivePlayMode::None;
             }
             _ => {}
         }
@@ -108,8 +108,8 @@ impl NativeRunner {
         if stack_depth_before == 1 {
             if let Some(label) = label {
                 if let Some(mode) = play_mode_from_page_label(label) {
-                    self.play_mode = mode.into();
-                    self.active_play_mode = self.play_mode.clone();
+                    self.play_mode = mode;
+                    self.active_play_mode = ActivePlayMode::Page(self.play_mode);
                     self.mark_config_dirty();
                     return Ok(());
                 }
@@ -131,7 +131,7 @@ impl NativeRunner {
     }
 }
 
-fn play_mode_from_page_label(label: &str) -> Option<&'static str> {
+fn play_mode_from_page_label(label: &str) -> Option<PlayMode> {
     PLAY_PAGES
         .iter()
         .find(|page| page.label == label)

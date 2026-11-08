@@ -63,8 +63,8 @@ pub struct PresentationScene {
     active_tiles: Vec<bool>,
     hdmi: HdmiScene,
     transport: NativeTransportState,
-    play_mode: String,
-    active_play_mode: String,
+    play_mode: super::PlayMode,
+    active_play_mode: super::ActivePlayMode,
     momentary_grid: bool,
     ui: NativeUiState,
     sound: GlobalSoundConfig,
@@ -220,8 +220,8 @@ impl NativeRunner {
                 grid,
             },
             transport: self.transport.clone(),
-            play_mode: self.play_mode.clone(),
-            active_play_mode: self.active_play_mode.clone(),
+            play_mode: self.play_mode,
+            active_play_mode: self.active_play_mode,
             momentary_grid: self
                 .behavior
                 .grid_interaction()

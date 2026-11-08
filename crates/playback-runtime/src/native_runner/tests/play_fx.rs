@@ -3,7 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn play_fx_grid_press_and_release_emit_audio_commands() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "fx".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 2,
         y: 3,
@@ -78,7 +78,7 @@ pub(crate) fn play_fx_same_config_assignment_toggles_tile_clear() {
 #[test]
 pub(crate) fn play_fx_press_blocks_same_type_and_limits_concurrency() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "fx".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
     for (x, fx_type) in ["stutter", "freeze", "filter_sweep", "pitch_shift"]
         .iter()
         .enumerate()
@@ -117,7 +117,7 @@ pub(crate) fn play_fx_press_blocks_same_type_and_limits_concurrency() {
 #[test]
 pub(crate) fn play_fx_overlay_marks_active_and_limited_tiles() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "fx".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 0,
         y: 0,
@@ -150,7 +150,7 @@ pub(crate) fn play_fx_overlay_marks_active_and_limited_tiles() {
 #[test]
 pub(crate) fn play_fx_overlay_uses_canonical_fx_palette() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "fx".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
     for (x, fx_type) in ["stutter", "freeze", "filter_sweep", "pitch_shift"]
         .into_iter()
         .enumerate()
@@ -232,7 +232,7 @@ pub(crate) fn play_fx_map_to_grid_stores_config_and_payload_round_trips() {
 pub(crate) fn a_slow_clock_drift_retimes_a_held_dub_throw_once_it_adds_up() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.sync_source = SyncSource::External;
-    runner.active_play_mode = "fx".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 0,
         y: 0,

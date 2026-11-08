@@ -68,14 +68,17 @@ impl Rig {
         self.input(json!({ "type": "grid_press", "x": GRID_WIDTH - 1, "y": 0 }));
         self.input(json!({ "type": "grid_release", "x": GRID_WIDTH - 1, "y": 0 }));
         self.input(json!({ "type": "button_fn", "pressed": false }));
-        assert_eq!(self.runner.active_play_mode, "mix");
+        assert_eq!(
+            self.runner.active_play_mode,
+            ActivePlayMode::Page(PlayMode::Mix)
+        );
         self.input(json!({ "type": "grid_press", "x": 0, "y": 0 }));
         self.input(json!({ "type": "grid_release", "x": 0, "y": 0 }));
         self.input(json!({ "type": "button_fn", "pressed": true }));
         self.input(json!({ "type": "grid_press", "x": 0, "y": 0 }));
         self.input(json!({ "type": "grid_release", "x": 0, "y": 0 }));
         self.input(json!({ "type": "button_fn", "pressed": false }));
-        assert_eq!(self.runner.active_play_mode, "none");
+        assert_eq!(self.runner.active_play_mode, ActivePlayMode::None);
     }
 
     fn turn_send_to_midi(&mut self, delta: i8) {

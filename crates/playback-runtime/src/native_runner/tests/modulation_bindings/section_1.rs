@@ -121,7 +121,7 @@ pub(crate) fn collect_set_binding_keys(
 #[test]
 pub(crate) fn generated_selector_trees_expose_representative_bindings() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_mode = "xy".into();
+    runner.play_mode = PlayMode::Xy;
     runner.menu.rebuild(runner.menu_config());
 
     for (target, expected_key) in [

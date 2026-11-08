@@ -6,17 +6,28 @@ use super::{
 use crate::native_menu::binding_picker::play_fx_targets;
 use crate::native_menu::section_labels::PLAY_LABEL;
 use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_types};
-use crate::native_runner::play_pages::PLAY_PAGES;
+use crate::native_runner::play_pages::{PlayMode, PLAY_PAGES};
 
 pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {
     let pages = PLAY_PAGES.iter().map(|page| {
         let children = match page.mode {
-            "fx" => play_fx_page_children(config),
-            "xy" => xy_pad_items(config),
-            "faders" => super::play_faders::faders_page_children(config),
-            _ => vec![],
+            PlayMode::Fx => play_fx_page_children(config),
+            PlayMode::Xy => xy_pad_items(config),
+            PlayMode::Faders => super::play_faders::faders_page_children(config),
+            PlayMode::Mix
+            | PlayMode::Pan
+            | PlayMode::Route
+            | PlayMode::Tempo
+            | PlayMode::Lfo
+            | PlayMode::Transpose
+            | PlayMode::Rate
+            | PlayMode::TriggerGate => vec![],
         };
-        keyed_group(page.label, format!("play.page.{}", page.mode), children)
+        keyed_group(
+            page.label,
+            format!("play.page.{}", page.mode.wire_name()),
+            children,
+        )
     });
     group(PLAY_LABEL, pages.collect())
 }

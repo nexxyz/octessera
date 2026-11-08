@@ -84,7 +84,7 @@ pub(crate) fn keyed_layer_algorithm_step_rebases_held_discrete_source() {
     })
     .unwrap();
     let key = "algorithmStep";
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.touch = NativeXyTouch {
         x: 1.0,
         y: 0.5,

@@ -35,7 +35,7 @@ fn mix_runner() -> NativeRunner {
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );
-    assert_eq!(runner.active_play_mode, "mix");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Mix));
     let _ = runner.messages_with_snapshot().unwrap();
     runner.config_dirty = false;
     runner.dirty_revision = None;

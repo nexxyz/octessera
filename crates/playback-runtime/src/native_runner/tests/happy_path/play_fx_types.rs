@@ -65,7 +65,7 @@ fn turn_until(runner: &mut NativeRunner, key: &str, value: &str) {
 fn map_type_to_tile(runner: &mut NativeRunner, fx_type: &str, target: &str, x: usize) {
     assert!(runner.menu.focus_item_key("play.page.fx"));
     let _ = press_main(runner);
-    assert_eq!(runner.active_play_mode, "fx");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Fx));
     turn_until(runner, "play.fx.type", fx_type);
     turn_until(runner, "play.fx.target", target);
     assert!(runner.menu.focus_item_key("play.fx.map"));

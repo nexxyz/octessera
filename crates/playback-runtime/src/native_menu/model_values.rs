@@ -3,7 +3,7 @@ use crate::protocol::SyncSource;
 use super::format::note_unit_to_pulses;
 use super::section_labels::PLAY_PATH_PREFIX;
 use super::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
-use crate::native_runner::play_pages::PLAY_PAGES;
+use crate::native_runner::play_pages::{PlayMode, PLAY_PAGES};
 
 impl NativeMenuModel {
     pub fn selected_behavior(&self) -> Option<String> {
@@ -37,12 +37,12 @@ impl NativeMenuModel {
             .map(|value| value.clamp(0, 100) as u8)
     }
 
-    pub fn selected_play_mode(&self) -> Option<String> {
+    pub(crate) fn selected_play_mode(&self) -> Option<PlayMode> {
         let path = self.current_focus_path();
         PLAY_PAGES
             .iter()
             .find(|page| path.starts_with(&format!("{PLAY_PATH_PREFIX} > {}", page.label)))
-            .map(|page| page.mode.into())
+            .map(|page| page.mode)
     }
 }
 

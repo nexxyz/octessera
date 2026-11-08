@@ -301,7 +301,7 @@ pub(crate) fn transpose_drain_then_layer_disable_does_not_repeat_note_off() {
         1
     );
 
-    runner.active_play_mode = "transpose".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Transpose);
     let transpose = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 1, "y": 5 }),
@@ -316,7 +316,7 @@ pub(crate) fn transpose_drain_then_layer_disable_does_not_repeat_note_off() {
         1
     );
 
-    runner.active_play_mode = "none".into();
+    runner.active_play_mode = ActivePlayMode::None;
     let disabled = disable_layer(&mut runner, 0);
     assert!(routed_events(&disabled, false)
         .iter()
@@ -333,7 +333,7 @@ pub(crate) fn transpose_drain_preserves_another_layer_owner_for_final_disable() 
     runner.select_active_layer(0).unwrap();
     runner.transpose.selected[1] = false;
 
-    runner.active_play_mode = "transpose".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Transpose);
     let transpose = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 1, "y": 5 }),
@@ -348,7 +348,7 @@ pub(crate) fn transpose_drain_preserves_another_layer_owner_for_final_disable() 
         1
     );
 
-    runner.active_play_mode = "none".into();
+    runner.active_play_mode = ActivePlayMode::None;
     let first_disabled = disable_layer(&mut runner, 0);
     assert!(routed_events(&first_disabled, false)
         .iter()
@@ -371,7 +371,7 @@ pub(crate) fn trigger_gate_page_zero_only_blocks_future_admission() {
     let press = press_note(&mut runner, 2, 3);
     assert!(!routed_events(&press, false).is_empty());
 
-    runner.active_play_mode = "trigger-gate".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::TriggerGate);
     let edit = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
@@ -382,7 +382,7 @@ pub(crate) fn trigger_gate_page_zero_only_blocks_future_admission() {
         .iter()
         .all(|event| !matches!(event, MusicalEvent::NoteOff { .. })));
 
-    runner.active_play_mode = "none".into();
+    runner.active_play_mode = ActivePlayMode::None;
     let blocked = press_note(&mut runner, 3, 3);
     assert!(routed_events(&blocked, false).is_empty());
 }

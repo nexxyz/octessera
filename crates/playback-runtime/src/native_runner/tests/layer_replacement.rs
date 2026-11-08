@@ -72,7 +72,7 @@ pub(crate) fn inactive_layer_aux_config_edit_changes_execution_state() {
 #[test]
 pub(crate) fn inactive_layer_xy_modulation_changes_execution_state() {
     let mut runner = brain_target_runner();
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.xy.y_binding = Some(NativeParamBinding {
         key: "layers.1.build.behaviorConfig.randomSeedCells".into(),

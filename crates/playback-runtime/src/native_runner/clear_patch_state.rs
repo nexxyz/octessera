@@ -92,8 +92,8 @@ impl NativeRunner {
                 epoch: 0,
             });
         }
-        self.play_mode = "mix".into();
-        self.active_play_mode = "none".into();
+        self.play_mode = PlayMode::Mix;
+        self.active_play_mode = ActivePlayMode::None;
         self.xy = NativeXyState {
             touch: NativeXyTouch::default(),
             release: "sample-hold".into(),

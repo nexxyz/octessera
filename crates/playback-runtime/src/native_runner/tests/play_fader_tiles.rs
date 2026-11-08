@@ -84,7 +84,10 @@ fn tiles_runner() -> NativeRunner {
     press_key(&mut runner, &format!("play.faders.tile.target.{VOLUME}"));
     map_tile(&mut runner, 7, 3);
     assert_eq!(toast(&runner), "Mapped");
-    assert_eq!(runner.active_play_mode, "faders");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Faders)
+    );
     runner
 }
 
@@ -92,7 +95,7 @@ fn tiles_runner() -> NativeRunner {
 fn action_cols_turn_the_right_columns_into_tiles() {
     let mut runner = tiles_runner();
     press_key(&mut runner, "play.faders.6.target.sound.velocityScalePct");
-    runner.active_play_mode = "faders".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     tap(&mut runner, 6, 5);
     assert_eq!(
         runner.global_sound.velocity_scale_pct, 100,
@@ -103,7 +106,7 @@ fn action_cols_turn_the_right_columns_into_tiles() {
     assert_eq!(led(&mut runner, 7, 3), LedColor::YELLOW.dim(2));
 
     set_menu_number(&mut runner, "play.faders.actionCols", 0);
-    runner.active_play_mode = "faders".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     tap(&mut runner, 6, 5);
     assert_eq!(runner.global_sound.velocity_scale_pct, 143);
     assert_eq!(runner.faders.tiles.len(), 2, "tiles stay for later");

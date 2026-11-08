@@ -3,8 +3,8 @@ use super::*;
 #[test]
 pub(crate) fn fn_overlay_shows_active_layers_and_play_page_options() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "pan".into();
-    runner.play_mode = "pan".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Pan);
+    runner.play_mode = PlayMode::Pan;
     runner.layer_behavior_ids[1] = "none".into();
     runner.layer_behavior_ids[2] = "life".into();
     runner.display.ui.fn_held = true;
@@ -32,8 +32,8 @@ pub(crate) fn fn_overlay_shows_active_layers_and_play_page_options() {
 #[test]
 pub(crate) fn fn_overlay_highlights_active_layer_when_not_in_play_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "none".into();
-    runner.play_mode = "mix".into();
+    runner.active_play_mode = ActivePlayMode::None;
+    runner.play_mode = PlayMode::Mix;
     runner.layer_behavior_ids[1] = "none".into();
     runner.layer_behavior_ids[2] = "life".into();
     let _ = runner
@@ -70,8 +70,8 @@ pub(crate) fn fn_overlay_highlights_active_layer_when_not_in_play_mode() {
 #[test]
 pub(crate) fn combined_modifier_overlay_shows_musical_page_column() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "fx".into();
-    runner.play_mode = "fx".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
+    runner.play_mode = PlayMode::Fx;
     runner.display.ui.combined_modifier_held = true;
 
     let snapshot = runner.snapshot().unwrap();
@@ -98,8 +98,8 @@ pub(crate) fn combined_modifier_overlay_shows_musical_page_column() {
 pub(crate) fn fn_overlay_dims_fx_grid_tiles_when_play_mode_is_fx() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.combined_modifier_held = true;
-    runner.active_play_mode = "fx".into();
-    runner.play_mode = "fx".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
+    runner.play_mode = PlayMode::Fx;
 
     let snapshot = runner.snapshot().unwrap();
     let tiles = led_tiles(&snapshot);
@@ -147,7 +147,7 @@ pub(crate) fn assignment_overlays_suppress_fn_navigation_overlay() {
 #[test]
 pub(crate) fn play_transpose_overlay_distinguishes_selected_center_and_potential_keys() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "transpose".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Transpose);
     runner.transpose.offsets[0] = 7;
     runner.transpose.selected.fill(false);
     runner.transpose.selected[0] = true;

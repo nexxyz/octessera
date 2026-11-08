@@ -4,7 +4,7 @@ use super::*;
 pub(crate) fn pan_page_grid_edit_sends_live_mixer_commands() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
-    runner.active_play_mode = "pan".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Pan);
 
     let direct = runner
         .send(HostMessage::DeviceInput {
@@ -63,8 +63,8 @@ pub(crate) fn pan_page_grid_edit_sends_live_mixer_commands() {
 #[test]
 pub(crate) fn entering_build_or_link_clears_active_play_overlay_but_keeps_selected_page() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_mode = "pan".into();
-    runner.active_play_mode = "pan".into();
+    runner.play_mode = PlayMode::Pan;
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Pan);
     runner.menu.rebuild(runner.menu_config());
 
     let build_response = runner
@@ -73,11 +73,11 @@ pub(crate) fn entering_build_or_link_clears_active_play_overlay_but_keeps_select
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.active_play_mode, "none");
-    assert_eq!(runner.play_mode, "pan");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::None);
+    assert_eq!(runner.play_mode, PlayMode::Pan);
     assert_eq!(snapshot_from(&build_response)["display"]["title"], "/Build");
 
-    runner.active_play_mode = "pan".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Pan);
     runner.menu.state.stack.clear();
     runner.menu.select_label("Link");
 
@@ -87,15 +87,15 @@ pub(crate) fn entering_build_or_link_clears_active_play_overlay_but_keeps_select
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.active_play_mode, "none");
-    assert_eq!(runner.play_mode, "pan");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::None);
+    assert_eq!(runner.play_mode, PlayMode::Pan);
     assert_eq!(snapshot_from(&link_response)["display"]["title"], "/Link");
 }
 
 #[test]
 pub(crate) fn trigger_gate_page_edits_only_selected_layer_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "trigger-gate".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::TriggerGate);
     runner.trigger_gate_modes = vec!["full".into(); GRID_HEIGHT];
 
     let changed = runner
@@ -117,7 +117,7 @@ pub(crate) fn trigger_gate_page_edits_only_selected_layer_row() {
 #[test]
 pub(crate) fn trigger_gate_all_layers_button_edits_all_rows() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "trigger-gate".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::TriggerGate);
     runner.trigger_gate_modes = vec!["full".into(); GRID_HEIGHT];
 
     let _ = runner
@@ -213,33 +213,46 @@ pub(crate) fn fn_rightmost_grid_column_selects_technical_play_pages() {
         .unwrap();
 
     let mix = press_grid(&mut runner, 7, 0);
-    assert_eq!(runner.active_play_mode, "mix");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Mix));
     assert_eq!(snapshot_from(&mix)["display"]["title"], "/Play");
     assert_eq!(runner.menu.current_key(), Some("play.page.mix"));
 
     let _ = press_grid(&mut runner, 7, 1);
-    assert_eq!(runner.active_play_mode, "pan");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Pan));
     assert_eq!(runner.menu.current_key(), Some("play.page.pan"));
 
     let _ = press_grid(&mut runner, 7, 2);
-    assert_eq!(runner.active_play_mode, "route");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Route)
+    );
     assert_eq!(runner.menu.current_key(), Some("play.page.route"));
 
     let _ = press_grid(&mut runner, 7, 3);
-    assert_eq!(runner.active_play_mode, "tempo");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Tempo)
+    );
     assert_eq!(runner.menu.current_key(), Some("play.page.tempo"));
 
     let _ = press_grid(&mut runner, 7, 4);
-    assert_eq!(runner.active_play_mode, "lfo");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Lfo));
     assert_eq!(runner.menu.current_key(), Some("play.page.lfo"));
 
     let _ = press_grid(&mut runner, 7, 5);
-    assert_eq!(runner.active_play_mode, "faders");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Faders)
+    );
     assert_eq!(runner.menu.current_key(), Some("play.page.faders"));
 
     for free_row in [6, 7] {
         let _ = press_grid(&mut runner, 7, free_row);
-        assert_eq!(runner.active_play_mode, "faders", "row {free_row}");
+        assert_eq!(
+            runner.active_play_mode,
+            ActivePlayMode::Page(PlayMode::Faders),
+            "row {free_row}"
+        );
     }
 }
 
@@ -264,7 +277,7 @@ pub(crate) fn shift_fn_rightmost_grid_column_selects_musical_play_pages() {
         (4, "trigger-gate", "Play: Trigger Gate"),
     ] {
         let messages = press_grid(&mut runner, 7, row);
-        assert_eq!(runner.active_play_mode, mode);
+        assert_eq!(runner.active_play_mode.wire_name(), mode);
         let _ = messages;
         assert_eq!(runner.display.toast.as_ref().unwrap().message, toast);
         assert_eq!(
@@ -274,7 +287,11 @@ pub(crate) fn shift_fn_rightmost_grid_column_selects_musical_play_pages() {
     }
     for free_row in [5, 6, 7] {
         let _ = press_grid(&mut runner, 7, free_row);
-        assert_eq!(runner.active_play_mode, "trigger-gate", "row {free_row}");
+        assert_eq!(
+            runner.active_play_mode,
+            ActivePlayMode::Page(PlayMode::TriggerGate),
+            "row {free_row}"
+        );
     }
 }
 
@@ -290,7 +307,7 @@ fn press_grid(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessag
 #[test]
 pub(crate) fn play_transpose_layer_selection_controls_routing() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "transpose".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Transpose);
     runner.transpose.offsets[0] = 7;
     assert_eq!(runner.play_transpose_offsets_for_routing()[0], 7);
 
@@ -331,7 +348,7 @@ pub(crate) fn fn_leftmost_grid_column_switches_active_layer() {
 #[test]
 pub(crate) fn play_trigger_gate_leds_show_layer_modes_and_all_layers_actions() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "trigger-gate".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::TriggerGate);
     runner.link_layers[0].trigger_probability_mode = "custom".into();
     runner.link_layers[1].trigger_probability_mode = "full".into();
 
@@ -354,7 +371,7 @@ pub(crate) fn play_trigger_gate_leds_show_layer_modes_and_all_layers_actions() {
 #[test]
 pub(crate) fn back_exits_active_play_overlay_and_menu_context() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "fx".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
     runner.menu.open_labels(&["Play"]);
     runner
         .send(HostMessage::DeviceInput {
@@ -362,6 +379,6 @@ pub(crate) fn back_exits_active_play_overlay_and_menu_context() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.active_play_mode, "none");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::None);
     assert!(runner.menu.state.stack.is_empty());
 }

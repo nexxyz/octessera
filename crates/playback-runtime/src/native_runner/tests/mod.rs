@@ -144,6 +144,7 @@ mod play_mix_buses;
 mod play_mix_dispatch;
 mod play_mix_mute;
 mod play_overlay;
+mod play_page_device_dispatch;
 mod play_rate;
 mod play_route;
 mod play_tempo;

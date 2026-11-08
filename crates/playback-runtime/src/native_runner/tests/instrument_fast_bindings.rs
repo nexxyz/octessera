@@ -79,7 +79,7 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
     assert_only_scalar(&messages, 0, "fm.index");
     assert_eq!(runner.instruments[1], untouched);
 
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.menu.rebuild(runner.menu_config());
     assert!(runner
@@ -133,7 +133,7 @@ fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
     assert_only_scalar(&messages, 0, "synth.osc1.levelPct");
     assert_eq!(runner.instruments[1], second);
 
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.xy.x_binding = Some(numeric_binding(
         "instruments.0.synth.filter.cutoffHz",
@@ -147,7 +147,7 @@ fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
     let mut sample_config = runner.config_payload();
     sample_config["runtimeConfig"]["instruments"][0]["type"] = json!("sampler");
     runner.apply_config_payload(sample_config).unwrap();
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.xy.x_binding = Some(numeric_binding(
         "instruments.0.sample.filter.cutoffHz",
@@ -176,7 +176,7 @@ fn held_fm_xy_menu_edit_rebases_without_double_command_then_release_restores_new
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = InstrumentType::Fm;
     runner.menu.rebuild(runner.menu_config());
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.xy.x_binding = Some(numeric_binding("instruments.0.fm.index", 0.0, 100.0));
     let _ = runner.messages_with_snapshot().unwrap();
@@ -210,7 +210,7 @@ fn held_fm_xy_menu_edit_rebases_without_double_command_then_release_restores_new
 #[test]
 fn synth_gain_xy_then_aux_edit_persists_composed_gain_without_replacing_slot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.xy.x_binding = Some(numeric_binding(
         "instruments.0.synth.amp.gainPct",

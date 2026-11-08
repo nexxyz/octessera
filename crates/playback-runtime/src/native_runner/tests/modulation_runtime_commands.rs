@@ -36,7 +36,7 @@ pub(crate) fn patch_transaction_discards_held_xy_source_and_captured_base() {
     runner.xy.smoothing_ms = 0;
     runner.instruments[0].volume = 50;
     runner.xy.x_binding = Some(volume_binding());
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 7, "y": 0 }),

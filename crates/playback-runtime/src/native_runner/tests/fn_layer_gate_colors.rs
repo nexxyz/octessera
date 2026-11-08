@@ -59,7 +59,7 @@ pub(crate) fn gated_layers_light_magenta_in_both_navigation_views() {
     );
 
     press(&mut runner, GRID_WIDTH - 1, 0);
-    assert_eq!(runner.active_play_mode, "mix");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Mix));
     assert_eq!(
         layer_column(&runner),
         colors([MAGENTA, BLUE, MAGENTA, none])
@@ -71,7 +71,7 @@ pub(crate) fn gated_layers_light_magenta_in_both_navigation_views() {
     press(&mut runner, 0, 0);
     button(&mut runner, "button_shift", false);
     press(&mut runner, 0, 1);
-    assert_eq!(runner.active_play_mode, "none");
+    assert_eq!(runner.active_play_mode, ActivePlayMode::None);
     assert_eq!(
         layer_column(&runner),
         colors([GREEN, BLUE, dim_rgb(MAGENTA, 4), none])

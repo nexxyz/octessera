@@ -27,7 +27,10 @@ fn tempo_runner() -> NativeRunner {
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );
-    assert_eq!(runner.active_play_mode, "tempo");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Tempo)
+    );
     assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: Tempo");
     assert_eq!(runner.menu.current_key(), Some("play.page.tempo"));
     runner
@@ -225,7 +228,10 @@ fn fn_or_shift_fn_with_a_page_tile_leaves_the_hidden_page_alone() {
             (4, 4),
             "{buttons:?}"
         );
-        assert_eq!(runner.active_play_mode, "tempo");
+        assert_eq!(
+            runner.active_play_mode,
+            ActivePlayMode::Page(PlayMode::Tempo)
+        );
     }
     let _ = press(&mut runner, 1, 7);
     assert_eq!(runner.transport.bpm, 50.0);

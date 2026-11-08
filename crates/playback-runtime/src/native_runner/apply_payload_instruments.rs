@@ -4,7 +4,7 @@ use crate::protocol::RuntimePlatformEffect;
 use super::apply_payload_instrument_values::*;
 use super::apply_payload_mixer_values::*;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
-use super::play_pages::is_play_mode;
+use super::play_pages::{ActivePlayMode, PlayMode};
 use super::{
     velocity_curve_from_id, AudioOptimization, AudioOutputSet, NativeRunner, SyncSource,
     UsbDataRole, Value, VoiceStealingMode,
@@ -285,13 +285,12 @@ impl NativeRunner {
         }
         if let Some(value) = runtime.get("playMode").and_then(Value::as_str) {
             let normalized = match value {
-                "none" => Some("mix"),
-                _ if is_play_mode(value) => Some(value),
-                _ => None,
+                "none" => Some(PlayMode::Mix),
+                _ => PlayMode::from_wire_name(value),
             };
-            if let Some(value) = normalized {
-                self.play_mode = value.into();
-                self.active_play_mode = "none".into();
+            if let Some(mode) = normalized {
+                self.play_mode = mode;
+                self.active_play_mode = ActivePlayMode::None;
             }
         }
     }

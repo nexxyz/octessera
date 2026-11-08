@@ -47,7 +47,10 @@ fn note_length(runner: &NativeRunner) -> u32 {
 /// Opens the Faders page the hardware way: Fn + the right column's row 5.
 fn open_faders(runner: &mut NativeRunner) {
     held(runner, "button_fn", |runner| tap(runner, GRID_WIDTH - 1, 5));
-    assert_eq!(runner.active_play_mode, "faders");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::Faders)
+    );
     assert_eq!(toast(runner), "Play: Faders");
 }
 
@@ -116,7 +119,7 @@ fn a_press_sets_its_target_through_the_range_and_invert() {
     set_menu_number(&mut runner, "play.faders.0.target.rangeMin", 30);
     set_menu_number(&mut runner, "play.faders.0.target.rangeMax", 170);
     assert_eq!(velocity(&runner), 0, "a new range waits for the next press");
-    runner.active_play_mode = "faders".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     tap(&mut runner, 0, 7);
     assert_eq!(velocity(&runner), 170);
     tap(&mut runner, 0, 1);
@@ -125,7 +128,7 @@ fn a_press_sets_its_target_through_the_range_and_invert() {
     switch_on(&mut runner, "play.faders.0.invert");
     assert!(runner.faders.sliders[0][0].as_ref().unwrap().invert);
     assert_eq!(velocity(&runner), 50, "invert waits for the next press");
-    runner.active_play_mode = "faders".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     tap(&mut runner, 0, 7);
     assert_eq!(velocity(&runner), 30);
 }
@@ -191,7 +194,7 @@ fn the_bar_follows_the_target_value_in_each_bank() {
     );
 
     set_menu_number(&mut runner, VELOCITY, 171);
-    runner.active_play_mode = "faders".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     assert_eq!(
         bar_top(&mut runner, 0, LedColor::GREEN),
         Some(6),
@@ -199,7 +202,7 @@ fn the_bar_follows_the_target_value_in_each_bank() {
     );
 
     set_menu_number(&mut runner, "sound.noteLengthMs", 30);
-    runner.active_play_mode = "faders".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     runner.display.ui.shift_held = true;
     assert_eq!(bar_top(&mut runner, 0, LedColor::MAGENTA), Some(0));
 }
@@ -224,10 +227,11 @@ fn fn_and_shift_fn_presses_do_not_edit_the_page_and_releases_are_consumed() {
     let set = velocity(&runner);
     held(&mut runner, "button_fn", |runner| tap(runner, 0, 6));
     assert_eq!(
-        runner.active_play_mode, "none",
+        runner.active_play_mode,
+        ActivePlayMode::None,
         "Fn + left column picks a layer"
     );
-    runner.active_play_mode = "faders".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     held(&mut runner, "button_combined_modifier", |runner| {
         tap(runner, 3, 6)
     });
@@ -247,7 +251,7 @@ fn fn_and_shift_fn_presses_do_not_edit_the_page_and_releases_are_consumed() {
 fn slider_targets_and_set_values_round_trip_through_a_saved_patch() {
     let mut runner = faders_runner();
     set_menu_number(&mut runner, "play.faders.0.target.rangeMax", 120);
-    runner.active_play_mode = "faders".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     tap(&mut runner, 0, 4);
     held(&mut runner, "button_shift", |runner| tap(runner, 0, 1));
     let expected_velocity = velocity(&runner);

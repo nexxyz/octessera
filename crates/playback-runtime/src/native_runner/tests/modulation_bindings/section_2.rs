@@ -3,7 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn play_xy_binding_updates_native_runtime_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.xy.invert_x = true;
     runner.xy.x_binding = Some(NativeParamBinding {
@@ -36,7 +36,7 @@ pub(crate) fn play_xy_binding_updates_native_runtime_config() {
 #[test]
 pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_mode = "xy".into();
+    runner.play_mode = PlayMode::Xy;
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("xy:x"));
 
@@ -73,7 +73,7 @@ pub(crate) fn xy_mapping_execute_action_keeps_menu_on_xy_axis_picker() {
 #[test]
 pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.fx_buses[0].slot1_params = json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
@@ -158,7 +158,7 @@ pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
 pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.fx_buses[0].slot3_type = "eq".into();
     runner.fx_buses[0].slot3_params = json!({ "midQ": 1.0, "mixPct": 100 });
@@ -254,7 +254,7 @@ pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
 #[test]
 pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
@@ -290,7 +290,7 @@ pub(crate) fn numeric_binding_user_range_maps_values_and_round_trips() {
 #[test]
 pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     runner.xy.invert_x = true;
     runner
@@ -313,7 +313,7 @@ pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
         }))
         .unwrap();
 
-    runner.active_play_mode = "xy".into();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
     let binding = runner.xy.x_binding.as_ref().unwrap();
     assert_eq!(binding.user_min, Some(10.0));
@@ -367,7 +367,7 @@ pub(crate) fn enum_and_bool_bindings_drop_user_ranges_on_load() {
 #[test]
 pub(crate) fn range_rows_edit_xy_and_param_mod_bindings_only() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_mode = "xy".into();
+    runner.play_mode = PlayMode::Xy;
     runner.xy.x_binding = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),

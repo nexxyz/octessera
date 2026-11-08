@@ -24,7 +24,10 @@ fn gate_runner() -> NativeRunner {
     for button in ["button_fn", "button_shift"] {
         input(&mut runner, json!({ "type": button, "pressed": false }));
     }
-    assert_eq!(runner.active_play_mode, "trigger-gate");
+    assert_eq!(
+        runner.active_play_mode,
+        ActivePlayMode::Page(PlayMode::TriggerGate)
+    );
     runner
 }
 

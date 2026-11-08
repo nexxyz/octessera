@@ -1,3 +1,4 @@
+use super::play_pages::PlayMode;
 use crate::protocol::RuntimeAudioCommand;
 
 use super::menu_apply_fast::value_changed;
@@ -70,17 +71,17 @@ impl NativeRunner {
                 )
             })),
             "playMode" => Some(self.fast_play_mode_menu_key()),
-            "play.page.mix" => Some(self.fast_play_page_key("mix")),
-            "play.page.pan" => Some(self.fast_play_page_key("pan")),
-            "play.page.route" => Some(self.fast_play_page_key("route")),
-            "play.page.tempo" => Some(self.fast_play_page_key("tempo")),
-            "play.page.lfo" => Some(self.fast_play_page_key("lfo")),
-            "play.page.faders" => Some(self.fast_play_page_key("faders")),
-            "play.page.fx" => Some(self.fast_play_page_key("fx")),
-            "play.page.trigger-gate" => Some(self.fast_play_page_key("trigger-gate")),
-            "play.page.transpose" => Some(self.fast_play_page_key("transpose")),
-            "play.page.rate" => Some(self.fast_play_page_key("rate")),
-            "play.page.xy" => Some(self.fast_play_page_key("xy")),
+            "play.page.mix" => Some(self.fast_play_page_key(PlayMode::Mix)),
+            "play.page.pan" => Some(self.fast_play_page_key(PlayMode::Pan)),
+            "play.page.route" => Some(self.fast_play_page_key(PlayMode::Route)),
+            "play.page.tempo" => Some(self.fast_play_page_key(PlayMode::Tempo)),
+            "play.page.lfo" => Some(self.fast_play_page_key(PlayMode::Lfo)),
+            "play.page.faders" => Some(self.fast_play_page_key(PlayMode::Faders)),
+            "play.page.fx" => Some(self.fast_play_page_key(PlayMode::Fx)),
+            "play.page.trigger-gate" => Some(self.fast_play_page_key(PlayMode::TriggerGate)),
+            "play.page.transpose" => Some(self.fast_play_page_key(PlayMode::Transpose)),
+            "play.page.rate" => Some(self.fast_play_page_key(PlayMode::Rate)),
+            "play.page.xy" => Some(self.fast_play_page_key(PlayMode::Xy)),
             "algorithmStep" => Some(self.fast_algorithm_step_menu_key()),
             "masterVolume" => Some(self.fast_master_volume_menu_key()),
             "displayBrightness" => Some(self.fast_display_brightness_menu_key()),

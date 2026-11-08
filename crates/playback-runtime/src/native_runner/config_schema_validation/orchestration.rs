@@ -11,7 +11,7 @@ use super::modulation;
 use super::Value;
 use crate::native_menu::HOME_VISUALS;
 use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_types};
-use crate::native_runner::play_pages::PLAY_PAGES;
+use crate::native_runner::play_pages::PlayMode;
 use realtime_engine::synth::DspRuntimeConfig;
 use serde_json::Map;
 
@@ -66,8 +66,12 @@ fn validate_dsp(runtime: &Map<String, Value>) -> Result<(), String> {
 }
 
 fn play_mode_field(object: &Map<String, Value>, path: &str) -> Result<(), String> {
-    let modes: Vec<&str> = PLAY_PAGES.iter().map(|page| page.mode).collect();
-    enum_field(object, "playMode", path, &modes)
+    enum_field(
+        object,
+        "playMode",
+        path,
+        &PlayMode::ALL.map(PlayMode::wire_name),
+    )
 }
 
 pub(super) fn validate_system(root: &Map<String, Value>) -> Result<(), String> {

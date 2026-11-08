@@ -1,4 +1,5 @@
 use super::menu_apply_fast::value_changed;
+use super::play_pages::{ActivePlayMode, PlayMode};
 use super::NativeRunner;
 
 impl NativeRunner {
@@ -61,23 +62,23 @@ impl NativeRunner {
         };
         let changed = self.play_mode != play_mode;
         if changed {
-            self.play_mode = play_mode.clone();
+            self.play_mode = play_mode;
             if self.menu.is_in_play_root_group() {
-                self.active_play_mode = play_mode;
+                self.active_play_mode = ActivePlayMode::Page(play_mode);
             }
             self.mark_fast_autosave_dirty();
         }
         true
     }
 
-    pub(super) fn fast_play_page_key(&mut self, play_mode: &str) -> bool {
+    pub(super) fn fast_play_page_key(&mut self, play_mode: PlayMode) -> bool {
         let changed = self.play_mode != play_mode;
         if changed {
-            self.play_mode = play_mode.into();
+            self.play_mode = play_mode;
             self.mark_fast_autosave_dirty();
         }
         if self.menu.is_in_play_root_group() {
-            self.active_play_mode = self.play_mode.clone();
+            self.active_play_mode = ActivePlayMode::Page(self.play_mode);
         }
         true
     }

@@ -1,3 +1,4 @@
+use super::play_pages::{ActivePlayMode, PlayMode};
 use crate::native_menu::NativeMenuAction;
 use crate::native_runner::InstrumentType;
 use crate::protocol::RuntimePlatformEffect;
@@ -26,7 +27,7 @@ impl NativeRunner {
         if action == "play.fx.map" {
             let config = self.play_fx_selected.clone();
             self.grid_assign = Some(GridAssign::PlayFx(config.clone()));
-            self.active_play_mode = "fx".into();
+            self.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
             self.show_toast(format!(
                 "FX {}: press tiles to assign",
                 super::play_control::play_fx_type_label(&config)
