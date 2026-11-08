@@ -50,6 +50,7 @@ pub use engine::{
 };
 #[cfg(feature = "routing-tree-executor")]
 pub use engine::{SourceWorkerLifecycle, SourceWorkerRuntime, SourceWorkerSetupError};
+pub use fx::REVERB_COMB_LENGTHS;
 pub use fx_param::{FxParamId, FxParamMutation};
 pub use param_path_validation::{
     validate_fm_param_path, validate_fx_type, validate_momentary_fx_type,

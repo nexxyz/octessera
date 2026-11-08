@@ -1,3 +1,5 @@
+use realtime_engine::synth::REVERB_COMB_LENGTHS;
+
 pub(crate) fn format_display_value(key: Option<&str>, value: impl ToString) -> String {
     let raw = value.to_string();
     let Some(key) = key else {
@@ -343,7 +345,8 @@ fn format_reverb_decay_seconds(value: f64) -> String {
     if feedback <= 0.0 {
         return "0.0s".into();
     }
-    let average_delay_seconds = ((1557.0 + 1617.0 + 1491.0 + 1422.0) / 4.0) / 44_100.0;
+    let comb_samples: usize = REVERB_COMB_LENGTHS.iter().sum();
+    let average_delay_seconds = comb_samples as f64 / 4.0 / 44_100.0;
     let seconds = (-3.0 * average_delay_seconds) / feedback.log10();
     format!("{seconds:.1}s")
 }

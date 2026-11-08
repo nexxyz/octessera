@@ -1,10 +1,10 @@
 /// The lengths of the four damped feedback combs shared by the bus reverb, freeze and wash, at
 /// 44.1 kHz.
-const COMB_LENS: [usize; 4] = [1557, 1617, 1491, 1422];
+pub const REVERB_COMB_LENGTHS: [usize; 4] = [1557, 1617, 1491, 1422];
 
 /// Empty comb lines at `sample_rate`, `scale` times the shared lengths.
 pub(in crate::synth) fn comb_buffers(scale: usize, sample_rate: u32) -> [Vec<f32>; 4] {
-    COMB_LENS.map(|n| vec![0.0; (n * scale * sample_rate as usize / 44_100).max(1)])
+    REVERB_COMB_LENGTHS.map(|n| vec![0.0; (n * scale * sample_rate as usize / 44_100).max(1)])
 }
 
 /// One frame through the four combs, each fed its own input; returns what each comb delayed.
