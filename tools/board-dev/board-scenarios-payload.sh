@@ -136,7 +136,7 @@ save_restore() {
     'numericDisplayMode="bar"'
   snapshot save-before
   start || return
-  keys save_edit "$display up*2 enter right*2 enter down enter right*2 enter down*20 up*6 enter right enter $link enter right*3 enter wait:8"
+  keys save_edit "$display up*2 enter right*2 enter down enter right*2 enter down*20 up*9 enter right enter $link enter right*3 enter wait:8"
   snapshot save-edited
   start || return
   snapshot save-restarted
@@ -210,7 +210,7 @@ usb_audio_fx() {
   gadget_from_clone
   start OCTESSERA_TIMING_AUTOPLAY=1 || return
   gate usb_audio_fx || return
-  keys fx "esc*8 wait:5 shift+ctrl+/ wait:2 mark:hold hold:7:6 mark:release wait:12"
+  keys fx "esc*8 wait:5 shift+ctrl+/ wait:2 mark:hold hold:7:6 mark:release wait:20"
 }
 usb_audio() {
   prepare usb_audio

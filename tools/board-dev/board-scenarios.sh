@@ -112,7 +112,7 @@ for scenario in usb_midi usb_midi_cc usb_audio usb_audio_fx; do
     open_gate usb_midi_cc
     collect
   elif [ "$scenario" = usb_audio_fx ]; then
-    await_gate usb_audio_fx && open_gate usb_audio_fx && { python tools/board-dev/host_usb_audio.py 40 "$out/usb-audio-fx" fx || true; }
+    await_gate usb_audio_fx && open_gate usb_audio_fx && { python tools/board-dev/host_usb_audio.py 32 "$out/usb-audio-fx" fx || true; }
     collect
   else
     await_gate usb_audio && { python tools/board-dev/host_usb_audio.py 90 "$out/usb-audio-level" \

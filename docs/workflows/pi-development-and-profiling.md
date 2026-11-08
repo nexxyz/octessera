@@ -386,7 +386,7 @@ on the Orange, `Octessera Line In` on the Raspberry).
 - `usb_audio_fx` is `usb_audio` with a tape stop on master mapped to Play FX
   tile (3, 3). With the store's own patch playing, `board-keys.py` opens the
   FX page (Shift+Ctrl+`/`, that is Shift+Fn + the right column's bottom tile)
-  and holds key `7` for 6 s while `host_usb_audio.py ... fx` records 40 s. The
+  and holds key `7` for 6 s while `host_usb_audio.py ... fx` records 32 s. The
   level must fall at least 20 dB below the take's opening level for 3 s or
   more and come back within 3 dB of it after the release, with no underruns
   while held.

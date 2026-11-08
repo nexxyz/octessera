@@ -91,8 +91,11 @@ def main():
             synth["amp"]["gainPct"] = 100
             synth["ampEnv"].update(attackMs=5, sustainPct=100)
             synth["filter"].update(cutoffHz=20000, resonance=0)
-            for osc in ("osc1", "osc2"):
-                synth[osc]["levelPct"] = 100
+            synth["osc1"].update(waveform="saw", octave=0, detuneCents=0, levelPct=100)
+            synth["osc2"].update(waveform="square", octave=0, detuneCents=0, levelPct=100)
+            synth["filter"].update(envAmountPct=0, keyTrackingPct=0)
+            for lfo in music["linkLfos"]:
+                lfo["enabled"] = False
             instruments[0]["mixer"].update(route="direct", volume=100)
             # The engine keeps eight full voices near -6 dBFS, so 12 dB of compressor makeup at ratio 1 drives it
             # to about 2x full scale; Master Vol 20 brings it back to about -8 dBFS.
