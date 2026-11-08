@@ -258,7 +258,6 @@ fn factory_instruments_are_their_named_presets() {
         serde_json::from_str(include_str!("../../../../../config/defaults/base.json")).unwrap();
     let instruments = &base["runtimeConfig"]["instruments"];
     for (slot, block, family, id, defaults) in [
-        (0, "synth", "synth", "bright_pluck", synth_default_config()),
         (2, "pluck", "pluck", "kalimba", pluck_default_config()),
         (3, "fm", "fm", "swell_bass", fm_default_config()),
         (4, "fm", "fm", "glass", fm_default_config()),

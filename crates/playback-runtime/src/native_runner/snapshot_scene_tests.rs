@@ -208,7 +208,7 @@ fn audio_bearing_scene_captures_fast_aux_value_without_revision_change() {
         press_action: None,
     });
     let before = runner.instruments[0].synth_config["osc1"]["levelPct"].clone();
-    assert_eq!(before, 86);
+    assert_eq!(before, 80);
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "button_fn", "pressed": true }),
@@ -245,7 +245,7 @@ fn audio_bearing_scene_captures_fast_aux_value_without_revision_change() {
     assert_typed_oled_matches_legacy(&runner);
     assert_eq!(
         deferred["settings"]["instruments"][0]["synth"]["osc1"]["levelPct"],
-        88
+        82
     );
     assert_eq!(
         deferred["settings"]["instruments"][0]["synth"]["osc1"]["levelPct"],

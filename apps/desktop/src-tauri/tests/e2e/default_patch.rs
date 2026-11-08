@@ -17,7 +17,7 @@ fn default_patch_plays_every_awake_layer_the_beat_matches_its_grid_and_l5_wakes(
     builder.toggle_mute_at(usize::from(L5_SLOT), WAKE_BAR * BAR);
     let mut session = shipped_session("default-patch");
     let played = session
-        .play_scenario(&builder.build(), 0.0, 12.0 * 60.0 / 110.0 * 4.0)
+        .play_scenario(&builder.build(), 0.0, 12.0 * 60.0 / 120.0 * 4.0)
         .unwrap();
     let timeline = Timeline {
         session: &session,

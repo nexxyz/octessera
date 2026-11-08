@@ -37,25 +37,29 @@ Data sources the spec relies on:
   must match it. See [Palette](#palette).
 - Shipped defaults: `config/defaults/base.json` with the `desktop.json` and `pi.json` overrides.
   The shipped patch (also what `Load Factory` restores):
-  - L1 `life` 1/16 into I1 Synth Bright Pluck on B1 (its saved colony is pinned by
-    `factory_life_layer.json`); L2 `sequencer` scanning 1/8 into I2 Sampler (slot 1
-    `Drum/kick/Kick2.wav` on y0 at x0/2/4/6, slot 2 the hip-hop clap on y1 at x2/6, slot 3 the mini
-    open hihat on y2 at the odd columns; every tile at full chance); L3 `looper` into I3 Plucked
-    Kalimba, hold, on B1; L4 `sequencer` bass into I4 FM Swell Bass on B2; L5 `twinkle` 1/8, Seeded,
-    at Trigger Prob. `zero`, into I5 FM Glass at Volume 45 on B1, one octave above L1; L6
-    `raindrops` 1/16, Seeded, Spawn Interval 5, Splash Radius 0, into I6 Drum Default kit, direct,
-    Pan Pos 19 (R3). I6 stamps only the bottom row (x0..x7: low tom, rim High, closed hat Medium,
-    high tom, snare High, closed hat Medium, rim, high tom High), so only landing drops play; L6
-    Link `X Axis > Velocity` 112..127 and Trigger Prob. `custom` (x0/2/5/6 High, x1/3/4/7 Low)
-    keep them sparse. L7-L8 and I7-I8 are empty. Every instrument except the Sampler is its named factory preset.
-  - 110 BPM, swing 5:4. B1 `Delay+Reverb+Duck` (delay 1/8 note mode, reverb Mix 20 %, duck from
-    I2); B2 bitcrusher and saturator; global compressor.
-  - LFO1 on, I1 Osc 2 Pulse Width, `2/1`, 29 %; LFO2 off, I3 Plucked Brightness, `1/1`, 43 %.
-  - Faders F1 I1 Cutoff, F2 I3 Decay, F3 I4 FM Index, F4 B1 Reverb Mix, F5 B2 Bitcrusher Mix,
-    each ranged so the patch value sits on a row. One action column (x7) for L5: y7 Reseed
-    Stars (Shift: Clear Stars), then param tiles Density, Birth Chance, Star Life, Fade Chance
-    and Step Rate on y6..y2.
-  - XY: X B1 Delay Feedback 10..60, Y I1 Res 10..58, Glide 300 ms, Release `center`.
+  - L1 `life` 1/16 into I1 Synth on B3, the builder's own dark voice rather than a preset (Osc 1 saw
+    80 %, Osc 2 pulse 72 % at Pulse Width 50, Gain 80, Amp Env 5/120/70/180, lowpass Cutoff 1192 Hz,
+    Res 20, no Env or Key tracking; its saved colony is pinned by `factory_life_layer.json`); L2
+    `sequencer` scanning 1/8 into I2 Sampler (slot 1 `Drum/kick/Kick2.wav` on y0 at x0/2/4/6, slot 2
+    the hip-hop clap on y1 at x2/6, slot 3 the mini open hihat on y2 at the odd columns; every tile
+    at full chance); L3 `looper` into I3 Plucked Kalimba, hold, on B1; L4 `sequencer` bass into I4
+    FM Swell Bass on B2; L5 `twinkle` 1/8, Seeded, at Trigger Prob. `zero`, into I5 FM Glass at
+    Volume 45 on B1, one octave above L1; L6 `raindrops` 1/16, Seeded, Spawn Interval 5, Splash
+    Radius 0, into I6 Drum Default kit, direct, Pan Pos 19 (R3). I6 stamps only the bottom row
+    (x0..x7: low tom, rim High, closed hat Medium, high tom, snare High, closed hat Medium, rim,
+    high tom High), so only landing drops play; L6 Link `X Axis > Velocity` 112..127 and Trigger
+    Prob. `custom` (x0/2/5/6 High, x1/3/4/7 Low) keep them sparse. L7-L8 and I7-I8 are empty. I3 to
+    I6 are their named factory presets.
+  - 120 BPM, swing 5:4. B1 `Delay+Reverb+Duck` (delay 1/8 note mode, reverb Mix 20 %, duck from
+    I2) for I3 and I5; B2 bitcrusher and saturator; B3 `Delay+Duck` for I1 alone (delay 250 ms,
+    Mix 35 %, Feedback 35, duck from I2, no reverb); global compressor.
+  - LFO1 on, I1 Osc 2 Pulse Width, `2/1`, 29 % (duty about 37..63 %); LFO2 off, I3 Plucked
+    Brightness, `1/1`, 43 %.
+  - Faders F1 I1 Cutoff, F2 I3 Decay, F3 I4 FM Index, F4 B1 Reverb Mix, F5 B2 Bitcrusher Mix, each
+    ranged so the patch value sits on a row (F1 109..207, 1192 Hz on row 3). One action column (x7)
+    for L5: y7 Reseed Stars (Shift: Clear Stars), then param tiles Density, Birth Chance, Star Life,
+    Fade Chance and Step Rate on y6..y2.
+  - XY: X B1 Delay Feedback 10..60, Y I1 Res 0..40, Glide 300 ms, Release `center`.
   - MIDI CC In: CC 74 to I1 Cutoff, CC 1 to I4 FM Index, CC 71 to I1 Res, any channel; CC4-CC8
     free. No Aux bindings, so Auto Map has the encoders.
   - Play FX: one 2x2 block per type, top-left tile the plainest stamp, all on `master`. The

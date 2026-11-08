@@ -89,8 +89,8 @@
             "max": 255,
             "min": 0,
             "step": 1,
-            "userMax": 253,
-            "userMin": 127
+            "userMax": 207,
+            "userMin": 109
           }
         },
         {
@@ -242,7 +242,7 @@
         },
         "mixer": {
           "panPos": 16,
-          "route": "fx_bus_1",
+          "route": "fx_bus_3",
           "volume": 100
         },
         "name": "Synth",
@@ -344,40 +344,40 @@
         },
         "synth": {
           "amp": {
-            "gainPct": 84,
+            "gainPct": 80,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
-            "attackMs": 3,
+            "attackMs": 5,
             "decayMs": 120,
-            "releaseMs": 70,
-            "sustainPct": 18
+            "releaseMs": 180,
+            "sustainPct": 70
           },
           "filter": {
-            "cutoffHz": 7200,
-            "envAmountPct": 54,
-            "keyTrackingPct": 34,
-            "resonance": 34,
+            "cutoffHz": 1192,
+            "envAmountPct": 0,
+            "keyTrackingPct": 0,
+            "resonance": 20,
             "type": "lowpass"
           },
           "filterEnv": {
-            "attackMs": 2,
-            "decayMs": 180,
-            "releaseMs": 120,
-            "sustainPct": 16
+            "attackMs": 5,
+            "decayMs": 120,
+            "releaseMs": 180,
+            "sustainPct": 70
           },
           "osc1": {
             "detuneCents": 0,
-            "levelPct": 86,
+            "levelPct": 80,
             "octave": 0,
             "pulseWidthPct": 50,
             "waveform": "saw"
           },
           "osc2": {
-            "detuneCents": 6,
-            "levelPct": 52,
-            "octave": 1,
-            "pulseWidthPct": 30,
+            "detuneCents": 0,
+            "levelPct": 72,
+            "octave": 0,
+            "pulseWidthPct": 50,
             "waveform": "pulse"
           }
         },
@@ -4419,15 +4419,28 @@
         },
         {
           "autoName": true,
-          "name": "None",
+          "name": "Delay+Duck",
           "panPos": 16,
           "slot1": {
-            "params": {},
-            "type": "none"
+            "params": {
+              "feedback": 0.35,
+              "mixPct": 35,
+              "timeMode": "ms",
+              "timeMs": 250,
+              "timeNote": "1/8"
+            },
+            "type": "delay"
           },
           "slot2": {
-            "params": {},
-            "type": "none"
+            "params": {
+              "amountPct": 50,
+              "attackMs": 8,
+              "releaseMs": 160,
+              "source": "I2",
+              "sourceTap": "pre",
+              "threshold": 0.08
+            },
+            "type": "duck"
           },
           "slot3": {
             "params": {},
@@ -5082,7 +5095,7 @@
     },
     "playMode": "fx",
     "transport": {
-      "bpm": 110,
+      "bpm": 120,
       "swingA": 5,
       "swingB": 4
     },
@@ -5112,8 +5125,8 @@
         "max": 100,
         "min": 0,
         "step": 1,
-        "userMax": 58,
-        "userMin": 10
+        "userMax": 40,
+        "userMin": 0
       },
       "yInvert": false
     },

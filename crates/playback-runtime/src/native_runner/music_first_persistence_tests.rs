@@ -353,13 +353,13 @@ fn due_music_first_save_follows_notes_without_snapshot_and_reloads_edited_value(
     assert_eq!(backup, &payload);
     assert_eq!(
         payload["runtimeConfig"]["instruments"][0]["synth"]["osc1"]["levelPct"],
-        87
+        81
     );
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored
         .apply_patch_payload_preserving_device(payload)
         .unwrap();
-    assert_eq!(restored.instruments[0].synth_config["osc1"]["levelPct"], 87);
+    assert_eq!(restored.instruments[0].synth_config["osc1"]["levelPct"], 81);
 }
 
 #[test]

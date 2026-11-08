@@ -56,7 +56,7 @@ fn playing_pulses_zero_xy_and_aux_edit_defer_presentation_without_losing_autosav
         .unwrap();
     assert_music_only(&result);
     assert!(runner.display_scene_pending());
-    assert_eq!(runner.instruments[0].synth_config["osc1"]["levelPct"], 88);
+    assert_eq!(runner.instruments[0].synth_config["osc1"]["levelPct"], 82);
     assert!(runner.fast_autosave_marks > marks);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
     let menu = runner
