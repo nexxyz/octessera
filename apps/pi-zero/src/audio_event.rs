@@ -1,6 +1,6 @@
 use playback_runtime::{
-    MusicalEvent, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
-    RuntimeOperation, TileHit,
+    clamp_musical_event, MusicalEvent, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain,
+    RuntimeErrorFacts, RuntimeOperation, TileHit, MAX_NOTE_DURATION_MS,
 };
 use realtime_engine::synth::{INSTRUMENT_SLOT_COUNT, TILE_PITCH_CENTS_LIMIT};
 use rodio_engine_source::EngineEvent;
@@ -10,22 +10,22 @@ pub(crate) fn musical_event_to_engine_event(
     event: &MusicalEvent,
     at: Option<Instant>,
 ) -> EngineEvent {
-    match event {
+    match clamp_musical_event(event) {
         MusicalEvent::NoteOn {
             channel,
             note,
             velocity,
             duration_ms,
         } => EngineEvent::NoteOn {
-            instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
-            note: (*note).min(127),
-            velocity: (*velocity).clamp(1, 127),
-            duration_ms: duration_ms.unwrap_or(86_400_000).clamp(10, 86_400_000),
+            instrument_slot: channel,
+            note,
+            velocity,
+            duration_ms: duration_ms.unwrap_or(MAX_NOTE_DURATION_MS),
             at,
         },
         MusicalEvent::NoteOff { channel, note } => EngineEvent::NoteOff {
-            instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
-            note: (*note).min(127),
+            instrument_slot: channel,
+            note,
             at,
         },
         MusicalEvent::Cc {
@@ -33,9 +33,9 @@ pub(crate) fn musical_event_to_engine_event(
             controller,
             value,
         } => EngineEvent::Cc {
-            instrument_slot: (*channel).min((INSTRUMENT_SLOT_COUNT - 1) as u8),
-            controller: (*controller).min(127),
-            value: (*value).min(127),
+            instrument_slot: channel,
+            controller,
+            value,
             at,
         },
     }

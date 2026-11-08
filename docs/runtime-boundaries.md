@@ -108,7 +108,7 @@ are in [`board-profiles.md`](board-profiles.md).
   - accepts control latency and skipped intermediate scalar values to protect musical timing. Notes, Drum hits, and CC remain ordered and are never coalesced. A full or disconnected control lane reports typed overload; terminal retirement pressure fails closed for new NoteOn while preserving NoteOff, CC, and panic service
   - is the only path for Synth, FM, Plucked, Drum, and Sampler internal audio before device output
   - shared JSON audio configuration normalization and FX shape/type validation live in `realtime-engine`; desktop and Pi retain sample preparation, preview/bank orchestration, and typed error adaptation
-  - desktop and Pi return the same typed audio-command/config failures (one shared validation, and a full or disconnected preparation lane reports Audio `OperationFailed` or `AudioThreadFailed` on both), preserve revision identity for full-config preparation, and route `SamplePreview` through the selected realtime instrument path
+  - desktop and Pi return the same typed audio-command/config failures (one shared validation, and a full or disconnected preparation lane reports Audio `OperationFailed` or `AudioThreadFailed` on both), clamp note, CC, and note-length values into engine range with the shared `playback_runtime::clamp_musical_event` instead of rejecting them, preserve revision identity for full-config preparation, and route `SamplePreview` through the selected realtime instrument path
 
 ## Orange production service
 

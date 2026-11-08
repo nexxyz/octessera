@@ -2,6 +2,7 @@ mod audio;
 mod audio_command_validation;
 mod bluetooth;
 mod messages;
+mod musical_event_range;
 pub(crate) mod oled;
 mod platform;
 mod results;
@@ -16,6 +17,8 @@ mod user_data_transfer;
 mod audio_command_validation_tests;
 #[cfg(test)]
 mod audio_tests;
+#[cfg(test)]
+mod musical_event_range_tests;
 #[cfg(test)]
 mod setup_portal_tests;
 #[cfg(test)]
@@ -32,6 +35,7 @@ pub use bluetooth::{
     RuntimeBluetoothPairing, RuntimeBluetoothStatus,
 };
 pub use messages::{HostMessage, RunnerMessage, TileHit};
+pub use musical_event_range::{clamp_musical_event, MAX_NOTE_DURATION_MS, MIN_NOTE_DURATION_MS};
 pub use platform::{RuntimePlatformEffect, RuntimePlatformRequest};
 pub use results::{MidiPort, RuntimeStoreResult, SampleEntry};
 pub(crate) use runtime_error::{

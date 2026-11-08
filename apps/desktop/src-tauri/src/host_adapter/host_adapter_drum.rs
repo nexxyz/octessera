@@ -1,8 +1,8 @@
-use super::host_adapter_musical::{
-    invalid_musical_event, validate_musical_channel, validate_musical_range,
-};
 use super::DesktopPlaybackHostAdapter;
-use playback_runtime::{invalid_audio_command, RuntimeAdapterError, RuntimeOperation, TileHit};
+use playback_runtime::{
+    invalid_audio_command, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain,
+    RuntimeErrorFacts, RuntimeOperation, TileHit,
+};
 use realtime_engine::synth::DrumParamId;
 use rodio_engine_source::EngineEvent;
 
@@ -35,11 +35,18 @@ impl DesktopPlaybackHostAdapter {
         hit: &TileHit,
         at: Option<std::time::Instant>,
     ) -> Result<(), RuntimeAdapterError> {
-        validate_musical_channel(hit.instrument_slot)?;
-        validate_musical_range(hit.voice, 7, "tile voice")?;
         let limit = realtime_engine::synth::TILE_PITCH_CENTS_LIMIT;
-        if !(-limit..=limit).contains(&hit.pitch_cents) || hit.velocity > 127 {
-            return Err(invalid_musical_event("invalid tile pitch or velocity"));
+        if usize::from(hit.instrument_slot) >= realtime_engine::synth::INSTRUMENT_SLOT_COUNT
+            || hit.voice >= 8
+            || !(-limit..=limit).contains(&hit.pitch_cents)
+            || hit.velocity > 127
+        {
+            return Err(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
+                RuntimeErrorDomain::Audio,
+                RuntimeErrorCode::InvalidPayload,
+                RuntimeOperation::MusicalEvent,
+                Some("invalid tile hit slot, voice, pitch, or velocity".into()),
+            )));
         }
         self.send_engine_event(
             EngineEvent::TileHit {

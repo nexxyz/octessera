@@ -44,44 +44,25 @@ fn platform_effect_audio_command_reaches_structural_audio_lane() {
 }
 
 #[test]
-fn musical_event_rejects_out_of_range_controls() {
-    let cases = [
-        MusicalEvent::NoteOn {
-            channel: 8,
-            note: 60,
-            velocity: 100,
-            duration_ms: None,
-        },
-        MusicalEvent::NoteOn {
-            channel: 0,
-            note: 128,
-            velocity: 100,
-            duration_ms: None,
-        },
-        MusicalEvent::NoteOn {
-            channel: 0,
-            note: 60,
-            velocity: 0,
-            duration_ms: None,
-        },
-        MusicalEvent::NoteOn {
-            channel: 0,
-            note: 60,
-            velocity: 100,
-            duration_ms: Some(9),
-        },
-        MusicalEvent::Cc {
-            channel: 0,
-            controller: 128,
-            value: 1,
-        },
-    ];
-    for event in cases {
-        let (mut adapter, mut rx) = test_adapter();
-        let error = adapter.handle_musical_event(&event, None).unwrap_err();
-        assert_eq!(error.facts.code, RuntimeErrorCode::InvalidPayload);
-        assert!(rx.try_recv().is_err());
-    }
+fn musical_event_clamps_out_of_range_note_like_the_boards() {
+    let (mut adapter, mut rx) = test_adapter();
+    let short_arp_note = MusicalEvent::NoteOn {
+        channel: 8,
+        note: 128,
+        velocity: 0,
+        duration_ms: Some(9),
+    };
+    adapter.handle_musical_event(&short_arp_note, None).unwrap();
+    assert!(matches!(
+        next_event(&mut rx),
+        EngineEvent::NoteOn {
+            instrument_slot: 7,
+            note: 127,
+            velocity: 1,
+            duration_ms: 10,
+            ..
+        }
+    ));
 }
 
 #[test]
