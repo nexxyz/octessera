@@ -54,21 +54,23 @@ pub(super) fn toast_lifetime(message: &str, minimum: Duration) -> Duration {
     }
 }
 
-/// The visible toast window; an Aux turn toast (`at_end`) shows its end, the value, at once.
+/// The visible toast window. An Aux turn toast (`at_end`) shows its end, the value, at once,
+/// behind `..` for the cut start (the OLED fonts have no ellipsis glyph).
 pub(super) fn scrolled_toast(toast: &NativeToast, now: Instant, at_end: bool) -> String {
     let width = TOAST_RECT.columns();
     let chars = toast.message.chars().collect::<Vec<_>>();
     if chars.len() <= width {
         return toast.message.clone();
     }
-    let offset = if at_end {
-        toast_overflow(&toast.message)
-    } else {
-        toast_scroll_offset(
-            &toast.message,
-            now.saturating_duration_since(toast.shown_at),
-        )
-    };
+    if at_end {
+        let mut visible = String::from("..");
+        visible.extend(&chars[chars.len() - (width - 2)..]);
+        return visible;
+    }
+    let offset = toast_scroll_offset(
+        &toast.message,
+        now.saturating_duration_since(toast.shown_at),
+    );
     let mut visible = chars
         .iter()
         .copied()
@@ -129,7 +131,7 @@ mod tests {
         let start = Instant::now();
         let toast = toast_at("Trn-1: Filter Cutoff: 156", start);
 
-        assert_eq!(scrolled_toast(&toast, start, true), "ilter Cutoff: 156");
+        assert_eq!(scrolled_toast(&toast, start, true), "..ter Cutoff: 156");
         assert_eq!(scrolled_toast(&toast, start, false), "Trn-1: Filter C..");
     }
 

@@ -730,7 +730,7 @@ behavior primary red), so a mute never reads as a section color.
   supplies a 33 ms attempt cadence while they scroll) with a three-space cycle gap. Short selected rows schedule no scrolling.
 - A replaced toast starts its scroll over. A toast whose end shows schedules no more scroll steps.
 - Aux turn toasts don't scroll: a long one shows its end at once, so the value is visible
-  immediately (`ilter Cutoff: 156`), and repeated turns change the value in place.
+  immediately behind `..` (`..ter Cutoff: 156`), and repeated turns change the value in place.
 - Context changes show toasts without a prefix: picking a layer toasts it like the root
   breadcrumb (`L3: raindrops`), and picking a Play page toasts the page's menu name (`FX`). Help and confirm modals keep display priority over them. Releasing the Fn + left-column
   layer tile is consumed: it reaches no behavior and redraws nothing.
