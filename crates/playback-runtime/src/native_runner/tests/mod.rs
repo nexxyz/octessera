@@ -170,6 +170,7 @@ mod scan_replacement;
 mod selected_menu_row;
 mod send_to_midi;
 mod sequencer_transport_origin;
+mod serde_wire_names;
 mod setup_portal;
 mod show_hold;
 mod shutdown;
