@@ -169,6 +169,34 @@ fn preference_delta_is_relative_and_excludes_device_identity_and_paths() {
 }
 
 #[test]
+fn a_bundle_with_preference_changes_decodes_after_encoding() {
+    let mut preferences = UserPreferenceDelta::empty();
+    preferences
+        .values
+        .insert("bluetooth".into(), json!({ "enabled": true }));
+    preferences
+        .values
+        .insert("displayBrightness".into(), json!(6));
+    let result = new_user_data_bundle(
+        UserDataBundleMetadata {
+            board_profile: "raspberry-pi-zero-2w".into(),
+            runtime_version: "0.8.15".into(),
+        },
+        Vec::new(),
+        UserDataMusicalState { patch: patch() },
+        UserDataMusicalState { patch: patch() },
+        preferences,
+        false,
+        Vec::new(),
+        &canonical_defaults(),
+    )
+    .unwrap();
+    let bytes = encode_user_data_bundle(&result).unwrap();
+    let restored = decode_user_data_bundle(&bytes, &canonical_defaults()).unwrap();
+    assert_eq!(restored.preferences, result.preferences);
+}
+
+#[test]
 fn user_data_rehydration_applies_preferences_before_canonical_portable_patch() {
     let defaults = canonical_defaults();
     let mut preferences = UserPreferenceDelta::empty();

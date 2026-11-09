@@ -88,8 +88,9 @@ pub struct UserDataManifestEntry {
     pub sha256: String,
 }
 
+/// `preferences::shape` rejects unknown keys; serde's `deny_unknown_fields` would reject every key
+/// of a flattened map.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct UserPreferenceDelta {
     #[serde(flatten)]
     pub values: BTreeMap<String, Value>,
