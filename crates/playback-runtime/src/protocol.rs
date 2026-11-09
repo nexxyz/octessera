@@ -35,7 +35,8 @@ pub use bluetooth::{
     RuntimeBluetoothPairing, RuntimeBluetoothStatus,
 };
 pub use messages::{HostMessage, RunnerMessage, TileHit};
-pub use musical_event_range::{clamp_musical_event, MAX_NOTE_DURATION_MS, MIN_NOTE_DURATION_MS};
+pub(crate) use musical_event_range::MIN_NOTE_DURATION_MS;
+pub use musical_event_range::{clamp_musical_event, clamp_note_duration_ms, validate_tile_hit};
 pub use platform::{RuntimePlatformEffect, RuntimePlatformRequest};
 pub use results::{MidiPort, RuntimeStoreResult, SampleEntry};
 pub(crate) use runtime_error::{

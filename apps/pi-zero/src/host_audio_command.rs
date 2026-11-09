@@ -1,8 +1,7 @@
 use crate::audio::AudioService;
-mod host_audio_command_validation;
-use host_audio_command_validation::{audio_queue_failure, index_u8, momentary_fx_target};
 use playback_runtime::{
     invalid_audio_command, validate_audio_command, RuntimeAdapterError, RuntimeAudioCommand,
+    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
 };
 use realtime_engine::synth::{
     prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, DrumParamId, FmParamId,
@@ -253,7 +252,7 @@ pub fn send_audio_command(
                 *epoch,
                 fx_type.clone(),
                 params.clone(),
-                momentary_fx_target(target),
+                target.into(),
                 DEFAULT_AUDIO_SAMPLE_RATE,
             )
             .ok_or_else(|| invalid_audio_command("invalid momentary FX type".into()))?;
@@ -314,6 +313,20 @@ pub fn send_audio_command(
             Ok(())
         }
     }
+}
+
+fn index_u8(index: usize, label: &str) -> Result<u8, RuntimeAdapterError> {
+    u8::try_from(index)
+        .map_err(|_| invalid_audio_command(format!("{label} is out of range: {index}")))
+}
+
+fn audio_queue_failure(message: String) -> RuntimeAdapterError {
+    RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
+        RuntimeErrorDomain::Audio,
+        RuntimeErrorCode::OperationFailed,
+        RuntimeOperation::AudioCommand,
+        Some(message),
+    ))
 }
 
 #[cfg(test)]

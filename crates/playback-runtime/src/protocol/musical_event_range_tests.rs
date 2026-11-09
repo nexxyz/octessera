@@ -1,3 +1,4 @@
+use super::musical_event_range::MAX_NOTE_DURATION_MS;
 use super::*;
 use platform_core::MusicalEvent;
 

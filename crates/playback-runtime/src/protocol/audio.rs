@@ -1,4 +1,4 @@
-use realtime_engine::synth::{DspRuntimeConfig, FxParamId};
+use realtime_engine::synth::{DspRuntimeConfig, FxParamId, MomentaryFxTarget};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -9,6 +9,16 @@ pub enum RuntimeMomentaryFxTarget {
     Global,
     FxBus { index: usize },
     Instrument { index: usize },
+}
+
+impl From<&RuntimeMomentaryFxTarget> for MomentaryFxTarget {
+    fn from(target: &RuntimeMomentaryFxTarget) -> Self {
+        match *target {
+            RuntimeMomentaryFxTarget::Global => Self::Global,
+            RuntimeMomentaryFxTarget::FxBus { index } => Self::FxBus { index },
+            RuntimeMomentaryFxTarget::Instrument { index } => Self::Instrument { index },
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

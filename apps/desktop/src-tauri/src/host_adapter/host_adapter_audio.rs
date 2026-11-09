@@ -2,13 +2,11 @@ use crate::audio_prep_service::AudioPrepEnqueueResult;
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use playback_runtime::{
     invalid_audio_command, validate_audio_command, RuntimeAdapterError, RuntimeAudioCommand,
-    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeMomentaryFxTarget,
-    RuntimeOperation,
+    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
 };
 use realtime_engine::synth::{
     prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, validate_momentary_fx_type,
-    FmParamId, MomentaryFxTarget, PluckParamId, SampleBankParamId, SynthParamId,
-    DEFAULT_AUDIO_SAMPLE_RATE,
+    FmParamId, PluckParamId, SampleBankParamId, SynthParamId, DEFAULT_AUDIO_SAMPLE_RATE,
 };
 use rodio_engine_source::EngineEvent;
 
@@ -265,7 +263,7 @@ impl DesktopPlaybackHostAdapter {
                     *epoch,
                     fx_type.clone(),
                     params.clone(),
-                    momentary_target(target),
+                    target.into(),
                     DEFAULT_AUDIO_SAMPLE_RATE,
                 )
                 .ok_or_else(|| invalid_audio_command("invalid momentary FX parameters".into()))?;
@@ -360,14 +358,4 @@ fn prep_queue_error(
         playback_runtime::RuntimeOperation::AudioCommand,
         Some(message),
     ))
-}
-
-fn momentary_target(target: &RuntimeMomentaryFxTarget) -> MomentaryFxTarget {
-    match target {
-        RuntimeMomentaryFxTarget::Global => MomentaryFxTarget::Global,
-        RuntimeMomentaryFxTarget::FxBus { index } => MomentaryFxTarget::FxBus { index: *index },
-        RuntimeMomentaryFxTarget::Instrument { index } => {
-            MomentaryFxTarget::Instrument { index: *index }
-        }
-    }
 }

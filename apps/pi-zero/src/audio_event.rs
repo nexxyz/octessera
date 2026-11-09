@@ -1,8 +1,7 @@
 use playback_runtime::{
-    clamp_musical_event, MusicalEvent, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain,
-    RuntimeErrorFacts, RuntimeOperation, TileHit, MAX_NOTE_DURATION_MS,
+    clamp_musical_event, clamp_note_duration_ms, validate_tile_hit, MusicalEvent,
+    RuntimeAdapterError, TileHit,
 };
-use realtime_engine::synth::{INSTRUMENT_SLOT_COUNT, TILE_PITCH_CENTS_LIMIT};
 use rodio_engine_source::EngineEvent;
 use std::time::Instant;
 
@@ -20,7 +19,7 @@ pub(crate) fn musical_event_to_engine_event(
             instrument_slot: channel,
             note,
             velocity,
-            duration_ms: duration_ms.unwrap_or(MAX_NOTE_DURATION_MS),
+            duration_ms: clamp_note_duration_ms(duration_ms),
             at,
         },
         MusicalEvent::NoteOff { channel, note } => EngineEvent::NoteOff {
@@ -45,18 +44,7 @@ pub(crate) fn tile_hit_to_engine_event(
     hit: &TileHit,
     at: Option<Instant>,
 ) -> Result<EngineEvent, RuntimeAdapterError> {
-    if usize::from(hit.instrument_slot) >= INSTRUMENT_SLOT_COUNT
-        || hit.voice >= 8
-        || !(-TILE_PITCH_CENTS_LIMIT..=TILE_PITCH_CENTS_LIMIT).contains(&hit.pitch_cents)
-        || hit.velocity > 127
-    {
-        return Err(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
-            RuntimeErrorDomain::Audio,
-            RuntimeErrorCode::InvalidPayload,
-            RuntimeOperation::MusicalEvent,
-            Some("invalid tile hit slot, voice, pitch, or velocity".into()),
-        )));
-    }
+    validate_tile_hit(hit)?;
     Ok(EngineEvent::TileHit {
         instrument_slot: hit.instrument_slot,
         voice: hit.voice,

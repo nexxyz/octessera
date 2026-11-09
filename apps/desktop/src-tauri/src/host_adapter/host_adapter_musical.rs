@@ -1,6 +1,7 @@
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use playback_runtime::{
-    clamp_musical_event, MusicalEvent, RuntimeAdapterError, RuntimeOperation, MAX_NOTE_DURATION_MS,
+    clamp_musical_event, clamp_note_duration_ms, MusicalEvent, RuntimeAdapterError,
+    RuntimeOperation,
 };
 use rodio_engine_source::EngineEvent;
 use std::time::Instant;
@@ -21,7 +22,7 @@ impl DesktopPlaybackHostAdapter {
                 instrument_slot: channel,
                 note,
                 velocity,
-                duration_ms: duration_ms.unwrap_or(MAX_NOTE_DURATION_MS),
+                duration_ms: clamp_note_duration_ms(duration_ms),
                 at,
             },
             MusicalEvent::NoteOff { channel, note } => EngineEvent::NoteOff {
