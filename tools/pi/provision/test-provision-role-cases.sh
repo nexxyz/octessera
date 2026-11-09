@@ -93,3 +93,45 @@ for save_case in missing-system missing-patch symlink-system symlink-patch malfo
   test ! -e "$FAKE_STATE/systemctl.log"
 done
 pass "incomplete, malformed, symlinked, and legacy save stores fail before provisioning mutations"
+
+# 8. A persisted Host configuration is reconciled without reverting to gadget.
+new_fixture
+mkdir -p "$FIXTURE/home/pi/presets"
+printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/system.json"
+printf '%s\n' 'dtoverlay=dwc2,dr_mode=host' >> "$FIXTURE/boot/firmware/config.txt"
+run_provision default
+expect_rc "sc-host" 75
+assert_log_contains "sc-host" "usb-role.log" "host"
+assert_not_contains "sc-host" "$FIXTURE/boot/firmware/config.txt" "dr_mode=peripheral"
+assert_contains "sc-host" "$FIXTURE/boot/firmware/config.txt" "^\[all\]$"
+[[ "$(boot_managed_role)" == 'dtoverlay=dwc2,dr_mode=host' ]]
+[[ "$(grep -Ec '^dtoverlay=dwc2,dr_mode=host$' "$FIXTURE/boot/firmware/config.txt")" == 2 ]]
+run_provision default
+expect_rc "sc-host-repeat" 0
+assert_not_contains "sc-host-repeat" "$FIXTURE/boot/firmware/config.txt" "dr_mode=peripheral"
+[[ "$(boot_managed_role)" == 'dtoverlay=dwc2,dr_mode=host' ]]
+[[ "$(grep -Ec '^dtoverlay=dwc2,dr_mode=host$' "$FIXTURE/boot/firmware/config.txt")" == 2 ]]
+pass "persisted host role is preserved during provisioning"
+
+# 9. Legacy mixed role data is never used as a system-role fallback.
+new_fixture
+printf '%s\n' '{"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"host"}}}' > "$FIXTURE/home/pi/presets/default.json"
+rm "$FIXTURE/home/pi/presets/system.json"
+before_boot_config="$(sha256sum "$FIXTURE/boot/firmware/config.txt" | awk '{print $1}')"
+before_legacy="$(sha256sum "$FIXTURE/home/pi/presets/default.json" | awk '{print $1}')"
+run_provision default
+expect_rc "sc-legacy-only" 1
+expect_err_match "sc-legacy-only" "legacy mixed default"
+[[ "$(sha256sum "$FIXTURE/home/pi/presets/default.json" | awk '{print $1}')" == "$before_legacy" ]]
+[[ "$(sha256sum "$FIXTURE/boot/firmware/config.txt" | awk '{print $1}')" == "$before_boot_config" ]]
+pass "legacy mixed config is not a USB role fallback"
+
+# 10. Malformed System v1 is rejected without changing the boot role.
+new_fixture
+printf '%s\n' '{"kind":"octessera.system","schemaVersion":2,"runtimeConfig":{}}' > "$FIXTURE/home/pi/presets/system.json"
+before_boot_config="$(sha256sum "$FIXTURE/boot/firmware/config.txt" | awk '{print $1}')"
+run_provision default
+expect_rc "sc-system-invalid" 1
+assert_contains "sc-system-invalid" "$FIXTURE/home/pi/presets/system.json" 'schemaVersion'
+[[ "$(sha256sum "$FIXTURE/boot/firmware/config.txt" | awk '{print $1}')" == "$before_boot_config" ]]
+pass "invalid System document is rejected before boot role changes"

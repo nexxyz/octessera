@@ -5,6 +5,7 @@ PACKAGE_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 IMAGE_ROOT="$PACKAGE_ROOT/root"
 PROVISION_ROOT="$PACKAGE_ROOT/files"
 DEVICE_UPDATE_ROOT="$PACKAGE_ROOT/device-update"
+STORAGE_ROOT="$PACKAGE_ROOT/storage"
 REMOTE_REPO=${REMOTE_REPO:-/home/pi/octessera-dev}
 SERVICE=${SERVICE:-octessera.service}
 BOARD_PROFILE=${BOARD_PROFILE:-raspberry-pi-zero-2w}
@@ -335,6 +336,7 @@ sudo rm -f \
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-gadget" /usr/local/sbin/octessera-usb-gadget
 install_file 0755 "$IMAGE_ROOT/usr/local/sbin/octessera-usb-role" /usr/local/sbin/octessera-usb-role
 install_file 0644 "$IMAGE_ROOT/usr/local/lib/octessera/device_config.py" /usr/local/lib/octessera/device_config.py
+install_file 0644 "$STORAGE_ROOT/octessera-sd-card-lib.sh" /usr/local/lib/octessera/octessera-sd-card-lib.sh
 install_file 0755 "$DEVICE_UPDATE_ROOT/octessera-update" /usr/local/sbin/octessera-update
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-update-switch@.service" /etc/systemd/system/octessera-update-switch@.service
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-usb-gadget.service" /etc/systemd/system/octessera-usb-gadget.service

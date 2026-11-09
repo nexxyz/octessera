@@ -8,14 +8,18 @@ DEVICE_CONFIG_VALIDATOR=${OCTESSERA_DEVICE_CONFIG_VALIDATOR:-/usr/local/lib/octe
 UDC_ROOT=${OCTESSERA_USB_UDC_ROOT:-/sys/class/udc}
 STORAGE_CONFIG=${OCTESSERA_USB_STORAGE_CONFIG:-/etc/octessera/usb-storage.conf}
 SD_MOUNT=${OCTESSERA_USB_SD_MOUNT:-/home/pi/samples/sd-card}
+SD_OWNER=${OCTESSERA_USB_SD_OWNER:-pi}
+SD_CARD_LIB=${OCTESSERA_SD_CARD_LIB:-/usr/local/lib/octessera/octessera-sd-card-lib.sh}
 STORAGE_STATE=${OCTESSERA_USB_STORAGE_STATE:-/run/octessera-usb-storage.state}
 LIFECYCLE_LOCK=${OCTESSERA_USB_LIFECYCLE_LOCK:-/run/octessera-sd-card.lock}
 NET_ROOT=${OCTESSERA_USB_NET_ROOT:-/sys/class/net}
 MACHINE_ID=${OCTESSERA_USB_MACHINE_ID:-/etc/machine-id}
-LOG=octessera-usb-gadget
 LINE_CONNECTOR_TERMINAL_TYPE=1539
+: "$SD_OWNER"
+# shellcheck source=tools/storage/octessera-sd-card-lib.sh
+. "$SD_CARD_LIB"
+LOG=octessera-usb-gadget
 
-log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
 first_udc() {
   for path in "$UDC_ROOT"/*; do
     [ -e "$path" ] || [ -L "$path" ] || continue
@@ -244,10 +248,6 @@ setup_unlocked() (
   log "configured USB gadget audio=$AUDIO midi=$MIDI udc=$UDC"
 )
 
-root_device() { findmnt -nro SOURCE /; }
-parent_disk() { lsblk -no PKNAME "$1" 2>/dev/null | head -n 1; }
-canonical_block() { readlink -f "$1"; }
-
 configured_storage_device() {
   if [ -e "$STORAGE_CONFIG" ]; then
     [ -f "$STORAGE_CONFIG" ] || { log "$STORAGE_CONFIG must be a regular file"; return 1; }
@@ -335,14 +335,7 @@ read_storage_state() {
 
 remount_storage_if_needed() {
   [ "${WAS_MOUNTED:-0}" = 1 ] || return 0
-  mkdir -p "$SD_MOUNT"
-  if mountpoint -q "$SD_MOUNT"; then
-    mounted_source="$(findmnt -nro SOURCE --mountpoint "$SD_MOUNT")"
-    mounted_dev="$(canonical_block "$mounted_source")"
-    [ "$mounted_dev" = "$DEV" ] || { log "$SD_MOUNT is mounted from $mounted_dev, expected $DEV"; return 1; }
-    return 0
-  fi
-  mount "$DEV" "$SD_MOUNT"
+  remount_card "$DEV"
 }
 
 storage_create_unlocked() (

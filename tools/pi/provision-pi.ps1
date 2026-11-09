@@ -61,6 +61,7 @@ $imageFilesName = Split-Path -Leaf $imageFilesRoot
 $deviceUpdateRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\device-update")).Path
 $deviceUpdateParent = Split-Path -Parent $deviceUpdateRoot
 $deviceUpdateName = Split-Path -Leaf $deviceUpdateRoot
+$toolsRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $archive = Join-Path $env:TEMP "octessera-pi-provision.tar.gz"
 $exitCode = 0
 
@@ -72,7 +73,8 @@ try {
   tar -czf $archive `
     -C $provisionRoot provision.sh files `
     -C $imageFilesParent $imageFilesName `
-    -C $deviceUpdateParent $deviceUpdateName
+    -C $deviceUpdateParent $deviceUpdateName `
+    -C $toolsRoot storage/octessera-sd-card-lib.sh
   if ($LASTEXITCODE -ne 0) {
     throw "creating Pi provision archive failed with exit code $LASTEXITCODE"
   }

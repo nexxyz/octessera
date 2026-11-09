@@ -204,6 +204,10 @@ case " $* " in
         [ -e "${FAKE_MOUNT_MARKER:-}" ] || exit 1
         printf '%s\n' "${FAKE_STORAGE_DEVICE:-/dev/loop0}"
         ;;
+    *"-nro FSTYPE --mountpoint ${FAKE_SD_MOUNT:-}"*)
+        [ -e "${FAKE_MOUNT_MARKER:-}" ] || exit 1
+        printf 'vfat\n'
+        ;;
     *"-nr -S ${FAKE_STORAGE_DEVICE:-/dev/loop0} -o TARGET"*)
         exit 1
         ;;
@@ -220,7 +224,9 @@ EOF
 chmod +x "$FAKE_BIN/lsblk"
 cat > "$FAKE_BIN/mount" <<'EOF'
 #!/bin/sh
-[ "$2" = "${FAKE_SD_MOUNT:-}" ] && : > "$FAKE_MOUNT_MARKER"
+printf '%s\n' "$*" >> "$FAKE_MOUNT_LOG"
+for target do :; done
+[ "$target" = "${FAKE_SD_MOUNT:-}" ] && : > "$FAKE_MOUNT_MARKER"
 exit 0
 EOF
 chmod +x "$FAKE_BIN/mount"
@@ -230,6 +236,16 @@ cat > "$FAKE_BIN/umount" <<'EOF'
 exit 0
 EOF
 chmod +x "$FAKE_BIN/umount"
+cat > "$FAKE_BIN/blkid" <<'EOF'
+#!/bin/sh
+printf 'vfat\n'
+EOF
+chmod +x "$FAKE_BIN/blkid"
+cat > "$FAKE_BIN/chown" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$FAKE_CHOWN_LOG"
+EOF
+chmod +x "$FAKE_BIN/chown"
 cat > "$FAKE_BIN/stat" <<'EOF'
 #!/bin/sh
 set -eu
@@ -285,6 +301,8 @@ run_action() {
         "FAKE_STORAGE_DEVICE=/dev/loop0" \
         "FAKE_STORAGE_CONFIG=$root/usb-storage.conf" \
         "FAKE_STORAGE_STATE=$root/storage.state" \
+        "FAKE_MOUNT_LOG=$root/mount.log" \
+        "FAKE_CHOWN_LOG=$root/chown.log" \
         "$@" \
         "OCTESSERA_USB_CONFIG=$config" \
         "OCTESSERA_DEVICE_CONFIG_VALIDATOR=$SCRIPT_DIR/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" \
@@ -293,6 +311,8 @@ run_action() {
         "OCTESSERA_USB_UDC_ROOT=$root/udc" \
         "OCTESSERA_USB_STORAGE_CONFIG=$root/usb-storage.conf" \
         "OCTESSERA_USB_SD_MOUNT=$root/sd-card" \
+        "OCTESSERA_SD_CARD_LIB=$SCRIPT_DIR/../storage/octessera-sd-card-lib.sh" \
+        "SD_DISKSEQ_STATE=$root/diskseq" \
         "OCTESSERA_USB_STORAGE_STATE=$root/storage.state" \
         "OCTESSERA_USB_LIFECYCLE_LOCK=$root/lifecycle.lock" \
         "OCTESSERA_USB_NET_ROOT=$root/net" \
