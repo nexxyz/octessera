@@ -112,6 +112,104 @@ fn stopped_animation_steps_reach_the_oled_as_scene_captures_without_runtime_snap
     let _ = std::fs::remove_dir_all(root);
 }
 
+#[test]
+fn a_long_layer_toast_scrolls_on_the_oled_while_stopped() {
+    let root = crate::test_temp_dir::unique_temp_path("octessera-stopped-toast-scroll");
+    let mut adapter = adapter(&root, None);
+    let mut payload: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
+    payload["runtimeConfig"]["layers"][1]["autoName"] = false.into();
+    payload["runtimeConfig"]["layers"][1]["name"] = "slowly wandering sequencer".into();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_config_payload(payload).unwrap();
+    runner.skip_startup_splash();
+    let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
+    playback
+        .dispatch_runner_messages(
+            runner.messages_with_snapshot().unwrap(),
+            &mut runner,
+            &mut adapter,
+        )
+        .unwrap();
+    let worker = worker();
+    let mut state = LoopState::new(
+        HardwareRuntimeScheduler::new(Instant::now(), playback.last_snapshot_revision()),
+        None,
+    );
+    let settle_until = Instant::now() + Duration::from_millis(200);
+    while Instant::now() < settle_until {
+        advance(
+            &mut state,
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            &worker,
+        );
+    }
+
+    let input_at = Instant::now();
+    for input in [
+        serde_json::json!({"type": "button_fn", "pressed": true}),
+        serde_json::json!({"type": "grid_press", "x": 0, "y": 1}),
+        serde_json::json!({"type": "grid_release", "x": 0, "y": 1}),
+        serde_json::json!({"type": "button_fn", "pressed": false}),
+    ] {
+        crate::runtime_dispatch::dispatch(
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            HostMessage::DeviceInput {
+                input,
+                request_snapshot: None,
+            },
+        )
+        .unwrap();
+    }
+    let mut scroll_captures = 0;
+    let mut captures = state.native_scenes.capture_count;
+    while input_at.elapsed() < Duration::from_millis(1_900) {
+        advance(
+            &mut state,
+            &mut playback,
+            &mut runner,
+            &mut adapter,
+            &worker,
+        );
+        eprintln!(
+            "DBG due={:?} {:?} rev={} toast={:?} dl={:?}",
+            state
+                .scheduler
+                .display_snapshot_due(Instant::now(), &runner, &playback),
+            input_at.elapsed(),
+            playback.last_snapshot_revision(),
+            playback
+                .last_snapshot()
+                .map(|s| s["display"]["toast"].clone()),
+            runner
+                .next_continuous_display_snapshot_deadline(
+                    Instant::now(),
+                    Duration::from_millis(33)
+                )
+                .map(|d| d.saturating_duration_since(Instant::now()))
+        );
+        if state.native_scenes.capture_count > captures {
+            captures = state.native_scenes.capture_count;
+            if input_at.elapsed() > Duration::from_millis(850) {
+                scroll_captures += 1;
+            }
+        }
+    }
+
+    assert!(
+        scroll_captures >= 4,
+        "the scroll steps after the start pause reach the OLED: {scroll_captures}"
+    );
+    worker.abort().unwrap();
+    let _ = std::fs::remove_dir_all(root);
+}
+
 fn advance(
     state: &mut LoopState,
     playback: &mut PlaybackRuntime,

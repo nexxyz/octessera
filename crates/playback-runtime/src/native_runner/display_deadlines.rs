@@ -27,8 +27,8 @@ impl NativeRunner {
     }
 
     /// The timed deadlines that change runner state (dim, sleep, splash, toasts, the save
-    /// flash, hints). Indicator, recording-pulse and animation steps only change the
-    /// picture, so a scene capture serves them without a snapshot.
+    /// flash, hints, a long toast's next scroll step). Indicator, recording-pulse and animation
+    /// steps only change the picture, so a scene capture serves them without a snapshot.
     pub fn next_display_state_deadline_after(
         &self,
         last_snapshot_at: Option<Instant>,
@@ -75,6 +75,9 @@ impl NativeRunner {
         if let Some(aux_toast_deadline) = self.aux_toast_deadline() {
             deadline = earliest_deadline(deadline, aux_toast_deadline, last_snapshot_at);
         }
+        if let Some(step) = self.next_toast_scroll_step_after(last_snapshot_at) {
+            deadline = earliest_deadline(deadline, step, last_snapshot_at);
+        }
         deadline
     }
 
@@ -83,13 +86,8 @@ impl NativeRunner {
         last_snapshot_attempt_at: Instant,
         tick: Duration,
     ) -> Option<Instant> {
-        let now = self.display.transients.now();
-        let row = self
-            .selected_long_row_scrolling_active()
-            .then_some(last_snapshot_attempt_at + tick);
-        row.into_iter()
-            .chain(self.next_toast_scroll_step_at(now))
-            .min()
+        self.selected_long_row_scrolling_active()
+            .then_some(last_snapshot_attempt_at + tick)
     }
 
     fn modifier_hint_deadline(&self) -> Option<Instant> {
@@ -126,8 +124,11 @@ impl NativeRunner {
             .and(self.display.aux_turn_toast_cooldown_until)
     }
 
-    fn next_toast_scroll_step_at(&self, now: Instant) -> Option<Instant> {
+    /// The first scroll step of a long toast after the last snapshot, so a step that came due
+    /// since then stays due until a snapshot shows it.
+    fn next_toast_scroll_step_after(&self, last_snapshot_at: Option<Instant>) -> Option<Instant> {
         let toast = self.display.toast.as_ref()?;
+        let now = self.display.transients.now();
         if self.toast_holds_at_end()
             || self
                 .display
@@ -136,9 +137,10 @@ impl NativeRunner {
         {
             return None;
         }
+        let shown = last_snapshot_at.unwrap_or(now);
         next_toast_scroll_step(
             &toast.message,
-            now.saturating_duration_since(toast.shown_at),
+            shown.saturating_duration_since(toast.shown_at),
         )
         .map(|step| toast.shown_at + step)
     }

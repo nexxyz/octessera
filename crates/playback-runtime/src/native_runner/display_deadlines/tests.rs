@@ -118,26 +118,68 @@ fn overdue_modifier_hint_reappears_immediately_after_toast_expiry() {
     );
 }
 
+fn long_toast(runner: &mut NativeRunner, message: &str, shown_at: Instant) {
+    runner.display.toast = Some(NativeToast {
+        message: message.into(),
+        shown_at,
+    });
+    runner.display.toast_expires_at = None;
+    runner.display.ui.dim_timer_seconds = 0;
+    runner.display.ui.screen_sleep_seconds = 0;
+}
+
+#[test]
+fn toast_scroll_steps_are_state_deadlines_after_the_last_snapshot() {
+    let start = Instant::now();
+    let mut runner = runner_at(start);
+    long_toast(&mut runner, &"a".repeat(TOAST_SCROLL_WIDTH + 3), start);
+
+    assert_eq!(
+        runner.next_display_state_deadline_after(Some(start)),
+        Some(start + FIRST_TOAST_STEP)
+    );
+    assert_eq!(
+        runner.next_display_state_deadline_after(Some(start + Duration::from_millis(999))),
+        Some(start + FIRST_TOAST_STEP)
+    );
+    assert_eq!(
+        runner.next_display_state_deadline_after(Some(start + FIRST_TOAST_STEP)),
+        Some(start + Duration::from_millis(1_200))
+    );
+    assert_eq!(
+        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
+        None
+    );
+}
+
+#[test]
+fn a_toast_step_that_came_due_stays_due_until_a_snapshot_shows_it() {
+    let start = Instant::now();
+    let mut runner = runner_at(start);
+    long_toast(&mut runner, &"a".repeat(TOAST_SCROLL_WIDTH + 3), start);
+    let later = start + Duration::from_millis(1_050);
+    runner.test_set_display_time(later);
+
+    let deadline = runner
+        .next_display_state_deadline_after(Some(start + Duration::from_millis(900)))
+        .unwrap();
+
+    assert!(deadline <= later, "{:?}", deadline.duration_since(start));
+}
+
 #[test]
 fn toast_scroll_deadline_stops_once_its_end_shows() {
     let start = Instant::now();
     let mut runner = runner_at(start);
-    let message = "Trn-1: Filter Cutoff: 56".to_string();
-    let end = u32::try_from(message.chars().count() - TOAST_SCROLL_WIDTH).unwrap();
-    let before_end = FIRST_TOAST_STEP + Duration::from_millis(200) * (end - 2);
-    runner.display.toast = Some(NativeToast {
-        message,
-        shown_at: start - before_end,
-    });
-    runner.display.toast_expires_at = Some(start + Duration::from_secs(2));
-    assert_eq!(
-        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
-        Some(start + Duration::from_millis(200))
-    );
+    let end = Duration::from_millis(800 + 200 * 3);
+    long_toast(&mut runner, &"a".repeat(TOAST_SCROLL_WIDTH + 3), start);
 
-    runner.display.toast.as_mut().unwrap().shown_at -= Duration::from_millis(200);
     assert_eq!(
-        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
+        runner.next_display_state_deadline_after(Some(start + end - Duration::from_millis(1))),
+        Some(start + end)
+    );
+    assert_eq!(
+        runner.next_display_state_deadline_after(Some(start + end)),
         None
     );
 }
@@ -147,37 +189,28 @@ fn aux_turn_toast_schedules_no_scroll_steps() {
     let start = Instant::now();
     let mut runner = runner_at(start);
     runner.display.held_toast_head = Some("Trn-1: Filter Cutoff: ".into());
-    runner.display.toast = Some(NativeToast {
-        message: "Trn-1: Filter Cutoff: 56".into(),
-        shown_at: start,
-    });
-    runner.display.toast_expires_at = Some(start + Duration::from_secs(1));
+    long_toast(&mut runner, "Trn-1: Filter Cutoff: 56", start);
 
+    assert_eq!(runner.next_display_state_deadline_after(Some(start)), None);
+}
+
+#[test]
+fn toast_scroll_boundary_is_seventeen_columns() {
+    let start = Instant::now();
+    let mut runner = runner_at(start);
+    long_toast(&mut runner, &"a".repeat(TOAST_SCROLL_WIDTH), start);
+    assert_eq!(runner.next_display_state_deadline_after(Some(start)), None);
+
+    long_toast(&mut runner, &"a".repeat(TOAST_SCROLL_WIDTH + 1), start);
     assert_eq!(
-        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
-        None
+        runner.next_display_state_deadline_after(Some(start)),
+        Some(start + FIRST_TOAST_STEP)
     );
 }
 
 #[test]
-fn continuous_deadline_follows_toast_steps_and_long_row_attempts() {
+fn continuous_deadline_uses_attempt_time_for_a_long_row() {
     let start = Instant::now();
-    let mut runner = runner_at(start);
-    runner.display.toast = Some(NativeToast {
-        message: "a".repeat(TOAST_SCROLL_WIDTH + 1),
-        shown_at: start,
-    });
-    runner.display.toast_expires_at = Some(start + Duration::from_secs(2));
-
-    assert_eq!(
-        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
-        Some(start + FIRST_TOAST_STEP)
-    );
-    assert_eq!(
-        runner.next_continuous_display_snapshot_deadline(start + SNAPSHOT_TICK, SNAPSHOT_TICK),
-        Some(start + FIRST_TOAST_STEP)
-    );
-
     let mut runner = runner_at(start);
     runner.param_mods[0].x[0] = Some(NativeParamBinding {
         key: "instruments.0.sample.filter.resonance".into(),
@@ -196,30 +229,6 @@ fn continuous_deadline_follows_toast_steps_and_long_row_attempts() {
     assert_eq!(
         runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
         Some(start + SNAPSHOT_TICK)
-    );
-}
-
-#[test]
-fn toast_scroll_boundary_is_seventeen_columns() {
-    let start = Instant::now();
-    let mut runner = runner_at(start);
-    runner.display.toast = Some(NativeToast {
-        message: "a".repeat(TOAST_SCROLL_WIDTH),
-        shown_at: start,
-    });
-    runner.display.toast_expires_at = Some(start + Duration::from_secs(2));
-    assert_eq!(
-        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
-        None
-    );
-
-    runner.display.toast = Some(NativeToast {
-        message: "a".repeat(TOAST_SCROLL_WIDTH + 1),
-        shown_at: start,
-    });
-    assert_eq!(
-        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
-        Some(start + FIRST_TOAST_STEP)
     );
 }
 
