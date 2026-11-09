@@ -728,9 +728,9 @@ behavior primary red), so a mute never reads as a section color.
   past its normal timeout. Short messages schedule no scrolling.
 - Selected long menu rows advance one character every four display snapshot attempts (the host
   supplies a 33 ms attempt cadence while they scroll) with a three-space cycle gap. Short selected rows schedule no scrolling.
-- A replaced toast starts its scroll over. Repeated Aux turns keep the toast and its scroll
-  position, so a long one reaches its rightmost position and holds there while the value changes
-  (for example `...r Cutoff: 56`). A toast whose end shows schedules no more scroll steps.
+- A replaced toast starts its scroll over. A toast whose end shows schedules no more scroll steps.
+- Aux turn toasts don't scroll: a long one shows its end at once, so the value is visible
+  immediately (`ilter Cutoff: 156`), and repeated turns change the value in place.
 - Context changes show toasts such as `Layer: L3 raindrops` or `Play: FX`, with the page's menu
   name. Help and confirm modals keep display priority over them. Releasing the Fn + left-column
   layer tile is consumed: it reaches no behavior and redraws nothing.
@@ -1026,7 +1026,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   `Link > Aux Mappings` pickers show the new binding at once. Picking a target in those pickers
   toasts the same way, and picking `(none)` toasts `Clk-3: Cleared`.
 - Repeated turns of the same target keep the visible toast: only the value changes in place and the
-  1.2 s timeout restarts with each turn (a long toast still finishes its scroll first). A different target, or a turn after the toast expired or
+  1.2 s timeout restarts with each turn. A different target, or a turn after the toast expired or
   was replaced, starts a fresh toast. Fresh turn toasts for different targets are throttled to one
   per 500 ms, showing the latest queued one when the throttle ends.
 

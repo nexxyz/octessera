@@ -128,10 +128,11 @@ impl NativeRunner {
 
     fn next_toast_scroll_step_at(&self, now: Instant) -> Option<Instant> {
         let toast = self.display.toast.as_ref()?;
-        if self
-            .display
-            .toast_expires_at
-            .is_some_and(|expires_at| now >= expires_at)
+        if self.toast_holds_at_end()
+            || self
+                .display
+                .toast_expires_at
+                .is_some_and(|expires_at| now >= expires_at)
         {
             return None;
         }

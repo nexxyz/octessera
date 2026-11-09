@@ -143,6 +143,23 @@ fn toast_scroll_deadline_stops_once_its_end_shows() {
 }
 
 #[test]
+fn aux_turn_toast_schedules_no_scroll_steps() {
+    let start = Instant::now();
+    let mut runner = runner_at(start);
+    runner.display.held_toast_head = Some("Trn-1: Filter Cutoff: ".into());
+    runner.display.toast = Some(NativeToast {
+        message: "Trn-1: Filter Cutoff: 56".into(),
+        shown_at: start,
+    });
+    runner.display.toast_expires_at = Some(start + Duration::from_secs(1));
+
+    assert_eq!(
+        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
+        None
+    );
+}
+
+#[test]
 fn continuous_deadline_follows_toast_steps_and_long_row_attempts() {
     let start = Instant::now();
     let mut runner = runner_at(start);

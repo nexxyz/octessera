@@ -243,11 +243,8 @@ impl NativeRunner {
         {
             if let Some(toast) = &mut self.display.toast {
                 toast.message = format!("{head}{value}");
-                self.display.toast_expires_at = Some(
-                    (now + AUX_TURN_TOAST_HOLD)
-                        .max(toast.shown_at + toast_lifetime(&toast.message, Duration::ZERO)),
-                );
             }
+            self.display.toast_expires_at = Some(now + AUX_TURN_TOAST_HOLD);
             self.pending.pending_aux_turn_toast = None;
             return;
         }
@@ -259,12 +256,11 @@ impl NativeRunner {
             self.pending.pending_aux_turn_toast = Some(PendingNativeToast { head, value });
             return;
         }
-        let message = format!("{head}{value}");
-        self.display.toast_expires_at = Some(now + toast_lifetime(&message, AUX_TURN_TOAST_HOLD));
         self.display.toast = Some(NativeToast {
-            message,
+            message: format!("{head}{value}"),
             shown_at: self.display.transients.now(),
         });
+        self.display.toast_expires_at = Some(now + AUX_TURN_TOAST_HOLD);
         self.display.held_toast_head = Some(head);
         self.display.aux_turn_toast_cooldown_until = Some(now + Duration::from_millis(500));
         self.pending.pending_aux_turn_toast = None;
