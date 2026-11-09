@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 pub const PCM_MIRROR_CAPACITY_FRAMES: usize = 1_024;
 pub const PCM_MIRROR_TARGET_OCCUPANCY_FRAMES: usize = 256;
-const PCM_MIRROR_DRIFT_BAND_FRAMES: usize = 192;
+const PCM_MIRROR_DROP_ABOVE_FRAMES: u64 = 448;
+const PCM_MIRROR_REPEAT_BELOW_FRAMES: u64 = 128;
+const PCM_MIRROR_STEER_CROSSFADE_FRAMES: u8 = 192;
 const FRAME_SEQUENCE_MASK: u64 = (1_u64 << 63) - 1;
 
 pub type PcmMirrorProducers = [Option<PcmMirrorProducer>; 2];
@@ -56,6 +58,8 @@ pub struct PcmMirrorConsumer {
     current_channel: u8,
     priming: bool,
     steering: bool,
+    crossfade_remaining: u8,
+    crossfade_drops: bool,
     callback_active: bool,
 }
 
@@ -84,7 +88,9 @@ impl PcmMirrorProducer {
             current_right: 0,
             current_channel: 0,
             priming: false,
-            steering: write_sequence >= PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64,
+            steering: false,
+            crossfade_remaining: 0,
+            crossfade_drops: false,
             callback_active: false,
         }
     }
@@ -151,28 +157,65 @@ impl PcmMirrorConsumer {
             self.read_sequence =
                 sequence_subtract(write_sequence, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64);
             self.priming = false;
-            self.steering = true;
         }
         if self.read_sequence == write_sequence {
             self.reset_for_discontinuity(write_sequence);
             return false;
         }
-        if self.steering {
-            self.steer_toward_target(frame_distance(write_sequence, self.read_sequence));
+        let fill = frame_distance(write_sequence, self.read_sequence);
+        self.steering |= fill >= PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64;
+        if self.steering && self.crossfade_remaining == 0 {
+            self.steer_toward_target(fill);
         }
         self.callback_active = true;
         true
     }
 
     /// The mirror's device clock runs a few ppm apart from the main output's, so the fill slowly
-    /// walks away from the target. One dropped or repeated frame per callback holds it in the band.
+    /// walks away from the target. Dropping or repeating one frame holds it in the band; the frame
+    /// is crossfaded over 192 frames, because a hard skip ticks on sustained tones (about -21 dB
+    /// above 3 kHz against a 1 kHz tone; -61 dB with this crossfade).
     fn steer_toward_target(&mut self, fill: u64) {
-        let target = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64;
-        let band = PCM_MIRROR_DRIFT_BAND_FRAMES as u64;
-        if fill > target + band {
-            self.read_sequence = next_sequence(self.read_sequence);
-        } else if fill < target - band {
-            self.read_sequence = sequence_subtract(self.read_sequence, 1);
+        if !(PCM_MIRROR_REPEAT_BELOW_FRAMES..=PCM_MIRROR_DROP_ABOVE_FRAMES).contains(&fill) {
+            self.crossfade_remaining = PCM_MIRROR_STEER_CROSSFADE_FRAMES;
+            self.crossfade_drops = fill > PCM_MIRROR_DROP_ABOVE_FRAMES;
+        }
+    }
+
+    /// Reads the frame at `sequence`, blended toward its neighbor on the dropped or repeated path
+    /// while a steering crossfade runs.
+    fn read_steered_frame(&self, sequence: u64) -> Option<(u32, u32)> {
+        let frame = self.read_frame(sequence)?;
+        if self.crossfade_remaining == 0 {
+            return Some(frame);
+        }
+        let neighbor = if self.crossfade_drops {
+            next_sequence(sequence)
+        } else {
+            sequence_subtract(sequence, 1)
+        };
+        let (left, right) = self.read_frame(neighbor)?;
+        let step = PCM_MIRROR_STEER_CROSSFADE_FRAMES - self.crossfade_remaining + 1;
+        let weight = f32::from(step) / f32::from(PCM_MIRROR_STEER_CROSSFADE_FRAMES + 1);
+        let blend = |from: u32, to: u32| {
+            let from = f32::from_bits(from);
+            (from + (f32::from_bits(to) - from) * weight).to_bits()
+        };
+        Some((blend(frame.0, left), blend(frame.1, right)))
+    }
+
+    fn advance_after_frame(&mut self) {
+        self.read_sequence = next_sequence(self.read_sequence);
+        if self.crossfade_remaining == 0 {
+            return;
+        }
+        self.crossfade_remaining -= 1;
+        if self.crossfade_remaining == 0 {
+            self.read_sequence = if self.crossfade_drops {
+                next_sequence(self.read_sequence)
+            } else {
+                sequence_subtract(self.read_sequence, 1)
+            };
         }
     }
 
@@ -204,6 +247,7 @@ impl PcmMirrorConsumer {
         self.current_channel = 0;
         self.priming = true;
         self.steering = false;
+        self.crossfade_remaining = 0;
         self.callback_active = false;
     }
 
@@ -255,7 +299,7 @@ impl PcmMirrorConsumer {
             return None;
         }
         let sequence = self.read_sequence;
-        let Some((left, right)) = self.read_frame(sequence) else {
+        let Some((left, right)) = self.read_steered_frame(sequence) else {
             self.abort_after_discontinuity();
             return None;
         };
@@ -265,7 +309,7 @@ impl PcmMirrorConsumer {
         self.current_sequence = sequence;
         self.current_right = right;
         self.current_channel = 1;
-        self.read_sequence = next_sequence(self.read_sequence);
+        self.advance_after_frame();
         Some(f32::from_bits(left))
     }
 }

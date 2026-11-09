@@ -99,48 +99,85 @@ fn primed_at_target(producer: &PcmMirrorProducer, consumer: &mut PcmMirrorConsum
     assert!(consumer.begin_callback());
 }
 
-#[test]
-fn a_slow_consumer_drops_one_frame_per_callback_above_the_band() {
-    let PcmMirrorPair {
-        producer,
-        mut consumer,
-    } = new_pcm_mirror();
-    primed_at_target(&producer, &mut consumer);
-    let extra = PCM_MIRROR_DRIFT_BAND_FRAMES + 1;
-    producer.publish(&frames(PCM_MIRROR_TARGET_OCCUPANCY_FRAMES, extra), extra);
+fn assert_frames_near(output: &[f32], lefts: &[f32]) {
+    assert_eq!(output.len(), lefts.len() * 2);
+    for (frame, left) in output.chunks(2).zip(lefts) {
+        assert!((frame[0] - left).abs() < 1e-3, "{frame:?} vs {left}");
+        assert!((frame[1] + left).abs() < 1e-3, "{frame:?} vs {left}");
+    }
+}
 
-    assert!(consumer.begin_callback());
-    assert_eq!(consumer.next_sample(), Some(1.0));
-    assert!(consumer.begin_callback());
-    assert_eq!(consumer.next_sample(), Some(2.0));
+fn crossfaded_lefts(start: usize, toward: f32) -> Vec<f32> {
+    let frames = usize::from(PCM_MIRROR_STEER_CROSSFADE_FRAMES);
+    (0..frames)
+        .map(|index| {
+            start as f32 + index as f32 + toward * (index + 1) as f32 / (frames + 1) as f32
+        })
+        .collect()
 }
 
 #[test]
-fn a_fast_consumer_repeats_one_frame_per_callback_below_the_band() {
+fn a_slow_consumer_crossfades_one_frame_out_above_the_band() {
     let PcmMirrorPair {
         producer,
         mut consumer,
     } = new_pcm_mirror();
     primed_at_target(&producer, &mut consumer);
-    let read = PCM_MIRROR_DRIFT_BAND_FRAMES + 1;
+    let extra = PCM_MIRROR_DROP_ABOVE_FRAMES as usize - PCM_MIRROR_TARGET_OCCUPANCY_FRAMES + 1;
+    producer.publish(&frames(PCM_MIRROR_TARGET_OCCUPANCY_FRAMES, extra), extra);
+    let fade = usize::from(PCM_MIRROR_STEER_CROSSFADE_FRAMES);
+
+    let mut output = consume(&mut consumer, fade);
+    output.extend(consume(&mut consumer, fade + 4));
+    let mut expected = crossfaded_lefts(0, 1.0);
+    expected.extend([fade as f32 + 1.0, fade as f32 + 2.0]);
+    assert_frames_near(&output, &expected);
+    assert_eq!(consume(&mut consumer, 2), frames(fade + 3, 1));
+}
+
+#[test]
+fn a_fast_consumer_crossfades_one_frame_in_below_the_band() {
+    let PcmMirrorPair {
+        producer,
+        mut consumer,
+    } = new_pcm_mirror();
+    primed_at_target(&producer, &mut consumer);
+    let read = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES - PCM_MIRROR_REPEAT_BELOW_FRAMES as usize + 1;
     let output = consume(&mut consumer, read * 2);
     assert_eq!(output, frames(0, read));
+    let fade = usize::from(PCM_MIRROR_STEER_CROSSFADE_FRAMES);
 
     assert!(consumer.begin_callback());
-    assert_eq!(consumer.next_sample(), Some((read - 1) as f32));
-    assert_eq!(consumer.next_sample(), Some(-((read - 1) as f32)));
-    assert_eq!(consumer.next_sample(), Some(read as f32));
+    let target = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES;
+    producer.publish(&frames(target, target), target);
+    let output: Vec<f32> = (0..(fade + 2) * 2)
+        .map(|_| consumer.next_sample().unwrap())
+        .collect();
+    let mut expected = crossfaded_lefts(read, -1.0);
+    expected.extend([(read + fade - 1) as f32, (read + fade) as f32]);
+    assert_frames_near(&output, &expected);
 }
 
 #[test]
-fn an_unprimed_consumer_never_drops_or_repeats() {
+fn a_consumer_that_never_reached_the_target_does_not_repeat() {
     let PcmMirrorPair {
         producer,
         mut consumer,
     } = new_pcm_mirror();
-    let count = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES + PCM_MIRROR_DRIFT_BAND_FRAMES + 1;
+    producer.publish(&frames(0, 8), 8);
+    assert_eq!(consume(&mut consumer, 4), frames(0, 2));
+    assert_eq!(consume(&mut consumer, 2), frames(2, 1));
+}
+
+#[test]
+fn a_consumer_opened_before_the_producer_filled_starts_steering_at_the_target() {
+    let PcmMirrorPair {
+        producer,
+        mut consumer,
+    } = new_pcm_mirror();
+    let count = PCM_MIRROR_DROP_ABOVE_FRAMES as usize + 1;
     producer.publish(&frames(0, count), count);
-    assert_eq!(consume(&mut consumer, 2), frames(0, 1));
+    assert_frames_near(&consume(&mut consumer, 2), &crossfaded_lefts(0, 1.0)[..1]);
 }
 
 #[test]
