@@ -294,7 +294,7 @@ Aux mappings modal:
   list, parameter picker, help, confirm dialog, or assignment overlay.
 - Breadcrumbs show the current page label in full and its ancestors short, fitted to the 15
   OLED title columns. Short forms: `Build`/`B`, `Link`/`L`, `Shape`/`S`, `Play`/`P`,
-  `System`/`SYS`; the root menu's breadcrumb names the active layer, `L<n> <layer name>` (`L3 raindrops`); ancestor labels starting `Layer N` or `Bus N` shorten to `LN`/`BN`. Instrument
+  `System`/`SYS`; the root menu's breadcrumb names the active layer, `L<n>: <layer name>` (`L3: raindrops`, an empty layer `L7: none`); ancestor labels starting `Layer N` or `Bus N` shorten to `LN`/`BN`. Instrument
   pages use the instrument's type name without its route (`I1: Synth`, `I1: MIDI Inst.`), while
   the Instruments list rows keep the route (`I1: Synth direct`). When the path does not fit, ancestors
   drop from the left behind `../` (`../Synth/Filter`, `../Filter Env`); if even `../` plus the page
@@ -721,19 +721,19 @@ behavior primary red), so a mute never reads as a section color.
 - Toasts render in a black box over the hint area (`x=0..107`, `y=115..127`), m5x7 text at `x=4`
   with capitals on `y=117..123`, from a 17-character window fitted to 104 px (`..` when it still
   clips). The recording disc, transport icon and event dot stay visible. While more of a longer message follows the window, its last
-  two columns show `..`; they clear once the message end is in view. Longer messages scroll
-  horizontally by one native offset per display snapshot attempt; the host supplies the 33 ms
-  attempt cadence while scrolling. Short messages schedule no scrolling.
-- Selected long menu rows use the same attempt pacing, advancing one character every four attempts
-  with a three-space cycle gap. Short selected rows schedule no scrolling.
-- Toast offsets reset when a toast is replaced. There is no `startedAtMs` wall-clock contract.
-- Long Aux turn toasts scroll once to their rightmost position and hold there without wrapping, so
-  the changing value stays visible (for example `...r Cutoff: 56`). A held toast stops scheduling
-  scroll attempts.
-- Play page changes show toasts such as `Play: FX`, with the page's menu name. Help and confirm
-  modals keep display priority over them. Picking a layer (Fn + left column, or a Build layer
-  row) shows no toast: the root breadcrumb names the active layer and the Fn overlay lights its
-  row. Releasing the Fn + left-column tile is consumed: it reaches no behavior and redraws nothing.
+  two columns show `..`; they clear once the message end is in view. Longer messages wait 800 ms,
+  scroll once by one column every 200 ms, and hold their end for 800 ms; they never wrap. The
+  window follows the time since the toast appeared, not the snapshot rate, so the Pi and the
+  desktop scroll at the same speed. A long toast stays up for its whole scroll and end pause even
+  past its normal timeout. Short messages schedule no scrolling.
+- Selected long menu rows advance one character every four display snapshot attempts (the host
+  supplies a 33 ms attempt cadence while they scroll) with a three-space cycle gap. Short selected rows schedule no scrolling.
+- A replaced toast starts its scroll over. Repeated Aux turns keep the toast and its scroll
+  position, so a long one reaches its rightmost position and holds there while the value changes
+  (for example `...r Cutoff: 56`). A toast whose end shows schedules no more scroll steps.
+- Context changes show toasts such as `Layer: L3 raindrops` or `Play: FX`, with the page's menu
+  name. Help and confirm modals keep display priority over them. Releasing the Fn + left-column
+  layer tile is consumed: it reaches no behavior and redraws nothing.
 - Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a hint
   toast: `Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Main`. Startup shows
   `Help: Sh+Fn+Main` too. Existing toasts, help/confirm dialogs, assignment overlays, and consumed
@@ -1026,7 +1026,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   `Link > Aux Mappings` pickers show the new binding at once. Picking a target in those pickers
   toasts the same way, and picking `(none)` toasts `Clk-3: Cleared`.
 - Repeated turns of the same target keep the visible toast: only the value changes in place and the
-  1.2 s timeout restarts with each turn. A different target, or a turn after the toast expired or
+  1.2 s timeout restarts with each turn (a long toast still finishes its scroll first). A different target, or a turn after the toast expired or
   was replaced, starts a fresh toast. Fresh turn toasts for different targets are throttled to one
   per 500 ms, showing the latest queued one when the throttle ends.
 

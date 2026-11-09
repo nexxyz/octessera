@@ -349,7 +349,9 @@ fn receive_partial_rename(
 }
 
 fn cleanup_warning_reaches_display(runner: &mut NativeRunner) {
-    for _ in 0..100 {
+    let start = Instant::now();
+    for step in 0..100 {
+        runner.test_set_display_time(start + Duration::from_millis(200 * step));
         let snapshot = runner
             .messages_with_snapshot()
             .unwrap()

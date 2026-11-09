@@ -104,7 +104,7 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
     runner.test_set_display_time(start);
     let initial = converted_scene(&runner, true);
     assert_typed_oled_matches_legacy(&runner);
-    assert_eq!(initial["display"]["title"], "L1 life");
+    assert_eq!(initial["display"]["title"], "L1: life");
     assert_eq!(
         initial["display"]["lines"],
         json!([

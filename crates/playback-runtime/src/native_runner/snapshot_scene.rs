@@ -164,7 +164,7 @@ impl NativeRunner {
             .display
             .toast
             .as_ref()
-            .map(|toast| scrolled_toast(toast, self.toast_holds_at_end()))
+            .map(|toast| scrolled_toast(toast, now))
             .unwrap_or_default();
         let off = self.display.oled_mode == NativeOledMode::Off;
         let splash = if self.display.runtime_error_presentation.is_none()

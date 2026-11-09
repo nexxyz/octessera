@@ -63,7 +63,7 @@ fn failed_delete_and_default_operations_are_persistence_no_ops() {
     runner.patch_store.current_preset_name = Some("Current".into());
     runner.display.toast = Some(NativeToast {
         message: "before".into(),
-        offset: 0,
+        shown_at: Instant::now(),
     });
     runner.mark_config_dirty();
     let revision = runner.config_revision;

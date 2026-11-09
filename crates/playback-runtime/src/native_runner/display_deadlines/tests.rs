@@ -4,6 +4,8 @@ use super::super::{
 use super::*;
 
 const SNAPSHOT_TICK: Duration = Duration::from_millis(33);
+const TOAST_SCROLL_WIDTH: usize = crate::oled_frame::TOAST_RECT.columns();
+const FIRST_TOAST_STEP: Duration = Duration::from_millis(1_000);
 
 fn runner_at(now: Instant) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -104,7 +106,7 @@ fn overdue_modifier_hint_reappears_immediately_after_toast_expiry() {
     runner.display.modifier_hint_started_at = Some(start);
     runner.display.toast = Some(NativeToast {
         message: "blocking".into(),
-        offset: 0,
+        shown_at: start,
     });
     let unblocked = start + Duration::from_secs(2);
     runner.display.toast_expires_at = Some(unblocked);
@@ -117,47 +119,46 @@ fn overdue_modifier_hint_reappears_immediately_after_toast_expiry() {
 }
 
 #[test]
-fn held_aux_toast_stops_scrolling_once_it_reaches_its_end() {
+fn toast_scroll_deadline_stops_once_its_end_shows() {
     let start = Instant::now();
     let mut runner = runner_at(start);
-    let head = "Trn-1: Filter Cutoff: ";
-    let message = format!("{head}56");
-    let end = message.chars().count() - TOAST_SCROLL_WIDTH;
-    runner.display.held_toast_head = Some(head.into());
+    let message = "Trn-1: Filter Cutoff: 56".to_string();
+    let end = u32::try_from(message.chars().count() - TOAST_SCROLL_WIDTH).unwrap();
+    let before_end = FIRST_TOAST_STEP + Duration::from_millis(200) * (end - 2);
     runner.display.toast = Some(NativeToast {
         message,
-        offset: end - 1,
+        shown_at: start - before_end,
     });
     runner.display.toast_expires_at = Some(start + Duration::from_secs(2));
-    assert!(runner
-        .next_continuous_display_snapshot_deadline(start, Duration::from_millis(33))
-        .is_some());
-
-    runner.display.toast.as_mut().unwrap().offset = end;
     assert_eq!(
-        runner.next_continuous_display_snapshot_deadline(start, Duration::from_millis(33)),
+        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
+        Some(start + Duration::from_millis(200))
+    );
+
+    runner.display.toast.as_mut().unwrap().shown_at -= Duration::from_millis(200);
+    assert_eq!(
+        runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
         None
     );
 }
 
 #[test]
-fn continuous_deadline_uses_attempt_time_for_long_toast_and_long_row() {
+fn continuous_deadline_follows_toast_steps_and_long_row_attempts() {
     let start = Instant::now();
     let mut runner = runner_at(start);
     runner.display.toast = Some(NativeToast {
         message: "a".repeat(TOAST_SCROLL_WIDTH + 1),
-        offset: 0,
+        shown_at: start,
     });
     runner.display.toast_expires_at = Some(start + Duration::from_secs(2));
 
     assert_eq!(
         runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
-        Some(start + SNAPSHOT_TICK)
+        Some(start + FIRST_TOAST_STEP)
     );
-    let next_attempt = start + SNAPSHOT_TICK;
     assert_eq!(
-        runner.next_continuous_display_snapshot_deadline(next_attempt, SNAPSHOT_TICK),
-        Some(next_attempt + SNAPSHOT_TICK)
+        runner.next_continuous_display_snapshot_deadline(start + SNAPSHOT_TICK, SNAPSHOT_TICK),
+        Some(start + FIRST_TOAST_STEP)
     );
 
     let mut runner = runner_at(start);
@@ -187,7 +188,7 @@ fn toast_scroll_boundary_is_seventeen_columns() {
     let mut runner = runner_at(start);
     runner.display.toast = Some(NativeToast {
         message: "a".repeat(TOAST_SCROLL_WIDTH),
-        offset: 0,
+        shown_at: start,
     });
     runner.display.toast_expires_at = Some(start + Duration::from_secs(2));
     assert_eq!(
@@ -197,11 +198,11 @@ fn toast_scroll_boundary_is_seventeen_columns() {
 
     runner.display.toast = Some(NativeToast {
         message: "a".repeat(TOAST_SCROLL_WIDTH + 1),
-        offset: 0,
+        shown_at: start,
     });
     assert_eq!(
         runner.next_continuous_display_snapshot_deadline(start, SNAPSHOT_TICK),
-        Some(start + SNAPSHOT_TICK)
+        Some(start + FIRST_TOAST_STEP)
     );
 }
 
@@ -241,7 +242,7 @@ fn continuous_deadline_is_absent_for_inactive_or_short_content() {
     );
     runner.display.toast = Some(NativeToast {
         message: "short".into(),
-        offset: 0,
+        shown_at: start,
     });
     runner.display.toast_expires_at = Some(start + Duration::from_secs(2));
     assert_eq!(
@@ -251,7 +252,7 @@ fn continuous_deadline_is_absent_for_inactive_or_short_content() {
 
     runner.display.toast = Some(NativeToast {
         message: "a".repeat(TOAST_SCROLL_WIDTH + 1),
-        offset: 0,
+        shown_at: start,
     });
     runner.display.toast_expires_at = Some(start - Duration::from_millis(1));
     assert_eq!(

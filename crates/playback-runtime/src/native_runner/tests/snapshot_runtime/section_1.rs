@@ -309,9 +309,9 @@ pub(crate) fn repeated_aux_turns_keep_the_toast_at_its_end_and_update_the_value(
         .chars()
         .count();
     assert!(message_length > TOAST_RECT.columns());
-    for _ in 0..message_length + 10 {
-        let _ = runner.messages_with_snapshot().unwrap();
-    }
+    let overflow = u64::try_from(message_length - TOAST_RECT.columns()).unwrap();
+    runner.age_toast_state_for_test(800 + 200 * overflow);
+    let _ = runner.messages_with_snapshot().unwrap();
     let held = runner.snapshot().unwrap()["display"]["toast"]
         .as_str()
         .unwrap()
@@ -329,8 +329,7 @@ pub(crate) fn repeated_aux_turns_keep_the_toast_at_its_end_and_update_the_value(
     runner.age_toast_state_for_test(2500);
     let _ = runner.messages_with_snapshot().unwrap();
     assert_eq!(runner.snapshot().unwrap()["display"]["toast"], "");
-    let _ = turn(&mut runner);
-    assert!(runner.display.toast.as_ref().unwrap().offset <= 1);
+    assert!(turn(&mut runner).starts_with("Trn-1: "));
 }
 
 #[test]

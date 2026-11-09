@@ -119,7 +119,7 @@ pub(crate) fn play_mode_edits_outside_play_page_do_not_activate_overlay() {
 }
 
 #[test]
-pub(crate) fn fn_grid_layer_shows_in_the_root_title_and_play_page_toasts() {
+pub(crate) fn fn_grid_context_changes_show_oled_toasts_and_the_root_title_names_the_layer() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[2].name = "rain".into();
 
@@ -135,7 +135,8 @@ pub(crate) fn fn_grid_layer_shows_in_the_root_title_and_play_page_toasts() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(snapshot_from(&layer)["display"]["title"], "L3 rain");
+    assert_eq!(snapshot_from(&layer)["display"]["title"], "L3: rain");
+    assert_eq!(snapshot_from(&layer)["display"]["toast"], "Layer: L3 rain");
 
     let play = runner
         .send(HostMessage::DeviceInput {

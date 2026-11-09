@@ -157,7 +157,7 @@ pub(crate) fn save_default_result_lights_auto_save_indicator_and_toast_scrolls()
         "This is a very long toaster message that must scroll across the reserved status row",
     );
     let first = runner.snapshot().unwrap()["display"]["toast"].clone();
-    runner.advance_toast_for_test();
+    runner.age_toast_state_for_test(1_000);
     let second = runner.snapshot().unwrap()["display"]["toast"].clone();
     assert_ne!(first, second);
 }

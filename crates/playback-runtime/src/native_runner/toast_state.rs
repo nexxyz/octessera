@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use super::toast_text::toast_lifetime;
 use super::NativeRunner;
 
 impl NativeRunner {
@@ -29,8 +30,9 @@ impl NativeRunner {
             self.show_toast(message);
             self.display.modifier_hint_started_at = None;
         }
-        if self.display.toast.is_some() && self.display.toast_expires_at.is_none() {
-            self.display.toast_expires_at = Some(now + Duration::from_millis(1800));
+        if let (Some(toast), None) = (&self.display.toast, self.display.toast_expires_at) {
+            self.display.toast_expires_at =
+                Some(now + toast_lifetime(&toast.message, Duration::from_millis(1800)));
         }
         if self
             .display
@@ -49,9 +51,6 @@ impl NativeRunner {
         {
             self.display.toast = None;
             self.display.toast_expires_at = None;
-        }
-        if let Some(toast) = &mut self.display.toast {
-            toast.offset = toast.offset.saturating_add(1);
         }
         self.display.menu_scroll_offset = self.display.menu_scroll_offset.saturating_add(1);
     }

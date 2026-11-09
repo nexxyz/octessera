@@ -20,7 +20,7 @@ fn playing_runner() -> NativeRunner {
 }
 
 #[test]
-fn fn_layer_select_shows_no_toast_and_its_tile_release_presents_nothing() {
+fn fn_layer_select_shows_its_toast_and_its_tile_release_presents_nothing() {
     let mut runner = playing_runner();
 
     let presented = [
@@ -38,7 +38,14 @@ fn fn_layer_select_shows_no_toast_and_its_tile_release_presents_nothing() {
 
     assert_eq!(presented, [true, true, false, true]);
     assert_eq!(runner.active_layer_index, 2);
-    assert!(runner.display.toast.is_none());
+    assert_eq!(
+        runner
+            .display
+            .toast
+            .as_ref()
+            .map(|toast| toast.message.as_str()),
+        Some("Layer: L3 life")
+    );
 }
 
 #[test]

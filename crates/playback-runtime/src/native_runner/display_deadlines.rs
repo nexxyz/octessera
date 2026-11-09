@@ -1,9 +1,8 @@
 use super::snapshot_display::{selected_menu_label_overflows, selected_menu_presentation_line};
+use super::toast_text::next_toast_scroll_step;
 use super::{NativeOledMode, NativeRunner};
-use crate::oled_frame::TOAST_RECT;
 use std::time::{Duration, Instant};
 
-const TOAST_SCROLL_WIDTH: usize = TOAST_RECT.columns();
 const DISPLAY_LINE_WIDTH: usize = 28;
 const MODIFIER_HINT_DELAY: Duration = Duration::from_millis(1_000);
 
@@ -85,11 +84,12 @@ impl NativeRunner {
         tick: Duration,
     ) -> Option<Instant> {
         let now = self.display.transients.now();
-        if self.long_toast_scrolling_active(now) || self.selected_long_row_scrolling_active() {
-            Some(last_snapshot_attempt_at + tick)
-        } else {
-            None
-        }
+        let row = self
+            .selected_long_row_scrolling_active()
+            .then_some(last_snapshot_attempt_at + tick);
+        row.into_iter()
+            .chain(self.next_toast_scroll_step_at(now))
+            .min()
     }
 
     fn modifier_hint_deadline(&self) -> Option<Instant> {
@@ -126,16 +126,20 @@ impl NativeRunner {
             .and(self.display.aux_turn_toast_cooldown_until)
     }
 
-    fn long_toast_scrolling_active(&self, now: Instant) -> bool {
-        self.display.toast.as_ref().is_some_and(|toast| {
-            let length = toast.message.chars().count();
-            length > TOAST_SCROLL_WIDTH
-                && !(self.toast_holds_at_end() && toast.offset >= length - TOAST_SCROLL_WIDTH)
-                && self
-                    .display
-                    .toast_expires_at
-                    .is_none_or(|expires_at| now < expires_at)
-        })
+    fn next_toast_scroll_step_at(&self, now: Instant) -> Option<Instant> {
+        let toast = self.display.toast.as_ref()?;
+        if self
+            .display
+            .toast_expires_at
+            .is_some_and(|expires_at| now >= expires_at)
+        {
+            return None;
+        }
+        next_toast_scroll_step(
+            &toast.message,
+            now.saturating_duration_since(toast.shown_at),
+        )
+        .map(|step| toast.shown_at + step)
     }
 
     fn selected_long_row_scrolling_active(&self) -> bool {

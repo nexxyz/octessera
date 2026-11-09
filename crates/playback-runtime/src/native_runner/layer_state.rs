@@ -112,10 +112,10 @@ impl NativeRunner {
         &mut self.layers[self.active_layer_index].engine
     }
 
-    /// The root menu's breadcrumb: the active layer, as `L3 raindrops`.
+    /// The root menu's breadcrumb: the active layer, as `L3: raindrops`.
     pub(super) fn active_layer_title(&self) -> String {
         format!(
-            "L{} {}",
+            "L{}: {}",
             self.active_layer_index + 1,
             self.active_layer().name
         )

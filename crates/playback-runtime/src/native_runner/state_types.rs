@@ -262,7 +262,7 @@ pub(super) struct NativeUsbSdTransferModal {
 #[derive(Clone, Debug)]
 pub(super) struct NativeToast {
     pub(super) message: String,
-    pub(super) offset: usize,
+    pub(super) shown_at: Instant,
 }
 
 #[derive(Clone, Debug)]
