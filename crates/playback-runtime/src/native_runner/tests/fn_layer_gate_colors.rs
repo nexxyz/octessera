@@ -1,20 +1,11 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap();
-}
-
 fn button(runner: &mut NativeRunner, kind: &str, pressed: bool) {
-    input(runner, json!({ "type": kind, "pressed": pressed }));
+    device_input(runner, json!({ "type": kind, "pressed": pressed }));
 }
 
 fn press(runner: &mut NativeRunner, x: usize, y: usize) {
-    input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
+    device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
 }
 
 fn layer_column(runner: &NativeRunner) -> Vec<Value> {

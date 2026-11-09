@@ -1,17 +1,8 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    let mut messages = input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
-    messages.extend(input(
+    let mut messages = device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
+    messages.extend(device_input(
         runner,
         json!({ "type": "grid_release", "x": x, "y": y }),
     ));
@@ -19,9 +10,9 @@ fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
 }
 
 fn shift_press(runner: &mut NativeRunner, x: usize, y: usize) {
-    let _ = input(runner, json!({ "type": "button_shift", "pressed": true }));
+    let _ = device_input(runner, json!({ "type": "button_shift", "pressed": true }));
     let _ = press(runner, x, y);
-    let _ = input(runner, json!({ "type": "button_shift", "pressed": false }));
+    let _ = device_input(runner, json!({ "type": "button_shift", "pressed": false }));
 }
 
 /// L1 wobbles I1's volume over a bar; L2 has no target.
@@ -46,9 +37,9 @@ fn lfo_runner() -> NativeRunner {
         .apply_config_payload(source.config_payload())
         .unwrap();
     assert!(runner.link_lfos[0].target.is_some());
-    let _ = input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
+    let _ = device_input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
     let opened = press(&mut runner, GRID_WIDTH - 1, 4);
-    let _ = input(
+    let _ = device_input(
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );
@@ -203,7 +194,7 @@ fn shift_tiles_set_depth_in_seven_steps() {
     shift_press(&mut runner, 7, 2);
     assert_eq!(runner.link_lfos[2].depth_pct, 100);
 
-    let _ = input(
+    let _ = device_input(
         &mut runner,
         json!({ "type": "button_shift", "pressed": true }),
     );

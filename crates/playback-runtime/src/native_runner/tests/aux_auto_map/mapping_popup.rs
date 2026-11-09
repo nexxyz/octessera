@@ -1,14 +1,5 @@
 use super::*;
 
-fn device_input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn fn_main_click(runner: &mut NativeRunner) {
     runner.skip_startup_splash();
     device_input(runner, json!({ "type": "button_fn", "pressed": true }));

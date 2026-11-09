@@ -1,15 +1,6 @@
 use super::*;
 use crate::RuntimePlatformRequest;
 
-fn device_input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn edit_brightness(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMessage> {
     assert!(runner.menu.focus_item_key("displayBrightness"));
     let _ = device_input(runner, json!({ "type": "encoder_press", "id": "main" }));

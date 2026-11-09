@@ -1,15 +1,6 @@
 use super::*;
 use std::time::Duration;
 
-fn input(runner: &mut NativeRunner, input: Value) {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap();
-}
-
 fn drum_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut payload = runner.config_payload();
@@ -31,8 +22,8 @@ fn enter(runner: &mut NativeRunner, action: &str) {
 }
 
 fn back(runner: &mut NativeRunner) {
-    input(runner, json!({ "type": "button_a", "pressed": true }));
-    input(runner, json!({ "type": "button_a", "pressed": false }));
+    device_input(runner, json!({ "type": "button_a", "pressed": true }));
+    device_input(runner, json!({ "type": "button_a", "pressed": false }));
 }
 
 fn clear_toast(runner: &mut NativeRunner) {
@@ -41,7 +32,7 @@ fn clear_toast(runner: &mut NativeRunner) {
 }
 
 fn hold_shift_past_the_hint_delay(runner: &mut NativeRunner) -> Option<String> {
-    input(runner, json!({ "type": "button_shift", "pressed": true }));
+    device_input(runner, json!({ "type": "button_shift", "pressed": true }));
     std::thread::sleep(Duration::from_millis(1100));
     runner.capture_display_scene().unwrap();
     runner
@@ -118,7 +109,7 @@ fn drum_assign_suppresses_the_shift_hint_until_back_leaves_it() {
 
         back(&mut runner);
         assert_eq!(runner.grid_assign, None, "{action}");
-        input(
+        device_input(
             &mut runner,
             json!({ "type": "button_shift", "pressed": false }),
         );

@@ -1,14 +1,5 @@
 use super::*;
 
-fn device_input(runner: &mut NativeRunner, input: Value) {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap();
-}
-
 fn press_main(runner: &mut NativeRunner) {
     device_input(runner, json!({ "type": "encoder_press", "id": "main" }));
 }

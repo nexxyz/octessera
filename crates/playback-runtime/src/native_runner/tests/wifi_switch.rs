@@ -8,23 +8,14 @@ fn board_runner() -> NativeRunner {
     .unwrap()
 }
 
-fn input(runner: &mut NativeRunner, input: Value) {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap();
-}
-
 fn set_wifi(runner: &mut NativeRunner, on: bool) {
     assert!(runner.menu.focus_item_key("wifi.enabled"));
-    input(runner, json!({ "type": "encoder_press", "id": "main" }));
-    input(
+    device_input(runner, json!({ "type": "encoder_press", "id": "main" }));
+    device_input(
         runner,
         json!({ "type": "encoder_turn", "id": "main", "delta": if on { 1 } else { -1 } }),
     );
-    input(runner, json!({ "type": "encoder_press", "id": "main" }));
+    device_input(runner, json!({ "type": "encoder_press", "id": "main" }));
 }
 
 #[test]

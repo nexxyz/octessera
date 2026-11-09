@@ -48,40 +48,31 @@ fn configure_route(runner: &mut NativeRunner, layer: usize, route: Route) {
     runner.link_layers[layer].event_enabled = true;
 }
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn select_layer(runner: &mut NativeRunner, layer: usize) {
-    let _ = input(runner, json!({ "type": "button_fn", "pressed": true }));
-    let _ = input(runner, json!({ "type": "grid_press", "x": 0, "y": layer }));
-    let _ = input(runner, json!({ "type": "button_fn", "pressed": false }));
+    let _ = device_input(runner, json!({ "type": "button_fn", "pressed": true }));
+    let _ = device_input(runner, json!({ "type": "grid_press", "x": 0, "y": layer }));
+    let _ = device_input(runner, json!({ "type": "button_fn", "pressed": false }));
 }
 
 fn press_note(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "grid_press", "x": x, "y": y }))
+    device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }))
 }
 
 fn disable_layer(runner: &mut NativeRunner, layer: usize) -> Vec<RunnerMessage> {
-    let mut messages = input(runner, json!({ "type": "button_shift", "pressed": true }));
-    messages.extend(input(
+    let mut messages = device_input(runner, json!({ "type": "button_shift", "pressed": true }));
+    messages.extend(device_input(
         runner,
         json!({ "type": "button_fn", "pressed": true }),
     ));
-    messages.extend(input(
+    messages.extend(device_input(
         runner,
         json!({ "type": "grid_press", "x": 0, "y": layer }),
     ));
-    messages.extend(input(
+    messages.extend(device_input(
         runner,
         json!({ "type": "button_fn", "pressed": false }),
     ));
-    messages.extend(input(
+    messages.extend(device_input(
         runner,
         json!({ "type": "button_shift", "pressed": false }),
     ));

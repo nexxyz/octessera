@@ -1,17 +1,8 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    let mut messages = input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
-    messages.extend(input(
+    let mut messages = device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
+    messages.extend(device_input(
         runner,
         json!({ "type": "grid_release", "x": x, "y": y }),
     ));
@@ -47,9 +38,9 @@ fn route_runner_with_ducks(ducks: &[(usize, usize, &str, &str)]) -> NativeRunner
 }
 
 fn open_route_page(runner: &mut NativeRunner) {
-    let _ = input(runner, json!({ "type": "button_fn", "pressed": true }));
+    let _ = device_input(runner, json!({ "type": "button_fn", "pressed": true }));
     let opened = press(runner, GRID_WIDTH - 1, 2);
-    let _ = input(runner, json!({ "type": "button_fn", "pressed": false }));
+    let _ = device_input(runner, json!({ "type": "button_fn", "pressed": false }));
     assert_eq!(
         runner.active_play_mode,
         ActivePlayMode::Page(PlayMode::Route)

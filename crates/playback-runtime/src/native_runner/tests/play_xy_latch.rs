@@ -1,23 +1,9 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
-fn tap(runner: &mut NativeRunner, x: usize, y: usize) {
-    let _ = input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
-    let _ = input(runner, json!({ "type": "grid_release", "x": x, "y": y }));
-}
-
 fn shift_tap(runner: &mut NativeRunner, x: usize, y: usize) {
-    let _ = input(runner, json!({ "type": "button_shift", "pressed": true }));
-    tap(runner, x, y);
-    let _ = input(runner, json!({ "type": "button_shift", "pressed": false }));
+    let _ = device_input(runner, json!({ "type": "button_shift", "pressed": true }));
+    grid_tap(runner, x, y);
+    let _ = device_input(runner, json!({ "type": "button_shift", "pressed": false }));
 }
 
 fn xy_runner(release: &str) -> NativeRunner {
@@ -38,11 +24,11 @@ fn xy_runner(release: &str) -> NativeRunner {
 
 fn open_xy_page(runner: &mut NativeRunner) {
     for button in ["button_shift", "button_fn"] {
-        let _ = input(runner, json!({ "type": button, "pressed": true }));
+        let _ = device_input(runner, json!({ "type": button, "pressed": true }));
     }
-    tap(runner, GRID_WIDTH - 1, 1);
+    grid_tap(runner, GRID_WIDTH - 1, 1);
     for button in ["button_fn", "button_shift"] {
-        let _ = input(runner, json!({ "type": button, "pressed": false }));
+        let _ = device_input(runner, json!({ "type": button, "pressed": false }));
     }
     assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Xy));
 }
@@ -67,7 +53,7 @@ fn shift_press_latches_the_position_even_with_center_release() {
         saved["runtimeConfig"]
     );
 
-    tap(&mut runner, 2, 2);
+    grid_tap(&mut runner, 2, 2);
     assert_eq!(runner.xy.touch.display_x, 0.5);
     assert_eq!(runner.xy.touch.display_y, 0.5);
     assert_ne!(tile(&runner, 3, 4), led_rgb(platform_core::palette::WHITE));
@@ -80,7 +66,7 @@ fn latch_behaves_like_hold_under_sample_hold() {
     assert!((runner.xy.touch.display_x - 1.0 / 7.0).abs() < 0.0001);
     assert_eq!(tile(&runner, 1, 6), led_rgb(platform_core::palette::WHITE));
 
-    tap(&mut runner, 5, 2);
+    grid_tap(&mut runner, 5, 2);
     assert!((runner.xy.touch.display_x - 5.0 / 7.0).abs() < 0.0001);
     assert_eq!(
         tile(&runner, 5, 2),

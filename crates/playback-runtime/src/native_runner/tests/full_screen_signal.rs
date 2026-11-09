@@ -4,17 +4,8 @@ use crate::native_runner::signal_view::SignalTapReader;
 use crate::oled_frame::{OledPresentationInput, OledPresentationMetrics, OledSignalArea};
 use realtime_engine::synth::{SignalSource, SignalTap};
 
-fn input(runner: &mut NativeRunner, input: Value) {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap();
-}
-
 fn press_main(runner: &mut NativeRunner) {
-    input(runner, json!({ "type": "encoder_press", "id": "main" }));
+    device_input(runner, json!({ "type": "encoder_press", "id": "main" }));
 }
 
 fn presented(runner: &mut NativeRunner) -> OledPresentationInput {
@@ -89,14 +80,14 @@ fn main_cycles_the_picture_turns_do_nothing_and_back_closes() {
         press_main(&mut runner);
         assert!(presented(&mut runner).display.title.ends_with(label));
     }
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
     );
     assert_eq!(runner.menu.snapshot().selected_row, row);
 
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    input(&mut runner, json!({ "type": "button_a", "pressed": false }));
+    device_input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    device_input(&mut runner, json!({ "type": "button_a", "pressed": false }));
     assert!(runner.display.full_screen_signal.is_none());
     assert_eq!(runner.menu.current_key(), Some("signal.bus.0"));
     assert!(presented(&mut runner).display.signal.is_none());
@@ -122,7 +113,7 @@ fn a_playing_signal_view_taps_its_own_source() {
         crate::oled_frame::OledSignalVisual::Scope { .. }
     ));
 
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    device_input(&mut runner, json!({ "type": "button_a", "pressed": true }));
     let _ = presented(&mut runner);
     assert_eq!(tap.selected(), None);
 }
@@ -130,9 +121,9 @@ fn a_playing_signal_view_taps_its_own_source() {
 #[test]
 fn modifier_chords_pass_through_and_leaving_the_page_closes_the_signal_view() {
     let (mut runner, _) = open_signal_view("signal.instrument.0");
-    input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
+    device_input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
     press_main(&mut runner);
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );
@@ -172,7 +163,7 @@ fn an_aux_type_change_closes_the_signal_view_before_it_shows_a_midi_source() {
     assert_eq!(tap.selected(), Some(SignalSource::Instrument(0)));
 
     for kind in ["sampler", "midi"] {
-        input(
+        device_input(
             &mut runner,
             json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
         );

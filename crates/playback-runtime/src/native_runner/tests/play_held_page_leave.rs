@@ -1,24 +1,15 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn button(runner: &mut NativeRunner, button: &str, pressed: bool) {
-    let _ = input(runner, json!({ "type": button, "pressed": pressed }));
+    let _ = device_input(runner, json!({ "type": button, "pressed": pressed }));
 }
 
 fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "grid_press", "x": x, "y": y }))
+    device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }))
 }
 
 fn release(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "grid_release", "x": x, "y": y }))
+    device_input(runner, json!({ "type": "grid_release", "x": x, "y": y }))
 }
 
 fn open_musical_page(runner: &mut NativeRunner, row: usize) {

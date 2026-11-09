@@ -1,31 +1,13 @@
 use super::*;
 use crate::native_runner::play_pages::{PlayBank, PLAY_PAGES};
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
-fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    let mut messages = input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
-    messages.extend(input(
-        runner,
-        json!({ "type": "grid_release", "x": x, "y": y }),
-    ));
-    messages
-}
-
 fn held(runner: &mut NativeRunner, buttons: &[&str], x: usize, y: usize) {
     for button in buttons {
-        input(runner, json!({ "type": button, "pressed": true }));
+        device_input(runner, json!({ "type": button, "pressed": true }));
     }
-    press(runner, x, y);
+    grid_tap(runner, x, y);
     for button in buttons.iter().rev() {
-        input(runner, json!({ "type": button, "pressed": false }));
+        device_input(runner, json!({ "type": button, "pressed": false }));
     }
 }
 
@@ -66,7 +48,7 @@ fn play_fx_page_tiles_start_their_effect_through_device_input() {
         GRID_WIDTH - 1,
         0,
     );
-    let started = input(&mut runner, json!({ "type": "grid_press", "x": 1, "y": 2 }));
+    let started = device_input(&mut runner, json!({ "type": "grid_press", "x": 1, "y": 2 }));
     assert!(started.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(

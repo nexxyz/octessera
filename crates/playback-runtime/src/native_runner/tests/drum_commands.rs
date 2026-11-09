@@ -1,14 +1,5 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn commands(messages: &[RunnerMessage]) -> Vec<RuntimeAudioCommand> {
     messages
         .iter()
@@ -78,7 +69,7 @@ fn sound_is_structural_but_kit_voice_and_common_numeric_edits_are_typed() {
     ] {
         assert!(runner.menu.focus_item_key(key), "{key}");
         runner.menu.state.editing = true;
-        let edited = commands(&input(
+        let edited = commands(&device_input(
             &mut runner,
             json!({ "type": "encoder_turn", "id": "main", "delta": delta }),
         ));
@@ -97,7 +88,7 @@ fn sound_is_structural_but_kit_voice_and_common_numeric_edits_are_typed() {
         .menu
         .focus_item_key("instruments.0.drum.voices.0.sound"));
     runner.menu.state.editing = true;
-    let changed = commands(&input(
+    let changed = commands(&device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
     ));
@@ -128,11 +119,11 @@ fn aux_and_xy_next_hit_voice_targets_emit_only_voice_scoped_scalars() {
     assert!(runner
         .menu
         .focus_item_key("aux:0:turn.instruments.0.drum.voices.2.tonePct"));
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
-    let aux = commands(&input(
+    let aux = commands(&device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
     ));
@@ -150,7 +141,7 @@ fn aux_and_xy_next_hit_voice_targets_emit_only_voice_scoped_scalars() {
     assert!(runner
         .menu
         .focus_item_key("xy:x.instruments.0.drum.voices.2.decayMs"));
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
@@ -159,7 +150,7 @@ fn aux_and_xy_next_hit_voice_targets_emit_only_voice_scoped_scalars() {
         "instruments.0.drum.voices.2.decayMs"
     );
     let _ = runner.messages_with_snapshot().unwrap();
-    let xy = commands(&input(
+    let xy = commands(&device_input(
         &mut runner,
         json!({ "type": "grid_press", "x": 7, "y": 0 }),
     ));

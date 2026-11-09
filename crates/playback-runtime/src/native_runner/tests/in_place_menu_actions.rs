@@ -6,15 +6,6 @@ fn send_store_result(runner: &mut NativeRunner, result: RuntimeStoreResult) {
     runner.send(HostMessage::RuntimeResult { result }).unwrap();
 }
 
-fn input(runner: &mut NativeRunner, input: Value) {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap();
-}
-
 pub(super) fn press_key(runner: &mut NativeRunner, key: &str) {
     assert!(runner.menu.focus_item_key(key), "{key}");
     press(runner);
@@ -144,20 +135,20 @@ fn grid_param_mod_mapping_updates_the_slot_pickers_in_place() {
     let rebuilds = runner.menu.rebuild_count;
     assert!(runner.menu.focus_item_key("instruments.0.mixer.volume"));
 
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "button_shift", "pressed": true }),
     );
     for invert in [false, true] {
-        input(&mut runner, json!({ "type": "grid_press", "x": 0, "y": 0 }));
-        input(
+        device_input(&mut runner, json!({ "type": "grid_press", "x": 0, "y": 0 }));
+        device_input(
             &mut runner,
             json!({ "type": "grid_release", "x": 0, "y": 0 }),
         );
         assert_eq!(runner.param_mods[0].x[0].as_ref().unwrap().invert, invert);
         assert_matches_fresh_build(&runner, rebuilds);
     }
-    input(&mut runner, json!({ "type": "grid_press", "x": 0, "y": 0 }));
+    device_input(&mut runner, json!({ "type": "grid_press", "x": 0, "y": 0 }));
     assert!(runner.param_mods[0].x[0].is_none());
     assert_matches_fresh_build(&runner, rebuilds);
     assert_eq!(

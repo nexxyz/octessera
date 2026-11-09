@@ -1,14 +1,5 @@
 use super::*;
 
-fn device_input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn bind_to_aux1(runner: &mut NativeRunner, key: &str) -> Vec<RunnerMessage> {
     assert!(runner.menu.focus_item_key(key));
     let _ = device_input(runner, json!({ "type": "button_fn", "pressed": true }));

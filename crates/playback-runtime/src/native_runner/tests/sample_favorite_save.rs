@@ -2,15 +2,6 @@ use super::device_config_apply::reload_system_payload;
 use super::*;
 use crate::RuntimePlatformRequest;
 
-fn device_input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn system_save_payload(messages: &[RunnerMessage]) -> Option<Value> {
     messages.iter().find_map(|message| match message {
         RunnerMessage::PlatformEffects { effects } => {

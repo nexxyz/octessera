@@ -1,14 +1,5 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn assert_only_scalar(messages: &[RunnerMessage], slot: usize, path: &str) {
     let commands = messages
         .iter()
@@ -54,7 +45,7 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
     assert!(runner
         .menu
         .focus_item_key("aux:0:turn.instruments.0.fm.index"));
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
@@ -66,12 +57,12 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
     );
     let untouched = runner.instruments[1].clone();
     runner.transport.transport = RuntimeTransportState::Playing;
-    input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
-    let messages = input(
+    device_input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
+    let messages = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
     );
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );
@@ -85,7 +76,7 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
     assert!(runner
         .menu
         .focus_item_key("xy:x.instruments.0.fm.filter.cutoffHz"));
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
@@ -94,7 +85,7 @@ fn fm_real_picker_aux_and_xy_device_inputs_only_emit_targeted_scalars() {
         "instruments.0.fm.filter.cutoffHz"
     );
     let _ = runner.messages_with_snapshot().unwrap();
-    let messages = input(&mut runner, json!({ "type": "grid_press", "x": 7, "y": 0 }));
+    let messages = device_input(&mut runner, json!({ "type": "grid_press", "x": 7, "y": 0 }));
     assert_only_scalar(&messages, 0, "fm.filter.cutoffHz");
     assert_eq!(runner.instruments[1], untouched);
     let saved = runner.config_payload();
@@ -126,7 +117,7 @@ fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
         press_action: None,
     });
     let second = runner.instruments[1].clone();
-    let messages = input(
+    let messages = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
     );
@@ -140,7 +131,7 @@ fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
         0.0,
         255.0,
     ));
-    let messages = input(&mut runner, json!({ "type": "grid_press", "x": 7, "y": 0 }));
+    let messages = device_input(&mut runner, json!({ "type": "grid_press", "x": 7, "y": 0 }));
     assert_only_scalar(&messages, 0, "synth.filter.cutoffHz");
     assert_eq!(runner.instruments[1], second);
 
@@ -156,14 +147,14 @@ fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
     ));
     runner.clear_all_modulation_sources();
     let _ = runner.messages_with_snapshot().unwrap();
-    let messages = input(&mut runner, json!({ "type": "grid_press", "x": 6, "y": 0 }));
+    let messages = device_input(&mut runner, json!({ "type": "grid_press", "x": 6, "y": 0 }));
     assert_only_scalar(&messages, 0, "sample.filter.cutoffHz");
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("instruments.0.sample.amp.gainPct".into()),
         press_action: None,
     });
     runner.menu.rebuild(runner.menu_config());
-    let messages = input(
+    let messages = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
     );
@@ -180,11 +171,11 @@ fn held_fm_xy_menu_edit_rebases_without_double_command_then_release_restores_new
     runner.xy.smoothing_ms = 0;
     runner.xy.x_binding = Some(numeric_binding("instruments.0.fm.index", 0.0, 100.0));
     let _ = runner.messages_with_snapshot().unwrap();
-    let messages = input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
+    let messages = device_input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
     assert_only_scalar(&messages, 0, "fm.index");
     assert!(runner.menu.focus_item_key("instruments.0.fm.index"));
     runner.menu.state.editing = true;
-    let messages = input(
+    let messages = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
     );
@@ -222,9 +213,9 @@ fn synth_gain_xy_then_aux_edit_persists_composed_gain_without_replacing_slot() {
         press_action: None,
     });
     let _ = runner.messages_with_snapshot().unwrap();
-    let first = input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
+    let first = device_input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
     assert_only_scalar(&first, 0, "synth.amp.gainPct");
-    let second = input(
+    let second = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux1", "delta": -1 }),
     );

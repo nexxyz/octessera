@@ -1,16 +1,7 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn shift(runner: &mut NativeRunner, pressed: bool) {
-    let _ = input(
+    let _ = device_input(
         runner,
         json!({ "type": "button_shift", "pressed": pressed }),
     );
@@ -18,8 +9,8 @@ fn shift(runner: &mut NativeRunner, pressed: bool) {
 
 fn shift_press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
     shift(runner, true);
-    let mut messages = input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
-    messages.extend(input(
+    let mut messages = device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
+    messages.extend(device_input(
         runner,
         json!({ "type": "grid_release", "x": x, "y": y }),
     ));
@@ -29,9 +20,9 @@ fn shift_press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessa
 
 fn mix_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let _ = input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
-    let _ = input(&mut runner, json!({ "type": "grid_press", "x": 7, "y": 0 }));
-    let _ = input(
+    let _ = device_input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
+    let _ = device_input(&mut runner, json!({ "type": "grid_press", "x": 7, "y": 0 }));
+    let _ = device_input(
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );

@@ -12,21 +12,12 @@ fn board_runner() -> NativeRunner {
     .unwrap()
 }
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn press(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "encoder_press", "id": "main" }))
+    device_input(runner, json!({ "type": "encoder_press", "id": "main" }))
 }
 
 fn back(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "button_a", "pressed": true }))
+    device_input(runner, json!({ "type": "button_a", "pressed": true }))
 }
 
 fn effects(messages: &[RunnerMessage]) -> Vec<RuntimePlatformEffect> {
@@ -60,7 +51,7 @@ fn send_status(runner: &mut NativeRunner, status: RuntimeBluetoothStatus) {
 fn turn_bluetooth_on(runner: &mut NativeRunner) {
     assert!(runner.menu.focus_item_key("bluetooth.enabled"));
     press(runner);
-    input(
+    device_input(
         runner,
         json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
     );
@@ -254,7 +245,7 @@ fn speaker(address: &str, paired: bool, connected: bool) -> RuntimeBluetoothDevi
 fn turn_audio_out_on(runner: &mut NativeRunner) {
     assert!(runner.menu.focus_item_key("bluetooth.audio"));
     press(runner);
-    input(
+    device_input(
         runner,
         json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
     );
@@ -350,7 +341,7 @@ fn pair_page_rows(runner: &NativeRunner) -> Vec<(String, u16)> {
 }
 
 fn turn(runner: &mut NativeRunner, delta: i32) {
-    input(
+    device_input(
         runner,
         json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
     );

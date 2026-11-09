@@ -18,15 +18,6 @@ fn sampler_runner(note_behavior: &str) -> NativeRunner {
     runner
 }
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 /// Presses into the row, turns it with Fn held (one step per detent) and presses out.
 fn edit_row(runner: &mut NativeRunner, label: &str, delta: i32) {
     runner.menu.select_label(label);
@@ -37,7 +28,7 @@ fn edit_row(runner: &mut NativeRunner, label: &str, delta: i32) {
         json!({ "type": "button_fn", "pressed": false }),
         json!({ "type": "encoder_press", "id": "main" }),
     ] {
-        let _ = input(runner, event);
+        let _ = device_input(runner, event);
     }
 }
 
@@ -220,7 +211,7 @@ fn oneshot_ignores_a_saved_loop_and_switching_note_mode_resends_the_slot() {
         json!({ "type": "encoder_press", "id": "main" }),
     ]
     .into_iter()
-    .flat_map(|event| input(&mut runner, event))
+    .flat_map(|event| device_input(&mut runner, event))
     .collect::<Vec<_>>();
     assert_eq!(runner.instruments[0].note_behavior, NoteBehavior::Oneshot);
     assert!(messages.iter().any(|message| matches!(message,

@@ -261,6 +261,20 @@ pub(crate) fn unversioned_payload(mut payload: Value) -> Value {
     payload
 }
 
+pub(crate) fn device_input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::DeviceInput {
+            input,
+            request_snapshot: None,
+        })
+        .unwrap()
+}
+
+pub(crate) fn grid_tap(runner: &mut NativeRunner, x: usize, y: usize) {
+    device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
+    device_input(runner, json!({ "type": "grid_release", "x": x, "y": y }));
+}
+
 pub(crate) fn confirm_current_dialog(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
     runner

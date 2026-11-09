@@ -4,36 +4,22 @@ use crate::native_runner::led_color::LedColor;
 
 const VOLUME: &str = "instruments.0.mixer.volume";
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn grid_press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "grid_press", "x": x, "y": y }))
+    device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }))
 }
 
 fn grid_release(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "grid_release", "x": x, "y": y }))
-}
-
-fn tap(runner: &mut NativeRunner, x: usize, y: usize) {
-    grid_press(runner, x, y);
-    grid_release(runner, x, y);
+    device_input(runner, json!({ "type": "grid_release", "x": x, "y": y }))
 }
 
 fn held(runner: &mut NativeRunner, button: &str, action: impl FnOnce(&mut NativeRunner)) {
-    input(runner, json!({ "type": button, "pressed": true }));
+    device_input(runner, json!({ "type": button, "pressed": true }));
     action(runner);
-    input(runner, json!({ "type": button, "pressed": false }));
+    device_input(runner, json!({ "type": button, "pressed": false }));
 }
 
 fn back(runner: &mut NativeRunner) {
-    input(runner, json!({ "type": "button_a", "pressed": true }));
+    device_input(runner, json!({ "type": "button_a", "pressed": true }));
 }
 
 fn toast(runner: &NativeRunner) -> String {
@@ -62,7 +48,7 @@ fn set_tile_type(runner: &mut NativeRunner, tile_type: &str) {
 fn map_tile(runner: &mut NativeRunner, x: usize, y: usize) {
     press_key(runner, "play.faders.tile.map");
     assert_eq!(toast(runner), "Tile map: press tiles to assign");
-    tap(runner, x, y);
+    grid_tap(runner, x, y);
 }
 
 fn led(runner: &mut NativeRunner, x: usize, y: usize) -> LedColor {
@@ -96,7 +82,7 @@ fn action_cols_turn_the_right_columns_into_tiles() {
     let mut runner = tiles_runner();
     press_key(&mut runner, "play.faders.6.target.sound.velocityScalePct");
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
-    tap(&mut runner, 6, 5);
+    grid_tap(&mut runner, 6, 5);
     assert_eq!(
         runner.global_sound.velocity_scale_pct, 100,
         "no slider here"
@@ -107,7 +93,7 @@ fn action_cols_turn_the_right_columns_into_tiles() {
 
     set_menu_number(&mut runner, "play.faders.actionCols", 0);
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
-    tap(&mut runner, 6, 5);
+    grid_tap(&mut runner, 6, 5);
     assert_eq!(runner.global_sound.velocity_scale_pct, 143);
     assert_eq!(runner.faders.tiles.len(), 2, "tiles stay for later");
 }
@@ -119,7 +105,7 @@ fn map_to_grid_stores_clears_and_back_leaves_unchanged() {
 
     press_key(&mut runner, "play.faders.tile.map");
     assert_eq!(runner.grid_assign, Some(GridAssign::FaderTiles));
-    tap(&mut runner, 2, 2);
+    grid_tap(&mut runner, 2, 2);
     assert_eq!(toast(&runner), "Not an action column");
     assert_eq!(
         led(&mut runner, 6, 4),
@@ -145,10 +131,10 @@ fn map_to_grid_stores_clears_and_back_leaves_unchanged() {
 #[test]
 fn an_action_tile_runs_its_action_and_shift_runs_the_second_one() {
     let mut runner = tiles_runner();
-    tap(&mut runner, 6, 0);
+    grid_tap(&mut runner, 6, 0);
     assert_eq!(toast(&runner), "Tile: Reset");
 
-    held(&mut runner, "button_shift", |runner| tap(runner, 6, 0));
+    held(&mut runner, "button_shift", |runner| grid_tap(runner, 6, 0));
     assert_eq!(toast(&runner), "S+Tile: Map");
     assert!(
         matches!(runner.grid_assign, Some(GridAssign::PlayFx(_))),
@@ -165,10 +151,10 @@ fn an_inactive_or_missing_action_toasts_and_runs_nothing() {
     map_tile(&mut runner, 7, 7);
     assert_ne!(runner.instruments[0].kind, InstrumentType::Sampler);
 
-    tap(&mut runner, 7, 7);
+    grid_tap(&mut runner, 7, 7);
     assert_eq!(toast(&runner), "Tile: Assign not active");
     assert!(runner.grid_assign.is_none());
-    held(&mut runner, "button_shift", |runner| tap(runner, 7, 7));
+    held(&mut runner, "button_shift", |runner| grid_tap(runner, 7, 7));
     assert_eq!(toast(&runner), "S+Tile: No binding");
 }
 
@@ -181,7 +167,7 @@ fn a_param_tile_steps_its_target_like_an_aux_detent_and_saves_it() {
     expected.apply_or_schedule_menu_key(VOLUME).unwrap();
     let marks = runner.fast_autosave_marks;
 
-    held(&mut runner, "button_shift", |runner| tap(runner, 7, 3));
+    held(&mut runner, "button_shift", |runner| grid_tap(runner, 7, 3));
 
     assert_eq!(volume(&runner), volume(&expected));
     assert_ne!(volume(&runner), start);
@@ -194,7 +180,7 @@ fn a_param_tile_steps_its_target_like_an_aux_detent_and_saves_it() {
         runner.menu.number_for_key(VOLUME),
         Some(i32::from(volume(&expected)))
     );
-    tap(&mut runner, 7, 3);
+    grid_tap(&mut runner, 7, 3);
     assert_eq!(volume(&runner), start);
 }
 
@@ -213,9 +199,9 @@ fn a_held_tile_flashes_and_releases_are_consumed() {
 fn fn_and_shift_fn_presses_on_a_tile_run_nothing() {
     let mut runner = tiles_runner();
     let start = volume(&runner);
-    held(&mut runner, "button_fn", |runner| tap(runner, 7, 3));
+    held(&mut runner, "button_fn", |runner| grid_tap(runner, 7, 3));
     held(&mut runner, "button_combined_modifier", |runner| {
-        tap(runner, 6, 0)
+        grid_tap(runner, 6, 0)
     });
     assert_eq!(volume(&runner), start);
     assert!(runner.grid_assign.is_none());

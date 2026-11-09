@@ -4,32 +4,14 @@ use crate::native_runner::led_color::LedColor;
 
 const VELOCITY: &str = "sound.velocityScalePct";
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
-fn grid_press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "grid_press", "x": x, "y": y }))
-}
-
 fn grid_release(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "grid_release", "x": x, "y": y }))
-}
-
-fn tap(runner: &mut NativeRunner, x: usize, y: usize) {
-    grid_press(runner, x, y);
-    grid_release(runner, x, y);
+    device_input(runner, json!({ "type": "grid_release", "x": x, "y": y }))
 }
 
 fn held(runner: &mut NativeRunner, button: &str, action: impl FnOnce(&mut NativeRunner)) {
-    input(runner, json!({ "type": button, "pressed": true }));
+    device_input(runner, json!({ "type": button, "pressed": true }));
     action(runner);
-    input(runner, json!({ "type": button, "pressed": false }));
+    device_input(runner, json!({ "type": button, "pressed": false }));
 }
 
 fn toast(runner: &NativeRunner) -> String {
@@ -46,7 +28,9 @@ fn note_length(runner: &NativeRunner) -> u32 {
 
 /// Opens the Faders page the hardware way: Fn + the right column's row 5.
 fn open_faders(runner: &mut NativeRunner) {
-    held(runner, "button_fn", |runner| tap(runner, GRID_WIDTH - 1, 5));
+    held(runner, "button_fn", |runner| {
+        grid_tap(runner, GRID_WIDTH - 1, 5)
+    });
     assert_eq!(
         runner.active_play_mode,
         ActivePlayMode::Page(PlayMode::Faders)
@@ -65,11 +49,11 @@ fn set_menu_number(runner: &mut NativeRunner, key: &str, value: i32) {
 
 fn switch_on(runner: &mut NativeRunner, key: &str) {
     press_key(runner, key);
-    input(
+    device_input(
         runner,
         json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
     );
-    input(runner, json!({ "type": "encoder_press", "id": "main" }));
+    device_input(runner, json!({ "type": "encoder_press", "id": "main" }));
 }
 
 fn faders_runner() -> NativeRunner {
@@ -109,34 +93,34 @@ fn bar_top(runner: &mut NativeRunner, column: usize, color: LedColor) -> Option<
 #[test]
 fn a_press_sets_its_target_through_the_range_and_invert() {
     let mut runner = faders_runner();
-    tap(&mut runner, 0, 7);
+    grid_tap(&mut runner, 0, 7);
     assert_eq!(velocity(&runner), 200);
     assert_eq!(toast(&runner), "F1: Velocity Scale 200");
     assert_eq!(runner.menu.number_for_key(VELOCITY), Some(200));
-    tap(&mut runner, 0, 0);
+    grid_tap(&mut runner, 0, 0);
     assert_eq!(velocity(&runner), 0);
 
     set_menu_number(&mut runner, "play.faders.0.target.rangeMin", 30);
     set_menu_number(&mut runner, "play.faders.0.target.rangeMax", 170);
     assert_eq!(velocity(&runner), 0, "a new range waits for the next press");
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
-    tap(&mut runner, 0, 7);
+    grid_tap(&mut runner, 0, 7);
     assert_eq!(velocity(&runner), 170);
-    tap(&mut runner, 0, 1);
+    grid_tap(&mut runner, 0, 1);
     assert_eq!(velocity(&runner), 50);
 
     switch_on(&mut runner, "play.faders.0.invert");
     assert!(runner.faders.sliders[0][0].as_ref().unwrap().invert);
     assert_eq!(velocity(&runner), 50, "invert waits for the next press");
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
-    tap(&mut runner, 0, 7);
+    grid_tap(&mut runner, 0, 7);
     assert_eq!(velocity(&runner), 30);
 }
 
 #[test]
 fn a_menu_edit_after_a_press_changes_the_value_and_it_stays() {
     let mut runner = faders_runner();
-    tap(&mut runner, 0, 5);
+    grid_tap(&mut runner, 0, 5);
     assert_eq!(velocity(&runner), 143);
     set_menu_number(&mut runner, VELOCITY, 60);
     pulses(&mut runner, 16);
@@ -152,7 +136,7 @@ fn a_preset_load_keeps_the_preset_value() {
         "instruments.0.synth.filter.cutoffHz",
     );
     open_faders(&mut runner);
-    tap(&mut runner, 0, 7);
+    grid_tap(&mut runner, 0, 7);
     assert_eq!(
         runner.instruments[0].synth_config["filter"]["cutoffHz"],
         20_000
@@ -172,10 +156,10 @@ fn a_preset_load_keeps_the_preset_value() {
 #[test]
 fn shift_presses_set_the_second_target_of_the_column() {
     let mut runner = faders_runner();
-    tap(&mut runner, 0, 3);
+    grid_tap(&mut runner, 0, 3);
     let plain_velocity = velocity(&runner);
 
-    held(&mut runner, "button_shift", |runner| tap(runner, 0, 7));
+    held(&mut runner, "button_shift", |runner| grid_tap(runner, 0, 7));
 
     assert_eq!(note_length(&runner), 2000);
     assert_eq!(velocity(&runner), plain_velocity);
@@ -185,7 +169,7 @@ fn shift_presses_set_the_second_target_of_the_column() {
 #[test]
 fn the_bar_follows_the_target_value_in_each_bank() {
     let mut runner = faders_runner();
-    tap(&mut runner, 0, 2);
+    grid_tap(&mut runner, 0, 2);
     assert_eq!(bar_top(&mut runner, 0, LedColor::GREEN), Some(2));
     let off = json!({ "r": 0, "g": 0, "b": 0 });
     assert_eq!(
@@ -213,8 +197,8 @@ fn a_side_without_a_target_ignores_presses() {
     runner.display.toast = None;
     let revision = runner.config_revision;
     let before = runner.config_payload();
-    tap(&mut runner, 3, 6);
-    held(&mut runner, "button_shift", |runner| tap(runner, 3, 6));
+    grid_tap(&mut runner, 3, 6);
+    held(&mut runner, "button_shift", |runner| grid_tap(runner, 3, 6));
     assert_eq!(runner.config_revision, revision);
     assert_eq!(runner.config_payload(), before);
     assert!(runner.display.toast.is_none());
@@ -223,9 +207,9 @@ fn a_side_without_a_target_ignores_presses() {
 #[test]
 fn fn_and_shift_fn_presses_do_not_edit_the_page_and_releases_are_consumed() {
     let mut runner = faders_runner();
-    tap(&mut runner, 0, 2);
+    grid_tap(&mut runner, 0, 2);
     let set = velocity(&runner);
-    held(&mut runner, "button_fn", |runner| tap(runner, 0, 6));
+    held(&mut runner, "button_fn", |runner| grid_tap(runner, 0, 6));
     assert_eq!(
         runner.active_play_mode,
         ActivePlayMode::None,
@@ -233,9 +217,9 @@ fn fn_and_shift_fn_presses_do_not_edit_the_page_and_releases_are_consumed() {
     );
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     held(&mut runner, "button_combined_modifier", |runner| {
-        tap(runner, 3, 6)
+        grid_tap(runner, 3, 6)
     });
-    held(&mut runner, "button_fn", |runner| tap(runner, 3, 6));
+    held(&mut runner, "button_fn", |runner| grid_tap(runner, 3, 6));
     assert_eq!(velocity(&runner), set);
 
     let revision = runner.config_revision;
@@ -252,8 +236,8 @@ fn slider_targets_and_set_values_round_trip_through_a_saved_patch() {
     let mut runner = faders_runner();
     set_menu_number(&mut runner, "play.faders.0.target.rangeMax", 120);
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
-    tap(&mut runner, 0, 4);
-    held(&mut runner, "button_shift", |runner| tap(runner, 0, 1));
+    grid_tap(&mut runner, 0, 4);
+    held(&mut runner, "button_shift", |runner| grid_tap(runner, 0, 1));
     let expected_velocity = velocity(&runner);
     let expected_length = note_length(&runner);
     let saved = runner.config_payload();
@@ -318,10 +302,10 @@ fn a_slider_sets_a_behavior_row_of_an_inactive_layer() {
     );
     open_faders(&mut runner);
 
-    tap(&mut runner, 0, 7);
+    grid_tap(&mut runner, 0, 7);
     assert_eq!(runner.layers[2].behavior_config["randomSeedCells"], 20);
     assert_eq!(toast(&runner), "F1: Spawn Count 20");
-    tap(&mut runner, 0, 0);
+    grid_tap(&mut runner, 0, 0);
     assert_eq!(runner.layers[2].behavior_config["randomSeedCells"], 0);
     assert_eq!(runner.active_layer_index, 0);
 }

@@ -1,17 +1,8 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    let mut messages = input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
-    messages.extend(input(
+    let mut messages = device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
+    messages.extend(device_input(
         runner,
         json!({ "type": "grid_release", "x": x, "y": y }),
     ));
@@ -19,7 +10,7 @@ fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
 }
 
 fn shift(runner: &mut NativeRunner, pressed: bool) {
-    let _ = input(
+    let _ = device_input(
         runner,
         json!({ "type": "button_shift", "pressed": pressed }),
     );
@@ -40,11 +31,11 @@ fn rate_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[5].behavior_id = "none".into();
     for button in ["button_shift", "button_fn"] {
-        let _ = input(&mut runner, json!({ "type": button, "pressed": true }));
+        let _ = device_input(&mut runner, json!({ "type": button, "pressed": true }));
     }
     let opened = press(&mut runner, GRID_WIDTH - 1, 3);
     for button in ["button_fn", "button_shift"] {
-        let _ = input(&mut runner, json!({ "type": button, "pressed": false }));
+        let _ = device_input(&mut runner, json!({ "type": button, "pressed": false }));
     }
     assert_eq!(
         runner.active_play_mode,
@@ -283,7 +274,7 @@ fn stop_and_clear_all_drop_a_pending_resync() {
     let _ = press(&mut runner, 6, 1);
     let play = |runner: &mut NativeRunner| {
         for pressed in [true, false] {
-            let _ = input(runner, json!({ "type": "button_s", "pressed": pressed }));
+            let _ = device_input(runner, json!({ "type": "button_s", "pressed": pressed }));
         }
     };
     play(&mut runner);

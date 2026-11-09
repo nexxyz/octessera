@@ -1,14 +1,5 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap();
-}
-
 fn row_caps(runner: &NativeRunner) -> Vec<Value> {
     runner.snapshot().unwrap()["display"]["rows"]
         .as_array()
@@ -39,7 +30,7 @@ fn sampler_assign_drops_the_auto_map_from_caps_hints_and_turns_but_keeps_manual_
     assert!(!row_caps(&runner).is_empty());
     assert!(!hint(&runner, "normal", 1)["turn"].is_null());
 
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "aux1" }),
     );
@@ -61,11 +52,11 @@ fn sampler_assign_drops_the_auto_map_from_caps_hints_and_turns_but_keeps_manual_
 
     let tune = runner.menu.number_for_key("instruments.0.sample.tuneSemis");
     let volume = runner.menu.number_for_key("masterVolume");
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux2", "delta": 1 }),
     );
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux3", "delta": 1 }),
     );
@@ -75,7 +66,7 @@ fn sampler_assign_drops_the_auto_map_from_caps_hints_and_turns_but_keeps_manual_
     );
     assert_ne!(runner.menu.number_for_key("masterVolume"), volume);
 
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    device_input(&mut runner, json!({ "type": "button_a", "pressed": true }));
     assert_eq!(runner.grid_assign, None);
     assert!(!row_caps(&runner).is_empty());
 }

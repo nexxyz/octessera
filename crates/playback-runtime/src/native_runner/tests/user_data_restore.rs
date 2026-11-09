@@ -29,15 +29,6 @@ pub(super) fn has_platform_effect(
     })
 }
 
-fn input(runner: &mut NativeRunner, value: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input: value,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 pub(super) fn has_default_save(messages: &[RunnerMessage], mode: Option<&str>) -> bool {
     messages.iter().any(|message| {
         matches!(
@@ -69,11 +60,11 @@ fn pending_restart_runner() -> NativeRunner {
     let mut runner = optimization_capable_runner();
     runner.auto_save_default = true;
     assert!(runner.menu.focus_item_key("transport.bpm"));
-    let _ = input(
+    let _ = device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
-    let _ = input(
+    let _ = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
     );
@@ -84,15 +75,15 @@ fn pending_restart_runner() -> NativeRunner {
     runner.register_default_write_request("deferred-restore", Some(revision));
 
     assert!(runner.menu.focus_item_key("sound.optimizeFor"));
-    let _ = input(
+    let _ = device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
-    let _ = input(
+    let _ = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
     );
-    let _ = input(
+    let _ = device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
@@ -195,7 +186,7 @@ pub(crate) fn restore_invalidation_abandons_cancelled_default_write() {
             if runner.display.user_data_restore.is_none() {
                 break;
             }
-            let _ = input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+            let _ = device_input(&mut runner, json!({ "type": "button_a", "pressed": true }));
         }
         assert!(runner.display.user_data_restore.is_none(), "{outcome}");
     }

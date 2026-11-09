@@ -1,22 +1,13 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "grid_press", "x": x, "y": y }))
+    device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }))
 }
 
 fn fn_press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    let mut messages = input(runner, json!({ "type": "button_fn", "pressed": true }));
+    let mut messages = device_input(runner, json!({ "type": "button_fn", "pressed": true }));
     messages.extend(press(runner, x, y));
-    messages.extend(input(
+    messages.extend(device_input(
         runner,
         json!({ "type": "button_fn", "pressed": false }),
     ));
@@ -169,7 +160,7 @@ pub(crate) fn menu_aux_and_slot_volume_paths_stay_silent_while_muted() {
         press_action: None,
     });
     let before = runner.instruments[0].volume;
-    let aux = input(
+    let aux = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "delta": -1, "id": "aux1" }),
     );
@@ -179,7 +170,7 @@ pub(crate) fn menu_aux_and_slot_volume_paths_stay_silent_while_muted() {
 
     assert!(runner.menu.focus_item_key("instruments.0.mixer.volume"));
     runner.menu.state.editing = true;
-    let menu = input(
+    let menu = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
     );

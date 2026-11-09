@@ -1,22 +1,13 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, input: Value) {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap();
-}
-
 fn press_tile(runner: &mut NativeRunner, x: usize, y: usize, shifted: bool) -> String {
     if shifted {
-        input(runner, json!({ "type": "button_shift", "pressed": true }));
+        device_input(runner, json!({ "type": "button_shift", "pressed": true }));
     }
-    input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
-    input(runner, json!({ "type": "grid_release", "x": x, "y": y }));
+    device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
+    device_input(runner, json!({ "type": "grid_release", "x": x, "y": y }));
     if shifted {
-        input(runner, json!({ "type": "button_shift", "pressed": false }));
+        device_input(runner, json!({ "type": "button_shift", "pressed": false }));
     }
     runner
         .display
@@ -31,16 +22,16 @@ fn shipped_runner(payload: &str) -> NativeRunner {
     runner
         .apply_config_payload(serde_json::from_str(payload).unwrap())
         .unwrap();
-    input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
-    input(
+    device_input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
+    device_input(
         &mut runner,
         json!({ "type": "grid_press", "x": GRID_WIDTH - 1, "y": 5 }),
     );
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "grid_release", "x": GRID_WIDTH - 1, "y": 5 }),
     );
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );

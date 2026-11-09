@@ -4,28 +4,19 @@ use crate::{
 };
 use platform_core::MusicalEvent;
 
-fn input(runner: &mut NativeRunner, value: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input: value,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 pub(super) fn press(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "encoder_press", "id": "main" }))
+    device_input(runner, json!({ "type": "encoder_press", "id": "main" }))
 }
 
 pub(super) fn turn(runner: &mut NativeRunner, delta: i32) -> Vec<RunnerMessage> {
-    input(
+    device_input(
         runner,
         json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
     )
 }
 
 pub(super) fn back(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
-    input(runner, json!({ "type": "button_a", "pressed": true }))
+    device_input(runner, json!({ "type": "button_a", "pressed": true }))
 }
 
 pub(super) fn enter_edit(runner: &mut NativeRunner, key: &str) {

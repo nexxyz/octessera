@@ -1,18 +1,9 @@
 use super::*;
 use std::time::Duration;
 
-fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
-    let mut messages = input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
-    messages.extend(input(
+    let mut messages = device_input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
+    messages.extend(device_input(
         runner,
         json!({ "type": "grid_release", "x": x, "y": y }),
     ));
@@ -21,9 +12,9 @@ fn press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessage> {
 
 fn tempo_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let _ = input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
+    let _ = device_input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
     let opened = press(&mut runner, GRID_WIDTH - 1, 3);
-    let _ = input(
+    let _ = device_input(
         &mut runner,
         json!({ "type": "button_fn", "pressed": false }),
     );
@@ -185,8 +176,8 @@ fn tap_tile_pulses_with_the_beat_only_while_playing() {
     let stopped = led_rgb(dim_rgb(platform_core::palette::GREEN, 6));
     assert_eq!(tile(&runner, 0, 7), stopped);
 
-    let _ = input(&mut runner, json!({ "type": "button_s", "pressed": true }));
-    let _ = input(&mut runner, json!({ "type": "button_s", "pressed": false }));
+    let _ = device_input(&mut runner, json!({ "type": "button_s", "pressed": true }));
+    let _ = device_input(&mut runner, json!({ "type": "button_s", "pressed": false }));
     let now = Instant::now();
     runner.display.transients.set_test_now(now);
     runner
@@ -214,7 +205,7 @@ fn fn_or_shift_fn_with_a_page_tile_leaves_the_hidden_page_alone() {
     let mut runner = tempo_runner();
     let hold = |runner: &mut NativeRunner, buttons: &[&str], pressed: bool| {
         for button in buttons {
-            let _ = input(runner, json!({ "type": button, "pressed": pressed }));
+            let _ = device_input(runner, json!({ "type": button, "pressed": pressed }));
         }
     };
     for buttons in [&["button_fn"][..], &["button_shift", "button_fn"][..]] {

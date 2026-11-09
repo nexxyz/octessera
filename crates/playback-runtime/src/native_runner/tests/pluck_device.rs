@@ -1,14 +1,5 @@
 use super::*;
 
-fn input(runner: &mut NativeRunner, value: Value) -> Vec<RunnerMessage> {
-    runner
-        .send(HostMessage::DeviceInput {
-            input: value,
-            request_snapshot: None,
-        })
-        .unwrap()
-}
-
 fn assert_scalar(messages: &[RunnerMessage], path: &str) {
     let commands = messages
         .iter()
@@ -57,7 +48,7 @@ fn pluck_menu_numeric_device_edits_emit_only_targeted_scalar() {
                 request_snapshot: None,
             })
             .unwrap();
-        let messages = input(
+        let messages = device_input(
             &mut runner,
             json!({ "type": "encoder_turn", "id": "main", "delta": delta }),
         );
@@ -103,7 +94,7 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
         ]
     );
     assert!(runner.menu.focus_item_key("instruments.0.pluck.decayMs"));
-    let aux = input(
+    let aux = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
     );
@@ -116,7 +107,7 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
     assert!(runner
         .menu
         .focus_item_key("xy:x.instruments.0.pluck.filter.cutoffHz"));
-    input(
+    device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
     );
@@ -125,7 +116,7 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
         "instruments.0.pluck.filter.cutoffHz"
     );
     let _ = runner.messages_with_snapshot().unwrap();
-    let xy = input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
+    let xy = device_input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
     assert_scalar(&xy, "pluck.filter.cutoffHz");
     assert_eq!(runner.instruments[1], other);
     let saved = runner.config_payload();
@@ -157,13 +148,13 @@ fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
         invert: false,
     });
     let _ = runner.messages_with_snapshot().unwrap();
-    let held = input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
+    let held = device_input(&mut runner, json!({ "type": "grid_press", "x": 3, "y": 0 }));
     assert_scalar(&held, "pluck.brightnessPct");
     assert!(runner
         .menu
         .focus_item_key("instruments.0.pluck.brightnessPct"));
     runner.menu.state.editing = true;
-    let edit = input(
+    let edit = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
     );
@@ -198,7 +189,7 @@ fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
             request_snapshot: None,
         })
         .unwrap();
-    let pick = input(
+    let pick = device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
     );

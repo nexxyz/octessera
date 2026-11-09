@@ -3,28 +3,14 @@ use super::*;
 
 const L5: usize = 4;
 
-fn input(runner: &mut NativeRunner, input: Value) {
-    runner
-        .send(HostMessage::DeviceInput {
-            input,
-            request_snapshot: None,
-        })
-        .unwrap();
-}
-
-fn tap(runner: &mut NativeRunner, x: usize, y: usize) {
-    input(runner, json!({ "type": "grid_press", "x": x, "y": y }));
-    input(runner, json!({ "type": "grid_release", "x": x, "y": y }));
-}
-
 fn held(runner: &mut NativeRunner, button: &str, action: impl FnOnce(&mut NativeRunner)) {
-    input(runner, json!({ "type": button, "pressed": true }));
+    device_input(runner, json!({ "type": button, "pressed": true }));
     action(runner);
-    input(runner, json!({ "type": button, "pressed": false }));
+    device_input(runner, json!({ "type": button, "pressed": false }));
 }
 
 fn select_layer(runner: &mut NativeRunner, layer: usize) {
-    held(runner, "button_fn", |runner| tap(runner, 0, layer));
+    held(runner, "button_fn", |runner| grid_tap(runner, 0, layer));
     assert_eq!(runner.active_layer_index, layer);
 }
 
@@ -78,7 +64,7 @@ fn bound_runner() -> NativeRunner {
         "play.faders.tile.shiftAction.behavior.clearStars",
     );
     press_key(&mut runner, "play.faders.tile.map");
-    tap(&mut runner, 7, 7);
+    grid_tap(&mut runner, 7, 7);
     assert_eq!(toast(&runner), "Mapped");
     select_layer(&mut runner, 0);
     assert_eq!(l5_stars(&runner), 0);
@@ -88,13 +74,13 @@ fn bound_runner() -> NativeRunner {
 #[test]
 fn bound_behavior_clicks_run_on_their_own_layer_whichever_is_active() {
     let mut runner = bound_runner();
-    held(&mut runner, "button_fn", |runner| tap(runner, 7, 5));
+    held(&mut runner, "button_fn", |runner| grid_tap(runner, 7, 5));
     assert_eq!(
         runner.active_play_mode,
         ActivePlayMode::Page(PlayMode::Faders)
     );
 
-    tap(&mut runner, 7, 7);
+    grid_tap(&mut runner, 7, 7);
     assert_eq!(toast(&runner), "Tile: L5 Reseed Stars");
     assert!(
         l5_stars(&runner) > 0,
@@ -102,12 +88,12 @@ fn bound_behavior_clicks_run_on_their_own_layer_whichever_is_active() {
     );
     assert_eq!(runner.active_layer_index, 0);
 
-    held(&mut runner, "button_shift", |runner| tap(runner, 7, 7));
+    held(&mut runner, "button_shift", |runner| grid_tap(runner, 7, 7));
     assert_eq!(toast(&runner), "S+Tile: L5 Clear Stars");
     assert_eq!(l5_stars(&runner), 0);
 
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    input(
+    device_input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "aux1" }),
     );
@@ -139,11 +125,11 @@ fn a_bound_click_whose_layer_changed_behavior_is_not_active() {
     select_layer(&mut runner, 0);
     let before = runner.patch_payload().unwrap()["runtimeConfig"]["layers"][L5].clone();
 
-    held(&mut runner, "button_fn", |runner| tap(runner, 7, 5));
-    tap(&mut runner, 7, 7);
+    held(&mut runner, "button_fn", |runner| grid_tap(runner, 7, 5));
+    grid_tap(&mut runner, 7, 7);
     assert_eq!(toast(&runner), "Tile: L5 Reseed Stars not active");
-    input(&mut runner, json!({ "type": "button_a", "pressed": true }));
-    input(
+    device_input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    device_input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "aux1" }),
     );
