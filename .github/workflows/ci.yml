@@ -351,6 +351,9 @@ jobs:
       - name: Validate board SSH wrapper
         shell: pwsh
         run: ./tools/board-dev/test-with-board-ssh.ps1
+      - name: Validate factory default rollout checks
+        shell: pwsh
+        run: ./tools/board-dev/test-install-factory-default.ps1
       - name: Validate fast deployment target handling
         shell: pwsh
         run: ./tools/pi/test-deploy-rpi-fast.ps1

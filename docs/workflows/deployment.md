@@ -125,6 +125,13 @@ Apply never reboots, and neither does rollback; the reboot is yours. The
 separate contract is
 [`orange-pi-input-routing.md`](../../hardware/docs/orange-pi-input-routing.md).
 
+## Factory default patch
+
+A new shipped default patch goes onto both boards and the desktop store together with
+`tools/board-dev/install-factory-default.ps1`; see
+[Factory default rollout](../development-workflows.md#factory-default-rollout). A
+development deploy only replaces the binary and leaves the stores alone.
+
 ## Stateful board actions
 
 Connected-hardware loops need explicit operator authorization immediately

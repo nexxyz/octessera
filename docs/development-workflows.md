@@ -171,6 +171,28 @@ service (or close the desktop app), keep a copy of the old store on the board,
 replace the files, and start it again. Leave patches, layers, samples, and
 bindings alone.
 
+## Factory default rollout
+
+When the shipped default patch changes, install it on all three stores at once (both
+boards and this host's desktop store, which only stands in for the boards). Never
+install a default patch on a single device:
+
+```powershell
+$PiTarget = "pi@<PI_HOST>"; $OrangeTarget = "octessera@<ORANGE_HOST>"
+./tools/board-dev/install-factory-default.ps1 -RaspberryTarget $PiTarget -OrangeTarget $OrangeTarget
+```
+
+Close the desktop app first. The script splits `config/generated/pi/default.json` (both
+boards) and `config/generated/desktop/default.json` (desktop) with `split_default_config`,
+fetches each store with its service stopped, and composes every patch and backup with the
+new `default.patch.json` through `board_store_compose`. If any of the three fails, nothing
+changes. Otherwise it keeps backups (`<store>.pre-factory-default-<stamp>` on each board
+and next to the desktop store, plus the fetched copies under `target/factory-default/`),
+installs `default.patch.json` with each file's owner and mode, checks that all three
+installed files hash the same as the split before restarting the boards, and prints that
+hash. Each device keeps its own `system.json`; `-IncludeSystem` installs the factory one
+too. `-WhatIf` stops after the compose.
+
 `native_runner/retired_config_keys.rs` stays as the mechanism for dropping
 retired keys on load once there are saves in other hands; until then it carries
 no entries, so do not add one instead of normalizing the stores.
