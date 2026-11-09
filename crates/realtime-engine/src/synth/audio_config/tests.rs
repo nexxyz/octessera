@@ -60,7 +60,32 @@ fn normalizes_instrument_slot_with_shared_defaults() {
     let slot = normalize_instrument_slot_config(&serde_json::json!({ "type": "synth" })).unwrap();
     assert_eq!(slot.slot.kind, "synth");
     assert!(slot.slot.fm.is_none());
-    assert_eq!(slot.slot.mixer.unwrap().route, "direct");
+    assert_eq!(slot.slot.mixer.unwrap().route, MixerRoute::Direct);
+}
+
+#[test]
+fn mixer_routes_parse_by_wire_name_and_reject_unknown_names() {
+    let wire_names: Vec<_> = MixerRoute::ALL.map(MixerRoute::wire_name).into();
+    assert_eq!(
+        wire_names,
+        ["direct", "fx_bus_1", "fx_bus_2", "fx_bus_3", "fx_bus_4"]
+    );
+    for route in MixerRoute::ALL {
+        let slot = normalize_instrument_slot_config(&serde_json::json!({
+            "type": "synth",
+            "mixer": { "route": route.wire_name() }
+        }))
+        .unwrap();
+        assert_eq!(slot.slot.mixer.unwrap().route, route);
+        assert_eq!(serde_json::json!(route), route.wire_name());
+    }
+    for unknown in ["fx_bus_0", "fx_bus_5", "fx_bus_01", "bus_1", ""] {
+        assert!(normalize_instrument_slot_config(&serde_json::json!({
+            "type": "synth",
+            "mixer": { "route": unknown }
+        }))
+        .is_err());
+    }
 }
 
 #[test]

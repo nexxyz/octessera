@@ -2,7 +2,7 @@ use super::fx_cases::{fx_mixer, fx_routes};
 use crate::dsp_profile::samples::all_sample_banks;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_momentary_fx_start, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MixerConfig, VoiceStealingMode,
+    InstrumentSlotConfig, InstrumentsConfig, MixerConfig, MixerRoute, VoiceStealingMode,
     DEFAULT_AUDIO_SAMPLE_RATE, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use rodio_engine_source::EngineEvent;
@@ -288,7 +288,7 @@ fn instruments_config(
                 kind: (*kind).to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: route_name(routes[slot]),
+                    route: mixer_route(routes[slot]),
                     pan_pos: slot.min(DEFAULT_PAN_POSITIONS - 1),
                     volume: 100.0,
                 }),
@@ -300,10 +300,8 @@ fn instruments_config(
     }
 }
 
-fn route_name(route: usize) -> String {
-    if route == 0 {
-        "direct".into()
-    } else {
-        format!("fx_bus_{route}")
-    }
+fn mixer_route(route: usize) -> MixerRoute {
+    route
+        .checked_sub(1)
+        .map_or(MixerRoute::Direct, MixerRoute::FxBus)
 }

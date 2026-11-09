@@ -12,7 +12,7 @@ fn profile_snapshot_reports_active_counts_and_steals() {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".into(),
+                    route: MixerRoute::Direct,
                     pan_pos: 0,
                     volume: 100.0,
                 }),
@@ -24,7 +24,7 @@ fn profile_snapshot_reports_active_counts_and_steals() {
                 kind: "sampler".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".into(),
+                    route: MixerRoute::Direct,
                     pan_pos: 1,
                     volume: 100.0,
                 }),

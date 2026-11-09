@@ -35,7 +35,7 @@ use platform_core::{
 #[cfg(test)]
 use platform_core::{MusicalEvent, TileTriggerIntent};
 use play_pages::{ActivePlayMode, PlayMode};
-use realtime_engine::synth::{DspRuntimeConfig, VoiceStealingMode};
+use realtime_engine::synth::{DspRuntimeConfig, MixerRoute, VoiceStealingMode};
 use serde_json::{json, Value};
 #[cfg(any(test, feature = "test-support"))]
 use std::cell::Cell;

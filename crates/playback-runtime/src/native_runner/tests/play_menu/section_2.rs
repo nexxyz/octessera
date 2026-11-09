@@ -28,7 +28,7 @@ pub(crate) fn pan_page_grid_edit_sends_live_mixer_commands() {
             ))
     )));
 
-    runner.instruments[0].route = "fx_bus_1".into();
+    runner.instruments[0].route = MixerRoute::FxBus(0);
     let bus = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 1, "y": 0 }),

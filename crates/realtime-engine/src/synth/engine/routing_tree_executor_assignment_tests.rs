@@ -11,7 +11,7 @@ fn routing_tree_reassociation_changes_only_final_worker_sum() {
     let mut config = routed_config();
     config.mixer = None;
     for instrument in &mut config.instruments {
-        instrument.mixer.as_mut().unwrap().route = "direct".into();
+        instrument.mixer.as_mut().unwrap().route = MixerRoute::Direct;
     }
     let mut tree = SynthEngine::new(48_000);
     let mut source_reference = SynthEngine::new(48_000);

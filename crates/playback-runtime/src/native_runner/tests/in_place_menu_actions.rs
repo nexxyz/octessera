@@ -230,7 +230,7 @@ fn instrument_type_route_and_auto_name_edits_update_in_place() {
     enter_edit(&mut runner, "instruments.1.mixer.route");
     turn(&mut runner, 2);
     press(&mut runner);
-    assert_ne!(runner.instruments[1].route, "direct");
+    assert_ne!(runner.instruments[1].route, MixerRoute::Direct);
     assert_matches_fresh_build(&runner, rebuilds);
 
     enter_edit(&mut runner, "instruments.1.autoName");

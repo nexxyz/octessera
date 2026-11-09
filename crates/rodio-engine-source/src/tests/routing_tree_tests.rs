@@ -1,8 +1,8 @@
 use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_instruments_config, FxBusConfig,
-    FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig, MomentaryFxTarget,
-    SourceWorkerHealth, SynthEngine, DEFAULT_PAN_POSITIONS,
+    FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig, MixerRoute,
+    MomentaryFxTarget, SourceWorkerHealth, SynthEngine, DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
 
@@ -69,7 +69,7 @@ fn applies_controls_before_dispatching_next_quantum() {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                route: "direct".into(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -115,7 +115,7 @@ fn routing_tree_note_events_start_at_next_quantum() {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                route: "direct".into(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -298,7 +298,7 @@ fn routing_tree_profile_matches_inline_after_a_completed_quantum() {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                route: "fx_bus_1".into(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -352,7 +352,7 @@ fn direct_synth_instruments() -> InstrumentsConfig {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                route: "direct".into(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -374,7 +374,7 @@ fn processes_bus_owned_by_worker() {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                route: "fx_bus_1".into(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

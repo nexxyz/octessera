@@ -147,7 +147,7 @@ fn prepare_instrument_slot(slot: InstrumentSlotConfig) -> PreparedInstrumentSlot
         .as_ref()
         .map(|mixer| {
             (
-                Some(parse_route(&mixer.route)),
+                Some(slot_route(mixer.route)),
                 mixer.pan_pos,
                 (mixer.volume / 100.0).clamp(0.0, 1.0),
             )

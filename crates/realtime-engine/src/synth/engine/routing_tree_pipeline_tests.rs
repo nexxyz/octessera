@@ -8,7 +8,7 @@ use super::{
 use super::{
     SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerRenderDisposition, SynthEngine,
 };
-use crate::synth::types::{default_synth_config, DEFAULT_PAN_POSITIONS};
+use crate::synth::types::{default_synth_config, MixerRoute, DEFAULT_PAN_POSITIONS};
 use crate::synth::{
     RoutingTreePipelineProbe, SourceWorkerRuntime, BUS_CHAIN_SLOT_COST_UNITS,
     ROUTING_TREE_WORKER_THREAD_NAMES, SOURCE_WORKER_SYNTH_COST_UNITS,
@@ -253,7 +253,7 @@ fn bus_config() -> InstrumentsConfig {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".into(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

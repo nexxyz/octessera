@@ -2,7 +2,7 @@ use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_fx_bus_slot,
     prepare_instrument_slot_config, prepare_momentary_fx_start, prepare_momentary_fx_update,
-    FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig,
+    FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig, MixerRoute,
     MomentaryFxTarget, SampleBankConfig, SampleBankParamId, SampleBuffer, SourceWorkerHealth,
     SynthParamId, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
@@ -234,7 +234,7 @@ fn instrument(kind: &str, route: &str) -> InstrumentSlotConfig {
         kind: kind.into(),
         synth: default_synth_config(),
         mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-            route: route.into(),
+            route: MixerRoute::from_wire_name(route).unwrap(),
             pan_pos: DEFAULT_PAN_POSITIONS / 2,
             volume: 100.0,
         }),

@@ -1,8 +1,8 @@
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_momentary_fx_start, FxBusConfig,
     FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MasterFxConfig, MixerConfig, MomentaryFxTarget, VoiceStealingMode, DEFAULT_PAN_POSITIONS,
-    INSTRUMENT_SLOT_COUNT,
+    MasterFxConfig, MixerConfig, MixerRoute, MomentaryFxTarget, VoiceStealingMode,
+    DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use rodio_engine_source::EngineEvent;
 use std::collections::BTreeMap;
@@ -109,7 +109,7 @@ fn bus_heavy_instruments() -> InstrumentsConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: format!("fx_bus_{}", (slot % 4) + 1),
+                    route: MixerRoute::FxBus(slot % 4),
                     pan_pos: slot.min(DEFAULT_PAN_POSITIONS - 1),
                     volume: 100.0,
                 }),
@@ -141,9 +141,9 @@ fn fx_limit_instruments(bus_slots: usize) -> InstrumentsConfig {
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
                     route: if bus_slots == 0 {
-                        "direct".into()
+                        MixerRoute::Direct
                     } else {
-                        format!("fx_bus_{}", (slot % active_buses) + 1)
+                        MixerRoute::FxBus(slot % active_buses)
                     },
                     pan_pos: slot.min(DEFAULT_PAN_POSITIONS - 1),
                     volume: 100.0,
@@ -283,10 +283,9 @@ mod tests {
                 .as_ref()
                 .expect("bus-heavy instrument mixer")
                 .route
-                .strip_prefix("fx_bus_")
-                .and_then(|index| index.parse::<usize>().ok())
+                .bus_index()
                 .expect("bus-heavy instrument route");
-            assert!((1..=BUS_COUNT).contains(&route));
+            assert!(route < BUS_COUNT);
         }
 
         let mut engine = SynthEngine::new(44_100);

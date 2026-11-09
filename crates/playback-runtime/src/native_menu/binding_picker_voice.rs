@@ -49,8 +49,8 @@ pub(super) fn instrument_binding_source(
         route: config
             .instrument_routes
             .get(index)
-            .map(String::as_str)
-            .unwrap_or("direct"),
+            .copied()
+            .unwrap_or_default(),
         volume: config.instrument_volumes.get(index).copied().unwrap_or(100),
         pan_pos: config
             .instrument_pan_positions

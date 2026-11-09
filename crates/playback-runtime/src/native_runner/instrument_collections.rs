@@ -54,10 +54,10 @@ pub(super) fn instrument_types(instruments: &[NativeInstrumentSlot]) -> Vec<Inst
         .collect()
 }
 
-pub(super) fn instrument_routes(instruments: &[NativeInstrumentSlot]) -> Vec<String> {
+pub(super) fn instrument_routes(instruments: &[NativeInstrumentSlot]) -> Vec<MixerRoute> {
     instruments
         .iter()
-        .map(|instrument| instrument.route.clone())
+        .map(|instrument| instrument.route)
         .collect()
 }
 

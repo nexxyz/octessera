@@ -34,7 +34,7 @@ fn instrument_enum_bindings_reject_values_outside_their_sets() {
     }
     assert_eq!(runner.instruments[0].kind, InstrumentType::Fm);
     assert_eq!(runner.instruments[0].note_behavior, NoteBehavior::Hold);
-    assert_eq!(runner.instruments[0].route, "fx_bus_2");
+    assert_eq!(runner.instruments[0].route, MixerRoute::FxBus(1));
 }
 
 #[test]
@@ -59,13 +59,13 @@ fn unversioned_payload_ignores_an_unknown_instrument_route() {
             "runtimeConfig": { "instruments": [{ "mixer": { "route": "fx_bus_9" } }] }
         }))
         .unwrap();
-    assert_eq!(runner.instruments[0].route, "direct");
+    assert_eq!(runner.instruments[0].route, MixerRoute::Direct);
     runner
         .apply_config_payload(json!({
             "runtimeConfig": { "instruments": [{ "mixer": { "route": "fx_bus_1" } }] }
         }))
         .unwrap();
-    assert_eq!(runner.instruments[0].route, "fx_bus_1");
+    assert_eq!(runner.instruments[0].route, MixerRoute::FxBus(0));
 }
 
 #[test]

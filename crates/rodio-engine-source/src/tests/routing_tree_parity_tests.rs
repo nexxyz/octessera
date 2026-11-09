@@ -1,7 +1,7 @@
 use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_instruments_config, FxBusConfig, FxBusSlotConfig,
-    InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig,
+    InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig, MixerRoute,
     SourceWorkerHealth, DEFAULT_PAN_POSITIONS,
 };
 use serde_json::json;
@@ -101,7 +101,7 @@ fn threaded_parity_config() -> InstrumentsConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_1".into(),
+                    route: MixerRoute::FxBus(0),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),
@@ -113,7 +113,7 @@ fn threaded_parity_config() -> InstrumentsConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".into(),
+                    route: MixerRoute::Direct,
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 25.0,
                 }),
@@ -125,7 +125,7 @@ fn threaded_parity_config() -> InstrumentsConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_1".into(),
+                    route: MixerRoute::FxBus(0),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 40.0,
                 }),
@@ -137,7 +137,7 @@ fn threaded_parity_config() -> InstrumentsConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_2".into(),
+                    route: MixerRoute::FxBus(1),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 35.0,
                 }),

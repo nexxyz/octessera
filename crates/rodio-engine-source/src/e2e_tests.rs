@@ -3,8 +3,8 @@ use crate::queue::{MUSICAL_QUEUE_CAPACITY, STRUCTURAL_QUEUE_CAPACITY};
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_instrument_slot_config,
     prepare_momentary_fx_start, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MomentaryFxTarget,
-    SampleBankConfig, SampleBuffer, DEFAULT_PAN_POSITIONS,
+    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MixerRoute,
+    MomentaryFxTarget, SampleBankConfig, SampleBuffer, DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
 
@@ -49,7 +49,7 @@ fn sample_config() -> InstrumentsConfig {
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".into(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

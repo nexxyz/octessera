@@ -1,4 +1,5 @@
-use super::{enum_item, group, number_item, selected_index, InstrumentMenuConfig, NativeMenuItem};
+use super::{enum_item, group, number_item, InstrumentMenuConfig, NativeMenuItem};
+use realtime_engine::synth::MixerRoute;
 
 pub(super) fn mixer_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     group(
@@ -7,11 +8,11 @@ pub(super) fn mixer_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
             enum_item(
                 "Route",
                 format!("{prefix}.mixer.route"),
-                vec!["direct", "fx_bus_1", "fx_bus_2", "fx_bus_3", "fx_bus_4"],
-                selected_index(
-                    &["direct", "fx_bus_1", "fx_bus_2", "fx_bus_3", "fx_bus_4"],
-                    config.route,
-                ),
+                MixerRoute::ALL.map(MixerRoute::wire_name).into(),
+                MixerRoute::ALL
+                    .iter()
+                    .position(|route| *route == config.route)
+                    .unwrap_or(0),
             ),
             number_item(
                 "Volume",
@@ -27,7 +28,7 @@ pub(super) fn mixer_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
 }
 
 fn pan_item(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
-    if config.route.starts_with("fx_bus_") {
+    if config.route.bus_index().is_some() {
         group("Pan Pos: from bus", vec![])
     } else {
         number_item(

@@ -85,7 +85,7 @@ fn factory_load_confirm_replaces_one_slot_only_and_schedules_autosave() {
             derive_instrument_name(2, InstrumentType::from_wire_name(kind).unwrap());
         runner.instruments[2].volume = 37;
         runner.instruments[2].pan_pos = 3;
-        runner.instruments[2].route = "fx_bus_2".into();
+        runner.instruments[2].route = MixerRoute::FxBus(1);
         runner.instruments[2].note_behavior = NoteBehavior::Hold;
         let before = runner.instruments.clone();
         runner.menu.rebuild(runner.menu_config());

@@ -1,6 +1,6 @@
 use super::*;
 use crate::native_runner::AudioOutputSet;
-use realtime_engine::synth::DspRuntimeConfig;
+use realtime_engine::synth::{DspRuntimeConfig, MixerRoute};
 
 pub(crate) fn config() -> NativeMenuConfig {
     NativeMenuConfig {
@@ -117,7 +117,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         instrument_types: vec![InstrumentType::Synth],
         instrument_auto_names: vec![true],
         instrument_note_behaviors: vec![NoteBehavior::Oneshot],
-        instrument_routes: vec!["direct".into()],
+        instrument_routes: vec![MixerRoute::Direct],
         instrument_volumes: vec![100],
         instrument_pan_positions: vec![16],
         instrument_sample_slots: vec![0],

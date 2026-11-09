@@ -50,7 +50,7 @@ fn slot(kind: &str, config: Option<&Value>) -> Option<InstrumentSlotConfig> {
         },
         drum: None,
         mixer: Some(InstrumentMixerConfig {
-            route: "direct".into(),
+            route: MixerRoute::Direct,
             pan_pos: DEFAULT_PAN_POSITIONS / 2,
             volume: 100.0,
         }),

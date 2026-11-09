@@ -40,7 +40,7 @@ impl SynthEngine {
             (synth, SynthVoiceRenderConfig::from_config(synth))
         };
         let mixer = mixer.map(|mixer| NormalizedInstrumentMixer {
-            route: parse_route(&mixer.route),
+            route: slot_route(mixer.route),
             pan_pos: mixer.pan_pos.min(self.pan_positions - 1),
             volume: (mixer.volume / 100.0).clamp(0.0, 1.0),
         });

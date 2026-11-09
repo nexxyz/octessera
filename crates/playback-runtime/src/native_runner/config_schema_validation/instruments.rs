@@ -9,7 +9,7 @@ use crate::native_menu::{
     MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES, MIDI_DRUM_VELOCITIES,
 };
 use platform_core::{NoteBehavior, INSTRUMENT_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT};
-use realtime_engine::synth::VoiceStealingMode;
+use realtime_engine::synth::{MixerRoute, VoiceStealingMode};
 use serde_json::Map;
 
 const VELOCITY_CURVES: &[&str] = &["linear", "soft", "hard"];
@@ -439,16 +439,8 @@ fn validate_route(object: &Map<String, Value>, path: &str) -> Result<(), String>
     let route = value
         .as_str()
         .ok_or_else(|| format!("{path}.route must be a string"))?;
-    if !is_known_route(route) {
+    if MixerRoute::from_wire_name(route).is_none() {
         return Err(format!("{path}.route has unknown route `{route}`"));
     }
     Ok(())
-}
-
-pub(crate) fn is_known_route(route: &str) -> bool {
-    route == "direct"
-        || route
-            .strip_prefix("fx_bus_")
-            .and_then(|value| value.parse::<usize>().ok())
-            .is_some_and(|index| index > 0 && index <= platform_core::BUS_COUNT)
 }

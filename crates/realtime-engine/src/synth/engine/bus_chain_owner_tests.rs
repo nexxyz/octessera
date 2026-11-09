@@ -446,7 +446,7 @@ fn four_bus_config() -> InstrumentsConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: format!("fx_bus_{}", slot + 1),
+                    route: MixerRoute::FxBus(slot),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),

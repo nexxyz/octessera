@@ -3,7 +3,7 @@ use super::{
     InstrumentSlotConfig, InstrumentsConfig, MixerConfig, SourceWorkerLifecycle,
     SourceWorkerRenderDisposition, SynthEngine,
 };
-use crate::synth::types::{default_synth_config, DEFAULT_PAN_POSITIONS};
+use crate::synth::types::{default_synth_config, MixerRoute, DEFAULT_PAN_POSITIONS};
 use crate::synth::{MomentaryFxTarget, SampleBankConfig, SampleBuffer};
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -368,7 +368,7 @@ fn migration_slot(kind: &str, route: &str) -> InstrumentSlotConfig {
         kind: kind.into(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {
-            route: route.into(),
+            route: MixerRoute::from_wire_name(route).unwrap(),
             pan_pos: DEFAULT_PAN_POSITIONS / 2,
             volume: 100.0,
         }),

@@ -1,8 +1,8 @@
 use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_instruments_config, FxBusConfig, FxBusSlotConfig,
-    InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig, SignalSource,
-    DEFAULT_PAN_POSITIONS,
+    InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MixerConfig, MixerRoute,
+    SignalSource, DEFAULT_PAN_POSITIONS,
 };
 
 fn sounding_source(tap: &'static SignalTap) -> EngineSource {
@@ -61,7 +61,7 @@ fn bus_routed_synth_events() -> (EngineEventSender, EngineEventReceiver) {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".into(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

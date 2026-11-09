@@ -163,7 +163,7 @@ fn every_enum_fixture(round: usize, voice_stealing: &str, play_mode: &str) -> Va
         let instrument = &mut runtime["instruments"][index];
         instrument["type"] = json!(kind);
         instrument["noteBehavior"] = json!(note_behavior(index, kind));
-        instrument["mixer"]["route"] = json!(ROUTES[index % ROUTES.len()]);
+        instrument["mixer"]["route"] = json!(ROUTES[(index + round) % ROUTES.len()]);
         instrument["synth"]["osc1"]["waveform"] = json!(WAVEFORMS[index % WAVEFORMS.len()]);
         instrument["synth"]["osc2"]["waveform"] = json!(WAVEFORMS[(index + 2) % WAVEFORMS.len()]);
         instrument["synth"]["filter"]["type"] = json!(FILTER_TYPES[index % FILTER_TYPES.len()]);
@@ -218,7 +218,10 @@ fn every_saved_enum_value_loads_and_saves_byte_identically() {
         for (index, kind) in INSTRUMENT_TYPES.iter().enumerate() {
             let instrument = &runtime["instruments"][index];
             assert_eq!(instrument["type"], *kind);
-            assert_eq!(instrument["mixer"]["route"], ROUTES[index % ROUTES.len()]);
+            assert_eq!(
+                instrument["mixer"]["route"],
+                ROUTES[(index + round) % ROUTES.len()]
+            );
             assert_eq!(instrument["noteBehavior"], note_behavior(index, kind));
         }
     }

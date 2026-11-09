@@ -1,8 +1,8 @@
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_momentary_fx_start, FxBusConfig,
     FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MasterFxConfig, MixerConfig, MomentaryFxTarget, SampleBankConfig, VoiceStealingMode,
-    DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    MasterFxConfig, MixerConfig, MixerRoute, MomentaryFxTarget, SampleBankConfig,
+    VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use rodio_engine_source::EngineEvent;
 use std::collections::BTreeMap;
@@ -201,7 +201,7 @@ fn instruments(
                 kind: (*kind).into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: route_name(routes[slot]),
+                    route: mixer_route(routes[slot]),
                     pan_pos: slot.min(DEFAULT_PAN_POSITIONS - 1),
                     volume: 100.0,
                 }),
@@ -364,12 +364,10 @@ fn push_distributed_notes_in_slots(
     }
 }
 
-fn route_name(route: usize) -> String {
-    if route == 0 {
-        "direct".into()
-    } else {
-        format!("fx_bus_{route}")
-    }
+fn mixer_route(route: usize) -> MixerRoute {
+    route
+        .checked_sub(1)
+        .map_or(MixerRoute::Direct, MixerRoute::FxBus)
 }
 
 fn fx_kind(index: usize) -> &'static str {

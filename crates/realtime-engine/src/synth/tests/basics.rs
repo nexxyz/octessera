@@ -48,7 +48,7 @@ fn mixer_volume_controls_synth_output() {
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".to_string(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 0.0,
             }),
@@ -66,7 +66,7 @@ fn mixer_volume_controls_synth_output() {
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".to_string(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -98,7 +98,7 @@ fn mixer_pan_controls_synth_output() {
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".to_string(),
+                route: MixerRoute::Direct,
                 pan_pos: 0,
                 volume: 100.0,
             }),
@@ -130,7 +130,7 @@ fn routes_through_dynamic_bus_count_without_allocating_bus_vec() {
             kind: "synth".to_string(),
             synth: cfg,
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_2".to_string(),
+                route: MixerRoute::FxBus(1),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

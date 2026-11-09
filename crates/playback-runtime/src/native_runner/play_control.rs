@@ -182,12 +182,7 @@ impl NativeRunner {
         else {
             return;
         };
-        let bus_index = instrument
-            .route
-            .strip_prefix("fx_bus_")
-            .and_then(|value| value.parse::<usize>().ok())
-            .and_then(|value| value.checked_sub(1));
-        let Some(bus_index) = bus_index else {
+        let Some(bus_index) = instrument.route.bus_index() else {
             self.set_play_menu_number(&format!("instruments.{y}.mixer.panPos"), pan_pos);
             return;
         };

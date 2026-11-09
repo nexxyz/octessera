@@ -11,7 +11,7 @@ fn sample_instrument_routes_through_bus_fx_delay_tail() {
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".to_string(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -61,7 +61,7 @@ fn sample_instrument_routes_through_bus_fx_slot3_delay_tail() {
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".to_string(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -112,7 +112,7 @@ fn sample_preview_skips_the_slot_bus_and_its_delay_tail() {
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".to_string(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

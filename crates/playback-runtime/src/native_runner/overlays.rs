@@ -272,12 +272,7 @@ impl NativeRunner {
     }
 
     pub(super) fn play_pan_target(&self, instrument: &NativeInstrumentSlot) -> (u8, LedColor) {
-        if let Some(bus_index) = instrument
-            .route
-            .strip_prefix("fx_bus_")
-            .and_then(|value| value.parse::<usize>().ok())
-            .and_then(|value| value.checked_sub(1))
-        {
+        if let Some(bus_index) = instrument.route.bus_index() {
             let pan = self
                 .fx_buses
                 .get(bus_index)

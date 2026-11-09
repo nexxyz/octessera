@@ -11,7 +11,7 @@ fn master_volume_controls_final_output_gain() {
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".to_string(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -29,7 +29,7 @@ fn master_volume_controls_final_output_gain() {
             kind: "sampler".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".to_string(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -67,7 +67,7 @@ fn master_fx_processes_bus_routed_output() {
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".to_string(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -92,7 +92,7 @@ fn master_fx_processes_bus_routed_output() {
             kind: "synth".to_string(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".to_string(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -141,7 +141,7 @@ fn master_compressor_is_stereo_linked() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".to_string(),
+                    route: MixerRoute::Direct,
                     pan_pos: 0,
                     volume: 0.0,
                 }),
@@ -153,7 +153,7 @@ fn master_compressor_is_stereo_linked() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".to_string(),
+                    route: MixerRoute::Direct,
                     pan_pos: DEFAULT_PAN_POSITIONS - 1,
                     volume: 25.0,
                 }),
@@ -188,7 +188,7 @@ fn master_compressor_is_stereo_linked() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".to_string(),
+                    route: MixerRoute::Direct,
                     pan_pos: 0,
                     volume: 100.0,
                 }),
@@ -200,7 +200,7 @@ fn master_compressor_is_stereo_linked() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".to_string(),
+                    route: MixerRoute::Direct,
                     pan_pos: DEFAULT_PAN_POSITIONS - 1,
                     volume: 25.0,
                 }),
@@ -268,7 +268,7 @@ fn set_instruments_preserves_unchanged_master_fx_state() {
             kind: "synth".to_string(),
             synth: slot_cfg,
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".to_string(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

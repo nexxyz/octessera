@@ -2,7 +2,8 @@ use super::param_path_validation::validate_fx_type;
 use super::types::{
     default_synth_config, DrumConfig, FmConfig, FxBusConfig, FxBusSlotConfig,
     InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig,
-    PluckConfig, SynthConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    MixerRoute, PluckConfig, SynthConfig, VoiceStealingMode, DEFAULT_PAN_POSITIONS,
+    INSTRUMENT_SLOT_COUNT,
 };
 pub use sample_payload::NormalizedSampleConfig;
 use sample_payload::{normalize_sample, AudioSamplePayload};
@@ -115,7 +116,7 @@ struct AudioInstrumentPayload {
 #[serde(rename_all = "camelCase")]
 struct AudioInstrumentMixerPayload {
     #[serde(default)]
-    route: Option<String>,
+    route: Option<MixerRoute>,
     #[serde(default)]
     pan_pos: Option<usize>,
     #[serde(default)]
@@ -256,8 +257,8 @@ fn normalize_instrument_slot(
             mixer: Some(InstrumentMixerConfig {
                 route: mixer
                     .as_ref()
-                    .and_then(|mixer| mixer.route.clone())
-                    .unwrap_or_else(|| "direct".to_string()),
+                    .and_then(|mixer| mixer.route)
+                    .unwrap_or_default(),
                 pan_pos: mixer.as_ref().and_then(|mixer| mixer.pan_pos).unwrap_or(16),
                 volume: mixer
                     .as_ref()

@@ -1,6 +1,6 @@
 use super::{
-    apply_instrument_numeric_binding_value, is_known_route, set_json_path_string, synth_string_at,
-    value_string_at, InstrumentType, Value, FILTER_TYPES, OSC_WAVEFORMS,
+    apply_instrument_numeric_binding_value, set_json_path_string, synth_string_at, value_string_at,
+    InstrumentType, MixerRoute, Value, FILTER_TYPES, OSC_WAVEFORMS,
 };
 use platform_core::NoteBehavior;
 
@@ -31,11 +31,11 @@ pub(super) fn apply_instrument_binding_value(
             }
         }
         "mixer.route" => {
-            let Some(value) = value.as_str().filter(|value| is_known_route(value)) else {
+            let Some(value) = value.as_str().and_then(MixerRoute::from_wire_name) else {
                 return false;
             };
             if instrument.route != value {
-                instrument.route = value.into();
+                instrument.route = value;
             } else {
                 return false;
             }

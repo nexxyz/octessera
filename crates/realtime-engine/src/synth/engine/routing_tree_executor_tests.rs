@@ -194,7 +194,7 @@ fn routing_tree_matches_canonical_for_mixed_direct_sources() {
     let mut config = routed_config();
     config.mixer = None;
     for instrument in &mut config.instruments {
-        instrument.mixer.as_mut().unwrap().route = "direct".into();
+        instrument.mixer.as_mut().unwrap().route = MixerRoute::Direct;
     }
     let mut tree = SynthEngine::new(48_000);
     let mut reference = SynthEngine::new(48_000);

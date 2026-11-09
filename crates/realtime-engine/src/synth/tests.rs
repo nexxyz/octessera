@@ -1,8 +1,9 @@
 use super::engine::FREEZE_INJECT_MS;
 use super::{
     default_synth_config, FilterType, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MomentaryFxTarget,
-    SampleBankConfig, SampleBuffer, SynthEngine, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MixerRoute,
+    MomentaryFxTarget, SampleBankConfig, SampleBuffer, SynthEngine, DEFAULT_PAN_POSITIONS,
+    INSTRUMENT_SLOT_COUNT,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -53,7 +54,7 @@ fn duck_test_engine(with_duck: bool) -> SynthEngine {
                 kind: "sampler".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_2".to_string(),
+                    route: MixerRoute::FxBus(1),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),
@@ -65,7 +66,7 @@ fn duck_test_engine(with_duck: bool) -> SynthEngine {
                 kind: "sampler".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_1".to_string(),
+                    route: MixerRoute::FxBus(0),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),

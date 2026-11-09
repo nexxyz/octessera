@@ -1,4 +1,7 @@
+mod mixer_route;
 mod sample_bank;
+
+pub use mixer_route::MixerRoute;
 
 pub use sample_bank::{
     SampleBankConfig, SampleBuffer, SampleLoopMode, SamplePlaybackConfig, SampleShapeConfig,
@@ -319,7 +322,7 @@ pub struct InstrumentSlotConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InstrumentMixerConfig {
-    pub route: String,
+    pub route: MixerRoute,
     #[serde(rename = "panPos")]
     pub pan_pos: usize,
     #[serde(default = "default_mixer_volume")]

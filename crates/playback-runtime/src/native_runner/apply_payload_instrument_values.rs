@@ -1,7 +1,7 @@
 use super::apply_payload_mixer_values::nested_u64;
 use super::sample_assignment_payload::tile_offset;
 use super::{
-    sample_assignment_from_payload, sanitize_pan_position_payload, InstrumentType,
+    sample_assignment_from_payload, sanitize_pan_position_payload, InstrumentType, MixerRoute,
     NativeInstrumentSlot, NativeSamplePlayback, NativeTileStamp, Value, SAMPLE_SLOT_COUNT,
 };
 use crate::native_menu::{SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT};
@@ -66,9 +66,9 @@ pub(super) fn apply_instrument_mixer_payload(slot: &Value, instrument: &mut Nati
     if let Some(route) = mixer
         .get("route")
         .and_then(Value::as_str)
-        .filter(|route| super::is_known_route(route))
+        .and_then(MixerRoute::from_wire_name)
     {
-        instrument.route = route.into();
+        instrument.route = route;
     }
 }
 

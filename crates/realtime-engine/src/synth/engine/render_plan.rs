@@ -1,6 +1,6 @@
 use super::super::fx_params::{duck_source_from_config, DuckSource, FxKind};
 use super::super::types::{
-    FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, BUS_SLOTS_PER_BUS,
+    FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig, MixerRoute, BUS_SLOTS_PER_BUS,
     GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT,
 };
 
@@ -194,7 +194,7 @@ pub(super) fn prepared_instrument_topology(
     let route = slot
         .mixer
         .as_ref()
-        .map(|mixer| render_plan_route(parse_route(&mixer.route)));
+        .map(|mixer| render_plan_route(slot_route(mixer.route)));
     PreparedInstrumentTopology {
         kind,
         occupied: kind != InstrumentKind::None,
@@ -227,18 +227,8 @@ pub(super) enum InstrumentKind {
     None,
 }
 
-pub(super) fn parse_route(route: &str) -> usize {
-    if route == "direct" {
-        return 0;
-    }
-    if let Some(rest) = route.strip_prefix("fx_bus_") {
-        if let Ok(n) = rest.parse::<usize>() {
-            if n >= 1 {
-                return n;
-            }
-        }
-    }
-    0
+pub(super) fn slot_route(route: MixerRoute) -> usize {
+    route.bus_index().map_or(0, |index| index + 1)
 }
 
 pub(super) fn parse_instrument_kind(kind: &str) -> InstrumentKind {

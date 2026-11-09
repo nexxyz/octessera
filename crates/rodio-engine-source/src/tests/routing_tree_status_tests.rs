@@ -2,7 +2,7 @@ use super::*;
 use realtime_engine::synth::{
     default_synth_config, prepare_audio_config, prepare_fx_bus_slot, prepare_instruments_config,
     AudioLoadStatus, FxBusConfig, FxBusSlotConfig, InstrumentSlotConfig, InstrumentsConfig,
-    MasterFxConfig, MixerConfig, MomentaryFxTarget, SampleBankConfig, SampleBuffer,
+    MasterFxConfig, MixerConfig, MixerRoute, MomentaryFxTarget, SampleBankConfig, SampleBuffer,
     SourceWorkerHealth, SynthProfileSnapshot, DEFAULT_PAN_POSITIONS,
 };
 use std::collections::BTreeMap;
@@ -316,7 +316,7 @@ fn initial_routing_config() -> InstrumentsConfig {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                route: "direct".into(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -451,7 +451,7 @@ fn routing_status_config() -> realtime_engine::synth::PreparedAudioConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                    route: "fx_bus_1".into(),
+                    route: MixerRoute::FxBus(0),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),
@@ -463,7 +463,7 @@ fn routing_status_config() -> realtime_engine::synth::PreparedAudioConfig {
                 kind: "sampler".into(),
                 synth: default_synth_config(),
                 mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                    route: "direct".into(),
+                    route: MixerRoute::Direct,
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),

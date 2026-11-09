@@ -2,7 +2,7 @@ use super::*;
 use crossbeam_channel::bounded;
 use realtime_engine::synth::{
     default_synth_config, install_source_worker_shutdown_probe_for_test, InstrumentSlotConfig,
-    InstrumentsConfig, SourceWorkerSetupError, DEFAULT_PAN_POSITIONS,
+    InstrumentsConfig, MixerRoute, SourceWorkerSetupError, DEFAULT_PAN_POSITIONS,
 };
 use std::sync::mpsc;
 use std::thread;
@@ -206,7 +206,7 @@ fn direct_synth_instruments() -> InstrumentsConfig {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(realtime_engine::synth::InstrumentMixerConfig {
-                route: "direct".into(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

@@ -186,7 +186,7 @@ pub(crate) fn canonical_bus_route_survives_config_load_and_persists() {
 
     runner.apply_config_payload(payload).unwrap();
 
-    assert_eq!(runner.instruments[0].route, "fx_bus_2");
+    assert_eq!(runner.instruments[0].route, MixerRoute::FxBus(1));
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["instruments"][0]["mixer"]["route"],
         "fx_bus_2"

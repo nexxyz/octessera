@@ -182,7 +182,7 @@ fn prepared_full_plan_route_only_changes_once_and_retires_previous() {
     let mut engine = prepared_engine(test_config());
     let before = engine.render_plan.clone();
     let mut changed = test_config();
-    changed.instruments[0].mixer.as_mut().unwrap().route = "direct".into();
+    changed.instruments[0].mixer.as_mut().unwrap().route = MixerRoute::Direct;
     let retired = install_prepared_config(&mut engine, changed);
     assert_full_plan_change(&engine, &before, &retired);
     assert_eq!(
@@ -201,7 +201,7 @@ fn prepared_full_plan_multiple_structural_changes_increment_once() {
     let before = engine.render_plan.clone();
     let mut changed = test_config();
     changed.instruments[0].kind = "sampler".into();
-    changed.instruments[0].mixer.as_mut().unwrap().route = "direct".into();
+    changed.instruments[0].mixer.as_mut().unwrap().route = MixerRoute::Direct;
     changed.mixer.as_mut().unwrap().buses[0].slots[0] = FxBusSlotConfig::Kind("reverb".into());
     let retired = install_prepared_config(&mut engine, changed);
     assert_full_plan_change(&engine, &before, &retired);
@@ -285,7 +285,7 @@ fn canonical_full_plan_changes_once_for_multiple_structural_axes() {
     engine.set_instruments(test_config());
     let before = engine.render_plan.clone();
     let mut changed = test_config();
-    changed.instruments[0].mixer.as_mut().unwrap().route = "direct".into();
+    changed.instruments[0].mixer.as_mut().unwrap().route = MixerRoute::Direct;
     changed.mixer.as_mut().unwrap().buses[0].slots[0] = FxBusSlotConfig::Kind("reverb".into());
     engine.set_instruments(changed);
     assert_eq!(
@@ -304,7 +304,7 @@ fn individual_prepared_plan_updates_still_increment_once() {
     let mut engine = prepared_engine(test_config());
     let before_instrument = engine.render_plan.generation;
     let mut slot = test_slot("sampler", true);
-    slot.mixer.as_mut().unwrap().route = "direct".into();
+    slot.mixer.as_mut().unwrap().route = MixerRoute::Direct;
     drop(engine.apply_prepared_instrument_slot(0, prepare_instrument_slot_config(slot)));
     assert_eq!(
         engine.render_plan.generation,
@@ -418,7 +418,7 @@ pub(super) fn test_config() -> InstrumentsConfig {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".into(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: 16,
                 volume: 100.0,
             }),
@@ -464,7 +464,7 @@ pub(super) fn test_slot(kind: &str, with_mixer: bool) -> InstrumentSlotConfig {
         kind: kind.into(),
         synth,
         mixer: with_mixer.then_some(InstrumentMixerConfig {
-            route: "fx_bus_1".into(),
+            route: MixerRoute::FxBus(0),
             pan_pos: 20,
             volume: 37.5,
         }),

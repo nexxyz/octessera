@@ -4,8 +4,8 @@ use crate::scenario::{IsolatedFx, Scenario};
 use fx_slots::{fx_slot, master_fx_slot};
 use realtime_engine::synth::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, BUS_SLOTS_PER_BUS,
-    DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MixerRoute,
+    BUS_SLOTS_PER_BUS, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -205,7 +205,7 @@ fn instrument(
         kind: kind.to_string(),
         synth,
         mixer: Some(InstrumentMixerConfig {
-            route: route.to_string(),
+            route: MixerRoute::from_wire_name(route).expect("known bench route"),
             pan_pos: pan_pos % DEFAULT_PAN_POSITIONS,
             volume: 100.0,
         }),

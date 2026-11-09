@@ -67,7 +67,7 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
         "mixer": {
             "volume": instrument.volume,
             "panPos": instrument.pan_pos,
-            "route": instrument.route.clone()
+            "route": instrument.route
         }
     })
 }

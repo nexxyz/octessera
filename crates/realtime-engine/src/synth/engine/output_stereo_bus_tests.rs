@@ -231,7 +231,7 @@ fn routed_sampler_slot() -> InstrumentSlotConfig {
         kind: "sampler".to_string(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {
-            route: "fx_bus_1".to_string(),
+            route: MixerRoute::FxBus(0),
             pan_pos: DEFAULT_PAN_POSITIONS / 2,
             volume: 100.0,
         }),

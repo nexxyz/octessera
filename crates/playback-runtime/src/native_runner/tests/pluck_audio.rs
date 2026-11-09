@@ -50,7 +50,7 @@ fn pluck_transposed_held_notes_keep_internal_slot_and_mixer_route() {
 
     let mut instrument = NativeInstrumentSlot::new(0);
     instrument.kind = InstrumentType::Pluck;
-    instrument.route = "fx_bus_2".into();
+    instrument.route = MixerRoute::FxBus(1);
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0] = instrument.clone();
     assert!(runner.play_transpose_target_eligible(0, TriggerAction::NoteOn));

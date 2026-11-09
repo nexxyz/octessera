@@ -12,7 +12,7 @@ mod modulation;
 mod orchestration;
 mod scalar;
 
-pub(super) use instruments::{is_known_route, FILTER_TYPES, OSC_WAVEFORMS};
+pub(super) use instruments::{FILTER_TYPES, OSC_WAVEFORMS};
 pub use mixer_fx::is_valid_fx_string_param;
 pub(super) use modulation::validate_canonical_lfo_bank_shape;
 

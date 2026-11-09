@@ -290,7 +290,7 @@ pub(crate) fn fx_type_label(slot_type: &str) -> &'static str {
     }
 }
 
-fn compact_route_value(value: &str) -> String {
+pub(super) fn compact_route_value(value: &str) -> String {
     value
         .strip_prefix("fx_bus_")
         .map(|suffix| format!("fxb{suffix}"))

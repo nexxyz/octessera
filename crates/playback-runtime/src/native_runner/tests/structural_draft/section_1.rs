@@ -304,7 +304,7 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
             .as_deref(),
         Some("fx_bus_1")
     );
-    assert_eq!(runner.instruments[0].route, "fx_bus_1");
+    assert_eq!(runner.instruments[0].route, MixerRoute::FxBus(0));
     assert_eq!(
         runner.menu.root.children[2].children[0].children[0].label,
         "I1: Synth fxb1"
@@ -328,7 +328,7 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     )));
 
     let messages = press_main(&mut runner);
-    assert_eq!(runner.instruments[0].route, "fx_bus_1");
+    assert_eq!(runner.instruments[0].route, MixerRoute::FxBus(0));
     assert_eq!(runner.audio_revisions.revision, 1);
     assert_no_store_save_default(&messages);
     assert_no_audio_commands(&messages);
@@ -343,7 +343,7 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     assert!(runner.menu.focus_item_key("instruments.0.mixer.panPos"));
     let snapshot = runner.menu.snapshot();
     assert!(snapshot.lines.iter().any(|line| line == "  Pan Pos C"));
-    assert_eq!(runner.instruments[0].route, "direct");
+    assert_eq!(runner.instruments[0].route, MixerRoute::Direct);
     assert_eq!(runner.audio_revisions.revision, 2);
     runner.make_deferred_menu_apply_due_for_test();
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());

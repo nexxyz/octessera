@@ -209,7 +209,7 @@ use momentary_fx_state::parse_momentary_fx_kind;
 use momentary_fx_state::{MomentaryFxKind, MomentaryFxState};
 use pan_law::{pan_gains, pan_gains_float};
 use render_plan::RenderPlan;
-use render_plan::{parse_instrument_kind, parse_route, InstrumentKind};
+use render_plan::{parse_instrument_kind, slot_route, InstrumentKind};
 use render_routing::FxBusOutputSpreadState;
 #[cfg(feature = "routing-tree-executor")]
 use routing_tree_executor::RoutingTreeAssignment;

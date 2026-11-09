@@ -121,7 +121,7 @@ fn route_rows_set_the_saved_route_without_moving_the_menu() {
     let mut runner = route_runner();
 
     let _ = press(&mut runner, 1, 2);
-    assert_eq!(runner.instruments[1].route, "fx_bus_2");
+    assert_eq!(runner.instruments[1].route, MixerRoute::FxBus(1));
     assert_eq!(toast(&runner), "I2 B2");
     assert_eq!(
         runner
@@ -143,7 +143,7 @@ fn route_rows_set_the_saved_route_without_moving_the_menu() {
     );
 
     let _ = press(&mut runner, 1, 0);
-    assert_eq!(runner.instruments[1].route, "direct");
+    assert_eq!(runner.instruments[1].route, MixerRoute::Direct);
     assert_eq!(toast(&runner), "I2 direct");
 }
 
@@ -155,7 +155,7 @@ fn midi_slots_are_dark_and_ignore_route_and_duck_presses() {
     }
     let _ = press(&mut runner, 7, 3);
     let _ = press(&mut runner, 7, 7);
-    assert_eq!(runner.instruments[7].route, "direct");
+    assert_eq!(runner.instruments[7].route, MixerRoute::Direct);
     assert_eq!(duck_source(&runner, 1, 1), "I1");
     assert!(!runner.config_dirty);
 }
@@ -182,7 +182,7 @@ fn bus_bypass_is_live_only_and_gates_every_slot_command() {
     assert!(!runner.config_dirty);
 
     let mut rerouted = press(&mut runner, 2, 1);
-    assert_eq!(runner.instruments[2].route, "fx_bus_1");
+    assert_eq!(runner.instruments[2].route, MixerRoute::FxBus(0));
     rerouted.extend(runner.messages_with_snapshot().unwrap());
     assert!(audio_commands(&rerouted)
         .iter()

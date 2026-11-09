@@ -12,7 +12,7 @@ fn compressor_quieter_when_above_threshold() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".to_string(),
+                    route: MixerRoute::Direct,
                     pan_pos: 4,
                     volume: 100.0,
                 }),
@@ -34,7 +34,7 @@ fn compressor_quieter_when_above_threshold() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_1".to_string(),
+                    route: MixerRoute::FxBus(0),
                     pan_pos: 4,
                     volume: 100.0,
                 }),
@@ -96,7 +96,7 @@ fn compressor_makeup_restores_gain() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".to_string(),
+                    route: MixerRoute::Direct,
                     pan_pos: 4,
                     volume: 100.0,
                 }),
@@ -118,7 +118,7 @@ fn compressor_makeup_restores_gain() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_1".to_string(),
+                    route: MixerRoute::FxBus(0),
                     pan_pos: 4,
                     volume: 100.0,
                 }),
@@ -176,7 +176,7 @@ fn eq_boosts_and_cuts_band_energy() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".to_string(),
+                    route: MixerRoute::Direct,
                     pan_pos: 4,
                     volume: 100.0,
                 }),
@@ -198,7 +198,7 @@ fn eq_boosts_and_cuts_band_energy() {
                 kind: "synth".to_string(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "fx_bus_1".to_string(),
+                    route: MixerRoute::FxBus(0),
                     pan_pos: 4,
                     volume: 100.0,
                 }),

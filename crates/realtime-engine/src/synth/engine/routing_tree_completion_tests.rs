@@ -13,7 +13,7 @@ use super::{
     MixerConfig, SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerRenderDisposition,
     SynthEngine,
 };
-use crate::synth::types::{default_synth_config, DEFAULT_PAN_POSITIONS};
+use crate::synth::types::{default_synth_config, MixerRoute, DEFAULT_PAN_POSITIONS};
 use crate::synth::{MomentaryFxTarget, SampleBankConfig, SampleBuffer, VoiceStealingMode};
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -390,7 +390,7 @@ fn hold_expiry_config() -> InstrumentsConfig {
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".into(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -413,7 +413,7 @@ fn momentary_expiry_config() -> InstrumentsConfig {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".into(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -449,7 +449,7 @@ fn duplicated_analogue_config() -> InstrumentsConfig {
                 kind: kind.into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: route.into(),
+                    route: MixerRoute::from_wire_name(route).unwrap(),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),

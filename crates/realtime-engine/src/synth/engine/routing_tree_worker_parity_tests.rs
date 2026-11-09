@@ -27,7 +27,7 @@ fn one_instrument_config(kind: &str, route: &str) -> InstrumentsConfig {
             kind: kind.into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: route.into(),
+                route: MixerRoute::from_wire_name(route).unwrap(),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

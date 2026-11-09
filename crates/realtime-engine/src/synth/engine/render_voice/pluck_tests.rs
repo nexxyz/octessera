@@ -10,7 +10,7 @@ fn pluck_slot(cfg: PluckConfig, route: &str) -> InstrumentSlotConfig {
         pluck: Some(cfg),
         drum: None,
         mixer: Some(InstrumentMixerConfig {
-            route: route.into(),
+            route: MixerRoute::from_wire_name(route).unwrap(),
             pan_pos: DEFAULT_PAN_POSITIONS / 2,
             volume: 100.0,
         }),

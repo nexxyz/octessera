@@ -4,7 +4,7 @@ use super::{
     InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig, SourceWorkerLifecycle,
     SourceWorkerRenderDisposition, SynthEngine,
 };
-use crate::synth::types::{default_synth_config, DEFAULT_PAN_POSITIONS};
+use crate::synth::types::{default_synth_config, MixerRoute, DEFAULT_PAN_POSITIONS};
 use crate::synth::{MomentaryFxTarget, SourceWorkerRuntime};
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -123,7 +123,7 @@ fn pitch_release_config() -> InstrumentsConfig {
             kind: "synth".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".into(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),

@@ -125,7 +125,7 @@ fn default_capacity_fixture_uses_shipped_slot_and_fx_topology() {
         instruments
             .instruments
             .iter()
-            .map(|slot| slot.mixer.as_ref().unwrap().route.as_str())
+            .map(|slot| slot.mixer.as_ref().unwrap().route.wire_name())
             .collect::<Vec<_>>(),
         [
             "fx_bus_1", "direct", "fx_bus_1", "fx_bus_2", "fx_bus_1", "direct", "fx_bus_1",

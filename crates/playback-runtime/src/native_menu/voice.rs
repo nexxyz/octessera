@@ -24,6 +24,7 @@ use midi_drum::midi_drum_group;
 use mixer::mixer_group;
 use platform_core::NoteBehavior;
 use pluck::pluck_group;
+use realtime_engine::synth::MixerRoute;
 use sampler::sampler_group;
 use synth::synth_group;
 
@@ -34,7 +35,7 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) kind: InstrumentType,
     pub(super) auto_name: bool,
     pub(super) note_behavior: NoteBehavior,
-    pub(super) route: &'a str,
+    pub(super) route: MixerRoute,
     pub(super) volume: u8,
     pub(super) pan_pos: u8,
     pub(super) sample_slot: usize,

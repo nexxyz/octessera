@@ -4,9 +4,9 @@ use super::routing_tree_plan::RoutingTreePlan;
 use super::SynthEngine;
 use crate::synth::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, SampleBankConfig,
-    SampleBuffer, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY,
-    SYNTH_VOICE_LANE_CAPACITY,
+    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MixerRoute,
+    SampleBankConfig, SampleBuffer, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -21,7 +21,7 @@ pub(super) fn direct_synth_config() -> InstrumentsConfig {
                 kind: "synth".into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".into(),
+                    route: MixerRoute::Direct,
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),
@@ -56,7 +56,7 @@ pub(super) fn master_fx_config() -> InstrumentsConfig {
 pub(super) fn raw_duck_config() -> InstrumentsConfig {
     let mut config = direct_synth_config();
     config.instruments[0].kind = "sampler".into();
-    config.instruments[0].mixer.as_mut().unwrap().route = "fx_bus_1".into();
+    config.instruments[0].mixer.as_mut().unwrap().route = MixerRoute::FxBus(0);
     config.instruments[1].kind = "sampler".into();
     config.instruments[1].mixer.as_mut().unwrap().volume = 25.0;
     config.instruments.push(InstrumentSlotConfig {
@@ -66,7 +66,7 @@ pub(super) fn raw_duck_config() -> InstrumentsConfig {
         kind: "sampler".into(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {
-            route: "fx_bus_2".into(),
+            route: MixerRoute::FxBus(1),
             pan_pos: DEFAULT_PAN_POSITIONS / 2,
             volume: 40.0,
         }),
@@ -124,7 +124,7 @@ pub(super) fn sample_direct_config() -> InstrumentsConfig {
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".into(),
+                route: MixerRoute::Direct,
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
@@ -137,7 +137,7 @@ pub(super) fn sample_direct_config() -> InstrumentsConfig {
 
 pub(super) fn sample_bus_config() -> InstrumentsConfig {
     let mut config = sample_direct_config();
-    config.instruments[0].mixer.as_mut().unwrap().route = "fx_bus_1".into();
+    config.instruments[0].mixer.as_mut().unwrap().route = MixerRoute::FxBus(0);
     config.mixer = Some(MixerConfig {
         buses: vec![FxBusConfig {
             slots: vec![FxBusSlotConfig::Kind("delay".into())],
@@ -153,7 +153,7 @@ pub(super) fn stereo_bus_config() -> InstrumentsConfig {
     let mut config = sample_direct_config();
     config.instruments[0].kind = "synth".into();
     config.instruments[0].synth = default_synth_config();
-    config.instruments[0].mixer.as_mut().unwrap().route = "fx_bus_1".into();
+    config.instruments[0].mixer.as_mut().unwrap().route = MixerRoute::FxBus(0);
     config.mixer = Some(MixerConfig {
         buses: vec![FxBusConfig {
             slots: vec![
@@ -205,7 +205,11 @@ pub(super) fn routed_config() -> InstrumentsConfig {
                 kind: kind.into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: if slot == 0 { "fx_bus_1" } else { "direct" }.into(),
+                    route: if slot == 0 {
+                        MixerRoute::FxBus(0)
+                    } else {
+                        MixerRoute::Direct
+                    },
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),

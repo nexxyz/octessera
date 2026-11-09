@@ -1,6 +1,6 @@
 use super::play_pages::{ActivePlayMode, PlayMode};
 use crate::native_menu::NativeMenuAction;
-use crate::native_runner::InstrumentType;
+use crate::native_runner::{InstrumentType, MixerRoute};
 use crate::protocol::RuntimePlatformEffect;
 
 mod factory_instrument_load;
@@ -365,7 +365,7 @@ impl NativeRunner {
         clone.midi_drum.settings.enabled = false;
         clone.midi_channel = (target_index + 1).min(16) as u8;
         let previous = std::mem::replace(&mut self.instruments[target_index], clone);
-        self.apply_replaced_instrument(target_index, &previous.route);
+        self.apply_replaced_instrument(target_index, previous.route);
         self.show_toast(format!("Cloned to I{}", target_index + 1));
     }
 
@@ -378,11 +378,11 @@ impl NativeRunner {
             &mut self.instruments[index],
             NativeInstrumentSlot::reset(index),
         );
-        self.apply_replaced_instrument(index, &previous.route);
+        self.apply_replaced_instrument(index, previous.route);
         self.show_toast(format!("Reset I{}", index + 1));
     }
 
-    fn apply_replaced_instrument(&mut self, index: usize, previous_route: &str) {
+    fn apply_replaced_instrument(&mut self, index: usize, previous_route: MixerRoute) {
         if self.instruments[index].route != previous_route {
             self.commit_full_configuration_runtime_plan();
         } else {

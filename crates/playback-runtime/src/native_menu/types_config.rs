@@ -5,7 +5,7 @@ use crate::native_runner::{
 };
 use crate::protocol::SyncSource;
 use platform_core::{NoteBehavior, RangeMode, TriggerAction};
-use realtime_engine::synth::{DspRuntimeConfig, VoiceStealingMode};
+use realtime_engine::synth::{DspRuntimeConfig, MixerRoute, VoiceStealingMode};
 
 use super::{NativeMenuAction, NativeMenuItem, NativeParamBindingSpec};
 
@@ -38,7 +38,7 @@ pub struct NativeMenuConfig {
     pub instrument_types: Vec<InstrumentType>,
     pub instrument_auto_names: Vec<bool>,
     pub instrument_note_behaviors: Vec<NoteBehavior>,
-    pub instrument_routes: Vec<String>,
+    pub instrument_routes: Vec<MixerRoute>,
     pub instrument_volumes: Vec<u8>,
     pub instrument_pan_positions: Vec<u8>,
     pub instrument_sample_slots: Vec<usize>,

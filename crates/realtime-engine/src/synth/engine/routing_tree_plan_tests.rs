@@ -3,8 +3,8 @@ use super::routing_tree_plan::{RoutingTreePlan, INVALID_COMPONENT_ID};
 use crate::synth::test_allocator;
 use crate::synth::types::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
-    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, DEFAULT_PAN_POSITIONS,
-    INSTRUMENT_SLOT_COUNT,
+    InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MixerRoute,
+    DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 use serde_json::json;
 
@@ -239,7 +239,7 @@ fn parameter_changes_do_not_change_the_plan_but_topology_changes_do() {
     );
 
     let mut route_changed = base_config.clone();
-    route_changed.instruments[0].mixer.as_mut().unwrap().route = "direct".into();
+    route_changed.instruments[0].mixer.as_mut().unwrap().route = MixerRoute::Direct;
     assert_ne!(
         RoutingTreePlan::from_render_plan(&base),
         routing_plan_from(&route_changed)
@@ -272,7 +272,7 @@ fn topology_rebuild_generation_is_carried_by_derived_plan() {
     let mut installed = render_plan(&duplicated_config());
     let initial = RoutingTreePlan::from_render_plan(&installed);
     let mut changed = duplicated_config();
-    changed.instruments[0].mixer.as_mut().unwrap().route = "direct".into();
+    changed.instruments[0].mixer.as_mut().unwrap().route = MixerRoute::Direct;
     let previous = installed.install_complete(render_plan(&changed));
     let rebuilt = RoutingTreePlan::from_render_plan(&installed);
 
@@ -338,6 +338,15 @@ fn render_plan(config: &InstrumentsConfig) -> RenderPlan {
     RenderPlan::from_config(config)
 }
 
+/// Unlike `MixerRoute::from_wire_name`, this keeps out-of-range buses such as `fx_bus_99`.
+fn test_route(route: &str) -> MixerRoute {
+    route
+        .strip_prefix("fx_bus_")
+        .map_or(MixerRoute::Direct, |bus| {
+            MixerRoute::FxBus(bus.parse::<usize>().unwrap() - 1)
+        })
+}
+
 fn config(
     kinds: [&str; INSTRUMENT_SLOT_COUNT],
     routes: [&str; INSTRUMENT_SLOT_COUNT],
@@ -354,7 +363,7 @@ fn config(
                 kind: kind.into(),
                 synth: default_synth_config(),
                 mixer: Some(InstrumentMixerConfig {
-                    route: route.into(),
+                    route: test_route(route),
                     pan_pos: DEFAULT_PAN_POSITIONS / 2,
                     volume: 100.0,
                 }),

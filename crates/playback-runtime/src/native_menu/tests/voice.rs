@@ -1,4 +1,5 @@
 use super::*;
+use realtime_engine::synth::MixerRoute;
 
 #[test]
 pub(crate) fn voice_instrument_rows_expose_configuration_groups() {
@@ -248,7 +249,7 @@ pub(crate) fn mixer_menu_uses_current_volume_and_pan_values() {
 #[test]
 pub(crate) fn mixer_pan_is_non_editable_when_routed_to_fx_bus() {
     let mut config = config();
-    config.instrument_routes = vec!["fx_bus_1".into()];
+    config.instrument_routes = vec![MixerRoute::FxBus(0)];
     let mut menu = NativeMenuModel::new(config);
     menu.open_labels(&["Shape", "Instruments", "I1: Synth fxb1", "Mixer"]);
     menu.select_label("Pan Pos: from bus");

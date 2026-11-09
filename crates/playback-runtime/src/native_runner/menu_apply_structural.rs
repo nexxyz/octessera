@@ -1,5 +1,5 @@
 use super::grid_assign::GridAssign;
-use super::{derive_instrument_name, InstrumentType, NativeRunner};
+use super::{derive_instrument_name, InstrumentType, MixerRoute, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn commit_behavior_structural_draft(&mut self) -> Result<(), String> {
@@ -148,7 +148,10 @@ impl NativeRunner {
         else {
             return;
         };
-        if self.set_instrument_route(index, &route) {
+        let Some(route) = MixerRoute::from_wire_name(&route) else {
+            return;
+        };
+        if self.set_instrument_route(index, route) {
             self.show_instrument_rows_around_key(
                 index,
                 &format!("instruments.{index}.mixer.route"),
@@ -156,14 +159,14 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn set_instrument_route(&mut self, index: usize, route: &str) -> bool {
+    pub(super) fn set_instrument_route(&mut self, index: usize, route: MixerRoute) -> bool {
         let Some(instrument) = self.instruments.get_mut(index) else {
             return false;
         };
         if instrument.route == route {
             return false;
         }
-        instrument.route = route.into();
+        instrument.route = route;
         self.commit_full_configuration_runtime_plan();
         self.mark_fast_autosave_dirty();
         true

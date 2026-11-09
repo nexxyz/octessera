@@ -1,4 +1,5 @@
 use crate::native_runner::InstrumentType;
+use realtime_engine::synth::MixerRoute;
 use serde_json::Value;
 
 use super::super::led_color::LedColor;
@@ -6,7 +7,6 @@ use super::super::menu_apply_fast_fx_bus::audio_params_for_fx;
 use super::super::{NativeRunner, BUS_COUNT, GLOBAL_FX_SLOT_COUNT, GRID_WIDTH, INSTRUMENT_COUNT};
 use crate::protocol::RuntimeAudioCommand;
 
-const ROUTES: [&str; 5] = ["direct", "fx_bus_1", "fx_bus_2", "fx_bus_3", "fx_bus_4"];
 const BYPASS_ROW: usize = 5;
 const DUCK_SOURCE_ROW: usize = 7;
 const BUS_SLOT_COUNT: usize = 3;
@@ -28,7 +28,7 @@ impl NativeRunner {
     pub(in crate::native_runner) fn handle_play_route_press(&mut self, x: usize, y: usize) {
         let x = x.min(GRID_WIDTH - 1);
         match y {
-            0..=4 => self.set_route_from_grid(x, ROUTES[y]),
+            0..=BUS_COUNT => self.set_route_from_grid(x, MixerRoute::ALL[y]),
             BYPASS_ROW if x < BUS_COUNT => self.toggle_bus_fx_bypass(x),
             BYPASS_ROW if x < BUS_COUNT + GLOBAL_FX_SLOT_COUNT => {
                 self.toggle_global_fx_bypass(x - BUS_COUNT);
@@ -52,9 +52,9 @@ impl NativeRunner {
             .filter(|first| duck_sources.iter().all(|source| *source == Some(*first)));
         for x in 0..INSTRUMENT_COUNT.min(GRID_WIDTH) {
             let audio = self.instrument_has_audio(x);
-            let route = self.instruments.get(x).map(|slot| slot.route.as_str());
-            for (y, candidate) in ROUTES.iter().enumerate() {
-                let color = match (audio, route == Some(*candidate)) {
+            let route = self.instruments.get(x).map(|slot| slot.route);
+            for (y, candidate) in MixerRoute::ALL.into_iter().enumerate() {
+                let color = match (audio, route == Some(candidate)) {
                     (false, _) => LedColor::BLACK,
                     (true, true) => route_color(y),
                     (true, false) => route_color(y).dim(5),
@@ -186,18 +186,21 @@ impl NativeRunner {
         }
     }
 
-    fn set_route_from_grid(&mut self, index: usize, route: &str) {
+    fn set_route_from_grid(&mut self, index: usize, route: MixerRoute) {
         if !self.instrument_has_audio(index) {
             return;
         }
         if self.set_instrument_route(index, route) {
-            self.menu
-                .set_enum_value_for_key(&format!("instruments.{index}.mixer.route"), route);
+            self.menu.set_enum_value_for_key(
+                &format!("instruments.{index}.mixer.route"),
+                route.wire_name(),
+            );
             self.show_instruments_rows(&[index]);
         }
-        let target = route
-            .strip_prefix("fx_bus_")
-            .map_or_else(|| route.to_string(), |bus| format!("B{bus}"));
+        let target = route.bus_index().map_or_else(
+            || route.wire_name().to_string(),
+            |bus| format!("B{}", bus + 1),
+        );
         self.show_toast(format!("I{} {target}", index + 1));
     }
 

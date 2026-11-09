@@ -13,7 +13,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
     assert_eq!(runner.layer_behavior_ids[2], "looper");
     assert_eq!(runner.transport.layer_algorithm_step_pulses[1], 12);
     assert_eq!(runner.link_layers[1].scan_unit, "1/8");
-    assert_eq!(runner.instruments[0].route, "fx_bus_3");
+    assert_eq!(runner.instruments[0].route, MixerRoute::FxBus(2));
     assert_eq!(runner.instruments[1].name, "Sampler");
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,

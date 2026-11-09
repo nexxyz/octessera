@@ -3,6 +3,7 @@ use crate::protocol::SyncSource;
 use platform_core::NoteBehavior;
 
 use super::binding_picker_rows::name_parameter_pickers;
+use super::format_values::compact_route_value;
 use super::fx::{fx_buses_group, global_fx_group};
 use super::link::{link_layer_group, link_root_items};
 use super::play::play_group;
@@ -168,8 +169,8 @@ pub(super) fn instrument_item(
     let route = config
         .instrument_routes
         .get(index)
-        .map(String::as_str)
-        .unwrap_or("direct");
+        .copied()
+        .unwrap_or_default();
     let sample_slot = config
         .instrument_sample_slots
         .get(index)
@@ -373,12 +374,13 @@ pub(super) fn instrument_item_label(
                 .channel
         ),
         InstrumentType::None => return short,
-        _ => compact_route_postfix(
+        _ => compact_route_value(
             config
                 .instrument_routes
                 .get(index)
-                .map(String::as_str)
-                .unwrap_or("direct"),
+                .copied()
+                .unwrap_or_default()
+                .wire_name(),
         ),
     };
     format!("{short} {suffix}")
@@ -401,11 +403,4 @@ fn instrument_kind(config: &NativeMenuConfig, index: usize) -> InstrumentType {
         .get(index)
         .copied()
         .unwrap_or(InstrumentType::Synth)
-}
-
-fn compact_route_postfix(route: &str) -> String {
-    route
-        .strip_prefix("fx_bus_")
-        .map(|suffix| format!("fxb{suffix}"))
-        .unwrap_or_else(|| route.into())
 }

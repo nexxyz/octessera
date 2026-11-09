@@ -339,7 +339,7 @@ fn sample_voice_cap_limits_per_slot_to_configured_cap() {
             kind: "sampler".into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
-                route: "direct".into(),
+                route: MixerRoute::Direct,
                 pan_pos: 0,
                 volume: 100.0,
             }),
@@ -436,7 +436,7 @@ fn sample_routing_and_type_edits_retire_old_voices_with_prepared_parity() {
         kind: "synth".into(),
         synth: default_synth_config(),
         mixer: Some(InstrumentMixerConfig {
-            route: "direct".into(),
+            route: MixerRoute::Direct,
             pan_pos: DEFAULT_PAN_POSITIONS / 2,
             volume: 100.0,
         }),

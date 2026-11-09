@@ -1,6 +1,6 @@
 use realtime_engine::synth::{
     default_synth_config, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
-    DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
+    MixerRoute, DEFAULT_PAN_POSITIONS, INSTRUMENT_SLOT_COUNT,
 };
 
 pub(crate) fn default_pi_instruments() -> InstrumentsConfig {
@@ -14,7 +14,7 @@ pub(crate) fn default_pi_instruments() -> InstrumentsConfig {
                 kind: "synth".to_string(),
                 synth,
                 mixer: Some(InstrumentMixerConfig {
-                    route: "direct".to_string(),
+                    route: MixerRoute::Direct,
                     pan_pos: idx.min(DEFAULT_PAN_POSITIONS - 1),
                     volume: 100.0,
                 }),

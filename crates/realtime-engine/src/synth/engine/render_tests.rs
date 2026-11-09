@@ -106,7 +106,7 @@ fn delay_bus_config() -> InstrumentsConfig {
             kind: "synth".to_string(),
             synth,
             mixer: Some(InstrumentMixerConfig {
-                route: "fx_bus_1".to_string(),
+                route: MixerRoute::FxBus(0),
                 pan_pos: DEFAULT_PAN_POSITIONS / 2,
                 volume: 100.0,
             }),
