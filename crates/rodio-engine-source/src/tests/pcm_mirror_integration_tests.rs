@@ -18,13 +18,13 @@ fn inline_source_publishes_the_exact_final_jack_block_once() {
     source.set_pcm_mirror_producers([Some(producer), None]);
 
     let jack: Vec<u32> = (0..64).map(|_| source.next().unwrap().to_bits()).collect();
-    assert!(mirror.begin_callback());
+    assert!(mirror.begin_callback(0));
     let mirrored: Vec<u32> = (0..64)
         .map(|_| mirror.next_sample().unwrap().to_bits())
         .collect();
 
     assert_eq!(mirrored, jack);
-    assert!(!mirror.begin_callback());
+    assert!(!mirror.begin_callback(0));
 }
 
 #[test]
@@ -37,5 +37,5 @@ fn dropping_source_invalidates_its_pcm_mirrors_before_shutdown_handoff() {
 
     drop(source);
 
-    assert!(!mirror.begin_callback());
+    assert!(!mirror.begin_callback(0));
 }

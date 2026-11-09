@@ -375,7 +375,7 @@ fn mirror_callback_underrun_is_silent_and_restarts_after_target_priming() {
 
     fill_mirror_callback_with_scheduler(&mut output, &mut callback_source, &scheduler);
     assert!(output.iter().all(|sample| sample.to_bits() == 0));
-    producer.publish(&[4.0, -4.0].repeat(256), 256);
+    producer.publish(&[4.0, -4.0].repeat(260), 260);
     fill_mirror_callback_with_scheduler(&mut output, &mut callback_source, &scheduler);
 
     assert_eq!(&output[..2], &[4.0, -4.0]);

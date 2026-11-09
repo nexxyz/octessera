@@ -7,7 +7,7 @@ fn frames(start: usize, count: usize) -> Vec<f32> {
 }
 
 fn consume(consumer: &mut PcmMirrorConsumer, samples: usize) -> Vec<f32> {
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
     (0..samples)
         .map(|_| consumer.next_sample().unwrap_or(0.0))
         .collect()
@@ -56,17 +56,17 @@ fn empty_callbacks_are_silent_until_target_occupancy_is_available() {
         mut consumer,
     } = new_pcm_mirror();
     producer.publish(&frames(0, 1), 1);
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), Some(0.0));
     assert_eq!(consumer.next_sample(), Some(-0.0));
-    assert!(!consumer.begin_callback());
+    assert!(!consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), None);
 
     producer.publish(
         &frames(1, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES),
         PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
     );
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), Some(1.0));
 }
 
@@ -78,25 +78,25 @@ fn overflow_drops_oldest_and_resynchronizes_to_a_bounded_tail() {
     } = new_pcm_mirror();
     let input = frames(0, PCM_MIRROR_CAPACITY_FRAMES + 64);
     producer.publish(&input, PCM_MIRROR_CAPACITY_FRAMES + 64);
-    assert!(!consumer.begin_callback());
+    assert!(!consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), None);
     let recovered = frames(
         PCM_MIRROR_CAPACITY_FRAMES + 64,
         PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
     );
     producer.publish(&recovered, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES);
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
     let output = consume(&mut consumer, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES * 2);
     assert_eq!(output, recovered);
 }
 
 fn primed_at_target(producer: &PcmMirrorProducer, consumer: &mut PcmMirrorConsumer) {
-    assert!(!consumer.begin_callback());
+    assert!(!consumer.begin_callback(0));
     producer.publish(
         &frames(0, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES),
         PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
     );
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
 }
 
 fn assert_frames_near(output: &[f32], lefts: &[f32]) {
@@ -147,7 +147,7 @@ fn a_fast_consumer_crossfades_one_frame_in_below_the_band() {
     assert_eq!(output, frames(0, read));
     let fade = usize::from(PCM_MIRROR_STEER_CROSSFADE_FRAMES);
 
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
     let target = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES;
     producer.publish(&frames(target, target), target);
     let output: Vec<f32> = (0..(fade + 2) * 2)
@@ -189,7 +189,7 @@ fn producer_rate_mismatch_never_exposes_more_than_capacity() {
     for block in 0..32 {
         let input = frames(block * 64, 64);
         producer.publish(&input, 64);
-        let _ = consumer.begin_callback();
+        let _ = consumer.begin_callback(0);
         for _ in 0..16 {
             let _ = consumer.next_sample();
         }
@@ -206,17 +206,17 @@ fn invalidation_silences_existing_and_new_consumers() {
     } = new_pcm_mirror();
     producer.publish(&[1.0, -1.0], 1);
     producer.invalidate();
-    assert!(!consumer.begin_callback());
+    assert!(!consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), None);
-    assert!(!producer.new_consumer().begin_callback());
+    assert!(!producer.new_consumer().begin_callback(0));
 
     producer.reactivate();
-    assert!(!consumer.begin_callback());
+    assert!(!consumer.begin_callback(0));
     producer.publish(
         &frames(1, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES),
         PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
     );
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), Some(1.0));
 }
 
@@ -227,7 +227,7 @@ fn generation_change_is_detected_after_the_inactive_interval_is_missed() {
         mut consumer,
     } = new_pcm_mirror();
     producer.publish(&frames(0, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES), 256);
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), Some(0.0));
     assert_eq!(consumer.next_sample(), Some(-0.0));
 
@@ -241,7 +241,7 @@ fn generation_change_is_detected_after_the_inactive_interval_is_missed() {
         PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
     );
 
-    assert!(!consumer.begin_callback());
+    assert!(!consumer.begin_callback(0));
     producer.publish(
         &frames(
             PCM_MIRROR_TARGET_OCCUPANCY_FRAMES * 2,
@@ -249,7 +249,7 @@ fn generation_change_is_detected_after_the_inactive_interval_is_missed() {
         ),
         PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
     );
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), Some(512.0));
 }
 
@@ -265,9 +265,9 @@ fn generation_wrap_is_detected_by_equality() {
     producer.reactivate();
     producer.publish(&frames(0, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES), 256);
 
-    assert!(!consumer.begin_callback());
+    assert!(!consumer.begin_callback(0));
     producer.publish(&frames(256, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES), 256);
-    assert!(consumer.begin_callback());
+    assert!(consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), Some(256.0));
 }
 
@@ -313,7 +313,7 @@ fn concurrent_publication_never_exposes_a_mixed_stereo_frame() {
     consumer_start.wait();
     consumer_started.store(true, Ordering::Release);
     while !done.load(Ordering::Acquire) {
-        if consumer.begin_callback() {
+        if consumer.begin_callback(0) {
             if let Some(left) = consumer.next_sample() {
                 if let Some(right) = consumer.next_sample() {
                     assert_eq!(right.to_bits(), (-left).to_bits());
@@ -327,4 +327,26 @@ fn concurrent_publication_never_exposes_a_mixed_stereo_frame() {
     }
     writer.join().unwrap();
     assert!(paired_frames.load(Ordering::Relaxed) > 0);
+}
+
+#[test]
+fn large_callbacks_keep_a_full_callback_of_headroom_above_the_target() {
+    let PcmMirrorPair {
+        producer,
+        mut consumer,
+    } = new_pcm_mirror();
+    let callback = 127;
+    let primed = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES + callback;
+    assert!(!consumer.begin_callback(callback));
+    producer.publish(&frames(0, primed - 1), primed - 1);
+    assert!(!consumer.begin_callback(callback));
+    producer.publish(&frames(primed - 1, 1), 1);
+
+    let mut output = Vec::new();
+    for _ in 0..3 {
+        assert!(consumer.begin_callback(callback));
+        output.extend((0..callback * 2).map(|_| consumer.next_sample()));
+    }
+    assert!(output.iter().all(Option::is_some));
+    assert!(!consumer.priming);
 }

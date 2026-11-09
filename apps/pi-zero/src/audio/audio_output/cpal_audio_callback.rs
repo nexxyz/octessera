@@ -136,7 +136,10 @@ pub(super) fn fill_mirror_callback_with_scheduler<T>(
         silence_output(data);
         return;
     }
-    if !callback_source.consumer_mut().begin_callback() {
+    if !callback_source
+        .consumer_mut()
+        .begin_callback(data.len() / 2)
+    {
         silence_output(data);
         return;
     }

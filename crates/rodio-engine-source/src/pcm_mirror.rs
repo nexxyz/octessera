@@ -131,7 +131,10 @@ impl PcmMirrorProducer {
 }
 
 impl PcmMirrorConsumer {
-    pub fn begin_callback(&mut self) -> bool {
+    /// The target fill is what remains after this callback takes its `callback_frames`, so a
+    /// device that pulls large callbacks keeps the same headroom as one that pulls small ones.
+    pub fn begin_callback(&mut self, callback_frames: usize) -> bool {
+        let target = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64 + callback_frames as u64;
         self.callback_active = false;
         self.current_channel = 0;
         let generation = self.ring.generation.load(Ordering::Acquire);
@@ -149,13 +152,10 @@ impl PcmMirrorConsumer {
             return false;
         }
         if self.priming {
-            if frame_distance(write_sequence, self.read_sequence)
-                < PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64
-            {
+            if frame_distance(write_sequence, self.read_sequence) < target {
                 return false;
             }
-            self.read_sequence =
-                sequence_subtract(write_sequence, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64);
+            self.read_sequence = sequence_subtract(write_sequence, target);
             self.priming = false;
         }
         if self.read_sequence == write_sequence {
@@ -163,9 +163,9 @@ impl PcmMirrorConsumer {
             return false;
         }
         let fill = frame_distance(write_sequence, self.read_sequence);
-        self.steering |= fill >= PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64;
+        self.steering |= fill >= target;
         if self.steering && self.crossfade_remaining == 0 {
-            self.steer_toward_target(fill);
+            self.steer_toward_target(fill.saturating_sub(callback_frames as u64));
         }
         self.callback_active = true;
         true
