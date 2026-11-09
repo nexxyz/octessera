@@ -70,7 +70,9 @@ for index, path in enumerate(COORDINATORS):
     passphrase = launched[0][1]["env"]["PORTAL_PASSPHRASE"]
     assert passphrase == instance.portal_passphrase
     assert len(passphrase) == 8 and all(character in coordinator.PASSPHRASE_ALPHABET for character in passphrase)
-    assert not set("0O1l").intersection(coordinator.PASSPHRASE_ALPHABET)
+    assert not set("0O1l5S6G8B").intersection(coordinator.PASSPHRASE_ALPHABET)
+    runtime_alphabet = (ROOT / "crates/playback-runtime/src/protocol/user_data_transfer.rs").read_text()
+    assert f'b"{coordinator.PASSPHRASE_ALPHABET}"' in runtime_alphabet
     assert passphrase not in launched[0][0] and "--portal-passphrase" not in launched[0][0]
     assert coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase=passphrase)["portalPassphrase"] == passphrase
     assert len({coordinator.Coordinator(profile).portal_passphrase for _ in range(32)}) > 1

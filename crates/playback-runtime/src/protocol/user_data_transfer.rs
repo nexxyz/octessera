@@ -3,7 +3,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const USER_DATA_TRANSFER_CODE_LENGTH: usize = 10;
 pub const USER_DATA_TRANSFER_CODE_ALPHABET: &[u8] =
-    b"23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
+    b"23479ACDEFHJKLMNPQRTUVWXYZabcdefghijkmnpqrstuvwxyz";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

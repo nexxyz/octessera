@@ -8,7 +8,7 @@ fn ready_status() -> RuntimeUserDataTransferStatus {
     RuntimeUserDataTransferStatus {
         phase: RuntimeUserDataTransferPhase::Ready,
         url: Some("http://192.168.42.1:8081".into()),
-        code: Some("Ab2Cd3Ef4G".into()),
+        code: Some("Ab2Cd3Ef4H".into()),
         expires_in_seconds: Some(900),
     }
 }
@@ -24,7 +24,7 @@ fn user_data_transfer_status_round_trips_with_exact_wire_fields() {
             "type": "user_data_transfer_status",
             "phase": "ready",
             "url": "http://192.168.42.1:8081",
-            "code": "Ab2Cd3Ef4G",
+            "code": "Ab2Cd3Ef4H",
             "expiresInSeconds": 900
         })
     );
@@ -44,14 +44,14 @@ fn user_data_transfer_status_enforces_phase_fields_and_existing_code_policy() {
             "type": "user_data_transfer_status",
             "phase": "ready",
             "url": "http://",
-            "code": "Ab2Cd3Ef4G",
+            "code": "Ab2Cd3Ef4H",
             "expiresInSeconds": 900
         }),
         json!({
             "type": "user_data_transfer_status",
             "phase": "ready",
             "url": "https://192.168.42.1:8081",
-            "code": "Ab2Cd3Ef4G",
+            "code": "Ab2Cd3Ef4H",
             "expiresInSeconds": 900
         }),
         json!({
@@ -65,7 +65,7 @@ fn user_data_transfer_status_enforces_phase_fields_and_existing_code_policy() {
             "type": "user_data_transfer_status",
             "phase": "ready",
             "url": "http://192.168.42.1:8081",
-            "code": "Ab2Cd3Ef4G",
+            "code": "Ab2Cd3Ef4H",
             "expiresInSeconds": 0
         }),
         json!({

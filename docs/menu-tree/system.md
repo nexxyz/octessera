@@ -348,7 +348,8 @@ changed edit saves System like any other System preference, shows `Applying...`,
   `failed`, `timed_out`, or desktop `unsupported`. The modal ranks after confirmation dialogs and
   ahead of system info and help.
 - The hotspot is WPA2-protected. Each portal start draws a fresh 8-character passphrase from the
-  clear code alphabet (no `0`, `O`, `1`, `I`, `l` or `o`); the coordinator hands it to wifi-connect
+  clear code alphabet (no `0`, `O`, `1`, `I`, `l` or `o`, and none of `5`/`S`, `6`/`G` or
+  `8`/`B`, which the OLED font draws one pixel apart); the coordinator hands it to wifi-connect
   through `PORTAL_PASSPHRASE` and publishes it only in the `portal_ready` status
   (`portalPassphrase`), which later phases replace.
 - The browser's Applying page is provisional and an AP disconnect is expected; the OLED result is

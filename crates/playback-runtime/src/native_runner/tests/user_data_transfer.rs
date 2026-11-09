@@ -5,7 +5,7 @@ fn ready_result() -> RuntimeStoreResult {
         status: RuntimeUserDataTransferStatus {
             phase: RuntimeUserDataTransferPhase::Ready,
             url: Some("http://192.168.42.1:8081".into()),
-            code: Some("Ab2Cd3Ef4G".into()),
+            code: Some("Ab2Cd3Ef4H".into()),
             expires_in_seconds: Some(900),
         },
     }
@@ -54,7 +54,7 @@ pub(crate) fn ready_transfer_card_has_semantic_lines_and_bounded_oled_frame() {
             "Use local client",
             "IP 192.168.42.1",
             "PORT 8081",
-            "CODE Ab2Cd3Ef4G",
+            "CODE Ab2Cd3Ef4H",
             "Ends in 15 min",
             "Stop service"
         ])
