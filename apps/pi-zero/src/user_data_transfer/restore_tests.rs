@@ -465,12 +465,13 @@ fn failed_restore_tree_swap_rolls_back_exact_split_store_bytes() {
         ),
     ];
     let mut faults = crate::user_data_restore::FaultInjection {
-        replacement_failure_at: Some(1),
+        move_in_failure_at: Some((1, 0)),
         ..crate::user_data_restore::FaultInjection::default()
     };
     assert!(crate::user_data_restore::replace_trees_with_faults(
         &crate::user_data_restore::LiveFilesystems,
         &trees,
+        &samples,
         &mut faults
     )
     .is_err());

@@ -118,11 +118,14 @@ fn rollback_after_a_full_swap_keeps_a_mounted_sd_card_in_place() {
     let blocked_old = root.join("blocked-old");
     refs.push((&blocked, &blocked_new, &blocked_old));
     let mut faults = FaultInjection {
-        replacement_failure_at: Some(2),
+        move_in_failure_at: Some((2, 0)),
         ..FaultInjection::default()
     };
 
-    assert!(replace_trees_with_faults(&MountedAt(card.clone()), &refs, &mut faults).is_err());
+    assert!(
+        replace_trees_with_faults(&MountedAt(card.clone()), &refs, &trees[1].0, &mut faults)
+            .is_err()
+    );
 
     assert_eq!(fs::read(trees[1].0.join("state")).unwrap(), b"live samples");
     assert_eq!(fs::read(card.join("kick.wav")).unwrap(), b"card sample");

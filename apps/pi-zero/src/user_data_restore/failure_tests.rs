@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 mod mount_tests;
 #[cfg(test)]
 mod store_validation_tests;
+#[cfg(test)]
+mod swap_tests;
 
 struct Fixture {
     root: PathBuf,
@@ -262,11 +264,11 @@ fn injected_replacement_failure_preserves_recovery_tree_after_verified_rollback(
     let (root, trees) = transaction_fixture("replacement-failure");
     let refs = tree_refs(&trees);
     let mut faults = FaultInjection {
-        replacement_failure_at: Some(1),
+        move_in_failure_at: Some((1, 0)),
         ..FaultInjection::default()
     };
 
-    let result = replace_trees_with_faults(&LiveFilesystems, &refs, &mut faults);
+    let result = replace_trees_with_faults(&LiveFilesystems, &refs, &trees[1].0, &mut faults);
     assert!(result.is_err());
     assert_eq!(fs::read(trees[0].0.join("state")).unwrap(), b"live store");
     assert_eq!(fs::read(trees[1].0.join("state")).unwrap(), b"live samples");
@@ -282,12 +284,13 @@ fn injected_rollback_failure_propagates_and_preserves_old_and_new_trees() {
     let (root, trees) = transaction_fixture("rollback-failure");
     let refs = tree_refs(&trees);
     let mut faults = FaultInjection {
-        replacement_failure_at: Some(0),
+        move_in_failure_at: Some((0, 0)),
         rollback_failure_at: Some(0),
         ..FaultInjection::default()
     };
 
-    let result = replace_trees_with_faults(&LiveFilesystems, &refs, &mut faults).unwrap_err();
+    let result =
+        replace_trees_with_faults(&LiveFilesystems, &refs, &trees[1].0, &mut faults).unwrap_err();
     assert!(result.contains("rollback failed"));
     assert!(trees[0].2.is_dir());
     assert!(trees[0].1.is_dir());
@@ -299,12 +302,13 @@ fn injected_post_swap_rollback_failure_propagates_and_preserves_recovery_trees()
     let (root, trees) = transaction_fixture("post-swap-rollback-failure");
     let refs = tree_refs(&trees);
     let mut faults = FaultInjection {
-        replacement_failure_at: Some(1),
+        move_in_failure_at: Some((1, 0)),
         post_swap_rollback_failure_at: Some(0),
         ..FaultInjection::default()
     };
 
-    let result = replace_trees_with_faults(&LiveFilesystems, &refs, &mut faults).unwrap_err();
+    let result =
+        replace_trees_with_faults(&LiveFilesystems, &refs, &trees[1].0, &mut faults).unwrap_err();
     assert!(result.contains("rollback failed"));
     assert!(trees[0].1.is_dir());
     assert!(trees[0].2.is_dir());

@@ -73,6 +73,9 @@ impl UserDataTransferService {
                         pending.staged,
                     )
                 })();
+                if let Err(error) = &result {
+                    eprintln!("restore failed: {error}");
+                }
                 inner.store_write_barrier.finish(result.is_ok());
                 remove_stage_root(&worker_stage_root);
                 if let Ok(mut state) = inner.state.lock() {

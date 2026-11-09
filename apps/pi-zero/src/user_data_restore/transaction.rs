@@ -15,10 +15,12 @@ struct TreeSwap {
     moved_in: Vec<OsString>,
 }
 
+/// Injected rename failures: `(tree, n)` fails that tree's n-th rename (from 0) of a move phase.
 #[derive(Default)]
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct FaultInjection {
-    pub(crate) replacement_failure_at: Option<usize>,
+    pub(crate) move_out_failure_at: Option<(usize, usize)>,
+    pub(crate) move_in_failure_at: Option<(usize, usize)>,
     pub(crate) rollback_failure_at: Option<usize>,
     pub(crate) post_swap_rollback_failure_at: Option<usize>,
 }
@@ -31,25 +33,30 @@ enum RenameKind {
     OldToCurrent,
 }
 
+/// Swaps each live folder's contents for its replacement; `samples` is the live folder that
+/// holds the bundled library.
 pub(crate) fn replace_trees(
     filesystems: &dyn Filesystems,
     trees: &[Tree<'_>],
+    samples: &Path,
 ) -> Result<(), String> {
-    replace_trees_internal(filesystems, trees, &mut None)
+    replace_trees_internal(filesystems, trees, samples, &mut None)
 }
 
 #[cfg(test)]
 pub(crate) fn replace_trees_with_faults(
     filesystems: &dyn Filesystems,
     trees: &[Tree<'_>],
+    samples: &Path,
     faults: &mut FaultInjection,
 ) -> Result<(), String> {
-    replace_trees_internal(filesystems, trees, &mut Some(faults))
+    replace_trees_internal(filesystems, trees, samples, &mut Some(faults))
 }
 
 fn replace_trees_internal(
     filesystems: &dyn Filesystems,
     trees: &[Tree<'_>],
+    samples: &Path,
     faults: &mut Option<&mut FaultInjection>,
 ) -> Result<(), String> {
     for (_, replacement, old) in trees {
@@ -70,7 +77,7 @@ fn replace_trees_internal(
     let mut swaps: Vec<TreeSwap> = Vec::with_capacity(trees.len());
     for (index, tree) in trees.iter().enumerate() {
         let mut swap = TreeSwap::default();
-        let result = swap_tree(filesystems, *tree, index, &mut swap, faults);
+        let result = swap_tree(filesystems, *tree, samples, index, &mut swap, faults);
         swaps.push(swap);
         if let Err(message) = result {
             let rollback_errors = rollback_trees(trees, &swaps, faults);
@@ -85,7 +92,12 @@ fn replace_trees_internal(
 
     for (current, _, old) in trees {
         if path_exists(current) && path_exists(old) {
-            let _ = remove_tree_within(filesystems, old, old);
+            if let Err(error) = remove_tree_within(filesystems, old, old) {
+                eprintln!(
+                    "restore succeeded but could not remove its recovery folder {}: {error}",
+                    old.display()
+                );
+            }
         }
     }
     Ok(())
@@ -94,6 +106,7 @@ fn replace_trees_internal(
 fn swap_tree(
     filesystems: &dyn Filesystems,
     (current, replacement, old): Tree<'_>,
+    samples: &Path,
     index: usize,
     swap: &mut TreeSwap,
     faults: &mut Option<&mut FaultInjection>,
@@ -111,29 +124,26 @@ fn swap_tree(
     })?;
     for name in entry_names(current).map_err(io_error)? {
         let path = current.join(&name);
-        if filesystems
-            .stays_in_place(current, &path)
-            .map_err(io_error)?
-        {
+        if filesystems.stays_in_place(current, &path, current == samples)? {
             continue;
         }
         rename_path(
             &path,
             &old.join(&name),
-            index,
+            (index, swap.moved_out.len()),
             RenameKind::CurrentToOld,
             faults,
         )
         .map_err(|error| format!("restore could not move live tree to recovery path: {error}"))?;
         swap.moved_out.push(name);
     }
-    injected_failure(index, RenameKind::ReplacementToCurrent, faults)
+    injected_failure((index, 0), RenameKind::ReplacementToCurrent, faults)
         .map_err(|error| format!("restore replacement swap failed: {error}"))?;
     for name in entry_names(replacement).map_err(io_error)? {
         rename_path(
             &replacement.join(&name),
             &current.join(&name),
-            index,
+            (index, swap.moved_in.len()),
             RenameKind::ReplacementToCurrent,
             faults,
         )
@@ -170,7 +180,7 @@ fn rollback_tree(
         rename_path(
             &current.join(name),
             &replacement.join(name),
-            index,
+            (index, 0),
             RenameKind::CurrentToReplacement,
             faults,
         )
@@ -180,7 +190,7 @@ fn rollback_tree(
         rename_path(
             &old.join(name),
             &current.join(name),
-            index,
+            (index, 0),
             RenameKind::OldToCurrent,
             faults,
         )
@@ -224,28 +234,31 @@ fn entry_names(path: &Path) -> io::Result<Vec<OsString>> {
         .collect()
 }
 
+/// `at` is the tree index and the rename's number within its move phase.
 fn rename_path(
     from: &Path,
     to: &Path,
-    index: usize,
+    at: (usize, usize),
     kind: RenameKind,
     faults: &mut Option<&mut FaultInjection>,
 ) -> io::Result<()> {
-    injected_failure(index, kind, faults)?;
+    injected_failure(at, kind, faults)?;
     fs::rename(from, to)
 }
 
 fn injected_failure(
-    index: usize,
+    at: (usize, usize),
     kind: RenameKind,
     faults: &mut Option<&mut FaultInjection>,
 ) -> io::Result<()> {
     #[cfg(not(test))]
-    let _ = (index, kind, faults);
+    let _ = (at, kind, faults);
     #[cfg(test)]
     if let Some(faults) = faults.as_deref_mut() {
+        let index = at.0;
         let failure = match kind {
-            RenameKind::ReplacementToCurrent => faults.replacement_failure_at == Some(index),
+            RenameKind::CurrentToOld => faults.move_out_failure_at == Some(at),
+            RenameKind::ReplacementToCurrent => faults.move_in_failure_at == Some(at),
             RenameKind::OldToCurrent | RenameKind::CurrentToReplacement => {
                 if faults.rollback_failure_at == Some(index) {
                     true
@@ -254,7 +267,6 @@ fn injected_failure(
                         && faults.post_swap_rollback_failure_at == Some(index)
                 }
             }
-            RenameKind::CurrentToOld => false,
         };
         if failure {
             return Err(io::Error::new(

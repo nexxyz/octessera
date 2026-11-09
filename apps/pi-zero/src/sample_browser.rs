@@ -156,7 +156,11 @@ const PACKAGED_LIBRARY_FOLDERS: [&str; 5] = ["Drum", "FX", "Found", "Loop", "Voc
 pub(crate) fn is_packaged_library_file(relative: &str) -> bool {
     relative
         .split_once('/')
-        .is_some_and(|(folder, _)| PACKAGED_LIBRARY_FOLDERS.contains(&folder))
+        .is_some_and(|(folder, _)| is_packaged_library_folder(folder))
+}
+
+pub(crate) fn is_packaged_library_folder(name: &str) -> bool {
+    PACKAGED_LIBRARY_FOLDERS.contains(&name)
 }
 
 fn normalize_sample_dir(input: &str) -> Result<String, String> {

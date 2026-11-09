@@ -119,7 +119,7 @@ pub(crate) fn restore(
                 old_screen_recordings.as_path(),
             ),
         ];
-        transaction::replace_trees(filesystems, &trees)
+        transaction::replace_trees(filesystems, &trees, samples_dir)
     })();
     result
 }
@@ -218,6 +218,7 @@ fn build_store_tree(
         old_store,
         &old_store.join("backups"),
         &new_store.join("backups"),
+        false,
     )
 }
 
@@ -235,7 +236,7 @@ fn build_samples_tree(
     }
     fs::create_dir_all(new_samples).map_err(io_error)?;
     if !media_included {
-        copy_tree_if_present(filesystems, old_samples, old_samples, new_samples)?;
+        copy_tree_if_present(filesystems, old_samples, old_samples, new_samples, true)?;
     } else if old_samples.is_dir() {
         copy_packaged_samples(filesystems, old_samples, old_samples, new_samples)?;
     }
@@ -262,7 +263,7 @@ fn build_media_tree(
     }
     fs::create_dir_all(new_media).map_err(io_error)?;
     if !media_included {
-        copy_tree_if_present(filesystems, old_media, old_media, new_media)?;
+        copy_tree_if_present(filesystems, old_media, old_media, new_media, false)?;
     }
     copy_staged_media(new_media, staged, kind)
 }
@@ -300,7 +301,7 @@ fn copy_packaged_samples(
     for entry in fs::read_dir(current).map_err(io_error)? {
         let entry = entry.map_err(io_error)?;
         let path = entry.path();
-        if filesystems.stays_in_place(root, &path).map_err(io_error)? {
+        if filesystems.stays_in_place(root, &path, true)? {
             continue;
         }
         let metadata = fs::symlink_metadata(&path).map_err(io_error)?;
@@ -329,6 +330,7 @@ fn copy_tree_if_present(
     root: &Path,
     source: &Path,
     target: &Path,
+    holds_library: bool,
 ) -> Result<(), String> {
     if !source.exists() {
         return Ok(());
@@ -337,10 +339,7 @@ fn copy_tree_if_present(
     for entry in fs::read_dir(source).map_err(io_error)? {
         let entry = entry.map_err(io_error)?;
         let source_path = entry.path();
-        if filesystems
-            .stays_in_place(root, &source_path)
-            .map_err(io_error)?
-        {
+        if filesystems.stays_in_place(root, &source_path, holds_library)? {
             continue;
         }
         let target_path = target.join(entry.file_name());
@@ -349,7 +348,7 @@ fn copy_tree_if_present(
             return Err("protected store contains a symlink".into());
         }
         if metadata.is_dir() {
-            copy_tree_if_present(filesystems, root, &source_path, &target_path)?;
+            copy_tree_if_present(filesystems, root, &source_path, &target_path, holds_library)?;
         } else if metadata.is_file() {
             copy_file(&source_path, &target_path)?;
         }
