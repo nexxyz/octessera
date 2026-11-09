@@ -28,8 +28,8 @@ pub use native_runner::{
 pub use platform_core::MusicalEvent;
 pub use preset_name_policy::{clean_preset_name, fresh_preset_name, is_valid_preset_name};
 pub use protocol::{
-    clamp_musical_event, clamp_note_duration_ms, invalid_audio_command, validate_audio_command,
-    validate_tile_hit, HostMessage, MidiPort, RunnerMessage, RuntimeAdapterError,
+    clamp_musical_event, invalid_audio_command, validate_audio_command, validate_tile_hit,
+    ClampedMusicalEvent, HostMessage, MidiPort, RunnerMessage, RuntimeAdapterError,
     RuntimeAudioCommand, RuntimeBluetoothDevice, RuntimeBluetoothDeviceAction,
     RuntimeBluetoothDeviceKind, RuntimeBluetoothPairing, RuntimeBluetoothStatus, RuntimeErrorCode,
     RuntimeErrorDomain, RuntimeErrorFacts, RuntimeErrorMetadata, RuntimeMomentaryFxTarget,

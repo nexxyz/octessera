@@ -12,11 +12,11 @@ fn musical_events_clamp_to_engine_ranges() {
                 velocity: 0,
                 duration_ms: Some(9),
             },
-            MusicalEvent::NoteOn {
+            ClampedMusicalEvent::NoteOn {
                 channel: 7,
                 note: 127,
                 velocity: 1,
-                duration_ms: Some(MIN_NOTE_DURATION_MS),
+                duration_ms: MIN_NOTE_DURATION_MS,
             },
         ),
         (
@@ -26,11 +26,11 @@ fn musical_events_clamp_to_engine_ranges() {
                 velocity: u8::MAX,
                 duration_ms: Some(u32::MAX),
             },
-            MusicalEvent::NoteOn {
+            ClampedMusicalEvent::NoteOn {
                 channel: 7,
                 note: 127,
                 velocity: 127,
-                duration_ms: Some(MAX_NOTE_DURATION_MS),
+                duration_ms: MAX_NOTE_DURATION_MS,
             },
         ),
         (
@@ -40,11 +40,11 @@ fn musical_events_clamp_to_engine_ranges() {
                 velocity: 100,
                 duration_ms: None,
             },
-            MusicalEvent::NoteOn {
+            ClampedMusicalEvent::NoteOn {
                 channel: 3,
                 note: 60,
                 velocity: 100,
-                duration_ms: Some(MAX_NOTE_DURATION_MS),
+                duration_ms: MAX_NOTE_DURATION_MS,
             },
         ),
         (
@@ -54,11 +54,11 @@ fn musical_events_clamp_to_engine_ranges() {
                 velocity: 1,
                 duration_ms: Some(10),
             },
-            MusicalEvent::NoteOn {
+            ClampedMusicalEvent::NoteOn {
                 channel: 0,
                 note: 0,
                 velocity: 1,
-                duration_ms: Some(10),
+                duration_ms: 10,
             },
         ),
         (
@@ -66,7 +66,7 @@ fn musical_events_clamp_to_engine_ranges() {
                 channel: 9,
                 note: 200,
             },
-            MusicalEvent::NoteOff {
+            ClampedMusicalEvent::NoteOff {
                 channel: 7,
                 note: 127,
             },
@@ -77,7 +77,7 @@ fn musical_events_clamp_to_engine_ranges() {
                 controller: 128,
                 value: 255,
             },
-            MusicalEvent::Cc {
+            ClampedMusicalEvent::Cc {
                 channel: 7,
                 controller: 127,
                 value: 127,
@@ -89,7 +89,7 @@ fn musical_events_clamp_to_engine_ranges() {
                 controller: 74,
                 value: 0,
             },
-            MusicalEvent::Cc {
+            ClampedMusicalEvent::Cc {
                 channel: 2,
                 controller: 74,
                 value: 0,

@@ -8,13 +8,27 @@ use realtime_engine::synth::{INSTRUMENT_SLOT_COUNT, TILE_PITCH_CENTS_LIMIT};
 pub(crate) const MIN_NOTE_DURATION_MS: u32 = 10;
 pub(crate) const MAX_NOTE_DURATION_MS: u32 = 86_400_000;
 
-pub fn clamp_note_duration_ms(duration_ms: Option<u32>) -> u32 {
-    duration_ms
-        .unwrap_or(MAX_NOTE_DURATION_MS)
-        .clamp(MIN_NOTE_DURATION_MS, MAX_NOTE_DURATION_MS)
+/// A musical event inside the engine's ranges; a note-on always carries its duration.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClampedMusicalEvent {
+    NoteOn {
+        channel: u8,
+        note: u8,
+        velocity: u8,
+        duration_ms: u32,
+    },
+    NoteOff {
+        channel: u8,
+        note: u8,
+    },
+    Cc {
+        channel: u8,
+        controller: u8,
+        value: u8,
+    },
 }
 
-pub fn clamp_musical_event(event: &MusicalEvent) -> MusicalEvent {
+pub fn clamp_musical_event(event: &MusicalEvent) -> ClampedMusicalEvent {
     let channel = |channel: u8| channel.min((INSTRUMENT_SLOT_COUNT - 1) as u8);
     match *event {
         MusicalEvent::NoteOn {
@@ -22,16 +36,18 @@ pub fn clamp_musical_event(event: &MusicalEvent) -> MusicalEvent {
             note,
             velocity,
             duration_ms,
-        } => MusicalEvent::NoteOn {
+        } => ClampedMusicalEvent::NoteOn {
             channel: channel(slot),
             note: note.min(127),
             velocity: velocity.clamp(1, 127),
-            duration_ms: Some(clamp_note_duration_ms(duration_ms)),
+            duration_ms: duration_ms
+                .unwrap_or(MAX_NOTE_DURATION_MS)
+                .clamp(MIN_NOTE_DURATION_MS, MAX_NOTE_DURATION_MS),
         },
         MusicalEvent::NoteOff {
             channel: slot,
             note,
-        } => MusicalEvent::NoteOff {
+        } => ClampedMusicalEvent::NoteOff {
             channel: channel(slot),
             note: note.min(127),
         },
@@ -39,7 +55,7 @@ pub fn clamp_musical_event(event: &MusicalEvent) -> MusicalEvent {
             channel: slot,
             controller,
             value,
-        } => MusicalEvent::Cc {
+        } => ClampedMusicalEvent::Cc {
             channel: channel(slot),
             controller: controller.min(127),
             value: value.min(127),

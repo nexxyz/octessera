@@ -1,6 +1,6 @@
 use playback_runtime::{
-    clamp_musical_event, clamp_note_duration_ms, validate_tile_hit, MusicalEvent,
-    RuntimeAdapterError, TileHit,
+    clamp_musical_event, validate_tile_hit, ClampedMusicalEvent, MusicalEvent, RuntimeAdapterError,
+    TileHit,
 };
 use rodio_engine_source::EngineEvent;
 use std::time::Instant;
@@ -10,7 +10,7 @@ pub(crate) fn musical_event_to_engine_event(
     at: Option<Instant>,
 ) -> EngineEvent {
     match clamp_musical_event(event) {
-        MusicalEvent::NoteOn {
+        ClampedMusicalEvent::NoteOn {
             channel,
             note,
             velocity,
@@ -19,15 +19,15 @@ pub(crate) fn musical_event_to_engine_event(
             instrument_slot: channel,
             note,
             velocity,
-            duration_ms: clamp_note_duration_ms(duration_ms),
+            duration_ms,
             at,
         },
-        MusicalEvent::NoteOff { channel, note } => EngineEvent::NoteOff {
+        ClampedMusicalEvent::NoteOff { channel, note } => EngineEvent::NoteOff {
             instrument_slot: channel,
             note,
             at,
         },
-        MusicalEvent::Cc {
+        ClampedMusicalEvent::Cc {
             channel,
             controller,
             value,
