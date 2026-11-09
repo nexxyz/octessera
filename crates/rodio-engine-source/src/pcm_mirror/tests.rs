@@ -90,6 +90,59 @@ fn overflow_drops_oldest_and_resynchronizes_to_a_bounded_tail() {
     assert_eq!(output, recovered);
 }
 
+fn primed_at_target(producer: &PcmMirrorProducer, consumer: &mut PcmMirrorConsumer) {
+    assert!(!consumer.begin_callback());
+    producer.publish(
+        &frames(0, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES),
+        PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
+    );
+    assert!(consumer.begin_callback());
+}
+
+#[test]
+fn a_slow_consumer_drops_one_frame_per_callback_above_the_band() {
+    let PcmMirrorPair {
+        producer,
+        mut consumer,
+    } = new_pcm_mirror();
+    primed_at_target(&producer, &mut consumer);
+    let extra = PCM_MIRROR_DRIFT_BAND_FRAMES + 1;
+    producer.publish(&frames(PCM_MIRROR_TARGET_OCCUPANCY_FRAMES, extra), extra);
+
+    assert!(consumer.begin_callback());
+    assert_eq!(consumer.next_sample(), Some(1.0));
+    assert!(consumer.begin_callback());
+    assert_eq!(consumer.next_sample(), Some(2.0));
+}
+
+#[test]
+fn a_fast_consumer_repeats_one_frame_per_callback_below_the_band() {
+    let PcmMirrorPair {
+        producer,
+        mut consumer,
+    } = new_pcm_mirror();
+    primed_at_target(&producer, &mut consumer);
+    let read = PCM_MIRROR_DRIFT_BAND_FRAMES + 1;
+    let output = consume(&mut consumer, read * 2);
+    assert_eq!(output, frames(0, read));
+
+    assert!(consumer.begin_callback());
+    assert_eq!(consumer.next_sample(), Some((read - 1) as f32));
+    assert_eq!(consumer.next_sample(), Some(-((read - 1) as f32)));
+    assert_eq!(consumer.next_sample(), Some(read as f32));
+}
+
+#[test]
+fn an_unprimed_consumer_never_drops_or_repeats() {
+    let PcmMirrorPair {
+        producer,
+        mut consumer,
+    } = new_pcm_mirror();
+    let count = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES + PCM_MIRROR_DRIFT_BAND_FRAMES + 1;
+    producer.publish(&frames(0, count), count);
+    assert_eq!(consume(&mut consumer, 2), frames(0, 1));
+}
+
 #[test]
 fn producer_rate_mismatch_never_exposes_more_than_capacity() {
     let PcmMirrorPair {

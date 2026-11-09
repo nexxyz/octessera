@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 pub const PCM_MIRROR_CAPACITY_FRAMES: usize = 1_024;
 pub const PCM_MIRROR_TARGET_OCCUPANCY_FRAMES: usize = 256;
+const PCM_MIRROR_DRIFT_BAND_FRAMES: usize = 192;
 const FRAME_SEQUENCE_MASK: u64 = (1_u64 << 63) - 1;
 
 pub type PcmMirrorProducers = [Option<PcmMirrorProducer>; 2];
@@ -54,6 +55,7 @@ pub struct PcmMirrorConsumer {
     current_right: u32,
     current_channel: u8,
     priming: bool,
+    steering: bool,
     callback_active: bool,
 }
 
@@ -82,6 +84,7 @@ impl PcmMirrorProducer {
             current_right: 0,
             current_channel: 0,
             priming: false,
+            steering: write_sequence >= PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64,
             callback_active: false,
         }
     }
@@ -148,13 +151,29 @@ impl PcmMirrorConsumer {
             self.read_sequence =
                 sequence_subtract(write_sequence, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64);
             self.priming = false;
+            self.steering = true;
         }
         if self.read_sequence == write_sequence {
             self.reset_for_discontinuity(write_sequence);
             return false;
         }
+        if self.steering {
+            self.steer_toward_target(frame_distance(write_sequence, self.read_sequence));
+        }
         self.callback_active = true;
         true
+    }
+
+    /// The mirror's device clock runs a few ppm apart from the main output's, so the fill slowly
+    /// walks away from the target. One dropped or repeated frame per callback holds it in the band.
+    fn steer_toward_target(&mut self, fill: u64) {
+        let target = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES as u64;
+        let band = PCM_MIRROR_DRIFT_BAND_FRAMES as u64;
+        if fill > target + band {
+            self.read_sequence = next_sequence(self.read_sequence);
+        } else if fill < target - band {
+            self.read_sequence = sequence_subtract(self.read_sequence, 1);
+        }
     }
 
     fn continuity_is_valid(&mut self) -> bool {
@@ -184,6 +203,7 @@ impl PcmMirrorConsumer {
         self.current_sequence = 0;
         self.current_channel = 0;
         self.priming = true;
+        self.steering = false;
         self.callback_active = false;
     }
 
