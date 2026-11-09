@@ -46,9 +46,15 @@ impl NativeRunner {
                 | HostMessage::MidiRealtimeClock { .. }
                 | HostMessage::DeviceInput { .. }
         );
-        if self.transport.transport != RuntimeTransportState::Playing
+        // The clock bytes behind an external Start are stamped from their arrival, so the
+        // Start must not hold them up with a full presentation.
+        let external_start = matches!(
+            &message,
+            HostMessage::MidiRealtimeStart | HostMessage::MidiRealtimeContinue
+        );
+        if (self.transport.transport != RuntimeTransportState::Playing && !external_start)
             || self.display.runtime_error_presentation.is_some()
-            || !(supported_music_input || deferred_persistence_result)
+            || !(supported_music_input || external_start || deferred_persistence_result)
             || matches!(&message, HostMessage::DeviceInput { input, .. }
                 if !matches!(input.get("type").and_then(serde_json::Value::as_str),
                     Some("encoder_turn" | "encoder_press" | "grid_press" | "grid_release"

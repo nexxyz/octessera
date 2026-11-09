@@ -150,6 +150,8 @@ mod mix_mutes;
 mod modal_popups;
 mod modulation;
 #[cfg(test)]
+mod music_first_external_clock_tests;
+#[cfg(test)]
 mod music_first_grid_persistence_tests;
 #[cfg(test)]
 mod music_first_manual_save_tests;
