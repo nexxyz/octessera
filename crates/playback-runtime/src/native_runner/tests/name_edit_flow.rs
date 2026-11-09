@@ -40,7 +40,7 @@ fn backing_out_of_an_unchanged_layer_label_keeps_auto_label_on() {
 
     assert!(!runner.menu.state.editing);
     assert_eq!(auto_label(&runner).as_deref(), Some("true"));
-    assert!(runner.layer_auto_names[0]);
+    assert!(runner.layers[0].auto_name);
 }
 
 #[test]
@@ -62,5 +62,5 @@ fn main_on_the_empty_cell_after_the_text_finishes_the_row() {
 
     assert!(!runner.menu.state.editing);
     assert_eq!(auto_label(&runner).as_deref(), Some("false"));
-    assert_eq!(runner.layer_names[0], "lifeB");
+    assert_eq!(runner.layers[0].name, "lifeB");
 }

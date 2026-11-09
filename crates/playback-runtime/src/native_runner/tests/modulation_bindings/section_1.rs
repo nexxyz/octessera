@@ -157,10 +157,10 @@ pub(crate) fn generated_selector_trees_expose_representative_bindings() {
 #[test]
 pub(crate) fn behavior_target_picker_uses_per_layer_behavior_rows_and_hides_none_layers() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[1] = "life".into();
-    runner.layer_names[1] = "life".into();
-    runner.layer_behavior_ids[2] = "none".into();
-    runner.layer_names[2] = "none".into();
+    runner.layers[1].behavior_id = "life".into();
+    runner.layers[1].name = "life".into();
+    runner.layers[2].behavior_id = "none".into();
+    runner.layers[2].name = "none".into();
     runner.menu.rebuild(runner.menu_config());
 
     let picker = runner

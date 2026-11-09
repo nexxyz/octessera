@@ -3,8 +3,8 @@ use super::*;
 #[test]
 pub(crate) fn behavior_target_picker_uses_each_layers_behavior_and_prunes_none() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[0] = "none".into();
-    runner.layer_behavior_ids[2] = "brain".into();
+    runner.layers[0].behavior_id = "none".into();
+    runner.layers[2].behavior_id = "brain".into();
     runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
 
     let config = runner.menu_config();
@@ -27,8 +27,8 @@ pub(crate) fn behavior_target_picker_uses_each_layers_behavior_and_prunes_none()
 #[test]
 pub(crate) fn build_layer_menu_uses_selected_layers_behavior_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[2] = "brain".into();
-    runner.layer_names[2] = "brain".into();
+    runner.layers[2].behavior_id = "brain".into();
+    runner.layers[2].name = "brain".into();
     runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
     runner.menu.rebuild(runner.menu_config());
 
@@ -55,7 +55,7 @@ pub(crate) fn build_layer_menu_uses_selected_layers_behavior_params() {
 #[test]
 pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[2] = "brain".into();
+    runner.layers[2].behavior_id = "brain".into();
     runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
     runner.transport.layer_algorithm_step_pulses[2] = 24;
     runner.aux_bindings[0] = Some(NativeAuxBinding {
@@ -193,7 +193,7 @@ pub(crate) fn per_layer_step_rate_xy_binding_round_trips_from_payload() {
 #[test]
 pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[2] = "none".into();
+    runner.layers[2].behavior_id = "none".into();
     runner.transport.layer_algorithm_step_pulses[2] = 24;
     runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
     runner.xy.touch = NativeXyTouch {

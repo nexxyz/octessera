@@ -29,8 +29,8 @@ impl NativeRunner {
         } else {
             self.remembered_layer_behavior_config(self.active_layer_index, &behavior_id)
         };
-        if let Some(layer_behavior_id) = self.layer_behavior_ids.get_mut(self.active_layer_index) {
-            *layer_behavior_id = behavior_id.clone();
+        if let Some(layer) = self.layers.get_mut(self.active_layer_index) {
+            layer.behavior_id = behavior_id.clone();
         }
         self.replace_layer_engine_with_config(
             self.active_layer_index,

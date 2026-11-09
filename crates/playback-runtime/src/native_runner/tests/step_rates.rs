@@ -36,7 +36,7 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.layer_behavior_ids[1] = "sequencer".into();
+    runner.layers[1].behavior_id = "sequencer".into();
     runner.transport.layer_algorithm_step_pulses[0] = 6;
     runner.transport.layer_algorithm_step_pulses[1] = 24;
     runner.transport.algorithm_step_pulses = 6;

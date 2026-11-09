@@ -37,7 +37,7 @@ impl NativeRunner {
         )?;
         let ui = NativeUiState::default();
         let now = Instant::now();
-        let seed = NativeRunnerConstructionSeed::new(&config, behavior, ui, now);
+        let seed = NativeRunnerConstructionSeed::new(&config, ui, now);
         let mut layer_engines = Vec::new();
         layer_engines.resize_with(LAYER_COUNT, || None);
         for (index, slot) in layer_engines.iter_mut().enumerate().skip(1) {
@@ -114,11 +114,10 @@ impl NativeRunner {
             play_live: Default::default(),
             transpose: Default::default(),
             trigger_probability_maps: vec![FULL_PROBABILITY_MAP; LAYER_COUNT],
-            layer_behavior_ids: seed.layer_behavior_ids,
-            layer_names: seed.layer_names,
-            layer_auto_names: seed.layer_auto_names,
+            layers: (0..LAYER_COUNT)
+                .map(|_| NativeLayer::new(behavior.id()))
+                .collect(),
             random_seed: super::random_streams::DEFAULT_RANDOM_SEED,
-            layer_seeded: vec![false; LAYER_COUNT],
             seeded_link_streams: super::random_streams::SeededLinkStreams::new(
                 super::random_streams::DEFAULT_RANDOM_SEED,
             ),

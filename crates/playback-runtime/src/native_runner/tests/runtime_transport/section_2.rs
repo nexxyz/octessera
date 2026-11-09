@@ -17,7 +17,7 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
         tune_semis: 0,
         tune_cents: 0,
     }];
-    runner.layer_behavior_ids[1] = "sequencer".into();
+    runner.layers[1].behavior_id = "sequencer".into();
     runner.link_layers[1].scan_mode = ScanMode::Scanning;
     runner.link_layers[1].scan_axis = ScanAxis::Rows;
     runner.link_layers[1].scan_unit = "1/16".into();
@@ -106,7 +106,7 @@ pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_pha
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.layer_behavior_ids[1] = "sequencer".into();
+    runner.layers[1].behavior_id = "sequencer".into();
     runner.link_layers[1].scan_mode = ScanMode::Scanning;
     runner.link_layers[1].scan_axis = ScanAxis::Rows;
     runner.link_layers[1].scan_unit = "1/16".into();
@@ -164,7 +164,7 @@ pub(crate) fn switching_to_scanning_layer_restores_its_visual_scan_tick() {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.layer_behavior_ids[1] = "sequencer".into();
+    runner.layers[1].behavior_id = "sequencer".into();
     runner.link_layers[1].scan_mode = ScanMode::Scanning;
     runner.link_layers[1].scan_axis = ScanAxis::Columns;
     runner.link_layers[1].scan_unit = "1/16".into();

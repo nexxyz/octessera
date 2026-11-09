@@ -78,7 +78,7 @@ pub(crate) fn behavior_change_updates_active_layer_auto_name_label() {
         .unwrap();
     select_behavior(&mut runner, "keys");
 
-    assert_eq!(runner.layer_behavior_ids[0], "keys");
+    assert_eq!(runner.layers[0].behavior_id, "keys");
     runner.menu.back();
     runner.menu.rebuild(runner.menu_config());
     let snapshot = runner.snapshot().unwrap();

@@ -417,7 +417,7 @@ pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
 #[test]
 pub(crate) fn fast_behavior_edit_reports_replacement_errors_without_committing() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[0] = "unsupported-behavior".into();
+    runner.layers[0].behavior_id = "unsupported-behavior".into();
     let before = runner.layer_behavior_configs[0].clone();
     let key = "layers.0.build.behaviorConfig.randomCellsPerTick";
     assert!(runner.menu.focus_item_key(key));

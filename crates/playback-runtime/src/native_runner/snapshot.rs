@@ -80,8 +80,9 @@ impl NativeRunner {
     pub(super) fn hdmi_source_layer_index(&self, mode: &str) -> usize {
         if mode == "cycle-behaviors" {
             let candidates: Vec<usize> = self
-                .layer_behavior_ids
+                .layers
                 .iter()
+                .map(|layer| &layer.behavior_id)
                 .enumerate()
                 .filter_map(|(index, behavior_id)| {
                     (behavior_id != "none"
@@ -101,14 +102,14 @@ impl NativeRunner {
         self.display
             .hdmi
             .source_layer_index
-            .min(self.layer_behavior_ids.len().saturating_sub(1))
+            .min(self.layers.len().saturating_sub(1))
     }
 
     pub(super) fn hdmi_model_for_layer(
         &self,
         index: usize,
     ) -> Option<platform_core::BehaviorRenderModel> {
-        if self.layer_behavior_ids.get(index)? == "none" {
+        if self.layers.get(index)?.behavior_id == "none" {
             return None;
         }
         if index == self.active_layer_index {

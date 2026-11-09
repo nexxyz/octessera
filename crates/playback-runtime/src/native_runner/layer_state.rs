@@ -110,9 +110,9 @@ impl NativeRunner {
             *config = self.behavior_config.clone();
         }
         let previous_behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(self.active_layer_index)
-            .cloned()
+            .map(|layer| layer.behavior_id.clone())
             .unwrap_or_else(|| self.behavior.id().into());
         self.remember_layer_behavior_config(
             self.active_layer_index,
@@ -121,9 +121,9 @@ impl NativeRunner {
         );
 
         let behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(next_index)
-            .cloned()
+            .map(|layer| layer.behavior_id.clone())
             .unwrap_or_else(|| self.behavior.id().into());
         let behavior = platform_core::get_native_behavior(&behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;

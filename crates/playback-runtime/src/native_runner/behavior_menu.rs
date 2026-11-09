@@ -2,7 +2,7 @@ use super::*;
 
 impl NativeRunner {
     pub(super) fn build_menu_items_by_layer(&self) -> Vec<Vec<crate::native_menu::NativeMenuItem>> {
-        (0..self.layer_behavior_ids.len())
+        (0..self.layers.len())
             .map(|layer_index| {
                 if layer_index == self.active_layer_index {
                     self.build_menu_items()
@@ -18,9 +18,9 @@ impl NativeRunner {
         layer_index: usize,
     ) -> Vec<crate::native_menu::NativeMenuItem> {
         let behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(layer_index)
-            .map(String::as_str)
+            .map(|layer| layer.behavior_id.as_str())
             .unwrap_or("none");
         let mut items = vec![
             self.behavior_selector_menu_item_for_layer(layer_index),
@@ -30,9 +30,9 @@ impl NativeRunner {
                 key: Some(format!("layers.{layer_index}.autoName")),
                 value: crate::native_menu::NativeMenuValue::Bool {
                     value: self
-                        .layer_auto_names
+                        .layers
                         .get(layer_index)
-                        .copied()
+                        .map(|layer| layer.auto_name)
                         .unwrap_or(true),
                 },
                 children: vec![],
@@ -44,9 +44,9 @@ impl NativeRunner {
                 key: Some(format!("layers.{layer_index}.name")),
                 value: crate::native_menu::NativeMenuValue::Text {
                     value: self
-                        .layer_names
+                        .layers
                         .get(layer_index)
-                        .cloned()
+                        .map(|layer| layer.name.clone())
                         .unwrap_or_else(|| behavior_id.into()),
                     max_len: 32,
                     cursor: 0,
@@ -74,7 +74,11 @@ impl NativeRunner {
             breadcrumb: None,
             key: Some(format!("layers.{layer_index}.build.seeded")),
             value: crate::native_menu::NativeMenuValue::Bool {
-                value: self.layer_seeded.get(layer_index).copied().unwrap_or(false),
+                value: self
+                    .layers
+                    .get(layer_index)
+                    .map(|layer| layer.seeded)
+                    .unwrap_or(false),
             },
             children: vec![],
             pick: crate::native_menu::NativeMenuPick::None,
@@ -90,9 +94,9 @@ impl NativeRunner {
                 key: Some(format!("layers.{}.autoName", self.active_layer_index)),
                 value: crate::native_menu::NativeMenuValue::Bool {
                     value: self
-                        .layer_auto_names
+                        .layers
                         .get(self.active_layer_index)
-                        .copied()
+                        .map(|layer| layer.auto_name)
                         .unwrap_or(true),
                 },
                 children: vec![],
@@ -104,9 +108,9 @@ impl NativeRunner {
                 key: Some(format!("layers.{}.name", self.active_layer_index)),
                 value: crate::native_menu::NativeMenuValue::Text {
                     value: self
-                        .layer_names
+                        .layers
                         .get(self.active_layer_index)
-                        .cloned()
+                        .map(|layer| layer.name.clone())
                         .unwrap_or_else(|| self.behavior.id().into()),
                     max_len: 32,
                     cursor: 0,
@@ -169,9 +173,9 @@ impl NativeRunner {
         layer_index: usize,
     ) -> crate::native_menu::NativeMenuItem {
         let behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(layer_index)
-            .map(String::as_str)
+            .map(|layer| layer.behavior_id.as_str())
             .unwrap_or_else(|| self.behavior.id());
         let catalog = platform_core::behavior_catalog();
         let active = |is_active: bool| {
@@ -243,10 +247,10 @@ impl NativeRunner {
     }
 
     pub(super) fn layer_labels(&self) -> Vec<String> {
-        self.layer_names
+        self.layers
             .iter()
             .enumerate()
-            .map(|(index, name)| format!("L{}: {}", index + 1, name))
+            .map(|(index, layer)| format!("L{}: {}", index + 1, layer.name))
             .collect()
     }
 

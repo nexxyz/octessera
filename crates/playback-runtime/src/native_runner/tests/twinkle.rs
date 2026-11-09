@@ -71,7 +71,7 @@ pub(crate) fn twinkle_menu_exposes_native_defaults_and_actions() {
 pub(crate) fn twinkle_layer_selection_and_keyed_edit_stay_targeted() {
     let mut runner = twinkle_runner();
     runner.select_layer_behavior(1, "twinkle").unwrap();
-    assert_eq!(runner.layer_behavior_ids[1], "twinkle");
+    assert_eq!(runner.layers[1].behavior_id, "twinkle");
     assert!(runner
         .menu
         .item_for_key("layers.1.build.behaviorConfig.density")

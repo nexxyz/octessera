@@ -38,27 +38,20 @@ impl NativeRunner {
         let Some(auto_name) = self.menu.value_for_key(key).map(|value| value == "true") else {
             return false;
         };
-        let Some(target) = self.layer_auto_names.get_mut(index) else {
+        let Some(layer) = self.layers.get_mut(index) else {
             return false;
         };
         let mut changed = false;
-        if *target != auto_name {
-            *target = auto_name;
+        if layer.auto_name != auto_name {
+            layer.auto_name = auto_name;
             changed = true;
         }
         if auto_name {
-            let behavior_id = self
-                .layer_behavior_ids
-                .get(index)
-                .cloned()
-                .unwrap_or_else(|| self.behavior.id().into());
-            if let Some(name) = self.layer_names.get_mut(index) {
-                let previous_label = format!("L{}: {name}", index + 1);
-                let label = super::behavior_menu::behavior_display_label(&behavior_id);
-                if super::menu_apply_fast::value_changed(name, label) {
-                    changed = true;
-                    self.update_layer_menu_label(index, Some(&previous_label));
-                }
+            let previous_label = format!("L{}: {}", index + 1, layer.name);
+            let label = super::behavior_menu::behavior_display_label(&layer.behavior_id);
+            if super::menu_apply_fast::value_changed(&mut layer.name, label) {
+                changed = true;
+                self.update_layer_menu_label(index, Some(&previous_label));
             }
         }
         if changed {

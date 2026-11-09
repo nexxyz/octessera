@@ -16,11 +16,8 @@ impl NativeRunner {
         self.behavior_config = Value::Null;
         self.layer_behavior_configs = vec![Value::Null; LAYER_COUNT];
         self.layer_behavior_config_history = vec![BTreeMap::new(); LAYER_COUNT];
-        self.layer_behavior_ids = vec!["none".into(); LAYER_COUNT];
-        self.layer_names = vec!["none".into(); LAYER_COUNT];
-        self.layer_auto_names = vec![true; LAYER_COUNT];
+        self.layers = (0..LAYER_COUNT).map(|_| NativeLayer::new("none")).collect();
         self.random_seed = super::random_streams::DEFAULT_RANDOM_SEED;
-        self.layer_seeded = vec![false; LAYER_COUNT];
 
         self.global_sound = GlobalSoundConfig {
             velocity_scale_pct: 100,

@@ -45,9 +45,9 @@ fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: 
     {
         if platform_core::get_native_behavior(behavior_id).is_some() {
             let previous_behavior_id = runner
-                .layer_behavior_ids
+                .layers
                 .get(index)
-                .cloned()
+                .map(|layer| layer.behavior_id.clone())
                 .unwrap_or_else(|| "none".into());
             if previous_behavior_id != behavior_id {
                 runner.remember_layer_behavior_config(
@@ -60,29 +60,19 @@ fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: 
                     *target = next_config;
                 }
             }
-            runner.layer_behavior_ids[index] = behavior_id.into();
+            runner.layers[index].behavior_id = behavior_id.into();
         }
     }
+    let slot = &mut runner.layers[index];
     if let Some(auto_name) = layer.get("autoName").and_then(Value::as_bool) {
-        if let Some(target) = runner.layer_auto_names.get_mut(index) {
-            *target = auto_name;
-        }
+        slot.auto_name = auto_name;
     }
-    if runner.layer_auto_names.get(index).copied().unwrap_or(true) {
-        if let Some(target) = runner.layer_names.get_mut(index) {
-            *target = super::behavior_menu::behavior_display_label(
-                runner
-                    .layer_behavior_ids
-                    .get(index)
-                    .map_or_else(|| runner.behavior.id(), String::as_str),
-            );
-        }
+    if slot.auto_name {
+        slot.name = super::behavior_menu::behavior_display_label(&slot.behavior_id);
         return;
     }
     if let Some(name) = layer.get("name").and_then(Value::as_str) {
-        if let Some(target) = runner.layer_names.get_mut(index) {
-            *target = name.into();
-        }
+        slot.name = name.into();
     }
 }
 
@@ -108,13 +98,15 @@ fn apply_layer_build_payload(
     let Some(build) = build else {
         return Ok(());
     };
-    let Some(behavior_id) = runner.layer_behavior_ids.get(index).cloned() else {
+    let Some(behavior_id) = runner
+        .layers
+        .get(index)
+        .map(|layer| layer.behavior_id.clone())
+    else {
         return Ok(());
     };
     if let Some(seeded) = build.get("seeded").and_then(Value::as_bool) {
-        if let Some(target) = runner.layer_seeded.get_mut(index) {
-            *target = seeded;
-        }
+        runner.layers[index].seeded = seeded;
     }
     if let Some(step_rate) = build.get("stepRate").and_then(Value::as_str) {
         if let Some(layer_step) = runner.transport.layer_algorithm_step_pulses.get_mut(index) {

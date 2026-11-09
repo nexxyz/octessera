@@ -161,6 +161,7 @@ mod music_first_persistence_tests;
 mod music_first_system_result_tests;
 #[cfg(test)]
 mod music_first_tests;
+mod native_layer;
 #[cfg(test)]
 mod native_persistence_completion_tests;
 #[cfg(test)]
@@ -330,6 +331,7 @@ use menu_value_apply::*;
 use modulation_instrument_numeric::*;
 use modulation_process::ModulationProcessState;
 use modulation_sampler::RoutedMusicalEvents;
+use native_layer::NativeLayer;
 use outbox::NativeRunnerOutbox;
 use pan_position::*;
 use patch_device_payload::*;
@@ -413,11 +415,8 @@ pub struct NativeRunner {
     play_live: play_pages::PlayLiveState,
     transpose: play_transpose::PlayTranspose,
     trigger_probability_maps: Vec<TileProbabilityMap>,
-    layer_behavior_ids: Vec<String>,
-    layer_names: Vec<String>,
-    layer_auto_names: Vec<bool>,
+    layers: Vec<NativeLayer>,
     random_seed: u16,
-    layer_seeded: Vec<bool>,
     seeded_link_streams: random_streams::SeededLinkStreams,
     link_lfos: [NativeLinkLfo; GLOBAL_LFO_COUNT],
     midi_cc_mappings: [midi_cc_in::NativeMidiCcMapping; midi_cc_in::MIDI_CC_SLOT_COUNT],

@@ -110,9 +110,9 @@ impl NativeRunner {
     }
 
     fn layer_is_empty(&self, layer: usize) -> bool {
-        self.layer_behavior_ids
+        self.layers
             .get(layer)
-            .is_none_or(|behavior| behavior == "none")
+            .is_none_or(|layer| layer.behavior_id == "none")
     }
 
     fn layer_is_scanning(&self, layer: usize) -> bool {

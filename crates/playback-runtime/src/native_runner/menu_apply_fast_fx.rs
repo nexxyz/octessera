@@ -88,16 +88,12 @@ impl NativeRunner {
             };
             let mut changed = false;
             let mut previous_label = None;
-            if let Some(target) = self.layer_names.get_mut(index) {
-                if *target != name {
-                    previous_label = Some(format!("L{}: {target}", index + 1));
-                    *target = name;
+            if let Some(layer) = self.layers.get_mut(index) {
+                if layer.name != name {
+                    previous_label = Some(format!("L{}: {}", index + 1, layer.name));
+                    layer.name = name;
                     changed = true;
-                }
-            }
-            if let Some(auto_name) = self.layer_auto_names.get_mut(index) {
-                if changed && *auto_name {
-                    *auto_name = false;
+                    layer.auto_name = false;
                 }
             }
             if changed {

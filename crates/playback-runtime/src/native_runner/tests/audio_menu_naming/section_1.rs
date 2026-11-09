@@ -3,8 +3,8 @@ use super::*;
 #[test]
 pub(crate) fn layer_and_bus_names_round_trip_with_auto_name_flags() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_names[0] = "lead".into();
-    runner.layer_auto_names[0] = false;
+    runner.layers[0].name = "lead".into();
+    runner.layers[0].auto_name = false;
     runner.fx_buses[0].name = "space".into();
     runner.fx_buses[0].auto_name = false;
     runner.fx_buses[0].slot1_type = "delay".into();
@@ -13,8 +13,8 @@ pub(crate) fn layer_and_bus_names_round_trip_with_auto_name_flags() {
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(payload).unwrap();
 
-    assert_eq!(restored.layer_names[0], "lead");
-    assert!(!restored.layer_auto_names[0]);
+    assert_eq!(restored.layers[0].name, "lead");
+    assert!(!restored.layers[0].auto_name);
     assert_eq!(restored.fx_buses[0].name, "space");
     assert!(!restored.fx_buses[0].auto_name);
 
@@ -58,8 +58,8 @@ pub(crate) fn native_text_row_edits_layer_name_and_clears_auto_name() {
     assert_eq!(row.value, "lifeA");
     assert!(row.text_cursor.is_some());
     assert!(snapshot.lines.iter().all(|line| !line.contains('@')));
-    assert_eq!(runner.layer_names[0], "lifeA");
-    assert!(!runner.layer_auto_names[0]);
+    assert_eq!(runner.layers[0].name, "lifeA");
+    assert!(!runner.layers[0].auto_name);
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["layers"][0]["name"],
         "lifeA"
@@ -113,21 +113,21 @@ pub(crate) fn factory_payload_uses_display_style_auto_names() {
 #[test]
 pub(crate) fn auto_named_layer_renames_when_behavior_changes_to_none() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[1] = "sequencer".into();
-    runner.layer_names[1] = "sequencer".into();
-    runner.layer_auto_names[1] = false;
+    runner.layers[1].behavior_id = "sequencer".into();
+    runner.layers[1].name = "sequencer".into();
+    runner.layers[1].auto_name = false;
     runner.select_active_layer(1).unwrap();
     runner.menu.rebuild(runner.menu_config());
 
     runner.edit_menu_key("layers.1.autoName", 1).unwrap();
-    assert_eq!(runner.layer_names[1], "sequencer");
-    assert!(runner.layer_auto_names[1]);
+    assert_eq!(runner.layers[1].name, "sequencer");
+    assert!(runner.layers[1].auto_name);
 
     select_behavior(&mut runner, "none");
 
-    assert_eq!(runner.layer_behavior_ids[1], "none");
-    assert_eq!(runner.layer_names[1], "none");
-    assert!(runner.layer_auto_names[1]);
+    assert_eq!(runner.layers[1].behavior_id, "none");
+    assert_eq!(runner.layers[1].name, "none");
+    assert!(runner.layers[1].auto_name);
     assert_eq!(
         runner.menu.value_for_key("layers.1.name").as_deref(),
         Some("none")
@@ -137,9 +137,9 @@ pub(crate) fn auto_named_layer_renames_when_behavior_changes_to_none() {
 #[test]
 pub(crate) fn auto_named_layer_renames_after_toggling_auto_name_off_and_on() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[3] = "sequencer".into();
-    runner.layer_names[3] = "sequencer".into();
-    runner.layer_auto_names[3] = true;
+    runner.layers[3].behavior_id = "sequencer".into();
+    runner.layers[3].name = "sequencer".into();
+    runner.layers[3].auto_name = true;
     runner.select_active_layer(3).unwrap();
     runner.menu.rebuild(runner.menu_config());
 
@@ -149,20 +149,20 @@ pub(crate) fn auto_named_layer_renames_after_toggling_auto_name_off_and_on() {
     runner
         .apply_or_schedule_menu_key("layers.3.autoName")
         .unwrap();
-    assert!(!runner.layer_auto_names[3]);
+    assert!(!runner.layers[3].auto_name);
 
     runner.menu.turn_key("layers.3.autoName", 1);
     runner
         .apply_or_schedule_menu_key("layers.3.autoName")
         .unwrap();
-    assert!(runner.layer_auto_names[3]);
-    assert_eq!(runner.layer_names[3], "sequencer");
+    assert!(runner.layers[3].auto_name);
+    assert_eq!(runner.layers[3].name, "sequencer");
 
     select_behavior(&mut runner, "none");
 
-    assert_eq!(runner.layer_behavior_ids[3], "none");
-    assert!(runner.layer_auto_names[3]);
-    assert_eq!(runner.layer_names[3], "none");
+    assert_eq!(runner.layers[3].behavior_id, "none");
+    assert!(runner.layers[3].auto_name);
+    assert_eq!(runner.layers[3].name, "none");
     assert_eq!(
         runner.menu.value_for_key("layers.3.name").as_deref(),
         Some("none")

@@ -373,7 +373,7 @@ pub(crate) fn switching_active_layer_preserves_current_layer_engine_state() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.layer_behavior_ids[1] = "sequencer".into();
+    runner.layers[1].behavior_id = "sequencer".into();
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),

@@ -3,9 +3,9 @@ use super::NativeRunner;
 impl NativeRunner {
     pub(super) fn apply_behavior_selection(&mut self, behavior_id: &str) -> Result<bool, String> {
         let current_layer_behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(self.active_layer_index)
-            .cloned()
+            .map(|layer| layer.behavior_id.clone())
             .unwrap_or_else(|| self.behavior.id().into());
         let behavior_changed = behavior_id != self.behavior.id();
         let layer_behavior_changed = behavior_id != current_layer_behavior_id;
@@ -29,8 +29,8 @@ impl NativeRunner {
             &previous_behavior_id,
             previous_config,
         );
-        if let Some(layer_behavior_id) = self.layer_behavior_ids.get_mut(self.active_layer_index) {
-            *layer_behavior_id = behavior_id.to_string();
+        if let Some(layer) = self.layers.get_mut(self.active_layer_index) {
+            layer.behavior_id = behavior_id.to_string();
         }
         self.sync_active_layer_auto_name(behavior_id);
         self.remap_bindings_for_behavior_change(behavior_id, self.active_layer_index);
@@ -44,9 +44,9 @@ impl NativeRunner {
         behavior_id: &str,
     ) -> Result<bool, String> {
         let current_behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(layer_index)
-            .cloned()
+            .map(|layer| layer.behavior_id.clone())
             .unwrap_or_else(|| "none".into());
         if behavior_id == current_behavior_id {
             return Ok(self.sync_layer_auto_name(layer_index, behavior_id));
@@ -57,8 +57,8 @@ impl NativeRunner {
         let next_config = self.remembered_layer_behavior_config(layer_index, behavior_id);
         self.replace_layer_engine_with_config(layer_index, behavior, next_config.clone(), None)?;
         self.remember_layer_behavior_config(layer_index, &current_behavior_id, previous_config);
-        if let Some(layer_behavior_id) = self.layer_behavior_ids.get_mut(layer_index) {
-            *layer_behavior_id = behavior_id.to_string();
+        if let Some(layer) = self.layers.get_mut(layer_index) {
+            layer.behavior_id = behavior_id.to_string();
         }
         self.set_layer_behavior_config(layer_index, behavior_id, next_config);
         self.sync_layer_auto_name(layer_index, behavior_id);
@@ -71,21 +71,14 @@ impl NativeRunner {
     }
 
     pub(super) fn sync_layer_auto_name(&mut self, layer_index: usize, behavior_id: &str) -> bool {
-        if !self
-            .layer_auto_names
-            .get(layer_index)
-            .copied()
-            .unwrap_or(true)
-        {
-            return false;
-        }
-        let Some(name) = self.layer_names.get_mut(layer_index) else {
+        let Some(layer) = self.layers.get_mut(layer_index) else {
             return false;
         };
-        super::menu_apply_fast::value_changed(
-            name,
-            super::behavior_menu::behavior_display_label(behavior_id),
-        )
+        layer.auto_name
+            && super::menu_apply_fast::value_changed(
+                &mut layer.name,
+                super::behavior_menu::behavior_display_label(behavior_id),
+            )
     }
 
     pub(super) fn refresh_active_mapping_config(&mut self) {

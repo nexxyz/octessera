@@ -308,7 +308,7 @@ fn whole_binding_bounds_save_as_integers_and_older_float_saves_still_load() {
 #[test]
 fn a_slider_sets_a_behavior_row_of_an_inactive_layer() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[2] = "brain".into();
+    runner.layers[2].behavior_id = "brain".into();
     runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
     runner.menu.rebuild(runner.menu_config());
     bind(

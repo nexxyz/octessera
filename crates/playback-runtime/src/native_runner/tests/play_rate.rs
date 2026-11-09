@@ -38,7 +38,7 @@ fn set_menu(runner: &mut NativeRunner, key: &str, value: &str) {
 
 fn rate_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_behavior_ids[5] = "none".into();
+    runner.layers[5].behavior_id = "none".into();
     for button in ["button_shift", "button_fn"] {
         let _ = input(&mut runner, json!({ "type": button, "pressed": true }));
     }

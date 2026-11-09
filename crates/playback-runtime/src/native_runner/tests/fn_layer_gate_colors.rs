@@ -33,7 +33,7 @@ const GREEN: [u8; 3] = platform_core::palette::GREEN;
 fn runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     for (layer, id) in ["life", "life", "life", "none"].into_iter().enumerate() {
-        runner.layer_behavior_ids[layer] = id.into();
+        runner.layers[layer].behavior_id = id.into();
     }
     runner
 }

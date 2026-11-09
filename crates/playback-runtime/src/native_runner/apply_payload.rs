@@ -191,9 +191,9 @@ impl NativeRunner {
         }
         self.apply_sample_browser_favourites_payload(runtime);
         let active_behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(self.active_layer_index)
-            .cloned()
+            .map(|layer| layer.behavior_id.clone())
             .or_else(|| {
                 runtime
                     .get("activeBehavior")

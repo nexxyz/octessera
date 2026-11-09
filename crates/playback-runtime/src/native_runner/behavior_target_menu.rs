@@ -2,7 +2,7 @@ use super::*;
 
 impl NativeRunner {
     pub(super) fn behavior_target_items(&self) -> Vec<Vec<crate::native_menu::NativeMenuItem>> {
-        (0..self.layer_behavior_ids.len())
+        (0..self.layers.len())
             .map(|index| self.behavior_target_items_for_layer(index))
             .collect()
     }
@@ -12,7 +12,12 @@ impl NativeRunner {
         key: &str,
     ) -> Option<crate::native_menu::NativeMenuItem> {
         let layer_index = parse_generated_behavior_target_layer_index(key)?;
-        if self.layer_behavior_ids.get(layer_index).map(String::as_str) == Some("none") {
+        if self
+            .layers
+            .get(layer_index)
+            .map(|layer| layer.behavior_id.as_str())
+            == Some("none")
+        {
             return None;
         }
         self.menu
@@ -57,7 +62,7 @@ impl NativeRunner {
         layer_index: usize,
         key: &str,
     ) -> Option<crate::native_menu::NativeMenuItem> {
-        let behavior_id = self.layer_behavior_ids.get(layer_index)?.as_str();
+        let behavior_id = self.layers.get(layer_index)?.behavior_id.as_str();
         if behavior_id == "none" {
             return None;
         }
@@ -84,9 +89,9 @@ impl NativeRunner {
         layer_index: usize,
     ) -> Vec<crate::native_menu::NativeMenuItem> {
         let behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(layer_index)
-            .map(String::as_str)
+            .map(|layer| layer.behavior_id.as_str())
             .unwrap_or("none");
         if behavior_id == "none" {
             return vec![];

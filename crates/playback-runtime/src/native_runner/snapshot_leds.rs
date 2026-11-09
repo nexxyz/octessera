@@ -44,9 +44,9 @@ impl NativeRunner {
         for (index, engine) in self.layer_engines.iter().enumerate() {
             if index == self.active_layer_index
                 || self
-                    .layer_behavior_ids
+                    .layers
                     .get(index)
-                    .is_none_or(|id| id == "none")
+                    .is_none_or(|layer| layer.behavior_id == "none")
             {
                 continue;
             }

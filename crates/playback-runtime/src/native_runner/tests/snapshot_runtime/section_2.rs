@@ -9,7 +9,7 @@ pub(crate) fn transport_tick_advances_multiple_configured_layers() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 24;
-    runner.layer_behavior_ids[1] = "sequencer".into();
+    runner.layers[1].behavior_id = "sequencer".into();
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scanned_slot = 0;
     runner.link_layers[1].scan_mode = ScanMode::Scanning;
@@ -55,7 +55,7 @@ pub(crate) fn inactive_layer_transport_tick_applies_param_modulation() {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.layer_behavior_ids[1] = "sequencer".into();
+    runner.layers[1].behavior_id = "sequencer".into();
     runner.link_layers[0].scan_mode = ScanMode::Scanning;
     runner.link_layers[0].scan_axis = ScanAxis::Rows;
     runner.link_layers[0].scanned_slot = 0;

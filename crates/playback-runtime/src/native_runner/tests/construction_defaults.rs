@@ -18,20 +18,17 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
         },
         ..defaults
     };
-    let behavior = platform_core::get_native_behavior(&config.behavior_id).unwrap();
     let runner = NativeRunner::new(config.clone()).unwrap();
-    let expected_seed = NativeRunnerConstructionSeed::new(
-        &config,
-        behavior,
-        NativeUiState::default(),
-        Instant::now(),
-    );
+    let expected_seed =
+        NativeRunnerConstructionSeed::new(&config, NativeUiState::default(), Instant::now());
 
     assert_eq!(runner.behavior.id(), "sequencer");
     assert_eq!(runner.transport.bpm, config.bpm);
     assert_eq!((runner.transport.swing_a, runner.transport.swing_b), (7, 1));
-    assert_eq!(runner.layer_behavior_ids, expected_seed.layer_behavior_ids);
-    assert_eq!(runner.layer_names, expected_seed.layer_names);
+    assert!(runner
+        .layers
+        .iter()
+        .all(|layer| layer.behavior_id == "sequencer" && layer.name == "sequencer"));
     assert_eq!(runner.instruments, expected_seed.instruments);
     assert_eq!(
         runner.sample_builtin_favourite_dirs,
@@ -51,11 +48,8 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
         .iter()
         .map(|item| item.label.clone())
         .collect::<Vec<_>>();
-    let mut expected_world_labels = expected_seed
-        .layer_names
-        .iter()
-        .enumerate()
-        .map(|(index, name)| format!("L{}: {name}", index + 1))
+    let mut expected_world_labels = (1..=LAYER_COUNT)
+        .map(|layer| format!("L{layer}: sequencer"))
         .collect::<Vec<_>>();
     expected_world_labels.push("Seed".into());
     assert_eq!(world_labels, expected_world_labels);
@@ -91,14 +85,9 @@ fn non_default_transport_and_display_defaults_are_seeded_without_menu_rebuild_co
         swing_b: 3,
         ..defaults
     };
-    let behavior = platform_core::get_native_behavior(&config.behavior_id).unwrap();
     let runner = NativeRunner::new(config.clone()).unwrap();
-    let expected_seed = NativeRunnerConstructionSeed::new(
-        &config,
-        behavior,
-        NativeUiState::default(),
-        Instant::now(),
-    );
+    let expected_seed =
+        NativeRunnerConstructionSeed::new(&config, NativeUiState::default(), Instant::now());
 
     assert_eq!(runner.behavior.id(), "keys");
     assert_eq!(runner.transport.bpm, 61.0);

@@ -27,9 +27,6 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) aux_priority: String,
     pub(super) aux_bindings: Vec<Option<NativeAuxBinding>>,
     pub(super) shift_aux_bindings: Vec<Option<NativeAuxBinding>>,
-    pub(super) layer_behavior_ids: Vec<String>,
-    pub(super) layer_names: Vec<String>,
-    pub(super) layer_auto_names: Vec<bool>,
     pub(super) sample_favourite_dirs: Vec<String>,
     pub(super) sample_builtin_favourite_dirs: Vec<String>,
     pub(super) preset_names: Vec<String>,
@@ -49,13 +46,7 @@ pub(super) struct NativeRunnerConstructionSeed {
 }
 
 impl NativeRunnerConstructionSeed {
-    pub(super) fn new(
-        config: &NativeRunnerConfig,
-        behavior: NativeBehavior,
-        ui: NativeUiState,
-        now: Instant,
-    ) -> Self {
-        let behavior_id: String = behavior.id().into();
+    pub(super) fn new(config: &NativeRunnerConfig, ui: NativeUiState, now: Instant) -> Self {
         Self {
             now,
             ui,
@@ -87,12 +78,6 @@ impl NativeRunnerConstructionSeed {
             aux_priority: "manual".into(),
             aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
             shift_aux_bindings: vec![None; platform_core::AUX_ENCODER_COUNT],
-            layer_behavior_ids: vec![behavior_id.clone(); LAYER_COUNT],
-            layer_names: vec![
-                super::behavior_menu::behavior_display_label(&behavior_id);
-                LAYER_COUNT
-            ],
-            layer_auto_names: vec![true; LAYER_COUNT],
             sample_favourite_dirs: Vec::new(),
             sample_builtin_favourite_dirs: config.sample_builtin_favourite_dirs.clone(),
             preset_names: Vec::new(),

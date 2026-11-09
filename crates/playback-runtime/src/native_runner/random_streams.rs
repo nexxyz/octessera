@@ -69,9 +69,9 @@ pub(super) fn random_seed_from_payload(runtime: &Value) -> Option<u16> {
 
 impl NativeRunner {
     pub(super) fn layer_random_seed(&self, layer_index: usize) -> Option<u64> {
-        self.layer_seeded
+        self.layers
             .get(layer_index)
-            .copied()
+            .map(|layer| layer.seeded)
             .unwrap_or(false)
             .then(|| stream_seed(self.random_seed, RANDOM_DOMAIN_BUILD, layer_index))
     }
@@ -152,9 +152,9 @@ impl NativeRunner {
             return None;
         }
         let seeded = self.menu.value_for_key(key)? == "true";
-        let target = self.layer_seeded.get_mut(index)?;
-        if *target != seeded {
-            *target = seeded;
+        let layer = self.layers.get_mut(index)?;
+        if layer.seeded != seeded {
+            layer.seeded = seeded;
             self.sync_layer_random_seeds();
             self.mark_fast_autosave_dirty();
         }

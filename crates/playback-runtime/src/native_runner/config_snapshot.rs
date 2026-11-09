@@ -224,11 +224,16 @@ impl NativeConfigSnapshot {
 
     fn capture(runner: &NativeRunner) -> Self {
         let layers = runner
-            .layer_behavior_ids
+            .layers
             .iter()
+            .map(|layer| &layer.behavior_id)
             .enumerate()
             .map(|(index, behavior_id)| {
-                let auto_name = runner.layer_auto_names.get(index).copied().unwrap_or(true);
+                let auto_name = runner
+                    .layers
+                    .get(index)
+                    .map(|layer| layer.auto_name)
+                    .unwrap_or(true);
                 let behavior_config = if index == runner.active_layer_index {
                     runner.behavior_config.clone()
                 } else {
@@ -269,14 +274,18 @@ impl NativeConfigSnapshot {
                     config_overrides: runner
                         .modulation_process
                         .persistent_behavior_config_overrides(index),
-                    seeded: runner.layer_seeded.get(index).copied().unwrap_or(false),
+                    seeded: runner
+                        .layers
+                        .get(index)
+                        .map(|layer| layer.seeded)
+                        .unwrap_or(false),
                     name: if auto_name {
                         behavior_id.clone()
                     } else {
                         runner
-                            .layer_names
+                            .layers
                             .get(index)
-                            .cloned()
+                            .map(|layer| layer.name.clone())
                             .unwrap_or_else(|| behavior_id.clone())
                     },
                     auto_name,

@@ -171,7 +171,12 @@ impl NativeRunner {
     }
 
     fn apply_layer_algorithm_step_binding(&mut self, index: usize, value: Value) -> bool {
-        if self.layer_behavior_ids.get(index).map(String::as_str) == Some("none") {
+        if self
+            .layers
+            .get(index)
+            .map(|layer| layer.behavior_id.as_str())
+            == Some("none")
+        {
             return false;
         }
         let Some(value) = value.as_str() else {

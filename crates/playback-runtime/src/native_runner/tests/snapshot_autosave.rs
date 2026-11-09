@@ -213,7 +213,7 @@ pub(crate) fn text_edit_turns_are_deferred_until_flush_or_exit() {
         })
         .unwrap();
 
-    assert_eq!(runner.layer_names[0], "life");
+    assert_eq!(runner.layers[0].name, "life");
     assert!(!messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
@@ -226,8 +226,8 @@ pub(crate) fn text_edit_turns_are_deferred_until_flush_or_exit() {
     runner.make_deferred_menu_apply_due_for_test();
     runner.flush_deferred_menu_apply().unwrap();
 
-    assert_eq!(runner.layer_names[0], "lifea");
-    assert!(!runner.layer_auto_names[0]);
+    assert_eq!(runner.layers[0].name, "lifea");
+    assert!(!runner.layers[0].auto_name);
 }
 
 #[test]
@@ -249,8 +249,8 @@ pub(crate) fn deferred_text_edit_survives_leaving_name_row_before_flush() {
     runner.make_deferred_menu_apply_due_for_test();
     runner.flush_deferred_menu_apply().unwrap();
 
-    assert_eq!(runner.layer_names[0], "lifea");
-    assert!(!runner.layer_auto_names[0]);
+    assert_eq!(runner.layers[0].name, "lifea");
+    assert!(!runner.layers[0].auto_name);
 }
 
 #[test]

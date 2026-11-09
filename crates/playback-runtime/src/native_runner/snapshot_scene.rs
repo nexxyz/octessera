@@ -138,9 +138,9 @@ impl NativeRunner {
         let hdmi_mode = self.display.hdmi.mode.as_str();
         let source_layer_index = self.hdmi_source_layer_index(hdmi_mode);
         let source_behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(source_layer_index)
-            .cloned()
+            .map(|layer| layer.behavior_id.clone())
             .unwrap_or_else(|| "none".into());
         let grid = match hdmi_mode {
             "live-grid" => HdmiGrid::Live,

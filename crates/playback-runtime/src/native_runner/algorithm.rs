@@ -107,9 +107,9 @@ impl NativeRunner {
             let is_sequencer = if index == self.active_layer_index {
                 self.behavior.id() == "sequencer"
             } else {
-                self.layer_behavior_ids
+                self.layers
                     .get(index)
-                    .is_some_and(|behavior_id| behavior_id == "sequencer")
+                    .is_some_and(|layer| layer.behavior_id == "sequencer")
             };
             if is_sequencer
                 && self

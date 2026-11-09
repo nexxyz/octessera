@@ -37,8 +37,8 @@ impl NativeRunner {
             behavior_target_items: self.behavior_target_items(),
             dsp_config: self.dsp_config,
             layer_labels: self.layer_labels(),
-            layer_names: self.layer_names.clone(),
-            layer_auto_names: self.layer_auto_names.clone(),
+            layer_names: self.layers.iter().map(|layer| layer.name.clone()).collect(),
+            layer_auto_names: self.layers.iter().map(|layer| layer.auto_name).collect(),
             link_layers: link_layer_configs(&self.link_layers),
             active_layer_index: self.active_layer_index,
             link_lfos: self.link_lfos.clone().map(|lfo| NativeLinkLfoConfig {

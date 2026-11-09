@@ -175,10 +175,9 @@ impl NativeRunner {
     fn paint_fn_layer_column(&self, leds: &mut [LedColor]) {
         for row in 0..GRID_HEIGHT {
             let configured = self
-                .layer_behavior_ids
+                .layers
                 .get(row)
-                .map(|id| id != "none")
-                .unwrap_or(false);
+                .is_some_and(|layer| layer.behavior_id != "none");
             let gated = self.link_layers.get(row).is_some_and(|layer| {
                 layer.trigger_probability_mode == TriggerProbabilityMode::Zero
             });

@@ -32,11 +32,15 @@ impl NativeRunner {
             .and_then(|history| history.get(behavior_id))
             .cloned()
             .or_else(|| {
-                (self.layer_behavior_ids.get(layer_index).map(String::as_str) == Some(behavior_id))
-                    .then(|| self.layer_behavior_configs.get(layer_index))
-                    .flatten()
-                    .filter(|config| !config.is_null())
-                    .cloned()
+                (self
+                    .layers
+                    .get(layer_index)
+                    .map(|layer| layer.behavior_id.as_str())
+                    == Some(behavior_id))
+                .then(|| self.layer_behavior_configs.get(layer_index))
+                .flatten()
+                .filter(|config| !config.is_null())
+                .cloned()
             })
             .unwrap_or(Value::Null)
     }
@@ -64,9 +68,9 @@ impl NativeRunner {
         mark_autosave: bool,
     ) -> Result<bool, String> {
         let behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(layer_index)
-            .cloned()
+            .map(|layer| layer.behavior_id.clone())
             .unwrap_or_else(|| "none".into());
         let behavior = platform_core::get_native_behavior(&behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;

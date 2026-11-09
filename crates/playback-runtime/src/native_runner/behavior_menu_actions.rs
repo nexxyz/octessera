@@ -40,9 +40,9 @@ impl NativeRunner {
         if layer_index == self.active_layer_index {
             self.behavior.id()
         } else {
-            self.layer_behavior_ids
+            self.layers
                 .get(layer_index)
-                .map_or("none", String::as_str)
+                .map_or("none", |layer| layer.behavior_id.as_str())
         }
     }
 
@@ -77,9 +77,9 @@ impl NativeRunner {
     pub(super) fn seed_visible_state(&mut self) -> Result<(), String> {
         let layer_index = self.active_layer_index;
         let behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(layer_index)
-            .cloned()
+            .map(|layer| layer.behavior_id.clone())
             .unwrap_or_else(|| self.behavior.id().into());
         let behavior = platform_core::get_native_behavior(&behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;

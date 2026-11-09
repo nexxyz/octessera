@@ -121,7 +121,7 @@ pub(crate) fn play_mode_edits_outside_play_page_do_not_activate_overlay() {
 #[test]
 pub(crate) fn fn_grid_context_changes_show_oled_toasts() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layer_names[2] = "rain".into();
+    runner.layers[2].name = "rain".into();
 
     let _ = runner
         .send(HostMessage::DeviceInput {

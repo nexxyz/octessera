@@ -10,7 +10,12 @@ fn mixed_patch_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.midi.enabled = true;
-    for (index, behavior_id) in runner.layer_behavior_ids.iter().enumerate() {
+    for (index, behavior_id) in runner
+        .layers
+        .iter()
+        .map(|layer| &layer.behavior_id)
+        .enumerate()
+    {
         assert_eq!(behavior_id == "none", index >= 5, "factory layer {index}");
     }
     for (key, value) in [("transport.swingA", 4), ("transport.swingB", 3)] {

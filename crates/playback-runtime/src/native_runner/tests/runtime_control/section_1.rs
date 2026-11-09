@@ -8,9 +8,9 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
         .unwrap();
 
     assert!(effect.is_none());
-    assert_eq!(runner.layer_behavior_ids[0], "life");
-    assert_eq!(runner.layer_behavior_ids[1], "sequencer");
-    assert_eq!(runner.layer_behavior_ids[2], "looper");
+    assert_eq!(runner.layers[0].behavior_id, "life");
+    assert_eq!(runner.layers[1].behavior_id, "sequencer");
+    assert_eq!(runner.layers[2].behavior_id, "looper");
     assert_eq!(runner.transport.layer_algorithm_step_pulses[1], 12);
     assert_eq!(runner.link_layers[1].scan_unit, "1/8");
     assert_eq!(runner.instruments[0].route, MixerRoute::FxBus(2));
@@ -89,7 +89,7 @@ pub(crate) fn clear_all_confirmation_cancel_is_noop() {
         runner.patch_store.current_preset_name.as_deref(),
         Some("keeper")
     );
-    assert_eq!(runner.layer_behavior_ids[0], "life");
+    assert_eq!(runner.layers[0].behavior_id, "life");
     assert_eq!(runner.audio_revisions.revision, 0);
 }
 
@@ -123,7 +123,10 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
         .drain_platform_effects()
         .iter()
         .any(|effect| matches!(effect, RuntimePlatformEffect::MidiPanic)));
-    assert!(runner.layer_behavior_ids.iter().all(|id| id == "none"));
+    assert!(runner
+        .layers
+        .iter()
+        .all(|layer| layer.behavior_id == "none"));
     assert!(runner.layer_behavior_configs.iter().all(Value::is_null));
     assert!(runner.config_payload()["runtimeConfig"]["layers"]
         .as_array()

@@ -5,8 +5,8 @@ pub(crate) fn fn_overlay_shows_active_layers_and_play_page_options() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Pan);
     runner.play_mode = PlayMode::Pan;
-    runner.layer_behavior_ids[1] = "none".into();
-    runner.layer_behavior_ids[2] = "life".into();
+    runner.layers[1].behavior_id = "none".into();
+    runner.layers[2].behavior_id = "life".into();
     runner.display.ui.fn_held = true;
 
     let snapshot = runner.snapshot().unwrap();
@@ -34,8 +34,8 @@ pub(crate) fn fn_overlay_highlights_active_layer_when_not_in_play_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = ActivePlayMode::None;
     runner.play_mode = PlayMode::Mix;
-    runner.layer_behavior_ids[1] = "none".into();
-    runner.layer_behavior_ids[2] = "life".into();
+    runner.layers[1].behavior_id = "none".into();
+    runner.layers[2].behavior_id = "life".into();
     let _ = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 3, "y": 3 }),

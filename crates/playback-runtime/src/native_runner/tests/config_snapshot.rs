@@ -140,7 +140,7 @@ pub(crate) fn snapshot_preserves_saved_state_omission_rules_and_sequencer_state(
     assert!(none_build.get("savedState").is_none());
 
     let mut absent_inactive = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    absent_inactive.layer_behavior_ids[0] = "life".into();
+    absent_inactive.layers[0].behavior_id = "life".into();
     absent_inactive.active_layer_index = 1;
     absent_inactive.layer_engines[0] = None;
     let absent_payload = absent_inactive.capture_config_snapshot().into_payload();
@@ -203,7 +203,7 @@ pub(crate) fn snapshot_owns_inactive_grid_layer_link_audio_and_sample_config() {
         .engine
         .on_input(DeviceInput::GridPress { x: 2, y: 3 }, 120.0)
         .unwrap();
-    runner.layer_behavior_ids[1] = "sequencer".into();
+    runner.layers[1].behavior_id = "sequencer".into();
     runner.link_layers[1].lowest_note = 37;
     runner.trigger_probability_maps[1][0] = TileProbability::Low;
     runner.instruments[0].sample_paths[0] = Some("samples/captured.wav".into());
@@ -213,8 +213,8 @@ pub(crate) fn snapshot_owns_inactive_grid_layer_link_audio_and_sample_config() {
     runner.behavior_config = json!({ "opaque": { "extension": true } });
     runner.layer_behavior_config_history[1]
         .insert("sequencer".into(), json!({ "historyExtension": [4, 5] }));
-    runner.layer_names[1] = "quiet machine".into();
-    runner.layer_auto_names[1] = false;
+    runner.layers[1].name = "quiet machine".into();
+    runner.layers[1].auto_name = false;
 
     let snapshot = runner.capture_config_snapshot();
 

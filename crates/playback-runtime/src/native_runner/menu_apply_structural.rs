@@ -7,9 +7,9 @@ impl NativeRunner {
             return Ok(());
         };
         let previous_layer_label = self
-            .layer_names
+            .layers
             .get(self.active_layer_index)
-            .map(|name| format!("L{}: {name}", self.active_layer_index + 1));
+            .map(|layer| format!("L{}: {}", self.active_layer_index + 1, layer.name));
         let changed = self.apply_behavior_selection(&behavior_id)?;
         self.update_active_layer_menu_label(previous_layer_label.as_deref());
         self.update_active_behavior_selector();
@@ -22,9 +22,9 @@ impl NativeRunner {
 
     pub(super) fn select_behavior(&mut self, behavior_id: &str) -> Result<(), String> {
         let previous_layer_label = self
-            .layer_names
+            .layers
             .get(self.active_layer_index)
-            .map(|name| format!("L{}: {name}", self.active_layer_index + 1));
+            .map(|layer| format!("L{}: {}", self.active_layer_index + 1, layer.name));
         let changed = self.apply_behavior_selection(behavior_id)?;
         self.update_active_layer_menu_label(previous_layer_label.as_deref());
         self.update_active_behavior_selector();
@@ -45,9 +45,9 @@ impl NativeRunner {
             return self.select_behavior(behavior_id);
         }
         let previous_label = self
-            .layer_names
+            .layers
             .get(layer_index)
-            .map(|name| format!("L{}: {name}", layer_index + 1));
+            .map(|layer| format!("L{}: {}", layer_index + 1, layer.name));
         let changed = self.apply_layer_behavior_selection(layer_index, behavior_id)?;
         self.update_layer_menu_label(layer_index, previous_label.as_deref());
         self.update_layer_build_menu_items(layer_index);
@@ -64,9 +64,9 @@ impl NativeRunner {
             &format!(
                 "L{}: {}",
                 self.active_layer_index + 1,
-                self.layer_names
+                self.layers
                     .get(self.active_layer_index)
-                    .map(String::as_str)
+                    .map(|layer| layer.name.as_str())
                     .unwrap_or_else(|| self.behavior.id())
             ),
         );
@@ -77,7 +77,7 @@ impl NativeRunner {
         layer_index: usize,
         previous_label: Option<&str>,
     ) {
-        let Some(name) = self.layer_names.get(layer_index).cloned() else {
+        let Some(name) = self.layers.get(layer_index).map(|layer| layer.name.clone()) else {
             return;
         };
         self.menu
@@ -96,10 +96,10 @@ impl NativeRunner {
     }
 
     pub(super) fn update_layer_build_menu_items(&mut self, layer_index: usize) {
-        let Some(name) = self.layer_names.get(layer_index) else {
+        let Some(layer) = self.layers.get(layer_index) else {
             return;
         };
-        let label = format!("L{}: {name}", layer_index + 1);
+        let label = format!("L{}: {}", layer_index + 1, layer.name);
         let children = if layer_index == self.active_layer_index {
             self.build_menu_items()
         } else {

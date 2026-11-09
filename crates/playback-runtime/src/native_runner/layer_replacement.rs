@@ -94,9 +94,9 @@ impl NativeRunner {
 
     pub(super) fn reset_layer_behavior(&mut self, layer_index: usize) -> Result<(), String> {
         let behavior_id = self
-            .layer_behavior_ids
+            .layers
             .get(layer_index)
-            .cloned()
+            .map(|layer| layer.behavior_id.clone())
             .unwrap_or_else(|| "none".into());
         let behavior = platform_core::get_native_behavior(&behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
