@@ -167,3 +167,49 @@ fn unversioned_payload_ignores_unknown_link_values() {
     assert_eq!(runner.trigger_probability_maps[0][0], TileProbability::Full);
     assert_eq!(runner.trigger_probability_maps[0][1], TileProbability::Low);
 }
+
+#[test]
+fn link_arp_bindings_write_the_arp_and_clear_its_held_notes() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert!(!write(&mut runner, "layers.0.link.arp.mode", "sideways"));
+    assert!(!write(&mut runner, "layers.0.link.arp.source", "notes"));
+    for mode in ArpMode::ALL {
+        runner.link_arp.held_notes[0].push(LinkArpHeldNote {
+            audio: true,
+            channel: 0,
+            note: 60,
+            velocity: 96,
+        });
+        let changed = runner.link_layers[0].arp.mode != mode;
+        write(&mut runner, "layers.0.link.arp.mode", mode.wire_name());
+        assert_eq!(runner.link_layers[0].arp.mode, mode);
+        assert_eq!(
+            runner.link_arp.held_notes[0].is_empty(),
+            changed,
+            "{mode:?}"
+        );
+        runner.link_arp.held_notes[0].clear();
+    }
+    for source in ArpSource::ALL {
+        write(&mut runner, "layers.0.link.arp.source", source.wire_name());
+        assert_eq!(runner.link_layers[0].arp.source, source);
+    }
+
+    let mut number = |key: &str, value: i64| {
+        runner.apply_param_binding_value(key, json!(value), &mut BTreeMap::new());
+    };
+    number("layers.0.link.arp.stepIntervalSteps", 0);
+    number("layers.0.link.arp.noteLengthMs", 5000);
+    number("layers.0.link.arp.gatePct", 0);
+    number("layers.0.link.arp.octaveSpread", 9);
+    let arp = runner.link_layers[0].arp;
+    assert_eq!(
+        (
+            arp.step_interval_steps,
+            arp.note_length_ms,
+            arp.gate_pct,
+            arp.octave_spread
+        ),
+        (1, 2000, 1, 3)
+    );
+}

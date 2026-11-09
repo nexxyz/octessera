@@ -196,6 +196,9 @@ impl NativeRunner {
             .link_layers
             .get_mut(index)
             .is_some_and(|layer| apply_link_binding_value(layer, field, value));
+        if changed && field.starts_with("arp.") {
+            self.clear_link_arp_state_for_layer(index);
+        }
         changed
     }
 

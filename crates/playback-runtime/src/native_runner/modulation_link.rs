@@ -2,8 +2,8 @@ use super::modulation_value::{
     apply_bool_value, apply_i32_value, apply_string_value, apply_u8_enum_value, apply_u8_value,
 };
 use super::{
-    LaneCurve, NativeLinkLayer, NativeValueLane, RangeMode, ScanAxis, ScanDirection, ScanMode,
-    TriggerProbabilityMode, Value,
+    ArpMode, ArpSource, LaneCurve, NativeLinkLayer, NativeValueLane, RangeMode, ScanAxis,
+    ScanDirection, ScanMode, TriggerProbabilityMode, Value,
 };
 
 pub(super) fn apply_link_binding_value(
@@ -56,6 +56,14 @@ pub(super) fn apply_link_binding_value(
         "y.pitch.restartEachSection" => {
             apply_bool_value(&mut layer.y_pitch_restart_each_section, value)
         }
+        "arp.mode" => apply_wire_value(&mut layer.arp.mode, value, ArpMode::from_wire_name),
+        "arp.source" => apply_wire_value(&mut layer.arp.source, value, ArpSource::from_wire_name),
+        "arp.stepIntervalSteps" => {
+            apply_ranged_value(&mut layer.arp.step_interval_steps, value, 1, 16)
+        }
+        "arp.noteLengthMs" => apply_ranged_value(&mut layer.arp.note_length_ms, value, 10, 2000),
+        "arp.gatePct" => apply_ranged_value(&mut layer.arp.gate_pct, value, 1, 100),
+        "arp.octaveSpread" => apply_ranged_value(&mut layer.arp.octave_spread, value, 0, 3),
         _ if field.starts_with("x.velocity.") => {
             apply_value_lane_binding_value(&mut layer.x_velocity, &field[11..], value)
         }
@@ -76,6 +84,21 @@ pub(super) fn apply_link_binding_value(
         }
         _ => false,
     }
+}
+
+fn apply_ranged_value<T>(target: &mut T, value: Value, min: i32, max: i32) -> bool
+where
+    T: Copy + Into<i32> + TryFrom<i32>,
+{
+    let mut wide = (*target).into();
+    if !apply_i32_value(&mut wide, value, min, max) {
+        return false;
+    }
+    let Ok(narrow) = T::try_from(wide) else {
+        return false;
+    };
+    *target = narrow;
+    true
 }
 
 fn apply_note_set_value(target: &mut String, value: Value) -> bool {
