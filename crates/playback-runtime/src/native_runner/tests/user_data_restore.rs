@@ -105,7 +105,7 @@ pub(crate) fn restore_invalidation_abandons_cancelled_default_write() {
     for outcome in ["failed", "missing", "invalid"] {
         let mut runner = pending_restart_runner();
         let bpm = runner.transport.bpm;
-        let optimization = runner.audio_optimization;
+        let optimization = runner.audio_io.audio_optimization;
         assert!(runner
             .send(HostMessage::RuntimeResult {
                 result: restore_status(RuntimeUserDataRestorePhase::Restoring),
@@ -186,7 +186,10 @@ pub(crate) fn restore_invalidation_abandons_cancelled_default_write() {
         }
         assert!(!runner.restore_rehydration_pending(), "{outcome}");
         assert_eq!(runner.transport.bpm, bpm, "{outcome}");
-        assert_eq!(runner.audio_optimization, optimization, "{outcome}");
+        assert_eq!(
+            runner.audio_io.audio_optimization, optimization,
+            "{outcome}"
+        );
 
         for _ in 0..2 {
             if runner.display.user_data_restore.is_none() {

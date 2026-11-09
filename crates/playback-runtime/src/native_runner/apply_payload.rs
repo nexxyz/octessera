@@ -50,8 +50,8 @@ impl NativeRunner {
             .envelope
             .application_view(&prepared.apply_payload)?;
         candidate.apply_config_payload_unchecked(apply_device, &application_envelope)?;
-        candidate.validate_audio_outputs()?;
-        candidate.validate_usb_data_role()?;
+        candidate.audio_io.validate_audio_outputs()?;
+        candidate.audio_io.validate_usb_data_role()?;
         for (candidate_lfo, source_lfo) in candidate.link_lfos.iter_mut().zip(&self.link_lfos) {
             let preserve_phase = candidate_lfo.target.as_ref().map(|target| &target.key)
                 == source_lfo.target.as_ref().map(|target| &target.key);
@@ -84,9 +84,7 @@ impl NativeRunner {
         self.last_published_runtime_config = source.last_published_runtime_config.clone();
         self.trigger_probability_rng = source.trigger_probability_rng;
         self.seeded_link_streams = source.seeded_link_streams.clone();
-        self.audio_optimization_capacity_available = source.audio_optimization_capacity_available;
-        self.jack_audio_required = source.jack_audio_required;
-        self.usb_data_role_available = source.usb_data_role_available;
+        self.audio_io = source.audio_io;
     }
 
     fn copy_live_runtime_state_from(&mut self, source: &NativeRunner) {

@@ -21,7 +21,7 @@ impl NativeRunner {
 
     /// Load System and backup restore apply changed device settings live, like an edit.
     pub(super) fn apply_loaded_device_config(&mut self) {
-        if !self.jack_audio_required {
+        if !self.audio_io.jack_audio_required {
             return;
         }
         if let Ok(document) =

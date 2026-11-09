@@ -127,10 +127,10 @@ impl NativeRunner {
         {
             let optimization = AudioOptimization::from_wire_name(value)
                 .ok_or_else(|| format!("unsupported audio optimization `{value}`"))?;
-            if !optimization.is_supported(self.audio_optimization_capacity_available) {
+            if !optimization.is_supported(self.audio_io.audio_optimization_capacity_available) {
                 return Err("audio optimization capacity is unavailable".into());
             }
-            self.audio_optimization = optimization;
+            self.audio_io.audio_optimization = optimization;
         }
         Ok(())
     }
@@ -147,7 +147,7 @@ impl NativeRunner {
             .and_then(Value::as_str)
         {
             if let Some(optimization) = AudioOptimization::from_wire_name(value) {
-                self.audio_optimization = optimization;
+                self.audio_io.audio_optimization = optimization;
             }
         }
     }
@@ -314,7 +314,7 @@ impl NativeRunner {
     pub(super) fn apply_usb_payload(&mut self, runtime: &Value) {
         if let Some(audio_outputs) = runtime.get("audioOutputs") {
             if let Ok(audio_outputs) = AudioOutputSet::decode(audio_outputs) {
-                self.audio_outputs = audio_outputs;
+                self.audio_io.audio_outputs = audio_outputs;
             }
         }
         if let Some(role) = runtime
@@ -323,14 +323,14 @@ impl NativeRunner {
             .and_then(Value::as_str)
             .and_then(UsbDataRole::from_menu_value)
         {
-            self.usb_data_role = role;
+            self.audio_io.usb_data_role = role;
         }
         if let Some(enabled) = runtime
             .get("usb")
             .and_then(|usb| usb.get("midiOutEnabled"))
             .and_then(Value::as_bool)
         {
-            self.usb_midi_out_enabled = enabled;
+            self.audio_io.usb_midi_out_enabled = enabled;
         }
     }
 
@@ -340,7 +340,7 @@ impl NativeRunner {
         };
         if let Some(value) = recording.get("maxMinutes").and_then(Value::as_u64) {
             if let Ok(value) = u16::try_from(value) {
-                self.recording_max_minutes = value.clamp(1, 120);
+                self.audio_io.recording_max_minutes = value.clamp(1, 120);
             }
         }
     }

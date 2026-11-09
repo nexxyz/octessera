@@ -17,17 +17,17 @@ impl NativeRunner {
         let Some(optimization) = AudioOptimization::from_wire_name(value) else {
             return (false, false);
         };
-        if !optimization.is_supported(self.audio_optimization_capacity_available) {
+        if !optimization.is_supported(self.audio_io.audio_optimization_capacity_available) {
             self.restore_audio_optimization_menu_value();
             self.show_toast("Audio optimization unavailable");
             return (true, false);
         }
-        let changed = value_changed(&mut self.audio_optimization, optimization);
+        let changed = value_changed(&mut self.audio_io.audio_optimization, optimization);
         (true, changed)
     }
 
     pub(super) fn restore_audio_optimization_menu_value(&mut self) {
-        let value = match self.audio_optimization {
+        let value = match self.audio_io.audio_optimization {
             AudioOptimization::Latency => "latency",
             AudioOptimization::Capacity => "capacity",
         };

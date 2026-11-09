@@ -37,7 +37,7 @@ pub struct NativeConfigSnapshot {
     velocity_scale_pct: u16,
     velocity_curve: VelocityCurve,
     voice_stealing_mode: VoiceStealingMode,
-    audio_optimization: AudioOptimization,
+    audio_io: super::audio_io_settings::NativeAudioIoSettings,
     dsp_config: DspRuntimeConfig,
     ghost_tiles: bool,
     aux_auto_hints: bool,
@@ -61,10 +61,6 @@ pub struct NativeConfigSnapshot {
     shift_aux_bindings: Vec<Option<NativeAuxBinding>>,
     midi: super::midi_settings::NativeMidiSettings,
     sync_source: SyncSource,
-    usb_data_role: UsbDataRole,
-    usb_midi_out_enabled: bool,
-    audio_outputs: AudioOutputSet,
-    recording_max_minutes: u16,
     base_mapping_config: platform_core::MappingConfig,
 }
 
@@ -176,7 +172,7 @@ impl NativeConfigSnapshot {
                     "velocityScalePct": self.velocity_scale_pct,
                     "velocityCurve": velocity_curve_id(self.velocity_curve),
                     "voiceStealingMode": self.voice_stealing_mode,
-                    "optimizeFor": self.audio_optimization
+                    "optimizeFor": self.audio_io.audio_optimization
                 },
                 "dsp": self.dsp_config,
                 "ghostTiles": self.ghost_tiles,
@@ -213,12 +209,12 @@ impl NativeConfigSnapshot {
                     "sendInstruments": self.midi.send_instruments
                 },
                 "usb": {
-                    "dataRole": self.usb_data_role.as_str(),
-                    "midiOutEnabled": self.usb_midi_out_enabled
+                    "dataRole": self.audio_io.usb_data_role.as_str(),
+                    "midiOutEnabled": self.audio_io.usb_midi_out_enabled
                 },
-                "audioOutputs": self.audio_outputs.as_value(),
+                "audioOutputs": self.audio_io.audio_outputs.as_value(),
                 "recording": {
-                    "maxMinutes": self.recording_max_minutes
+                    "maxMinutes": self.audio_io.recording_max_minutes
                 }
             },
             "mappingConfig": self.base_mapping_config,
@@ -340,7 +336,7 @@ impl NativeConfigSnapshot {
             velocity_scale_pct: runner.global_sound.velocity_scale_pct,
             velocity_curve: runner.global_sound.velocity_curve,
             voice_stealing_mode: runner.voice_stealing_mode,
-            audio_optimization: runner.audio_optimization,
+            audio_io: runner.audio_io,
             dsp_config: runner.dsp_config,
             ghost_tiles: runner.display.ui.ghost_tiles,
             aux_auto_hints: runner.display.ui.aux_auto_hints,
@@ -364,10 +360,6 @@ impl NativeConfigSnapshot {
             shift_aux_bindings: runner.shift_aux_bindings.clone(),
             midi: runner.midi.clone(),
             sync_source: runner.transport.sync_source.clone(),
-            usb_data_role: runner.usb_data_role,
-            usb_midi_out_enabled: runner.usb_midi_out_enabled,
-            audio_outputs: runner.audio_outputs,
-            recording_max_minutes: runner.recording_max_minutes,
             base_mapping_config: runner.base_mapping_config.clone(),
         }
     }

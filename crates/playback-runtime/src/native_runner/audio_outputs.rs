@@ -56,7 +56,7 @@ impl AudioOutputSet {
     }
 }
 
-impl super::NativeRunner {
+impl super::audio_io_settings::NativeAudioIoSettings {
     pub(super) fn validate_audio_outputs(&self) -> Result<(), String> {
         if self.jack_audio_required && !self.audio_outputs.dac() {
             return Err(JACK_AUDIO_REQUIRED_MESSAGE.into());

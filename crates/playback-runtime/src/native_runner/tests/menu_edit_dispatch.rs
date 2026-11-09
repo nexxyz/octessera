@@ -171,16 +171,16 @@ fn link_axis_invert_and_recording_max_time_apply_from_the_encoder() {
         invert: false,
     });
     runner.menu.rebuild(runner.menu_config());
-    let max_minutes = runner.recording_max_minutes;
+    let max_minutes = runner.audio_io.recording_max_minutes;
 
     edit_with_encoder(&mut runner, "layers.0.paramMods.x.0.invert");
     edit_with_encoder(&mut runner, "recording.maxMinutes");
 
     assert!(runner.param_mods[0].x[0].as_ref().unwrap().invert);
-    assert!(runner.recording_max_minutes > max_minutes);
+    assert!(runner.audio_io.recording_max_minutes > max_minutes);
     assert_eq!(
         runner.menu.number_for_key("recording.maxMinutes"),
-        Some(i32::from(runner.recording_max_minutes))
+        Some(i32::from(runner.audio_io.recording_max_minutes))
     );
 }
 

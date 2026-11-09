@@ -233,14 +233,14 @@ impl SystemPersistenceState {
                 "sendInstruments": runner.midi.send_instruments,
             },
             "usb": {
-                "dataRole": runner.usb_data_role,
-                "midiOutEnabled": runner.usb_midi_out_enabled,
+                "dataRole": runner.audio_io.usb_data_role,
+                "midiOutEnabled": runner.audio_io.usb_midi_out_enabled,
             },
-            "audioOutputs": runner.audio_outputs.as_value(),
+            "audioOutputs": runner.audio_io.audio_outputs.as_value(),
             "sound": {
-                "optimizeFor": runner.audio_optimization,
+                "optimizeFor": runner.audio_io.audio_optimization,
             },
-            "recording": { "maxMinutes": runner.recording_max_minutes },
+            "recording": { "maxMinutes": runner.audio_io.recording_max_minutes },
         });
         Ok(json!({
             "kind": "octessera.system",

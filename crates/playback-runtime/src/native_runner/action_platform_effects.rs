@@ -109,10 +109,10 @@ impl NativeRunner {
             "maintenance.hold" => Some(RuntimePlatformEffect::MaintenanceHold { active: true }),
             "maintenance.release" => Some(RuntimePlatformEffect::MaintenanceHold { active: false }),
             "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
-                max_minutes: self.recording_max_minutes,
+                max_minutes: self.audio_io.recording_max_minutes,
             }),
             "recording.startAudioOled" => Some(RuntimePlatformEffect::RecordingStartAudioOled {
-                max_minutes: self.recording_max_minutes,
+                max_minutes: self.audio_io.recording_max_minutes,
             }),
             "recording.stop" => Some(RuntimePlatformEffect::RecordingStop),
             "system.info" => Some(RuntimePlatformEffect::SystemInfoRequest),

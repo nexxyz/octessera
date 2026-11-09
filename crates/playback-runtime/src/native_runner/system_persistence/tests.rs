@@ -23,7 +23,7 @@ fn system_document_matches_the_device_projection_and_leaves_aux_bindings_to_the_
     runner.midi.enabled = true;
     runner.midi.output_id = Some("midi-out-2".into());
     runner.midi.input_id = Some("midi-in-3".into());
-    runner.recording_max_minutes = 23;
+    runner.audio_io.recording_max_minutes = 23;
     runner.aux_bindings[0] = Some(crate::native_runner::NativeAuxBinding {
         turn_key: Some("displayBrightness".into()),
         press_action: Some(crate::native_menu::NativeMenuAction::PlatformEffect(

@@ -206,7 +206,7 @@ impl NativeRunner {
         let Some(value) = self.menu.value_for_key(key).map(|value| value == "true") else {
             return false;
         };
-        let current = self.audio_outputs;
+        let current = self.audio_io.audio_outputs;
         let (usb, hdmi) = match key {
             "audioOutputs.usb" => (value, current.hdmi()),
             _ => (current.usb(), value),
@@ -216,7 +216,7 @@ impl NativeRunner {
             self.show_toast("Keep one audio output on");
             return true;
         };
-        if value_changed(&mut self.audio_outputs, next) {
+        if value_changed(&mut self.audio_io.audio_outputs, next) {
             self.mark_system_dirty();
         }
         true
@@ -242,9 +242,9 @@ impl NativeRunner {
 
     pub(super) fn restore_audio_outputs_menu_values(&mut self) {
         self.menu
-            .set_bool_value_for_key("audioOutputs.usb", self.audio_outputs.usb());
+            .set_bool_value_for_key("audioOutputs.usb", self.audio_io.audio_outputs.usb());
         self.menu
-            .set_bool_value_for_key("audioOutputs.hdmi", self.audio_outputs.hdmi());
+            .set_bool_value_for_key("audioOutputs.hdmi", self.audio_io.audio_outputs.hdmi());
     }
 
     fn fast_recording_max_minutes_menu_key(&mut self) -> bool {
@@ -252,7 +252,7 @@ impl NativeRunner {
             return false;
         };
         let value = value.clamp(1, 120) as u16;
-        if value_changed(&mut self.recording_max_minutes, value) {
+        if value_changed(&mut self.audio_io.recording_max_minutes, value) {
             self.mark_system_dirty();
         }
         true

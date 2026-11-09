@@ -29,7 +29,7 @@ impl UsbDataRole {
     }
 }
 
-impl super::NativeRunner {
+impl super::audio_io_settings::NativeAudioIoSettings {
     pub(super) fn validate_usb_data_role(&self) -> Result<(), String> {
         if self.usb_data_role.is_host() {
             if self.audio_outputs.usb() {

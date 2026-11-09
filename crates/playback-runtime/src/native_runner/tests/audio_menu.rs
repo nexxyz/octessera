@@ -142,7 +142,7 @@ pub(crate) fn usb_sd_transfer_modal_closes_by_back_or_main_without_resuming() {
 #[test]
 pub(crate) fn recording_max_time_edits_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.recording_max_minutes = 14;
+    runner.audio_io.recording_max_minutes = 14;
 
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["recording"]["maxMinutes"],
@@ -153,7 +153,7 @@ pub(crate) fn recording_max_time_edits_config_payload() {
 #[test]
 pub(crate) fn recording_actions_emit_platform_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.recording_max_minutes = 7;
+    runner.audio_io.recording_max_minutes = 7;
     assert!(runner.menu.focus_item_key("recording.startAudio"));
 
     let messages = runner

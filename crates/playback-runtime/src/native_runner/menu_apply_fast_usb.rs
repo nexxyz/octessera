@@ -11,7 +11,7 @@ impl NativeRunner {
         else {
             return false;
         };
-        if value_changed(&mut self.usb_midi_out_enabled, value) {
+        if value_changed(&mut self.audio_io.usb_midi_out_enabled, value) {
             self.mark_system_dirty();
         }
         true
@@ -27,11 +27,11 @@ impl NativeRunner {
         if self.menu.state.editing {
             return true;
         }
-        if self.usb_data_role_available
+        if self.audio_io.usb_data_role_available
             && role.is_host()
             && self.display.usb_sd_transfer_modal.is_some()
         {
-            let current_role = match self.usb_data_role {
+            let current_role = match self.audio_io.usb_data_role {
                 UsbDataRole::Gadget => "Gadget",
                 UsbDataRole::Host => "Host",
             };
@@ -40,20 +40,20 @@ impl NativeRunner {
             self.show_toast("Stop SD2 transfer before selecting Host");
             return true;
         }
-        if value_changed(&mut self.usb_data_role, role) {
+        if value_changed(&mut self.audio_io.usb_data_role, role) {
             if role.is_host() {
-                self.audio_outputs = AudioOutputSet::from_flags(
-                    self.audio_outputs.dac(),
+                self.audio_io.audio_outputs = AudioOutputSet::from_flags(
+                    self.audio_io.audio_outputs.dac(),
                     false,
-                    self.audio_outputs.hdmi(),
+                    self.audio_io.audio_outputs.hdmi(),
                 )
                 .expect("Jack output remains enabled");
-                self.usb_midi_out_enabled = false;
+                self.audio_io.usb_midi_out_enabled = false;
             }
             self.menu.show_usb_role_rows(
                 role.is_host(),
-                self.audio_outputs.usb(),
-                self.usb_midi_out_enabled,
+                self.audio_io.audio_outputs.usb(),
+                self.audio_io.usb_midi_out_enabled,
                 &midi_port_rows(&self.midi_outputs),
                 &midi_port_rows(&self.midi_inputs),
             );

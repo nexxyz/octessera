@@ -50,6 +50,7 @@ mod apply_payload_instruments;
 mod apply_payload_layers;
 mod apply_payload_mixer_values;
 mod apply_system_document;
+mod audio_io_settings;
 mod audio_optimization;
 mod audio_outputs;
 mod aux_auto_map;
@@ -371,10 +372,7 @@ pub struct NativeRunner {
     base_mapping_config: platform_core::MappingConfig,
     global_sound: GlobalSoundConfig,
     dsp_config: DspRuntimeConfig,
-    audio_optimization: AudioOptimization,
-    audio_optimization_capacity_available: bool,
-    jack_audio_required: bool,
-    usb_data_role_available: bool,
+    audio_io: audio_io_settings::NativeAudioIoSettings,
     note_behaviors: Vec<NoteBehavior>,
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
@@ -396,10 +394,6 @@ pub struct NativeRunner {
     wifi_enabled: bool,
     input_events_while_paused: bool,
     voice_stealing_mode: VoiceStealingMode,
-    audio_outputs: AudioOutputSet,
-    usb_data_role: UsbDataRole,
-    usb_midi_out_enabled: bool,
-    recording_max_minutes: u16,
     play_mode: PlayMode,
     active_play_mode: ActivePlayMode,
     drum_selected_voices: Vec<usize>,

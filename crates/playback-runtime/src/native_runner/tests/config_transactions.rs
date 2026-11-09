@@ -118,7 +118,7 @@ pub(crate) fn patch_save_and_load_preserve_local_audio_outputs() {
     assert!(payload["runtimeConfig"].get("audioOutputs").is_none());
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    restored.audio_outputs = AudioOutputSet::from_flags(false, true, false).unwrap();
+    restored.audio_io.audio_outputs = AudioOutputSet::from_flags(false, true, false).unwrap();
     restored
         .apply_patch_payload_preserving_device(payload)
         .unwrap();

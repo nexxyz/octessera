@@ -99,7 +99,10 @@ fn audio_optimization_survives_load_empty_and_patch_load() {
     runner.apply_config_payload(payload).unwrap();
 
     runner.clear_patch_state().unwrap();
-    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert_eq!(
+        runner.audio_io.audio_optimization,
+        AudioOptimization::Capacity
+    );
 
     runner
         .apply_patch_payload_preserving_device(json!({
@@ -111,7 +114,10 @@ fn audio_optimization_survives_load_empty_and_patch_load() {
             }
         }))
         .unwrap();
-    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert_eq!(
+        runner.audio_io.audio_optimization,
+        AudioOptimization::Capacity
+    );
 }
 
 #[test]
@@ -123,7 +129,10 @@ fn audio_optimization_menu_value_changes_without_audio_commands() {
         runner.apply_audio_optimization_menu_value("capacity"),
         (true, true)
     );
-    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert_eq!(
+        runner.audio_io.audio_optimization,
+        AudioOptimization::Capacity
+    );
     assert_eq!(runner.audio_config_revision, revision);
     assert!(!runner.outbox.has_audio_commands());
 
@@ -132,7 +141,10 @@ fn audio_optimization_menu_value_changes_without_audio_commands() {
         unsupported.apply_audio_optimization_menu_value("capacity"),
         (true, false)
     );
-    assert_eq!(unsupported.audio_optimization, AudioOptimization::Latency);
+    assert_eq!(
+        unsupported.audio_io.audio_optimization,
+        AudioOptimization::Latency
+    );
 }
 
 #[test]
@@ -142,7 +154,7 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.audio_outputs = AudioOutputSet::from_flags(false, true, false).unwrap();
+    runner.audio_io.audio_outputs = AudioOutputSet::from_flags(false, true, false).unwrap();
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("sound.optimizeFor"));
     runner
@@ -159,7 +171,10 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
         })
         .unwrap();
 
-    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert_eq!(
+        runner.audio_io.audio_optimization,
+        AudioOptimization::Capacity
+    );
     assert_eq!(
         runner.menu.value_for_key("sound.optimizeFor"),
         Some("capacity".into())
@@ -183,13 +198,13 @@ fn capacity_menu_selection_is_not_tied_to_jack_policy() {
 #[test]
 fn jack_menu_is_hidden_when_jack_is_required() {
     let mut runner = capacity_runner();
-    runner.audio_optimization = AudioOptimization::Capacity;
+    runner.audio_io.audio_optimization = AudioOptimization::Capacity;
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu_config().board);
     assert!(!runner.menu.focus_item_key("audioOutputs.dac"));
     assert!(runner.menu.focus_item_key("audioOutputs.usb"));
     assert_eq!(runner.menu.current_label(), Some("USB Audio"));
-    assert!(runner.audio_outputs.dac());
+    assert!(runner.audio_io.audio_outputs.dac());
 }
 
 #[test]
@@ -214,8 +229,8 @@ fn missing_jack_is_rejected_atomically_in_both_dsp_modes() {
 
         assert_eq!(error, "Jack Audio is always on");
         assert_eq!(runner.config_payload(), before);
-        assert_eq!(runner.audio_optimization, optimization);
-        assert!(runner.audio_outputs.dac());
+        assert_eq!(runner.audio_io.audio_optimization, optimization);
+        assert!(runner.audio_io.audio_outputs.dac());
     }
 }
 
@@ -253,10 +268,13 @@ fn desktop_keeps_flexible_output_and_optimization_policy() {
     runner.apply_config_payload(payload).unwrap();
 
     assert_eq!(
-        runner.audio_outputs,
+        runner.audio_io.audio_outputs,
         AudioOutputSet::from_flags(false, true, false).unwrap()
     );
-    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert_eq!(
+        runner.audio_io.audio_optimization,
+        AudioOptimization::Capacity
+    );
 }
 
 #[test]
@@ -277,9 +295,9 @@ fn pi_accepts_every_optional_output_subset_in_both_dsp_modes() {
                 "hdmi": hdmi,
             });
             runner.apply_config_payload(payload).unwrap();
-            assert!(runner.audio_outputs.dac());
-            assert_eq!(runner.audio_outputs.usb(), usb);
-            assert_eq!(runner.audio_outputs.hdmi(), hdmi);
+            assert!(runner.audio_io.audio_outputs.dac());
+            assert_eq!(runner.audio_io.audio_outputs.usb(), usb);
+            assert_eq!(runner.audio_io.audio_outputs.hdmi(), hdmi);
         }
     }
 }

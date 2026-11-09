@@ -95,7 +95,7 @@ pub(crate) fn load_default_result_applies_patch_without_device_fields() {
 pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 7;
-    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+    runner.audio_io.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.midi.enabled = true;
 
     let patch = runner.patch_payload().unwrap();
@@ -119,7 +119,7 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
 pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 3;
-    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+    runner.audio_io.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
     runner.midi.enabled = false;
 
     runner
@@ -142,7 +142,7 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
     assert_eq!(runner.behavior.id(), "sequencer");
     assert_eq!(runner.display.ui.display_brightness, 3);
     assert_eq!(
-        runner.audio_outputs,
+        runner.audio_io.audio_outputs,
         AudioOutputSet::from_flags(true, true, false).unwrap()
     );
     assert!(!runner.midi.enabled);

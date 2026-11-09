@@ -222,7 +222,10 @@ pub(crate) fn unrelated_unsaved_system_change_keeps_reboot_blocked_after_noop_ed
     );
     assert!(runner.display.confirm_dialog.is_none());
     assert!(system_save_effect_optional(&cancelled).is_none());
-    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert_eq!(
+        runner.audio_io.audio_optimization,
+        AudioOptimization::Capacity
+    );
     assert!(runner.pending.system_persistence.dirty_revision.is_some());
 
     assert!(runner.menu.focus_item_key("displayBrightness"));

@@ -64,7 +64,7 @@ pub(crate) fn audio_output_device_input_replays_apply_each_toggle_atomically() {
             ..NativeRunnerConfig::default()
         })
         .unwrap();
-        runner.audio_outputs = initial;
+        runner.audio_io.audio_outputs = initial;
         runner.menu.rebuild(runner.menu_config());
         assert!(runner.menu.focus_item_key(key));
         let _ = runner
@@ -131,7 +131,7 @@ pub(crate) fn required_jack_policy_device_input_replays_usb_and_hdmi_without_err
                 runner.config_payload()["runtimeConfig"]["audioOutputs"],
                 expected
             );
-            assert!(runner.audio_outputs.dac());
+            assert!(runner.audio_io.audio_outputs.dac());
             assert!(runner.pending.system_persistence.dirty_revision.is_some());
             assert_eq!(runner.config_revision, before_revision + 1);
             assert!(runner.pending.pending_autosave_payload_due_at.is_none());

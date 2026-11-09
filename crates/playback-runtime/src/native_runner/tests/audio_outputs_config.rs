@@ -96,8 +96,8 @@ pub(crate) fn canonical_audio_outputs_and_usb_midi_are_independent() {
 #[test]
 pub(crate) fn patch_device_audio_fields_are_ignored_and_local_outputs_survive() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.audio_outputs = AudioOutputSet::from_flags(false, true, true).unwrap();
-    runner.usb_midi_out_enabled = true;
+    runner.audio_io.audio_outputs = AudioOutputSet::from_flags(false, true, true).unwrap();
+    runner.audio_io.usb_midi_out_enabled = true;
     let before = runner.config_payload();
     runner
         .apply_patch_payload_preserving_device(json!({

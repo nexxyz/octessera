@@ -248,7 +248,10 @@ fn repeated_restart_setting_turns_wait_for_main_commit() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert_eq!(
+        runner.audio_io.audio_optimization,
+        AudioOptimization::Capacity
+    );
 
     let messages = commit_with_main(&mut runner);
     assert_eq!(snapshot_from(&messages)["display"]["title"], "Apply System");
@@ -294,7 +297,10 @@ fn apply_system_setting_saves_only_system_and_preserves_unrelated_patch_dirty_st
 
     let _ = identified_save_result(&mut runner, "save-setting", true);
     assert_eq!(runner.snapshot().unwrap()["display"]["title"], "Restart?");
-    assert_eq!(runner.audio_optimization, AudioOptimization::Capacity);
+    assert_eq!(
+        runner.audio_io.audio_optimization,
+        AudioOptimization::Capacity
+    );
     assert_eq!(runner.transport.bpm, 121.0);
     assert!(runner.config_dirty);
     assert_eq!(runner.dirty_revision, patch_dirty_revision);

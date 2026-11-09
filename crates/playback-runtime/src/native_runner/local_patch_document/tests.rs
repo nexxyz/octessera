@@ -12,7 +12,7 @@ fn runner_with_local_samples() -> NativeRunner {
     runner.instruments[1].sample_paths[6] = Some("sd-card/octessera/samples/missing.wav".into());
     runner.instruments[1].kind = InstrumentType::Sampler;
     runner.display.ui.display_brightness = 7;
-    runner.audio_outputs = crate::AudioOutputSet::from_flags(false, true, false).unwrap();
+    runner.audio_io.audio_outputs = crate::AudioOutputSet::from_flags(false, true, false).unwrap();
     runner
 }
 
@@ -155,14 +155,15 @@ fn local_default_autosave_backup_recovery_and_load_preserve_paths_and_system_set
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.display.ui.display_brightness = 10;
-    restored.audio_outputs = crate::AudioOutputSet::from_flags(false, false, true).unwrap();
+    restored.audio_io.audio_outputs =
+        crate::AudioOutputSet::from_flags(false, false, true).unwrap();
     restored.instruments[1].sample_paths[6] = Some("stale/old.wav".into());
     restored
         .apply_local_patch_payload_preserving_device(manual_payload)
         .unwrap();
     assert_eq!(restored.display.ui.display_brightness, 10);
     assert_eq!(
-        restored.audio_outputs,
+        restored.audio_io.audio_outputs,
         crate::AudioOutputSet::from_flags(false, false, true).unwrap()
     );
     assert_eq!(

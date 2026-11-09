@@ -7,8 +7,7 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) hdmi: NativeHdmiConfig,
     pub(super) global_sound: GlobalSoundConfig,
     pub(super) dsp_config: realtime_engine::synth::DspRuntimeConfig,
-    pub(super) audio_optimization: AudioOptimization,
-    pub(super) audio_optimization_capacity_available: bool,
+    pub(super) audio_io: super::audio_io_settings::NativeAudioIoSettings,
     pub(super) bpm: f64,
     pub(super) swing_a: u8,
     pub(super) swing_b: u8,
@@ -46,11 +45,6 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) auto_save_default: bool,
     pub(super) rolling_backups: bool,
     pub(super) input_events_while_paused: bool,
-    pub(super) audio_outputs: AudioOutputSet,
-    pub(super) usb_data_role: UsbDataRole,
-    pub(super) usb_data_role_available: bool,
-    pub(super) usb_midi_out_enabled: bool,
-    pub(super) recording_max_minutes: u16,
     pub(super) active_layer_index: usize,
 }
 
@@ -73,8 +67,7 @@ impl NativeRunnerConstructionSeed {
             },
             global_sound: config.global_sound.clone(),
             dsp_config: realtime_engine::synth::DspRuntimeConfig::default(),
-            audio_optimization: config.audio_optimization,
-            audio_optimization_capacity_available: config.audio_optimization_capacity_available,
+            audio_io: super::audio_io_settings::NativeAudioIoSettings::new(config),
             bpm: config.bpm,
             swing_a: config.swing_a.clamp(1, 7),
             swing_b: config.swing_b.clamp(1, 7),
@@ -115,11 +108,6 @@ impl NativeRunnerConstructionSeed {
             auto_save_default: false,
             rolling_backups: true,
             input_events_while_paused: true,
-            audio_outputs: AudioOutputSet::default(),
-            usb_data_role: UsbDataRole::default(),
-            usb_data_role_available: config.usb_data_role_available,
-            usb_midi_out_enabled: false,
-            recording_max_minutes: 10,
             active_layer_index: 0,
         }
     }

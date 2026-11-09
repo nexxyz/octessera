@@ -10,7 +10,7 @@ impl NativeRunner {
             sync_source: self.transport.sync_source.clone(),
             midi_clock_out_enabled: self.midi.clock_out_enabled,
             midi_out_enabled: self.midi.enabled
-                && (self.usb_midi_out_enabled || self.midi.output_id.is_some()),
+                && (self.audio_io.usb_midi_out_enabled || self.midi.output_id.is_some()),
             midi_out_internal_channels: self.midi_internal_note_channels(),
         }
     }

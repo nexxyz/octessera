@@ -19,7 +19,7 @@ impl NativeRunner {
             .and_then(Value::as_str)
             .and_then(AudioOptimization::from_wire_name)
             .ok_or_else(|| "System document has an invalid audio optimization".to_string())?;
-        if !optimization.is_supported(self.audio_optimization_capacity_available) {
+        if !optimization.is_supported(self.audio_io.audio_optimization_capacity_available) {
             return Err("audio optimization capacity is unavailable".into());
         }
         let dsp = realtime_engine::synth::DspRuntimeConfig::from_value(
@@ -32,7 +32,7 @@ impl NativeRunner {
                 .get("audioOutputs")
                 .ok_or_else(|| "System document is missing audio outputs".to_string())?,
         )?;
-        if self.jack_audio_required && !audio_outputs.dac() {
+        if self.audio_io.jack_audio_required && !audio_outputs.dac() {
             return Err(super::JACK_AUDIO_REQUIRED_MESSAGE.into());
         }
         let usb_data_role = runtime
@@ -53,9 +53,9 @@ impl NativeRunner {
         }
 
         let device_before = (
-            self.audio_outputs,
-            self.usb_midi_out_enabled,
-            self.usb_data_role,
+            self.audio_io.audio_outputs,
+            self.audio_io.usb_midi_out_enabled,
+            self.audio_io.usb_data_role,
         );
         let before = self.configuration_aggregate();
         self.apply_system_sound_payload(runtime);
@@ -65,7 +65,7 @@ impl NativeRunner {
         self.apply_aux_mapping_payload(runtime);
         self.apply_midi_payload(runtime);
         self.apply_usb_payload(runtime);
-        self.audio_outputs = audio_outputs;
+        self.audio_io.audio_outputs = audio_outputs;
         self.apply_recording_payload(runtime);
         self.apply_hdmi_payload(runtime);
         self.apply_bluetooth_payload(runtime);
@@ -79,9 +79,9 @@ impl NativeRunner {
 
         Ok(device_before
             != (
-                self.audio_outputs,
-                self.usb_midi_out_enabled,
-                self.usb_data_role,
+                self.audio_io.audio_outputs,
+                self.audio_io.usb_midi_out_enabled,
+                self.audio_io.usb_data_role,
             ))
     }
 }

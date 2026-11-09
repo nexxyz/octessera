@@ -232,15 +232,15 @@ fn usb_midi_changes_the_live_midi_route_at_once() {
 #[test]
 fn host_role_turns_gadget_outputs_off_and_applies_them_together() {
     let mut runner = board_runner(true);
-    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
-    runner.usb_midi_out_enabled = true;
+    runner.audio_io.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+    runner.audio_io.usb_midi_out_enabled = true;
     runner.menu.rebuild(runner.menu_config());
 
     let messages = commit_setting(&mut runner, "usb.dataRole", 1);
 
-    assert_eq!(runner.usb_data_role, UsbDataRole::Host);
-    assert!(!runner.audio_outputs.usb());
-    assert!(!runner.usb_midi_out_enabled);
+    assert_eq!(runner.audio_io.usb_data_role, UsbDataRole::Host);
+    assert!(!runner.audio_io.audio_outputs.usb());
+    assert!(!runner.audio_io.usb_midi_out_enabled);
     assert!(!runner.menu.focus_item_key("audioOutputs.usb"));
     assert!(!runner.menu.focus_item_key("usb.midiOutEnabled"));
     assert!(!runner.menu.focus_item_key("usb.sdTransferStart"));
@@ -256,8 +256,8 @@ fn host_role_turns_gadget_outputs_off_and_applies_them_together() {
 #[test]
 fn scrolling_usb_role_through_host_and_back_keeps_usb_audio_and_midi() {
     let mut runner = board_runner(true);
-    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
-    runner.usb_midi_out_enabled = true;
+    runner.audio_io.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+    runner.audio_io.usb_midi_out_enabled = true;
     runner.menu.rebuild(runner.menu_config());
 
     enter_edit(&mut runner, "usb.dataRole");
@@ -265,9 +265,9 @@ fn scrolling_usb_role_through_host_and_back_keeps_usb_audio_and_midi() {
     turn(&mut runner, -1);
     let messages = press(&mut runner);
 
-    assert_eq!(runner.usb_data_role, UsbDataRole::Gadget);
-    assert!(runner.audio_outputs.usb());
-    assert!(runner.usb_midi_out_enabled);
+    assert_eq!(runner.audio_io.usb_data_role, UsbDataRole::Gadget);
+    assert!(runner.audio_io.audio_outputs.usb());
+    assert!(runner.audio_io.usb_midi_out_enabled);
     assert!(applied_payload(&messages).is_none());
     assert!(saved_payload(&messages).is_none());
     assert!(runner.pending.system_persistence.dirty_revision.is_none());
@@ -323,9 +323,9 @@ fn host_role_is_refused_while_sd2_transfer_is_active() {
     let mut expected_menu = runner.menu.clone();
     expected_menu.set_enum_value_for_key("usb.dataRole", "Gadget");
     let before_config = runner.config_payload();
-    let before_role = runner.usb_data_role;
-    let before_audio_outputs = runner.audio_outputs;
-    let before_usb_midi = runner.usb_midi_out_enabled;
+    let before_role = runner.audio_io.usb_data_role;
+    let before_audio_outputs = runner.audio_io.audio_outputs;
+    let before_usb_midi = runner.audio_io.usb_midi_out_enabled;
     let before_dirty = runner.config_dirty;
     let before_revision = runner.config_revision;
     let before_dirty_revision = runner.dirty_revision;
@@ -333,9 +333,9 @@ fn host_role_is_refused_while_sd2_transfer_is_active() {
     assert!(runner.apply_runtime_menu_key_fast("usb.dataRole").unwrap());
     assert!(runner.display.confirm_dialog.is_none());
     assert_eq!(toast(&runner), "Stop SD2 transfer before selecting Host");
-    assert_eq!(runner.usb_data_role, before_role);
-    assert_eq!(runner.audio_outputs, before_audio_outputs);
-    assert_eq!(runner.usb_midi_out_enabled, before_usb_midi);
+    assert_eq!(runner.audio_io.usb_data_role, before_role);
+    assert_eq!(runner.audio_io.audio_outputs, before_audio_outputs);
+    assert_eq!(runner.audio_io.usb_midi_out_enabled, before_usb_midi);
     assert_eq!(runner.config_dirty, before_dirty);
     assert_eq!(runner.config_revision, before_revision);
     assert_eq!(runner.dirty_revision, before_dirty_revision);
@@ -354,16 +354,16 @@ fn selecting_gadget_does_not_restore_host_disabled_outputs() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
-    runner.usb_midi_out_enabled = true;
+    runner.audio_io.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
+    runner.audio_io.usb_midi_out_enabled = true;
     runner.menu.rebuild(runner.menu_config());
 
     let _ = commit_setting(&mut runner, "usb.dataRole", 1);
     let messages = commit_setting(&mut runner, "usb.dataRole", -1);
 
-    assert_eq!(runner.usb_data_role, UsbDataRole::Gadget);
-    assert!(!runner.audio_outputs.usb());
-    assert!(!runner.usb_midi_out_enabled);
+    assert_eq!(runner.audio_io.usb_data_role, UsbDataRole::Gadget);
+    assert!(!runner.audio_io.audio_outputs.usb());
+    assert!(!runner.audio_io.usb_midi_out_enabled);
     let payload = applied_payload(&messages).expect("Gadget live apply");
     assert_eq!(payload["runtimeConfig"]["usb"]["dataRole"], "gadget");
 }
@@ -468,7 +468,7 @@ fn inactive_midi_retains_host_ids_through_usb_status_and_reload() {
 
     let reloaded = reload_system_payload(saved);
     assert!(!reloaded.midi.enabled);
-    assert!(!reloaded.usb_midi_out_enabled);
+    assert!(!reloaded.audio_io.usb_midi_out_enabled);
     assert_eq!(reloaded.midi.output_id.as_deref(), Some("name:Host Out"));
     assert_eq!(reloaded.midi.input_id.as_deref(), Some("name:Host In"));
 }
