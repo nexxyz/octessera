@@ -29,6 +29,7 @@ if [[ "${1:-}" != --in-container ]]; then
     -v octessera-wifi-connect-cargo-registry:/usr/local/cargo/registry \
     -v octessera-wifi-connect-cargo-git:/usr/local/cargo/git \
     -v octessera-wifi-connect-rustup:/usr/local/rustup \
+    -e RUSTUP_TOOLCHAIN=1.76.0 \
     -w /work \
     "$container_image" \
     bash /work/tools/wifi-connect/build-patched.sh --in-container

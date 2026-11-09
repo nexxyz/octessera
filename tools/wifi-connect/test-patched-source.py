@@ -89,6 +89,7 @@ for required in (
     "https://github.com/balena-os/wifi-connect.git",
     "5bd4c1bea548fb5714bedb18bbd12f088d5fa407",
     "rust:1.76.0-bookworm",
+    "-e RUSTUP_TOOLCHAIN=1.76.0",
     "git clone --filter=blob:none --depth=1 --no-checkout",
     "git -C \"$clone_root\" fetch --depth=1 origin \"$upstream_commit\"",
     "git -C \"$clone_root\" status --porcelain",
