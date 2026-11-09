@@ -282,11 +282,11 @@ pub(crate) fn shift_fn_rightmost_grid_column_selects_musical_play_pages() {
     assert!(runner.display.ui.combined_modifier_held);
 
     for (row, mode, toast) in [
-        (0, "fx", "Play: FX"),
-        (1, "xy", "Play: XY"),
-        (2, "transpose", "Play: Transpose"),
-        (3, "rate", "Play: Rate"),
-        (4, "trigger-gate", "Play: Trigger Gate"),
+        (0, "fx", "FX"),
+        (1, "xy", "XY"),
+        (2, "transpose", "Transpose"),
+        (3, "rate", "Rate"),
+        (4, "trigger-gate", "Trigger Gate"),
     ] {
         let messages = press_grid(&mut runner, 7, row);
         assert_eq!(runner.active_play_mode.wire_name(), mode);

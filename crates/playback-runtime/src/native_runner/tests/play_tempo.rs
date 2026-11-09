@@ -22,7 +22,7 @@ fn tempo_runner() -> NativeRunner {
         runner.active_play_mode,
         ActivePlayMode::Page(PlayMode::Tempo)
     );
-    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: Tempo");
+    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Tempo");
     assert_eq!(runner.menu.current_key(), Some("play.page.tempo"));
     runner
 }

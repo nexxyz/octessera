@@ -44,7 +44,7 @@ fn fn_layer_select_shows_its_toast_and_its_tile_release_presents_nothing() {
             .toast
             .as_ref()
             .map(|toast| toast.message.as_str()),
-        Some("Layer: L3 life")
+        Some("L3: life")
     );
 }
 

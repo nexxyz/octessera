@@ -41,7 +41,7 @@ fn rate_runner() -> NativeRunner {
         runner.active_play_mode,
         ActivePlayMode::Page(PlayMode::Rate)
     );
-    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: Rate");
+    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Rate");
     runner
 }
 

@@ -731,8 +731,8 @@ behavior primary red), so a mute never reads as a section color.
 - A replaced toast starts its scroll over. A toast whose end shows schedules no more scroll steps.
 - Aux turn toasts don't scroll: a long one shows its end at once, so the value is visible
   immediately (`ilter Cutoff: 156`), and repeated turns change the value in place.
-- Context changes show toasts such as `Layer: L3 raindrops` or `Play: FX`, with the page's menu
-  name. Help and confirm modals keep display priority over them. Releasing the Fn + left-column
+- Context changes show toasts without a prefix: picking a layer toasts it like the root
+  breadcrumb (`L3: raindrops`), and picking a Play page toasts the page's menu name (`FX`). Help and confirm modals keep display priority over them. Releasing the Fn + left-column
   layer tile is consumed: it reaches no behavior and redraws nothing.
 - Holding Shift, Fn, or Shift+Fn for more than one second without another mapped action shows a hint
   toast: `Shift: map/edit`, `Fn: nav/alt`, or `Help: Sh+Fn+Main`. Startup shows

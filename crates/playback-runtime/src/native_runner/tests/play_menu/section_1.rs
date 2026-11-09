@@ -136,7 +136,7 @@ pub(crate) fn fn_grid_context_changes_show_oled_toasts_and_the_root_title_names_
         })
         .unwrap();
     assert_eq!(snapshot_from(&layer)["display"]["title"], "L3: rain");
-    assert_eq!(snapshot_from(&layer)["display"]["toast"], "Layer: L3 rain");
+    assert_eq!(snapshot_from(&layer)["display"]["toast"], "L3: rain");
 
     let play = runner
         .send(HostMessage::DeviceInput {
@@ -144,7 +144,7 @@ pub(crate) fn fn_grid_context_changes_show_oled_toasts_and_the_root_title_names_
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(snapshot_from(&play)["display"]["toast"], "Play: Pan");
+    assert_eq!(snapshot_from(&play)["display"]["toast"], "Pan");
 }
 
 #[test]

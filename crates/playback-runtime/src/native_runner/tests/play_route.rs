@@ -45,7 +45,7 @@ fn open_route_page(runner: &mut NativeRunner) {
         runner.active_play_mode,
         ActivePlayMode::Page(PlayMode::Route)
     );
-    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Play: Route");
+    assert_eq!(snapshot_from(&opened)["display"]["toast"], "Route");
 }
 
 fn toast(runner: &NativeRunner) -> String {
@@ -280,7 +280,7 @@ fn duck_source_press_saves_the_instrument_on_every_bus_duck() {
 fn duck_source_press_on_the_lit_tile_does_nothing() {
     let mut runner = route_runner();
     let pressed = press(&mut runner, 0, 7);
-    assert_eq!(toast(&runner), "Play: Route");
+    assert_eq!(toast(&runner), "Route");
     assert_eq!(resent_slots(&pressed), (vec![], vec![]));
     assert!(!runner.config_dirty);
     assert_eq!(tile(&runner, 0, 7), red(1));

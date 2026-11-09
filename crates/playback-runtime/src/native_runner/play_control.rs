@@ -266,11 +266,7 @@ impl NativeRunner {
             return Ok(());
         }
         self.switch_active_engine(index)?;
-        self.show_toast(format!(
-            "Layer: L{} {}",
-            index + 1,
-            self.active_layer().name
-        ));
+        self.show_toast(self.active_layer_title());
         Ok(())
     }
 

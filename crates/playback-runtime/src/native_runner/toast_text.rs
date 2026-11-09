@@ -129,10 +129,7 @@ mod tests {
         let start = Instant::now();
         let toast = toast_at("Trn-1: Filter Cutoff: 156", start);
 
-        assert_eq!(
-            scrolled_toast(&toast, start, true),
-            "ilter Cutoff: 156"
-        );
+        assert_eq!(scrolled_toast(&toast, start, true), "ilter Cutoff: 156");
         assert_eq!(scrolled_toast(&toast, start, false), "Trn-1: Filter C..");
     }
 
@@ -161,7 +158,7 @@ mod tests {
             toast_lifetime(message, minimum),
             Duration::from_millis(3_400)
         );
-        assert_eq!(toast_lifetime("Play: FX", minimum), minimum);
-        assert_eq!(toast_lifetime("Layer: L3 rain..", minimum), minimum);
+        assert_eq!(toast_lifetime("FX", minimum), minimum);
+        assert_eq!(toast_lifetime("L3: raindrops", minimum), minimum);
     }
 }

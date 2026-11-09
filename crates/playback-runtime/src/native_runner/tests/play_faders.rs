@@ -35,7 +35,7 @@ fn open_faders(runner: &mut NativeRunner) {
         runner.active_play_mode,
         ActivePlayMode::Page(PlayMode::Faders)
     );
-    assert_eq!(toast(runner), "Play: Faders");
+    assert_eq!(toast(runner), "Faders");
 }
 
 fn bind(runner: &mut NativeRunner, target: &str, key: &str) {

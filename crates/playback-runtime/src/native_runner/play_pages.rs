@@ -100,7 +100,7 @@ impl NativeRunner {
         self.active_play_mode = ActivePlayMode::Page(next_mode);
         self.menu
             .focus_item_key(&format!("play.page.{}", next_mode.wire_name()));
-        self.show_toast(format!("Play: {}", play_mode_label(next_mode)));
+        self.show_toast(play_mode_label(next_mode));
     }
 }
 
