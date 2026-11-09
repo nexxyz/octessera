@@ -64,6 +64,7 @@ impl UserDataTransferService {
                         preflight()?;
                     }
                     crate::user_data_restore::restore(
+                        &crate::user_data_restore::LiveFilesystems,
                         &inner.store_dir,
                         &inner.samples_dir,
                         &inner.recordings_dir,

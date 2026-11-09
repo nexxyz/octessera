@@ -1,12 +1,18 @@
+use super::filesystem::{remove_tree_within, Filesystems};
+use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::path::Path;
 
 type Tree<'a> = (&'a Path, &'a Path, &'a Path);
 
-#[derive(Clone, Copy)]
-struct TreeState {
+/// What one tree's swap moved, so a rollback puts back exactly that. The live folder itself never
+/// moves, and entries that stay in place (the SD card mount, a read-only library folder) neither.
+#[derive(Default)]
+struct TreeSwap {
     original_exists: bool,
+    moved_out: Vec<OsString>,
+    moved_in: Vec<OsString>,
 }
 
 #[derive(Default)]
@@ -17,12 +23,6 @@ pub(crate) struct FaultInjection {
     pub(crate) post_swap_rollback_failure_at: Option<usize>,
 }
 
-#[derive(Debug)]
-struct SwapFailure {
-    message: String,
-    current_moved: bool,
-}
-
 #[derive(Clone, Copy)]
 enum RenameKind {
     CurrentToOld,
@@ -31,176 +31,168 @@ enum RenameKind {
     OldToCurrent,
 }
 
-pub(crate) fn replace_trees(trees: &[Tree<'_>]) -> Result<(), String> {
-    replace_trees_internal(trees, &mut None)
+pub(crate) fn replace_trees(
+    filesystems: &dyn Filesystems,
+    trees: &[Tree<'_>],
+) -> Result<(), String> {
+    replace_trees_internal(filesystems, trees, &mut None)
 }
 
 #[cfg(test)]
 pub(crate) fn replace_trees_with_faults(
+    filesystems: &dyn Filesystems,
     trees: &[Tree<'_>],
     faults: &mut FaultInjection,
 ) -> Result<(), String> {
-    replace_trees_internal(trees, &mut Some(faults))
+    replace_trees_internal(filesystems, trees, &mut Some(faults))
 }
 
 fn replace_trees_internal(
+    filesystems: &dyn Filesystems,
     trees: &[Tree<'_>],
     faults: &mut Option<&mut FaultInjection>,
 ) -> Result<(), String> {
-    let states = trees
-        .iter()
-        .map(|(current, replacement, old)| {
-            if path_exists(old) {
-                return Err(format!(
-                    "restore recovery path already exists: {}",
-                    old.display()
-                ));
-            }
-            if !path_exists(replacement) {
-                return Err(format!(
-                    "restore replacement path is missing: {}",
-                    replacement.display()
-                ));
-            }
-            Ok(TreeState {
-                original_exists: path_exists(current),
-            })
-        })
-        .collect::<Result<Vec<_>, String>>()?;
+    for (_, replacement, old) in trees {
+        if path_exists(old) {
+            return Err(format!(
+                "restore recovery path already exists: {}",
+                old.display()
+            ));
+        }
+        if !path_exists(replacement) {
+            return Err(format!(
+                "restore replacement path is missing: {}",
+                replacement.display()
+            ));
+        }
+    }
 
+    let mut swaps: Vec<TreeSwap> = Vec::with_capacity(trees.len());
     for (index, tree) in trees.iter().enumerate() {
-        if let Err(failure) = swap_tree_internal(*tree, index, faults) {
-            let mut rollback_errors = Vec::new();
-            if failure.current_moved {
-                if let Err(error) = rollback_tree_internal(*tree, states[index], index, faults) {
-                    rollback_errors.push(error);
-                }
-            }
-            for rollback_index in (0..index).rev() {
-                if let Err(error) = rollback_tree_internal(
-                    trees[rollback_index],
-                    states[rollback_index],
-                    rollback_index,
-                    faults,
-                ) {
-                    rollback_errors.push(error);
-                }
-            }
-            return Err(transaction_error(failure.message, rollback_errors));
+        let mut swap = TreeSwap::default();
+        let result = swap_tree(filesystems, *tree, index, &mut swap, faults);
+        swaps.push(swap);
+        if let Err(message) = result {
+            let rollback_errors = rollback_trees(trees, &swaps, faults);
+            return Err(transaction_error(message, rollback_errors));
         }
     }
 
     if let Err(error) = verify_committed_trees(trees) {
-        let mut rollback_errors = Vec::new();
-        for rollback_index in (0..trees.len()).rev() {
-            if let Err(rollback_error) = rollback_tree_internal(
-                trees[rollback_index],
-                states[rollback_index],
-                rollback_index,
-                faults,
-            ) {
-                rollback_errors.push(rollback_error);
-            }
-        }
+        let rollback_errors = rollback_trees(trees, &swaps, faults);
         return Err(transaction_error(error, rollback_errors));
     }
 
     for (current, _, old) in trees {
-        if path_exists(current) {
-            remove_recovery_tree(old);
+        if path_exists(current) && path_exists(old) {
+            let _ = remove_tree_within(filesystems, old, old);
         }
     }
     Ok(())
 }
 
-#[cfg(test)]
-pub(crate) fn swap_tree(current: &Path, replacement: &Path, old: &Path) -> Result<(), String> {
-    match swap_tree_internal((current, replacement, old), 0, &mut None) {
-        Ok(()) => Ok(()),
-        Err(failure) if failure.current_moved => match rollback_tree(current, old, replacement) {
-            Ok(()) => Err(failure.message),
-            Err(error) => Err(transaction_error(failure.message, vec![error])),
-        },
-        Err(failure) => Err(failure.message),
-    }
-}
-
-#[cfg(test)]
-pub(crate) fn rollback_tree(current: &Path, old: &Path, replacement: &Path) -> Result<(), String> {
-    rollback_tree_internal(
-        (current, replacement, old),
-        TreeState {
-            original_exists: path_exists(old),
-        },
-        0,
-        &mut None,
-    )
-}
-
-fn swap_tree_internal(
+fn swap_tree(
+    filesystems: &dyn Filesystems,
     (current, replacement, old): Tree<'_>,
     index: usize,
+    swap: &mut TreeSwap,
     faults: &mut Option<&mut FaultInjection>,
-) -> Result<(), SwapFailure> {
-    let current_moved = if path_exists(current) {
-        rename_path(current, old, index, RenameKind::CurrentToOld, faults).map_err(|error| {
-            SwapFailure {
-                message: format!("restore could not move live tree to recovery path: {error}"),
-                current_moved: false,
-            }
-        })?;
-        true
-    } else {
-        false
-    };
-    rename_path(
-        replacement,
-        current,
-        index,
-        RenameKind::ReplacementToCurrent,
-        faults,
-    )
-    .map_err(|error| SwapFailure {
-        message: format!("restore replacement swap failed: {error}"),
-        current_moved,
-    })
+) -> Result<(), String> {
+    swap.original_exists = path_exists(current);
+    if !swap.original_exists {
+        fs::create_dir(current)
+            .map_err(|error| format!("restore could not create {}: {error}", current.display()))?;
+    }
+    fs::create_dir(old).map_err(|error| {
+        format!(
+            "restore could not create recovery path {}: {error}",
+            old.display()
+        )
+    })?;
+    for name in entry_names(current).map_err(io_error)? {
+        let path = current.join(&name);
+        if filesystems
+            .stays_in_place(current, &path)
+            .map_err(io_error)?
+        {
+            continue;
+        }
+        rename_path(
+            &path,
+            &old.join(&name),
+            index,
+            RenameKind::CurrentToOld,
+            faults,
+        )
+        .map_err(|error| format!("restore could not move live tree to recovery path: {error}"))?;
+        swap.moved_out.push(name);
+    }
+    injected_failure(index, RenameKind::ReplacementToCurrent, faults)
+        .map_err(|error| format!("restore replacement swap failed: {error}"))?;
+    for name in entry_names(replacement).map_err(io_error)? {
+        rename_path(
+            &replacement.join(&name),
+            &current.join(&name),
+            index,
+            RenameKind::ReplacementToCurrent,
+            faults,
+        )
+        .map_err(|error| format!("restore replacement swap failed: {error}"))?;
+        swap.moved_in.push(name);
+    }
+    fs::remove_dir(replacement).map_err(|error| format!("restore replacement swap failed: {error}"))
 }
 
-fn rollback_tree_internal(
+fn rollback_trees(
+    trees: &[Tree<'_>],
+    swaps: &[TreeSwap],
+    faults: &mut Option<&mut FaultInjection>,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    for (index, swap) in swaps.iter().enumerate().rev() {
+        if let Err(error) = rollback_tree(trees[index], swap, index, faults) {
+            errors.push(error);
+        }
+    }
+    errors
+}
+
+fn rollback_tree(
     (current, replacement, old): Tree<'_>,
-    state: TreeState,
+    swap: &TreeSwap,
     index: usize,
     faults: &mut Option<&mut FaultInjection>,
 ) -> Result<(), String> {
-    if state.original_exists {
-        if !path_exists(old) {
-            return Err(format!(
-                "restore rollback recovery tree is missing: {}",
-                old.display()
-            ));
-        }
-        if path_exists(current) {
-            rename_path(
-                current,
-                replacement,
-                index,
-                RenameKind::CurrentToReplacement,
-                faults,
-            )
-            .map_err(io_error)?;
-        }
-        rename_path(old, current, index, RenameKind::OldToCurrent, faults).map_err(io_error)?;
-    } else if path_exists(current) {
+    if !path_exists(replacement) {
+        fs::create_dir(replacement).map_err(io_error)?;
+    }
+    for name in swap.moved_in.iter().rev() {
         rename_path(
-            current,
-            replacement,
+            &current.join(name),
+            &replacement.join(name),
             index,
             RenameKind::CurrentToReplacement,
             faults,
         )
         .map_err(io_error)?;
     }
-    if !verify_restored_tree(current, old, state.original_exists) {
+    for name in swap.moved_out.iter().rev() {
+        rename_path(
+            &old.join(name),
+            &current.join(name),
+            index,
+            RenameKind::OldToCurrent,
+            faults,
+        )
+        .map_err(io_error)?;
+    }
+    if path_exists(old) {
+        fs::remove_dir(old).map_err(io_error)?;
+    }
+    if !swap.original_exists && path_exists(current) {
+        fs::remove_dir(current).map_err(io_error)?;
+    }
+    if path_exists(current) != swap.original_exists || path_exists(old) {
         return Err(format!(
             "restore rollback could not verify live tree: {}",
             current.display()
@@ -226,13 +218,24 @@ fn verify_committed_trees(trees: &[Tree<'_>]) -> Result<(), String> {
     Ok(())
 }
 
-fn verify_restored_tree(current: &Path, old: &Path, original_exists: bool) -> bool {
-    path_exists(current) == original_exists && !path_exists(old)
+fn entry_names(path: &Path) -> io::Result<Vec<OsString>> {
+    fs::read_dir(path)?
+        .map(|entry| entry.map(|entry| entry.file_name()))
+        .collect()
 }
 
 fn rename_path(
     from: &Path,
     to: &Path,
+    index: usize,
+    kind: RenameKind,
+    faults: &mut Option<&mut FaultInjection>,
+) -> io::Result<()> {
+    injected_failure(index, kind, faults)?;
+    fs::rename(from, to)
+}
+
+fn injected_failure(
     index: usize,
     kind: RenameKind,
     faults: &mut Option<&mut FaultInjection>,
@@ -260,17 +263,11 @@ fn rename_path(
             ));
         }
     }
-    fs::rename(from, to)
+    Ok(())
 }
 
 fn path_exists(path: &Path) -> bool {
     fs::symlink_metadata(path).is_ok()
-}
-
-fn remove_recovery_tree(path: &Path) {
-    if path_exists(path) {
-        let _ = fs::remove_dir_all(path);
-    }
 }
 
 fn transaction_error(message: String, rollback_errors: Vec<String>) -> String {

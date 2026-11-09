@@ -5,13 +5,14 @@ use std::io;
 use std::path::{Path, PathBuf};
 use store_files::write_json_atomically;
 
+mod filesystem;
 mod transaction;
+pub(crate) use filesystem::{Filesystems, LiveFilesystems};
 #[cfg(test)]
 pub(super) use transaction::{replace_trees_with_faults, FaultInjection};
-#[cfg(test)]
-pub(super) use transaction::{rollback_tree, swap_tree};
 
 pub(crate) fn restore(
+    filesystems: &dyn Filesystems,
     store_dir: &Path,
     samples_dir: &Path,
     recordings_dir: &Path,
@@ -74,14 +75,22 @@ pub(crate) fn restore(
         }
     }
     let result = (|| {
-        build_store_tree(store_dir, &new_store, &staged.bundle, &restored)?;
+        build_store_tree(
+            filesystems,
+            store_dir,
+            &new_store,
+            &staged.bundle,
+            &restored,
+        )?;
         build_samples_tree(
+            filesystems,
             samples_dir,
             &new_samples,
             &staged,
             staged.bundle.media_included,
         )?;
         build_media_tree(
+            filesystems,
             recordings_dir,
             &new_recordings,
             &staged,
@@ -89,6 +98,7 @@ pub(crate) fn restore(
             staged.bundle.media_included,
         )?;
         build_media_tree(
+            filesystems,
             screen_recordings_dir,
             &new_screen_recordings,
             &staged,
@@ -109,7 +119,7 @@ pub(crate) fn restore(
                 old_screen_recordings.as_path(),
             ),
         ];
-        transaction::replace_trees(&trees)
+        transaction::replace_trees(filesystems, &trees)
     })();
     result
 }
@@ -164,6 +174,7 @@ fn write_pre_restore_backup(
 }
 
 fn build_store_tree(
+    filesystems: &dyn Filesystems,
     old_store: &Path,
     new_store: &Path,
     bundle: &playback_runtime::UserDataBundle,
@@ -202,10 +213,16 @@ fn build_store_tree(
         &old_store.join("device.json"),
         &new_store.join("device.json"),
     )?;
-    copy_tree_if_present(&old_store.join("backups"), &new_store.join("backups"))
+    copy_tree_if_present(
+        filesystems,
+        old_store,
+        &old_store.join("backups"),
+        &new_store.join("backups"),
+    )
 }
 
 fn build_samples_tree(
+    filesystems: &dyn Filesystems,
     old_samples: &Path,
     new_samples: &Path,
     staged: &StagedRestore,
@@ -218,9 +235,9 @@ fn build_samples_tree(
     }
     fs::create_dir_all(new_samples).map_err(io_error)?;
     if !media_included {
-        copy_tree_if_present(old_samples, new_samples)?;
+        copy_tree_if_present(filesystems, old_samples, old_samples, new_samples)?;
     } else if old_samples.is_dir() {
-        copy_packaged_samples(old_samples, old_samples, new_samples)?;
+        copy_packaged_samples(filesystems, old_samples, old_samples, new_samples)?;
     }
     copy_staged_media(
         new_samples,
@@ -231,6 +248,7 @@ fn build_samples_tree(
 }
 
 fn build_media_tree(
+    filesystems: &dyn Filesystems,
     old_media: &Path,
     new_media: &Path,
     staged: &StagedRestore,
@@ -244,7 +262,7 @@ fn build_media_tree(
     }
     fs::create_dir_all(new_media).map_err(io_error)?;
     if !media_included {
-        copy_tree_if_present(old_media, new_media)?;
+        copy_tree_if_present(filesystems, old_media, old_media, new_media)?;
     }
     copy_staged_media(new_media, staged, kind)
 }
@@ -273,10 +291,18 @@ fn sibling_path(path: &Path, role: &str, session: &str) -> PathBuf {
         ))
 }
 
-fn copy_packaged_samples(root: &Path, current: &Path, target: &Path) -> Result<(), String> {
+fn copy_packaged_samples(
+    filesystems: &dyn Filesystems,
+    root: &Path,
+    current: &Path,
+    target: &Path,
+) -> Result<(), String> {
     for entry in fs::read_dir(current).map_err(io_error)? {
         let entry = entry.map_err(io_error)?;
         let path = entry.path();
+        if filesystems.stays_in_place(root, &path).map_err(io_error)? {
+            continue;
+        }
         let metadata = fs::symlink_metadata(&path).map_err(io_error)?;
         if metadata.file_type().is_symlink() {
             return Err("sample directory contains a symlink".into());
@@ -289,7 +315,7 @@ fn copy_packaged_samples(root: &Path, current: &Path, target: &Path) -> Result<(
             .ok_or_else(|| "sample file name is not valid UTF-8".to_string())?
             .replace('\\', "/");
         if metadata.is_dir() {
-            copy_packaged_samples(root, &path, &target.join(relative))?;
+            copy_packaged_samples(filesystems, root, &path, &target.join(relative))?;
         } else if metadata.is_file() && crate::sample_browser::is_packaged_library_file(&relative) {
             copy_file(&path, &target.join(relative))?;
         }
@@ -297,7 +323,13 @@ fn copy_packaged_samples(root: &Path, current: &Path, target: &Path) -> Result<(
     Ok(())
 }
 
-fn copy_tree_if_present(source: &Path, target: &Path) -> Result<(), String> {
+/// Copies `source` into `target`, leaving out what stays in place below `root` (the SD card).
+fn copy_tree_if_present(
+    filesystems: &dyn Filesystems,
+    root: &Path,
+    source: &Path,
+    target: &Path,
+) -> Result<(), String> {
     if !source.exists() {
         return Ok(());
     }
@@ -305,13 +337,19 @@ fn copy_tree_if_present(source: &Path, target: &Path) -> Result<(), String> {
     for entry in fs::read_dir(source).map_err(io_error)? {
         let entry = entry.map_err(io_error)?;
         let source_path = entry.path();
+        if filesystems
+            .stays_in_place(root, &source_path)
+            .map_err(io_error)?
+        {
+            continue;
+        }
         let target_path = target.join(entry.file_name());
         let metadata = fs::symlink_metadata(&source_path).map_err(io_error)?;
         if metadata.file_type().is_symlink() {
             return Err("protected store contains a symlink".into());
         }
         if metadata.is_dir() {
-            copy_tree_if_present(&source_path, &target_path)?;
+            copy_tree_if_present(filesystems, root, &source_path, &target_path)?;
         } else if metadata.is_file() {
             copy_file(&source_path, &target_path)?;
         }

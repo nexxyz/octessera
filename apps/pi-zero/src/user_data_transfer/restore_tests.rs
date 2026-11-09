@@ -468,7 +468,12 @@ fn failed_restore_tree_swap_rolls_back_exact_split_store_bytes() {
         replacement_failure_at: Some(1),
         ..crate::user_data_restore::FaultInjection::default()
     };
-    assert!(crate::user_data_restore::replace_trees_with_faults(&trees, &mut faults).is_err());
+    assert!(crate::user_data_restore::replace_trees_with_faults(
+        &crate::user_data_restore::LiveFilesystems,
+        &trees,
+        &mut faults
+    )
+    .is_err());
     for (name, bytes) in &originals {
         assert_eq!(
             fs::read(store.join(name)).unwrap().as_slice(),

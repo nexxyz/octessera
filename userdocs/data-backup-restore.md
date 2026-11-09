@@ -106,6 +106,9 @@ silent and shows `N/A-<name>`, and a popup lists what's missing. Copy the WAVs
 across (or restore a `media=1` export) and the slots come back, or pick
 replacements.
 
+A restore leaves the SD2 card alone: whatever is on it stays there, and it
+stays mounted.
+
 Never pull the power or either microSD card during a transfer or restore.
 
 ## What the backup doesn't carry

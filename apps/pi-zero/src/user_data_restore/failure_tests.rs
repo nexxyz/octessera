@@ -8,6 +8,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 #[cfg(test)]
+mod mount_tests;
+#[cfg(test)]
 mod store_validation_tests;
 
 struct Fixture {
@@ -93,6 +95,7 @@ impl Fixture {
 
     fn restore(&self, session: &str, media_included: bool) -> Result<(), String> {
         super::restore(
+            &LiveFilesystems,
             &self.store,
             &self.samples,
             &self.recordings,
@@ -229,60 +232,6 @@ fn unsafe_protected_entry_fails_without_mutating_live_data() {
     );
 }
 
-#[test]
-fn swap_failure_rolls_back_an_already_swapped_tree() {
-    let root = temp_root("swap-failure");
-    let current_store = root.join("store");
-    let replacement_store = root.join("store-new");
-    let old_store = root.join("store-old");
-    let current_samples = root.join("samples");
-    let replacement_samples = root.join("samples-new");
-    let old_samples = root.join("samples-old");
-    fs::create_dir_all(&current_store).unwrap();
-    fs::create_dir_all(&replacement_store).unwrap();
-    fs::create_dir_all(&current_samples).unwrap();
-    fs::write(current_store.join("state"), b"live store").unwrap();
-    fs::write(replacement_store.join("state"), b"new store").unwrap();
-    fs::write(current_samples.join("state"), b"live samples").unwrap();
-
-    let trees = [
-        (
-            current_store.as_path(),
-            replacement_store.as_path(),
-            old_store.as_path(),
-        ),
-        (
-            current_samples.as_path(),
-            replacement_samples.as_path(),
-            old_samples.as_path(),
-        ),
-    ];
-    assert!(swap_tree(trees[0].0, trees[0].1, trees[0].2).is_ok());
-    assert_eq!(fs::read(current_store.join("state")).unwrap(), b"new store");
-
-    let result = swap_tree(trees[1].0, trees[1].1, trees[1].2);
-    assert!(result.is_err());
-    for (current, replacement, old) in trees[..1].iter().rev() {
-        rollback_tree(current, old, replacement).unwrap();
-    }
-
-    assert_eq!(
-        fs::read(current_store.join("state")).unwrap(),
-        b"live store"
-    );
-    assert_eq!(
-        fs::read(current_samples.join("state")).unwrap(),
-        b"live samples"
-    );
-    assert_eq!(
-        fs::read(replacement_store.join("state")).unwrap(),
-        b"new store"
-    );
-    assert!(!old_store.exists());
-    assert!(!old_samples.exists());
-    let _ = fs::remove_dir_all(root);
-}
-
 fn transaction_fixture(name: &str) -> (PathBuf, Vec<(PathBuf, PathBuf, PathBuf)>) {
     let root = temp_root(name);
     let mut trees = Vec::new();
@@ -317,7 +266,7 @@ fn injected_replacement_failure_preserves_recovery_tree_after_verified_rollback(
         ..FaultInjection::default()
     };
 
-    let result = replace_trees_with_faults(&refs, &mut faults);
+    let result = replace_trees_with_faults(&LiveFilesystems, &refs, &mut faults);
     assert!(result.is_err());
     assert_eq!(fs::read(trees[0].0.join("state")).unwrap(), b"live store");
     assert_eq!(fs::read(trees[1].0.join("state")).unwrap(), b"live samples");
@@ -338,7 +287,7 @@ fn injected_rollback_failure_propagates_and_preserves_old_and_new_trees() {
         ..FaultInjection::default()
     };
 
-    let result = replace_trees_with_faults(&refs, &mut faults).unwrap_err();
+    let result = replace_trees_with_faults(&LiveFilesystems, &refs, &mut faults).unwrap_err();
     assert!(result.contains("rollback failed"));
     assert!(trees[0].2.is_dir());
     assert!(trees[0].1.is_dir());
@@ -355,7 +304,7 @@ fn injected_post_swap_rollback_failure_propagates_and_preserves_recovery_trees()
         ..FaultInjection::default()
     };
 
-    let result = replace_trees_with_faults(&refs, &mut faults).unwrap_err();
+    let result = replace_trees_with_faults(&LiveFilesystems, &refs, &mut faults).unwrap_err();
     assert!(result.contains("rollback failed"));
     assert!(trees[0].1.is_dir());
     assert!(trees[0].2.is_dir());
@@ -401,6 +350,7 @@ fn restore_rehydrates_canonical_patch_preferences_and_patch_aux_bindings() {
     staged.bundle.default_state.patch = default_patch;
 
     super::restore(
+        &LiveFilesystems,
         &fixture.store,
         &fixture.samples,
         &fixture.recordings,
