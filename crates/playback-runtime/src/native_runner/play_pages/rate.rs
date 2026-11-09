@@ -103,7 +103,11 @@ impl NativeRunner {
             if layer == self.active_layer_index {
                 self.transport.tick = 0;
                 self.engine.set_interpretation_tick(0);
-            } else if let Some(Some(engine)) = self.layer_engines.get_mut(layer) {
+            } else if let Some(engine) = self
+                .layers
+                .get_mut(layer)
+                .and_then(|layer| layer.engine.as_mut())
+            {
                 engine.set_interpretation_tick(0);
             }
         }

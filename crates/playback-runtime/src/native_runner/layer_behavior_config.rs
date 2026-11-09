@@ -14,7 +14,11 @@ impl NativeRunner {
         if behavior_id == "none" || config.is_null() {
             return;
         }
-        if let Some(history) = self.layer_behavior_config_history.get_mut(layer_index) {
+        if let Some(history) = self
+            .layers
+            .get_mut(layer_index)
+            .map(|layer| &mut layer.behavior_config_history)
+        {
             history.insert(behavior_id.into(), config);
         }
     }
@@ -27,21 +31,17 @@ impl NativeRunner {
         if behavior_id == "none" {
             return Value::Null;
         }
-        self.layer_behavior_config_history
-            .get(layer_index)
-            .and_then(|history| history.get(behavior_id))
-            .cloned()
+        let Some(layer) = self.layers.get(layer_index) else {
+            return Value::Null;
+        };
+        layer
+            .behavior_config_history
+            .get(behavior_id)
             .or_else(|| {
-                (self
-                    .layers
-                    .get(layer_index)
-                    .map(|layer| layer.behavior_id.as_str())
-                    == Some(behavior_id))
-                .then(|| self.layer_behavior_configs.get(layer_index))
-                .flatten()
-                .filter(|config| !config.is_null())
-                .cloned()
+                (layer.behavior_id == behavior_id && !layer.behavior_config.is_null())
+                    .then_some(&layer.behavior_config)
             })
+            .cloned()
             .unwrap_or(Value::Null)
     }
 
@@ -165,8 +165,8 @@ impl NativeRunner {
         behavior_id: &str,
         config: Value,
     ) {
-        if let Some(target) = self.layer_behavior_configs.get_mut(layer_index) {
-            *target = config.clone();
+        if let Some(layer) = self.layers.get_mut(layer_index) {
+            layer.behavior_config = config.clone();
         }
         if layer_index == self.active_layer_index {
             self.behavior_config = config.clone();
@@ -176,21 +176,24 @@ impl NativeRunner {
 
     pub(super) fn layer_behavior_config(&self, layer_index: usize) -> Value {
         if layer_index == self.active_layer_index {
-            self.layer_behavior_configs
+            self.layers
                 .get(layer_index)
+                .map(|layer| &layer.behavior_config)
                 .cloned()
                 .unwrap_or_else(|| self.behavior_config.clone())
         } else {
-            self.layer_behavior_configs
+            self.layers
                 .get(layer_index)
+                .map(|layer| &layer.behavior_config)
                 .cloned()
                 .unwrap_or(Value::Null)
         }
     }
 
     fn layer_behavior_config_ref(&self, layer_index: usize) -> &Value {
-        self.layer_behavior_configs
+        self.layers
             .get(layer_index)
+            .map(|layer| &layer.behavior_config)
             .unwrap_or(&self.behavior_config)
     }
 

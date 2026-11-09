@@ -14,9 +14,6 @@ impl NativeRunner {
             .ok_or_else(|| "unsupported native behavior `none`".to_string())?;
         self.behavior = behavior;
         self.behavior_config = Value::Null;
-        self.layer_behavior_configs = vec![Value::Null; LAYER_COUNT];
-        self.layer_behavior_config_history = vec![BTreeMap::new(); LAYER_COUNT];
-        self.layers = (0..LAYER_COUNT).map(|_| NativeLayer::new("none")).collect();
         self.random_seed = super::random_streams::DEFAULT_RANDOM_SEED;
 
         self.global_sound = GlobalSoundConfig {
@@ -49,12 +46,12 @@ impl NativeRunner {
             self.note_behaviors.clone(),
             self.active_layer_index,
         )?;
-        self.layer_engines = (0..LAYER_COUNT)
+        self.layers = (0..LAYER_COUNT)
             .map(|index| {
-                if index == self.active_layer_index {
-                    Ok(None)
+                let engine = if index == self.active_layer_index {
+                    None
                 } else {
-                    Self::build_engine(
+                    Some(Self::build_engine(
                         behavior,
                         Value::Null,
                         self.interpretation_profile_for_layer(index),
@@ -62,9 +59,9 @@ impl NativeRunner {
                         self.global_sound.clone(),
                         self.note_behaviors.clone(),
                         index,
-                    )
-                    .map(Some)
-                }
+                    )?)
+                };
+                Ok(NativeLayer::new("none", Value::Null, engine))
             })
             .collect::<Result<Vec<_>, String>>()?;
 

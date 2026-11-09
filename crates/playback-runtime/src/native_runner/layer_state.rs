@@ -106,8 +106,8 @@ impl NativeRunner {
             return Ok(());
         }
 
-        if let Some(config) = self.layer_behavior_configs.get_mut(self.active_layer_index) {
-            *config = self.behavior_config.clone();
+        if let Some(layer) = self.layers.get_mut(self.active_layer_index) {
+            layer.behavior_config = self.behavior_config.clone();
         }
         let previous_behavior_id = self
             .layers
@@ -131,9 +131,9 @@ impl NativeRunner {
         let profile = self.interpretation_profile_for_layer(next_index);
         let mapping = self.mapping_config_for_layer(next_index);
         let mut next_engine = match self
-            .layer_engines
+            .layers
             .get_mut(next_index)
-            .and_then(Option::take)
+            .and_then(|layer| layer.engine.take())
         {
             Some(engine) => engine,
             None => Self::build_engine(
@@ -152,8 +152,8 @@ impl NativeRunner {
 
         let previous_index = self.active_layer_index;
         std::mem::swap(&mut self.engine, &mut next_engine);
-        if let Some(slot) = self.layer_engines.get_mut(previous_index) {
-            *slot = Some(next_engine);
+        if let Some(layer) = self.layers.get_mut(previous_index) {
+            layer.engine = Some(next_engine);
         }
 
         self.active_layer_index = next_index;
@@ -172,8 +172,8 @@ impl NativeRunner {
             .unwrap_or(DEFAULT_ALGORITHM_STEP_RED);
         self.behavior = behavior;
         self.behavior_config = behavior_config;
-        if let Some(config) = self.layer_behavior_configs.get_mut(next_index) {
-            *config = self.behavior_config.clone();
+        if let Some(layer) = self.layers.get_mut(next_index) {
+            layer.behavior_config = self.behavior_config.clone();
         }
         self.interpretation_profile = profile;
         self.mapping_config = mapping;
@@ -190,7 +190,11 @@ impl NativeRunner {
         if index == self.active_layer_index {
             return self.engine.serialized_state();
         }
-        if let Some(Some(engine)) = self.layer_engines.get(index) {
+        if let Some(engine) = self
+            .layers
+            .get(index)
+            .and_then(|layer| layer.engine.as_ref())
+        {
             return engine.serialized_state();
         }
         Ok(Value::Null)

@@ -111,9 +111,9 @@ impl NativeRunner {
     pub(super) fn sync_layer_random_seeds(&mut self) {
         let active_seed = self.layer_random_seed(self.active_layer_index);
         self.engine.set_random_seed(active_seed);
-        for index in 0..self.layer_engines.len() {
+        for index in 0..self.layers.len() {
             let seed = self.layer_random_seed(index);
-            if let Some(engine) = self.layer_engines[index].as_mut() {
+            if let Some(engine) = self.layers[index].engine.as_mut() {
                 engine.set_random_seed(seed);
             }
         }
@@ -122,7 +122,11 @@ impl NativeRunner {
     pub(super) fn restart_random_streams(&mut self) {
         self.sync_layer_random_seeds();
         self.engine.restart_random();
-        for engine in self.layer_engines.iter_mut().flatten() {
+        for engine in self
+            .layers
+            .iter_mut()
+            .filter_map(|layer| layer.engine.as_mut())
+        {
             engine.restart_random();
         }
         self.seeded_link_streams = SeededLinkStreams::new(self.random_seed);

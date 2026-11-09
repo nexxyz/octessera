@@ -39,7 +39,8 @@ fn select_behavior(runner: &mut NativeRunner, behavior: &str) {
 }
 
 fn l5_stars(runner: &NativeRunner) -> usize {
-    runner.layer_engines[L5]
+    runner.layers[L5]
+        .engine
         .as_ref()
         .unwrap()
         .model()

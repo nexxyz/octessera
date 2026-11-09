@@ -15,14 +15,14 @@ impl NativeRunner {
     ) -> Result<ModulationUpdates, String> {
         let mut transpose_offsets = None;
         let mut modulation_updates = Vec::new();
-        for index in 0..self.layer_engines.len() {
+        for index in 0..self.layers.len() {
             let step_pulses = self.step_pulses_for_layer(index);
             if index == self.active_layer_index
                 || self.transport.layer_pulse_accumulators[index] < step_pulses
             {
                 continue;
             }
-            let Some(engine) = self.layer_engines[index].as_ref() else {
+            let Some(engine) = self.layers[index].engine.as_ref() else {
                 let accumulator = &mut self.transport.layer_pulse_accumulators[index];
                 while *accumulator >= step_pulses {
                     *accumulator -= step_pulses;
@@ -69,7 +69,7 @@ impl NativeRunner {
         while self.transport.layer_pulse_accumulators[index] >= step_pulses {
             self.transport.layer_pulse_accumulators[index] -= step_pulses;
             let offset = self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);
-            if let Some(engine) = self.layer_engines[index].as_mut() {
+            if let Some(engine) = self.layers[index].engine.as_mut() {
                 engine.advance_interpretation_tick();
             }
             self.count_step_and_sound_due_link_events(index, offset, events);
@@ -87,7 +87,7 @@ impl NativeRunner {
     ) -> Result<(), String> {
         let profile = self.interpretation_profile_for_layer(index);
         let mapping = self.mapping_config_for_layer(index);
-        if let Some(engine) = self.layer_engines[index].as_mut() {
+        if let Some(engine) = self.layers[index].engine.as_mut() {
             engine.set_global_sound(self.global_sound.clone());
             engine.set_interpretation_profile(profile);
             engine.set_mapping_config(mapping);
@@ -98,7 +98,7 @@ impl NativeRunner {
             let offset = self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);
             let mut rng = self.probability_rng(index);
             let tick = {
-                let Some(engine) = self.layer_engines[index].as_mut() else {
+                let Some(engine) = self.layers[index].engine.as_mut() else {
                     continue;
                 };
                 let sense = self.link_layers.get(index);

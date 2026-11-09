@@ -78,8 +78,9 @@ impl NativeRunner {
         };
         let item = items?.into_iter().find(|item| item.key == field)?;
         let config = self
-            .layer_behavior_configs
+            .layers
             .get(layer_index)
+            .map(|layer| &layer.behavior_config)
             .unwrap_or(&Value::Null);
         behavior_target_menu_item(self, layer_index, behavior, config, &state, item)
     }
@@ -130,8 +131,9 @@ impl NativeRunner {
             state = self.default_behavior_state_for_layer(layer_index, behavior);
         }
         let config = self
-            .layer_behavior_configs
+            .layers
             .get(layer_index)
+            .map(|layer| &layer.behavior_config)
             .unwrap_or(&Value::Null);
         if let Ok(Some(config_items)) = behavior.config_menu(&state) {
             for item in config_items {
@@ -149,9 +151,9 @@ impl NativeRunner {
         if layer_index == self.active_layer_index {
             return self.engine_state();
         }
-        self.layer_engines
+        self.layers
             .get(layer_index)
-            .and_then(|engine| engine.as_ref())
+            .and_then(|layer| layer.engine.as_ref())
             .map(|engine| engine.state().clone())
             .unwrap_or_else(|| self.engine_state())
     }
@@ -162,8 +164,9 @@ impl NativeRunner {
         behavior: platform_core::NativeBehavior,
     ) -> platform_core::NativeBehaviorState {
         let behavior_config = self
-            .layer_behavior_configs
+            .layers
             .get(layer_index)
+            .map(|layer| &layer.behavior_config)
             .cloned()
             .unwrap_or(Value::Null);
         platform_core::NativeLayerEngine::new(platform_core::NativeLayerEngineConfig {

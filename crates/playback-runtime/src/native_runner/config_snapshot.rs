@@ -238,8 +238,9 @@ impl NativeConfigSnapshot {
                     runner.behavior_config.clone()
                 } else {
                     runner
-                        .layer_behavior_configs
+                        .layers
                         .get(index)
+                        .map(|layer| &layer.behavior_config)
                         .cloned()
                         .unwrap_or(Value::Null)
                 };
@@ -247,7 +248,10 @@ impl NativeConfigSnapshot {
                     let engine = if index == runner.active_layer_index {
                         Some(&runner.engine)
                     } else {
-                        runner.layer_engines.get(index).and_then(Option::as_ref)
+                        runner
+                            .layers
+                            .get(index)
+                            .and_then(|layer| layer.engine.as_ref())
                     };
                     engine.map(NativeLayerEngine::capture_persistence_state)
                 } else {
@@ -267,8 +271,9 @@ impl NativeConfigSnapshot {
                     },
                     behavior_config,
                     behavior_config_history: runner
-                        .layer_behavior_config_history
+                        .layers
                         .get(index)
+                        .map(|layer| &layer.behavior_config_history)
                         .cloned()
                         .unwrap_or_default(),
                     config_overrides: runner

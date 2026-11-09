@@ -193,7 +193,7 @@ pub(crate) fn multi_target_grid_modulation_aggregates_revision_and_deferred_auto
     assert_eq!(runner.fast_autosave_marks, 1);
     assert_eq!(runner.layer_behavior_rebuilds, 1);
     assert_eq!(runner.behavior_state_serialization_calls.get(), 0);
-    assert_eq!(runner.layer_behavior_configs[1]["randomSeedCells"], 20);
+    assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 20);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
     assert!(runner.pending.pending_save_revision.is_none());
 

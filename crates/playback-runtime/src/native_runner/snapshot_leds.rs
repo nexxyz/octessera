@@ -41,16 +41,11 @@ impl NativeRunner {
             return;
         }
         let mut ghosts = [false; GRID_WIDTH * GRID_HEIGHT];
-        for (index, engine) in self.layer_engines.iter().enumerate() {
-            if index == self.active_layer_index
-                || self
-                    .layers
-                    .get(index)
-                    .is_none_or(|layer| layer.behavior_id == "none")
-            {
+        for (index, layer) in self.layers.iter().enumerate() {
+            if index == self.active_layer_index || layer.behavior_id == "none" {
                 continue;
             }
-            let Some(model) = engine.as_ref().and_then(|engine| engine.model().ok()) else {
+            let Some(model) = layer.engine.as_ref().and_then(|engine| engine.model().ok()) else {
                 continue;
             };
             for (ghost, alive) in ghosts.iter_mut().zip(&model.tiles) {

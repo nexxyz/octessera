@@ -36,9 +36,9 @@ impl NativeRunner {
         let engine = if layer_index == self.active_layer_index {
             &mut self.engine
         } else {
-            self.layer_engines
+            self.layers
                 .get_mut(layer_index)
-                .and_then(Option::as_mut)
+                .and_then(|layer| layer.engine.as_mut())
                 .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?
         };
         if paused {
@@ -103,7 +103,7 @@ impl NativeRunner {
     }
 
     pub(super) fn prime_sequencer_layer_origins(&mut self) {
-        for index in 0..self.layer_engines.len() {
+        for index in 0..self.layers.len() {
             let is_sequencer = if index == self.active_layer_index {
                 self.behavior.id() == "sequencer"
             } else {

@@ -56,8 +56,8 @@ fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: 
                     runner.layer_behavior_config(index),
                 );
                 let next_config = runner.remembered_layer_behavior_config(index, behavior_id);
-                if let Some(target) = runner.layer_behavior_configs.get_mut(index) {
-                    *target = next_config;
+                if let Some(layer) = runner.layers.get_mut(index) {
+                    layer.behavior_config = next_config;
                 }
             }
             runner.layers[index].behavior_id = behavior_id.into();
@@ -117,8 +117,8 @@ fn apply_layer_build_payload(
         .get("behaviorConfigHistory")
         .and_then(Value::as_object)
     {
-        if let Some(target) = runner.layer_behavior_config_history.get_mut(index) {
-            *target = history
+        if let Some(layer) = runner.layers.get_mut(index) {
+            layer.behavior_config_history = history
                 .iter()
                 .filter(|(_, config)| !config.is_null())
                 .map(|(behavior_id, config)| (behavior_id.clone(), config.clone()))
@@ -126,8 +126,8 @@ fn apply_layer_build_payload(
         }
     }
     if let Some(config) = build.get("behaviorConfig") {
-        if let Some(target) = runner.layer_behavior_configs.get_mut(index) {
-            *target = config.clone();
+        if let Some(layer) = runner.layers.get_mut(index) {
+            layer.behavior_config = config.clone();
         }
     }
     runner.replace_layer_engine_from_payload(index, &behavior_id, build)?;

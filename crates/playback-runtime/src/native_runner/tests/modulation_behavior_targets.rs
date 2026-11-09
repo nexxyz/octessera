@@ -5,7 +5,7 @@ pub(crate) fn behavior_target_picker_uses_each_layers_behavior_and_prunes_none()
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].behavior_id = "none".into();
     runner.layers[2].behavior_id = "brain".into();
-    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.layers[2].behavior_config = json!({ "randomSeedCells": 4 });
 
     let config = runner.menu_config();
 
@@ -29,7 +29,7 @@ pub(crate) fn build_layer_menu_uses_selected_layers_behavior_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[2].behavior_id = "brain".into();
     runner.layers[2].name = "brain".into();
-    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.layers[2].behavior_config = json!({ "randomSeedCells": 4 });
     runner.menu.rebuild(runner.menu_config());
 
     let _ = runner.menu.press();
@@ -56,7 +56,7 @@ pub(crate) fn build_layer_menu_uses_selected_layers_behavior_params() {
 pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[2].behavior_id = "brain".into();
-    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.layers[2].behavior_config = json!({ "randomSeedCells": 4 });
     runner.transport.layer_algorithm_step_pulses[2] = 24;
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("layers.2.algorithmStep".into()),
@@ -71,7 +71,7 @@ pub(crate) fn aux_turn_generated_per_layer_behavior_targets_updates_stored_confi
     runner.handle_aux_turn(1, 1).unwrap();
 
     assert_eq!(runner.transport.layer_algorithm_step_pulses[2], 32);
-    assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 5);
+    assert_eq!(runner.layers[2].behavior_config["randomSeedCells"], 5);
     assert!(runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
 }
@@ -133,7 +133,7 @@ pub(crate) fn keyed_layer_algorithm_step_rebases_held_discrete_source() {
 pub(crate) fn unchanged_modulation_avoids_state_serialization_rebuild_and_autosave() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.select_layer_behavior(1, "brain").unwrap();
-    runner.layer_behavior_configs[1] = json!({ "randomSeedCells": 4 });
+    runner.layers[1].behavior_config = json!({ "randomSeedCells": 4 });
     runner.xy.touch = NativeXyTouch {
         x: 0.5,
         y: 0.2,
@@ -163,7 +163,7 @@ pub(crate) fn unchanged_modulation_avoids_state_serialization_rebuild_and_autosa
         runner.apply_runtime_modulation(&[], 0);
     }
 
-    assert_eq!(runner.layer_behavior_configs[1]["randomSeedCells"], 4);
+    assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 4);
     assert!(!runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_none());
     assert_eq!(runner.behavior_state_serialization_calls.get(), 0);
@@ -195,7 +195,7 @@ pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values(
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[2].behavior_id = "none".into();
     runner.transport.layer_algorithm_step_pulses[2] = 24;
-    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.layers[2].behavior_config = json!({ "randomSeedCells": 4 });
     runner.xy.touch = NativeXyTouch {
         x: 1.0,
         y: 1.0,
@@ -235,7 +235,7 @@ pub(crate) fn stale_bindings_to_none_behavior_layer_do_not_mutate_hidden_values(
     runner.apply_runtime_modulation(&[], 0);
 
     assert_eq!(runner.transport.layer_algorithm_step_pulses[2], 24);
-    assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 4);
+    assert_eq!(runner.layers[2].behavior_config["randomSeedCells"], 4);
     assert!(!runner.config_dirty);
 }
 

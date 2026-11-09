@@ -98,7 +98,8 @@ pub(crate) fn looper_length_edit_uses_config_defaults_when_mode_is_absent() {
         .as_object_mut()
         .unwrap()
         .remove("mode");
-    runner.layer_behavior_configs[0]
+    runner.layers[0]
+        .behavior_config
         .as_object_mut()
         .unwrap()
         .remove("mode");

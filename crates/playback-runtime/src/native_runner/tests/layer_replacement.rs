@@ -8,7 +8,8 @@ pub(crate) fn inactive_layer_encoder_config_edit_rebuilds_only_target_layer() {
     })
     .unwrap();
     runner.select_layer_behavior(1, "brain").unwrap();
-    let initial_seed_cells = runner.layer_engines[1]
+    let initial_seed_cells = runner.layers[1]
+        .engine
         .as_ref()
         .unwrap()
         .serialized_state()
@@ -30,11 +31,12 @@ pub(crate) fn inactive_layer_encoder_config_edit_rebuilds_only_target_layer() {
     assert_eq!(runner.behavior.id(), "life");
     assert_eq!(runner.engine.serialized_state().unwrap(), active_before);
     assert_eq!(
-        runner.layer_behavior_configs[1]["randomSeedCells"],
+        runner.layers[1].behavior_config["randomSeedCells"],
         initial_seed_cells + 1
     );
     assert_eq!(
-        runner.layer_engines[1]
+        runner.layers[1]
+            .engine
             .as_ref()
             .unwrap()
             .serialized_state()
@@ -46,7 +48,8 @@ pub(crate) fn inactive_layer_encoder_config_edit_rebuilds_only_target_layer() {
 #[test]
 pub(crate) fn inactive_layer_aux_config_edit_changes_execution_state() {
     let mut runner = brain_target_runner();
-    let initial_seed_cells = runner.layer_engines[1]
+    let initial_seed_cells = runner.layers[1]
+        .engine
         .as_ref()
         .unwrap()
         .serialized_state()
@@ -63,7 +66,7 @@ pub(crate) fn inactive_layer_aux_config_edit_changes_execution_state() {
 
     assert_eq!(runner.engine.serialized_state().unwrap(), active_before);
     assert_eq!(
-        runner.layer_behavior_configs[1]["randomSeedCells"],
+        runner.layers[1].behavior_config["randomSeedCells"],
         initial_seed_cells + 1
     );
     assert!(runner.config_dirty);
@@ -94,9 +97,10 @@ pub(crate) fn inactive_layer_xy_modulation_changes_execution_state() {
         })
         .unwrap();
 
-    assert_eq!(runner.layer_behavior_configs[1]["randomSeedCells"], 20);
+    assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 20);
     assert_eq!(
-        runner.layer_engines[1]
+        runner.layers[1]
+            .engine
             .as_ref()
             .unwrap()
             .serialized_state()
@@ -193,10 +197,10 @@ pub(crate) fn behavior_config_history_survives_none_transitions_per_layer_and_be
         .unwrap();
     runner.select_layer_behavior(1, "none").unwrap();
     runner.select_layer_behavior(1, "life").unwrap();
-    assert_eq!(runner.layer_behavior_configs[1]["randomCellsPerTick"], 7);
+    assert_eq!(runner.layers[1].behavior_config["randomCellsPerTick"], 7);
     runner.select_layer_behavior(1, "none").unwrap();
     runner.select_layer_behavior(1, "brain").unwrap();
-    assert_eq!(runner.layer_behavior_configs[1]["randomSeedCells"], 9);
+    assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 9);
 }
 
 #[test]
@@ -222,10 +226,10 @@ pub(crate) fn behavior_config_history_round_trips_through_config_payload() {
     restored.apply_config_payload(payload).unwrap();
     restored.select_layer_behavior(1, "none").unwrap();
     restored.select_layer_behavior(1, "life").unwrap();
-    assert_eq!(restored.layer_behavior_configs[1]["randomCellsPerTick"], 7);
+    assert_eq!(restored.layers[1].behavior_config["randomCellsPerTick"], 7);
     restored.select_layer_behavior(1, "none").unwrap();
     restored.select_layer_behavior(1, "brain").unwrap();
-    assert_eq!(restored.layer_behavior_configs[1]["randomSeedCells"], 9);
+    assert_eq!(restored.layers[1].behavior_config["randomSeedCells"], 9);
 }
 
 #[test]
@@ -376,7 +380,7 @@ pub(crate) fn fast_layer_edit_clears_only_the_target_link_arp_state() {
 #[test]
 pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
     let mut runner = brain_target_runner();
-    runner.layer_behavior_configs[1] = json!({ "randomSeedCells": 4 });
+    runner.layers[1].behavior_config = json!({ "randomSeedCells": 4 });
     runner.config_dirty = false;
     runner.pending.pending_autosave_payload_due_at = None;
     runner.behavior_state_serialization_calls.set(0);
@@ -389,7 +393,7 @@ pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
         velocity: 100,
     });
 
-    let before_engine = runner.layer_engines[1].as_ref().unwrap().state().clone();
+    let before_engine = runner.layers[1].engine.as_ref().unwrap().state().clone();
 
     assert!(!runner
         .apply_layer_behavior_config_deltas(
@@ -401,9 +405,9 @@ pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
         )
         .unwrap());
 
-    assert_eq!(runner.layer_behavior_configs[1]["randomSeedCells"], 4);
+    assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 4);
     assert_eq!(
-        runner.layer_engines[1].as_ref().unwrap().state().clone(),
+        runner.layers[1].engine.as_ref().unwrap().state().clone(),
         before_engine
     );
     assert_eq!(runner.link_arp.held_notes[1].len(), 1);
@@ -418,7 +422,7 @@ pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
 pub(crate) fn fast_behavior_edit_reports_replacement_errors_without_committing() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].behavior_id = "unsupported-behavior".into();
-    let before = runner.layer_behavior_configs[0].clone();
+    let before = runner.layers[0].behavior_config.clone();
     let key = "layers.0.build.behaviorConfig.randomCellsPerTick";
     assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
@@ -430,7 +434,7 @@ pub(crate) fn fast_behavior_edit_reports_replacement_errors_without_committing()
         })
         .unwrap();
 
-    assert_eq!(runner.layer_behavior_configs[0], before);
+    assert_eq!(runner.layers[0].behavior_config, before);
     assert_eq!(
         runner
             .display

@@ -59,7 +59,11 @@ impl NativeRunner {
         self.reset_global_lfo_phases();
         self.restart_random_streams();
         self.engine.reset_transport_phase();
-        for engine in self.layer_engines.iter_mut().flatten() {
+        for engine in self
+            .layers
+            .iter_mut()
+            .filter_map(|layer| layer.engine.as_mut())
+        {
             engine.reset_transport_phase();
         }
         self.transport.layer_pulse_accumulators.fill(0);
@@ -78,7 +82,11 @@ impl NativeRunner {
         self.note_behaviors = note_behaviors_from_instruments(&self.instruments);
         self.engine.set_global_sound(self.global_sound.clone());
         self.engine.set_note_behaviors(self.note_behaviors.clone());
-        for engine in self.layer_engines.iter_mut().flatten() {
+        for engine in self
+            .layers
+            .iter_mut()
+            .filter_map(|layer| layer.engine.as_mut())
+        {
             engine.set_global_sound(self.global_sound.clone());
             engine.set_note_behaviors(self.note_behaviors.clone());
         }

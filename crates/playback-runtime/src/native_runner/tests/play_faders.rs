@@ -309,7 +309,7 @@ fn whole_binding_bounds_save_as_integers_and_older_float_saves_still_load() {
 fn a_slider_sets_a_behavior_row_of_an_inactive_layer() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[2].behavior_id = "brain".into();
-    runner.layer_behavior_configs[2] = json!({ "randomSeedCells": 4 });
+    runner.layers[2].behavior_config = json!({ "randomSeedCells": 4 });
     runner.menu.rebuild(runner.menu_config());
     bind(
         &mut runner,
@@ -319,9 +319,9 @@ fn a_slider_sets_a_behavior_row_of_an_inactive_layer() {
     open_faders(&mut runner);
 
     tap(&mut runner, 0, 7);
-    assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 20);
+    assert_eq!(runner.layers[2].behavior_config["randomSeedCells"], 20);
     assert_eq!(toast(&runner), "F1: Spawn Count 20");
     tap(&mut runner, 0, 0);
-    assert_eq!(runner.layer_behavior_configs[2]["randomSeedCells"], 0);
+    assert_eq!(runner.layers[2].behavior_config["randomSeedCells"], 0);
     assert_eq!(runner.active_layer_index, 0);
 }

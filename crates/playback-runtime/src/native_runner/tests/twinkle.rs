@@ -89,7 +89,7 @@ pub(crate) fn twinkle_layer_selection_and_keyed_edit_stay_targeted() {
         .unwrap();
 
     assert_eq!(runner.engine.serialized_state().unwrap(), active_before);
-    assert_eq!(runner.layer_behavior_configs[1]["density"], 4);
+    assert_eq!(runner.layers[1].behavior_config["density"], 4);
     assert!(runner.config_dirty);
 }
 

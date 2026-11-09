@@ -5,9 +5,9 @@ fn pattern_phase(runner: &NativeRunner, layer_index: usize) -> u64 {
         runner.engine.state()
     } else {
         runner
-            .layer_engines
+            .layers
             .get(layer_index)
-            .and_then(Option::as_ref)
+            .and_then(|layer| layer.engine.as_ref())
             .expect("inactive layer engine")
             .state()
     };

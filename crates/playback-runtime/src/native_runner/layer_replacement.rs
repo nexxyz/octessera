@@ -60,8 +60,8 @@ impl NativeRunner {
             self.behavior_config = behavior_config;
             self.interpretation_profile = profile;
             self.mapping_config = mapping;
-        } else if let Some(slot) = self.layer_engines.get_mut(layer_index) {
-            *slot = Some(next_engine);
+        } else if let Some(layer) = self.layers.get_mut(layer_index) {
+            layer.engine = Some(next_engine);
         }
         Ok(())
     }
@@ -108,7 +108,7 @@ impl NativeRunner {
     }
 
     pub(super) fn drain_all_layer_engine_notes(&mut self) {
-        for layer_index in 0..self.layer_engines.len() {
+        for layer_index in 0..self.layers.len() {
             self.drain_layer_engine_notes(layer_index);
         }
         self.clear_all_emitted_route_notes();
@@ -118,9 +118,9 @@ impl NativeRunner {
         let notes = if layer_index == self.active_layer_index {
             self.engine.drain_held_notes(usize::MAX)
         } else {
-            self.layer_engines
+            self.layers
                 .get_mut(layer_index)
-                .and_then(Option::as_mut)
+                .and_then(|layer| layer.engine.as_mut())
                 .map(|engine| engine.drain_held_notes(usize::MAX))
                 .unwrap_or_default()
         };
@@ -159,7 +159,7 @@ impl NativeRunner {
         let state = if layer_index == self.active_layer_index {
             self.engine.state()
         } else {
-            self.layer_engines.get(layer_index)?.as_ref()?.state()
+            self.layers.get(layer_index)?.engine.as_ref()?.state()
         };
         match state {
             platform_core::NativeBehaviorState::Looper(state) => Some(state.step_index),

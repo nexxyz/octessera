@@ -142,7 +142,7 @@ pub(crate) fn snapshot_preserves_saved_state_omission_rules_and_sequencer_state(
     let mut absent_inactive = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     absent_inactive.layers[0].behavior_id = "life".into();
     absent_inactive.active_layer_index = 1;
-    absent_inactive.layer_engines[0] = None;
+    absent_inactive.layers[0].engine = None;
     let absent_payload = absent_inactive.capture_config_snapshot().into_payload();
     assert!(absent_payload["runtimeConfig"]["layers"][0]["build"]
         .get("savedState")
@@ -211,7 +211,8 @@ pub(crate) fn snapshot_owns_inactive_grid_layer_link_audio_and_sample_config() {
     runner.fx_buses[0].volume_pct = 63;
     runner.switch_active_engine(1).unwrap();
     runner.behavior_config = json!({ "opaque": { "extension": true } });
-    runner.layer_behavior_config_history[1]
+    runner.layers[1]
+        .behavior_config_history
         .insert("sequencer".into(), json!({ "historyExtension": [4, 5] }));
     runner.layers[1].name = "quiet machine".into();
     runner.layers[1].auto_name = false;

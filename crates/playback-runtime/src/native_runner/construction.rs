@@ -38,28 +38,31 @@ impl NativeRunner {
         let ui = NativeUiState::default();
         let now = Instant::now();
         let seed = NativeRunnerConstructionSeed::new(&config, ui, now);
-        let mut layer_engines = Vec::new();
-        layer_engines.resize_with(LAYER_COUNT, || None);
-        for (index, slot) in layer_engines.iter_mut().enumerate().skip(1) {
-            let layer_behavior = platform_core::get_native_behavior(config.behavior_id.as_str())
-                .ok_or_else(|| format!("unsupported native behavior `{}`", config.behavior_id))?;
-            *slot = Some(Self::build_engine(
-                layer_behavior,
+        let mut layers = vec![NativeLayer::new(
+            behavior.id(),
+            config.behavior_config.clone(),
+            None,
+        )];
+        for index in 1..LAYER_COUNT {
+            let engine = Self::build_engine(
+                behavior,
                 config.behavior_config.clone(),
                 config.interpretation_profile.clone(),
                 config.mapping_config.clone(),
                 config.global_sound.clone(),
                 config.note_behaviors.clone(),
                 index,
-            )?);
+            )?;
+            layers.push(NativeLayer::new(
+                behavior.id(),
+                config.behavior_config.clone(),
+                Some(engine),
+            ));
         }
         let mut runner = Self {
             engine,
-            layer_engines,
             behavior,
             behavior_config: config.behavior_config.clone(),
-            layer_behavior_configs: vec![config.behavior_config.clone(); LAYER_COUNT],
-            layer_behavior_config_history: vec![BTreeMap::new(); LAYER_COUNT],
             interpretation_profile: config.interpretation_profile,
             mapping_config: config.mapping_config.clone(),
             base_mapping_config: config.mapping_config,
@@ -114,9 +117,7 @@ impl NativeRunner {
             play_live: Default::default(),
             transpose: Default::default(),
             trigger_probability_maps: vec![FULL_PROBABILITY_MAP; LAYER_COUNT],
-            layers: (0..LAYER_COUNT)
-                .map(|_| NativeLayer::new(behavior.id()))
-                .collect(),
+            layers,
             random_seed: super::random_streams::DEFAULT_RANDOM_SEED,
             seeded_link_streams: super::random_streams::SeededLinkStreams::new(
                 super::random_streams::DEFAULT_RANDOM_SEED,

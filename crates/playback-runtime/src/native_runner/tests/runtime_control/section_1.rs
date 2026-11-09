@@ -127,7 +127,10 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
         .layers
         .iter()
         .all(|layer| layer.behavior_id == "none"));
-    assert!(runner.layer_behavior_configs.iter().all(Value::is_null));
+    assert!(runner
+        .layers
+        .iter()
+        .all(|layer| layer.behavior_config.is_null()));
     assert!(runner.config_payload()["runtimeConfig"]["layers"]
         .as_array()
         .unwrap()

@@ -370,11 +370,8 @@ const DEFERRED_MENU_APPLY_MS: u64 = 24;
 
 pub struct NativeRunner {
     engine: NativeLayerEngine,
-    layer_engines: Vec<Option<NativeLayerEngine>>,
     behavior: NativeBehavior,
     behavior_config: Value,
-    layer_behavior_configs: Vec<Value>,
-    layer_behavior_config_history: Vec<BTreeMap<String, Value>>,
     interpretation_profile: InterpretationProfile,
     mapping_config: platform_core::MappingConfig,
     base_mapping_config: platform_core::MappingConfig,

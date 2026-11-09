@@ -50,9 +50,9 @@ impl NativeRunner {
         let state = if layer_index == self.active_layer_index {
             Some(self.engine_state())
         } else {
-            self.layer_engines
+            self.layers
                 .get(layer_index)
-                .and_then(Option::as_ref)
+                .and_then(|layer| layer.engine.as_ref())
                 .map(|engine| engine.state().clone())
         };
         let Some(platform_core::NativeBehaviorState::Looper(state)) = state else {

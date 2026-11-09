@@ -115,7 +115,7 @@ impl NativeRunner {
         if index == self.active_layer_index {
             return self.engine.model().ok();
         }
-        self.layer_engines.get(index)?.as_ref()?.model().ok()
+        self.layers.get(index)?.engine.as_ref()?.model().ok()
     }
 }
 
