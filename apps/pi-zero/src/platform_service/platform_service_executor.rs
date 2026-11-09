@@ -9,8 +9,6 @@ use std::io::{Read, Write};
 #[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
 use std::os::unix::net::UnixStream;
 use std::path::Path;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use std::process::Command;
 #[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
 use std::time::Duration;
 
@@ -133,19 +131,15 @@ fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
     }
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     {
-        match Command::new("sudo")
-            .args(["-n", "/usr/local/sbin/octessera-usb-gadget", action])
-            .output()
-        {
-            Ok(output) if output.status.success() => RuntimeStoreResult::UsbSdTransferStatus {
+        let unit = format!(
+            "octessera-usb-storage@{}.service",
+            action.trim_start_matches("storage-")
+        );
+        match crate::device_apply::run_unit("start", &unit) {
+            Ok(()) => RuntimeStoreResult::UsbSdTransferStatus {
                 active: action == "storage-start",
-                message: usb_storage_message(action, &String::from_utf8_lossy(&output.stdout)),
+                message: usb_storage_message(action, Path::new("/sys/class/udc")),
             },
-            Ok(output) => store_error(format!(
-                "USB SD2 transfer {action} failed: {}{}",
-                String::from_utf8_lossy(&output.stderr),
-                String::from_utf8_lossy(&output.stdout)
-            )),
             Err(error) => store_error(format!("USB SD2 transfer {action} failed: {error}")),
         }
     }
@@ -228,13 +222,20 @@ fn parse_orange_storage_response(action: &str, response: &[u8]) -> RuntimeStoreR
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(super) fn usb_storage_message(action: &str, stdout: &str) -> String {
+pub(super) fn usb_storage_message(action: &str, udc_root: &Path) -> String {
     if action != "storage-start" {
         return "USB SD2 transfer stopped".into();
     }
-    if stdout
-        .lines()
-        .any(|line| line.trim() == "HOST_STATE=configured")
+    if std::fs::read_dir(udc_root)
+        .ok()
+        .and_then(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .map(|entry| entry.path())
+                .min()
+        })
+        .and_then(|udc| std::fs::read_to_string(udc.join("state")).ok())
+        .is_some_and(|state| state.trim() == "configured")
     {
         "USB SD2 transfer active".into()
     } else {

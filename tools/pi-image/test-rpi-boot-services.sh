@@ -11,6 +11,7 @@ setup_stage="$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh"
 sanitize_stage="$root/tools/pi-image/stage4-octessera/04-sanitize-release-image/00-run.sh"
 usb_role_helper="$root/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-role"
 usb_role_sudoers="$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-role"
+usb_storage_unit="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-usb-storage@.service"
 template="$root/tools/pi/provision/files/etc/systemd/system/octessera.service.template"
 shutdown_sudoers="$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-shutdown"
 shutdown_policy='pi ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /usr/sbin/poweroff, /sbin/poweroff, /usr/bin/systemctl reboot, /bin/systemctl reboot, /usr/sbin/reboot, /sbin/reboot'
@@ -53,7 +54,10 @@ if grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:
     echo 'Raspberry USB role sudoers rule is broader than the exact role commands.' >&2
     exit 1
 fi
-printf '%s\n' 'pi ALL=(root) NOPASSWD: /usr/local/sbin/octessera-usb-gadget storage-start, /usr/local/sbin/octessera-usb-gadget storage-stop, /usr/bin/systemctl restart octessera-usb-gadget.service' | cmp -s - "$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-storage"
+printf '%s\n' 'pi ALL=(root) NOPASSWD: /usr/bin/systemctl start octessera-usb-storage@start.service, /usr/bin/systemctl start octessera-usb-storage@stop.service, /usr/bin/systemctl restart octessera-usb-gadget.service' | cmp -s - "$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-storage"
+printf '%s\n' '[Unit]' 'Description=octessera USB SD2 transfer %i' 'After=octessera-usb-gadget.service' '' '[Service]' 'Type=oneshot' 'ExecStart=/usr/local/sbin/octessera-usb-gadget storage-%i' | cmp -s - "$usb_storage_unit"
+grep -qF '"$ROOTFS_DIR/etc/systemd/system/octessera-usb-storage@.service"' "$setup_stage"
+grep -qF '"$IMAGE_ROOT/etc/systemd/system/octessera-usb-storage@.service" /etc/systemd/system/octessera-usb-storage@.service' "$root/tools/pi/provision/provision.sh"
 
 for required_line in \
     'Environment=OCTESSERA_OLED_BOOT_HANDOFF=v1' \

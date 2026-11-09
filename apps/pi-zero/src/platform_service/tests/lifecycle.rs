@@ -115,12 +115,26 @@ fn set_mode(path: &Path, mode: u32) {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 #[test]
 fn usb_storage_start_reports_waiting_until_host_configures_gadget() {
+    let udc_root = crate::test_temp_dir::unique_temp_path("octessera-usb-storage-udc");
     assert_eq!(
-        usb_storage_message("storage-start", "HOST_STATE=not attached\n"),
+        usb_storage_message("storage-start", &udc_root),
         "USB SD2 transfer waiting for host"
     );
+    let udc = udc_root.join("3f980000.usb");
+    std::fs::create_dir_all(&udc).unwrap();
+    std::fs::write(udc.join("state"), "not attached\n").unwrap();
     assert_eq!(
-        usb_storage_message("storage-start", "HOST_STATE=configured\n"),
+        usb_storage_message("storage-start", &udc_root),
+        "USB SD2 transfer waiting for host"
+    );
+    std::fs::write(udc.join("state"), "configured\n").unwrap();
+    assert_eq!(
+        usb_storage_message("storage-start", &udc_root),
         "USB SD2 transfer active"
     );
+    assert_eq!(
+        usb_storage_message("storage-stop", &udc_root),
+        "USB SD2 transfer stopped"
+    );
+    let _ = std::fs::remove_dir_all(udc_root);
 }

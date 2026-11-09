@@ -65,6 +65,9 @@ install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-usb-role@.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-usb-role@.service"
 install -D -m 0644 \
+    "$STAGE_FILES/root/etc/systemd/system/octessera-usb-storage@.service" \
+    "$ROOTFS_DIR/etc/systemd/system/octessera-usb-storage@.service"
+install -D -m 0644 \
     "$STAGE_FILES/root/etc/modules-load.d/octessera-usb-gadget.conf" \
     "$ROOTFS_DIR/etc/modules-load.d/octessera-usb-gadget.conf"
 install -D -m 0755 \

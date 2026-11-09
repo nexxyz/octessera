@@ -339,6 +339,7 @@ install_file 0755 "$DEVICE_UPDATE_ROOT/octessera-update" /usr/local/sbin/octesse
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-update-switch@.service" /etc/systemd/system/octessera-update-switch@.service
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-usb-gadget.service" /etc/systemd/system/octessera-usb-gadget.service
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-usb-role@.service" /etc/systemd/system/octessera-usb-role@.service
+install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-usb-storage@.service" /etc/systemd/system/octessera-usb-storage@.service
 install_file 0644 "$IMAGE_ROOT/etc/modules-load.d/octessera-usb-gadget.conf" /etc/modules-load.d/octessera-usb-gadget.conf
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-usb-storage" /etc/sudoers.d/octessera-usb-storage
 install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-usb-role" /etc/sudoers.d/octessera-usb-role

@@ -112,7 +112,7 @@ pub(crate) fn production_usb_applier() -> UsbApplier {
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 /// Root work runs as its own systemd unit: sudo from inside the app's service
 /// would inherit its narrow capability bounding set.
-fn run_unit(verb: &str, unit: &str) -> Result<(), String> {
+pub(crate) fn run_unit(verb: &str, unit: &str) -> Result<(), String> {
     let mut command = std::process::Command::new("sudo");
     command.args(["-n", "/usr/bin/systemctl", verb, unit]);
     run_bounded(command, HELPER_TIMEOUT).map_err(|error| format!("{unit}: {error}"))
