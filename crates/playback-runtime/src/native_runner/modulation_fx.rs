@@ -3,6 +3,7 @@ use super::modulation_value::{
 };
 use super::play_fx_config::{is_play_fx_target, play_fx_types};
 use super::{derive_bus_name, fx_default_params, json, Value, PAN_POSITION_COUNT};
+use crate::native_menu::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};
 
 pub(super) fn apply_fx_bus_binding_value(
     bus: &mut super::NativeFxBus,
@@ -22,7 +23,7 @@ pub(super) fn apply_fx_bus_binding_value(
                 return false;
             };
             if field == "type" {
-                apply_fx_slot_type_value(slot_type, params, value)
+                apply_fx_slot_type_value(slot_type, params, value, is_valid_fx_bus_slot_type)
             } else if let Some(param) = field.strip_prefix("params.") {
                 apply_fx_param_binding_value(params, param, value)
             } else {
@@ -53,7 +54,7 @@ pub(super) fn apply_global_fx_binding_value(
         return false;
     };
     match field {
-        "type" => apply_fx_slot_type_value(slot, slot_params, value),
+        "type" => apply_fx_slot_type_value(slot, slot_params, value, is_valid_global_fx_slot_type),
         field if field.starts_with("params.") => {
             apply_fx_param_binding_value(slot_params, &field[7..], value)
         }

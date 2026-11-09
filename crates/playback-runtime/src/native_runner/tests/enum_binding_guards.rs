@@ -52,6 +52,37 @@ fn play_fx_enum_bindings_reject_values_outside_their_sets() {
 }
 
 #[test]
+fn fx_slot_type_bindings_take_only_their_slot_type_lists() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let bus_before = runner.fx_buses[0].clone();
+    let global_before = (
+        runner.global_fx_slots.clone(),
+        runner.global_fx_params.clone(),
+    );
+    for (key, value) in [
+        ("mixer.buses.0.slot1.type", "reverbb"),
+        ("mixer.buses.0.slot2.type", ""),
+        ("mixer.master.slots.0.type", "reverb"),
+        ("mixer.master.slots.0.type", "eqq"),
+    ] {
+        assert!(!write(&mut runner, key, value), "{key} accepted {value}");
+    }
+    assert_eq!(runner.fx_buses[0], bus_before);
+    assert_eq!(
+        (
+            runner.global_fx_slots.clone(),
+            runner.global_fx_params.clone()
+        ),
+        global_before
+    );
+
+    assert!(write(&mut runner, "mixer.buses.0.slot1.type", "bitcrusher"));
+    assert!(write(&mut runner, "mixer.master.slots.0.type", "saturator"));
+    assert_eq!(runner.fx_buses[0].slot1_type, "bitcrusher");
+    assert_eq!(runner.global_fx_slots[0], "saturator");
+}
+
+#[test]
 fn unversioned_payload_ignores_an_unknown_instrument_route() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner

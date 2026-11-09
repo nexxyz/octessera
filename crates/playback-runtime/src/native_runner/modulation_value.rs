@@ -65,8 +65,9 @@ pub(super) fn apply_fx_slot_type_value(
     slot_type: &mut String,
     params: &mut Value,
     value: Value,
+    is_valid: fn(&str) -> bool,
 ) -> bool {
-    let Some(value) = value.as_str() else {
+    let Some(value) = value.as_str().filter(|value| is_valid(value)) else {
         return false;
     };
     if slot_type != value {
