@@ -37,7 +37,7 @@ pub(crate) fn cpu_warn_menu_edit_saves_without_an_engine_command() {
         runner.config_payload()["runtimeConfig"]["dsp"]["workerWarningThreshold"],
         "90"
     );
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert_eq!(queued_dsp_config(&messages), None);
     assert_no_full_audio_config(&messages);
 }
@@ -54,7 +54,7 @@ pub(crate) fn bus_idle_menu_edit_uses_direct_audio_command_without_revision_bump
         runner.config_payload()["runtimeConfig"]["dsp"]["busIdleThreshold"],
         "-100"
     );
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert_eq!(
         queued_dsp_config(&messages).map(|config| config.bus_idle_threshold),
         Some(realtime_engine::synth::BusIdleThreshold::Db100)
@@ -96,7 +96,7 @@ pub(crate) fn fast_path_audio_param_still_applies_immediately() {
         runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"]["amp"]["gainPct"],
         70
     );
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -139,7 +139,7 @@ pub(crate) fn sampler_fast_path_uses_direct_audio_command_without_revision_bump(
         .unwrap();
 
     assert_eq!(runner.instruments[0].sample_tune_semis, 7);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -166,7 +166,7 @@ pub(crate) fn synth_envelope_fast_path_uses_direct_audio_command_without_revisio
         })
         .unwrap();
 
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     let expected = runner.instruments[0].synth_config["ampEnv"]["attackMs"]
         .as_i64()
         .unwrap() as f32;
@@ -209,7 +209,7 @@ pub(crate) fn synth_filter_env_fast_path_uses_direct_audio_command_without_revis
         })
         .unwrap();
 
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert_eq!(
         runner.instruments[0].synth_config["filter"]["envAmountPct"],
         expected
@@ -222,8 +222,8 @@ pub(crate) fn synth_filter_env_fast_path_uses_direct_audio_command_without_revis
 pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.edit_menu_key("mixer.buses.0.slot1.type", 1).unwrap();
-    runner.audio_config_revision = 0;
-    runner.last_snapshot_audio_config_revision = Some(0);
+    runner.audio_revisions.revision = 0;
+    runner.audio_revisions.last_snapshot = Some(0);
     assert!(runner
         .menu
         .focus_item_key("mixer.buses.0.slot1.params.depthPct"));
@@ -250,7 +250,7 @@ pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump
         .unwrap();
 
     assert_eq!(runner.fx_buses[0].slot1_params["depthPct"], 61);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -271,8 +271,8 @@ pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump
 pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.edit_menu_key("mixer.buses.0.slot1.type", 1).unwrap();
-    runner.audio_config_revision = 0;
-    runner.last_snapshot_audio_config_revision = Some(0);
+    runner.audio_revisions.revision = 0;
+    runner.audio_revisions.last_snapshot = Some(0);
     assert!(runner
         .menu
         .focus_item_key("mixer.buses.0.slot1.params.rateHz"));
@@ -299,7 +299,7 @@ pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
         .unwrap();
 
     assert_eq!(runner.fx_buses[0].slot1_params["rateHz"], 4.03);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -344,7 +344,7 @@ pub(crate) fn fx_bus_pan_uses_direct_audio_command_without_revision_bump() {
         .unwrap();
 
     assert_eq!(runner.fx_buses[0].pan_pos, 13);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -373,7 +373,7 @@ pub(crate) fn direct_dynamic_param_apply_does_not_bump_full_audio_config_revisio
     let messages = runner.messages_with_snapshot().unwrap();
 
     assert_eq!(runner.instruments[0].synth_gain_pct, 70);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(!messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -396,7 +396,7 @@ pub(crate) fn osc_level_edit_reaches_audio_as_a_direct_synth_command() {
         .unwrap();
     assert_direct_synth_param(&messages, "synth.osc1.levelPct", level as f32);
     assert_no_full_audio_config(&messages);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
 }
 
 #[test]
@@ -421,7 +421,7 @@ pub(crate) fn sampler_filter_edit_reaches_audio_as_a_direct_sample_bank_command(
             ))
     )));
     assert_no_full_audio_config(&messages);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
 }
 
 #[test]
@@ -441,7 +441,7 @@ pub(crate) fn instrument_type_edit_rebuilds_only_that_audio_slot() {
             ))
     )));
     assert_no_full_audio_config(&messages);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
 }
 
 fn assert_direct_synth_param(messages: &[RunnerMessage], expected_path: &str, expected: f32) {

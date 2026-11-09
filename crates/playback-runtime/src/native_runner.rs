@@ -11,7 +11,9 @@ use crate::protocol::{
     RuntimeTransportState, RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus,
     RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus, SampleEntry, SyncSource,
 };
-use crate::runtime::{CoreRunner, RuntimeConfig};
+use crate::runtime::CoreRunner;
+#[cfg(test)]
+use crate::runtime::RuntimeConfig;
 use crate::timing_units::{note_unit_from_pulses, note_unit_to_pulses};
 use defaults::{
     default_fx_buses, default_global_fx_params, default_global_fx_slots, default_instruments,
@@ -50,6 +52,7 @@ mod apply_payload_instruments;
 mod apply_payload_layers;
 mod apply_payload_mixer_values;
 mod apply_system_document;
+mod audio_config_revisions;
 mod audio_io_settings;
 mod audio_optimization;
 mod audio_outputs;
@@ -440,12 +443,7 @@ pub struct NativeRunner {
     config_revision: u64,
     dirty_revision: Option<u64>,
     last_backup_save_at: Option<Instant>,
-    audio_config_revision: u64,
-    /// The audio revision the last JSON snapshot carried the audio settings of.
-    last_snapshot_audio_config_revision: Option<u64>,
-    /// The audio revision last queued to the engine as a full configuration.
-    queued_audio_config_revision: Option<u64>,
-    last_published_runtime_config: Option<RuntimeConfig>,
+    audio_revisions: audio_config_revisions::NativeAudioConfigRevisions,
     trigger_probability_rng: u64,
     pending: NativePendingState,
     restart_settings: RestartSettingsState,

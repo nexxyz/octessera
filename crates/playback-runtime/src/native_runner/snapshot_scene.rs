@@ -234,7 +234,7 @@ impl NativeRunner {
             leds_dimmed: self.leds_dimmed(),
             aux_auto_map_enabled: self.aux_auto_map_enabled,
             aux_priority: self.aux_priority.clone(),
-            audio_config_revision: self.audio_config_revision,
+            audio_config_revision: self.audio_revisions.revision,
             auto_save_flash: self.auto_save_flash_active(),
             auto_save_flash_serial: self.display.auto_save_flash_serial,
             cpu_warn_percent: self.dsp_config.worker_warning_threshold.percent(),

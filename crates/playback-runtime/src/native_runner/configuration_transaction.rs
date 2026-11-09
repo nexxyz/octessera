@@ -82,13 +82,13 @@ impl NativeRunner {
 
     pub(super) fn commit_configuration_runtime_plan(&mut self, plan: &ConfigurationRuntimePlan) {
         if let Some(revision) = plan.full_revision() {
-            self.audio_config_revision = revision;
+            self.audio_revisions.revision = revision;
         }
     }
 
     pub(super) fn commit_full_configuration_runtime_plan(&mut self) {
         let plan = ConfigurationRuntimePlan::FullRevisionedConfiguration {
-            revision: self.audio_config_revision.saturating_add(1),
+            revision: self.audio_revisions.revision.saturating_add(1),
         };
         self.commit_configuration_runtime_plan(&plan);
     }

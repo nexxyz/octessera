@@ -64,7 +64,7 @@ pub(crate) fn first_snapshot_emits_full_audio_config_command() {
             _ => None,
         })
         .expect("full audio config command");
-    assert_eq!(command.0, runner.audio_config_revision);
+    assert_eq!(command.0, runner.audio_revisions.revision);
     assert_eq!(command.1["masterVolume"], 64);
     assert_eq!(command.1["voiceStealingMode"], "auto-balanced");
     assert!(command.1["instruments"].is_array());

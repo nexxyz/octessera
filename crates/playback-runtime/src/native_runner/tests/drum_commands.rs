@@ -32,7 +32,7 @@ fn drum_runner() -> NativeRunner {
 #[test]
 fn sound_is_structural_but_kit_voice_and_common_numeric_edits_are_typed() {
     let mut runner = drum_runner();
-    let revision = runner.audio_config_revision;
+    let revision = runner.audio_revisions.revision;
     let other = runner.instruments[1].clone();
     for (key, path, voice, delta) in [
         ("instruments.0.drum.voices.0.decayMs", "drum.decayMs", 0, 1),
@@ -90,7 +90,7 @@ fn sound_is_structural_but_kit_voice_and_common_numeric_edits_are_typed() {
         );
     }
     assert_eq!(runner.instruments[1], other);
-    assert_eq!(runner.audio_config_revision, revision);
+    assert_eq!(runner.audio_revisions.revision, revision);
 
     let before = runner.instruments[0].drum_config["voices"][0].clone();
     assert!(runner

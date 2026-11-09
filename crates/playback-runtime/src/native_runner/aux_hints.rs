@@ -75,7 +75,7 @@ impl NativeRunner {
         let current = |cached: &ManualAuxHintSlots| {
             cached.bindings[0] == self.aux_bindings
                 && cached.bindings[1] == self.shift_aux_bindings
-                && cached.audio_config_revision == self.audio_config_revision
+                && cached.audio_config_revision == self.audio_revisions.revision
                 && cached.target_context == target_context
         };
         if let Some(cached) = self.display.manual_aux_hints.borrow().as_ref() {
@@ -85,7 +85,7 @@ impl NativeRunner {
         }
         let resolved = ManualAuxHintSlots {
             bindings: [self.aux_bindings.clone(), self.shift_aux_bindings.clone()],
-            audio_config_revision: self.audio_config_revision,
+            audio_config_revision: self.audio_revisions.revision,
             target_context,
             slots: [&self.aux_bindings, &self.shift_aux_bindings].map(|bindings| {
                 std::array::from_fn(|index| {

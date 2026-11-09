@@ -76,7 +76,7 @@ fn pluck_menu_numeric_device_edits_emit_only_targeted_scalar() {
     assert_eq!(runner.instruments[0].pluck_config["dispersionPct"], 1);
     assert_eq!(runner.instruments[0].pluck_config["bodyAmountPct"], 1);
     assert_eq!(runner.instruments[0].pluck_config["bodyFrequencyHz"], 504);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
 }
 
 #[test]

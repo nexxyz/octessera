@@ -209,7 +209,7 @@ pub(crate) fn physical_owner_fast_handlers_apply_voice_limit_and_play_xy_keys() 
 
     turn_menu_key_physical(&mut runner, "sound.voiceStealingMode", 1);
     assert_eq!(runner.voice_stealing_mode, VoiceStealingMode::AutoHard);
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_revisions.revision, 1);
 
     turn_menu_key_physical(&mut runner, "play.xy.release", 1);
     assert_eq!(runner.xy.release, "reset-center");

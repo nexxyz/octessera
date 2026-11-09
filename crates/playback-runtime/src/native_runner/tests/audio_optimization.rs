@@ -123,7 +123,7 @@ fn audio_optimization_survives_load_empty_and_patch_load() {
 #[test]
 fn audio_optimization_menu_value_changes_without_audio_commands() {
     let mut runner = capacity_runner();
-    let revision = runner.audio_config_revision;
+    let revision = runner.audio_revisions.revision;
 
     assert_eq!(
         runner.apply_audio_optimization_menu_value("capacity"),
@@ -133,7 +133,7 @@ fn audio_optimization_menu_value_changes_without_audio_commands() {
         runner.audio_io.audio_optimization,
         AudioOptimization::Capacity
     );
-    assert_eq!(runner.audio_config_revision, revision);
+    assert_eq!(runner.audio_revisions.revision, revision);
     assert!(!runner.outbox.has_audio_commands());
 
     let mut unsupported = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

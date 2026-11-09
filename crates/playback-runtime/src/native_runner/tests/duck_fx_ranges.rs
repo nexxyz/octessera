@@ -119,7 +119,7 @@ pub(crate) fn duck_source_tap_fast_edit_persists_and_queues_audio_command() {
             ["sourceTap"],
         "post"
     );
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }

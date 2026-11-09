@@ -54,21 +54,21 @@ impl NativeRunner {
         &mut self,
     ) -> Result<super::PresentationScene, String> {
         let include_audio_config =
-            self.last_snapshot_audio_config_revision != Some(self.audio_config_revision);
+            self.audio_revisions.last_snapshot != Some(self.audio_revisions.revision);
         let scene = self.capture_presentation_scene(include_audio_config)?;
-        self.last_snapshot_audio_config_revision = Some(self.audio_config_revision);
+        self.audio_revisions.last_snapshot = Some(self.audio_revisions.revision);
         Ok(scene)
     }
 
     pub(super) fn queue_audio_config_if_changed(&mut self) {
-        if self.queued_audio_config_revision != Some(self.audio_config_revision) {
+        if self.audio_revisions.queued != Some(self.audio_revisions.revision) {
             self.invalidate_lfo_audio_cache();
             self.enqueue_configuration_runtime_plan(
                 super::ConfigurationRuntimePlan::FullRevisionedConfiguration {
-                    revision: self.audio_config_revision,
+                    revision: self.audio_revisions.revision,
                 },
             );
-            self.queued_audio_config_revision = Some(self.audio_config_revision);
+            self.audio_revisions.queued = Some(self.audio_revisions.revision);
             if let Err(error) = self.process_modulation_step(true) {
                 self.show_modulation_unavailable(&error);
             }
@@ -152,7 +152,7 @@ mod tests {
         runner.acknowledge_display_scene(initial.generation());
         assert_eq!(runner.pending_display_scene_generation(), None);
 
-        let audio_revision = runner.last_snapshot_audio_config_revision;
+        let audio_revision = runner.audio_revisions.last_snapshot;
         runner
             .send_music_first(HostMessage::TransportPulseStep {
                 pulses: 0,
@@ -163,7 +163,7 @@ mod tests {
             .unwrap();
         let requested = runner.pending_display_scene_generation().unwrap();
         assert_eq!(runner.pending_display_scene_generation(), Some(requested));
-        assert_eq!(runner.last_snapshot_audio_config_revision, audio_revision);
+        assert_eq!(runner.audio_revisions.last_snapshot, audio_revision);
         let scene = runner.capture_display_scene().unwrap();
         assert_eq!(scene.generation(), requested);
         runner.acknowledge_display_scene(requested);

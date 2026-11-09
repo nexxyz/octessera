@@ -68,6 +68,7 @@ pub(super) fn save_setting_payload(
 
 fn live_midi_out_enabled(runner: &NativeRunner) -> bool {
     runner
+        .audio_revisions
         .last_published_runtime_config
         .as_ref()
         .expect("runtime config should be published")

@@ -186,7 +186,7 @@ fn shipped_default_modes_preserve_native_pixels_and_source() {
 #[test]
 fn scene_hdmi_mode_accessor_reads_all_fixed_modes_without_snapshot_conversion() {
     let mut runner = shipped_runner();
-    let before_revision = runner.audio_config_revision;
+    let before_revision = runner.audio_revisions.revision;
     let modes = [
         ("terminal", NativeHdmiMode::Terminal),
         ("live-grid", NativeHdmiMode::LiveGrid),
@@ -200,7 +200,7 @@ fn scene_hdmi_mode_accessor_reads_all_fixed_modes_without_snapshot_conversion() 
         let generation = scene.generation();
         assert_eq!(scene.hdmi_mode(), expected);
         assert_eq!(scene.generation(), generation);
-        assert_eq!(runner.audio_config_revision, before_revision);
+        assert_eq!(runner.audio_revisions.revision, before_revision);
     }
 }
 

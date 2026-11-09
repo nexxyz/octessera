@@ -39,13 +39,13 @@ fn a_stopped_deadline_snapshot_omits_audio_settings_that_did_not_change() {
         runner.display.ui.display_brightness
     );
 
-    runner.audio_config_revision += 1;
+    runner.audio_revisions.revision += 1;
     let changed = stopped_deadline_snapshot(&mut runner);
     let settings = &snapshot_of(&changed)["settings"];
     assert_eq!(settings["instruments"].as_array().unwrap().len(), 8);
     assert_eq!(
         settings["audioConfigRevision"],
-        runner.audio_config_revision
+        runner.audio_revisions.revision
     );
 }
 
@@ -55,7 +55,7 @@ fn audio_settings_queued_without_a_snapshot_still_reach_the_next_one() {
     runner.skip_startup_splash();
     stopped_deadline_snapshot(&mut runner);
 
-    runner.audio_config_revision += 1;
+    runner.audio_revisions.revision += 1;
     runner.queue_audio_config_if_changed();
     let next = stopped_deadline_snapshot(&mut runner);
     assert!(snapshot_of(&next)["settings"]["instruments"].is_array());

@@ -155,7 +155,7 @@ fn system_audio_changes_queue_existing_config_commands_without_resetting_live_pa
 
     let patch = runner.patch_payload().unwrap();
     let restart_settings = runner.restart_settings.clone();
-    let audio_revision = runner.audio_config_revision;
+    let audio_revision = runner.audio_revisions.revision;
     let mut system = system_document(&runner);
     system["runtimeConfig"]["masterVolume"] = json!(44);
     system["runtimeConfig"]["dsp"]["workerWarningThreshold"] = json!("90");
@@ -173,7 +173,7 @@ fn system_audio_changes_queue_existing_config_commands_without_resetting_live_pa
         ] if config["masterVolume"] == 44
             && dsp.worker_warning_threshold == realtime_engine::synth::WorkerWarningThreshold::Percent90
     ));
-    assert_eq!(runner.audio_config_revision, audio_revision + 1);
+    assert_eq!(runner.audio_revisions.revision, audio_revision + 1);
     assert_eq!(runner.patch_payload().unwrap(), patch);
     assert_eq!(runner.config_revision, 7);
     assert_eq!(runner.dirty_revision, Some(23));
@@ -257,7 +257,7 @@ fn conflicting_aux_system_claim_is_rejected_without_mutation() {
     let transport = runner.transport.clone();
     let pending_revision = runner.pending.pending_save_revision;
     let autosave_due_at = runner.pending.pending_autosave_payload_due_at;
-    let audio_revision = runner.audio_config_revision;
+    let audio_revision = runner.audio_revisions.revision;
     let restart_settings = runner.restart_settings.clone();
     let menu_stack = runner.menu.state.stack.clone();
     let menu_cursor = runner.menu.state.cursor;
@@ -278,7 +278,7 @@ fn conflicting_aux_system_claim_is_rejected_without_mutation() {
         runner.pending.pending_autosave_payload_due_at,
         autosave_due_at
     );
-    assert_eq!(runner.audio_config_revision, audio_revision);
+    assert_eq!(runner.audio_revisions.revision, audio_revision);
     assert_eq!(runner.restart_settings, restart_settings);
     assert_eq!(runner.menu.state.stack, menu_stack);
     assert_eq!(runner.menu.state.cursor, menu_cursor);

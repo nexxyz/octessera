@@ -424,8 +424,8 @@ pub(crate) fn full_audio_replay_reapplies_lfo_overlay_and_failed_config_preserve
     runner.link_lfos[0].target = Some(volume_binding());
     runner.transport.transport = RuntimeTransportState::Playing;
     let _ = runner.recompose_lfo_audio(false);
-    runner.audio_config_revision += 1;
-    runner.last_snapshot_audio_config_revision = None;
+    runner.audio_revisions.revision += 1;
+    runner.audio_revisions.last_snapshot = None;
     runner.queue_audio_config_if_changed();
     let replay = runner
         .send(HostMessage::DeviceInput {

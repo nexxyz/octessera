@@ -25,7 +25,7 @@ pub(crate) fn fx_bus_slot1_type_turn_applies_immediately() {
         .unwrap();
     assert_eq!(selected, "delay");
     assert_eq!(runner.fx_buses[0].slot1_type, selected);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -75,7 +75,7 @@ pub(crate) fn fx_bus_slot1_type_turn_applies_immediately() {
 
     let flushed = press_main(&mut runner);
     assert_eq!(runner.fx_buses[0].slot1_type, selected);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert_no_audio_commands(&flushed);
 }
 
@@ -112,7 +112,7 @@ pub(crate) fn fx_bus_slot2_type_turn_applies_immediately() {
         Some("tremolo")
     );
     assert_eq!(runner.fx_buses[0].slot2_type, "tremolo");
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -126,7 +126,7 @@ pub(crate) fn fx_bus_slot2_type_turn_applies_immediately() {
 
     let flushed = press_main(&mut runner);
     assert_eq!(runner.fx_buses[0].slot2_type, "tremolo");
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert_no_audio_commands(&flushed);
 }
 
@@ -147,7 +147,7 @@ pub(crate) fn global_fx_type_turn_applies_immediately() {
         Some("vinyl")
     );
     assert_eq!(runner.global_fx_slots[0], "vinyl");
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -161,7 +161,7 @@ pub(crate) fn global_fx_type_turn_applies_immediately() {
 
     let flushed = press_main(&mut runner);
     assert_eq!(runner.global_fx_slots[0], "vinyl");
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert_no_audio_commands(&flushed);
 }
 
@@ -188,7 +188,7 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
         .value_for_key("instruments.0.synth.amp.gainPct")
         .is_none());
     assert_eq!(runner.instruments[0].kind, InstrumentType::Sampler);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -202,7 +202,7 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
 
     let messages = press_main(&mut runner);
     assert_eq!(runner.instruments[0].kind, InstrumentType::Sampler);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert_no_audio_commands(&messages);
     assert_no_store_save_default(&messages);
     runner.make_deferred_menu_apply_due_for_test();
@@ -219,7 +219,7 @@ pub(crate) fn fx_bus_slot3_type_turn_applies_immediately() {
     let messages = turn_main(&mut runner, 1);
 
     assert_eq!(runner.fx_buses[0].slot3_type, "tremolo");
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -276,7 +276,7 @@ pub(crate) fn synth_filter_type_turn_is_not_misclassified_as_instrument_type_dra
         runner.instruments[0].synth_config["filter"]["type"],
         "highpass"
     );
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_revisions.revision, 1);
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -316,7 +316,7 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     assert!(display_lines
         .iter()
         .any(|line| line.as_str().unwrap_or("").contains("fxb1")));
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_revisions.revision, 1);
     assert_no_store_save_default(&messages);
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -329,7 +329,7 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
 
     let messages = press_main(&mut runner);
     assert_eq!(runner.instruments[0].route, "fx_bus_1");
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_revisions.revision, 1);
     assert_no_store_save_default(&messages);
     assert_no_audio_commands(&messages);
     let snapshot = runner.menu.snapshot();
@@ -344,7 +344,7 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     let snapshot = runner.menu.snapshot();
     assert!(snapshot.lines.iter().any(|line| line == "  Pan Pos C"));
     assert_eq!(runner.instruments[0].route, "direct");
-    assert_eq!(runner.audio_config_revision, 2);
+    assert_eq!(runner.audio_revisions.revision, 2);
     runner.make_deferred_menu_apply_due_for_test();
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());
 }

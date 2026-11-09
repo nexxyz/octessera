@@ -215,7 +215,7 @@ fn audio_bearing_scene_captures_fast_aux_value_without_revision_change() {
             request_snapshot: None,
         })
         .unwrap();
-    let revision = runner.audio_config_revision;
+    let revision = runner.audio_revisions.revision;
     for _ in 0..2 {
         let messages = runner
             .send(HostMessage::DeviceInput {
@@ -239,7 +239,7 @@ fn audio_bearing_scene_captures_fast_aux_value_without_revision_change() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.audio_config_revision, revision);
+    assert_eq!(runner.audio_revisions.revision, revision);
     let scene = runner.capture_presentation_scene(true).unwrap();
     let deferred = scene.into_snapshot();
     assert_typed_oled_matches_legacy(&runner);
@@ -272,8 +272,8 @@ fn due_scene_preserves_audio_config_inclusion_and_queue_revision() {
     assert_eq!(due["settings"]["instruments"].as_array().unwrap().len(), 8);
     assert!(due["settings"]["mixer"]["master"]["slots"].is_array());
     assert_eq!(
-        runner.last_snapshot_audio_config_revision,
-        Some(runner.audio_config_revision)
+        runner.audio_revisions.last_snapshot,
+        Some(runner.audio_revisions.revision)
     );
     let ordinary = runner
         .capture_next_presentation_scene()

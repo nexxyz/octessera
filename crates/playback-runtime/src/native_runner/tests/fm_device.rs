@@ -87,7 +87,7 @@ fn fm_device_type_switch_and_numeric_encoder_edits_emit_prepared_slot_and_scalar
             ))
         )));
     }
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     let fm = runner.instruments[0].fm_config.clone();
     assert!(runner.menu.focus_item_key("instruments.0.type"));
     runner.menu.state.editing = true;

@@ -23,7 +23,7 @@ impl NativeRunner {
         let candidate = self.build_transaction_candidate(&prepared, true)?;
         let plan = before.resolve_plan(
             &candidate.configuration_aggregate(),
-            self.audio_config_revision,
+            self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
         self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
@@ -79,9 +79,7 @@ impl NativeRunner {
         self.preset_rename_source = source.preset_rename_source.clone();
         self.sample_browser = source.sample_browser.clone();
         self.last_backup_save_at = source.last_backup_save_at;
-        self.last_snapshot_audio_config_revision = source.last_snapshot_audio_config_revision;
-        self.queued_audio_config_revision = source.queued_audio_config_revision;
-        self.last_published_runtime_config = source.last_published_runtime_config.clone();
+        self.audio_revisions = source.audio_revisions.clone();
         self.trigger_probability_rng = source.trigger_probability_rng;
         self.seeded_link_streams = source.seeded_link_streams.clone();
         self.audio_io = source.audio_io;
@@ -135,10 +133,8 @@ impl NativeRunner {
             candidate.menu.rebuild(candidate.menu_config());
         }
         candidate.config_revision = self.config_revision;
-        candidate.audio_config_revision = self.audio_config_revision;
+        candidate.audio_revisions = self.audio_revisions.clone();
         candidate.commit_configuration_runtime_plan(&plan);
-        candidate.last_snapshot_audio_config_revision = self.last_snapshot_audio_config_revision;
-        candidate.queued_audio_config_revision = self.queued_audio_config_revision;
         *self = candidate;
         if let Some(key) = focused_key {
             self.menu.focus_item_key(&key);
@@ -243,7 +239,7 @@ impl NativeRunner {
         let candidate = self.build_transaction_candidate(&prepared, false)?;
         let plan = before.resolve_plan(
             &candidate.configuration_aggregate(),
-            self.audio_config_revision,
+            self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
         self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
@@ -260,7 +256,7 @@ impl NativeRunner {
         let candidate = self.build_transaction_candidate(&prepared, false)?;
         let plan = before.resolve_plan(
             &candidate.configuration_aggregate(),
-            self.audio_config_revision,
+            self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
         self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
@@ -278,7 +274,7 @@ impl NativeRunner {
         let candidate = self.build_transaction_candidate(&prepared, true)?;
         let plan = before.resolve_plan(
             &candidate.configuration_aggregate(),
-            self.audio_config_revision,
+            self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
         self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;

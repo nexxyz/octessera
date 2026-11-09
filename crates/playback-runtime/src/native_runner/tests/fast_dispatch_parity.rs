@@ -9,7 +9,7 @@ pub(crate) fn fast_dispatch_preserves_instrument_dynamic_and_structural_preceden
     runner.apply_or_schedule_menu_key(dynamic_key).unwrap();
 
     assert_eq!(runner.instruments[0].synth_gain_pct, 70);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
 
     let structural_key = "instruments.0.type";
     assert!(runner.menu.focus_item_key(structural_key));
@@ -17,7 +17,7 @@ pub(crate) fn fast_dispatch_preserves_instrument_dynamic_and_structural_preceden
     runner.apply_or_schedule_menu_key(structural_key).unwrap();
 
     assert_eq!(runner.instruments[0].kind, InstrumentType::Sampler);
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
     assert!(runner.pending.pending_menu_apply.is_none());
 }
 

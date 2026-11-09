@@ -206,7 +206,7 @@ fn music_first_queues_initial_config_before_pulse_notes_and_preserves_display_ed
     let mut runner = playing_default();
     let now = Instant::now();
     runner.test_set_display_time(now);
-    runner.audio_config_revision += 1;
+    runner.audio_revisions.revision += 1;
     let messages = runner
         .send_music_first(HostMessage::TransportPulseStep {
             pulses: 24,
@@ -253,10 +253,10 @@ fn music_first_queues_initial_config_before_pulse_notes_and_preserves_display_ed
     let scene = runner.capture_display_scene().unwrap().into_snapshot();
     assert_eq!(scene["transportFlash"], "none");
     assert_eq!(scene["eventDotLevel"], 3);
-    let prior_revision = runner.last_snapshot_audio_config_revision;
-    runner.audio_config_revision += 1;
+    let prior_revision = runner.audio_revisions.last_snapshot;
+    runner.audio_revisions.revision += 1;
     let _ = runner.capture_display_scene().unwrap();
-    assert_eq!(runner.last_snapshot_audio_config_revision, prior_revision);
+    assert_eq!(runner.audio_revisions.last_snapshot, prior_revision);
 }
 
 #[test]

@@ -16,7 +16,7 @@ impl NativeRunner {
 
     #[cfg(test)]
     pub fn test_bump_audio_config_revision(&mut self) {
-        self.audio_config_revision = self.audio_config_revision.saturating_add(1);
+        self.audio_revisions.revision = self.audio_revisions.revision.saturating_add(1);
     }
 
     pub fn test_device_config_payload(payload: Value) -> Result<Value, String> {

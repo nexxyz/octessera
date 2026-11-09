@@ -299,7 +299,7 @@ fn due_music_first_save_follows_notes_without_snapshot_and_reloads_edited_value(
         })
         .unwrap();
     runner.make_deferred_menu_apply_due_for_test();
-    runner.audio_config_revision += 1;
+    runner.audio_revisions.revision += 1;
     let musical = runner
         .send_music_first(HostMessage::TransportPulseStep {
             pulses: 24,
@@ -387,7 +387,7 @@ fn host_receives_due_audio_and_notes_before_explicit_save_serialization() {
         )
         .unwrap();
     runner.make_deferred_menu_apply_due_for_test();
-    runner.audio_config_revision += 1;
+    runner.audio_revisions.revision += 1;
     let before_notes = host.musical_events.len();
     let before_audio = host.audio_commands.len();
     let output = runtime

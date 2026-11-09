@@ -70,7 +70,10 @@ impl NativeRunner {
         self.apply_hdmi_payload(runtime);
         self.apply_bluetooth_payload(runtime);
         self.apply_sample_browser_favourites_payload(runtime);
-        let plan = before.resolve_plan(&self.configuration_aggregate(), self.audio_config_revision);
+        let plan = before.resolve_plan(
+            &self.configuration_aggregate(),
+            self.audio_revisions.revision,
+        );
         self.commit_configuration_runtime_plan(&plan);
         self.enqueue_configuration_runtime_plan(plan);
         if self.menu.is_built() {

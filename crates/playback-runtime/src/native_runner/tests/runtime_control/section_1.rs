@@ -87,7 +87,7 @@ pub(crate) fn clear_all_confirmation_cancel_is_noop() {
 
     assert_eq!(runner.current_preset_name.as_deref(), Some("keeper"));
     assert_eq!(runner.layer_behavior_ids[0], "life");
-    assert_eq!(runner.audio_config_revision, 0);
+    assert_eq!(runner.audio_revisions.revision, 0);
 }
 
 #[test]
@@ -151,7 +151,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     assert!(!runner.display.ui.ghost_tiles);
     assert_eq!(runner.display.ui.master_volume, 77);
     assert!(runner.midi.enabled);
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_revisions.revision, 1);
     assert_eq!(
         runner.menu.value_for_key("instruments.0.type").as_deref(),
         Some("none")

@@ -6,7 +6,7 @@ pub(crate) fn no_op_config_edit_produces_no_runtime_plan_or_audio_revision() {
     runner.messages_with_snapshot().unwrap();
     let payload = runner.config_payload();
     let before = runner.configuration_aggregate();
-    let before_revision = runner.audio_config_revision;
+    let before_revision = runner.audio_revisions.revision;
     let before_config_revision = runner.config_revision;
 
     runner.apply_config_payload(payload).unwrap();
@@ -15,7 +15,7 @@ pub(crate) fn no_op_config_edit_produces_no_runtime_plan_or_audio_revision() {
         before.resolve_plan(&runner.configuration_aggregate(), before_revision),
         ConfigurationRuntimePlan::NoRuntimeChange
     );
-    assert_eq!(runner.audio_config_revision, before_revision);
+    assert_eq!(runner.audio_revisions.revision, before_revision);
     assert_eq!(runner.config_revision, before_config_revision);
     let messages = runner.messages_with_snapshot().unwrap();
     assert!(!messages.iter().any(|message| matches!(
@@ -42,7 +42,7 @@ pub(crate) fn one_config_transaction_produces_one_full_revisioned_update() {
         before.resolve_plan(&runner.configuration_aggregate(), 0),
         ConfigurationRuntimePlan::FullRevisionedConfiguration { revision: 1 }
     );
-    assert_eq!(runner.audio_config_revision, 1);
+    assert_eq!(runner.audio_revisions.revision, 1);
     let messages = runner.messages_with_snapshot().unwrap();
     let full_updates = messages
         .iter()
@@ -204,7 +204,7 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     let before_payload = runner.config_payload();
     let before_snapshot = runner.snapshot().unwrap();
     let before_transport = runner.transport.clone();
-    let before_audio_revision = runner.audio_config_revision;
+    let before_audio_revision = runner.audio_revisions.revision;
     let before_xy_touch = runner.xy.touch.clone();
     let before_active_play_fx = runner.active_play_fx.clone();
     let before_sample_assign = runner.grid_assign.clone();
@@ -216,7 +216,7 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     assert_eq!(runner.config_payload(), before_payload);
     assert_eq!(runner.snapshot().unwrap(), before_snapshot);
     assert_eq!(runner.transport, before_transport);
-    assert_eq!(runner.audio_config_revision, before_audio_revision);
+    assert_eq!(runner.audio_revisions.revision, before_audio_revision);
     assert_eq!(runner.menu.state.stack, vec![0, 1]);
     assert_eq!(runner.menu.state.cursor, 2);
     assert_eq!(runner.xy.touch, before_xy_touch);
@@ -249,7 +249,7 @@ pub(crate) fn failed_config_preparation_retains_pending_persistence_state() {
 pub(crate) fn huge_integer_is_rejected_before_any_candidate_commit() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let before_payload = runner.config_payload();
-    let before_audio_revision = runner.audio_config_revision;
+    let before_audio_revision = runner.audio_revisions.revision;
     let mut invalid = before_payload.clone();
     invalid["runtimeConfig"]["masterVolume"] = json!(u64::MAX);
 
@@ -257,7 +257,7 @@ pub(crate) fn huge_integer_is_rejected_before_any_candidate_commit() {
 
     assert!(error.contains("masterVolume"));
     assert_eq!(runner.config_payload(), before_payload);
-    assert_eq!(runner.audio_config_revision, before_audio_revision);
+    assert_eq!(runner.audio_revisions.revision, before_audio_revision);
 }
 
 #[test]
