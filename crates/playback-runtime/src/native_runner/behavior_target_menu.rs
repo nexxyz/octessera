@@ -148,13 +148,9 @@ impl NativeRunner {
     }
 
     fn behavior_state_for_layer(&self, layer_index: usize) -> platform_core::NativeBehaviorState {
-        if layer_index == self.active_layer_index {
-            return self.engine_state();
-        }
         self.layers
             .get(layer_index)
-            .and_then(|layer| layer.engine.as_ref())
-            .map(|engine| engine.state().clone())
+            .map(|layer| layer.engine.state().clone())
             .unwrap_or_else(|| self.engine_state())
     }
 
@@ -302,7 +298,7 @@ fn behavior_state_enum_default(
 ) -> Option<&'static str> {
     match (
         key,
-        super::looper_config::effective_looper_mode(&runner.behavior_config, state),
+        super::looper_config::effective_looper_mode(&runner.active_layer().behavior_config, state),
     ) {
         ("mode", Some(mode)) if mode == "play" => Some("play"),
         ("mode", Some(_)) => Some("overdub"),

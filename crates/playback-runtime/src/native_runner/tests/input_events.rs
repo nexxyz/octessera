@@ -180,9 +180,6 @@ pub(crate) fn event_enabled_false_suppresses_input_transition_events() {
     .unwrap();
     runner.link_layers[0].event_enabled = false;
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
 
     let press = runner
         .send(HostMessage::DeviceInput {
@@ -211,9 +208,6 @@ pub(crate) fn trigger_probability_custom_zero_tile_suppresses_transport_events()
     runner.trigger_probability_maps[0][2] = TileProbability::Zero;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
 
     runner
         .send(HostMessage::DeviceInput {
@@ -384,7 +378,7 @@ pub(crate) fn switching_active_layer_preserves_current_layer_engine_state() {
     runner.select_active_layer(1).unwrap();
     runner.select_active_layer(0).unwrap();
 
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
     assert!(model.tiles[platform_core::grid_index(2, 3)]);
 }
 
@@ -489,8 +483,5 @@ fn scanning_sequencer_runner() -> NativeRunner {
     runner.link_layers[0].scan_unit = "1/4".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner
 }

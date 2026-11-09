@@ -63,9 +63,6 @@ pub(super) fn apply_persistent_modulation_values(
         }
         runner.refresh_active_mapping_config();
         runner.refresh_active_interpretation_profile();
-        runner
-            .engine
-            .set_interpretation_profile(runner.interpretation_profile.clone());
     }
     if mark_persistent_dirty && !changed_keys.is_empty() {
         runner.mark_fast_autosave_dirty();

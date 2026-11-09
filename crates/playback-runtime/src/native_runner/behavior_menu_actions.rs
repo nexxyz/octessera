@@ -38,7 +38,7 @@ impl NativeRunner {
     /// The behavior id of `layer_index`, active or not.
     pub(super) fn layer_behavior_id(&self, layer_index: usize) -> &str {
         if layer_index == self.active_layer_index {
-            self.behavior.id()
+            self.active_behavior().id()
         } else {
             self.layers
                 .get(layer_index)
@@ -47,22 +47,14 @@ impl NativeRunner {
     }
 
     fn sync_looper_mode_config_after_punch(&mut self, layer_index: usize) {
-        let state = if layer_index == self.active_layer_index {
-            Some(self.engine_state())
-        } else {
-            self.layers
-                .get(layer_index)
-                .and_then(|layer| layer.engine.as_ref())
-                .map(|engine| engine.state().clone())
-        };
+        let state = self
+            .layers
+            .get(layer_index)
+            .map(|layer| layer.engine.state().clone());
         let Some(platform_core::NativeBehaviorState::Looper(state)) = state else {
             return;
         };
-        let config = if layer_index == self.active_layer_index {
-            self.behavior_config.clone()
-        } else {
-            self.layer_behavior_config(layer_index)
-        };
+        let config = self.layer_behavior_config(layer_index);
         let mut object = config.as_object().cloned().unwrap_or_default();
         object.insert("mode".into(), Value::from(state.mode.clone()));
         self.set_layer_behavior_config(layer_index, "looper", Value::Object(object));
@@ -80,7 +72,7 @@ impl NativeRunner {
             .layers
             .get(layer_index)
             .map(|layer| layer.behavior_id.clone())
-            .unwrap_or_else(|| self.behavior.id().into());
+            .unwrap_or_else(|| self.active_behavior().id().into());
         let behavior = platform_core::get_native_behavior(&behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
         let config = self.layer_behavior_config(layer_index);

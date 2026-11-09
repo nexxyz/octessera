@@ -16,9 +16,6 @@ fn scanning_runner(scan_sections: u8, scan_unit: &str) -> NativeRunner {
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
-    runner
 }
 
 fn add_tile(runner: &mut NativeRunner, x: usize, y: usize) {
@@ -96,9 +93,6 @@ fn active_and_inactive_sequencer_replacements_keep_canonical_phase() {
     runner.link_layers[1].scanned_empty_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     add_tile(&mut runner, 0, 7);
     runner.select_active_layer(0).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
@@ -139,9 +133,6 @@ fn origin_prime_uses_each_scanning_layer_rate() {
     runner.link_layers[1].scan_unit = "1/8".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner.select_active_layer(0).unwrap();
 
     start(&mut runner);

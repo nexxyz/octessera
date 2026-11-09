@@ -143,7 +143,7 @@ pub(crate) fn behavior_none_hides_step_config_and_reset_but_preserves_step_rate(
 
     select_behavior(&mut runner, "life");
 
-    assert_ne!(runner.behavior.id(), "none");
+    assert_ne!(runner.active_behavior().id(), "none");
     assert_eq!(runner.transport.algorithm_step_pulses, 48);
     assert!(contains_key_recursive(
         &runner.menu.root.children[0].children[0].children,

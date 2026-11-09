@@ -49,7 +49,7 @@ fn preset_and_default_loads_build_the_menu_once() {
             })),
         },
     );
-    assert_eq!(runner.behavior.id(), "sequencer");
+    assert_eq!(runner.active_behavior().id(), "sequencer");
     assert_matches_fresh_build(&runner, 1);
 
     let payload = portable_patch_payload_for_save(
@@ -64,7 +64,7 @@ fn preset_and_default_loads_build_the_menu_once() {
             payload: Some(payload),
         },
     );
-    assert_eq!(runner.behavior.id(), "life");
+    assert_eq!(runner.active_behavior().id(), "life");
     assert_matches_fresh_build(&runner, 1);
 }
 

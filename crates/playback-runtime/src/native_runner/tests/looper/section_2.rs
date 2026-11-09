@@ -18,7 +18,7 @@ pub(crate) fn looper_punch_aux_binding_uses_same_action_path() {
         .unwrap();
 
     assert_eq!(looper_mode_and_step(&runner).0, "play");
-    assert_eq!(runner.behavior_config["mode"], "play");
+    assert_eq!(runner.active_layer().behavior_config["mode"], "play");
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["layers"][0]["build"]["behaviorConfig"]["mode"],
         "play"
@@ -83,8 +83,8 @@ pub(crate) fn looper_length_edit_after_punch_reinitializes_from_config() {
         })
         .unwrap();
 
-    let state = runner.engine.serialized_state().unwrap();
-    assert_eq!(runner.behavior_config["mode"], "play");
+    let state = runner.active_engine().serialized_state().unwrap();
+    assert_eq!(runner.active_layer().behavior_config["mode"], "play");
     assert_eq!(looper_mode_and_step(&runner), ("play".into(), 0));
     assert_eq!(state["steps"].as_array().unwrap().len(), 3);
     assert!(state["steps"][1].as_array().unwrap().is_empty());
@@ -93,17 +93,12 @@ pub(crate) fn looper_length_edit_after_punch_reinitializes_from_config() {
 #[test]
 pub(crate) fn looper_length_edit_uses_config_defaults_when_mode_is_absent() {
     let mut runner = looper_runner();
-    runner
-        .behavior_config
-        .as_object_mut()
-        .unwrap()
-        .remove("mode");
     runner.layers[0]
         .behavior_config
         .as_object_mut()
         .unwrap()
         .remove("mode");
-    runner
+    runner.layers[runner.active_layer_index]
         .engine
         .on_input(
             platform_core::DeviceInput::BehaviorAction(platform_core::BehaviorActionInput {

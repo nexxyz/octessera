@@ -289,7 +289,7 @@ pub(crate) fn auto_map_build_life_turn_and_press_follow_behavior_context() {
     runner.menu.state.cursor = interval_cursor;
 
     let before = runner
-        .engine
+        .active_engine()
         .model()
         .unwrap()
         .tiles
@@ -313,7 +313,10 @@ pub(crate) fn auto_map_build_life_turn_and_press_follow_behavior_context() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.behavior_config["randomCellsPerTick"], 1);
+    assert_eq!(
+        runner.active_layer().behavior_config["randomCellsPerTick"],
+        1
+    );
 
     let spawn_aux_index = (0..runner.aux_bindings.len())
         .find(|index| {
@@ -338,7 +341,7 @@ pub(crate) fn auto_map_build_life_turn_and_press_follow_behavior_context() {
         })
         .unwrap();
     let after = runner
-        .engine
+        .active_engine()
         .model()
         .unwrap()
         .tiles
@@ -388,6 +391,9 @@ pub(crate) fn behavior_row_uses_the_behavior_layout_for_caps_hints_and_turns() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.behavior_config["randomCellsPerTick"], 1);
+    assert_eq!(
+        runner.active_layer().behavior_config["randomCellsPerTick"],
+        1
+    );
     assert_eq!(runner.menu.current_label(), Some("Beh.: life"));
 }

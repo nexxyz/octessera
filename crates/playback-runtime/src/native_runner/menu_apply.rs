@@ -6,14 +6,14 @@ impl NativeRunner {
             .layers
             .get(self.active_layer_index)
             .map(|layer| layer.behavior_id.clone())
-            .unwrap_or_else(|| self.behavior.id().into());
-        let behavior_changed = behavior_id != self.behavior.id();
+            .unwrap_or_else(|| self.active_behavior().id().into());
+        let behavior_changed = behavior_id != self.active_behavior().id();
         let layer_behavior_changed = behavior_id != current_layer_behavior_id;
         if !behavior_changed && !layer_behavior_changed {
             return Ok(self.sync_active_layer_auto_name(behavior_id));
         }
         let previous_behavior_id = current_layer_behavior_id;
-        let previous_config = self.behavior_config.clone();
+        let previous_config = self.active_layer().behavior_config.clone();
         let behavior = platform_core::get_native_behavior(behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
         let next_config =
@@ -83,12 +83,11 @@ impl NativeRunner {
 
     pub(super) fn refresh_active_mapping_config(&mut self) {
         let mapping = self.mapping_config_for_layer(self.active_layer_index);
-        self.engine.set_mapping_config(mapping.clone());
-        self.mapping_config = mapping;
+        self.active_engine_mut().set_mapping_config(mapping);
     }
 
     pub(super) fn refresh_active_interpretation_profile(&mut self) {
-        self.interpretation_profile =
-            self.interpretation_profile_for_layer(self.active_layer_index);
+        let profile = self.interpretation_profile_for_layer(self.active_layer_index);
+        self.active_engine_mut().set_interpretation_profile(profile);
     }
 }

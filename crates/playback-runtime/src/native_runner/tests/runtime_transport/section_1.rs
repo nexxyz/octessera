@@ -144,9 +144,6 @@ pub(crate) fn configured_scanning_sequencer_runner() -> NativeRunner {
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
-    runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,
@@ -194,9 +191,6 @@ pub(crate) fn scanning_sequencer_emits_scanned_notes_with_state_notes_disabled()
     runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),

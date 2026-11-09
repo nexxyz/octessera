@@ -295,7 +295,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
     assert!(model.tiles.iter().any(|alive| *alive));
     assert!(model.tiles.iter().any(|alive| !*alive));
     assert!(model.tiles[GRID_WIDTH + 2]);

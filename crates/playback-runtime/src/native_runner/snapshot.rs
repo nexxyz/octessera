@@ -109,13 +109,11 @@ impl NativeRunner {
         &self,
         index: usize,
     ) -> Option<platform_core::BehaviorRenderModel> {
-        if self.layers.get(index)?.behavior_id == "none" {
+        let layer = self.layers.get(index)?;
+        if layer.behavior_id == "none" {
             return None;
         }
-        if index == self.active_layer_index {
-            return self.engine.model().ok();
-        }
-        self.layers.get(index)?.engine.as_ref()?.model().ok()
+        layer.engine.model().ok()
     }
 }
 

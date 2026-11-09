@@ -73,7 +73,7 @@ pub(crate) fn load_default_result_applies_patch_without_device_fields() {
         .unwrap();
 
     assert_eq!(runner.active_layer_index, 1);
-    assert_eq!(runner.behavior.id(), "sequencer");
+    assert_eq!(runner.active_behavior().id(), "sequencer");
     assert_eq!(runner.instruments[0].note_behavior, NoteBehavior::Hold);
     assert_eq!(runner.note_behaviors[0], NoteBehavior::Hold);
     assert_ne!(runner.display.ui.master_volume, 88);
@@ -139,7 +139,7 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
         })
         .unwrap();
 
-    assert_eq!(runner.behavior.id(), "sequencer");
+    assert_eq!(runner.active_behavior().id(), "sequencer");
     assert_eq!(runner.display.ui.display_brightness, 3);
     assert_eq!(
         runner.audio_io.audio_outputs,
@@ -171,7 +171,7 @@ pub(crate) fn full_default_load_and_device_apply_update_device_fields() {
         }))
         .unwrap();
     assert_eq!(runner.display.ui.display_brightness, 5);
-    assert_ne!(runner.behavior.id(), "sequencer");
+    assert_ne!(runner.active_behavior().id(), "sequencer");
 }
 
 #[test]

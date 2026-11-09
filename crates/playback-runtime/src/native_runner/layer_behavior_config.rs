@@ -168,33 +168,21 @@ impl NativeRunner {
         if let Some(layer) = self.layers.get_mut(layer_index) {
             layer.behavior_config = config.clone();
         }
-        if layer_index == self.active_layer_index {
-            self.behavior_config = config.clone();
-        }
         self.remember_layer_behavior_config(layer_index, behavior_id, config);
     }
 
     pub(super) fn layer_behavior_config(&self, layer_index: usize) -> Value {
-        if layer_index == self.active_layer_index {
-            self.layers
-                .get(layer_index)
-                .map(|layer| &layer.behavior_config)
-                .cloned()
-                .unwrap_or_else(|| self.behavior_config.clone())
-        } else {
-            self.layers
-                .get(layer_index)
-                .map(|layer| &layer.behavior_config)
-                .cloned()
-                .unwrap_or(Value::Null)
-        }
+        self.layers
+            .get(layer_index)
+            .map(|layer| layer.behavior_config.clone())
+            .unwrap_or(Value::Null)
     }
 
     fn layer_behavior_config_ref(&self, layer_index: usize) -> &Value {
         self.layers
             .get(layer_index)
             .map(|layer| &layer.behavior_config)
-            .unwrap_or(&self.behavior_config)
+            .unwrap_or(&self.active_layer().behavior_config)
     }
 
     pub(super) fn restore_behavior_config_menu_value(&mut self, key: &str) {

@@ -67,7 +67,7 @@ impl NativeRunner {
                 self.layers
                     .get(self.active_layer_index)
                     .map(|layer| layer.name.as_str())
-                    .unwrap_or_else(|| self.behavior.id())
+                    .unwrap_or_else(|| self.active_behavior().id())
             ),
         );
     }

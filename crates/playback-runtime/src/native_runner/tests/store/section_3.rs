@@ -149,7 +149,7 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
         }))
         .unwrap();
 
-    assert_eq!(runner.behavior.id(), "sequencer");
+    assert_eq!(runner.active_behavior().id(), "sequencer");
     assert_eq!(runner.display.ui.display_brightness, 2);
     assert_eq!(
         runner.audio_io.audio_outputs,

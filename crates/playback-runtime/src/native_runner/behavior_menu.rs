@@ -111,7 +111,7 @@ impl NativeRunner {
                         .layers
                         .get(self.active_layer_index)
                         .map(|layer| layer.name.clone())
-                        .unwrap_or_else(|| self.behavior.id().into()),
+                        .unwrap_or_else(|| self.active_behavior().id().into()),
                     max_len: 32,
                     cursor: 0,
                 },
@@ -120,7 +120,7 @@ impl NativeRunner {
             },
         ];
 
-        if self.behavior.id() == "none" {
+        if self.active_behavior().id() == "none" {
             return items;
         }
 
@@ -144,7 +144,7 @@ impl NativeRunner {
             pick: crate::native_menu::NativeMenuPick::None,
         });
 
-        if let Ok(Some(config_items)) = self.behavior.config_menu(&self.engine_state()) {
+        if let Ok(Some(config_items)) = self.active_behavior().config_menu(&self.engine_state()) {
             for item in config_items {
                 if let Some(menu_item) = self.behavior_menu_item(item) {
                     items.push(menu_item);
@@ -176,7 +176,7 @@ impl NativeRunner {
             .layers
             .get(layer_index)
             .map(|layer| layer.behavior_id.as_str())
-            .unwrap_or_else(|| self.behavior.id());
+            .unwrap_or_else(|| self.active_behavior().id());
         let catalog = platform_core::behavior_catalog();
         let active = |is_active: bool| {
             if is_active {
@@ -255,7 +255,7 @@ impl NativeRunner {
     }
 
     pub(super) fn engine_state(&self) -> platform_core::NativeBehaviorState {
-        self.engine.state().clone()
+        self.active_engine().state().clone()
     }
 
     pub(super) fn behavior_menu_item(
@@ -277,7 +277,7 @@ impl NativeRunner {
                         .or_else(|| self.behavior_state_number_default(&item.key))
                         .or_else(|| {
                             serialized_behavior_state_number_default(
-                                self.behavior,
+                                self.active_behavior(),
                                 &self.engine_state(),
                                 &item.key,
                             )
@@ -307,12 +307,13 @@ impl NativeRunner {
                 key: Some(key),
                 value: crate::native_menu::NativeMenuValue::Bool {
                     value: self
+                        .active_layer()
                         .behavior_config
                         .get(&item.key)
                         .and_then(Value::as_bool)
                         .or_else(|| {
                             serialized_behavior_state_bool_default(
-                                self.behavior,
+                                self.active_behavior(),
                                 &self.engine_state(),
                                 &item.key,
                             )
@@ -325,11 +326,12 @@ impl NativeRunner {
             BehaviorConfigItemType::Enum => {
                 let options = item.options.unwrap_or_default();
                 let serialized_default = serialized_behavior_state_enum_default(
-                    self.behavior,
+                    self.active_behavior(),
                     &self.engine_state(),
                     &item.key,
                 );
                 let selected_value = self
+                    .active_layer()
                     .behavior_config
                     .get(&item.key)
                     .and_then(Value::as_str)
@@ -353,7 +355,8 @@ impl NativeRunner {
     }
 
     pub(super) fn behavior_config_number(&self, key: &str) -> Option<i32> {
-        self.behavior_config
+        self.active_layer()
+            .behavior_config
             .get(key)
             .and_then(|value| value.as_i64())
             .map(|value| value as i32)
@@ -387,7 +390,10 @@ impl NativeRunner {
     ) -> Option<&'static str> {
         match (
             key,
-            super::looper_config::effective_looper_mode(&self.behavior_config, state),
+            super::looper_config::effective_looper_mode(
+                &self.active_layer().behavior_config,
+                state,
+            ),
         ) {
             ("mode", Some(mode)) if mode == "play" => Some("play"),
             ("mode", Some(_)) => Some("overdub"),

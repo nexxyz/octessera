@@ -6,8 +6,11 @@ fn a_broken_block_sounds_a_note_on_under_the_default_link_mapping() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     select_behavior(&mut runner, "blockout");
     for _ in 0..8 {
-        let result = runner.engine.tick(runner.transport.bpm as f32).unwrap();
-        let NativeBehaviorState::Blockout(state) = runner.engine.state() else {
+        let result = runner.layers[runner.active_layer_index]
+            .engine
+            .tick(runner.transport.bpm as f32)
+            .unwrap();
+        let NativeBehaviorState::Blockout(state) = runner.active_engine().state() else {
             panic!("L1 runs blockout");
         };
         let Some((broken, _)) = state.flash else {

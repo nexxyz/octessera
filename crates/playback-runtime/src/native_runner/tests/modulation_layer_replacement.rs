@@ -27,12 +27,7 @@ pub(crate) fn keyed_behavior_menu_leaf_recomposes_with_one_target_replacement() 
     runner.refresh_xy_runtime_sources();
     runner.process_dirty_modulation_step(false).unwrap();
     assert_eq!(
-        runner.layers[1]
-            .engine
-            .as_ref()
-            .unwrap()
-            .serialized_state()
-            .unwrap()["randomSeedCells"],
+        runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"],
         20
     );
     runner.layer_behavior_rebuilds = 0;
@@ -48,23 +43,13 @@ pub(crate) fn keyed_behavior_menu_leaf_recomposes_with_one_target_replacement() 
 
     assert_eq!(runner.layer_behavior_rebuilds, 1);
     assert_eq!(
-        runner.layers[1]
-            .engine
-            .as_ref()
-            .unwrap()
-            .serialized_state()
-            .unwrap()["randomSeedCells"],
+        runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"],
         20
     );
     let rebased_base = runner.menu.number_for_key(key).unwrap();
     runner.set_param_binding_target("xy:x", None);
     assert_eq!(
-        runner.layers[1]
-            .engine
-            .as_ref()
-            .unwrap()
-            .serialized_state()
-            .unwrap()["randomSeedCells"],
+        runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"],
         rebased_base
     );
 }
@@ -106,12 +91,7 @@ pub(crate) fn aux_behavior_turn_recomposes_held_value_with_one_replacement() {
     assert_eq!(runner.layer_behavior_rebuilds, 1);
     assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 10);
     assert_eq!(
-        runner.layers[1]
-            .engine
-            .as_ref()
-            .unwrap()
-            .serialized_state()
-            .unwrap()["randomSeedCells"],
+        runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"],
         10
     );
 }
@@ -161,7 +141,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
     runner.transport.tick = 17;
     runner.transport.current_ppqn_pulse = 42;
     let transport_before = runner.transport.clone();
-    let unrelated_layer_before = runner.engine.state().clone();
+    let unrelated_layer_before = runner.active_engine().state().clone();
     let menu_rebuilds_before = runner.menu.rebuild_count;
 
     let first = runner
@@ -173,7 +153,10 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
     assert_eq!(runner.layer_behavior_rebuilds, 1);
     assert_eq!(runner.fast_autosave_marks, 1);
     assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 10);
-    assert_eq!(runner.engine.state().clone(), unrelated_layer_before);
+    assert_eq!(
+        runner.active_engine().state().clone(),
+        unrelated_layer_before
+    );
     assert_eq!(runner.transport, transport_before);
     assert_eq!(runner.menu.rebuild_count, menu_rebuilds_before);
     assert!(runner

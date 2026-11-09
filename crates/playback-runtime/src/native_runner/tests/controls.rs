@@ -260,7 +260,7 @@ fn turn_menu_key_physical(runner: &mut NativeRunner, key: &str, delta: i8) {
 pub(crate) fn entering_keyed_behavior_category_only_enters_group() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(runner.menu.focus_item_key("behavior.category.play"));
-    let behavior_before = runner.behavior.id().to_string();
+    let behavior_before = runner.active_behavior().id().to_string();
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -269,7 +269,7 @@ pub(crate) fn entering_keyed_behavior_category_only_enters_group() {
         })
         .unwrap();
 
-    assert_eq!(runner.behavior.id(), behavior_before);
+    assert_eq!(runner.active_behavior().id(), behavior_before);
     assert_eq!(runner.menu.current_label(), Some(".."));
     assert!(messages.iter().all(|message| !matches!(
         message,

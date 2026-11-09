@@ -35,7 +35,7 @@ fn system_info_runtime_failure_updates_modal_and_clears_error_overlay() {
 #[test]
 fn load_preset_without_payload_only_presents_the_named_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let behavior = runner.behavior;
+    let behavior = runner.active_behavior();
     let transport = runner.transport.clone();
     runner
         .apply_store_result(RuntimeStoreResult::LoadPresetResult {
@@ -44,7 +44,7 @@ fn load_preset_without_payload_only_presents_the_named_load() {
         })
         .unwrap();
 
-    assert_eq!(runner.behavior, behavior);
+    assert_eq!(runner.active_behavior(), behavior);
     assert_eq!(runner.transport, transport);
     assert_eq!(
         runner.patch_store.current_preset_name.as_deref(),

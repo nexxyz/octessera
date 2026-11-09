@@ -50,9 +50,6 @@ fn configured_life_runner() -> NativeRunner {
     runner.link_layers[0].root = "D".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner.transport.transport = RuntimeTransportState::Playing;
     runner
 }

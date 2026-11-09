@@ -105,7 +105,7 @@ impl NativeRunner {
         }
         let now = self.display.transients.now();
         let transient = self.display.transients.presentation(now);
-        let model = self.engine.model()?;
+        let model = self.active_engine().model()?;
         let active_tiles = display_active_tiles(&model.tiles);
         let mut leds = base_led_snapshot(&model);
         self.apply_ghost_tiles(&mut leds, &model);
@@ -204,7 +204,7 @@ impl NativeRunner {
             generation: self.display.transients.generation(),
             display,
             title_color,
-            behavior_id: self.behavior.id().to_string(),
+            behavior_id: self.active_behavior().id().to_string(),
             toast,
             off,
             splash,
@@ -223,7 +223,7 @@ impl NativeRunner {
             play_mode: self.play_mode,
             active_play_mode: self.active_play_mode,
             momentary_grid: self
-                .behavior
+                .active_behavior()
                 .grid_interaction()
                 .unwrap_or(GridInteraction::Paint)
                 == GridInteraction::Momentary,

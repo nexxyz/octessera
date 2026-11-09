@@ -8,15 +8,10 @@ pub(crate) fn inactive_layer_encoder_config_edit_rebuilds_only_target_layer() {
     })
     .unwrap();
     runner.select_layer_behavior(1, "brain").unwrap();
-    let initial_seed_cells = runner.layers[1]
-        .engine
-        .as_ref()
-        .unwrap()
-        .serialized_state()
-        .unwrap()["randomSeedCells"]
+    let initial_seed_cells = runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"]
         .as_i64()
         .unwrap();
-    let active_before = runner.engine.serialized_state().unwrap();
+    let active_before = runner.active_engine().serialized_state().unwrap();
     let key = "layers.1.build.behaviorConfig.randomSeedCells";
     assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
@@ -28,19 +23,17 @@ pub(crate) fn inactive_layer_encoder_config_edit_rebuilds_only_target_layer() {
         })
         .unwrap();
 
-    assert_eq!(runner.behavior.id(), "life");
-    assert_eq!(runner.engine.serialized_state().unwrap(), active_before);
+    assert_eq!(runner.active_behavior().id(), "life");
+    assert_eq!(
+        runner.active_engine().serialized_state().unwrap(),
+        active_before
+    );
     assert_eq!(
         runner.layers[1].behavior_config["randomSeedCells"],
         initial_seed_cells + 1
     );
     assert_eq!(
-        runner.layers[1]
-            .engine
-            .as_ref()
-            .unwrap()
-            .serialized_state()
-            .unwrap()["randomSeedCells"],
+        runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"],
         initial_seed_cells + 1
     );
 }
@@ -48,15 +41,10 @@ pub(crate) fn inactive_layer_encoder_config_edit_rebuilds_only_target_layer() {
 #[test]
 pub(crate) fn inactive_layer_aux_config_edit_changes_execution_state() {
     let mut runner = brain_target_runner();
-    let initial_seed_cells = runner.layers[1]
-        .engine
-        .as_ref()
-        .unwrap()
-        .serialized_state()
-        .unwrap()["randomSeedCells"]
+    let initial_seed_cells = runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"]
         .as_i64()
         .unwrap();
-    let active_before = runner.engine.serialized_state().unwrap();
+    let active_before = runner.active_engine().serialized_state().unwrap();
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("layers.1.build.behaviorConfig.randomSeedCells".into()),
         press_action: None,
@@ -64,7 +52,10 @@ pub(crate) fn inactive_layer_aux_config_edit_changes_execution_state() {
 
     runner.handle_aux_turn(0, 1).unwrap();
 
-    assert_eq!(runner.engine.serialized_state().unwrap(), active_before);
+    assert_eq!(
+        runner.active_engine().serialized_state().unwrap(),
+        active_before
+    );
     assert_eq!(
         runner.layers[1].behavior_config["randomSeedCells"],
         initial_seed_cells + 1
@@ -99,12 +90,7 @@ pub(crate) fn inactive_layer_xy_modulation_changes_execution_state() {
 
     assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 20);
     assert_eq!(
-        runner.layers[1]
-            .engine
-            .as_ref()
-            .unwrap()
-            .serialized_state()
-            .unwrap()["randomSeedCells"],
+        runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"],
         20
     );
 }
@@ -117,7 +103,7 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner
+    runner.layers[runner.active_layer_index]
         .engine
         .on_input(
             platform_core::DeviceInput::BehaviorAction(platform_core::BehaviorActionInput {
@@ -126,7 +112,7 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
             runner.transport.bpm as f32,
         )
         .unwrap();
-    let saved_state = runner.engine.serialized_state().unwrap();
+    let saved_state = runner.active_engine().serialized_state().unwrap();
     assert!(saved_state["cells"]
         .as_array()
         .unwrap()
@@ -150,12 +136,15 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
         ..NativeRunnerConfig::default()
     })
     .unwrap()
-    .engine
+    .active_engine()
     .serialized_state()
     .unwrap();
-    assert_eq!(runner.behavior_config["randomCellsPerTick"], 2);
     assert_eq!(
-        runner.engine.serialized_state().unwrap(),
+        runner.active_layer().behavior_config["randomCellsPerTick"],
+        2
+    );
+    assert_eq!(
+        runner.active_engine().serialized_state().unwrap(),
         expected_reset_state
     );
 
@@ -172,14 +161,17 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
             }
         }))
         .unwrap();
-    assert_eq!(runner.behavior_config["randomCellsPerTick"], 3);
-    assert!(runner.engine.serialized_state().unwrap()["cells"]
+    assert_eq!(
+        runner.active_layer().behavior_config["randomCellsPerTick"],
+        3
+    );
+    assert!(runner.active_engine().serialized_state().unwrap()["cells"]
         .as_array()
         .unwrap()
         .iter()
         .any(|cell| cell.as_bool() == Some(true)));
     assert_eq!(
-        runner.engine.serialized_state().unwrap()["randomCellsPerTick"],
+        runner.active_engine().serialized_state().unwrap()["randomCellsPerTick"],
         3
     );
 }
@@ -239,8 +231,8 @@ pub(crate) fn reset_behavior_reseeds_the_target_engine_and_marks_dirty() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    let expected_state = runner.engine.serialized_state().unwrap();
-    runner
+    let expected_state = runner.active_engine().serialized_state().unwrap();
+    runner.layers[runner.active_layer_index]
         .engine
         .on_input(
             platform_core::DeviceInput::BehaviorAction(platform_core::BehaviorActionInput {
@@ -249,7 +241,7 @@ pub(crate) fn reset_behavior_reseeds_the_target_engine_and_marks_dirty() {
             runner.transport.bpm as f32,
         )
         .unwrap();
-    assert!(runner.engine.serialized_state().unwrap()["cells"]
+    assert!(runner.active_engine().serialized_state().unwrap()["cells"]
         .as_array()
         .unwrap()
         .iter()
@@ -259,7 +251,10 @@ pub(crate) fn reset_behavior_reseeds_the_target_engine_and_marks_dirty() {
         .execute_menu_action(crate::native_menu::NativeMenuAction::ResetBehavior)
         .unwrap();
 
-    assert_eq!(runner.engine.serialized_state().unwrap(), expected_state);
+    assert_eq!(
+        runner.active_engine().serialized_state().unwrap(),
+        expected_state
+    );
     assert!(runner.config_dirty);
 }
 
@@ -393,7 +388,7 @@ pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
         velocity: 100,
     });
 
-    let before_engine = runner.layers[1].engine.as_ref().unwrap().state().clone();
+    let before_engine = runner.layers[1].engine.state().clone();
 
     assert!(!runner
         .apply_layer_behavior_config_deltas(
@@ -406,10 +401,7 @@ pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
         .unwrap());
 
     assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 4);
-    assert_eq!(
-        runner.layers[1].engine.as_ref().unwrap().state().clone(),
-        before_engine
-    );
+    assert_eq!(runner.layers[1].engine.state().clone(), before_engine);
     assert_eq!(runner.link_arp.held_notes[1].len(), 1);
     assert!(!runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_none());

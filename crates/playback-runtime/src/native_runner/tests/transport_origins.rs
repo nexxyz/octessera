@@ -76,9 +76,6 @@ pub(crate) fn pause_continue_and_manual_single_step_preserve_phase_but_stop_star
     runner.link_layers[0].scan_unit = "1/16".into();
     runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner.transport.transport = RuntimeTransportState::Paused;
     runner.display.ui.fn_held = true;
 

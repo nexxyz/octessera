@@ -55,7 +55,7 @@ pub(crate) fn config_snapshot_capture_is_owned_and_matches_frozen_payload_fields
         runner.behavior_state_serialization_calls.get(),
         serialization_calls
     );
-    runner
+    runner.layers[runner.active_layer_index]
         .engine
         .on_input(
             DeviceInput::GridPress { x: 4, y: 3 },
@@ -98,7 +98,7 @@ pub(crate) fn config_snapshot_capture_is_owned_and_matches_frozen_payload_fields
 #[test]
 pub(crate) fn formatted_snapshot_saved_state_round_trips_after_capture() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner
+    runner.layers[runner.active_layer_index]
         .engine
         .on_input(
             DeviceInput::GridPress { x: 2, y: 3 },
@@ -106,7 +106,7 @@ pub(crate) fn formatted_snapshot_saved_state_round_trips_after_capture() {
         )
         .unwrap();
     let snapshot = runner.capture_config_snapshot();
-    runner
+    runner.layers[runner.active_layer_index]
         .engine
         .on_input(
             DeviceInput::GridPress { x: 3, y: 3 },
@@ -125,7 +125,10 @@ pub(crate) fn formatted_snapshot_saved_state_round_trips_after_capture() {
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(payload.clone()).unwrap();
     assert_eq!(restored.config_payload(), payload);
-    assert_eq!(restored.engine.serialized_state().unwrap(), saved_state);
+    assert_eq!(
+        restored.active_engine().serialized_state().unwrap(),
+        saved_state
+    );
 }
 
 #[test]
@@ -139,21 +142,12 @@ pub(crate) fn snapshot_preserves_saved_state_omission_rules_and_sequencer_state(
     let none_build = &none_payload["runtimeConfig"]["layers"][0]["build"];
     assert!(none_build.get("savedState").is_none());
 
-    let mut absent_inactive = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    absent_inactive.layers[0].behavior_id = "life".into();
-    absent_inactive.active_layer_index = 1;
-    absent_inactive.layers[0].engine = None;
-    let absent_payload = absent_inactive.capture_config_snapshot().into_payload();
-    assert!(absent_payload["runtimeConfig"]["layers"][0]["build"]
-        .get("savedState")
-        .is_none());
-
     let sequencer_config = NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
     };
     let sequencer = NativeRunner::new(sequencer_config).unwrap();
-    let expected = sequencer.engine.serialized_state().unwrap();
+    let expected = sequencer.active_engine().serialized_state().unwrap();
     let payload = sequencer.capture_config_snapshot().into_payload();
     assert_eq!(
         payload["runtimeConfig"]["layers"][0]["build"]["savedState"],
@@ -164,7 +158,7 @@ pub(crate) fn snapshot_preserves_saved_state_omission_rules_and_sequencer_state(
 #[test]
 pub(crate) fn snapshot_overlays_owned_modulation_base_without_dropping_config_extensions() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.behavior_config = json!({
+    runner.layers[0].behavior_config = json!({
         "randomSeedCells": 3,
         "extension": { "nested": [1, true, "keep"] }
     });
@@ -199,7 +193,7 @@ pub(crate) fn snapshot_overlays_owned_modulation_base_without_dropping_config_ex
 #[test]
 pub(crate) fn snapshot_owns_inactive_grid_layer_link_audio_and_sample_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner
+    runner.layers[runner.active_layer_index]
         .engine
         .on_input(DeviceInput::GridPress { x: 2, y: 3 }, 120.0)
         .unwrap();
@@ -210,7 +204,7 @@ pub(crate) fn snapshot_owns_inactive_grid_layer_link_audio_and_sample_config() {
     runner.instruments[0].synth_config["opaqueExtension"] = json!({ "preserve": true });
     runner.fx_buses[0].volume_pct = 63;
     runner.switch_active_engine(1).unwrap();
-    runner.behavior_config = json!({ "opaque": { "extension": true } });
+    runner.layers[1].behavior_config = json!({ "opaque": { "extension": true } });
     runner.layers[1]
         .behavior_config_history
         .insert("sequencer".into(), json!({ "historyExtension": [4, 5] }));

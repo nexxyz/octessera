@@ -246,9 +246,6 @@ fn scanning_rows_runner() -> NativeRunner {
     link.y_pitch_steps = 1;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner.transport.transport = RuntimeTransportState::Playing;
     runner
 }

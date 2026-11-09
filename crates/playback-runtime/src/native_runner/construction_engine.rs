@@ -24,8 +24,8 @@ impl NativeRunner {
 
     pub(super) fn rebuild_engine(&mut self, behavior: NativeBehavior) -> Result<(), String> {
         let behavior_id = behavior.id().to_string();
-        let config = if behavior_id == self.behavior.id() {
-            self.behavior_config.clone()
+        let config = if behavior_id == self.active_behavior().id() {
+            self.active_layer().behavior_config.clone()
         } else {
             self.remembered_layer_behavior_config(self.active_layer_index, &behavior_id)
         };
@@ -58,13 +58,8 @@ impl NativeRunner {
         self.display.transients.reset(now);
         self.reset_global_lfo_phases();
         self.restart_random_streams();
-        self.engine.reset_transport_phase();
-        for engine in self
-            .layers
-            .iter_mut()
-            .filter_map(|layer| layer.engine.as_mut())
-        {
-            engine.reset_transport_phase();
+        for layer in &mut self.layers {
+            layer.engine.reset_transport_phase();
         }
         self.transport.layer_pulse_accumulators.fill(0);
         for queue in &mut self.delayed_link_events {
@@ -80,15 +75,9 @@ impl NativeRunner {
             self.engine_runtime_sync_calls = self.engine_runtime_sync_calls.saturating_add(1);
         }
         self.note_behaviors = note_behaviors_from_instruments(&self.instruments);
-        self.engine.set_global_sound(self.global_sound.clone());
-        self.engine.set_note_behaviors(self.note_behaviors.clone());
-        for engine in self
-            .layers
-            .iter_mut()
-            .filter_map(|layer| layer.engine.as_mut())
-        {
-            engine.set_global_sound(self.global_sound.clone());
-            engine.set_note_behaviors(self.note_behaviors.clone());
+        for layer in &mut self.layers {
+            layer.engine.set_global_sound(self.global_sound.clone());
+            layer.engine.set_note_behaviors(self.note_behaviors.clone());
         }
     }
 

@@ -79,7 +79,13 @@ fn system_store_load_result_updates_device_display_without_disturbing_patch_runt
         Some("true")
     );
     assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
-    assert_eq!(runner.engine.drain_held_notes(usize::MAX).len(), 1);
+    assert_eq!(
+        runner
+            .active_engine_mut()
+            .drain_held_notes(usize::MAX)
+            .len(),
+        1
+    );
     assert_eq!(runner.patch_payload().unwrap(), patch);
     assert_eq!(
         (

@@ -18,9 +18,6 @@ fn scanning_runner(behavior_id: &str) -> NativeRunner {
     runner.link_layers[0].y_pitch_steps = 1;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.tick = 3;
     runner.transport.layer_ticks[0] = 3;
@@ -29,12 +26,12 @@ fn scanning_runner(behavior_id: &str) -> NativeRunner {
 }
 
 fn replace_with_current_behavior(runner: &mut NativeRunner, saved_state: Option<Value>) {
-    let behavior = runner.behavior;
+    let behavior = runner.active_behavior();
     runner
         .replace_layer_engine_with_config(
             runner.active_layer_index,
             behavior,
-            runner.behavior_config.clone(),
+            runner.active_layer().behavior_config.clone(),
             saved_state,
         )
         .unwrap();
@@ -57,7 +54,10 @@ fn generic_scanning_replacement_restores_transport_cursor_for_representative_beh
     for behavior_id in ["keys", "looper", "weave", "life"] {
         let mut runner = scanning_runner(behavior_id);
         if matches!(behavior_id, "weave" | "life") {
-            runner.engine.tick(runner.transport.bpm as f32).unwrap();
+            runner.layers[runner.active_layer_index]
+                .engine
+                .tick(runner.transport.bpm as f32)
+                .unwrap();
         }
         replace_with_current_behavior(&mut runner, None);
         let canonical_notes = next_boundary_notes(&mut runner);
@@ -76,11 +76,11 @@ fn generic_scanning_replacement_restores_transport_cursor_for_representative_beh
         assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
         match behavior_id {
             "weave" => assert!(matches!(
-                runner.engine.state(),
+                runner.active_engine().state(),
                 platform_core::NativeBehaviorState::Pattern(state) if state.phase == 1
             )),
             "life" => assert!(matches!(
-                runner.engine.state(),
+                runner.active_engine().state(),
                 platform_core::NativeBehaviorState::Life(state) if state.tick_counter == 1
             )),
             _ => {}
@@ -101,7 +101,7 @@ fn behavior_owned_state_contracts_remain_separate_from_scan_cursor_replacement()
     })
     .unwrap();
     replace_with_current_behavior(&mut keys, None);
-    assert!(!keys.engine.model().unwrap().tiles[platform_core::grid_index(0, 0)]);
+    assert!(!keys.active_engine().model().unwrap().tiles[platform_core::grid_index(0, 0)]);
 
     let mut looper = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "looper".into(),
@@ -109,18 +109,21 @@ fn behavior_owned_state_contracts_remain_separate_from_scan_cursor_replacement()
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    looper
+    looper.layers[looper.active_layer_index]
         .engine
         .on_input(
             DeviceInput::GridPress { x: 0, y: 0 },
             looper.transport.bpm as f32,
         )
         .unwrap();
-    let recorded = looper.engine.serialized_state().unwrap()["steps"].clone();
-    let saved_state = looper.engine.serialized_state().unwrap();
+    let recorded = looper.active_engine().serialized_state().unwrap()["steps"].clone();
+    let saved_state = looper.active_engine().serialized_state().unwrap();
     looper.transport.layer_ticks[0] = 3;
     replace_with_current_behavior(&mut looper, Some(saved_state));
-    assert_eq!(looper.engine.serialized_state().unwrap()["steps"], recorded);
+    assert_eq!(
+        looper.active_engine().serialized_state().unwrap()["steps"],
+        recorded
+    );
     assert_eq!(looper.transport.layer_ticks[0], 3);
 }
 

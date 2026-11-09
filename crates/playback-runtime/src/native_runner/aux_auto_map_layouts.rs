@@ -68,7 +68,7 @@ impl NativeRunner {
 
     fn behavior_auto_map(&self) -> AuxAutoMap {
         let layer_prefix = format!("layers.{}.build.behaviorConfig", self.active_layer_index);
-        match self.behavior.id() {
+        match self.active_behavior().id() {
             "life" => self.with_step_rate([
                 Some(self.turn_slot(format!("{layer_prefix}.randomCellsPerTick"), "Count")),
                 Some(self.turn_press_slot(

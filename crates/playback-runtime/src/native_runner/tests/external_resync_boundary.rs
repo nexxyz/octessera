@@ -21,9 +21,6 @@ fn configure_active_scan(runner: &mut NativeRunner, scan_unit: &str, scanned_slo
     layer.scanned_empty_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
 }
 
 fn add_tile(runner: &mut NativeRunner, x: usize, y: usize) {
@@ -335,7 +332,7 @@ fn non_sequencer_resync_does_not_zero_time_tick_looper_pattern_quantized_keys_or
         })
         .unwrap();
         if behavior_id == "keys" {
-            runner
+            runner.layers[runner.active_layer_index]
                 .engine
                 .on_input(
                     DeviceInput::GridPress { x: 0, y: 0 },
@@ -353,7 +350,7 @@ fn non_sequencer_resync_does_not_zero_time_tick_looper_pattern_quantized_keys_or
             runner.transport.layer_pulse_accumulators[0], 0,
             "{behavior_id}"
         );
-        match runner.engine.state() {
+        match runner.active_engine().state() {
             platform_core::NativeBehaviorState::Looper(state) => assert_eq!(state.step_index, 0),
             platform_core::NativeBehaviorState::Pattern(state) => assert_eq!(state.phase, 0),
             platform_core::NativeBehaviorState::Keys(state) => {

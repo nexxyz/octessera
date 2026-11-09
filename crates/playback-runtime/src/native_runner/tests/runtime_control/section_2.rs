@@ -50,7 +50,7 @@ pub(crate) fn external_resync_splits_clock_batch_at_measure_boundary() {
     runner.transport.layer_pulse_accumulators[0] = 5;
     runner.transport.tick = 7;
     runner.transport.pending_resync = true;
-    let grid_before = runner.engine.model().unwrap().tiles;
+    let grid_before = runner.active_engine().model().unwrap().tiles;
 
     let messages = runner
         .send(HostMessage::MidiRealtimeClock { pulses: 2 })
@@ -61,7 +61,7 @@ pub(crate) fn external_resync_splits_clock_batch_at_measure_boundary() {
     assert!(!runner.transport.pending_resync);
     assert_eq!(runner.transport.tick, 0);
     assert_eq!(runner.transport.layer_pulse_accumulators[0], 1);
-    assert_eq!(runner.engine.model().unwrap().tiles, grid_before);
+    assert_eq!(runner.active_engine().model().unwrap().tiles, grid_before);
     assert!(matches!(
         messages.last(),
         Some(RunnerMessage::RuntimeStatus { status })
@@ -84,7 +84,7 @@ pub(crate) fn shift_back_clears_active_layer_state() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
+    assert!(runner.active_engine().model().unwrap().tiles[platform_core::grid_index(2, 3)]);
     runner.display.ui.shift_held = true;
 
     runner
@@ -94,7 +94,7 @@ pub(crate) fn shift_back_clears_active_layer_state() {
         })
         .unwrap();
 
-    assert!(!runner.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
+    assert!(!runner.active_engine().model().unwrap().tiles[platform_core::grid_index(2, 3)]);
 }
 
 #[test]

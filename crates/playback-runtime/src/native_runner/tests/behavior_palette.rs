@@ -67,11 +67,14 @@ pub(crate) fn water_themed_backgrounds_surface_without_hiding_live_tiles() {
         };
         runner.trigger_behavior_action(action.into()).unwrap();
         if behavior_id == "raindrops" {
-            runner.engine.tick(runner.transport.bpm as f32).unwrap();
+            runner.layers[runner.active_layer_index]
+                .engine
+                .tick(runner.transport.bpm as f32)
+                .unwrap();
         }
         let active_snapshot = runner.snapshot().unwrap();
         let active_leds = led_tiles(&active_snapshot);
-        let model = runner.engine.model().unwrap();
+        let model = runner.active_engine().model().unwrap();
         let live_index = model
             .tiles
             .iter()
@@ -107,7 +110,10 @@ pub(crate) fn ant_palette_keeps_ant_and_trail_visible_in_runtime_snapshot_led_rg
         led_rgb(platform_core::palette::BLACK)
     );
 
-    runner.engine.tick(runner.transport.bpm as f32).unwrap();
+    runner.layers[runner.active_layer_index]
+        .engine
+        .tick(runner.transport.bpm as f32)
+        .unwrap();
     let tick_snapshot = runner.snapshot().unwrap();
     let tick_leds = led_tiles(&tick_snapshot);
 

@@ -249,14 +249,20 @@ pub(crate) fn switching_behavior_preserves_previous_behavior_config() {
 
     select_behavior(&mut runner, "keys");
 
-    assert_eq!(runner.behavior.id(), "keys");
-    assert_eq!(runner.behavior.id(), "keys");
+    assert_eq!(runner.active_behavior().id(), "keys");
+    assert_eq!(runner.active_behavior().id(), "keys");
 
     select_behavior(&mut runner, "life");
-    assert_eq!(runner.behavior.id(), "life");
-    assert_eq!(runner.behavior.id(), "life");
-    assert_eq!(runner.behavior_config["randomCellsPerTick"], 5);
-    assert_eq!(runner.behavior_config["randomTickInterval"], 3);
+    assert_eq!(runner.active_behavior().id(), "life");
+    assert_eq!(runner.active_behavior().id(), "life");
+    assert_eq!(
+        runner.active_layer().behavior_config["randomCellsPerTick"],
+        5
+    );
+    assert_eq!(
+        runner.active_layer().behavior_config["randomTickInterval"],
+        3
+    );
 }
 
 #[test]
@@ -282,9 +288,6 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
     runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
 
     runner
         .send(HostMessage::DeviceInput {
@@ -346,6 +349,6 @@ pub(crate) fn deferred_autosave_payload_restores_active_sequencer_grid_on_startu
         })
         .unwrap();
 
-    assert_eq!(restored.behavior.id(), "sequencer");
-    assert!(restored.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
+    assert_eq!(restored.active_behavior().id(), "sequencer");
+    assert!(restored.active_engine().model().unwrap().tiles[platform_core::grid_index(2, 3)]);
 }

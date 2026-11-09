@@ -169,7 +169,7 @@ impl NativeRunner {
                 };
                 self.apply_or_schedule_menu_key(&key)?;
             } else {
-                self.rebuild_engine(self.behavior)?;
+                self.rebuild_engine(self.active_behavior())?;
             }
         } else {
             if self.active_play_mode != ActivePlayMode::None {

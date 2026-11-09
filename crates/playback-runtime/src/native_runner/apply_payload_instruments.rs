@@ -55,7 +55,6 @@ impl NativeRunner {
         if let Some(mapping_config) = mapping_config {
             self.base_mapping_config = serde_json::from_value(mapping_config.clone())
                 .map_err(|error| format!("invalid mappingConfig: {error}"))?;
-            self.mapping_config = self.base_mapping_config.clone();
         }
         Ok(())
     }
@@ -79,7 +78,6 @@ impl NativeRunner {
         if let Some(mapping_config) = mapping_config {
             self.base_mapping_config = serde_json::from_value(mapping_config.clone())
                 .map_err(|error| format!("invalid mappingConfig: {error}"))?;
-            self.mapping_config = self.base_mapping_config.clone();
         }
         Ok(())
     }

@@ -93,8 +93,6 @@ impl NativeRunner {
             if index == self.active_layer_index {
                 self.refresh_active_mapping_config();
                 self.refresh_active_interpretation_profile();
-                self.engine
-                    .set_interpretation_profile(self.interpretation_profile.clone());
             }
             self.rebase_and_recompose_modulation_key(key);
             self.mark_fast_autosave_dirty();

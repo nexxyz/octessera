@@ -293,6 +293,18 @@ impl NativeLayerEngine {
         &self.state
     }
 
+    pub fn behavior(&self) -> NativeBehavior {
+        self.behavior
+    }
+
+    pub fn interpretation_profile(&self) -> &InterpretationProfile {
+        &self.interpretation_profile
+    }
+
+    pub fn mapping_config(&self) -> &MappingConfig {
+        &self.mapping_config
+    }
+
     fn finalize_events(
         &mut self,
         emitted_events: &[MusicalEvent],

@@ -112,7 +112,7 @@ pub(crate) fn second_tick_preserves_note_boundaries_between_event_kinds() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let activate = intent(platform_core::TileTriggerKind::Activate);
     let deactivate = intent(platform_core::TileTriggerKind::Deactivate);
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
     let messages = runner
         .messages_with_input_result(platform_core::NativeInputResult {
             events: vec![
@@ -201,7 +201,7 @@ pub(crate) fn same_external_midi_destination_from_two_mappings_remains_two_event
         instrument.midi_channel = 4;
     }
     let activate = intent(platform_core::TileTriggerKind::Activate);
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
     let messages = runner
         .messages_with_input_result(platform_core::NativeInputResult {
             events: vec![
@@ -263,7 +263,7 @@ pub(crate) fn sampler_tiles_with_the_same_sample_and_pitch_dedupe_to_one_voice()
         y: 3,
         ..first.clone()
     };
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
     let messages = runner
         .messages_with_input_result(platform_core::NativeInputResult {
             events: vec![
@@ -365,7 +365,7 @@ pub(crate) fn probability_filtering_happens_before_local_dedupe() {
 pub(crate) fn local_dedupe_keeps_duration_none_and_non_note_order() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let activate = intent(platform_core::TileTriggerKind::Activate);
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
     let messages = runner
         .messages_with_input_result(platform_core::NativeInputResult {
             events: vec![
@@ -440,7 +440,7 @@ pub(crate) fn local_dedupe_keeps_duration_none_and_non_note_order() {
 pub(crate) fn local_dedupe_keeps_same_note_with_different_durations() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let activate = intent(platform_core::TileTriggerKind::Activate);
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
     let messages = runner
         .messages_with_input_result(platform_core::NativeInputResult {
             events: vec![

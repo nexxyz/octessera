@@ -190,35 +190,8 @@ impl NativeRunner {
             self.wifi_enabled = enabled;
         }
         self.apply_sample_browser_favourites_payload(runtime);
-        let active_behavior_id = self
-            .layers
-            .get(self.active_layer_index)
-            .map(|layer| layer.behavior_id.clone())
-            .or_else(|| {
-                runtime
-                    .get("activeBehavior")
-                    .and_then(Value::as_str)
-                    .map(String::from)
-            })
-            .unwrap_or_else(|| self.behavior.id().into());
-        let behavior = platform_core::get_native_behavior(&active_behavior_id)
-            .ok_or_else(|| format!("unsupported native behavior `{active_behavior_id}`"))?;
-        self.behavior = behavior;
-        if let Some(active_build) = runtime
-            .get("layers")
-            .and_then(Value::as_array)
-            .and_then(|layers| layers.get(self.active_layer_index))
-            .and_then(|layer| layer.get("build"))
-        {
-            self.behavior_config = active_build
-                .get("behaviorConfig")
-                .cloned()
-                .unwrap_or_else(|| self.layer_behavior_config(self.active_layer_index));
-        }
         self.refresh_active_mapping_config();
         self.refresh_active_interpretation_profile();
-        self.engine
-            .set_interpretation_profile(self.interpretation_profile.clone());
         self.sync_engine_runtime_config();
         self.restart_random_streams();
         self.menu.state = Default::default();

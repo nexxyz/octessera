@@ -45,7 +45,7 @@ impl NativeRunner {
             if index == self.active_layer_index || layer.behavior_id == "none" {
                 continue;
             }
-            let Some(model) = layer.engine.as_ref().and_then(|engine| engine.model().ok()) else {
+            let Ok(model) = layer.engine.model() else {
                 continue;
             };
             for (ghost, alive) in ghosts.iter_mut().zip(&model.tiles) {

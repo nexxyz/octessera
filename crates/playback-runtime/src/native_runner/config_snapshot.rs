@@ -226,88 +226,36 @@ impl NativeConfigSnapshot {
         let layers = runner
             .layers
             .iter()
-            .map(|layer| &layer.behavior_id)
             .enumerate()
-            .map(|(index, behavior_id)| {
-                let auto_name = runner
-                    .layers
+            .map(|(index, layer)| NativeLayerConfigSnapshot {
+                behavior_id: layer.behavior_id.clone(),
+                step_pulses: runner.layer_step_rate_pulses(index),
+                behavior_config: layer.behavior_config.clone(),
+                behavior_config_history: layer.behavior_config_history.clone(),
+                config_overrides: runner
+                    .modulation_process
+                    .persistent_behavior_config_overrides(index),
+                seeded: layer.seeded,
+                name: if layer.auto_name {
+                    layer.behavior_id.clone()
+                } else {
+                    layer.name.clone()
+                },
+                auto_name: layer.auto_name,
+                link: runner.link_layers.get(index).cloned().unwrap_or_default(),
+                trigger_probability_map: runner
+                    .trigger_probability_maps
                     .get(index)
-                    .map(|layer| layer.auto_name)
-                    .unwrap_or(true);
-                let behavior_config = if index == runner.active_layer_index {
-                    runner.behavior_config.clone()
-                } else {
-                    runner
-                        .layers
-                        .get(index)
-                        .map(|layer| &layer.behavior_config)
-                        .cloned()
-                        .unwrap_or(Value::Null)
-                };
-                let saved_state = if behavior_id != "none" {
-                    let engine = if index == runner.active_layer_index {
-                        Some(&runner.engine)
-                    } else {
-                        runner
-                            .layers
-                            .get(index)
-                            .and_then(|layer| layer.engine.as_ref())
-                    };
-                    engine.map(NativeLayerEngine::capture_persistence_state)
-                } else {
-                    None
-                };
-                NativeLayerConfigSnapshot {
-                    behavior_id: behavior_id.clone(),
-                    step_pulses: if index == runner.active_layer_index {
-                        runner.transport.algorithm_step_pulses
-                    } else {
-                        runner
-                            .transport
-                            .layer_algorithm_step_pulses
-                            .get(index)
-                            .copied()
-                            .unwrap_or(DEFAULT_ALGORITHM_STEP_RED)
-                    },
-                    behavior_config,
-                    behavior_config_history: runner
-                        .layers
-                        .get(index)
-                        .map(|layer| &layer.behavior_config_history)
-                        .cloned()
-                        .unwrap_or_default(),
-                    config_overrides: runner
-                        .modulation_process
-                        .persistent_behavior_config_overrides(index),
-                    seeded: runner
-                        .layers
-                        .get(index)
-                        .map(|layer| layer.seeded)
-                        .unwrap_or(false),
-                    name: if auto_name {
-                        behavior_id.clone()
-                    } else {
-                        runner
-                            .layers
-                            .get(index)
-                            .map(|layer| layer.name.clone())
-                            .unwrap_or_else(|| behavior_id.clone())
-                    },
-                    auto_name,
-                    link: runner.link_layers.get(index).cloned().unwrap_or_default(),
-                    trigger_probability_map: runner
-                        .trigger_probability_maps
-                        .get(index)
-                        .copied()
-                        .unwrap_or(FULL_PROBABILITY_MAP),
-                    param_mods: runner.param_mods.get(index).cloned(),
-                    saved_state,
-                }
+                    .copied()
+                    .unwrap_or(FULL_PROBABILITY_MAP),
+                param_mods: runner.param_mods.get(index).cloned(),
+                saved_state: (layer.behavior_id != "none")
+                    .then(|| layer.engine.capture_persistence_state()),
             })
             .collect();
         Self {
             revision: runner.config_revision,
-            active_behavior: runner.behavior.id().into(),
+            active_behavior: runner.active_behavior().id().into(),
             active_layer_index: runner.active_layer_index,
             link_lfos: runner
                 .link_lfos

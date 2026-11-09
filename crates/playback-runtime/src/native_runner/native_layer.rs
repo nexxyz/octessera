@@ -9,14 +9,14 @@ pub(super) struct NativeLayer {
     pub(super) seeded: bool,
     pub(super) behavior_config: Value,
     pub(super) behavior_config_history: BTreeMap<String, Value>,
-    pub(super) engine: Option<NativeLayerEngine>,
+    pub(super) engine: NativeLayerEngine,
 }
 
 impl NativeLayer {
     pub(super) fn new(
         behavior_id: &str,
         behavior_config: Value,
-        engine: Option<NativeLayerEngine>,
+        engine: NativeLayerEngine,
     ) -> Self {
         Self {
             behavior_id: behavior_id.into(),

@@ -9,7 +9,7 @@ fn twinkle_runner() -> NativeRunner {
 }
 
 fn state_tiles(runner: &NativeRunner) -> Vec<bool> {
-    runner.engine.serialized_state().unwrap()["tiles"]
+    runner.active_engine().serialized_state().unwrap()["tiles"]
         .as_array()
         .unwrap()
         .iter()
@@ -77,7 +77,7 @@ pub(crate) fn twinkle_layer_selection_and_keyed_edit_stay_targeted() {
         .item_for_key("layers.1.build.behaviorConfig.density")
         .is_some());
 
-    let active_before = runner.engine.serialized_state().unwrap();
+    let active_before = runner.active_engine().serialized_state().unwrap();
     let key = "layers.1.build.behaviorConfig.density";
     assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
@@ -88,7 +88,10 @@ pub(crate) fn twinkle_layer_selection_and_keyed_edit_stay_targeted() {
         })
         .unwrap();
 
-    assert_eq!(runner.engine.serialized_state().unwrap(), active_before);
+    assert_eq!(
+        runner.active_engine().serialized_state().unwrap(),
+        active_before
+    );
     assert_eq!(runner.layers[1].behavior_config["density"], 4);
     assert!(runner.config_dirty);
 }
@@ -129,10 +132,13 @@ pub(crate) fn twinkle_actions_reset_aux_and_autosave_round_trip() {
         .unwrap();
     assert_eq!(state_tiles(&runner).iter().filter(|tile| **tile).count(), 3);
     let payload = runner.config_payload();
-    let expected = runner.engine.serialized_state().unwrap();
+    let expected = runner.active_engine().serialized_state().unwrap();
     let mut restored = twinkle_runner();
     restored.apply_config_payload(payload).unwrap();
-    assert_eq!(restored.engine.serialized_state().unwrap(), expected);
+    assert_eq!(
+        restored.active_engine().serialized_state().unwrap(),
+        expected
+    );
 }
 
 #[test]

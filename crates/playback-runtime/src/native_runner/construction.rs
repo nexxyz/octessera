@@ -26,24 +26,11 @@ impl NativeRunner {
         }
         let behavior = platform_core::get_native_behavior(&config.behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{}`", config.behavior_id))?;
-        let engine = Self::build_engine(
-            behavior,
-            config.behavior_config.clone(),
-            config.interpretation_profile.clone(),
-            config.mapping_config.clone(),
-            config.global_sound.clone(),
-            config.note_behaviors.clone(),
-            0,
-        )?;
         let ui = NativeUiState::default();
         let now = Instant::now();
         let seed = NativeRunnerConstructionSeed::new(&config, ui, now);
-        let mut layers = vec![NativeLayer::new(
-            behavior.id(),
-            config.behavior_config.clone(),
-            None,
-        )];
-        for index in 1..LAYER_COUNT {
+        let mut layers = Vec::with_capacity(LAYER_COUNT);
+        for index in 0..LAYER_COUNT {
             let engine = Self::build_engine(
                 behavior,
                 config.behavior_config.clone(),
@@ -56,15 +43,11 @@ impl NativeRunner {
             layers.push(NativeLayer::new(
                 behavior.id(),
                 config.behavior_config.clone(),
-                Some(engine),
+                engine,
             ));
         }
         let mut runner = Self {
-            engine,
-            behavior,
-            behavior_config: config.behavior_config.clone(),
-            interpretation_profile: config.interpretation_profile,
-            mapping_config: config.mapping_config.clone(),
+            base_interpretation_profile: config.interpretation_profile,
             base_mapping_config: config.mapping_config,
             global_sound: seed.global_sound,
             dsp_config: seed.dsp_config,
@@ -167,9 +150,6 @@ impl NativeRunner {
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();
         runner.refresh_active_interpretation_profile();
-        runner
-            .engine
-            .set_interpretation_profile(runner.interpretation_profile.clone());
         let documents = super::split_system_patch_documents(&runner.config_payload())?;
         runner.restart_settings = RestartSettingsState::new(documents.system.clone());
         runner.pending.system_persistence.saved_baseline = Some(Arc::new(documents.system));

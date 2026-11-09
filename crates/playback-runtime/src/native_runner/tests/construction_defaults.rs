@@ -22,7 +22,7 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
     let expected_seed =
         NativeRunnerConstructionSeed::new(&config, NativeUiState::default(), Instant::now());
 
-    assert_eq!(runner.behavior.id(), "sequencer");
+    assert_eq!(runner.active_behavior().id(), "sequencer");
     assert_eq!(runner.transport.bpm, config.bpm);
     assert_eq!((runner.transport.swing_a, runner.transport.swing_b), (7, 1));
     assert!(runner
@@ -89,7 +89,7 @@ fn non_default_transport_and_display_defaults_are_seeded_without_menu_rebuild_co
     let expected_seed =
         NativeRunnerConstructionSeed::new(&config, NativeUiState::default(), Instant::now());
 
-    assert_eq!(runner.behavior.id(), "keys");
+    assert_eq!(runner.active_behavior().id(), "keys");
     assert_eq!(runner.transport.bpm, 61.0);
     assert_eq!((runner.transport.swing_a, runner.transport.swing_b), (5, 3));
     assert_eq!(runner.active_layer_index, expected_seed.active_layer_index);

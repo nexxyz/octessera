@@ -95,7 +95,6 @@ pub(crate) fn auto_name_updates_when_engine_behavior_already_matches_menu_value(
     runner
         .rebuild_engine(platform_core::get_native_behavior("none").unwrap())
         .unwrap();
-    runner.behavior = platform_core::get_native_behavior("none").unwrap();
     runner.menu.rebuild(runner.menu_config());
 
     select_behavior(&mut runner, "none");

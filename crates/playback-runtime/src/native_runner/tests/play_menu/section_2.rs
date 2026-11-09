@@ -337,7 +337,9 @@ pub(crate) fn play_transpose_layer_selection_controls_routing() {
 #[test]
 pub(crate) fn fn_leftmost_grid_column_switches_active_layer() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layers[2].behavior_id = "sequencer".into();
+    runner
+        .apply_layer_behavior_selection(2, "sequencer")
+        .unwrap();
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -353,7 +355,7 @@ pub(crate) fn fn_leftmost_grid_column_switches_active_layer() {
         .unwrap();
 
     assert_eq!(runner.active_layer_index, 2);
-    assert_eq!(runner.behavior.id(), "sequencer");
+    assert_eq!(runner.active_behavior().id(), "sequencer");
     assert_eq!(snapshot_from(&messages)["activeBehavior"], "sequencer");
 }
 

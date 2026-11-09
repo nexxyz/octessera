@@ -349,9 +349,6 @@ pub(crate) fn scanning_sequencer_pattern_emits_different_rows_over_scan_steps() 
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
-    runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,

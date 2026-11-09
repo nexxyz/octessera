@@ -33,14 +33,11 @@ impl NativeRunner {
         let sense = self.link_layers.get(layer_index);
         let probability_map = self.trigger_probability_maps.get(layer_index);
         let mut rng = self.probability_rng(layer_index);
-        let engine = if layer_index == self.active_layer_index {
-            &mut self.engine
-        } else {
-            self.layers
-                .get_mut(layer_index)
-                .and_then(|layer| layer.engine.as_mut())
-                .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?
-        };
+        let engine = &mut self
+            .layers
+            .get_mut(layer_index)
+            .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?
+            .engine;
         if paused {
             let model = engine.on_input(input, bpm)?;
             return Ok(platform_core::NativeInputResult {
@@ -65,7 +62,7 @@ impl NativeRunner {
         let mut rng = self.probability_rng(layer_index);
         let sense = self.link_layers.get(layer_index);
         let probability_map = self.trigger_probability_maps.get(layer_index);
-        let result = self
+        let result = self.layers[layer_index]
             .engine
             .tick_filtered(self.transport.bpm as f32, |intent| {
                 trigger_probability_allows(sense, probability_map, &mut rng, intent)
@@ -104,14 +101,7 @@ impl NativeRunner {
 
     pub(super) fn prime_sequencer_layer_origins(&mut self) {
         for index in 0..self.layers.len() {
-            let is_sequencer = if index == self.active_layer_index {
-                self.behavior.id() == "sequencer"
-            } else {
-                self.layers
-                    .get(index)
-                    .is_some_and(|layer| layer.behavior_id == "sequencer")
-            };
-            if is_sequencer
+            if self.layer_behavior_id(index) == "sequencer"
                 && self
                     .link_layers
                     .get(index)

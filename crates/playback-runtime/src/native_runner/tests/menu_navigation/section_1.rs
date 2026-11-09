@@ -135,7 +135,10 @@ pub(crate) fn behavior_config_number_param_edit_via_menu() {
         })
         .unwrap();
 
-    assert_eq!(runner.behavior_config["randomCellsPerTick"], 11);
+    assert_eq!(
+        runner.active_layer().behavior_config["randomCellsPerTick"],
+        11
+    );
     let snapshot = snapshot_from(&messages);
     assert_eq!(snapshot["display"]["editing"], false);
     assert_eq!(snapshot["display"]["title"], "/B/L1: life");
@@ -158,7 +161,10 @@ pub(crate) fn behavior_config_second_number_param_edit_via_menu() {
         request_snapshot: None,
     });
 
-    assert_eq!(runner.behavior_config["randomTickInterval"], 2);
+    assert_eq!(
+        runner.active_layer().behavior_config["randomTickInterval"],
+        2
+    );
 }
 
 #[test]
@@ -180,7 +186,7 @@ pub(crate) fn behavior_config_enum_param_edits_via_menu() {
         })
         .unwrap();
 
-    assert_eq!(runner.behavior_config["quantize"], "step");
+    assert_eq!(runner.active_layer().behavior_config["quantize"], "step");
 }
 
 #[test]

@@ -107,7 +107,7 @@ impl NativeRunner {
     /// instrument kinds, hashed so the cache check stays cheap on every capture.
     fn aux_target_context(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        self.behavior.id().hash(&mut hasher);
+        self.active_behavior().id().hash(&mut hasher);
         for bus in &self.fx_buses {
             (&bus.slot1_type, &bus.slot2_type, &bus.slot3_type).hash(&mut hasher);
         }
@@ -225,7 +225,7 @@ mod tests {
     fn life_shift_hint_names_the_glider_interval_by_its_distinguishing_word() {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.skip_startup_splash();
-        assert_eq!(runner.behavior.id(), "life");
+        assert_eq!(runner.active_behavior().id(), "life");
         assert!(runner
             .menu
             .focus_item_key("layers.0.build.behaviorConfig.randomCellsPerTick"));

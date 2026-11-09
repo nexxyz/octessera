@@ -47,9 +47,6 @@ pub(crate) fn per_layer_step_rates_round_trip_and_drive_non_scanning_layers() {
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
-    runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
             request_snapshot: None,

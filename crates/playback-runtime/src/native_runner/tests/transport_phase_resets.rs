@@ -2,12 +2,12 @@ use super::*;
 
 fn pattern_phase(runner: &NativeRunner, layer_index: usize) -> u64 {
     let state = if layer_index == runner.active_layer_index {
-        runner.engine.state()
+        runner.active_engine().state()
     } else {
         runner
             .layers
             .get(layer_index)
-            .and_then(|layer| layer.engine.as_ref())
+            .map(|layer| &layer.engine)
             .expect("inactive layer engine")
             .state()
     };
@@ -18,7 +18,7 @@ fn pattern_phase(runner: &NativeRunner, layer_index: usize) -> u64 {
 }
 
 fn looper_step(runner: &NativeRunner) -> usize {
-    match runner.engine.state() {
+    match runner.active_engine().state() {
         platform_core::NativeBehaviorState::Looper(state) => state.step_index,
         _ => panic!("expected looper state"),
     }
@@ -68,7 +68,7 @@ fn transport_stop_resets_active_looper_phase_and_preserves_recorded_sequence() {
         })
         .unwrap();
 
-    let recorded_steps = runner.engine.serialized_state().unwrap()["steps"].clone();
+    let recorded_steps = runner.active_engine().serialized_state().unwrap()["steps"].clone();
     assert_ne!(looper_step(&runner), 0);
     assert!(recorded_steps.as_array().is_some_and(|steps| {
         steps
@@ -80,7 +80,7 @@ fn transport_stop_resets_active_looper_phase_and_preserves_recorded_sequence() {
 
     assert_eq!(looper_step(&runner), 0);
     assert_eq!(
-        runner.engine.serialized_state().unwrap()["steps"],
+        runner.active_engine().serialized_state().unwrap()["steps"],
         recorded_steps
     );
 }

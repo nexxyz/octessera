@@ -11,7 +11,7 @@ pub(crate) fn behavior_selector_and_visible_params_are_usable() {
 
     for behavior_id in ["keys", "looper", "none"] {
         select_behavior_via_menu_action(&mut runner, behavior_id);
-        assert_eq!(runner.behavior.id(), behavior_id);
+        assert_eq!(runner.active_behavior().id(), behavior_id);
         assert_eq!(
             item_label_for_key(&runner.menu.root, "behaviorId"),
             Some(format!("Beh.: {behavior_id}"))

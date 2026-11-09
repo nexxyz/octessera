@@ -55,9 +55,9 @@ impl NativeRunner {
         sense: Option<&NativeLinkLayer>,
     ) -> InterpretationProfile {
         let Some(sense) = sense else {
-            return self.interpretation_profile.clone();
+            return self.base_interpretation_profile.clone();
         };
-        let mut profile = self.interpretation_profile.clone();
+        let mut profile = self.base_interpretation_profile.clone();
         profile.event.enabled = sense.event_enabled;
         profile.state.enabled = sense.state_notes_enabled || sense.scan_mode == ScanMode::Scanning;
         let sections = if sense.scan_sections <= 1 {
@@ -100,61 +100,49 @@ impl NativeRunner {
         profile
     }
 
+    pub(super) fn active_layer(&self) -> &NativeLayer {
+        &self.layers[self.active_layer_index]
+    }
+
+    pub(super) fn active_engine(&self) -> &NativeLayerEngine {
+        &self.active_layer().engine
+    }
+
+    pub(super) fn active_engine_mut(&mut self) -> &mut NativeLayerEngine {
+        &mut self.layers[self.active_layer_index].engine
+    }
+
+    pub(super) fn active_behavior(&self) -> NativeBehavior {
+        self.active_engine().behavior()
+    }
+
     pub(super) fn switch_active_engine(&mut self, index: usize) -> Result<(), String> {
         let next_index = index.min(GRID_HEIGHT.saturating_sub(1));
         if next_index == self.active_layer_index {
             return Ok(());
         }
 
-        if let Some(layer) = self.layers.get_mut(self.active_layer_index) {
-            layer.behavior_config = self.behavior_config.clone();
-        }
-        let previous_behavior_id = self
-            .layers
-            .get(self.active_layer_index)
-            .map(|layer| layer.behavior_id.clone())
-            .unwrap_or_else(|| self.behavior.id().into());
+        let previous = self.active_layer();
+        let previous_behavior_id = previous.behavior_id.clone();
+        let previous_config = previous.behavior_config.clone();
         self.remember_layer_behavior_config(
             self.active_layer_index,
             &previous_behavior_id,
-            self.behavior_config.clone(),
+            previous_config,
         );
 
-        let behavior_id = self
-            .layers
-            .get(next_index)
-            .map(|layer| layer.behavior_id.clone())
-            .unwrap_or_else(|| self.behavior.id().into());
-        let behavior = platform_core::get_native_behavior(&behavior_id)
+        let behavior_id = self.layers[next_index].behavior_id.clone();
+        platform_core::get_native_behavior(&behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
         let behavior_config = self.remembered_layer_behavior_config(next_index, &behavior_id);
         let profile = self.interpretation_profile_for_layer(next_index);
         let mapping = self.mapping_config_for_layer(next_index);
-        let mut next_engine = match self
-            .layers
-            .get_mut(next_index)
-            .and_then(|layer| layer.engine.take())
-        {
-            Some(engine) => engine,
-            None => Self::build_engine(
-                behavior,
-                behavior_config.clone(),
-                profile.clone(),
-                mapping.clone(),
-                self.global_sound.clone(),
-                self.note_behaviors.clone(),
-                next_index,
-            )?,
-        };
-        next_engine.set_interpretation_profile(profile.clone());
-        next_engine.set_mapping_config(mapping.clone());
-        next_engine.set_random_seed(self.layer_random_seed(next_index));
-
-        let previous_index = self.active_layer_index;
-        std::mem::swap(&mut self.engine, &mut next_engine);
-        if let Some(layer) = self.layers.get_mut(previous_index) {
-            layer.engine = Some(next_engine);
-        }
+        let random_seed = self.layer_random_seed(next_index);
+        let next = &mut self.layers[next_index];
+        next.engine.set_interpretation_profile(profile);
+        next.engine.set_mapping_config(mapping);
+        next.engine.set_random_seed(random_seed);
+        next.behavior_config = behavior_config;
 
         self.active_layer_index = next_index;
         self.display.hdmi.source_layer_index = next_index;
@@ -170,13 +158,6 @@ impl NativeRunner {
             .get(next_index)
             .copied()
             .unwrap_or(DEFAULT_ALGORITHM_STEP_RED);
-        self.behavior = behavior;
-        self.behavior_config = behavior_config;
-        if let Some(layer) = self.layers.get_mut(next_index) {
-            layer.behavior_config = self.behavior_config.clone();
-        }
-        self.interpretation_profile = profile;
-        self.mapping_config = mapping;
         Ok(())
     }
 
@@ -187,17 +168,10 @@ impl NativeRunner {
                 .get()
                 .saturating_add(1),
         );
-        if index == self.active_layer_index {
-            return self.engine.serialized_state();
+        match self.layers.get(index) {
+            Some(layer) => layer.engine.serialized_state(),
+            None => Ok(Value::Null),
         }
-        if let Some(engine) = self
-            .layers
-            .get(index)
-            .and_then(|layer| layer.engine.as_ref())
-        {
-            return engine.serialized_state();
-        }
-        Ok(Value::Null)
     }
 
     pub(super) fn remap_bindings_for_behavior_change(

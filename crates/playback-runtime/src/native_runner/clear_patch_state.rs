@@ -12,8 +12,6 @@ impl NativeRunner {
 
         let behavior = platform_core::get_native_behavior("none")
             .ok_or_else(|| "unsupported native behavior `none`".to_string())?;
-        self.behavior = behavior;
-        self.behavior_config = Value::Null;
         self.random_seed = super::random_streams::DEFAULT_RANDOM_SEED;
 
         self.global_sound = GlobalSoundConfig {
@@ -22,7 +20,6 @@ impl NativeRunner {
             note_length_ms: 120,
         };
         self.base_mapping_config = default_mapping_config();
-        self.mapping_config = self.base_mapping_config.clone();
         self.transport.bpm = 120.0;
         self.transport.swing_a = 4;
         self.transport.swing_b = 4;
@@ -34,33 +31,18 @@ impl NativeRunner {
             .map(NativeInstrumentSlot::reset)
             .collect();
         self.note_behaviors = note_behaviors_from_instruments(&self.instruments);
-        self.refresh_active_mapping_config();
-        self.refresh_active_interpretation_profile();
 
-        self.engine = Self::build_engine(
-            behavior,
-            Value::Null,
-            self.interpretation_profile_for_layer(self.active_layer_index),
-            self.mapping_config_for_layer(self.active_layer_index),
-            self.global_sound.clone(),
-            self.note_behaviors.clone(),
-            self.active_layer_index,
-        )?;
         self.layers = (0..LAYER_COUNT)
             .map(|index| {
-                let engine = if index == self.active_layer_index {
-                    None
-                } else {
-                    Some(Self::build_engine(
-                        behavior,
-                        Value::Null,
-                        self.interpretation_profile_for_layer(index),
-                        self.mapping_config_for_layer(index),
-                        self.global_sound.clone(),
-                        self.note_behaviors.clone(),
-                        index,
-                    )?)
-                };
+                let engine = Self::build_engine(
+                    behavior,
+                    Value::Null,
+                    self.interpretation_profile_for_layer(index),
+                    self.mapping_config_for_layer(index),
+                    self.global_sound.clone(),
+                    self.note_behaviors.clone(),
+                    index,
+                )?;
                 Ok(NativeLayer::new("none", Value::Null, engine))
             })
             .collect::<Result<Vec<_>, String>>()?;

@@ -340,7 +340,7 @@ impl NativeRunner {
     }
 
     fn mark_grid_input_dirty(&mut self) {
-        if self.behavior.id() == "looper" {
+        if self.active_behavior().id() == "looper" {
             self.mark_fast_autosave_dirty();
         } else {
             self.mark_config_dirty();

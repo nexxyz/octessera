@@ -175,7 +175,7 @@ pub(crate) fn mixed_note_off_and_note_on_use_their_own_link_timing() {
         degree: 1,
         kind: platform_core::TileTriggerKind::Activate,
     };
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
 
     let immediate = runner
         .messages_with_input_result(platform_core::NativeInputResult {
@@ -226,7 +226,7 @@ pub(crate) fn events_without_mapped_intents_bypass_link_timing() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.link_layers[0].activate_timing.delay_steps = 1;
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
 
     let immediate = runner
         .messages_with_input_result(platform_core::NativeInputResult {
@@ -264,7 +264,7 @@ pub(crate) fn link_routing_rejects_event_intent_length_mismatch() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
 
     let result = runner.messages_with_input_result(platform_core::NativeInputResult {
         events: vec![platform_core::MusicalEvent::NoteOn {
@@ -306,7 +306,7 @@ pub(crate) fn same_note_events_with_distinct_link_timing_are_split_before_dedupe
         degree: 0,
         kind: platform_core::TileTriggerKind::Scanned,
     };
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
 
     let immediate = runner
         .messages_with_input_result(platform_core::NativeInputResult {

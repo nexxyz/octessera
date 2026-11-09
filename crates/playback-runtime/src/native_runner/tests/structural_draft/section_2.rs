@@ -6,7 +6,7 @@ pub(crate) fn behavior_selection_applies_immediately() {
     runner.auto_save_default = true;
     select_behavior(&mut runner, "keys");
 
-    assert_eq!(runner.behavior.id(), "keys");
+    assert_eq!(runner.active_behavior().id(), "keys");
     assert_eq!(runner.layers[0].behavior_id, "keys");
     runner.make_deferred_menu_apply_due_for_test();
     let messages = runner.flush_deferred_menu_apply().unwrap();

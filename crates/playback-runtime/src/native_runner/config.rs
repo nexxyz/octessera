@@ -26,7 +26,7 @@ use serde_json::json;
 impl NativeRunner {
     pub(crate) fn menu_config(&self) -> NativeMenuConfig {
         NativeMenuConfig {
-            behavior_id: self.behavior.id().into(),
+            behavior_id: self.active_behavior().id().into(),
             behavior_ids: platform_core::list_native_behavior_ids()
                 .iter()
                 .map(|id| (*id).to_string())

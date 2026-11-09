@@ -29,11 +29,11 @@ pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
 
     runner.apply_config_payload(payload).unwrap();
 
-    assert_eq!(runner.behavior.id(), expected_behavior_id);
+    assert_eq!(runner.active_behavior().id(), expected_behavior_id);
     assert_eq!(runner.active_layer_index, expected_active_layer_index);
     runner.select_active_layer(0).unwrap();
     assert!(runner
-        .engine
+        .active_engine()
         .model()
         .unwrap()
         .tiles
@@ -125,8 +125,8 @@ pub(crate) fn sequencer_behavior_is_native_and_paintable() {
         })
         .unwrap();
 
-    let model = runner.engine.model().unwrap();
-    assert_eq!(runner.behavior.id(), "sequencer");
+    let model = runner.active_engine().model().unwrap();
+    assert_eq!(runner.active_behavior().id(), "sequencer");
     assert_eq!(model.name, "sequencer");
     assert_eq!(model.status_line, "Manual");
     assert!(model.tiles[platform_core::grid_index(2, 3)]);
@@ -197,7 +197,7 @@ pub(crate) fn behavior_menu_actions_dispatch_selected_action_type() {
         })
         .unwrap();
 
-    let model = runner.engine.model().unwrap();
+    let model = runner.active_engine().model().unwrap();
     assert_eq!(model.name, "ant");
     assert!(model.tiles.iter().any(|tile| *tile));
 }
@@ -266,7 +266,7 @@ pub(crate) fn restart_section_reaches_the_active_scan_profile_on_the_lane_split_
     runner.apply_or_schedule_menu_key(key).unwrap();
 
     assert_eq!(
-        runner.interpretation_profile.state.tick,
+        runner.active_engine().interpretation_profile().state.tick,
         platform_core::TickStrategy::ScanColumnActive {
             sections: Some(2),
             reverse: false,

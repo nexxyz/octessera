@@ -26,9 +26,6 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
     runner.select_active_layer(1).unwrap();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
 
     runner
         .send(HostMessage::DeviceInput {
@@ -65,9 +62,6 @@ pub(crate) fn triplet_scan_unit_advances_at_expected_pulse_count() {
     runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
@@ -115,9 +109,6 @@ pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_pha
     runner.select_active_layer(1).unwrap();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 0, "y": 0 }),

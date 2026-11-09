@@ -22,14 +22,7 @@ impl NativeRunner {
             {
                 continue;
             }
-            let Some(engine) = self.layers[index].engine.as_ref() else {
-                let accumulator = &mut self.transport.layer_pulse_accumulators[index];
-                while *accumulator >= step_pulses {
-                    *accumulator -= step_pulses;
-                }
-                continue;
-            };
-            if self.inactive_layer_is_idle(index, engine) {
+            if self.inactive_layer_is_idle(index, &self.layers[index].engine) {
                 self.advance_idle_layer(index, step_pulses, events, &mut modulation_updates);
                 continue;
             }
@@ -69,9 +62,7 @@ impl NativeRunner {
         while self.transport.layer_pulse_accumulators[index] >= step_pulses {
             self.transport.layer_pulse_accumulators[index] -= step_pulses;
             let offset = self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);
-            if let Some(engine) = self.layers[index].engine.as_mut() {
-                engine.advance_interpretation_tick();
-            }
+            self.layers[index].engine.advance_interpretation_tick();
             self.count_step_and_sound_due_link_events(index, offset, events);
             modulation_updates.push((index, Vec::new()));
         }
@@ -87,26 +78,20 @@ impl NativeRunner {
     ) -> Result<(), String> {
         let profile = self.interpretation_profile_for_layer(index);
         let mapping = self.mapping_config_for_layer(index);
-        if let Some(engine) = self.layers[index].engine.as_mut() {
-            engine.set_global_sound(self.global_sound.clone());
-            engine.set_interpretation_profile(profile);
-            engine.set_mapping_config(mapping);
-        }
+        let engine = &mut self.layers[index].engine;
+        engine.set_global_sound(self.global_sound.clone());
+        engine.set_interpretation_profile(profile);
+        engine.set_mapping_config(mapping);
         let bpm = self.transport.bpm as f32;
         while self.transport.layer_pulse_accumulators[index] >= step_pulses {
             self.transport.layer_pulse_accumulators[index] -= step_pulses;
             let offset = self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);
             let mut rng = self.probability_rng(index);
-            let tick = {
-                let Some(engine) = self.layers[index].engine.as_mut() else {
-                    continue;
-                };
-                let sense = self.link_layers.get(index);
-                let probability_map = self.trigger_probability_maps.get(index);
-                engine.tick_filtered(bpm, |intent| {
-                    trigger_probability_allows(sense, probability_map, &mut rng, intent)
-                })?
-            };
+            let sense = self.link_layers.get(index);
+            let probability_map = self.trigger_probability_maps.get(index);
+            let tick = self.layers[index].engine.tick_filtered(bpm, |intent| {
+                trigger_probability_allows(sense, probability_map, &mut rng, intent)
+            })?;
             self.store_probability_rng(index, rng);
             self.count_step_and_sound_due_link_events(index, offset, events);
             modulation_updates.push((index, tick.mapped_intents));

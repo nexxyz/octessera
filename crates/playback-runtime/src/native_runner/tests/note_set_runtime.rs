@@ -163,7 +163,7 @@ pub(crate) fn major_triad_mapping_precedes_play_transpose_for_synth_and_midi() {
         };
         let mapped = platform_core::map_intents_to_musical_events(
             std::slice::from_ref(&intent),
-            &runner.mapping_config,
+            runner.active_engine().mapping_config(),
         );
         runner.transpose.enabled[0] = true;
         runner.transpose.selected[0] = true;
@@ -174,7 +174,7 @@ pub(crate) fn major_triad_mapping_precedes_play_transpose_for_synth_and_midi() {
                 emitted_events: Vec::new(),
                 mapped_intents: mapped.intents,
                 event_intents: vec![Some(intent)],
-                model: runner.engine.model().unwrap(),
+                model: runner.active_engine().model().unwrap(),
             })
             .unwrap();
         let audio_notes = musical_note_ons(&messages);

@@ -91,7 +91,7 @@ pub(crate) fn config_envelope_round_trips_without_reinterpreting_state() {
         restored_payload["runtimeConfig"]["masterVolume"],
         payload["runtimeConfig"]["masterVolume"]
     );
-    assert_eq!(restored.behavior.id(), "sequencer");
+    assert_eq!(restored.active_behavior().id(), "sequencer");
     assert_eq!(restored.display.ui.master_volume, 88);
 }
 
@@ -279,7 +279,13 @@ pub(crate) fn rejected_config_does_not_drain_live_held_notes() {
     invalid["runtimeConfig"]["layers"][0]["build"]["behaviorId"] = json!("unsupported-behavior");
 
     assert!(runner.apply_config_payload(invalid).is_err());
-    assert_eq!(runner.engine.drain_held_notes(usize::MAX).len(), 1);
+    assert_eq!(
+        runner
+            .active_engine_mut()
+            .drain_held_notes(usize::MAX)
+            .len(),
+        1
+    );
 }
 
 #[test]

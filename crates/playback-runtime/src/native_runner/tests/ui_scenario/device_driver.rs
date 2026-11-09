@@ -99,7 +99,7 @@ impl DeviceDriver {
     }
 
     pub(super) fn active_grid_tile(&self, x: usize, y: usize) -> bool {
-        self.runner.engine.model().unwrap().tiles[platform_core::grid_index(x, y)]
+        self.runner.active_engine().model().unwrap().tiles[platform_core::grid_index(x, y)]
     }
 
     pub(super) fn clock_pulses(&mut self, pulses: u32) {

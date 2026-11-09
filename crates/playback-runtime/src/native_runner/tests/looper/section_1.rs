@@ -43,7 +43,7 @@ pub(crate) fn looper_overdub_records_release_and_replays_each_loop() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.engine.model().unwrap().tiles[index]);
+    assert!(runner.active_engine().model().unwrap().tiles[index]);
 
     pulse_step(&mut runner);
     runner
@@ -52,12 +52,12 @@ pub(crate) fn looper_overdub_records_release_and_replays_each_loop() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(runner.engine.model().unwrap().tiles[index]);
+    assert!(runner.active_engine().model().unwrap().tiles[index]);
 
     pulse_step(&mut runner);
-    assert!(!runner.engine.model().unwrap().tiles[index]);
+    assert!(!runner.active_engine().model().unwrap().tiles[index]);
     pulse_step(&mut runner);
-    assert!(runner.engine.model().unwrap().tiles[index]);
+    assert!(runner.active_engine().model().unwrap().tiles[index]);
 }
 
 #[test]
@@ -79,7 +79,7 @@ pub(crate) fn looper_clear_loop_action_releases_playback_tiles_and_marks_dirty()
     pulse_step(&mut runner);
     pulse_step(&mut runner);
     let index = platform_core::grid_index(2, 3);
-    assert!(runner.engine.model().unwrap().tiles[index]);
+    assert!(runner.active_engine().model().unwrap().tiles[index]);
 
     runner.config_dirty = false;
     runner.menu.open_labels(&["Build", "L1: looper"]);
@@ -90,11 +90,11 @@ pub(crate) fn looper_clear_loop_action_releases_playback_tiles_and_marks_dirty()
             request_snapshot: None,
         })
         .unwrap();
-    assert!(!runner.engine.model().unwrap().tiles[index]);
+    assert!(!runner.active_engine().model().unwrap().tiles[index]);
     assert_eq!(snapshot_from(&messages)["display"]["toast"], "Loop cleared");
     assert!(runner.config_dirty);
     assert!(has_note_off(&messages));
-    let state = runner.engine.serialized_state().unwrap();
+    let state = runner.active_engine().serialized_state().unwrap();
     assert!(state["steps"]
         .as_array()
         .unwrap()
@@ -137,7 +137,7 @@ pub(crate) fn looper_length_edit_reinitializes_sequence_from_config() {
             request_snapshot: None,
         })
         .unwrap();
-    let before = runner.engine.serialized_state().unwrap();
+    let before = runner.active_engine().serialized_state().unwrap();
     assert_eq!(before["steps"][0].as_array().unwrap().len(), 1);
 
     runner.menu.open_labels(&["Build", "L1: looper"]);
@@ -162,8 +162,8 @@ pub(crate) fn looper_length_edit_reinitializes_sequence_from_config() {
         })
         .unwrap();
 
-    assert_eq!(runner.behavior_config["lengthSteps"], 3);
-    let state = runner.engine.serialized_state().unwrap();
+    assert_eq!(runner.active_layer().behavior_config["lengthSteps"], 3);
+    let state = runner.active_engine().serialized_state().unwrap();
     assert_eq!(state["steps"].as_array().unwrap().len(), 3);
     assert!(state["steps"][0].as_array().unwrap().is_empty());
 }
@@ -179,7 +179,7 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
             request_snapshot: None,
         })
         .unwrap();
-    let state_before = runner.engine.serialized_state().unwrap();
+    let state_before = runner.active_engine().serialized_state().unwrap();
     assert_eq!(state_before["steps"][1].as_array().unwrap().len(), 1);
     assert_eq!(looper_mode_and_step(&runner).1, 1);
     runner.config_dirty = false;
@@ -194,7 +194,7 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
         .unwrap();
 
     let (mode, step_index) = looper_mode_and_step(&runner);
-    assert_eq!(runner.behavior_config["mode"], "play");
+    assert_eq!(runner.active_layer().behavior_config["mode"], "play");
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["layers"][0]["build"]["behaviorConfig"]["mode"],
         "play"
@@ -205,9 +205,9 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     assert_eq!(snapshot_from(&messages)["display"]["toast"], "Looper: Play");
     runner.make_deferred_menu_apply_due_for_test();
     assert_deferred_save(&runner.flush_deferred_menu_apply().unwrap());
-    let state_after = runner.engine.serialized_state().unwrap();
+    let state_after = runner.active_engine().serialized_state().unwrap();
     assert_eq!(state_after["steps"][1].as_array().unwrap().len(), 1);
-    assert!(runner.engine.model().unwrap().tiles[platform_core::grid_index(2, 3)]);
+    assert!(runner.active_engine().model().unwrap().tiles[platform_core::grid_index(2, 3)]);
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -216,7 +216,7 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
         })
         .unwrap();
     assert_eq!(looper_mode_and_step(&runner).0, "overdub");
-    assert_eq!(runner.behavior_config["mode"], "overdub");
+    assert_eq!(runner.active_layer().behavior_config["mode"], "overdub");
     assert_eq!(
         snapshot_from(&messages)["display"]["toast"],
         "Looper: Overdub"

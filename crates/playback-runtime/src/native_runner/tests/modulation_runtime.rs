@@ -332,7 +332,10 @@ pub(crate) fn active_link_modulation_refreshes_mapping_before_next_event() {
     );
 
     assert_eq!(runner.link_layers[0].x_pitch_steps, 16);
-    assert_eq!(runner.mapping_config.column_step_degrees, 16);
+    assert_eq!(
+        runner.active_engine().mapping_config().column_step_degrees,
+        16
+    );
     assert_eq!(runner.active_link_refresh_calls, 1);
 }
 

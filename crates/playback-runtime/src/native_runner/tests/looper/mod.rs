@@ -13,7 +13,7 @@ pub(crate) fn looper_runner() -> NativeRunner {
 }
 
 pub(crate) fn looper_mode_and_step(runner: &NativeRunner) -> (String, usize) {
-    match runner.engine.state() {
+    match runner.active_engine().state() {
         platform_core::NativeBehaviorState::Looper(state) => (state.mode.clone(), state.step_index),
         _ => panic!("expected looper state"),
     }

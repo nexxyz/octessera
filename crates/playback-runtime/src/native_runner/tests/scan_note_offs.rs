@@ -23,9 +23,6 @@ fn scanned_empty_note_off_runtime(
     runner.link_layers[0].scanned_empty_action = TriggerAction::NoteOff;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     runner.sync_engine_runtime_config();
     let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
     let mut host = FakeHost::default();

@@ -369,11 +369,7 @@ const AUTO_SAVE_FLASH_MS: u64 = 650;
 const DEFERRED_MENU_APPLY_MS: u64 = 24;
 
 pub struct NativeRunner {
-    engine: NativeLayerEngine,
-    behavior: NativeBehavior,
-    behavior_config: Value,
-    interpretation_profile: InterpretationProfile,
-    mapping_config: platform_core::MappingConfig,
+    base_interpretation_profile: InterpretationProfile,
     base_mapping_config: platform_core::MappingConfig,
     global_sound: GlobalSoundConfig,
     dsp_config: DspRuntimeConfig,

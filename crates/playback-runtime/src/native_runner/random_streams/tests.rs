@@ -37,7 +37,7 @@ fn play_from_stop(runner: &mut NativeRunner, steps: usize) -> Vec<Vec<bool>> {
                     request_snapshot: None,
                 })
                 .unwrap();
-            runner.engine.model().unwrap().tiles
+            runner.active_engine().model().unwrap().tiles
         })
         .collect()
 }

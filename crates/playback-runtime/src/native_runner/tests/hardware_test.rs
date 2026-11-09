@@ -61,7 +61,7 @@ pub(crate) fn hardware_test_walks_leds_pads_keys_encoders_and_sound_from_the_dev
         led_tiles(&snapshot)[display_index(3, 4)],
         led_rgb(platform_core::palette::GREEN)
     );
-    assert!(!runner.engine.model().unwrap().tiles[4 * GRID_WIDTH + 3]);
+    assert!(!runner.active_engine().model().unwrap().tiles[4 * GRID_WIDTH + 3]);
 
     assert_eq!(
         press_main(&mut runner)["display"]["title"],

@@ -23,9 +23,6 @@ fn start_eighth_note_layer(mut runner: NativeRunner, swing: (u8, u8)) -> NativeR
     layer.scanned_empty_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
-    runner
-        .engine
-        .set_interpretation_profile(runner.interpretation_profile.clone());
     for y in 0..GRID_HEIGHT {
         runner
             .send(HostMessage::DeviceInput {
