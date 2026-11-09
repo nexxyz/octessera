@@ -44,6 +44,7 @@ impl NativeRunner {
             self.auto_save_default && !save_pending && !self.restart_settings.is_editing();
         let backup_eligible = self.rolling_backups
             && self
+                .patch_store
                 .last_backup_save_at
                 .map(|last| now.saturating_duration_since(last) >= Duration::from_secs(300))
                 .unwrap_or(true);
@@ -55,6 +56,6 @@ impl NativeRunner {
     }
 
     pub fn mark_native_backup_issued_at(&mut self, issued_at: Instant) {
-        self.last_backup_save_at = Some(issued_at);
+        self.patch_store.last_backup_save_at = Some(issued_at);
     }
 }

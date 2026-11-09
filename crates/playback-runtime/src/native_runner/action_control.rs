@@ -151,10 +151,11 @@ impl NativeRunner {
                 } else if action_type.starts_with("restart.") {
                     self.execute_restart_action(&action_type)
                 } else if let Some(name) = action_type.strip_prefix("preset.renamePick:") {
-                    self.preset_rename_source = Some(name.into());
-                    self.preset_draft_name = name.into();
+                    self.patch_store.preset_rename_source = Some(name.into());
+                    self.patch_store.preset_draft_name = name.into();
                     Ok(None)
-                } else if action_type == "preset.saveCurrent" && self.current_preset_name.is_none()
+                } else if action_type == "preset.saveCurrent"
+                    && self.patch_store.current_preset_name.is_none()
                 {
                     self.show_toast("No preset loaded");
                     Ok(None)
@@ -261,7 +262,7 @@ impl NativeRunner {
         if !self.pending.external_autosave_deferred {
             return false;
         }
-        if action == "preset.saveCurrent" && self.current_preset_name.is_none() {
+        if action == "preset.saveCurrent" && self.patch_store.current_preset_name.is_none() {
             self.show_toast("No preset loaded");
             return true;
         }
@@ -281,17 +282,18 @@ impl NativeRunner {
                     return true;
                 }
                 let name = if action == "preset.saveCurrent" {
-                    self.current_preset_name
+                    self.patch_store
+                        .current_preset_name
                         .clone()
                         .expect("checked current preset")
                 } else {
-                    crate::clean_preset_name(&self.preset_draft_name)
+                    crate::clean_preset_name(&self.patch_store.preset_draft_name)
                 };
                 NativeManualSaveRequest::Preset {
                     name,
                     mode: (action == "preset.saveCurrent").then(|| "overwrite".into()),
                     rename_from: if action == "preset.renameApply" {
-                        self.preset_rename_source.clone()
+                        self.patch_store.preset_rename_source.clone()
                     } else {
                         None
                     },

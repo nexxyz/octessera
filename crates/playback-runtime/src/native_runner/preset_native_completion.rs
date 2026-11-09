@@ -122,13 +122,13 @@ impl NativeRunner {
         else {
             return;
         };
-        self.preset_names = catalog;
+        self.patch_store.preset_names = catalog;
         if let Some(source) = rename_from {
-            if self.preset_rename_source.as_deref() == Some(source.as_str()) {
-                self.preset_rename_source = None;
+            if self.patch_store.preset_rename_source.as_deref() == Some(source.as_str()) {
+                self.patch_store.preset_rename_source = None;
             }
         }
-        self.current_preset_name = Some(name.clone());
+        self.patch_store.current_preset_name = Some(name.clone());
         if let Some(error) = write.cleanup_error {
             self.show_toast(format!("Saved {name}; cleanup failed: {error}"));
         } else if self.config_revision == write.revision {
@@ -140,9 +140,9 @@ impl NativeRunner {
 
     pub(super) fn show_preset_catalog(&mut self) {
         self.menu.update_preset_catalog(
-            &self.preset_names,
-            &self.preset_draft_name,
-            self.preset_rename_source.as_deref(),
+            &self.patch_store.preset_names,
+            &self.patch_store.preset_draft_name,
+            self.patch_store.preset_rename_source.as_deref(),
         );
     }
 

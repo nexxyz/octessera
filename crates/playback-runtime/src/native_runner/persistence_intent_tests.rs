@@ -196,7 +196,7 @@ fn intent_reports_backup_and_combined_eligibility_without_changing_legacy_rules(
     runner.rolling_backups = true;
     let start = Instant::now();
     let revision = dirty_at(&mut runner, start);
-    runner.last_backup_save_at = Some(start);
+    runner.patch_store.last_backup_save_at = Some(start);
     let backup = runner
         .persistence_intent_at(start + Duration::from_secs(300))
         .unwrap();
@@ -280,7 +280,7 @@ fn restart_and_restore_gates_match_existing_save_eligibility() {
     }));
     assert!(editing.persistence_intent_at(due_at).is_none());
     editing.rolling_backups = true;
-    editing.last_backup_save_at = Some(due_at - Duration::from_secs(300));
+    editing.patch_store.last_backup_save_at = Some(due_at - Duration::from_secs(300));
     let backup_while_editing = editing.persistence_intent_at(due_at).unwrap();
     assert!(!backup_while_editing.default_eligible());
     assert!(backup_while_editing.backup_eligible());
@@ -292,7 +292,7 @@ fn restart_and_restore_gates_match_existing_save_eligibility() {
     pending_write.pending.pending_save_revision = Some(revision);
     assert!(pending_write.persistence_intent_at(due_at).is_none());
     pending_write.rolling_backups = true;
-    pending_write.last_backup_save_at = Some(due_at - Duration::from_secs(300));
+    pending_write.patch_store.last_backup_save_at = Some(due_at - Duration::from_secs(300));
     let backup_while_pending = pending_write.persistence_intent_at(due_at).unwrap();
     assert!(!backup_while_pending.default_eligible());
     assert!(backup_while_pending.backup_eligible());

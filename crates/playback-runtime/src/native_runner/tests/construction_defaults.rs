@@ -78,7 +78,7 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
     else {
         panic!("initial draft name menu value");
     };
-    assert_eq!(value, runner.preset_draft_name);
+    assert_eq!(value, runner.patch_store.preset_draft_name);
 }
 
 #[test]

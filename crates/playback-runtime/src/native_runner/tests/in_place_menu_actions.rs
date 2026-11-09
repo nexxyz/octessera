@@ -80,7 +80,7 @@ fn preset_catalog_results_update_rows_in_place() {
         },
     );
     assert_matches_fresh_build(&runner, rebuilds);
-    runner.preset_names.push("Gamma".into());
+    runner.patch_store.preset_names.push("Gamma".into());
     send_store_result(
         &mut runner,
         RuntimeStoreResult::SavePresetResult {
@@ -88,7 +88,10 @@ fn preset_catalog_results_update_rows_in_place() {
             outcome: "saved".into(),
         },
     );
-    assert_eq!(runner.current_preset_name.as_deref(), Some("Gamma"));
+    assert_eq!(
+        runner.patch_store.current_preset_name.as_deref(),
+        Some("Gamma")
+    );
     assert_matches_fresh_build(&runner, rebuilds);
 }
 

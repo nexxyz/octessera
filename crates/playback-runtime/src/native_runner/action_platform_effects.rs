@@ -64,16 +64,16 @@ impl NativeRunner {
                 }
             }
             "preset.saveAs" => Some(RuntimePlatformEffect::StoreSavePreset {
-                name: clean_preset_name(&self.preset_draft_name),
+                name: clean_preset_name(&self.patch_store.preset_draft_name),
                 payload: portable_patch_payload_for_save(&self.config_payload())?,
                 mode: None,
             }),
             "preset.renameApply" => Some(RuntimePlatformEffect::StoreSavePreset {
-                name: clean_preset_name(&self.preset_draft_name),
+                name: clean_preset_name(&self.patch_store.preset_draft_name),
                 payload: portable_patch_payload_for_save(&self.config_payload())?,
                 mode: None,
             }),
-            "preset.saveCurrent" => match self.current_preset_name.clone() {
+            "preset.saveCurrent" => match self.patch_store.current_preset_name.clone() {
                 Some(name) => Some(RuntimePlatformEffect::StoreSavePreset {
                     name,
                     payload: portable_patch_payload_for_save(&self.config_payload())?,

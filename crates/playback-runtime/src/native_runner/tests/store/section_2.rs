@@ -118,7 +118,7 @@ pub(crate) fn midi_panic_and_synth_preset_actions_show_toasts() {
 #[test]
 pub(crate) fn preset_save_as_uses_text_draft_name() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.preset_draft_name = "Jam A".into();
+    runner.patch_store.preset_draft_name = "Jam A".into();
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("preset.saveAs.save"));
 
@@ -131,7 +131,7 @@ pub(crate) fn preset_save_as_uses_text_draft_name() {
     assert_eq!(snapshot_from(&opened)["display"]["title"], "Confirm Save");
     let messages = confirm_current_dialog(&mut runner);
 
-    assert_eq!(runner.preset_draft_name, "Jam A");
+    assert_eq!(runner.patch_store.preset_draft_name, "Jam A");
     let payload = messages
         .iter()
         .find_map(|message| match message {
@@ -156,14 +156,16 @@ pub(crate) fn preset_save_as_uses_text_draft_name() {
 pub(crate) fn fresh_save_as_preset_name_uses_timestamp_format() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
-    assert!(is_timestamp_preset_name(&runner.preset_draft_name));
+    assert!(is_timestamp_preset_name(
+        &runner.patch_store.preset_draft_name
+    ));
     assert!(is_timestamp_preset_name(&clean_preset_name("   ")));
 }
 
 #[test]
 pub(crate) fn preset_save_as_uses_fresh_timestamp_draft_name() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let draft_name = runner.preset_draft_name.clone();
+    let draft_name = runner.patch_store.preset_draft_name.clone();
     assert!(is_timestamp_preset_name(&draft_name));
     assert!(runner.menu.focus_item_key("preset.saveAs.save"));
 
@@ -202,7 +204,7 @@ pub(crate) fn is_timestamp_preset_name(name: &str) -> bool {
 #[test]
 pub(crate) fn preset_rename_pick_sets_new_name_and_apply_saves() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.preset_names = vec!["Alpha".into()];
+    runner.patch_store.preset_names = vec!["Alpha".into()];
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("preset.renamePick.Alpha"));
 
@@ -213,9 +215,12 @@ pub(crate) fn preset_rename_pick_sets_new_name_and_apply_saves() {
         })
         .unwrap();
 
-    assert_eq!(runner.preset_rename_source.as_deref(), Some("Alpha"));
-    assert_eq!(runner.preset_draft_name, "Alpha");
-    runner.preset_draft_name = "Alpha A".into();
+    assert_eq!(
+        runner.patch_store.preset_rename_source.as_deref(),
+        Some("Alpha")
+    );
+    assert_eq!(runner.patch_store.preset_draft_name, "Alpha");
+    runner.patch_store.preset_draft_name = "Alpha A".into();
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("preset.rename.apply"));
 

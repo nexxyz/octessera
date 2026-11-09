@@ -2,7 +2,8 @@ use super::*;
 use std::time::Duration;
 
 fn make_backup_due(runner: &mut NativeRunner) {
-    runner.last_backup_save_at = runner
+    runner.patch_store.last_backup_save_at = runner
+        .patch_store
         .last_backup_save_at
         .take()
         .and_then(|last| last.checked_sub(Duration::from_secs(300)));
@@ -52,7 +53,7 @@ pub(crate) fn rolling_backups_false_suppresses_backup_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.rolling_backups = false;
     runner.config_dirty = true;
-    runner.last_backup_save_at = None;
+    runner.patch_store.last_backup_save_at = None;
 
     let messages = runner.messages_with_snapshot().unwrap();
 

@@ -210,6 +210,7 @@ mod pan_mapping;
 mod pan_position;
 mod patch_device_payload;
 mod patch_persistence_error;
+mod patch_store;
 mod payload_assign;
 mod persistence_intent;
 mod play_control;
@@ -384,10 +385,7 @@ pub struct NativeRunner {
     emitted_route_tile_owners: Vec<BTreeSet<(u8, u8)>>,
     display: NativeDisplayState,
     midi: midi_settings::NativeMidiSettings,
-    preset_names: Vec<String>,
-    current_preset_name: Option<String>,
-    preset_draft_name: String,
-    preset_rename_source: Option<String>,
+    patch_store: patch_store::NativePatchStore,
     outbox: NativeRunnerOutbox,
     midi_outputs: Vec<MidiPort>,
     midi_inputs: Vec<MidiPort>,
@@ -442,7 +440,6 @@ pub struct NativeRunner {
     config_dirty: bool,
     config_revision: u64,
     dirty_revision: Option<u64>,
-    last_backup_save_at: Option<Instant>,
     audio_revisions: audio_config_revisions::NativeAudioConfigRevisions,
     trigger_probability_rng: u64,
     pending: NativePendingState,

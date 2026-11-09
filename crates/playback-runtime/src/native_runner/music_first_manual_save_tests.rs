@@ -158,12 +158,12 @@ fn preset_save_actions_freeze_cleaned_target_overwrite_mode_and_rename_source() 
     let mut host = FakeHost::default();
     let mut runner = playing_keys_runner(&mut runtime, &mut host);
     let serialization_calls = runner.behavior_state_serialization_calls.get();
-    runner.preset_names = vec!["Source".into(), "Other".into()];
+    runner.patch_store.preset_names = vec!["Source".into(), "Other".into()];
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("preset.renamePick.Source"));
     let _ = press(&mut runner, &mut runtime, &mut host);
 
-    runner.preset_draft_name = "  Morning set  ".into();
+    runner.patch_store.preset_draft_name = "  Morning set  ".into();
     runner.menu.rebuild(runner.menu_config());
     let save_as = confirm_action(&mut runner, &mut runtime, &mut host, "preset.saveAs.save");
     assert!(save_as
@@ -179,7 +179,7 @@ fn preset_save_actions_freeze_cleaned_target_overwrite_mode_and_rename_source() 
         })
     );
 
-    runner.current_preset_name = Some("Alpha".into());
+    runner.patch_store.current_preset_name = Some("Alpha".into());
     runner.menu.rebuild(runner.menu_config());
     let save_current = confirm_action(&mut runner, &mut runtime, &mut host, "preset.saveCurrent");
     assert!(save_current
@@ -196,7 +196,7 @@ fn preset_save_actions_freeze_cleaned_target_overwrite_mode_and_rename_source() 
     );
 
     runner.menu.rebuild(runner.menu_config());
-    runner.preset_draft_name = "  Target  ".into();
+    runner.patch_store.preset_draft_name = "  Target  ".into();
     runner.menu.rebuild(runner.menu_config());
     let rename = confirm_action(&mut runner, &mut runtime, &mut host, "preset.rename.apply");
     assert!(rename

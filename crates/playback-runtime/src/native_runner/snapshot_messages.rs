@@ -132,6 +132,7 @@ impl NativeRunner {
             && self.rolling_backups
             && !autosave_pending
             && self
+                .patch_store
                 .last_backup_save_at
                 .map(|last| last.elapsed() >= std::time::Duration::from_secs(300))
                 .unwrap_or(true);
@@ -174,7 +175,7 @@ impl NativeRunner {
             }
         }
         if backup_due {
-            self.last_backup_save_at = Some(std::time::Instant::now());
+            self.patch_store.last_backup_save_at = Some(std::time::Instant::now());
             effects.push(RuntimePlatformEffect::StoreSaveBackup {
                 payload: payload.expect("backup payload"),
             });

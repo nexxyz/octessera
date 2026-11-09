@@ -137,20 +137,23 @@ impl NativeRunner {
                 "Confirm Save",
                 format!(
                     "Save preset {}?",
-                    clean_preset_name(&self.preset_draft_name)
+                    clean_preset_name(&self.patch_store.preset_draft_name)
                 ),
             )),
             "preset.saveCurrent" => Some((
                 "Confirm Save",
-                format!("Overwrite preset {}?", self.current_preset_name.as_ref()?),
+                format!(
+                    "Overwrite preset {}?",
+                    self.patch_store.current_preset_name.as_ref()?
+                ),
             )),
             "preset.renameApply" => {
-                let from = self.preset_rename_source.as_ref()?;
+                let from = self.patch_store.preset_rename_source.as_ref()?;
                 Some((
                     "Confirm Rename",
                     format!(
                         "Rename {from} to {}?",
-                        clean_preset_name(&self.preset_draft_name)
+                        clean_preset_name(&self.patch_store.preset_draft_name)
                     ),
                 ))
             }

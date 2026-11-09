@@ -53,7 +53,6 @@ impl NativeRunner {
                 index,
             )?);
         }
-        let preset_draft_name = fresh_preset_name();
         let mut runner = Self {
             engine,
             layer_engines,
@@ -80,10 +79,7 @@ impl NativeRunner {
             emitted_route_tile_owners: vec![BTreeSet::new(); LAYER_COUNT],
             display: NativeDisplayState::new(seed.ui, seed.now, seed.hdmi),
             midi: Default::default(),
-            preset_names: seed.preset_names,
-            current_preset_name: None,
-            preset_draft_name,
-            preset_rename_source: None,
+            patch_store: patch_store::NativePatchStore::new(seed.preset_names),
             outbox: NativeRunnerOutbox::default(),
             midi_outputs: seed.midi_outputs,
             midi_inputs: seed.midi_inputs,
@@ -149,7 +145,6 @@ impl NativeRunner {
             config_dirty: false,
             config_revision: 0,
             dirty_revision: None,
-            last_backup_save_at: None,
             audio_revisions: Default::default(),
             trigger_probability_rng: TRIGGER_PROBABILITY_RNG_INITIAL_SEED,
             pending: NativePendingState::default(),

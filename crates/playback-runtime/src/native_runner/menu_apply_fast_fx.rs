@@ -70,8 +70,8 @@ impl NativeRunner {
             let Some(name) = self.menu.value_for_key(key) else {
                 return false;
             };
-            if self.preset_draft_name != name {
-                self.preset_draft_name = name;
+            if self.patch_store.preset_draft_name != name {
+                self.patch_store.preset_draft_name = name;
                 self.mark_config_dirty();
             }
             return true;

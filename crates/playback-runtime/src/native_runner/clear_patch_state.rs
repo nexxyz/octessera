@@ -6,9 +6,9 @@ impl NativeRunner {
         self.stop_for_config_load();
         self.clear_all_modulation_sources();
 
-        self.current_preset_name = None;
-        self.preset_rename_source = None;
-        self.preset_draft_name = fresh_preset_name();
+        self.patch_store.current_preset_name = None;
+        self.patch_store.preset_rename_source = None;
+        self.patch_store.preset_draft_name = fresh_preset_name();
 
         let behavior = platform_core::get_native_behavior("none")
             .ok_or_else(|| "unsupported native behavior `none`".to_string())?;

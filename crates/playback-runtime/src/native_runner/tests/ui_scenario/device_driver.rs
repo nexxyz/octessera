@@ -138,7 +138,7 @@ impl DeviceDriver {
     }
 
     pub(super) fn set_preset_draft_name(&mut self, name: &str) {
-        self.runner.preset_draft_name = name.into();
+        self.runner.patch_store.preset_draft_name = name.into();
         self.runner.menu.rebuild(self.runner.menu_config());
         self.refresh_snapshot();
     }

@@ -69,7 +69,7 @@ pub(crate) fn factory_load_applies_native_factory_without_loading_user_default()
 #[test]
 pub(crate) fn clear_all_confirmation_cancel_is_noop() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.current_preset_name = Some("keeper".into());
+    runner.patch_store.current_preset_name = Some("keeper".into());
     runner
         .execute_menu_action(NativeMenuAction::PlatformEffect("system.clearAll".into()))
         .unwrap();
@@ -85,7 +85,10 @@ pub(crate) fn clear_all_confirmation_cancel_is_noop() {
         })
         .unwrap();
 
-    assert_eq!(runner.current_preset_name.as_deref(), Some("keeper"));
+    assert_eq!(
+        runner.patch_store.current_preset_name.as_deref(),
+        Some("keeper")
+    );
     assert_eq!(runner.layer_behavior_ids[0], "life");
     assert_eq!(runner.audio_revisions.revision, 0);
 }
@@ -93,10 +96,10 @@ pub(crate) fn clear_all_confirmation_cancel_is_noop() {
 #[test]
 pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.current_preset_name = Some("old".into());
-    runner.preset_rename_source = Some("old".into());
-    runner.preset_draft_name = "custom draft".into();
-    runner.preset_names = vec!["old".into()];
+    runner.patch_store.current_preset_name = Some("old".into());
+    runner.patch_store.preset_rename_source = Some("old".into());
+    runner.patch_store.preset_draft_name = "custom draft".into();
+    runner.patch_store.preset_names = vec!["old".into()];
     runner.instruments[0].kind = InstrumentType::Synth;
     runner.fx_buses[0].slot1_type = "delay".into();
     runner.grid_assign = Some(GridAssign::PlayFx(json!({ "type": "delay" })));
@@ -143,10 +146,10 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
         .iter()
         .flatten()
         .all(|mode| *mode == TileProbability::Full));
-    assert_eq!(runner.current_preset_name, None);
-    assert_eq!(runner.preset_rename_source, None);
-    assert_ne!(runner.preset_draft_name, "custom draft");
-    assert_eq!(runner.preset_names, vec!["old"]);
+    assert_eq!(runner.patch_store.current_preset_name, None);
+    assert_eq!(runner.patch_store.preset_rename_source, None);
+    assert_ne!(runner.patch_store.preset_draft_name, "custom draft");
+    assert_eq!(runner.patch_store.preset_names, vec!["old"]);
     assert!(!runner.aux_auto_map_enabled);
     assert!(!runner.display.ui.ghost_tiles);
     assert_eq!(runner.display.ui.master_volume, 77);

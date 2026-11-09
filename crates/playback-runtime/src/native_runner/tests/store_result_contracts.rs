@@ -46,7 +46,10 @@ fn load_preset_without_payload_only_presents_the_named_load() {
 
     assert_eq!(runner.behavior, behavior);
     assert_eq!(runner.transport, transport);
-    assert_eq!(runner.current_preset_name.as_deref(), Some("Empty patch"));
+    assert_eq!(
+        runner.patch_store.current_preset_name.as_deref(),
+        Some("Empty patch")
+    );
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
         "Loaded Empty patch"
@@ -57,7 +60,7 @@ fn load_preset_without_payload_only_presents_the_named_load() {
 #[test]
 fn failed_delete_and_default_operations_are_persistence_no_ops() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.current_preset_name = Some("Current".into());
+    runner.patch_store.current_preset_name = Some("Current".into());
     runner.display.toast = Some(NativeToast {
         message: "before".into(),
         offset: 0,
@@ -81,7 +84,10 @@ fn failed_delete_and_default_operations_are_persistence_no_ops() {
         })
         .unwrap();
 
-    assert_eq!(runner.current_preset_name.as_deref(), Some("Current"));
+    assert_eq!(
+        runner.patch_store.current_preset_name.as_deref(),
+        Some("Current")
+    );
     assert_eq!(runner.display.toast.as_ref().unwrap().message, "before");
     assert!(runner.config_dirty);
     assert_eq!(runner.dirty_revision, Some(revision));
@@ -95,7 +101,7 @@ fn failed_delete_and_default_operations_are_persistence_no_ops() {
 fn rename_save_appends_delete_after_existing_outbox_and_preserves_message_order() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    runner.preset_rename_source = Some("Old".into());
+    runner.patch_store.preset_rename_source = Some("Old".into());
     let existing = RuntimePlatformEffect::StoreSaveRecovery {
         payload: json!({"existing": true}),
     };
@@ -124,7 +130,10 @@ fn rename_save_appends_delete_after_existing_outbox_and_preserves_message_order(
             RuntimePlatformEffect::StoreDeletePreset { name: "Old".into() },
         ]
     );
-    assert_eq!(runner.current_preset_name.as_deref(), Some("New"));
+    assert_eq!(
+        runner.patch_store.current_preset_name.as_deref(),
+        Some("New")
+    );
     assert_eq!(runner.display.toast.as_ref().unwrap().message, "Saved New");
 }
 

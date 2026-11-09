@@ -317,7 +317,7 @@ fn due_music_first_save_follows_notes_without_snapshot_and_reloads_edited_value(
         .unwrap();
     assert!(config < note);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
-    runner.last_backup_save_at = None;
+    runner.patch_store.last_backup_save_at = None;
     let save = runner.flush_due_persistence_music_first().unwrap();
     assert!(!save
         .iter()
@@ -479,7 +479,7 @@ fn shipped_backup_only_defaults_do_not_block_future_backups_with_stale_save_due(
             request_snapshot: None,
         })
         .unwrap();
-    runner.last_backup_save_at = None;
+    runner.patch_store.last_backup_save_at = None;
     let effects = runner.flush_due_persistence_music_first().unwrap();
     assert!(effects.iter().any(|message| matches!(message, RunnerMessage::PlatformEffects { effects }
         if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveBackup { .. })))));

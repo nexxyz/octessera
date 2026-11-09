@@ -169,7 +169,7 @@ impl NativeRunner {
         }
         match result {
             RuntimeStoreResult::ListPresetsResult { names } => {
-                self.preset_names = names;
+                self.patch_store.preset_names = names;
                 self.show_preset_catalog();
             }
             RuntimeStoreResult::LoadDefaultResult {
@@ -187,10 +187,10 @@ impl NativeRunner {
                     self.stop_for_config_load();
                 }
                 self.show_toast(format!("Loaded {name}"));
-                self.current_preset_name = Some(name);
+                self.patch_store.current_preset_name = Some(name);
             }
             RuntimeStoreResult::SavePresetResult { name, .. } => {
-                if let Some(source) = self.preset_rename_source.take() {
+                if let Some(source) = self.patch_store.preset_rename_source.take() {
                     if source != name {
                         self.outbox.push_platform_effect(
                             RuntimePlatformEffect::StoreDeletePreset { name: source },
@@ -198,19 +198,19 @@ impl NativeRunner {
                     }
                 }
                 self.show_toast(format!("Saved {name}"));
-                if !self.preset_names.contains(&name) {
-                    self.preset_names.push(name.clone());
-                    self.preset_names.sort_unstable();
+                if !self.patch_store.preset_names.contains(&name) {
+                    self.patch_store.preset_names.push(name.clone());
+                    self.patch_store.preset_names.sort_unstable();
                 }
-                self.current_preset_name = Some(name);
+                self.patch_store.current_preset_name = Some(name);
                 self.acknowledge_config_save(None);
                 self.show_preset_catalog();
             }
             RuntimeStoreResult::DeletePresetResult { name, ok } if ok => {
-                if self.current_preset_name.as_deref() == Some(name.as_str()) {
-                    self.current_preset_name = None;
+                if self.patch_store.current_preset_name.as_deref() == Some(name.as_str()) {
+                    self.patch_store.current_preset_name = None;
                 }
-                self.preset_names.retain(|entry| *entry != name);
+                self.patch_store.preset_names.retain(|entry| *entry != name);
                 self.show_preset_catalog();
                 self.show_toast(format!("Deleted {name}"));
             }
@@ -395,7 +395,7 @@ impl NativeRunner {
         self.apply_local_patch_payload_preserving_device(payload)?;
         self.stop_for_config_load();
         self.show_toast("Patch loaded");
-        self.current_preset_name = None;
+        self.patch_store.current_preset_name = None;
         Ok(())
     }
 
