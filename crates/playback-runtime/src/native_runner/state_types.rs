@@ -28,6 +28,7 @@ pub(super) struct NativeUiState {
     pub(super) fn_button_pressed: bool,
     pub(super) shift_button_pressed: bool,
     pub(super) combined_button_pressed: bool,
+    pub(super) layer_select_tile: Option<(usize, usize)>,
 }
 
 #[derive(Clone)]
@@ -390,6 +391,7 @@ impl Default for NativeUiState {
             fn_button_pressed: false,
             shift_button_pressed: false,
             combined_button_pressed: false,
+            layer_select_tile: None,
         }
     }
 }

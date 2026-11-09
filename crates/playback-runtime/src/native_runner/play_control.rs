@@ -266,7 +266,6 @@ impl NativeRunner {
             return Ok(());
         }
         self.switch_active_engine(index)?;
-        self.show_toast(self.active_layer_context_toast(index));
         Ok(())
     }
 

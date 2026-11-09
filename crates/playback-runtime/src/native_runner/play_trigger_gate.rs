@@ -1,15 +1,6 @@
 use super::{NativeRunner, TriggerProbabilityMode};
 
 impl NativeRunner {
-    pub(super) fn active_layer_context_toast(&self, index: usize) -> String {
-        let label = self
-            .layer_labels()
-            .get(index)
-            .cloned()
-            .unwrap_or_else(|| format!("L{}", index + 1));
-        format!("Layer: {}", label.replace(": ", " "))
-    }
-
     pub(super) fn apply_trigger_gate_mode_to_all_layers(&mut self, mode: TriggerProbabilityMode) {
         self.trigger_gate_modes.fill(mode);
         for layer in &mut self.link_layers {

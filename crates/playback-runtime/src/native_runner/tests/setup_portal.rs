@@ -179,7 +179,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             continue;
         }
         if phase == RuntimeSetupPortalPhase::TimedOut {
-            assert_eq!(snapshot["display"]["title"], "Octessera");
+            assert_eq!(snapshot["display"]["title"], runner.active_layer_title());
             assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
             continue;
         }
@@ -254,7 +254,10 @@ pub(crate) fn portal_hide_suppresses_current_phase_but_reopens_for_completion() 
             result: identified(RuntimeSetupPortalPhase::Starting, 1),
         })
         .unwrap();
-    assert_eq!(snapshot_from(&hidden)["display"]["title"], "Octessera");
+    assert_eq!(
+        snapshot_from(&hidden)["display"]["title"],
+        runner.active_layer_title()
+    );
 
     let ready = runner
         .send(HostMessage::RuntimeResult {

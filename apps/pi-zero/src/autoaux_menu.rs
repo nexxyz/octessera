@@ -2,6 +2,9 @@ use crate::input::{encoder_press_message, encoder_turn_message, neokey_message};
 use crate::normal_menu::is_normal_menu_snapshot;
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime, RuntimeTransportState};
 
+/// The root menu's breadcrumb names the active layer, so only its rows identify it.
+const ROOT_MENU: &str = "";
+
 pub(super) type DispatchInput<'a> =
     dyn FnMut(&mut PlaybackRuntime, &mut NativeRunner, HostMessage) -> Result<(), String> + 'a;
 
@@ -11,9 +14,9 @@ pub(super) fn navigate_to_cutoff(
     dispatch: &mut DispatchInput<'_>,
     board: &str,
 ) -> Result<(), String> {
-    expect_focus(playback, "Octessera", "Build", board)?;
+    expect_focus(playback, ROOT_MENU, "Build", board)?;
     turn_main(playback, runner, dispatch, 2)?;
-    expect_focus(playback, "Octessera", "Shape", board)?;
+    expect_focus(playback, ROOT_MENU, "Shape", board)?;
     press_main(playback, runner, dispatch)?;
     expect_focus(playback, "Shape", "Instruments", board)?;
     press_main(playback, runner, dispatch)?;
@@ -39,7 +42,7 @@ pub(super) fn enable_study_auto_save(
     dispatch: &mut DispatchInput<'_>,
     board: &str,
 ) -> Result<(), String> {
-    expect_focus(playback, "Octessera", "Build", board)?;
+    expect_focus(playback, ROOT_MENU, "Build", board)?;
     turn_main(playback, runner, dispatch, 5)?;
     press_main(playback, runner, dispatch)?;
     move_to_selected_row(playback, runner, dispatch, "Saves", 24, board)?;
@@ -71,7 +74,7 @@ pub(super) fn enable_study_auto_save(
         }
     }
     turn_main(playback, runner, dispatch, -5)?;
-    expect_focus(playback, "Octessera", "Build", board)?;
+    expect_focus(playback, ROOT_MENU, "Build", board)?;
     Ok(())
 }
 

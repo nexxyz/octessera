@@ -278,6 +278,7 @@ impl NativeRunner {
         } else if self.display.ui.fn_held && x == 0 && !self.display.ui.shift_held {
             self.select_active_layer(display_layer_index_from_y(y))?;
             self.active_play_mode = ActivePlayMode::None;
+            self.display.ui.layer_select_tile = Some((x, y));
         } else if self.display.ui.fn_held
             && x == super::GRID_WIDTH - 1
             && !self.display.ui.shift_held
@@ -316,6 +317,15 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> Result<Vec<RunnerMessage>, String> {
+        if self.display.ui.layer_select_tile == Some((x, y)) {
+            self.display.ui.layer_select_tile = None;
+            if self.pending.presentation_deferred
+                && self.transport.transport == RuntimeTransportState::Playing
+            {
+                return self.messages_without_presentation();
+            }
+            return self.messages_with_snapshot();
+        }
         if matches!(
             self.grid_assign,
             Some(GridAssign::Drum { .. } | GridAssign::MidiDrum { .. })

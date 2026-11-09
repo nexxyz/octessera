@@ -270,7 +270,11 @@ fn menu_display(
         } else {
             OledDisplayLayout::Rows
         },
-        title: menu.path,
+        title: if runner.menu.state.stack.is_empty() {
+            runner.active_layer_title()
+        } else {
+            menu.path
+        },
         lines,
         colors: menu.colors,
         bar_values: menu.bar_values,

@@ -202,7 +202,7 @@ little `▸` pointing at the file you have loaded.
 
 | Where | What it tells you |
 |---|---|
-| Top left | Where you are in the menu, in the area's color, with a line of the same color under it. Long paths lose their parents first (`../`), never the page you're on. |
+| Top left | Where you are in the menu, in the area's color, with a line of the same color under it. Long paths lose their parents first (`../`), never the page you're on. On the main menu it names the layer you're playing, like `L3 raindrops`. |
 | Top right, three bars | How hard the audio engine worked over the last second. One green bar is relaxed, two yellow bars are getting busy, three red bars mean you've reached *CPU Warn* (`System > Audio > Engine`). On the desktop it shows the simulator's own audio load. |
 | Left of the bars | A green tick while a save happens, and a red square when the audio engine missed a deadline (it stays a few seconds, so you can catch it). Only Capacity mode has those deadlines, so Latency never shows the square. |
 | Red `CLIP` before the icons | The output was too loud and got squashed flat at full scale. It stays two seconds after the last clipped bit, and the menu path steps aside for it. Turn down `System > Audio > Master Vol` or the instruments on the Mix page. |

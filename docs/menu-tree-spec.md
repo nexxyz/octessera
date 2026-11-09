@@ -17,7 +17,7 @@ Root (group)
 └── System (group)
 ```
 
-Short breadcrumb forms are `B`, `L`, `S`, `P`, and `SYS`. The root menu's breadcrumb reads `Octessera`.
+Short breadcrumb forms are `B`, `L`, `S`, `P`, and `SYS`. The root menu's breadcrumb names the active layer, for example `L3 raindrops`.
 
 ## Section trees
 

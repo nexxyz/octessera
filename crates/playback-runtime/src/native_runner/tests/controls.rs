@@ -185,7 +185,10 @@ pub(crate) fn system_info_popup_formats_scrolls_and_dismisses_natively() {
         })
         .unwrap();
     assert!(runner.display.system_info_modal.is_none());
-    assert_eq!(snapshot_from(&closed)["display"]["title"], "Octessera");
+    assert_eq!(
+        snapshot_from(&closed)["display"]["title"],
+        runner.active_layer_title()
+    );
 }
 
 #[test]

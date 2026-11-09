@@ -109,6 +109,7 @@ mod instrument_binding_targets;
 mod instrument_fast_bindings;
 mod instruments;
 mod layer_replacement;
+mod layer_select_presentation;
 mod layer_trigger_gate_device_replay;
 mod layer_trigger_gate_release;
 mod life_mapping;
