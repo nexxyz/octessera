@@ -9,14 +9,6 @@ if [ ! -f "$STAGE_FILES/root/usr/local/sbin/octessera-update" ]; then
     echo "Pi image setup requires the staged updater; run the release staging copy first." >&2
     exit 2
 fi
-for wifi_foundation_file in \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-wifi-foundation" \
-    "$STAGE_FILES/root/etc/systemd/system/octessera-wifi-foundation.service"; do
-    if [ ! -f "$wifi_foundation_file" ]; then
-        echo "Pi image setup requires the inactive Wi-Fi foundation artifacts." >&2
-        exit 2
-    fi
-done
 
 wifi_connect_artifact_root="$LEGAL_REPOSITORY_ROOT/target/wifi-connect-patched"
 wifi_connect_legal_root="$LEGAL_REPOSITORY_ROOT/third_party/wifi-connect-4.11.84"
@@ -86,9 +78,6 @@ install -D -o root -g root -m 0644 \
     "$LEGAL_REPOSITORY_ROOT/tools/storage/octessera-sd-card-lib.sh" \
     "$ROOTFS_DIR/usr/local/lib/octessera/octessera-sd-card-lib.sh"
 install -D -o root -g root -m 0755 \
-    "$STAGE_FILES/root/usr/local/sbin/octessera-wifi-foundation" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-wifi-foundation"
-install -D -o root -g root -m 0755 \
     "$STAGE_FILES/root/usr/local/sbin/octessera-setup" \
     "$ROOTFS_DIR/usr/local/sbin/octessera-setup"
 install -D -o root -g root -m 0644 \
@@ -157,9 +146,6 @@ install -D -m 0644 \
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-performance-governor.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-performance-governor.service"
-install -D -o root -g root -m 0644 \
-    "$STAGE_FILES/root/etc/systemd/system/octessera-wifi-foundation.service" \
-    "$ROOTFS_DIR/etc/systemd/system/octessera-wifi-foundation.service"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-sd-card.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-sd-card.service"

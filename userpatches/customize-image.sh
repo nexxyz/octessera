@@ -323,11 +323,6 @@ fi
 
 
 octessera_require_updater_overlay "$overlay_dir"
-for wifi_foundation_file in \
-  usr/local/sbin/octessera-wifi-foundation \
-  etc/systemd/system/octessera-wifi-foundation.service; do
-  [[ -f "$overlay_dir/$wifi_foundation_file" ]] || { echo "Missing inactive Wi-Fi foundation overlay: $wifi_foundation_file" >&2; exit 1; }
-done
 setup_layer_installer="$overlay_dir/usr/local/lib/octessera/setup-image-layer.sh"
 [[ -f "$setup_layer_installer" && ! -L "$setup_layer_installer" ]] || { echo "Missing setup image layer installer." >&2; exit 1; }
 welcome_overlay="$overlay_dir/etc/profile.d/octessera-welcome.sh"
@@ -335,9 +330,7 @@ welcome_overlay="$overlay_dir/etc/profile.d/octessera-welcome.sh"
 install -D -m 0644 -o root -g root "$welcome_overlay" /etc/profile.d/octessera-welcome.sh
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
 install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
-install_overlay_file usr/local/sbin/octessera-wifi-foundation /usr/local/sbin/octessera-wifi-foundation 0755
 octessera_install_orange_runtime_assets "$overlay_dir"
-install_overlay_file etc/systemd/system/octessera-wifi-foundation.service /etc/systemd/system/octessera-wifi-foundation.service 0644
 install_overlay_file etc/systemd/system/bluealsa.service.d/10-octessera-background.conf /etc/systemd/system/bluealsa.service.d/10-octessera-background.conf 0644
 install_overlay_file etc/systemd/system/dbus.service.d/10-octessera-background.conf /etc/systemd/system/dbus.service.d/10-octessera-background.conf 0644
 install_overlay_file etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf /etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf 0644

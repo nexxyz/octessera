@@ -450,10 +450,9 @@ jobs:
         run: timeout 300 python3 -m unittest discover -s tools/device-update -p 'test_*.py'
       - name: Check image shell scripts
         run: |
-          bash -n tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/01-copy-binary/00-run.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh
+          bash -n tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/01-copy-binary/00-run.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/verify-sanitized-image.sh
           bash -n tools/pi/provision/provision.sh userpatches/customize-image.sh tools/armbian-image/validate.sh tools/armbian-image/smoke-built-image.sh
-          shellcheck tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/test-wifi-foundation.sh tools/pi-image/verify-sanitized-image.sh userpatches/overlay/usr/local/sbin/octessera-wifi-foundation
-          bash tools/pi-image/test-wifi-foundation.sh
+          shellcheck tools/pi-image/stage4-octessera/00-install-deps/00-run-chroot.sh tools/pi-image/stage4-octessera/02-setup-service/00-run.sh tools/pi-image/verify-sanitized-image.sh
           shellcheck tools/pi-kernel/*.sh
       - name: Validate Linux sudoers and systemd layout
         run: |
