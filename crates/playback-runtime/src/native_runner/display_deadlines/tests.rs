@@ -212,7 +212,7 @@ fn toast_scroll_boundary_is_seventeen_columns() {
 fn continuous_deadline_uses_attempt_time_for_a_long_row() {
     let start = Instant::now();
     let mut runner = runner_at(start);
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.sample.filter.resonance".into(),
         label: Some("Filter Resonance Amount".into()),
         kind: "number".into(),

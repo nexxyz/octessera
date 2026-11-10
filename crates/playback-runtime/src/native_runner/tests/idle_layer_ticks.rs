@@ -24,27 +24,27 @@ fn mixed_patch_runner() -> NativeRunner {
         }
     }
     assert_eq!((runner.transport.swing_a, runner.transport.swing_b), (4, 3));
-    runner.link_layers[0].activate_timing = LinkEventTiming {
+    runner.layers[0].link.activate_timing = LinkEventTiming {
         delay_steps: 1,
         retrigger_count: 1,
     };
-    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
-    runner.link_layers[0].trigger_probability_high_pct = 70;
-    runner.trigger_probability_maps[0] = [TileProbability::High; GRID_WIDTH * GRID_HEIGHT];
-    runner.link_layers[1].arp.mode = ArpMode::Up;
-    runner.link_layers[3].seeded = true;
-    runner.link_layers[3].scanned_timing = LinkEventTiming {
+    runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
+    runner.layers[0].link.trigger_probability_high_pct = 70;
+    runner.layers[0].trigger_probability_map = [TileProbability::High; GRID_WIDTH * GRID_HEIGHT];
+    runner.layers[1].link.arp.mode = ArpMode::Up;
+    runner.layers[3].link.seeded = true;
+    runner.layers[3].link.scanned_timing = LinkEventTiming {
         delay_steps: 2,
         retrigger_count: 0,
     };
-    let scanning_none = &mut runner.link_layers[6];
+    let scanning_none = &mut runner.layers[6].link;
     scanning_none.scan_mode = ScanMode::Scanning;
     scanning_none.scan_unit = "1/8".into();
     scanning_none.scanned_empty_slot = 1;
     scanning_none.scanned_empty_action = TriggerAction::NoteOn;
     scanning_none.trigger_probability_mode = TriggerProbabilityMode::Custom;
     scanning_none.trigger_probability_low_pct = 50;
-    runner.trigger_probability_maps[6] = [TileProbability::Low; GRID_WIDTH * GRID_HEIGHT];
+    runner.layers[6].trigger_probability_map = [TileProbability::Low; GRID_WIDTH * GRID_HEIGHT];
     runner
 }
 
@@ -52,11 +52,11 @@ fn mixed_patch_runner() -> NativeRunner {
 /// step, yet plays nothing and draws no probability at full chance.
 fn scan_none_layers_silently(runner: &mut NativeRunner) {
     for index in 5..LAYER_COUNT {
-        if runner.link_layers[index].scan_mode == ScanMode::Scanning {
+        if runner.layers[index].link.scan_mode == ScanMode::Scanning {
             continue;
         }
         let step_pulses = runner.layer_step_rate_pulses(index);
-        let layer = &mut runner.link_layers[index];
+        let layer = &mut runner.layers[index].link;
         layer.scan_mode = ScanMode::Scanning;
         layer.scan_unit = "1/8".into();
         layer.scanned_action = TriggerAction::None;
@@ -107,7 +107,7 @@ fn eight_bar_trace(mut runner: NativeRunner) -> String {
         }
         if pulse >= 4 * 96 + 36 && !late_scanner_started {
             late_scanner_started = true;
-            let late_scanner = &mut runner.link_layers[7];
+            let late_scanner = &mut runner.layers[7].link;
             late_scanner.scan_mode = ScanMode::Scanning;
             late_scanner.scan_unit = "1/16".into();
             late_scanner.scan_axis = ScanAxis::Columns;

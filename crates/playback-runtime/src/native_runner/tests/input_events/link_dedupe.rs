@@ -178,11 +178,11 @@ pub(crate) fn second_tick_preserves_note_boundaries_between_event_kinds() {
 pub(crate) fn same_note_from_two_layers_remains_two_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[1].activate_slot = 0;
-    runner.link_layers[1].deactivate_slot = 0;
+    runner.layers[1].link.activate_slot = 0;
+    runner.layers[1].link.deactivate_slot = 0;
     runner.transport.layer_algorithm_step_pulses[0] = 12;
     runner.transport.layer_algorithm_step_pulses[1] = 12;
-    runner.link_layers[1].event_enabled = true;
+    runner.layers[1].link.event_enabled = true;
 
     let messages = pulse(&mut runner, 12);
     let notes = musical_note_ons(&messages);
@@ -305,7 +305,7 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
 
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[0].activate_timing.retrigger_count = 1;
+    runner.layers[0].link.activate_timing.retrigger_count = 1;
     let activate = intent(platform_core::TileTriggerKind::Activate);
     let immediate = runner.apply_link_timing(
         0,
@@ -340,10 +340,12 @@ pub(crate) fn probability_filtering_happens_before_local_dedupe() {
     }
     payload["runtimeConfig"]["layers"][0]["build"]["savedState"]["cells"] = json!(cells);
     runner.apply_config_payload(payload).unwrap();
-    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
-    runner.trigger_probability_maps[0].fill(TileProbability::Full);
-    runner.trigger_probability_maps[0][5 * 8 + 3] = TileProbability::Zero;
-    runner.link_layers[0].x_velocity = NativeValueLane {
+    runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
+    runner.layers[0]
+        .trigger_probability_map
+        .fill(TileProbability::Full);
+    runner.layers[0].trigger_probability_map[5 * 8 + 3] = TileProbability::Zero;
+    runner.layers[0].link.x_velocity = NativeValueLane {
         enabled: true,
         from: 10,
         to: 110,

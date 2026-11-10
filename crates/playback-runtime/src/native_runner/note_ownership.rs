@@ -37,6 +37,9 @@ impl NativeRunner {
         layer_index: usize,
         events: &RoutedMusicalEvents,
     ) {
+        let Some(layer) = self.layers.get_mut(layer_index) else {
+            return;
+        };
         for (audio, lane) in [(true, &events.audio), (false, &events.midi)] {
             for event in lane {
                 match event {
@@ -46,14 +49,10 @@ impl NativeRunner {
                         duration_ms: None,
                         ..
                     } => {
-                        if let Some(owners) = self.emitted_route_note_owners.get_mut(layer_index) {
-                            owners.insert((audio, *channel, *note));
-                        }
+                        layer.emitted_note_owners.insert((audio, *channel, *note));
                     }
                     MusicalEvent::NoteOff { channel, note } => {
-                        self.emitted_route_note_owners
-                            .get_mut(layer_index)
-                            .map(|owners| owners.remove(&(audio, *channel, *note)));
+                        layer.emitted_note_owners.remove(&(audio, *channel, *note));
                     }
                     _ => {}
                 }
@@ -61,12 +60,11 @@ impl NativeRunner {
         }
         for hit in &events.tiles {
             let held = self.is_held_tile(layer_index, hit);
-            if let Some(owners) = self.emitted_route_tile_owners.get_mut(layer_index) {
-                if held {
-                    owners.insert((hit.instrument_slot, hit.tile));
-                } else if hit.velocity == 0 {
-                    owners.remove(&(hit.instrument_slot, hit.tile));
-                }
+            let owners = &mut self.layers[layer_index].emitted_tile_owners;
+            if held {
+                owners.insert((hit.instrument_slot, hit.tile));
+            } else if hit.velocity == 0 {
+                owners.remove(&(hit.instrument_slot, hit.tile));
             }
         }
     }
@@ -92,29 +90,29 @@ impl NativeRunner {
         layer_index: usize,
         events: &RoutedMusicalEvents,
     ) {
+        let Some(layer) = self.layers.get_mut(layer_index) else {
+            return;
+        };
         for (audio, lane) in [(true, &events.audio), (false, &events.midi)] {
             for event in lane {
-                let MusicalEvent::NoteOff { channel, note } = event else {
-                    continue;
-                };
-                if let Some(owners) = self.emitted_route_note_owners.get_mut(layer_index) {
-                    owners.remove(&(audio, *channel, *note));
+                if let MusicalEvent::NoteOff { channel, note } = event {
+                    layer.emitted_note_owners.remove(&(audio, *channel, *note));
                 }
             }
         }
-        if let Some(owners) = self.emitted_route_tile_owners.get_mut(layer_index) {
-            for hit in events.tiles.iter().filter(|hit| hit.velocity == 0) {
-                owners.remove(&(hit.instrument_slot, hit.tile));
-            }
+        for hit in events.tiles.iter().filter(|hit| hit.velocity == 0) {
+            layer
+                .emitted_tile_owners
+                .remove(&(hit.instrument_slot, hit.tile));
         }
     }
 
     pub(super) fn layer_owned_route_note_offs(&self, layer_index: usize) -> RoutedMusicalEvents {
         let mut events = RoutedMusicalEvents::default();
-        let Some(owners) = self.emitted_route_note_owners.get(layer_index) else {
+        let Some(layer) = self.layers.get(layer_index) else {
             return events;
         };
-        for (audio, channel, note) in owners {
+        for (audio, channel, note) in &layer.emitted_note_owners {
             let event = MusicalEvent::NoteOff {
                 channel: *channel,
                 note: *note,
@@ -125,13 +123,12 @@ impl NativeRunner {
                 events.midi.push(event);
             }
         }
-        if let Some(owners) = self.emitted_route_tile_owners.get(layer_index) {
-            events.tiles.extend(
-                owners
-                    .iter()
-                    .map(|&(slot, tile)| tile_release(slot, 0, tile)),
-            );
-        }
+        events.tiles.extend(
+            layer
+                .emitted_tile_owners
+                .iter()
+                .map(|&(slot, tile)| tile_release(slot, 0, tile)),
+        );
         events
     }
 
@@ -148,8 +145,9 @@ impl NativeRunner {
                 };
                 let key = (audio, channel, note);
                 let removed = self
-                    .emitted_route_note_owners
+                    .layers
                     .get_mut(layer_index)
+                    .map(|layer| &mut layer.emitted_note_owners)
                     .is_some_and(|owners| owners.remove(&key));
                 if !removed || self.route_note_owned_by_other_layer(layer_index, key) {
                     continue;
@@ -174,14 +172,13 @@ impl NativeRunner {
         for hit in hits.into_iter().filter(|hit| hit.velocity == 0) {
             let key = (hit.instrument_slot, hit.tile);
             let removed = self
-                .emitted_route_tile_owners
+                .layers
                 .get_mut(layer_index)
+                .map(|layer| &mut layer.emitted_tile_owners)
                 .is_some_and(|owners| owners.remove(&key));
-            let owned_elsewhere = self
-                .emitted_route_tile_owners
-                .iter()
-                .enumerate()
-                .any(|(index, owners)| index != layer_index && owners.contains(&key));
+            let owned_elsewhere = self.layers.iter().enumerate().any(|(index, layer)| {
+                index != layer_index && layer.emitted_tile_owners.contains(&key)
+            });
             if removed && !owned_elsewhere {
                 released.push(hit);
             }
@@ -190,27 +187,23 @@ impl NativeRunner {
     }
 
     pub(super) fn clear_layer_emitted_route_notes(&mut self, layer_index: usize) {
-        if let Some(owners) = self.emitted_route_note_owners.get_mut(layer_index) {
-            owners.clear();
-        }
-        if let Some(owners) = self.emitted_route_tile_owners.get_mut(layer_index) {
-            owners.clear();
+        if let Some(layer) = self.layers.get_mut(layer_index) {
+            layer.emitted_note_owners.clear();
+            layer.emitted_tile_owners.clear();
         }
     }
 
     pub(super) fn clear_all_emitted_route_notes(&mut self) {
-        for owners in &mut self.emitted_route_note_owners {
-            owners.clear();
-        }
-        for owners in &mut self.emitted_route_tile_owners {
-            owners.clear();
+        for layer in &mut self.layers {
+            layer.emitted_note_owners.clear();
+            layer.emitted_tile_owners.clear();
         }
     }
 
     fn route_note_owned_by_other_layer(&self, layer_index: usize, key: (bool, u8, u8)) -> bool {
-        self.emitted_route_note_owners
+        self.layers
             .iter()
             .enumerate()
-            .any(|(index, owners)| index != layer_index && owners.contains(&key))
+            .any(|(index, layer)| index != layer_index && layer.emitted_note_owners.contains(&key))
     }
 }

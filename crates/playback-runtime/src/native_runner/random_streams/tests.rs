@@ -77,7 +77,11 @@ fn seed_settings_round_trip_and_old_patches_stay_unseeded() {
     let old = runner_with(json!({ "runtimeConfig": { "layers": [{}] } }));
     assert_eq!(old.random_seed, DEFAULT_RANDOM_SEED);
     assert!(old.layers.iter().all(|layer| !layer.seeded));
-    assert!(old.link_layers.iter().all(|layer| !layer.seeded));
+    assert!(old
+        .layers
+        .iter()
+        .map(|layer| &layer.link)
+        .all(|layer| !layer.seeded));
 }
 
 #[test]
@@ -109,7 +113,7 @@ fn menu_edits_drive_the_seed_and_both_seeded_switches() {
 
     runner.menu.turn_key("layers.0.link.seeded", 1);
     assert!(runner.apply_menu_key_fast("layers.0.link.seeded"));
-    assert!(runner.link_layers[0].seeded);
+    assert!(runner.layers[0].link.seeded);
 }
 
 #[test]
@@ -151,5 +155,9 @@ fn loading_a_patch_without_seed_fields_does_not_inherit_seeding() {
 
     assert_eq!(runner.random_seed, DEFAULT_RANDOM_SEED);
     assert!(runner.layers.iter().all(|layer| !layer.seeded));
-    assert!(runner.link_layers.iter().all(|layer| !layer.seeded));
+    assert!(runner
+        .layers
+        .iter()
+        .map(|layer| &layer.link)
+        .all(|layer| !layer.seeded));
 }

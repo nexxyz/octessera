@@ -210,7 +210,11 @@ impl NativeRunner {
         if targets.is_empty() {
             return false;
         }
-        let Some(param_mods) = self.param_mods.get(self.active_layer_index) else {
+        let Some(param_mods) = self
+            .layers
+            .get(self.active_layer_index)
+            .map(|layer| &layer.param_mods)
+        else {
             return false;
         };
         let current = match targets[0].0 {
@@ -235,7 +239,11 @@ impl NativeRunner {
             return false;
         }
         let focus_key = self.menu.current_key().map(str::to_owned);
-        let Some(param_mods) = self.param_mods.get_mut(self.active_layer_index) else {
+        let Some(param_mods) = self
+            .layers
+            .get_mut(self.active_layer_index)
+            .map(|layer| &mut layer.param_mods)
+        else {
             return false;
         };
         for (axis, slot) in &targets {

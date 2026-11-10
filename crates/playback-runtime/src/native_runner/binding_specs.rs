@@ -1,18 +1,17 @@
 use super::binding_payload::param_binding_payload;
 use super::*;
 
-pub(super) fn param_mods_payload(param_mods: Option<&NativeParamMods>) -> Value {
-    let empty = NativeParamMods::default();
-    let param_mods = param_mods.unwrap_or(&empty);
+pub(super) fn param_mods_payload(param_mods: &NativeParamMods) -> Value {
     json!({
         "x": [param_binding_payload(param_mods.x.first().and_then(Option::as_ref)), param_binding_payload(param_mods.x.get(1).and_then(Option::as_ref))],
         "y": [param_binding_payload(param_mods.y.first().and_then(Option::as_ref)), param_binding_payload(param_mods.y.get(1).and_then(Option::as_ref))]
     })
 }
 
-pub(super) fn param_mod_configs(param_mods: &[NativeParamMods]) -> Vec<NativeParamModsConfig> {
-    param_mods
+pub(super) fn param_mod_configs(layers: &[NativeLayer]) -> Vec<NativeParamModsConfig> {
+    layers
         .iter()
+        .map(|layer| &layer.param_mods)
         .map(|mods| NativeParamModsConfig {
             x: [
                 mods.x

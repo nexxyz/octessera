@@ -7,11 +7,11 @@ pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_tiles() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = ScanAxis::Rows;
-    runner.link_layers[0].scan_unit = "1/16".into();
-    runner.link_layers[0].scanned_slot = 0;
-    runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
+    runner.layers[0].link.scan_mode = ScanMode::Scanning;
+    runner.layers[0].link.scan_axis = ScanAxis::Rows;
+    runner.layers[0].link.scan_unit = "1/16".into();
+    runner.layers[0].link.scanned_slot = 0;
+    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner.transport.transport = RuntimeTransportState::Playing;
@@ -31,7 +31,10 @@ pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_tiles() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Zero);
+    assert_eq!(
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Zero
+    );
     assert!(runner.active_engine().model().unwrap().tiles[platform_core::grid_index(0, 0)]);
 
     runner
@@ -40,7 +43,10 @@ pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_tiles() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Full);
+    assert_eq!(
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Full
+    );
     assert!(runner.active_engine().model().unwrap().tiles[platform_core::grid_index(0, 0)]);
 }
 
@@ -71,7 +77,10 @@ pub(crate) fn combined_modifier_layer_toggle_restores_triggered_input_events_aft
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Zero);
+    assert_eq!(
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Zero
+    );
 
     let muted = runner
         .send(HostMessage::DeviceInput {
@@ -91,7 +100,10 @@ pub(crate) fn combined_modifier_layer_toggle_restores_triggered_input_events_aft
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Full);
+    assert_eq!(
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Full
+    );
 
     let restored = runner
         .send(HostMessage::DeviceInput {
@@ -120,9 +132,12 @@ pub(crate) fn combined_modifier_left_column_toggles_selected_layer_without_switc
         .unwrap();
 
     assert_eq!(runner.active_layer_index, 0);
-    assert_eq!(runner.trigger_gate_modes[2], TriggerProbabilityMode::Zero);
     assert_eq!(
-        runner.link_layers[2].trigger_probability_mode,
+        runner.layers[2].trigger_gate_mode,
+        TriggerProbabilityMode::Zero
+    );
+    assert_eq!(
+        runner.layers[2].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
     );
 }
@@ -179,9 +194,12 @@ pub(crate) fn hardware_trigger_gate_toggle_preserves_active_layer_state_and_tran
         })
         .unwrap();
 
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Zero);
     assert_eq!(
-        runner.link_layers[0].trigger_probability_mode,
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Zero
+    );
+    assert_eq!(
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
     );
     assert_eq!(

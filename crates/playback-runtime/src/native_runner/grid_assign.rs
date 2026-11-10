@@ -54,8 +54,9 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) -> TileProbability {
-        self.trigger_probability_maps
+        self.layers
             .get(layer_index)
+            .map(|layer| &layer.trigger_probability_map)
             .and_then(|map| map.get(y * GRID_WIDTH + x))
             .copied()
             .unwrap_or(TileProbability::Zero)
@@ -69,7 +70,11 @@ impl NativeRunner {
         y: usize,
         value: TileProbability,
     ) {
-        let Some(map) = self.trigger_probability_maps.get_mut(layer_index) else {
+        let Some(map) = self
+            .layers
+            .get_mut(layer_index)
+            .map(|layer| &mut layer.trigger_probability_map)
+        else {
             return;
         };
         if let Some(tile) = map.get_mut(y * GRID_WIDTH + x) {

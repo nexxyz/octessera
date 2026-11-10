@@ -148,7 +148,7 @@ fn voice_stealing_mode_takes_only_known_modes() {
 #[test]
 fn link_enum_bindings_reject_values_outside_their_sets() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let before = runner.link_layers[0].clone();
+    let before = runner.layers[0].link.clone();
     for (key, value) in [
         ("layers.0.link.scanMode", "scan"),
         ("layers.0.link.scanAxis", "diagonal"),
@@ -159,11 +159,11 @@ fn link_enum_bindings_reject_values_outside_their_sets() {
     ] {
         assert!(!write(&mut runner, key, value), "{key} accepted {value}");
     }
-    assert_eq!(runner.link_layers[0], before);
+    assert_eq!(runner.layers[0].link, before);
 
     for mode in ScanMode::ALL {
         write(&mut runner, "layers.0.link.scanMode", mode.wire_name());
-        assert_eq!(runner.link_layers[0].scan_mode, mode);
+        assert_eq!(runner.layers[0].link.scan_mode, mode);
     }
     for mode in TriggerProbabilityMode::ALL {
         write(
@@ -171,14 +171,14 @@ fn link_enum_bindings_reject_values_outside_their_sets() {
             "layers.0.link.triggerProbabilityMode",
             mode.wire_name(),
         );
-        assert_eq!(runner.link_layers[0].trigger_probability_mode, mode);
+        assert_eq!(runner.layers[0].link.trigger_probability_mode, mode);
     }
 }
 
 #[test]
 fn unversioned_payload_ignores_unknown_link_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let before = runner.link_layers[0].clone();
+    let before = runner.layers[0].link.clone();
     runner
         .apply_config_payload(json!({
             "runtimeConfig": { "layers": [{ "link": {
@@ -194,9 +194,15 @@ fn unversioned_payload_ignores_unknown_link_values() {
             } }] }
         }))
         .unwrap();
-    assert_eq!(runner.link_layers[0], before);
-    assert_eq!(runner.trigger_probability_maps[0][0], TileProbability::Full);
-    assert_eq!(runner.trigger_probability_maps[0][1], TileProbability::Low);
+    assert_eq!(runner.layers[0].link, before);
+    assert_eq!(
+        runner.layers[0].trigger_probability_map[0],
+        TileProbability::Full
+    );
+    assert_eq!(
+        runner.layers[0].trigger_probability_map[1],
+        TileProbability::Low
+    );
 }
 
 #[test]
@@ -211,9 +217,9 @@ fn link_arp_bindings_write_the_arp_and_clear_its_held_notes() {
             note: 60,
             velocity: 96,
         });
-        let changed = runner.link_layers[0].arp.mode != mode;
+        let changed = runner.layers[0].link.arp.mode != mode;
         write(&mut runner, "layers.0.link.arp.mode", mode.wire_name());
-        assert_eq!(runner.link_layers[0].arp.mode, mode);
+        assert_eq!(runner.layers[0].link.arp.mode, mode);
         assert_eq!(
             runner.link_arp.held_notes[0].is_empty(),
             changed,
@@ -223,7 +229,7 @@ fn link_arp_bindings_write_the_arp_and_clear_its_held_notes() {
     }
     for source in ArpSource::ALL {
         write(&mut runner, "layers.0.link.arp.source", source.wire_name());
-        assert_eq!(runner.link_layers[0].arp.source, source);
+        assert_eq!(runner.layers[0].link.arp.source, source);
     }
 
     let mut number = |key: &str, value: i64| {
@@ -233,7 +239,7 @@ fn link_arp_bindings_write_the_arp_and_clear_its_held_notes() {
     number("layers.0.link.arp.noteLengthMs", 5000);
     number("layers.0.link.arp.gatePct", 0);
     number("layers.0.link.arp.octaveSpread", 9);
-    let arp = runner.link_layers[0].arp;
+    let arp = runner.layers[0].link.arp;
     assert_eq!(
         (
             arp.step_interval_steps,

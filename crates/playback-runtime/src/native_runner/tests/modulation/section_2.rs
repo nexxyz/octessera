@@ -4,7 +4,7 @@ use super::*;
 pub(crate) fn voice_stealing_param_mod_is_transient_until_audio_config_replay() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "sound.voiceStealingMode".into(),
         label: Some("Steal".into()),
         kind: "enum".into(),
@@ -52,29 +52,41 @@ pub(crate) fn shift_grid_param_mod_mapping_cycles_slots() {
     };
 
     assert!(runner.apply_param_mod_mapping(0, 0, binding.clone()));
-    assert_eq!(runner.param_mods[0].x[0].as_ref().unwrap().key, binding.key);
-    assert_eq!(runner.param_mods[0].y[0].as_ref().unwrap().key, binding.key);
-    assert!(!runner.param_mods[0].x[0].as_ref().unwrap().invert);
+    assert_eq!(
+        runner.layers[0].param_mods.x[0].as_ref().unwrap().key,
+        binding.key
+    );
+    assert_eq!(
+        runner.layers[0].param_mods.y[0].as_ref().unwrap().key,
+        binding.key
+    );
+    assert!(!runner.layers[0].param_mods.x[0].as_ref().unwrap().invert);
     assert!(runner.config_dirty);
 
     assert!(runner.apply_param_mod_mapping(0, 0, binding.clone()));
-    assert!(runner.param_mods[0].x[0].as_ref().unwrap().invert);
-    assert!(runner.param_mods[0].y[0].as_ref().unwrap().invert);
+    assert!(runner.layers[0].param_mods.x[0].as_ref().unwrap().invert);
+    assert!(runner.layers[0].param_mods.y[0].as_ref().unwrap().invert);
 
     assert!(runner.apply_param_mod_mapping(0, 0, binding.clone()));
-    assert!(runner.param_mods[0].x[0].is_none());
-    assert!(runner.param_mods[0].y[0].is_none());
+    assert!(runner.layers[0].param_mods.x[0].is_none());
+    assert!(runner.layers[0].param_mods.y[0].is_none());
 
     assert!(runner.apply_param_mod_mapping(2, 1, binding.clone()));
-    assert_eq!(runner.param_mods[0].x[1].as_ref().unwrap().key, binding.key);
-    assert!(runner.param_mods[0].y[1].is_none());
+    assert_eq!(
+        runner.layers[0].param_mods.x[1].as_ref().unwrap().key,
+        binding.key
+    );
+    assert!(runner.layers[0].param_mods.y[1].is_none());
 
     assert!(runner.apply_param_mod_mapping(1, 4, binding.clone()));
-    assert_eq!(runner.param_mods[0].y[1].as_ref().unwrap().key, binding.key);
+    assert_eq!(
+        runner.layers[0].param_mods.y[1].as_ref().unwrap().key,
+        binding.key
+    );
 
     assert!(runner.apply_param_mod_mapping(1, 1, binding));
-    assert!(runner.param_mods[0].x[1].as_ref().unwrap().invert);
-    assert!(runner.param_mods[0].y[1].as_ref().unwrap().invert);
+    assert!(runner.layers[0].param_mods.x[1].as_ref().unwrap().invert);
+    assert!(runner.layers[0].param_mods.y[1].as_ref().unwrap().invert);
 }
 
 #[test]
@@ -94,8 +106,8 @@ pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_tiles() {
     };
     let mut inverted = binding.clone();
     inverted.invert = true;
-    runner.param_mods[0].x[0] = Some(binding);
-    runner.param_mods[0].y[1] = Some(inverted);
+    runner.layers[0].param_mods.x[0] = Some(binding);
+    runner.layers[0].param_mods.y[1] = Some(inverted);
 
     runner.menu.turn(2);
     runner.menu.press();

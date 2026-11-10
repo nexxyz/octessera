@@ -12,7 +12,7 @@ pub(crate) fn link_arp_payload_round_trips_and_clamps() {
         }))
         .unwrap();
 
-    let arp = &runner.link_layers[0].arp;
+    let arp = &runner.layers[0].link.arp;
     assert_eq!(arp.mode, ArpMode::Strum);
     assert_eq!(arp.source, ArpSource::Held);
     assert_eq!(arp.step_interval_steps, 16);
@@ -32,7 +32,7 @@ pub(crate) fn link_arp_payload_round_trips_and_clamps() {
             } } }] }
         }))
         .unwrap();
-    let arp = &runner.link_layers[0].arp;
+    let arp = &runner.layers[0].link.arp;
     assert_eq!(arp.step_interval_steps, 1);
     assert_eq!(arp.note_length_ms, 10);
     assert_eq!(arp.gate_pct, 1);
@@ -46,8 +46,8 @@ pub(crate) fn link_arp_menu_apply_paths_round_trip_held_source() {
     runner.menu.turn_key("layers.0.link.arp.mode", 2);
     assert!(runner.apply_menu_key_fast("layers.0.link.arp.source"));
     assert!(runner.apply_menu_key_fast("layers.0.link.arp.mode"));
-    assert_eq!(runner.link_layers[0].arp.source, ArpSource::Held);
-    assert_eq!(runner.link_layers[0].arp.mode, ArpMode::Up);
+    assert_eq!(runner.layers[0].link.arp.source, ArpSource::Held);
+    assert_eq!(runner.layers[0].link.arp.mode, ArpMode::Up);
 
     runner.link_arp.held_notes[0].push(LinkArpHeldNote {
         audio: true,
@@ -60,19 +60,19 @@ pub(crate) fn link_arp_menu_apply_paths_round_trip_held_source() {
     assert!(runner.link_arp.held_notes[0].is_empty());
     runner.menu.turn_key("layers.0.link.arp.mode", 2);
 
-    runner.link_layers[0].arp = NativeLinkArp::default();
+    runner.layers[0].link.arp = NativeLinkArp::default();
     runner
         .apply_menu_key_edit("layers.0.link.arp.mode")
         .unwrap();
-    assert_eq!(runner.link_layers[0].arp.source, ArpSource::Held);
-    assert_eq!(runner.link_layers[0].arp.mode, ArpMode::Up);
+    assert_eq!(runner.layers[0].link.arp.source, ArpSource::Held);
+    assert_eq!(runner.layers[0].link.arp.mode, ArpMode::Up);
 }
 
 #[test]
 pub(crate) fn link_arp_orders_simultaneous_batches_with_finite_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::Up;
-    runner.link_layers[0].arp.step_interval_steps = 1;
+    runner.layers[0].link.arp.mode = ArpMode::Up;
+    runner.layers[0].link.arp.step_interval_steps = 1;
     let intent = platform_core::TileTriggerIntent {
         x: 0,
         y: 0,
@@ -107,9 +107,9 @@ pub(crate) fn link_arp_orders_simultaneous_batches_with_finite_notes() {
 #[test]
 pub(crate) fn link_arp_floors_short_gated_notes_at_ten_ms_on_both_lanes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::Direct;
-    runner.link_layers[0].arp.note_length_ms = 50;
-    runner.link_layers[0].arp.gate_pct = 10;
+    runner.layers[0].link.arp.mode = ArpMode::Direct;
+    runner.layers[0].link.arp.note_length_ms = 50;
+    runner.layers[0].link.arp.gate_pct = 10;
     let intent = platform_core::TileTriggerIntent {
         x: 0,
         y: 0,
@@ -138,7 +138,7 @@ pub(crate) fn link_arp_floors_short_gated_notes_at_ten_ms_on_both_lanes() {
 #[test]
 pub(crate) fn link_arp_passes_non_note_events_through() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::Up;
+    runner.layers[0].link.arp.mode = ArpMode::Up;
     let immediate = runner.apply_link_timing(
         0,
         &[],
@@ -166,8 +166,8 @@ pub(crate) fn link_arp_passes_non_note_events_through() {
 #[test]
 pub(crate) fn link_arp_held_source_merges_non_note_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::Direct;
-    runner.link_layers[0].arp.source = ArpSource::Held;
+    runner.layers[0].link.arp.mode = ArpMode::Direct;
+    runner.layers[0].link.arp.source = ArpSource::Held;
     runner.apply_link_timing(
         0,
         &[],
@@ -205,9 +205,9 @@ pub(crate) fn link_arp_held_source_merges_non_note_events() {
 #[test]
 pub(crate) fn link_arp_octave_spread_expands_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::OctaveSpread;
-    runner.link_layers[0].arp.octave_spread = 1;
-    runner.link_layers[0].arp.step_interval_steps = 1;
+    runner.layers[0].link.arp.mode = ArpMode::OctaveSpread;
+    runner.layers[0].link.arp.octave_spread = 1;
+    runner.layers[0].link.arp.step_interval_steps = 1;
     let immediate = runner.apply_link_timing(
         0,
         &[],
@@ -229,8 +229,8 @@ pub(crate) fn link_arp_octave_spread_expands_notes() {
 #[test]
 pub(crate) fn link_arp_default_none_matches_existing_link_timing() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].activate_timing.delay_steps = 1;
-    runner.link_layers[0].activate_timing.retrigger_count = 1;
+    runner.layers[0].link.activate_timing.delay_steps = 1;
+    runner.layers[0].link.activate_timing.retrigger_count = 1;
     let intent = platform_core::TileTriggerIntent {
         x: 0,
         y: 0,
@@ -254,7 +254,7 @@ pub(crate) fn link_arp_default_none_matches_existing_link_timing() {
 #[test]
 pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_not_collapse() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::Direct;
+    runner.layers[0].link.arp.mode = ArpMode::Direct;
     let routed = RoutedMusicalEvents {
         audio: vec![note_on(67), note_on(60), note_on(64)],
         midi: vec![],
@@ -266,8 +266,8 @@ pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_n
         vec![(0, 67), (0, 60), (0, 64)]
     );
 
-    runner.link_layers[0].arp.mode = ArpMode::Up;
-    runner.link_layers[0].arp.step_interval_steps = 16;
+    runner.layers[0].link.arp.mode = ArpMode::Up;
+    runner.layers[0].link.arp.step_interval_steps = 16;
     let routed = RoutedMusicalEvents {
         audio: (0..20).map(|index| note_on(40 + index)).collect(),
         midi: vec![],
@@ -282,9 +282,9 @@ pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_n
 #[test]
 pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::Up;
-    runner.link_layers[0].arp.source = ArpSource::Held;
-    runner.link_layers[0].arp.step_interval_steps = 1;
+    runner.layers[0].link.arp.mode = ArpMode::Up;
+    runner.layers[0].link.arp.source = ArpSource::Held;
+    runner.layers[0].link.arp.step_interval_steps = 1;
 
     let first = runner.apply_link_timing(
         0,
@@ -326,8 +326,8 @@ pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
 #[test]
 pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::Up;
-    runner.link_layers[0].arp.source = ArpSource::Held;
+    runner.layers[0].link.arp.mode = ArpMode::Up;
+    runner.layers[0].link.arp.source = ArpSource::Held;
 
     let finite = runner.apply_link_timing(
         0,
@@ -360,9 +360,9 @@ pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
 #[test]
 pub(crate) fn link_arp_held_source_retriggers_finite_arp_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::Direct;
-    runner.link_layers[0].arp.source = ArpSource::Held;
-    runner.link_layers[0].activate_timing.retrigger_count = 1;
+    runner.layers[0].link.arp.mode = ArpMode::Direct;
+    runner.layers[0].link.arp.source = ArpSource::Held;
+    runner.layers[0].link.activate_timing.retrigger_count = 1;
     let intent = platform_core::TileTriggerIntent {
         x: 0,
         y: 0,
@@ -394,7 +394,7 @@ pub(crate) fn link_arp_held_source_retriggers_finite_arp_notes() {
 #[test]
 pub(crate) fn link_arp_rotating_and_random_vary() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].arp.mode = ArpMode::Rotating;
+    runner.layers[0].link.arp.mode = ArpMode::Rotating;
     let routed = || RoutedMusicalEvents {
         audio: vec![note_on(60), note_on(64), note_on(67)],
         midi: vec![],
@@ -407,7 +407,7 @@ pub(crate) fn link_arp_rotating_and_random_vary() {
         musical_note_ons_from_events(&second.audio)
     );
 
-    runner.link_layers[0].arp.mode = ArpMode::Random;
+    runner.layers[0].link.arp.mode = ArpMode::Random;
     let first = runner.apply_link_timing(0, &[], routed());
     let second = runner.apply_link_timing(0, &[], routed());
     assert_ne!(
@@ -420,8 +420,8 @@ pub(crate) fn link_arp_rotating_and_random_vary() {
 fn routed_random_arp_draws_from_the_seeded_layer_stream() {
     for seeded in [false, true] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.link_layers[0].arp.mode = ArpMode::Random;
-        runner.link_layers[0].seeded = seeded;
+        runner.layers[0].link.arp.mode = ArpMode::Random;
+        runner.layers[0].link.seeded = seeded;
         let shared_walk = runner.link_arp.random_state;
         let intents: Vec<_> = (0..3)
             .map(|x| {

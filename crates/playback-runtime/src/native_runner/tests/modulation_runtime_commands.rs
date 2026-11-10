@@ -119,7 +119,7 @@ pub(crate) fn config_load_captures_changed_xy_owner_then_clear_restores_loaded_b
 pub(crate) fn structural_instrument_modulation_emits_one_slot_command() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = InstrumentType::Synth;
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.synth.filter.type".into(),
         label: Some("Filter Type".into()),
         kind: "enum".into(),
@@ -164,7 +164,7 @@ pub(crate) fn structural_instrument_modulation_emits_one_slot_command() {
 pub(crate) fn supported_synth_modulation_emits_direct_command_and_midi_emits_none() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = InstrumentType::Synth;
-    runner.param_mods[0].x[0] = Some(fx_binding(
+    runner.layers[0].param_mods.x[0] = Some(fx_binding(
         "instruments.0.synth.filter.cutoffHz",
         0.0,
         255.0,
@@ -193,7 +193,7 @@ pub(crate) fn supported_synth_modulation_emits_direct_command_and_midi_emits_non
         .any(|command| matches!(command, RuntimeAudioCommand::SetInstrumentSlot { .. })));
 
     runner.instruments[0].kind = InstrumentType::Midi;
-    runner.param_mods[0].x[0] = Some(volume_binding());
+    runner.layers[0].param_mods.x[0] = Some(volume_binding());
     runner.apply_runtime_modulation(
         &[platform_core::TileTriggerIntent {
             x: 7,
@@ -219,7 +219,7 @@ pub(crate) fn sampler_to_midi_type_modulation_emits_slot_removal_before_midi_ski
 fn assert_type_modulation_emits_midi_slot_update(previous_kind: &str) {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = InstrumentType::from_wire_name(previous_kind).unwrap();
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.type".into(),
         label: Some("Type".into()),
         kind: "enum".into(),

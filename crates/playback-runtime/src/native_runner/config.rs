@@ -13,7 +13,7 @@ use super::{
     instrument_sample_velocity_low, instrument_sample_velocity_medium, instrument_synth_configs,
     instrument_synth_filter_cutoffs, instrument_synth_filter_resonance,
     instrument_synth_filter_types, instrument_synth_gain_pct, instrument_synth_osc1_waveforms,
-    instrument_synth_osc2_waveforms, instrument_types, instrument_volumes, link_layer_configs,
+    instrument_synth_osc2_waveforms, instrument_types, instrument_volumes, link_layer_config,
     param_binding_spec_from_native, param_mod_configs, velocity_curve_id, NativeLinkLfoConfig,
     NativeRunner, Value,
 };
@@ -39,7 +39,11 @@ impl NativeRunner {
             layer_labels: self.layer_labels(),
             layer_names: self.layers.iter().map(|layer| layer.name.clone()).collect(),
             layer_auto_names: self.layers.iter().map(|layer| layer.auto_name).collect(),
-            link_layers: link_layer_configs(&self.link_layers),
+            link_layers: self
+                .layers
+                .iter()
+                .map(|layer| link_layer_config(&layer.link))
+                .collect(),
             active_layer_index: self.active_layer_index,
             link_lfos: self.link_lfos.clone().map(|lfo| NativeLinkLfoConfig {
                 enabled: lfo.enabled,
@@ -55,7 +59,7 @@ impl NativeRunner {
                 }
             }),
             faders: self.faders.menu_config(),
-            param_mods: param_mod_configs(&self.param_mods),
+            param_mods: param_mod_configs(&self.layers),
             xy_x_binding: self
                 .xy
                 .x_binding

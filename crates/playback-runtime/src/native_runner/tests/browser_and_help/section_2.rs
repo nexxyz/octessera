@@ -116,7 +116,10 @@ pub(crate) fn active_layer_trigger_toggle_suppresses_and_restores_with_toast() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Zero);
+    assert_eq!(
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Zero
+    );
     assert_eq!(snapshot_from(&off)["display"]["toast"], "L1 triggers off");
 
     let on = runner
@@ -125,7 +128,10 @@ pub(crate) fn active_layer_trigger_toggle_suppresses_and_restores_with_toast() {
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Full);
+    assert_eq!(
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Full
+    );
     assert_eq!(snapshot_from(&on)["display"]["toast"], "L1 triggers full");
 }
 

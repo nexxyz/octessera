@@ -138,8 +138,8 @@ fn missing_or_malformed_tile_tune_plays_at_zero_and_out_of_range_clamps_like_the
 #[test]
 fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_midi_or_note_off() {
     let mut runner = drum_runner();
-    runner.link_layers[0].activate_timing.delay_steps = 1;
-    runner.link_layers[0].activate_timing.retrigger_count = 1;
+    runner.layers[0].link.activate_timing.delay_steps = 1;
+    runner.layers[0].link.activate_timing.retrigger_count = 1;
     let routed = runner
         .route_events_with_link_timing(
             0,
@@ -162,11 +162,11 @@ fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_
     assert!(first.audio.is_empty() && first.midi.is_empty());
     assert!(runner.take_due_link_events(0).is_empty());
 
-    runner.link_layers[0].activate_timing.delay_steps = 0;
-    runner.link_layers[0].activate_timing.retrigger_count = 0;
-    runner.link_layers[0].arp.mode = ArpMode::Up;
-    runner.link_layers[0].arp.source = ArpSource::Held;
-    runner.link_layers[0].arp.step_interval_steps = 1;
+    runner.layers[0].link.activate_timing.delay_steps = 0;
+    runner.layers[0].link.activate_timing.retrigger_count = 0;
+    runner.layers[0].link.arp.mode = ArpMode::Up;
+    runner.layers[0].link.arp.source = ArpSource::Held;
+    runner.layers[0].link.arp.step_interval_steps = 1;
     let arp = runner
         .route_events_with_link_timing(
             0,
@@ -270,7 +270,7 @@ fn saved_hold_is_effectively_oneshot_and_probability_zero_blocks_behavior_hits()
         RunnerMessage::MidiEvents { .. } | RunnerMessage::MusicalEvents { .. }
     )));
 
-    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Zero;
+    runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Zero;
     runner.refresh_active_interpretation_profile();
     let blocked = runner
         .send(HostMessage::DeviceInput {

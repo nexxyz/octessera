@@ -164,9 +164,9 @@ pub(crate) fn multi_target_grid_modulation_aggregates_revision_and_deferred_auto
     runner.layer_behavior_rebuilds = 0;
     runner.behavior_state_serialization_calls.set(0);
     runner.pending.pending_autosave_payload_due_at = None;
-    runner.param_mods[0].x[0] = Some(volume_binding());
-    runner.param_mods[0].x[1] = Some(pan_binding());
-    runner.param_mods[0].y[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(volume_binding());
+    runner.layers[0].param_mods.x[1] = Some(pan_binding());
+    runner.layers[0].param_mods.y[0] = Some(NativeParamBinding {
         key: "layers.1.build.behaviorConfig.randomSeedCells".into(),
         label: Some("Seed Tiles".into()),
         kind: "number".into(),
@@ -244,7 +244,7 @@ pub(crate) fn lfo_ranges_only_scale_deltas_and_canonical_clamp_is_order_independ
 #[test]
 pub(crate) fn global_sound_and_note_behavior_modulation_syncs_engine_once() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.noteBehavior".into(),
         label: Some("Note Behavior".into()),
         kind: "enum".into(),
@@ -256,7 +256,7 @@ pub(crate) fn global_sound_and_note_behavior_modulation_syncs_engine_once() {
         options: vec!["oneshot".into(), "hold".into()],
         invert: false,
     });
-    runner.param_mods[0].x[1] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[1] = Some(NativeParamBinding {
         key: "sound.noteLengthMs".into(),
         label: Some("Note Length".into()),
         kind: "number".into(),
@@ -307,7 +307,7 @@ pub(crate) fn unchanged_ppqn_without_lfo_does_not_run_modulation_process() {
 #[test]
 pub(crate) fn active_link_modulation_refreshes_mapping_before_next_event() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "layers.0.link.x.pitch.steps".into(),
         label: Some("X Steps".into()),
         kind: "number".into(),
@@ -331,7 +331,7 @@ pub(crate) fn active_link_modulation_refreshes_mapping_before_next_event() {
         0,
     );
 
-    assert_eq!(runner.link_layers[0].x_pitch_steps, 16);
+    assert_eq!(runner.layers[0].link.x_pitch_steps, 16);
     assert_eq!(
         runner.active_engine().mapping_config().column_step_degrees,
         16

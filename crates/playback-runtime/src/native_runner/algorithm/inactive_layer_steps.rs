@@ -47,8 +47,9 @@ impl NativeRunner {
     fn inactive_layer_is_idle(&self, index: usize, engine: &NativeLayerEngine) -> bool {
         matches!(engine.state(), NativeBehaviorState::None(_))
             && self
-                .link_layers
+                .layers
                 .get(index)
+                .map(|layer| &layer.link)
                 .is_some_and(|layer| layer.scan_mode != ScanMode::Scanning)
     }
 
@@ -87,10 +88,10 @@ impl NativeRunner {
             self.transport.layer_pulse_accumulators[index] -= step_pulses;
             let offset = self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);
             let mut rng = self.probability_rng(index);
-            let sense = self.link_layers.get(index);
-            let probability_map = self.trigger_probability_maps.get(index);
-            let tick = self.layers[index].engine.tick_filtered(bpm, |intent| {
-                trigger_probability_allows(sense, probability_map, &mut rng, intent)
+            let layer = &mut self.layers[index];
+            let (link, probability_map) = (&layer.link, &layer.trigger_probability_map);
+            let tick = layer.engine.tick_filtered(bpm, |intent| {
+                trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
             })?;
             self.store_probability_rng(index, rng);
             self.count_step_and_sound_due_link_events(index, offset, events);

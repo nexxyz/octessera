@@ -2,7 +2,7 @@ use crate::native_menu::format_values::{fx_type_label, instrument_kind_label};
 
 use super::{
     json, InstrumentType, NativeFxBus, NativeInstrumentSlot, NativeLinkLayer, Value, BUS_COUNT,
-    GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT, LAYER_COUNT,
+    GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT,
 };
 
 pub(super) fn derive_instrument_name(_index: usize, kind: InstrumentType) -> String {
@@ -40,14 +40,6 @@ pub(super) fn default_instruments() -> Vec<NativeInstrumentSlot> {
         .collect()
 }
 
-pub(super) fn default_link_layers() -> Vec<NativeLinkLayer> {
-    let mut layers = (0..LAYER_COUNT).map(default_link_layer).collect::<Vec<_>>();
-    for layer in layers.iter_mut().skip(1) {
-        layer.event_enabled = false;
-    }
-    layers
-}
-
 pub(super) fn default_link_layer(index: usize) -> NativeLinkLayer {
     let mut layer = NativeLinkLayer::default();
     let slot = index.min(INSTRUMENT_COUNT.saturating_sub(1));
@@ -56,6 +48,7 @@ pub(super) fn default_link_layer(index: usize) -> NativeLinkLayer {
     layer.activate_slot = slot;
     layer.stable_slot = slot;
     layer.deactivate_slot = slot;
+    layer.event_enabled = index == 0;
     layer
 }
 

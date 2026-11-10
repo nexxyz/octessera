@@ -17,10 +17,10 @@ pub(crate) fn active_life_notes_stay_in_mapping_after_menu_changes_and_navigatio
     let root_change = main_press(&mut runner);
     assert_notes_in_active_mapping(&runner, &root_change);
 
-    runner.link_layers[0].lowest_note = 50;
-    runner.link_layers[0].starting_note = 57;
-    runner.link_layers[0].highest_note = 74;
-    runner.link_layers[0].out_of_range = RangeMode::Clamp;
+    runner.layers[0].link.lowest_note = 50;
+    runner.layers[0].link.starting_note = 57;
+    runner.layers[0].link.highest_note = 74;
+    runner.layers[0].link.out_of_range = RangeMode::Clamp;
     runner.refresh_active_mapping_config();
 
     let tick_messages = pulse(&mut runner);
@@ -44,10 +44,10 @@ pub(crate) fn active_life_notes_stay_in_mapping_after_menu_changes_and_navigatio
 
 fn configured_life_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].state_notes_enabled = true;
-    runner.link_layers[0].event_enabled = true;
-    runner.link_layers[0].scale = "natural_minor".into();
-    runner.link_layers[0].root = "D".into();
+    runner.layers[0].link.state_notes_enabled = true;
+    runner.layers[0].link.event_enabled = true;
+    runner.layers[0].link.scale = "natural_minor".into();
+    runner.layers[0].link.root = "D".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner.transport.transport = RuntimeTransportState::Playing;

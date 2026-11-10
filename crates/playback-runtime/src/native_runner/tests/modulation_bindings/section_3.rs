@@ -75,7 +75,7 @@ pub(crate) fn interactive_exclusive_claim_conflict_is_transactional() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let exclusive = numeric_binding("mixer.buses.0.slot1.params.timeMs", 0.0, 2000.0);
     runner.set_param_binding_target("param:0:x:0", Some(exclusive.clone()));
-    assert!(runner.param_mods[0].x[0].is_some());
+    assert!(runner.layers[0].param_mods.x[0].is_some());
     assert!(runner.menu.focus_item_key("param:0:y:0"));
     let before_payload = runner.config_payload();
     let before_revision = runner.config_revision;
@@ -85,7 +85,7 @@ pub(crate) fn interactive_exclusive_claim_conflict_is_transactional() {
 
     runner.set_param_binding_target("param:0:y:0", Some(exclusive));
 
-    assert!(runner.param_mods[0].y[0].is_none());
+    assert!(runner.layers[0].param_mods.y[0].is_none());
     assert_eq!(runner.config_payload(), before_payload);
     assert_eq!(runner.config_revision, before_revision);
     assert_eq!(runner.dirty_revision, before_dirty);
@@ -157,7 +157,7 @@ pub(crate) fn physical_layer_and_play_xy_assignments_refresh_and_round_trip() {
     }
 
     assert_eq!(
-        runner.param_mods[0].x[0]
+        runner.layers[0].param_mods.x[0]
             .as_ref()
             .map(|binding| binding.key.as_str()),
         Some("instruments.0.mixer.volume")
@@ -175,7 +175,7 @@ pub(crate) fn physical_layer_and_play_xy_assignments_refresh_and_round_trip() {
         .apply_config_payload(runner.config_payload())
         .unwrap();
     assert_eq!(
-        restored.param_mods[0].x[0]
+        restored.layers[0].param_mods.x[0]
             .as_ref()
             .map(|binding| binding.key.as_str()),
         Some("instruments.0.mixer.volume")

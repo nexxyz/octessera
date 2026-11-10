@@ -24,9 +24,7 @@ impl NativeRunner {
         self.transport.swing_a = 4;
         self.transport.swing_b = 4;
         self.voice_stealing_mode = VoiceStealingMode::AutoBalanced;
-        self.link_layers = default_link_layers();
         self.grid_assign = None;
-        self.trigger_probability_maps = vec![FULL_PROBABILITY_MAP; LAYER_COUNT];
         self.instruments = (0..INSTRUMENT_COUNT)
             .map(NativeInstrumentSlot::reset)
             .collect();
@@ -43,7 +41,7 @@ impl NativeRunner {
                     self.note_behaviors.clone(),
                     index,
                 )?;
-                Ok(NativeLayer::new("none", Value::Null, engine))
+                Ok(NativeLayer::new(index, "none", Value::Null, engine))
             })
             .collect::<Result<Vec<_>, String>>()?;
 
@@ -80,14 +78,11 @@ impl NativeRunner {
             x_binding: None,
             y_binding: None,
         };
-        self.param_mods = vec![NativeParamMods::default(); LAYER_COUNT];
         self.midi_cc_mappings = super::midi_cc_in::default_midi_cc_mappings();
         self.midi_cc_learn = None;
         self.faders = Default::default();
         self.aux_bindings.fill(None);
         self.shift_aux_bindings.fill(None);
-        self.trigger_gate_modes = vec![TriggerProbabilityMode::Full; LAYER_COUNT];
-        self.trigger_gate_restore_modes = vec![None; LAYER_COUNT];
         self.play_live = Default::default();
         self.transpose.selected = vec![true; LAYER_COUNT];
         self.transpose.enabled = vec![true; LAYER_COUNT];

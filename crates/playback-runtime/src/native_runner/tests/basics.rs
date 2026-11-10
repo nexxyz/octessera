@@ -40,8 +40,8 @@ pub(crate) fn checked_in_default_restores_sequencer_grid_state() {
         .iter()
         .any(|tile| *tile));
     assert_eq!(runner.instruments[0].kind, InstrumentType::Synth);
-    assert_eq!(runner.link_layers[0].activate_slot, 0);
-    assert_eq!(runner.link_layers[0].activate_action, TriggerAction::NoteOn);
+    assert_eq!(runner.layers[0].link.activate_slot, 0);
+    assert_eq!(runner.layers[0].link.activate_action, TriggerAction::NoteOn);
     assert!(runner.input_events_while_paused);
 }
 
@@ -147,23 +147,24 @@ pub(crate) fn keys_behavior_reports_momentary_grid_interaction() {
 pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
-    assert_eq!(runner.link_layers[0].scan_mode, ScanMode::None);
-    assert_eq!(runner.link_layers[0].scan_axis, ScanAxis::Columns);
-    assert_eq!(runner.link_layers[0].scan_unit, "1/16");
-    assert!(runner.link_layers[0].event_enabled);
-    assert!(!runner.link_layers[1].event_enabled);
-    assert_eq!(runner.link_layers[0].lowest_note, 36);
-    assert_eq!(runner.link_layers[0].starting_note, 60);
-    assert_eq!(runner.link_layers[0].highest_note, 74);
-    assert_eq!(runner.link_layers[0].scale, "major_pentatonic");
-    assert_eq!(runner.link_layers[0].root, "D");
-    assert_eq!(runner.link_layers[0].out_of_range, RangeMode::Clamp);
-    assert_eq!(runner.link_layers[0].x_pitch_steps, 0);
-    assert_eq!(runner.link_layers[0].y_pitch_steps, 1);
+    assert_eq!(runner.layers[0].link.scan_mode, ScanMode::None);
+    assert_eq!(runner.layers[0].link.scan_axis, ScanAxis::Columns);
+    assert_eq!(runner.layers[0].link.scan_unit, "1/16");
+    assert!(runner.layers[0].link.event_enabled);
+    assert!(!runner.layers[1].link.event_enabled);
+    assert_eq!(runner.layers[0].link.lowest_note, 36);
+    assert_eq!(runner.layers[0].link.starting_note, 60);
+    assert_eq!(runner.layers[0].link.highest_note, 74);
+    assert_eq!(runner.layers[0].link.scale, "major_pentatonic");
+    assert_eq!(runner.layers[0].link.root, "D");
+    assert_eq!(runner.layers[0].link.out_of_range, RangeMode::Clamp);
+    assert_eq!(runner.layers[0].link.x_pitch_steps, 0);
+    assert_eq!(runner.layers[0].link.y_pitch_steps, 1);
     assert_eq!(runner.display.ui.master_volume, 73);
     assert_eq!(runner.global_sound.note_length_ms, 120);
     assert!(!runner.auto_save_default);
-    assert!(runner.trigger_probability_maps[0]
+    assert!(runner.layers[0]
+        .trigger_probability_map
         .iter()
         .all(|tile| *tile == TileProbability::Full));
 }
@@ -257,9 +258,9 @@ pub(crate) fn button_s_toggles_transport() {
 #[test]
 pub(crate) fn restart_section_reaches_the_active_scan_profile_on_the_lane_split_axis() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = ScanAxis::Columns;
-    runner.link_layers[0].scan_sections = 2;
+    runner.layers[0].link.scan_mode = ScanMode::Scanning;
+    runner.layers[0].link.scan_axis = ScanAxis::Columns;
+    runner.layers[0].link.scan_sections = 2;
     runner.menu.rebuild(runner.menu_config());
     let key = "layers.0.link.y.pitch.restartEachSection";
     assert!(runner.menu.set_bool_value_for_key(key, true), "{key}");

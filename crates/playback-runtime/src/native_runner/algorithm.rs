@@ -30,16 +30,13 @@ impl NativeRunner {
         let paused = self.transport.transport != RuntimeTransportState::Playing
             && !self.input_events_while_paused;
         let bpm = self.transport.bpm as f32;
-        let sense = self.link_layers.get(layer_index);
-        let probability_map = self.trigger_probability_maps.get(layer_index);
         let mut rng = self.probability_rng(layer_index);
-        let engine = &mut self
+        let layer = self
             .layers
             .get_mut(layer_index)
-            .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?
-            .engine;
+            .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?;
         if paused {
-            let model = engine.on_input(input, bpm)?;
+            let model = layer.engine.on_input(input, bpm)?;
             return Ok(platform_core::NativeInputResult {
                 events: Vec::new(),
                 emitted_events: Vec::new(),
@@ -48,9 +45,12 @@ impl NativeRunner {
                 model,
             });
         }
-        let result = engine.on_input_with_events_filtered(input, bpm, |intent| {
-            trigger_probability_allows(sense, probability_map, &mut rng, intent)
-        })?;
+        let (link, probability_map) = (&layer.link, &layer.trigger_probability_map);
+        let result = layer
+            .engine
+            .on_input_with_events_filtered(input, bpm, |intent| {
+                trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
+            })?;
         self.store_probability_rng(layer_index, rng);
         Ok(result)
     }
@@ -60,12 +60,12 @@ impl NativeRunner {
     ) -> Result<platform_core::NativeTickResult, String> {
         let layer_index = self.active_layer_index;
         let mut rng = self.probability_rng(layer_index);
-        let sense = self.link_layers.get(layer_index);
-        let probability_map = self.trigger_probability_maps.get(layer_index);
-        let result = self.layers[layer_index]
+        let layer = &mut self.layers[layer_index];
+        let (link, probability_map) = (&layer.link, &layer.trigger_probability_map);
+        let result = layer
             .engine
             .tick_filtered(self.transport.bpm as f32, |intent| {
-                trigger_probability_allows(sense, probability_map, &mut rng, intent)
+                trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
             })?;
         self.store_probability_rng(layer_index, rng);
         Ok(result)
@@ -103,8 +103,9 @@ impl NativeRunner {
         for index in 0..self.layers.len() {
             if self.layer_behavior_id(index) == "sequencer"
                 && self
-                    .link_layers
+                    .layers
                     .get(index)
+                    .map(|layer| &layer.link)
                     .is_some_and(|layer| layer.scan_mode == ScanMode::Scanning)
             {
                 let step_pulses = self.step_pulses_for_layer(index);
@@ -120,7 +121,7 @@ impl NativeRunner {
     }
 
     pub(super) fn step_pulses_for_layer(&self, index: usize) -> u32 {
-        if let Some(layer) = self.link_layers.get(index) {
+        if let Some(layer) = self.layers.get(index).map(|layer| &layer.link) {
             if layer.scan_mode == ScanMode::Scanning {
                 return crate::timing_units::note_unit_to_pulses(&layer.scan_unit);
             }

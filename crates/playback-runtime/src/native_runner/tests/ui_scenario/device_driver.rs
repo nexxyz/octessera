@@ -181,7 +181,9 @@ impl DeviceDriver {
     }
 
     pub(super) fn layer_muted(&self, layer_index: usize) -> bool {
-        self.runner.link_layers[layer_index].trigger_probability_mode
+        self.runner.layers[layer_index]
+            .link
+            .trigger_probability_mode
             == TriggerProbabilityMode::Zero
     }
 

@@ -133,8 +133,8 @@ pub(crate) fn disabling_one_layer_leaves_another_layer_held() {
     runner.instruments[1].note_behavior = NoteBehavior::Hold;
     runner.instruments[1].midi_enabled = true;
     runner.instruments[1].midi_channel = 4;
-    runner.link_layers[1].activate_slot = 1;
-    runner.link_layers[1].event_enabled = true;
+    runner.layers[1].link.activate_slot = 1;
+    runner.layers[1].link.event_enabled = true;
     runner.midi.enabled = true;
     runner.sync_engine_runtime_config();
 
@@ -163,8 +163,8 @@ pub(crate) fn disabling_one_layer_leaves_another_layer_held() {
 #[test]
 pub(crate) fn repeated_layer_disable_is_idempotent_and_reenable_restores_gate_only() {
     let mut runner = held_keys_runner();
-    runner.trigger_gate_modes[0] = TriggerProbabilityMode::Custom;
-    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
+    runner.layers[0].trigger_gate_mode = TriggerProbabilityMode::Custom;
+    runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
     runner.transport.tick = 7;
     runner.transport.current_ppqn_pulse = 13;
     let _ = press_note(&mut runner, 2, 3);
@@ -185,9 +185,12 @@ pub(crate) fn repeated_layer_disable_is_idempotent_and_reenable_restores_gate_on
     assert!(routed_events(&repeated_disable, false).is_empty());
 
     let reenabled = disable_layer(&mut runner, 0);
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Custom);
     assert_eq!(
-        runner.link_layers[0].trigger_probability_mode,
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Custom
+    );
+    assert_eq!(
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Custom
     );
     assert!(routed_events(&reenabled, false).is_empty());
@@ -228,9 +231,9 @@ fn configure_shared_route(runner: &mut NativeRunner, route: SharedRoute) {
             }
         }
     }
-    runner.link_layers[1] = runner.link_layers[0].clone();
-    runner.link_layers[1].activate_slot = 0;
-    runner.link_layers[1].event_enabled = true;
+    runner.layers[1].link = runner.layers[0].link.clone();
+    runner.layers[1].link.activate_slot = 0;
+    runner.layers[1].link.event_enabled = true;
     if matches!(route, SharedRoute::Midi) {
         runner.midi.enabled = true;
     }
@@ -282,7 +285,7 @@ pub(crate) fn disabling_layer_releases_only_the_final_same_route_owner() {
 #[test]
 pub(crate) fn disabling_layer_cancels_delayed_note_without_note_off() {
     let mut runner = held_keys_runner();
-    runner.link_layers[0].activate_timing.delay_steps = 1;
+    runner.layers[0].link.activate_timing.delay_steps = 1;
 
     let press = press_note(&mut runner, 2, 3);
     assert!(routed_events(&press, false).is_empty());

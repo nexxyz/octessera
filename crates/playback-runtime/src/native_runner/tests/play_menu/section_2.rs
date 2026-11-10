@@ -96,7 +96,6 @@ pub(crate) fn entering_build_or_link_clears_active_play_overlay_but_keeps_select
 pub(crate) fn trigger_gate_page_edits_only_selected_layer_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::TriggerGate);
-    runner.trigger_gate_modes = vec![TriggerProbabilityMode::Full; GRID_HEIGHT];
 
     let changed = runner
         .send(HostMessage::DeviceInput {
@@ -105,8 +104,14 @@ pub(crate) fn trigger_gate_page_edits_only_selected_layer_row() {
         })
         .unwrap();
 
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Full);
-    assert_eq!(runner.trigger_gate_modes[1], TriggerProbabilityMode::Zero);
+    assert_eq!(
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Full
+    );
+    assert_eq!(
+        runner.layers[1].trigger_gate_mode,
+        TriggerProbabilityMode::Zero
+    );
     let changed_snapshot = snapshot_from(&changed);
     let tiles = led_tiles(&changed_snapshot);
     let row1_zero = tiles[display_index(0, 1)].as_object().unwrap();
@@ -118,7 +123,6 @@ pub(crate) fn trigger_gate_page_edits_only_selected_layer_row() {
 pub(crate) fn trigger_gate_all_layers_button_edits_all_rows() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::TriggerGate);
-    runner.trigger_gate_modes = vec![TriggerProbabilityMode::Full; GRID_HEIGHT];
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -128,16 +132,17 @@ pub(crate) fn trigger_gate_all_layers_button_edits_all_rows() {
         .unwrap();
 
     assert!(runner
-        .trigger_gate_modes
+        .layers
         .iter()
+        .map(|layer| &layer.trigger_gate_mode)
         .all(|mode| *mode == TriggerProbabilityMode::Custom));
 }
 
 #[test]
 pub(crate) fn combined_modifier_left_column_toggles_layer_trigger_mode_to_zero_and_restores_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.trigger_gate_modes[0] = TriggerProbabilityMode::Custom;
-    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
+    runner.layers[0].trigger_gate_mode = TriggerProbabilityMode::Custom;
+    runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -151,9 +156,12 @@ pub(crate) fn combined_modifier_left_column_toggles_layer_trigger_mode_to_zero_a
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Zero);
     assert_eq!(
-        runner.link_layers[0].trigger_probability_mode,
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Zero
+    );
+    assert_eq!(
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
     );
     assert_eq!(
@@ -167,9 +175,12 @@ pub(crate) fn combined_modifier_left_column_toggles_layer_trigger_mode_to_zero_a
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Custom);
     assert_eq!(
-        runner.link_layers[0].trigger_probability_mode,
+        runner.layers[0].trigger_gate_mode,
+        TriggerProbabilityMode::Custom
+    );
+    assert_eq!(
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Custom
     );
 
@@ -185,9 +196,8 @@ pub(crate) fn combined_modifier_left_column_toggles_layer_trigger_mode_to_zero_a
 pub(crate) fn combined_modifier_left_column_toggles_selected_layer_trigger_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_layer_index = 2;
-    runner.trigger_gate_modes = vec![TriggerProbabilityMode::Full; GRID_HEIGHT];
-    runner.trigger_gate_modes[2] = TriggerProbabilityMode::Custom;
-    runner.link_layers[2].trigger_probability_mode = TriggerProbabilityMode::Custom;
+    runner.layers[2].trigger_gate_mode = TriggerProbabilityMode::Custom;
+    runner.layers[2].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
 
     let _ = runner
         .send(HostMessage::DeviceInput {
@@ -202,14 +212,20 @@ pub(crate) fn combined_modifier_left_column_toggles_selected_layer_trigger_mode(
         })
         .unwrap();
 
-    assert_eq!(runner.trigger_gate_modes[0], TriggerProbabilityMode::Full);
-    assert_eq!(runner.trigger_gate_modes[2], TriggerProbabilityMode::Zero);
     assert_eq!(
-        runner.link_layers[0].trigger_probability_mode,
+        runner.layers[0].trigger_gate_mode,
         TriggerProbabilityMode::Full
     );
     assert_eq!(
-        runner.link_layers[2].trigger_probability_mode,
+        runner.layers[2].trigger_gate_mode,
+        TriggerProbabilityMode::Zero
+    );
+    assert_eq!(
+        runner.layers[0].link.trigger_probability_mode,
+        TriggerProbabilityMode::Full
+    );
+    assert_eq!(
+        runner.layers[2].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
     );
 }
@@ -363,8 +379,8 @@ pub(crate) fn fn_leftmost_grid_column_switches_active_layer() {
 pub(crate) fn play_trigger_gate_leds_show_layer_modes_and_all_layers_actions() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::TriggerGate);
-    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Custom;
-    runner.link_layers[1].trigger_probability_mode = TriggerProbabilityMode::Full;
+    runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
+    runner.layers[1].link.trigger_probability_mode = TriggerProbabilityMode::Full;
 
     let snapshot = runner.snapshot().unwrap();
     let tiles = led_tiles(&snapshot);

@@ -74,7 +74,7 @@ fn every_editable_menu_row_is_accepted_by_the_edit_dispatch() {
     let mut seen = std::collections::BTreeSet::new();
     let mut rejected = rejected_edits(
         &|runner| {
-            runner.link_layers[0].scan_mode = ScanMode::Scanning;
+            runner.layers[0].link.scan_mode = ScanMode::Scanning;
         },
         &mut seen,
     );
@@ -158,7 +158,7 @@ fn auto_label_rows_rename_instruments_and_buses_from_the_encoder() {
 #[test]
 fn link_axis_invert_and_recording_max_time_apply_from_the_encoder() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: None,
         kind: "number".into(),
@@ -176,7 +176,7 @@ fn link_axis_invert_and_recording_max_time_apply_from_the_encoder() {
     edit_with_encoder(&mut runner, "layers.0.paramMods.x.0.invert");
     edit_with_encoder(&mut runner, "recording.maxMinutes");
 
-    assert!(runner.param_mods[0].x[0].as_ref().unwrap().invert);
+    assert!(runner.layers[0].param_mods.x[0].as_ref().unwrap().invert);
     assert!(runner.audio_io.recording_max_minutes > max_minutes);
     assert_eq!(
         runner.menu.number_for_key("recording.maxMinutes"),
@@ -198,10 +198,10 @@ fn an_lfo_without_a_target_stays_off_and_its_row_says_so() {
 #[test]
 fn a_link_axis_invert_without_a_target_stays_off_and_its_row_says_so() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.param_mods[0].x[0] = None;
+    runner.layers[0].param_mods.x[0] = None;
     runner.menu.rebuild(runner.menu_config());
     edit_with_encoder(&mut runner, "layers.0.paramMods.x.0.invert");
-    assert!(runner.param_mods[0].x[0].is_none());
+    assert!(runner.layers[0].param_mods.x[0].is_none());
     assert_eq!(
         runner
             .menu

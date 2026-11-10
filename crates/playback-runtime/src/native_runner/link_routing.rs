@@ -49,7 +49,7 @@ impl NativeRunner {
         intents: &[TileTriggerIntent],
         routed: RoutedMusicalEvents,
     ) -> RoutedMusicalEvents {
-        let sense = self.link_layers.get(layer_index).cloned();
+        let sense = self.layers.get(layer_index).map(|layer| layer.link.clone());
         let struck = super::midi_drum::midi_drum_channels(&self.instruments);
         self.apply_link_timing_with_sense(layer_index, intents, routed, sense.as_ref(), struck)
     }
@@ -138,23 +138,24 @@ impl NativeRunner {
         });
     }
 
-    /// Routes with the runner's instrument slots and Link layers lent out for the call instead
-    /// of cloned per tick or press; routing never reads `self.instruments` or `self.link_layers`.
+    /// Routes with the runner's instrument slots and layers lent out for the call instead of
+    /// cloning the instruments and Link per tick or press; routing never reads `self.instruments`
+    /// or `self.layers`.
     pub(super) fn route_events_with_link_timing(
         &mut self,
         layer_index: usize,
         input: LinkRoutingInput<'_>,
     ) -> Result<RoutedMusicalEvents, String> {
         let instruments = std::mem::take(&mut self.instruments);
-        let link_layers = std::mem::take(&mut self.link_layers);
+        let layers = std::mem::take(&mut self.layers);
         let routed = self.route_with_instruments(
             layer_index,
             input,
             &instruments,
-            link_layers.get(layer_index),
+            layers.get(layer_index).map(|layer| &layer.link),
         );
         self.instruments = instruments;
-        self.link_layers = link_layers;
+        self.layers = layers;
         let mut routed = routed?;
         self.drop_muted_midi_note_ons(&mut routed);
         Ok(routed)

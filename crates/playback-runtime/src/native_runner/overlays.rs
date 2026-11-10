@@ -90,7 +90,11 @@ impl NativeRunner {
         leds: &mut [LedColor],
     ) {
         self.fill_leds(leds, LedColor::BLACK);
-        let Some(map) = self.trigger_probability_maps.get(layer_index) else {
+        let Some(map) = self
+            .layers
+            .get(layer_index)
+            .map(|layer| &layer.trigger_probability_map)
+        else {
             return;
         };
         for y in 0..GRID_HEIGHT {
@@ -123,7 +127,11 @@ impl NativeRunner {
                 self.active_layer_index
             );
         }
-        let Some(param_mods) = self.param_mods.get(self.active_layer_index) else {
+        let Some(param_mods) = self
+            .layers
+            .get(self.active_layer_index)
+            .map(|layer| &layer.param_mods)
+        else {
             return;
         };
         let lane = LedColor::SYSTEM.dim(8);
@@ -181,7 +189,11 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_scan_progress_overlay(&self, leds: &mut [LedColor]) {
-        let Some(sense) = self.link_layers.get(self.active_layer_index) else {
+        let Some(sense) = self
+            .layers
+            .get(self.active_layer_index)
+            .map(|layer| &layer.link)
+        else {
             return;
         };
         if sense.scan_mode != ScanMode::Scanning {

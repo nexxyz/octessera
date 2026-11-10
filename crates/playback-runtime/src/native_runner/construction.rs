@@ -41,6 +41,7 @@ impl NativeRunner {
                 index,
             )?;
             layers.push(NativeLayer::new(
+                index,
                 behavior.id(),
                 config.behavior_config.clone(),
                 engine,
@@ -61,8 +62,6 @@ impl NativeRunner {
             ),
             delayed_link_events: vec![Vec::new(); LAYER_COUNT],
             link_arp: Default::default(),
-            emitted_route_note_owners: vec![BTreeSet::new(); LAYER_COUNT],
-            emitted_route_tile_owners: vec![BTreeSet::new(); LAYER_COUNT],
             display: NativeDisplayState::new(seed.ui, seed.now, seed.hdmi),
             midi: Default::default(),
             patch_store: patch_store::NativePatchStore::new(seed.preset_names),
@@ -94,12 +93,8 @@ impl NativeRunner {
             },
             aux_auto_map_enabled: seed.aux_auto_map_enabled,
             aux_priority: seed.aux_priority,
-            param_mods: seed.param_mods,
-            trigger_gate_modes: vec![TriggerProbabilityMode::Full; LAYER_COUNT],
-            trigger_gate_restore_modes: vec![None; LAYER_COUNT],
             play_live: Default::default(),
             transpose: Default::default(),
-            trigger_probability_maps: vec![FULL_PROBABILITY_MAP; LAYER_COUNT],
             layers,
             random_seed: super::random_streams::DEFAULT_RANDOM_SEED,
             seeded_link_streams: super::random_streams::SeededLinkStreams::new(
@@ -110,7 +105,6 @@ impl NativeRunner {
             midi_cc_learn: None,
             faders: Default::default(),
             modulation_process: ModulationProcessState::default(),
-            link_layers: seed.link_layers,
             aux_bindings: seed.aux_bindings,
             shift_aux_bindings: seed.shift_aux_bindings,
             active_layer_index: seed.active_layer_index,

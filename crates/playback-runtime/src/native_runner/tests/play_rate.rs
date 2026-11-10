@@ -159,7 +159,7 @@ fn shift_press_sets_the_saved_scan_unit_and_leaves_step_rate() {
 
     shift_press(&mut runner, 5, 2);
     assert_eq!(toast(&runner), "L3 scan 1/4T");
-    assert_eq!(runner.link_layers[2].scan_unit, "1/4T");
+    assert_eq!(runner.layers[2].link.scan_unit, "1/4T");
     assert_eq!(runner.step_pulses_for_layer(2), 16);
     assert_eq!(
         runner
@@ -182,8 +182,8 @@ fn shift_press_on_a_layer_that_is_not_scanning_changes_nothing() {
 
     shift_press(&mut runner, 5, 2);
     assert_eq!(toast(&runner), "L3: not scanning");
-    assert_eq!(runner.link_layers[2].scan_mode, ScanMode::None);
-    assert_eq!(runner.link_layers[2].scan_unit, "1/16");
+    assert_eq!(runner.layers[2].link.scan_mode, ScanMode::None);
+    assert_eq!(runner.layers[2].link.scan_unit, "1/16");
     assert_eq!(runner.transport.layer_algorithm_step_pulses[2], step_rate);
     assert!(!runner.play_live.rate_resyncs[2]);
 }
@@ -224,7 +224,7 @@ fn pressing_the_lit_step_rate_tile_resyncs_the_layer_to_the_next_bar() {
 
 fn scanning_rows_runner() -> NativeRunner {
     let mut runner = rate_runner();
-    let link = &mut runner.link_layers[0];
+    let link = &mut runner.layers[0].link;
     link.scan_mode = ScanMode::Scanning;
     link.scan_axis = ScanAxis::Rows;
     link.scan_unit = "1/8T".into();
@@ -254,7 +254,7 @@ fn pressing_the_lit_tile_in_either_view_restarts_the_scan_on_the_next_bar() {
         let _ = press(&mut runner, lit, 0);
         shift(&mut runner, false);
         assert_eq!(toast(&runner), "L1 resync", "scan view {scan_view}");
-        assert_eq!(runner.link_layers[0].scan_unit, "1/8T");
+        assert_eq!(runner.layers[0].link.scan_unit, "1/8T");
         assert_eq!(runner.transport.algorithm_step_pulses, 12);
 
         let _ = pulse(&mut runner, 5);

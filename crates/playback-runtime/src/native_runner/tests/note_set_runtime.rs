@@ -8,9 +8,9 @@ pub(crate) fn note_set_config_and_modulation_accept_new_ids_and_reject_unknown_i
     let mut payload = runner.config_payload();
     payload["runtimeConfig"]["layers"][0]["link"]["pitch"]["scale"] = json!("major_ninth");
     runner.apply_config_payload(payload).unwrap();
-    assert_eq!(runner.link_layers[0].scale, "major_ninth");
+    assert_eq!(runner.layers[0].link.scale, "major_ninth");
 
-    let mut layer = runner.link_layers[0].clone();
+    let mut layer = runner.layers[0].link.clone();
     assert!(
         !crate::native_runner::modulation_link::apply_link_binding_value(
             &mut layer,
@@ -34,7 +34,7 @@ pub(crate) fn every_note_set_id_round_trips_through_a_fresh_runner() {
         payload["runtimeConfig"]["layers"][0]["link"]["pitch"]["scale"] = json!(note_set_id);
         let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         restored.apply_config_payload(payload).unwrap();
-        assert_eq!(restored.link_layers[0].scale, note_set_id);
+        assert_eq!(restored.layers[0].link.scale, note_set_id);
     }
 }
 
@@ -117,7 +117,7 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
         })
         .unwrap();
 
-    assert_eq!(runner.link_layers[0].scale, "dominant_seventh");
+    assert_eq!(runner.layers[0].link.scale, "dominant_seventh");
     assert_eq!(
         runner
             .modulation_process
@@ -142,7 +142,7 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
 pub(crate) fn major_triad_mapping_precedes_play_transpose_for_synth_and_midi() {
     for midi in [false, true] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        let layer = &mut runner.link_layers[0];
+        let layer = &mut runner.layers[0].link;
         layer.lowest_note = 60;
         layer.highest_note = 67;
         layer.starting_note = 60;

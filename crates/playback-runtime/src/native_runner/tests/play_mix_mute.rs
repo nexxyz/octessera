@@ -299,8 +299,8 @@ fn midi_runner() -> NativeRunner {
     instrument.midi_enabled = true;
     instrument.midi_channel = 3;
     runner.instruments[0] = instrument;
-    runner.link_layers[0].activate_slot = 0;
-    runner.link_layers[0].event_enabled = true;
+    runner.layers[0].link.activate_slot = 0;
+    runner.layers[0].link.event_enabled = true;
     runner.midi.enabled = true;
     runner.sync_engine_runtime_config();
     runner

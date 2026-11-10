@@ -304,12 +304,12 @@ fn mute_disabled_output_and_a_closed_trigger_gate_block_midi_drum_notes() {
     assert_eq!(rig.take_notes().len(), 1, "trigger gate open");
 
     let mode = std::mem::replace(
-        &mut rig.runner.link_layers[0].trigger_probability_mode,
+        &mut rig.runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero,
     );
     rig.press(2, 3);
     assert!(rig.take_notes().is_empty(), "zero probability");
-    rig.runner.link_layers[0].trigger_probability_mode = mode;
+    rig.runner.layers[0].link.trigger_probability_mode = mode;
 
     rig.turn("instruments.0.midiDrum.enabled", -1);
     rig.press(2, 3);
@@ -322,7 +322,7 @@ fn an_octave_spread_arp_never_re_pitches_or_re_lengthens_a_midi_drum_note() {
     rig.assign(2, -10);
     rig.press(2, 3);
     rig.back();
-    let arp = &mut rig.runner.link_layers[0].arp;
+    let arp = &mut rig.runner.layers[0].link.arp;
     arp.mode = ArpMode::OctaveSpread;
     arp.octave_spread = 2;
     arp.note_length_ms = 400;

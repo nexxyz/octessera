@@ -33,8 +33,9 @@ fn gate_runner() -> NativeRunner {
 
 fn modes(runner: &NativeRunner) -> Vec<&str> {
     runner
-        .link_layers
+        .layers
         .iter()
+        .map(|layer| &layer.link)
         .map(|layer| layer.trigger_probability_mode.wire_name())
         .collect()
 }
@@ -46,8 +47,9 @@ fn bottom_row_right_tiles_set_every_layer() {
         press(&mut runner, x, 0);
         assert_eq!(modes(&runner), vec![mode; GRID_HEIGHT], "tile ({x}, 0)");
         assert!(runner
-            .trigger_gate_modes
+            .layers
             .iter()
+            .map(|layer| &layer.trigger_gate_mode)
             .all(|value| value.wire_name() == mode));
     }
 }

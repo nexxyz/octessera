@@ -44,8 +44,8 @@ fn configure_route(runner: &mut NativeRunner, layer: usize, route: Route) {
         }
     }
     runner.instruments[layer] = instrument;
-    runner.link_layers[layer].activate_slot = layer;
-    runner.link_layers[layer].event_enabled = true;
+    runner.layers[layer].link.activate_slot = layer;
+    runner.layers[layer].link.event_enabled = true;
 }
 
 fn select_layer(runner: &mut NativeRunner, layer: usize) {
@@ -171,7 +171,7 @@ pub(crate) fn physical_layer_gate_replay_cancels_delayed_target_without_note_off
         (Route::Midi, Route::Synth),
     ] {
         let mut runner = runner_with_routes(target, other);
-        runner.link_layers[0].activate_timing.delay_steps = 1;
+        runner.layers[0].link.activate_timing.delay_steps = 1;
         let target_midi = matches!(target, Route::Midi);
         let other_midi = matches!(other, Route::Midi);
 

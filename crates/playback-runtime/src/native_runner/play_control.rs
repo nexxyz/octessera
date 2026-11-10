@@ -272,35 +272,22 @@ impl NativeRunner {
 
     pub(super) fn toggle_layer_trigger_gate(&mut self, index: usize) {
         let index = index.min(GRID_HEIGHT.saturating_sub(1));
-        let current = self
-            .link_layers
-            .get(index)
-            .map(|layer| layer.trigger_probability_mode)
-            .or_else(|| self.trigger_gate_modes.get(index).copied())
-            .unwrap_or(TriggerProbabilityMode::Full);
+        let Some(layer) = self.layers.get_mut(index) else {
+            return;
+        };
+        let current = layer.link.trigger_probability_mode;
         if current == TriggerProbabilityMode::Zero {
-            let restore = self
-                .trigger_gate_restore_modes
-                .get(index)
-                .copied()
-                .flatten()
+            let restore = layer
+                .trigger_gate_restore_mode
+                .take()
                 .unwrap_or(TriggerProbabilityMode::Full);
-            if let Some(mode) = self.trigger_gate_modes.get_mut(index) {
-                *mode = restore;
-            }
-            if let Some(layer) = self.link_layers.get_mut(index) {
-                layer.trigger_probability_mode = restore;
-            }
-            if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
-                *slot = None;
-            }
+            layer.trigger_gate_mode = restore;
+            layer.link.trigger_probability_mode = restore;
             self.show_toast(format!("L{} triggers {}", index + 1, restore.wire_name()));
         } else {
             self.drain_layer_owned_notes(index);
             self.apply_trigger_gate_mode_to_layer(index, TriggerProbabilityMode::Zero);
-            if let Some(slot) = self.trigger_gate_restore_modes.get_mut(index) {
-                *slot = Some(current);
-            }
+            self.layers[index].trigger_gate_restore_mode = Some(current);
             self.show_toast(format!("L{} triggers off", index + 1));
         }
         self.mark_config_dirty();

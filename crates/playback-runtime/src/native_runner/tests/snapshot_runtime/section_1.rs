@@ -181,7 +181,7 @@ pub(crate) fn selected_short_menu_row_stays_stable_while_highlighted() {
 #[test]
 pub(crate) fn selected_group_row_scrolls_full_link_target_label() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.sample.filter.resonance".into(),
         label: Some("Filter Resonance Amount".into()),
         kind: "number".into(),
@@ -341,10 +341,10 @@ pub(crate) fn scanning_sequencer_pattern_emits_different_rows_over_scan_steps() 
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 24;
-    runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = ScanAxis::Rows;
-    runner.link_layers[0].scan_unit = "1/4".into();
-    runner.link_layers[0].scanned_slot = 1;
+    runner.layers[0].link.scan_mode = ScanMode::Scanning;
+    runner.layers[0].link.scan_axis = ScanAxis::Rows;
+    runner.layers[0].link.scan_unit = "1/4".into();
+    runner.layers[0].link.scanned_slot = 1;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

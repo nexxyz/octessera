@@ -87,7 +87,7 @@ pub(crate) fn host_device_input_navigates_and_selects_every_note_set() {
             .filter_map(Value::as_str)
             .any(|line| line.starts_with(" !")));
         let snapshot = send_main(&mut runner, "encoder_press", None);
-        assert_eq!(runner.link_layers[0].scale, note_set.id);
+        assert_eq!(runner.layers[0].link.scale, note_set.id);
         assert_eq!(runner.menu.current_key(), Some(NOTE_SET_KEY));
         assert!(runner
             .menu
@@ -172,7 +172,7 @@ pub(crate) fn selecting_the_current_note_set_does_not_dirty_config() {
     runner
         .execute_menu_action(NativeMenuAction::SelectNoteSet {
             layer_index: 0,
-            note_set_id: runner.link_layers[0].scale.clone(),
+            note_set_id: runner.layers[0].link.scale.clone(),
         })
         .unwrap();
     assert_eq!(runner.config_revision, before);

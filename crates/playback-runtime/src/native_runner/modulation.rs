@@ -36,7 +36,11 @@ impl NativeRunner {
                 )
             })
             .or_else(|| intents.last());
-        if let Some(param_mods) = self.param_mods.get(layer_index).cloned() {
+        if let Some(param_mods) = self
+            .layers
+            .get(layer_index)
+            .map(|layer| layer.param_mods.clone())
+        {
             for (axis, bindings, size, coordinate) in [
                 (
                     ModulationAxis::X,
@@ -198,8 +202,9 @@ impl NativeRunner {
 
     fn apply_link_param_binding(&mut self, index: usize, field: &str, value: Value) -> bool {
         let changed = self
-            .link_layers
+            .layers
             .get_mut(index)
+            .map(|layer| &mut layer.link)
             .is_some_and(|layer| apply_link_binding_value(layer, field, value));
         if changed && field.starts_with("arp.") {
             self.clear_link_arp_state_for_layer(index);

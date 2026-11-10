@@ -80,10 +80,14 @@ fn apply_layer_link_payload(runner: &mut NativeRunner, index: usize, layer: &Val
     let Some(link) = layer.get("link") else {
         return;
     };
-    if let Some(link_layer) = runner.link_layers.get_mut(index) {
+    if let Some(link_layer) = runner.layers.get_mut(index).map(|layer| &mut layer.link) {
         apply_link_payload(link_layer, link);
     }
-    if let Some(target) = runner.trigger_probability_maps.get_mut(index) {
+    if let Some(target) = runner
+        .layers
+        .get_mut(index)
+        .map(|layer| &mut layer.trigger_probability_map)
+    {
         if let Some(map) = link.get("triggerProbabilityMap").and_then(Value::as_array) {
             apply_trigger_probability_map_payload(target, map);
         }
@@ -136,7 +140,11 @@ fn apply_layer_build_payload(
 
 fn apply_layer_param_mods_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {
     if let Some(param_mods) = layer.get("paramMods") {
-        if let Some(target) = runner.param_mods.get_mut(index) {
+        if let Some(target) = runner
+            .layers
+            .get_mut(index)
+            .map(|layer| &mut layer.param_mods)
+        {
             *target = param_mods_from_payload(param_mods);
         }
     }

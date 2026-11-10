@@ -177,7 +177,7 @@ pub(crate) fn play_xy_reset_center_overlay_returns_to_center() {
 pub(crate) fn param_mod_binding_updates_native_runtime_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].volume = 50;
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
         kind: "number".into(),

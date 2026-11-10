@@ -155,7 +155,7 @@ impl NativeRunner {
         let Some(channel) = self.midi_output_channel(index) else {
             return;
         };
-        for layer_index in 0..self.emitted_route_note_owners.len() {
+        for layer_index in 0..self.layers.len() {
             let mut held = self.layer_owned_route_note_offs(layer_index);
             held.audio.clear();
             held.tiles.clear();

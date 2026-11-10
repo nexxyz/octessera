@@ -75,7 +75,7 @@ struct NativeLayerConfigSnapshot {
     auto_name: bool,
     link: NativeLinkLayer,
     trigger_probability_map: TileProbabilityMap,
-    param_mods: Option<NativeParamMods>,
+    param_mods: NativeParamMods,
     saved_state: Option<(NativeBehavior, NativeBehaviorState)>,
 }
 
@@ -242,13 +242,9 @@ impl NativeConfigSnapshot {
                     layer.name.clone()
                 },
                 auto_name: layer.auto_name,
-                link: runner.link_layers.get(index).cloned().unwrap_or_default(),
-                trigger_probability_map: runner
-                    .trigger_probability_maps
-                    .get(index)
-                    .copied()
-                    .unwrap_or(FULL_PROBABILITY_MAP),
-                param_mods: runner.param_mods.get(index).cloned(),
+                link: layer.link.clone(),
+                trigger_probability_map: layer.trigger_probability_map,
+                param_mods: layer.param_mods.clone(),
                 saved_state: (layer.behavior_id != "none")
                     .then(|| layer.engine.capture_persistence_state()),
             })
@@ -362,7 +358,7 @@ impl NativeLayerConfigSnapshot {
         json!({
             "build": Value::Object(build),
             "link": link_layer_payload(&self.link, &self.trigger_probability_map),
-            "paramMods": param_mods_payload(self.param_mods.as_ref()),
+            "paramMods": param_mods_payload(&self.param_mods),
             "autoName": self.auto_name,
             "name": self.name
         })

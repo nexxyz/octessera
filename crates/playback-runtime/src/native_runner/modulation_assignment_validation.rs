@@ -84,7 +84,12 @@ fn current_bindings(
         }
     }
     let mut bindings = Vec::new();
-    for (layer_index, param_mods) in runner.param_mods.iter().enumerate() {
+    for (layer_index, param_mods) in runner
+        .layers
+        .iter()
+        .map(|layer| &layer.param_mods)
+        .enumerate()
+    {
         for (axis, values) in [
             (ModulationAxis::X, &param_mods.x),
             (ModulationAxis::Y, &param_mods.y),

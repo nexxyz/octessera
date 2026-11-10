@@ -198,8 +198,8 @@ pub(crate) fn snapshot_owns_inactive_grid_layer_link_audio_and_sample_config() {
         .on_input(DeviceInput::GridPress { x: 2, y: 3 }, 120.0)
         .unwrap();
     runner.layers[1].behavior_id = "sequencer".into();
-    runner.link_layers[1].lowest_note = 37;
-    runner.trigger_probability_maps[1][0] = TileProbability::Low;
+    runner.layers[1].link.lowest_note = 37;
+    runner.layers[1].trigger_probability_map[0] = TileProbability::Low;
     runner.instruments[0].sample_paths[0] = Some("samples/captured.wav".into());
     runner.instruments[0].synth_config["opaqueExtension"] = json!({ "preserve": true });
     runner.fx_buses[0].volume_pct = 63;
@@ -213,7 +213,7 @@ pub(crate) fn snapshot_owns_inactive_grid_layer_link_audio_and_sample_config() {
 
     let snapshot = runner.capture_config_snapshot();
 
-    runner.link_layers[1].lowest_note = 48;
+    runner.layers[1].link.lowest_note = 48;
     runner.instruments[0].sample_paths[0] = Some("samples/later.wav".into());
     runner.fx_buses[0].volume_pct = 12;
     let payload = snapshot.into_payload();

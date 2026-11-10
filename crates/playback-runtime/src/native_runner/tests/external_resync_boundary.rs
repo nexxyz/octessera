@@ -11,7 +11,7 @@ fn scanning_runner(scan_unit: &str, scanned_slot: usize) -> NativeRunner {
 }
 
 fn configure_active_scan(runner: &mut NativeRunner, scan_unit: &str, scanned_slot: usize) {
-    let layer = &mut runner.link_layers[runner.active_layer_index];
+    let layer = &mut runner.layers[runner.active_layer_index].link;
     layer.scan_mode = ScanMode::Scanning;
     layer.scan_axis = ScanAxis::Rows;
     layer.scan_unit = scan_unit.into();
@@ -158,8 +158,8 @@ fn active_and_inactive_sequencer_ticks_follow_their_own_trigger_probability_maps
             } else {
                 TileProbability::Full
             };
-            runner.link_layers[layer].trigger_probability_mode = TriggerProbabilityMode::Custom;
-            runner.trigger_probability_maps[layer].fill(state);
+            runner.layers[layer].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
+            runner.layers[layer].trigger_probability_map.fill(state);
         }
         runner.prime_sequencer_layer_origins();
         let events = runner.advance_due_layer_ticks().unwrap();
@@ -251,15 +251,19 @@ fn active_and_inactive_sequencers_emit_origin_ticks_with_route_ownership_after_c
         platform_core::MusicalEvent::NoteOff { channel, note }
             if channel == midi_channel && note == midi_note
     ));
-    assert!(runner.emitted_route_note_owners[0].contains(&(true, audio_channel, audio_note)));
-    assert!(runner.emitted_route_note_owners[1].contains(&(false, midi_channel, midi_note)));
+    assert!(runner.layers[0]
+        .emitted_note_owners
+        .contains(&(true, audio_channel, audio_note)));
+    assert!(runner.layers[1]
+        .emitted_note_owners
+        .contains(&(false, midi_channel, midi_note)));
 }
 
 #[test]
 fn muted_sequencer_consumes_origin_tick_without_events() {
     let mut runner = scanning_runner("1/16", 0);
     add_tile(&mut runner, 0, 0);
-    runner.link_layers[0].trigger_probability_mode = TriggerProbabilityMode::Zero;
+    runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Zero;
     arm_boundary(&mut runner, 95);
     runner.prime_sequencer_layer_origins();
 
@@ -277,8 +281,8 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
     let mut runner = scanning_runner("1/16", 0);
     runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.sync_engine_runtime_config();
-    runner.link_layers[0].scanned_timing.delay_steps = 2;
-    runner.link_layers[0].arp.mode = ArpMode::Direct;
+    runner.layers[0].link.scanned_timing.delay_steps = 2;
+    runner.layers[0].link.arp.mode = ArpMode::Direct;
     runner.delayed_link_events[0].push(DelayedRoutedEvents {
         remaining_steps: 1,
         events: RoutedMusicalEvents {

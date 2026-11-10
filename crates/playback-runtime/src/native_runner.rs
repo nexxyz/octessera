@@ -17,8 +17,8 @@ use crate::runtime::RuntimeConfig;
 use crate::timing_units::{note_unit_from_pulses, note_unit_to_pulses};
 use defaults::{
     default_fx_buses, default_global_fx_params, default_global_fx_slots, default_instruments,
-    default_link_layers, derive_bus_name, derive_bus_name_from_slots, derive_instrument_name,
-    fx_default_params, fx_slot_payload_with_params,
+    derive_bus_name, derive_bus_name_from_slots, derive_instrument_name, fx_default_params,
+    fx_slot_payload_with_params,
 };
 use grid_assign::GridAssign;
 use modulation_keys::{parse_instrument_binding_key, parse_layer_behavior_config_binding_key};
@@ -39,7 +39,7 @@ use realtime_engine::synth::{DspRuntimeConfig, MixerRoute, VoiceStealingMode};
 use serde_json::{json, Value};
 #[cfg(any(test, feature = "test-support"))]
 use std::cell::Cell;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 mod action_bindings;
@@ -346,7 +346,7 @@ use state_types::*;
 use synth_config::*;
 use system_info::*;
 pub(crate) use trigger_probability::TriggerProbabilityMode;
-use trigger_probability::{TileProbability, TileProbabilityMap, FULL_PROBABILITY_MAP};
+use trigger_probability::{TileProbability, TileProbabilityMap};
 use trigger_probability_payload::*;
 use user_data_restore_state::*;
 use velocity_curve::*;
@@ -378,8 +378,6 @@ pub struct NativeRunner {
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
     link_arp: link_arp::LinkArpState,
-    emitted_route_note_owners: Vec<BTreeSet<(bool, u8, u8)>>,
-    emitted_route_tile_owners: Vec<BTreeSet<(u8, u8)>>,
     display: NativeDisplayState,
     midi: midi_settings::NativeMidiSettings,
     patch_store: patch_store::NativePatchStore,
@@ -402,12 +400,8 @@ pub struct NativeRunner {
     xy: NativeXyState,
     aux_auto_map_enabled: bool,
     aux_priority: String,
-    param_mods: Vec<NativeParamMods>,
-    trigger_gate_modes: Vec<TriggerProbabilityMode>,
-    trigger_gate_restore_modes: Vec<Option<TriggerProbabilityMode>>,
     play_live: play_pages::PlayLiveState,
     transpose: play_transpose::PlayTranspose,
-    trigger_probability_maps: Vec<TileProbabilityMap>,
     layers: Vec<NativeLayer>,
     random_seed: u16,
     seeded_link_streams: random_streams::SeededLinkStreams,
@@ -416,7 +410,6 @@ pub struct NativeRunner {
     midi_cc_learn: Option<midi_cc_in::MidiCcLearn>,
     faders: play_pages::faders::NativeFaders,
     modulation_process: ModulationProcessState,
-    link_layers: Vec<NativeLinkLayer>,
     aux_bindings: Vec<Option<NativeAuxBinding>>,
     shift_aux_bindings: Vec<Option<NativeAuxBinding>>,
     active_layer_index: usize,

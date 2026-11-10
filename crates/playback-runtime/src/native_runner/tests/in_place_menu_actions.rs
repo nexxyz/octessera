@@ -124,7 +124,7 @@ fn mapping_target_changes_update_their_dependent_rows_in_place() {
     enter_edit(&mut runner, "layers.0.paramMods.x.0.invert");
     turn(&mut runner, 1);
     press(&mut runner);
-    assert!(runner.param_mods[0].x[0].as_ref().unwrap().invert);
+    assert!(runner.layers[0].param_mods.x[0].as_ref().unwrap().invert);
     press_key(&mut runner, "param:0:x:0.instruments.0.mixer.panPos");
     assert_matches_fresh_build(&runner, rebuilds);
 }
@@ -145,11 +145,14 @@ fn grid_param_mod_mapping_updates_the_slot_pickers_in_place() {
             &mut runner,
             json!({ "type": "grid_release", "x": 0, "y": 0 }),
         );
-        assert_eq!(runner.param_mods[0].x[0].as_ref().unwrap().invert, invert);
+        assert_eq!(
+            runner.layers[0].param_mods.x[0].as_ref().unwrap().invert,
+            invert
+        );
         assert_matches_fresh_build(&runner, rebuilds);
     }
     device_input(&mut runner, json!({ "type": "grid_press", "x": 0, "y": 0 }));
-    assert!(runner.param_mods[0].x[0].is_none());
+    assert!(runner.layers[0].param_mods.x[0].is_none());
     assert_matches_fresh_build(&runner, rebuilds);
     assert_eq!(
         runner.menu.current_key(),

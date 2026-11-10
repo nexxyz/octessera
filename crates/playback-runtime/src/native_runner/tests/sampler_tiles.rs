@@ -105,7 +105,7 @@ fn held_tiles_sharing_a_link_note_release_their_own_tile() {
 #[test]
 fn an_earlier_tile_release_cancels_its_delayed_held_tile_on() {
     let mut runner = sampler_runner("hold");
-    runner.link_layers[0].activate_timing.delay_steps = 2;
+    runner.layers[0].link.activate_timing.delay_steps = 2;
     assert!(route(
         &mut runner,
         vec![held_on()],
@@ -125,7 +125,7 @@ fn an_earlier_tile_release_cancels_its_delayed_held_tile_on() {
 #[test]
 fn held_tiles_do_not_retrigger_and_arp_suppresses_tile_releases() {
     let mut runner = sampler_runner("hold");
-    runner.link_layers[0].activate_timing.retrigger_count = 2;
+    runner.layers[0].link.activate_timing.retrigger_count = 2;
     route(
         &mut runner,
         vec![held_on()],
@@ -133,8 +133,8 @@ fn held_tiles_do_not_retrigger_and_arp_suppresses_tile_releases() {
     );
     assert!(runner.take_due_link_events(0).is_empty());
 
-    runner.link_layers[0].arp.mode = ArpMode::Up;
-    runner.link_layers[0].arp.source = ArpSource::Simultaneous;
+    runner.layers[0].link.arp.mode = ArpMode::Up;
+    runner.layers[0].link.arp.source = ArpSource::Simultaneous;
     let released = route(
         &mut runner,
         vec![off()],

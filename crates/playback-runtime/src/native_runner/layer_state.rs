@@ -5,14 +5,20 @@ impl NativeRunner {
         &self,
         layer_index: usize,
     ) -> platform_core::MappingConfig {
-        self.mapping_config_for_sense(layer_index, self.link_layers.get(layer_index))
+        self.mapping_config_for_sense(
+            layer_index,
+            self.layers.get(layer_index).map(|layer| &layer.link),
+        )
     }
 
     pub(super) fn interpretation_profile_for_layer(
         &self,
         layer_index: usize,
     ) -> InterpretationProfile {
-        self.interpretation_profile_for_sense(layer_index, self.link_layers.get(layer_index))
+        self.interpretation_profile_for_sense(
+            layer_index,
+            self.layers.get(layer_index).map(|layer| &layer.link),
+        )
     }
 
     pub(super) fn mapping_config_for_sense(
@@ -191,7 +197,11 @@ impl NativeRunner {
         let Some(to_behavior) = platform_core::get_native_behavior(to_behavior_id) else {
             return;
         };
-        if let Some(param_mods) = self.param_mods.get_mut(layer_index) {
+        if let Some(param_mods) = self
+            .layers
+            .get_mut(layer_index)
+            .map(|layer| &mut layer.param_mods)
+        {
             for binding in param_mods.x.iter_mut().chain(param_mods.y.iter_mut()) {
                 if let Some(current) = binding.clone() {
                     if let Some(next) =

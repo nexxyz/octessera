@@ -116,7 +116,7 @@ impl NativeRunner {
             return;
         }
         let instruments = self.instruments.clone();
-        let sense = self.link_layers.get(layer_index).cloned();
+        let sense = self.layers.get(layer_index).map(|layer| layer.link.clone());
         let transpose_offset = self
             .transpose
             .offsets

@@ -116,16 +116,20 @@ impl NativeRunner {
     }
 
     fn layer_is_scanning(&self, layer: usize) -> bool {
-        self.link_layers
+        self.layers
             .get(layer)
+            .map(|layer| &layer.link)
             .is_some_and(|link| link.scan_mode == super::super::ScanMode::Scanning)
     }
 
     fn play_rate_current_unit(&self, layer: usize, scan_view: bool) -> &'static str {
         let pulses = if scan_view {
-            self.link_layers.get(layer).map_or(0, |link| {
-                crate::timing_units::note_unit_to_pulses(&link.scan_unit)
-            })
+            self.layers
+                .get(layer)
+                .map(|layer| &layer.link)
+                .map_or(0, |link| {
+                    crate::timing_units::note_unit_to_pulses(&link.scan_unit)
+                })
         } else {
             self.layer_step_rate_pulses(layer)
         };

@@ -112,7 +112,7 @@ pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
         })
         .unwrap();
 
-    assert_eq!(runner.link_layers[0].x_pitch_steps, 16);
+    assert_eq!(runner.layers[0].link.x_pitch_steps, 16);
     assert_eq!(runner.fx_buses[0].slot1_params["feedback"], json!(0.98));
 
     runner.set_param_binding_target(
@@ -380,7 +380,7 @@ pub(crate) fn range_rows_edit_xy_and_param_mod_bindings_only() {
         options: vec![],
         invert: false,
     });
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.mixer.panPos".into(),
         label: Some("Pan Pos".into()),
         kind: "number".into(),
@@ -399,14 +399,17 @@ pub(crate) fn range_rows_edit_xy_and_param_mod_bindings_only() {
     runner.menu.turn(25);
     runner.apply_current_menu_edit().unwrap();
     assert_eq!(runner.xy.x_binding.as_ref().unwrap().user_min, Some(25.0));
-    assert_eq!(runner.param_mods[0].x[0].as_ref().unwrap().user_min, None);
+    assert_eq!(
+        runner.layers[0].param_mods.x[0].as_ref().unwrap().user_min,
+        None
+    );
 
     assert!(runner.menu.focus_item_key("param:0:x:0.rangeMax"));
     runner.menu.state.editing = true;
     runner.menu.turn(-8);
     runner.apply_current_menu_edit().unwrap();
     assert_eq!(
-        runner.param_mods[0].x[0].as_ref().unwrap().user_max,
+        runner.layers[0].param_mods.x[0].as_ref().unwrap().user_max,
         Some(24.0)
     );
     assert_eq!(runner.xy.x_binding.as_ref().unwrap().user_max, None);

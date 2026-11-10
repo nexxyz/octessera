@@ -6,13 +6,13 @@ fn scanning_runner(scan_sections: u8, scan_unit: &str) -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = ScanAxis::Rows;
-    runner.link_layers[0].scan_unit = scan_unit.into();
-    runner.link_layers[0].scan_sections = scan_sections;
-    runner.link_layers[0].scanned_slot = 0;
-    runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
-    runner.link_layers[0].scanned_empty_action = TriggerAction::None;
+    runner.layers[0].link.scan_mode = ScanMode::Scanning;
+    runner.layers[0].link.scan_axis = ScanAxis::Rows;
+    runner.layers[0].link.scan_unit = scan_unit.into();
+    runner.layers[0].link.scan_sections = scan_sections;
+    runner.layers[0].link.scanned_slot = 0;
+    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
+    runner.layers[0].link.scanned_empty_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -84,13 +84,13 @@ fn active_and_inactive_sequencer_replacements_keep_canonical_phase() {
     let mut runner = scanning_runner(1, "1/16");
     runner.select_layer_behavior(1, "sequencer").unwrap();
     runner.select_active_layer(1).unwrap();
-    runner.link_layers[1].scan_mode = ScanMode::Scanning;
-    runner.link_layers[1].scan_axis = ScanAxis::Rows;
-    runner.link_layers[1].scan_unit = "1/8".into();
-    runner.link_layers[1].event_enabled = false;
-    runner.link_layers[1].scanned_slot = 0;
-    runner.link_layers[1].scanned_action = TriggerAction::NoteOn;
-    runner.link_layers[1].scanned_empty_action = TriggerAction::None;
+    runner.layers[1].link.scan_mode = ScanMode::Scanning;
+    runner.layers[1].link.scan_axis = ScanAxis::Rows;
+    runner.layers[1].link.scan_unit = "1/8".into();
+    runner.layers[1].link.event_enabled = false;
+    runner.layers[1].link.scanned_slot = 0;
+    runner.layers[1].link.scanned_action = TriggerAction::NoteOn;
+    runner.layers[1].link.scanned_empty_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     add_tile(&mut runner, 0, 7);
@@ -128,9 +128,9 @@ fn origin_prime_uses_each_scanning_layer_rate() {
     let mut runner = scanning_runner(1, "1/16");
     runner.select_layer_behavior(1, "sequencer").unwrap();
     runner.select_active_layer(1).unwrap();
-    runner.link_layers[1].scan_mode = ScanMode::Scanning;
-    runner.link_layers[1].scan_axis = ScanAxis::Rows;
-    runner.link_layers[1].scan_unit = "1/8".into();
+    runner.layers[1].link.scan_mode = ScanMode::Scanning;
+    runner.layers[1].link.scan_axis = ScanAxis::Rows;
+    runner.layers[1].link.scan_unit = "1/8".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner.select_active_layer(0).unwrap();

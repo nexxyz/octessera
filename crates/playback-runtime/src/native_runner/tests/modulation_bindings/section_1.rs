@@ -36,7 +36,7 @@ pub(crate) fn menu_binding_actions_update_param_xy_and_aux_targets() {
         .unwrap();
 
     assert_eq!(
-        runner.param_mods[0].x[0].as_ref().unwrap().key,
+        runner.layers[0].param_mods.x[0].as_ref().unwrap().key,
         "instruments.0.mixer.volume"
     );
     assert_eq!(
@@ -89,7 +89,10 @@ pub(crate) fn representative_selector_actions_update_link_aux_and_play_xy_bindin
             .unwrap();
     }
 
-    assert_eq!(runner.param_mods[0].x[0].as_ref().unwrap().key, binding.key);
+    assert_eq!(
+        runner.layers[0].param_mods.x[0].as_ref().unwrap().key,
+        binding.key
+    );
     assert_eq!(
         runner.aux_bindings[1]
             .as_ref()
@@ -186,7 +189,7 @@ pub(crate) fn behavior_target_picker_uses_per_layer_behavior_rows_and_hides_none
 #[test]
 pub(crate) fn behavior_change_remaps_behavior_param_mods_and_aux_bindings() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "layers.0.build.behaviorConfig.randomTickInterval".into(),
         label: Some("Spawn Interval".into()),
         kind: "number".into(),
@@ -198,7 +201,7 @@ pub(crate) fn behavior_change_remaps_behavior_param_mods_and_aux_bindings() {
         options: vec![],
         invert: false,
     });
-    runner.param_mods[0].y[0] = Some(NativeParamBinding {
+    runner.layers[0].param_mods.y[0] = Some(NativeParamBinding {
         key: "layers.0.build.behaviorConfig.randomCellsPerTick".into(),
         label: Some("Spawn Count".into()),
         kind: "number".into(),
@@ -220,12 +223,12 @@ pub(crate) fn behavior_change_remaps_behavior_param_mods_and_aux_bindings() {
 
     runner.remap_bindings_for_behavior_change("brain", 0);
 
-    let x_binding = runner.param_mods[0].x[0].as_ref().unwrap();
+    let x_binding = runner.layers[0].param_mods.x[0].as_ref().unwrap();
     assert_eq!(x_binding.key, "layers.0.build.behaviorConfig.seedInterval");
     assert_eq!(x_binding.label.as_deref(), Some("Seed Interval"));
     assert!(!x_binding.invert);
 
-    let y_binding = runner.param_mods[0].y[0].as_ref().unwrap();
+    let y_binding = runner.layers[0].param_mods.y[0].as_ref().unwrap();
     assert_eq!(
         y_binding.key,
         "layers.0.build.behaviorConfig.randomSeedCells"

@@ -162,8 +162,7 @@ impl NativeRunner {
         let behavior_config = self
             .layers
             .get(layer_index)
-            .map(|layer| &layer.behavior_config)
-            .cloned()
+            .map(|layer| layer.behavior_config.clone())
             .unwrap_or(Value::Null);
         platform_core::NativeLayerEngine::new(platform_core::NativeLayerEngineConfig {
             behavior,

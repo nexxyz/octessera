@@ -16,11 +16,11 @@ fn scanned_empty_note_off_runtime(
     runner.midi.output_id = Some("out-1".into());
     runner.midi.send_instruments = "all".into();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = ScanAxis::Columns;
-    runner.link_layers[0].scan_unit = "1/8".into();
-    runner.link_layers[0].scanned_action = TriggerAction::NoteOn;
-    runner.link_layers[0].scanned_empty_action = TriggerAction::NoteOff;
+    runner.layers[0].link.scan_mode = ScanMode::Scanning;
+    runner.layers[0].link.scan_axis = ScanAxis::Columns;
+    runner.layers[0].link.scan_unit = "1/8".into();
+    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
+    runner.layers[0].link.scanned_empty_action = TriggerAction::NoteOff;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner.sync_engine_runtime_config();

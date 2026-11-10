@@ -123,7 +123,13 @@ impl NativeRunner {
 
     pub(super) fn apply_play_trigger_gate_overlay(&self, leds: &mut [LedColor]) {
         self.dim_leds(leds, 4);
-        for (row, layer) in self.link_layers.iter().enumerate().take(GRID_HEIGHT) {
+        for (row, layer) in self
+            .layers
+            .iter()
+            .map(|layer| &layer.link)
+            .enumerate()
+            .take(GRID_HEIGHT)
+        {
             for (x, candidate) in TriggerProbabilityMode::ALL.into_iter().enumerate() {
                 let color = trigger_gate_color(candidate);
                 self.set_display_led(
@@ -178,9 +184,13 @@ impl NativeRunner {
                 .layers
                 .get(row)
                 .is_some_and(|layer| layer.behavior_id != "none");
-            let gated = self.link_layers.get(row).is_some_and(|layer| {
-                layer.trigger_probability_mode == TriggerProbabilityMode::Zero
-            });
+            let gated = self
+                .layers
+                .get(row)
+                .map(|layer| &layer.link)
+                .is_some_and(|layer| {
+                    layer.trigger_probability_mode == TriggerProbabilityMode::Zero
+                });
             let color = fn_layer_color(
                 configured,
                 row == self.active_layer_index,

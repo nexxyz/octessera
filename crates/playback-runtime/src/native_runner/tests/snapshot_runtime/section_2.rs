@@ -10,10 +10,10 @@ pub(crate) fn transport_tick_advances_multiple_configured_layers() {
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 24;
     runner.layers[1].behavior_id = "sequencer".into();
-    runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scanned_slot = 0;
-    runner.link_layers[1].scan_mode = ScanMode::Scanning;
-    runner.link_layers[1].scanned_slot = 1;
+    runner.layers[0].link.scan_mode = ScanMode::Scanning;
+    runner.layers[0].link.scanned_slot = 0;
+    runner.layers[1].link.scan_mode = ScanMode::Scanning;
+    runner.layers[1].link.scanned_slot = 1;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -53,10 +53,10 @@ pub(crate) fn inactive_layer_transport_tick_applies_param_modulation() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.layers[1].behavior_id = "sequencer".into();
-    runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = ScanAxis::Rows;
-    runner.link_layers[0].scanned_slot = 0;
-    runner.param_mods[0].x[0] = Some(NativeParamBinding {
+    runner.layers[0].link.scan_mode = ScanMode::Scanning;
+    runner.layers[0].link.scan_axis = ScanAxis::Rows;
+    runner.layers[0].link.scanned_slot = 0;
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),
         kind: "number".into(),
@@ -133,9 +133,9 @@ pub(crate) fn scan_unit_advances_scanning_before_full_note_step_rate() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.transport.algorithm_step_pulses = 96;
-    runner.link_layers[0].scan_mode = ScanMode::Scanning;
-    runner.link_layers[0].scan_axis = ScanAxis::Rows;
-    runner.link_layers[0].scan_unit = "1/4".into();
+    runner.layers[0].link.scan_mode = ScanMode::Scanning;
+    runner.layers[0].link.scan_axis = ScanAxis::Rows;
+    runner.layers[0].link.scan_unit = "1/4".into();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

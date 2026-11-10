@@ -84,7 +84,7 @@ impl NativeRunner {
     ) -> Option<&mut Option<NativeParamBinding>> {
         match target {
             BindingTarget::LayerAxis { layer, axis, slot } => {
-                let mods = self.param_mods.get_mut(layer.min(GRID_HEIGHT - 1))?;
+                let mods = &mut self.layers.get_mut(layer.min(GRID_HEIGHT - 1))?.param_mods;
                 let lanes = match axis {
                     ModulationAxis::X => &mut mods.x,
                     ModulationAxis::Y => &mut mods.y,

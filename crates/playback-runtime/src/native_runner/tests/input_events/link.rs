@@ -21,7 +21,7 @@ pub(crate) fn link_event_timing_payload_round_trips_and_clamps() {
         }))
         .unwrap();
 
-    let layer = &runner.link_layers[0];
+    let layer = &runner.layers[0].link;
     assert_eq!(layer.activate_timing.delay_steps, 16);
     assert_eq!(layer.activate_timing.retrigger_count, 8);
     assert_eq!(layer.stable_timing.delay_steps, 2);
@@ -47,7 +47,7 @@ pub(crate) fn link_event_zero_delay_preserves_immediate_original_with_retrigger(
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[0].activate_timing.retrigger_count = 1;
+    runner.layers[0].link.activate_timing.retrigger_count = 1;
 
     let press = runner
         .send(HostMessage::DeviceInput {
@@ -76,8 +76,8 @@ pub(crate) fn link_event_delay_and_retrigger_schedule_routed_events() {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[0].activate_timing.delay_steps = 1;
-    runner.link_layers[0].activate_timing.retrigger_count = 1;
+    runner.layers[0].link.activate_timing.delay_steps = 1;
+    runner.layers[0].link.activate_timing.retrigger_count = 1;
 
     let press = runner
         .send(HostMessage::DeviceInput {
@@ -117,7 +117,7 @@ pub(crate) fn deactivate_note_off_uses_deactivate_timing() {
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.instruments[0].note_behavior = NoteBehavior::Hold;
-    runner.link_layers[0].deactivate_timing.delay_steps = 1;
+    runner.layers[0].link.deactivate_timing.delay_steps = 1;
     let press = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
@@ -161,8 +161,8 @@ pub(crate) fn mixed_note_off_and_note_on_use_their_own_link_timing() {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[0].deactivate_timing.delay_steps = 0;
-    runner.link_layers[0].activate_timing.delay_steps = 1;
+    runner.layers[0].link.deactivate_timing.delay_steps = 0;
+    runner.layers[0].link.activate_timing.delay_steps = 1;
     let deactivate = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,
@@ -225,7 +225,7 @@ pub(crate) fn events_without_mapped_intents_bypass_link_timing() {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[0].activate_timing.delay_steps = 1;
+    runner.layers[0].link.activate_timing.delay_steps = 1;
     let model = runner.active_engine().model().unwrap();
 
     let immediate = runner
@@ -292,8 +292,8 @@ pub(crate) fn same_note_events_with_distinct_link_timing_are_split_before_dedupe
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[0].activate_timing.delay_steps = 0;
-    runner.link_layers[0].scanned_timing.delay_steps = 1;
+    runner.layers[0].link.activate_timing.delay_steps = 0;
+    runner.layers[0].link.scanned_timing.delay_steps = 1;
     let activate = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,
@@ -353,7 +353,7 @@ pub(crate) fn delayed_link_queue_clears_on_transport_reset() {
     })
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
-    runner.link_layers[0].activate_timing.delay_steps = 1;
+    runner.layers[0].link.activate_timing.delay_steps = 1;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),

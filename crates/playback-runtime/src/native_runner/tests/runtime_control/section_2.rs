@@ -101,7 +101,7 @@ pub(crate) fn shift_back_clears_active_layer_state() {
 pub(crate) fn trigger_probability_grid_editor_cycles_tile_row_and_column() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.grid_assign = Some(GridAssign::TriggerProbability(0));
-    runner.trigger_probability_maps[0] = [TileProbability::Zero; GRID_WIDTH * GRID_HEIGHT];
+    runner.layers[0].trigger_probability_map = [TileProbability::Zero; GRID_WIDTH * GRID_HEIGHT];
 
     runner
         .send(HostMessage::DeviceInput {
@@ -110,7 +110,7 @@ pub(crate) fn trigger_probability_grid_editor_cycles_tile_row_and_column() {
         })
         .unwrap();
     assert_eq!(
-        runner.trigger_probability_maps[0][3 * GRID_WIDTH + 2],
+        runner.layers[0].trigger_probability_map[3 * GRID_WIDTH + 2],
         TileProbability::Low
     );
 
@@ -122,7 +122,7 @@ pub(crate) fn trigger_probability_grid_editor_cycles_tile_row_and_column() {
         })
         .unwrap();
     assert!(
-        runner.trigger_probability_maps[0][4 * GRID_WIDTH..5 * GRID_WIDTH]
+        runner.layers[0].trigger_probability_map[4 * GRID_WIDTH..5 * GRID_WIDTH]
             .iter()
             .all(|value| *value == TileProbability::Low)
     );
@@ -135,8 +135,9 @@ pub(crate) fn trigger_probability_grid_editor_cycles_tile_row_and_column() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!((0..GRID_HEIGHT)
-        .all(|y| runner.trigger_probability_maps[0][y * GRID_WIDTH + 6] == TileProbability::Low));
+    assert!((0..GRID_HEIGHT).all(
+        |y| runner.layers[0].trigger_probability_map[y * GRID_WIDTH + 6] == TileProbability::Low
+    ));
 }
 
 #[test]

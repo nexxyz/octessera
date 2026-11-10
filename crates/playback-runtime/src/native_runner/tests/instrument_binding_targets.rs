@@ -121,7 +121,7 @@ fn runner_only_sample_modulation_does_not_replace_audio_slot() {
         ("sample.velocityLevels.medium", 1.0, 127.0),
         ("sample.velocityLevels.low", 1.0, 127.0),
     ] {
-        runner.param_mods[0].x[0] =
+        runner.layers[0].param_mods.x[0] =
             Some(numeric_binding(&format!("instruments.0.{field}"), min, max));
         runner.apply_runtime_modulation(
             &[platform_core::TileTriggerIntent {
@@ -148,7 +148,7 @@ fn runner_only_sample_modulation_does_not_replace_audio_slot() {
     let mut slot_binding = numeric_binding("instruments.0.sample.selectedSlot", 1.0, 8.0);
     slot_binding.kind = "enum".into();
     slot_binding.options = (1..=8).map(|index| index.to_string()).collect();
-    runner.param_mods[0].x[0] = Some(slot_binding);
+    runner.layers[0].param_mods.x[0] = Some(slot_binding);
     runner.apply_runtime_modulation(
         &[platform_core::TileTriggerIntent {
             x: 7,
@@ -225,7 +225,10 @@ fn inert_sample_bindings_reject_new_actions_but_legacy_config_still_loads() {
             assert!(runner.aux_bindings[0].is_none(), "{target} {field}");
             assert!(runner.shift_aux_bindings[0].is_none(), "{target} {field}");
             assert!(runner.xy.x_binding.is_none(), "{target} {field}");
-            assert!(runner.param_mods[0].x[0].is_none(), "{target} {field}");
+            assert!(
+                runner.layers[0].param_mods.x[0].is_none(),
+                "{target} {field}"
+            );
             assert!(runner.link_lfos[0].target.is_none(), "{target} {field}");
         }
     }

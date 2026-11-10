@@ -238,7 +238,7 @@ impl NativeRunner {
     }
 
     fn play_transpose_layer_eligible(&self, layer: usize) -> bool {
-        let Some(sense) = self.link_layers.get(layer) else {
+        let Some(sense) = self.layers.get(layer).map(|layer| &layer.link) else {
             return false;
         };
         [

@@ -21,18 +21,18 @@ pub(crate) fn link_value_lanes_load_into_runner_and_menu_curve_edits_apply() {
 
     runner.apply_config_payload(payload).unwrap();
 
-    assert!(runner.link_layers[0].x_velocity.enabled);
-    assert_eq!(runner.link_layers[0].x_velocity.from, 12);
-    assert_eq!(runner.link_layers[0].x_velocity.to, 99);
-    assert_eq!(runner.link_layers[0].x_velocity.grid_offset, 2);
-    assert_eq!(runner.link_layers[0].x_velocity.curve, LaneCurve::Curve);
-    assert!(runner.link_layers[0].y_filter_resonance.enabled);
+    assert!(runner.layers[0].link.x_velocity.enabled);
+    assert_eq!(runner.layers[0].link.x_velocity.from, 12);
+    assert_eq!(runner.layers[0].link.x_velocity.to, 99);
+    assert_eq!(runner.layers[0].link.x_velocity.grid_offset, 2);
+    assert_eq!(runner.layers[0].link.x_velocity.curve, LaneCurve::Curve);
+    assert!(runner.layers[0].link.y_filter_resonance.enabled);
 
     runner.menu.rebuild(runner.menu_config());
     runner
         .edit_menu_key("layers.0.link.x.velocity.curve", -1)
         .unwrap();
-    assert_eq!(runner.link_layers[0].x_velocity.curve, LaneCurve::Linear);
+    assert_eq!(runner.layers[0].link.x_velocity.curve, LaneCurve::Linear);
 }
 
 #[test]

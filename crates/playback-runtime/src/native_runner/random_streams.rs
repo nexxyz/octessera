@@ -77,8 +77,9 @@ impl NativeRunner {
     }
 
     fn link_seeded(&self, layer_index: usize) -> bool {
-        self.link_layers
+        self.layers
             .get(layer_index)
+            .map(|layer| &layer.link)
             .is_some_and(|layer| layer.seeded)
     }
 

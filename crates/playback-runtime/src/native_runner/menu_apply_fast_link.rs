@@ -1,7 +1,7 @@
 use super::action_bindings::BindingTarget;
 use super::modulation_source::ModulationAxis;
 use super::{
-    instrument_labels, link_layer_configs, menu_apply_fast_values::parse_indexed_key, NativeRunner,
+    instrument_labels, link_layer_config, menu_apply_fast_values::parse_indexed_key, NativeRunner,
 };
 
 impl NativeRunner {
@@ -38,7 +38,7 @@ impl NativeRunner {
         if let Some(lane) = suffix.strip_prefix("paramMods.") {
             return Some(self.fast_param_mod_invert_key(index, lane, key));
         }
-        let layer = self.link_layers.get_mut(index)?;
+        let layer = self.layers.get_mut(index).map(|layer| &mut layer.link)?;
         let changed = if suffix.starts_with("link.arp.") {
             let prefix = format!("layers.{index}.link.arp");
             super::menu_apply_link_fx::apply_link_arp_menu_state(&self.menu, layer, &prefix)
@@ -76,13 +76,12 @@ impl NativeRunner {
         };
         if changed {
             if suffix == "link.scanMode" {
-                if let Some(sense) = link_layer_configs(std::slice::from_ref(layer)).first() {
-                    self.menu.show_link_scanning_rows(
-                        index,
-                        sense,
-                        &instrument_labels(&self.instruments),
-                    );
-                }
+                let sense = link_layer_config(layer);
+                self.menu.show_link_scanning_rows(
+                    index,
+                    &sense,
+                    &instrument_labels(&self.instruments),
+                );
             }
             if suffix.starts_with("link.arp.") {
                 self.clear_link_arp_state_for_layer(index);
