@@ -160,7 +160,8 @@ impl NativeRunner {
         envelope: &ConfigDto,
     ) -> Result<(), String> {
         self.clear_all_link_arp_state();
-        let runtime_value = envelope.typed_runtime_config_value()?;
+        let typed = envelope.typed_runtime_config()?;
+        let runtime_value = typed.applied_value()?;
         let runtime = &runtime_value;
         let desired_active_layer_index = runtime
             .get("activeLayerIndex")
@@ -173,9 +174,9 @@ impl NativeRunner {
             .transpose()?
             .unwrap_or(self.active_layer_index);
         self.switch_active_engine(desired_active_layer_index)?;
-        self.apply_layers_payload(runtime)?;
+        self.apply_layers_payload(runtime, typed.layers.as_deref().unwrap_or_default())?;
         self.apply_play_and_xy_payload(runtime);
-        self.apply_instruments_payload(runtime);
+        self.apply_instruments_payload(typed.instruments.as_deref().unwrap_or_default());
         if apply_device {
             self.apply_runtime_ui_and_sound_payload(runtime, envelope.mapping_config())?;
         } else {

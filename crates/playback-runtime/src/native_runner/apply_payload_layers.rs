@@ -1,22 +1,24 @@
 use super::link_payload_apply::apply_link_payload;
 use super::{
     apply_trigger_probability_map_payload, note_unit_to_pulses, param_binding_from_payload,
-    param_mods_from_payload, NativeLinkLfo, NativeRunner, Value, GLOBAL_LFO_COUNT, GRID_HEIGHT,
+    param_mods_from_payload, BuildDto, LayerDto, NativeLinkLfo, NativeRunner, Value,
+    GLOBAL_LFO_COUNT, GRID_HEIGHT,
 };
+use serde_json::json;
 
 impl NativeRunner {
-    pub(super) fn apply_layers_payload(&mut self, runtime: &Value) -> Result<(), String> {
+    pub(super) fn apply_layers_payload(
+        &mut self,
+        runtime: &Value,
+        layers: &[LayerDto],
+    ) -> Result<(), String> {
         if let Some(seed) = super::random_streams::random_seed_from_payload(runtime) {
             self.random_seed = seed;
         }
-        let Some(layers) = runtime.get("layers").and_then(Value::as_array) else {
-            return Ok(());
-        };
         for (index, layer) in layers.iter().take(GRID_HEIGHT).enumerate() {
-            let build = layer.get("build");
             apply_layer_identity_payload(self, index, layer);
             apply_layer_link_payload(self, index, layer);
-            apply_layer_build_payload(self, index, build)?;
+            apply_layer_build_payload(self, index, layer.build.as_ref())?;
             apply_layer_param_mods_payload(self, index, layer);
         }
         Ok(())
@@ -37,11 +39,11 @@ impl NativeRunner {
     }
 }
 
-fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {
+fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: &LayerDto) {
     if let Some(behavior_id) = layer
-        .get("build")
-        .and_then(|build| build.get("behaviorId"))
-        .and_then(Value::as_str)
+        .build
+        .as_ref()
+        .and_then(|build| build.behavior_id.as_deref())
     {
         if platform_core::get_native_behavior(behavior_id).is_some() {
             let previous_behavior_id = runner
@@ -64,40 +66,32 @@ fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: 
         }
     }
     let slot = &mut runner.layers[index];
-    if let Some(auto_name) = layer.get("autoName").and_then(Value::as_bool) {
+    if let Some(auto_name) = layer.auto_name {
         slot.auto_name = auto_name;
     }
     if slot.auto_name {
         slot.name = super::behavior_menu::behavior_display_label(&slot.behavior_id);
         return;
     }
-    if let Some(name) = layer.get("name").and_then(Value::as_str) {
-        slot.name = name.into();
+    if let Some(name) = &layer.name {
+        slot.name.clone_from(name);
     }
 }
 
-fn apply_layer_link_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {
-    let Some(link) = layer.get("link") else {
+fn apply_layer_link_payload(runner: &mut NativeRunner, index: usize, layer: &LayerDto) {
+    let (Some(link), Some(target)) = (&layer.link, runner.layers.get_mut(index)) else {
         return;
     };
-    if let Some(link_layer) = runner.layers.get_mut(index).map(|layer| &mut layer.link) {
-        apply_link_payload(link_layer, link);
-    }
-    if let Some(target) = runner
-        .layers
-        .get_mut(index)
-        .map(|layer| &mut layer.trigger_probability_map)
-    {
-        if let Some(map) = link.get("triggerProbabilityMap").and_then(Value::as_array) {
-            apply_trigger_probability_map_payload(target, map);
-        }
+    apply_link_payload(&mut target.link, link);
+    if let Some(map) = &link.trigger_probability_map {
+        apply_trigger_probability_map_payload(&mut target.trigger_probability_map, map);
     }
 }
 
 fn apply_layer_build_payload(
     runner: &mut NativeRunner,
     index: usize,
-    build: Option<&Value>,
+    build: Option<&BuildDto>,
 ) -> Result<(), String> {
     let Some(build) = build else {
         return Ok(());
@@ -109,44 +103,32 @@ fn apply_layer_build_payload(
     else {
         return Ok(());
     };
-    if let Some(seeded) = build.get("seeded").and_then(Value::as_bool) {
+    if let Some(seeded) = build.seeded {
         runner.layers[index].seeded = seeded;
     }
-    if let Some(step_rate) = build.get("stepRate").and_then(Value::as_str) {
+    if let Some(step_rate) = &build.step_rate {
         if let Some(layer_step) = runner.transport.layer_algorithm_step_pulses.get_mut(index) {
             *layer_step = note_unit_to_pulses(step_rate);
         }
     }
-    if let Some(history) = build
-        .get("behaviorConfigHistory")
-        .and_then(Value::as_object)
-    {
-        if let Some(layer) = runner.layers.get_mut(index) {
-            layer.behavior_config_history = history
-                .iter()
-                .filter(|(_, config)| !config.is_null())
-                .map(|(behavior_id, config)| (behavior_id.clone(), config.clone()))
-                .collect();
-        }
+    let layer = &mut runner.layers[index];
+    if let Some(history) = &build.behavior_config_history {
+        layer.behavior_config_history = history
+            .iter()
+            .filter(|(_, config)| !config.is_null())
+            .map(|(behavior_id, config)| (behavior_id.clone(), config.clone()))
+            .collect();
     }
-    if let Some(config) = build.get("behaviorConfig") {
-        if let Some(layer) = runner.layers.get_mut(index) {
-            layer.behavior_config = config.clone();
-        }
+    if let Some(config) = &build.behavior_config {
+        layer.behavior_config = config.clone().unwrap_or_default();
     }
     runner.replace_layer_engine_from_payload(index, &behavior_id, build)?;
     Ok(())
 }
 
-fn apply_layer_param_mods_payload(runner: &mut NativeRunner, index: usize, layer: &Value) {
-    if let Some(param_mods) = layer.get("paramMods") {
-        if let Some(target) = runner
-            .layers
-            .get_mut(index)
-            .map(|layer| &mut layer.param_mods)
-        {
-            *target = param_mods_from_payload(param_mods);
-        }
+fn apply_layer_param_mods_payload(runner: &mut NativeRunner, index: usize, layer: &LayerDto) {
+    if let (Some(param_mods), Some(target)) = (&layer.param_mods, runner.layers.get_mut(index)) {
+        target.param_mods = param_mods_from_payload(&json!(param_mods));
     }
 }
 

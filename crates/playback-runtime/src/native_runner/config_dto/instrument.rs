@@ -5,342 +5,342 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct InstrumentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) r#type: Option<String>,
+    pub(in crate::native_runner) r#type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) note_behavior: Option<String>,
+    pub(in crate::native_runner) note_behavior: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) auto_name: Option<bool>,
+    pub(in crate::native_runner) auto_name: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) name: Option<String>,
+    pub(in crate::native_runner) name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) synth: Option<SynthDto>,
+    pub(in crate::native_runner) synth: Option<SynthDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) fm: Option<FmDto>,
+    pub(in crate::native_runner) fm: Option<FmDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) pluck: Option<PluckDto>,
+    pub(in crate::native_runner) pluck: Option<PluckDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) drum: Option<DrumDto>,
+    pub(in crate::native_runner) drum: Option<DrumDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tile_stamp: Option<TileStampDto>,
+    pub(in crate::native_runner) tile_stamp: Option<TileStampDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) sample: Option<SampleDto>,
+    pub(in crate::native_runner) sample: Option<SampleDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) midi: Option<MidiInstrumentDto>,
+    pub(in crate::native_runner) midi: Option<MidiInstrumentDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) midi_drum: Option<MidiDrumDto>,
+    pub(in crate::native_runner) midi_drum: Option<MidiDrumDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) mixer: Option<InstrumentMixerDto>,
+    pub(in crate::native_runner) mixer: Option<InstrumentMixerDto>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TileStampDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tune_semis: Option<i8>,
+    pub(in crate::native_runner) tune_semis: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tune_cents: Option<i8>,
+    pub(in crate::native_runner) tune_cents: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) level: Option<String>,
+    pub(in crate::native_runner) level: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SampleDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) selected_slot: Option<usize>,
+    pub(in crate::native_runner) selected_slot: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) base_velocity: Option<u8>,
+    pub(in crate::native_runner) base_velocity: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) slots: Option<Vec<SampleSlotDto>>,
+    pub(in crate::native_runner) slots: Option<Vec<SampleSlotDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) assignments: Option<Vec<SampleAssignmentDto>>,
+    pub(in crate::native_runner) assignments: Option<Vec<SampleAssignmentDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tune_semis: Option<i8>,
+    pub(in crate::native_runner) tune_semis: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp: Option<SampleAmpDto>,
+    pub(in crate::native_runner) amp: Option<SampleAmpDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) amp_env: Option<EnvelopeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter: Option<FilterDto>,
+    pub(in crate::native_runner) filter: Option<FilterDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) filter_env: Option<EnvelopeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity_levels_enabled: Option<bool>,
+    pub(in crate::native_runner) velocity_levels_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity_levels: Option<VelocityLevelsDto>,
+    pub(in crate::native_runner) velocity_levels: Option<VelocityLevelsDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) follow_transpose: Option<bool>,
+    pub(in crate::native_runner) follow_transpose: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) follow_pitch: Option<bool>,
+    pub(in crate::native_runner) follow_pitch: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SampleSlotDto {
-    pub(super) path: Option<String>,
+    pub(in crate::native_runner) path: Option<String>,
     #[serde(rename = "loop", skip_serializing_if = "Option::is_none")]
-    pub(super) loop_mode: Option<String>,
+    pub(in crate::native_runner) loop_mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) start_pct: Option<u8>,
+    pub(in crate::native_runner) start_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) loop_start_pct: Option<u8>,
+    pub(in crate::native_runner) loop_start_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) loop_end_pct: Option<u8>,
+    pub(in crate::native_runner) loop_end_pct: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SampleAssignmentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) x: Option<usize>,
+    pub(in crate::native_runner) x: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) y: Option<usize>,
+    pub(in crate::native_runner) y: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) sample_slot: Option<usize>,
-    pub(super) level: Option<String>,
+    pub(in crate::native_runner) sample_slot: Option<usize>,
+    pub(in crate::native_runner) level: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tune_semis: Option<i8>,
+    pub(in crate::native_runner) tune_semis: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tune_cents: Option<i8>,
+    pub(in crate::native_runner) tune_cents: Option<i8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SampleAmpDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) gain_pct: Option<u8>,
+    pub(in crate::native_runner) gain_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity_sensitivity_pct: Option<u8>,
+    pub(in crate::native_runner) velocity_sensitivity_pct: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VelocityLevelsDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) high: Option<u8>,
+    pub(in crate::native_runner) high: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) medium: Option<u8>,
+    pub(in crate::native_runner) medium: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) low: Option<u8>,
+    pub(in crate::native_runner) low: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SynthDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) osc1: Option<SynthOscDto>,
+    pub(in crate::native_runner) osc1: Option<SynthOscDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) osc2: Option<SynthOscDto>,
+    pub(in crate::native_runner) osc2: Option<SynthOscDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp: Option<SynthAmpDto>,
+    pub(in crate::native_runner) amp: Option<SynthAmpDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) amp_env: Option<EnvelopeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter: Option<FilterDto>,
+    pub(in crate::native_runner) filter: Option<FilterDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) filter_env: Option<EnvelopeDto>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FmDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) ratio: Option<String>,
+    pub(in crate::native_runner) ratio: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) ratio_fine_cents: Option<i16>,
+    pub(in crate::native_runner) ratio_fine_cents: Option<i16>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) index: Option<u8>,
+    pub(in crate::native_runner) index: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity_to_index_pct: Option<u8>,
+    pub(in crate::native_runner) velocity_to_index_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) mod_shape_pct: Option<u8>,
+    pub(in crate::native_runner) mod_shape_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) mod_mix_pct: Option<u8>,
+    pub(in crate::native_runner) mod_mix_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) index_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) index_env: Option<EnvelopeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp: Option<SynthAmpDto>,
+    pub(in crate::native_runner) amp: Option<SynthAmpDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) amp_env: Option<EnvelopeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter: Option<FilterDto>,
+    pub(in crate::native_runner) filter: Option<FilterDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) filter_env: Option<EnvelopeDto>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluckDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) decay_ms: Option<u16>,
+    pub(in crate::native_runner) decay_ms: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) brightness_pct: Option<u8>,
+    pub(in crate::native_runner) brightness_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) pick_position_pct: Option<u8>,
+    pub(in crate::native_runner) pick_position_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) pick_depth_pct: Option<u8>,
+    pub(in crate::native_runner) pick_depth_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) dispersion_pct: Option<u8>,
+    pub(in crate::native_runner) dispersion_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) body_amount_pct: Option<u8>,
+    pub(in crate::native_runner) body_amount_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) body_frequency_hz: Option<u16>,
+    pub(in crate::native_runner) body_frequency_hz: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp: Option<SynthAmpDto>,
+    pub(in crate::native_runner) amp: Option<SynthAmpDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) amp_env: Option<EnvelopeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter: Option<FilterDto>,
+    pub(in crate::native_runner) filter: Option<FilterDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) filter_env: Option<EnvelopeDto>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DrumDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) voices: Option<Vec<DrumVoiceDto>>,
+    pub(in crate::native_runner) voices: Option<Vec<DrumVoiceDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) assignments: Option<Vec<DrumAssignmentDto>>,
+    pub(in crate::native_runner) assignments: Option<Vec<DrumAssignmentDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp: Option<SynthAmpDto>,
+    pub(in crate::native_runner) amp: Option<SynthAmpDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) amp_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) amp_env: Option<EnvelopeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter: Option<FilterDto>,
+    pub(in crate::native_runner) filter: Option<FilterDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) filter_env: Option<EnvelopeDto>,
+    pub(in crate::native_runner) filter_env: Option<EnvelopeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity_levels: Option<VelocityLevelsDto>,
+    pub(in crate::native_runner) velocity_levels: Option<VelocityLevelsDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) follow_transpose: Option<bool>,
+    pub(in crate::native_runner) follow_transpose: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) follow_pitch: Option<bool>,
+    pub(in crate::native_runner) follow_pitch: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DrumVoiceDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) sound: Option<String>,
+    pub(in crate::native_runner) sound: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tune_semis: Option<i8>,
+    pub(in crate::native_runner) tune_semis: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) decay_ms: Option<u16>,
+    pub(in crate::native_runner) decay_ms: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tone_pct: Option<u8>,
+    pub(in crate::native_runner) tone_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) attack_ms: Option<u8>,
+    pub(in crate::native_runner) attack_ms: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) sweep_semis: Option<u8>,
+    pub(in crate::native_runner) sweep_semis: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) sweep_ms: Option<u8>,
+    pub(in crate::native_runner) sweep_ms: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) noise_mix_pct: Option<u8>,
+    pub(in crate::native_runner) noise_mix_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) level_pct: Option<u8>,
+    pub(in crate::native_runner) level_pct: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DrumAssignmentDto {
-    pub(super) x: Option<u8>,
-    pub(super) y: Option<u8>,
-    pub(super) voice: Option<u8>,
+    pub(in crate::native_runner) x: Option<u8>,
+    pub(in crate::native_runner) y: Option<u8>,
+    pub(in crate::native_runner) voice: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tune_semis: Option<i8>,
+    pub(in crate::native_runner) tune_semis: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tune_cents: Option<i8>,
+    pub(in crate::native_runner) tune_cents: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) level: Option<String>,
+    pub(in crate::native_runner) level: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SynthOscDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) waveform: Option<String>,
+    pub(in crate::native_runner) waveform: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) level_pct: Option<i32>,
+    pub(in crate::native_runner) level_pct: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) octave: Option<i32>,
+    pub(in crate::native_runner) octave: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) detune_cents: Option<i32>,
+    pub(in crate::native_runner) detune_cents: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) pulse_width_pct: Option<i32>,
+    pub(in crate::native_runner) pulse_width_pct: Option<i32>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SynthAmpDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) gain_pct: Option<i32>,
+    pub(in crate::native_runner) gain_pct: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity_sensitivity_pct: Option<i32>,
+    pub(in crate::native_runner) velocity_sensitivity_pct: Option<i32>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EnvelopeDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) attack_ms: Option<u32>,
+    pub(in crate::native_runner) attack_ms: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) decay_ms: Option<u32>,
+    pub(in crate::native_runner) decay_ms: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) sustain_pct: Option<u8>,
+    pub(in crate::native_runner) sustain_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) release_ms: Option<u32>,
+    pub(in crate::native_runner) release_ms: Option<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilterDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) r#type: Option<String>,
+    pub(in crate::native_runner) r#type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) cutoff_hz: Option<u32>,
+    pub(in crate::native_runner) cutoff_hz: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) resonance: Option<u8>,
+    pub(in crate::native_runner) resonance: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) env_amount_pct: Option<i32>,
+    pub(in crate::native_runner) env_amount_pct: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) key_tracking_pct: Option<u8>,
+    pub(in crate::native_runner) key_tracking_pct: Option<u8>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MidiInstrumentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) enabled: Option<bool>,
+    pub(in crate::native_runner) enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) channel: Option<u8>,
+    pub(in crate::native_runner) channel: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) velocity: Option<u8>,
+    pub(in crate::native_runner) velocity: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) duration_ms: Option<u16>,
+    pub(in crate::native_runner) duration_ms: Option<u16>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MidiDrumDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) enabled: Option<bool>,
+    pub(in crate::native_runner) enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) channel: Option<u8>,
+    pub(in crate::native_runner) channel: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) duration_ms: Option<u16>,
+    pub(in crate::native_runner) duration_ms: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tile_note: Option<u8>,
+    pub(in crate::native_runner) tile_note: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tile_velocity: Option<u8>,
+    pub(in crate::native_runner) tile_velocity: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) assignments: Option<Vec<MidiDrumAssignmentDto>>,
+    pub(in crate::native_runner) assignments: Option<Vec<MidiDrumAssignmentDto>>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct MidiDrumAssignmentDto {
-    pub(super) x: Option<u8>,
-    pub(super) y: Option<u8>,
-    pub(super) note: Option<u8>,
-    pub(super) velocity: Option<u8>,
+    pub(in crate::native_runner) x: Option<u8>,
+    pub(in crate::native_runner) y: Option<u8>,
+    pub(in crate::native_runner) note: Option<u8>,
+    pub(in crate::native_runner) velocity: Option<u8>,
 }

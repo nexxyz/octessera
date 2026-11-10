@@ -8,8 +8,10 @@ mod layer;
 mod mixer;
 mod runtime;
 pub(super) use device::DeviceRuntimeConfigDto;
-pub(super) use instrument::InstrumentDto;
-pub(super) use layer::LayerDto;
+pub(super) use instrument::{InstrumentDto, MidiDrumDto, SampleDto, SampleSlotDto, TileStampDto};
+pub(super) use layer::{
+    ArpDto, AxisDto, BuildDto, LayerDto, LinkDto, MappingEventDto, PitchDto, SlotDto, ValueLaneDto,
+};
 pub(super) use mixer::MixerDto;
 pub(super) use runtime::{
     AudioOutputsDto, BluetoothDto, HdmiDto, MidiDto, ParamModsDto, RuntimeConfigDto, UsbDto,
@@ -144,19 +146,7 @@ impl ConfigDto {
     }
 
     pub(super) fn typed_runtime_config_value(&self) -> Result<Value, String> {
-        let typed = self.typed_runtime_config()?;
-        let mut value = typed.to_value()?;
-        if let Some(object) = value.as_object_mut() {
-            object.insert(
-                "dsp".into(),
-                typed
-                    .dsp
-                    .unwrap_or_default()
-                    .to_value()
-                    .map_err(|error| format!("runtimeConfig DSP encode failed: {error}"))?,
-            );
-        }
-        Ok(value)
+        self.typed_runtime_config()?.applied_value()
     }
 
     pub(super) fn mapping_config(&self) -> Option<&Value> {

@@ -146,11 +146,3 @@ fn sanitized_fx_params(params: &Value, slot_type: &str, bpm: u16) -> Value {
         params
     }
 }
-
-pub(super) fn nested_u64(value: &Value, path: &[&str]) -> Option<u64> {
-    let mut current = value;
-    for key in path {
-        current = current.get(*key)?;
-    }
-    current.as_u64()
-}

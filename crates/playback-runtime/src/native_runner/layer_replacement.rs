@@ -62,18 +62,15 @@ impl NativeRunner {
         &mut self,
         layer_index: usize,
         behavior_id: &str,
-        build: &Value,
+        build: &super::BuildDto,
     ) -> Result<(), String> {
         let behavior = platform_core::get_native_behavior(behavior_id)
             .ok_or_else(|| format!("unsupported native behavior `{behavior_id}`"))?;
-        let behavior_config = build
-            .get("behaviorConfig")
-            .cloned()
-            .unwrap_or_else(|| self.layer_behavior_config(layer_index));
-        let state = build
-            .get("savedState")
-            .filter(|value| !value.is_null())
-            .cloned();
+        let behavior_config = match &build.behavior_config {
+            Some(config) => config.clone().unwrap_or_default(),
+            None => self.layer_behavior_config(layer_index),
+        };
+        let state = build.saved_state.clone().flatten();
         self.replace_layer_engine_with_config(
             layer_index,
             behavior,

@@ -221,8 +221,8 @@ fn pluck_legacy_full_defaults_and_partial_patch_preserves_existing() {
             }))
             .unwrap();
         assert_eq!(runner.instruments[0].pluck_config["decayMs"], 3200);
-        super::super::apply_payload_instrument_values::apply_instrument_pluck_payload(
-            &json!({ "type": "synth" }),
+        super::super::apply_payload_instrument_values::apply_instrument_payload(
+            &serde_json::from_value::<InstrumentDto>(json!({ "type": "synth" })).unwrap(),
             &mut runner.instruments[0],
         );
         assert_eq!(runner.instruments[0].pluck_config["decayMs"], 3200);

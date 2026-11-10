@@ -226,3 +226,136 @@ fn every_saved_enum_value_loads_and_saves_byte_identically() {
         }
     }
 }
+
+/// Every typed instrument value a load reads, set apart per slot, as (JSON pointer, value).
+fn typed_instrument_values(index: usize) -> Vec<(String, Value)> {
+    let i = index as i64;
+    let mut values = vec![
+        ("/mixer/volume".into(), json!(30 + i * 9)),
+        ("/mixer/panPos".into(), json!(i * 4)),
+        ("/midi/enabled".into(), json!(index.is_multiple_of(2))),
+        ("/midi/channel".into(), json!(i + 3)),
+        ("/midi/velocity".into(), json!(60 + i)),
+        ("/midi/durationMs".into(), json!(90 + i * 20)),
+        ("/sample/selectedSlot".into(), json!(7 - i)),
+        ("/sample/baseVelocity".into(), json!(70 + i)),
+        ("/sample/tuneSemis".into(), json!(i - 4)),
+        ("/sample/amp/gainPct".into(), json!(55 + i)),
+        ("/sample/amp/velocitySensitivityPct".into(), json!(45 + i)),
+        (
+            "/sample/velocityLevelsEnabled".into(),
+            json!(index % 2 == 1),
+        ),
+        ("/sample/velocityLevels/high".into(), json!(120 - i)),
+        ("/sample/velocityLevels/medium".into(), json!(80 - i)),
+        ("/sample/velocityLevels/low".into(), json!(40 - i)),
+        ("/sample/followPitch".into(), json!(index % 2 == 1)),
+        (
+            "/sample/followTranspose".into(),
+            json!(index.is_multiple_of(3)),
+        ),
+        (
+            "/sample/slots/2/loop".into(),
+            json!(crate::native_menu::SAMPLE_LOOP_MODES[index % 3]),
+        ),
+        ("/sample/slots/2/startPct".into(), json!(5 + i)),
+        ("/sample/slots/2/loopStartPct".into(), json!(10 + i)),
+        ("/sample/slots/2/loopEndPct".into(), json!(60 + i)),
+        (
+            "/sample/assignments".into(),
+            json!([{
+                "x": index, "y": 7 - index, "sampleSlot": index % 4, "level": "low",
+                "tuneSemis": -(i + 1), "tuneCents": 12 - i
+            }]),
+        ),
+    ];
+    if index == 0 {
+        values.push(("/synth/amp/gainPct".into(), json!(64)));
+    }
+    values
+}
+
+/// Every typed Link value and layer build field a load reads, set apart per layer.
+fn typed_layer_values(index: usize) -> Vec<(String, Value)> {
+    let i = index as i64;
+    let slot = if index.is_multiple_of(3) {
+        json!("none")
+    } else {
+        json!(i % 8)
+    };
+    let unit = ["1/8", "1/16", "1/4"][index % 3];
+    let mut values = vec![
+        ("/link/scanSections".into(), json!([1, 2, 4, 8][index % 4])),
+        ("/link/scanUnit".into(), json!(unit)),
+        ("/link/seeded".into(), json!(index.is_multiple_of(2))),
+        ("/link/eventEnabled".into(), json!(index % 2 == 1)),
+        ("/link/stateNotesEnabled".into(), json!(index % 3 == 1)),
+        ("/link/triggerProbabilityLowPct".into(), json!(10 + i)),
+        ("/link/triggerProbabilityHighPct".into(), json!(70 + i)),
+        ("/link/mapping/activate/slot".into(), slot),
+        ("/link/mapping/activate/delaySteps".into(), json!(i % 4)),
+        ("/link/mapping/stable/retriggerCount".into(), json!(i % 3)),
+        ("/link/pitch/lowestNote".into(), json!(30 + i)),
+        ("/link/pitch/highestNote".into(), json!(90 + i)),
+        ("/link/pitch/startingNote".into(), json!(50 + i)),
+        (
+            "/link/pitch/root".into(),
+            json!(["C", "F#", "A"][index % 3]),
+        ),
+        ("/link/arp/stepIntervalSteps".into(), json!(1 + i)),
+        ("/link/arp/noteLengthMs".into(), json!(100 + i * 10)),
+        ("/link/arp/gatePct".into(), json!(40 + i)),
+        ("/link/arp/octaveSpread".into(), json!(i % 4)),
+        ("/link/x/from".into(), json!(i % 3)),
+        ("/link/x/to".into(), json!(7 - i % 3)),
+        ("/link/x/pitch/steps".into(), json!(i - 4)),
+        (
+            "/link/x/pitch/restartEachSection".into(),
+            json!(index.is_multiple_of(2)),
+        ),
+        ("/link/y/velocity/enabled".into(), json!(index % 2 == 1)),
+        ("/link/y/velocity/from".into(), json!(5 + i)),
+        ("/link/y/velocity/to".into(), json!(100 + i)),
+        ("/link/y/velocity/gridOffset".into(), json!(i - 3)),
+        ("/build/seeded".into(), json!(index % 2 == 1)),
+    ];
+    if index < 6 {
+        values.push(("/build/stepRate".into(), json!(unit)));
+    }
+    values
+}
+
+#[test]
+fn typed_instrument_and_layer_values_load_and_save_byte_identically() {
+    let mut full: Value = serde_json::from_str(DESKTOP_DEFAULT).unwrap();
+    let runtime = &mut full["runtimeConfig"];
+    for index in 0..INSTRUMENT_COUNT {
+        for (pointer, value) in typed_instrument_values(index) {
+            *runtime["instruments"][index].pointer_mut(&pointer).unwrap() = value;
+        }
+    }
+    for index in 0..LAYER_COUNT {
+        for (pointer, value) in typed_layer_values(index) {
+            let layer = &mut runtime["layers"][index];
+            *pointer
+                .split('/')
+                .skip(1)
+                .fold(layer, |value, key| &mut value[key]) = value;
+        }
+    }
+    let (_, patch) = assert_load_save_is_byte_identical(full);
+    let patch: Value = serde_json::from_str(&patch).unwrap();
+    let runtime = &patch["runtimeConfig"];
+    for index in 0..INSTRUMENT_COUNT {
+        for (pointer, value) in typed_instrument_values(index) {
+            let saved = runtime["instruments"][index].pointer(&pointer);
+            assert_eq!(saved, Some(&value), "instrument {index} {pointer}");
+        }
+    }
+    for index in 0..LAYER_COUNT {
+        for (pointer, value) in typed_layer_values(index) {
+            let saved = runtime["layers"][index].pointer(&pointer);
+            assert_eq!(saved, Some(&value), "layer {index} {pointer}");
+        }
+    }
+}

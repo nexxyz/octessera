@@ -95,8 +95,8 @@ fn fm_full_legacy_load_resets_missing_fm_but_partial_patch_and_slot_preserve_it(
             }))
             .unwrap();
         assert_eq!(runner.instruments[0].fm_config["index"], 87);
-        super::super::apply_payload_instrument_values::apply_instrument_fm_payload(
-            &json!({ "type": "synth" }),
+        super::super::apply_payload_instrument_values::apply_instrument_payload(
+            &serde_json::from_value::<InstrumentDto>(json!({ "type": "synth" })).unwrap(),
             &mut runner.instruments[0],
         );
         assert_eq!(runner.instruments[0].fm_config["index"], 87);

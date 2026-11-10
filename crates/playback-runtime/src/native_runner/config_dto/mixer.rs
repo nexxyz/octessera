@@ -47,9 +47,9 @@ pub struct FxSlotDto {
 #[serde(rename_all = "camelCase")]
 pub struct InstrumentMixerDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) volume: Option<u8>,
+    pub(in crate::native_runner) volume: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) pan_pos: Option<u8>,
+    pub(in crate::native_runner) pan_pos: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) route: Option<String>,
+    pub(in crate::native_runner) route: Option<String>,
 }

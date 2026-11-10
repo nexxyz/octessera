@@ -21,7 +21,7 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) xy: Option<XyDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) layers: Option<Vec<LayerDto>>,
+    pub(in crate::native_runner) layers: Option<Vec<LayerDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) play_fx: Option<PlayFxDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -37,7 +37,7 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) wifi: Option<WifiDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) instruments: Option<Vec<InstrumentDto>>,
+    pub(in crate::native_runner) instruments: Option<Vec<InstrumentDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) mixer: Option<MixerDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -354,6 +354,21 @@ impl RuntimeConfigDto {
     pub fn to_value(&self) -> Result<Value, String> {
         serde_json::to_value(self)
             .map_err(|error| format!("runtimeConfig typed encode failed: {error}"))
+    }
+
+    /// The runtime config the load applies: every typed field, with the DSP settings defaulted.
+    pub(in crate::native_runner) fn applied_value(&self) -> Result<Value, String> {
+        let mut value = self.to_value()?;
+        if let Some(object) = value.as_object_mut() {
+            object.insert(
+                "dsp".into(),
+                self.dsp
+                    .unwrap_or_default()
+                    .to_value()
+                    .map_err(|error| format!("runtimeConfig DSP encode failed: {error}"))?,
+            );
+        }
+        Ok(value)
     }
 
     pub fn portable_value(&self) -> Result<Value, String> {

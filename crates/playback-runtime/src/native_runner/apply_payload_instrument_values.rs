@@ -1,264 +1,192 @@
-use super::apply_payload_mixer_values::nested_u64;
-use super::sample_assignment_payload::tile_offset;
 use super::{
-    sample_assignment_from_payload, sanitize_pan_position_payload, InstrumentType, MixerRoute,
-    NativeInstrumentSlot, NativeSamplePlayback, NativeTileStamp, Value, SAMPLE_SLOT_COUNT,
+    sanitize_pan_position_payload, InstrumentDto, InstrumentType, MixerRoute, NativeInstrumentSlot,
+    NativeSampleAssignment, NativeSamplePlayback, NativeTileStamp, SampleDto, SampleSlotDto,
+    TileStampDto, GRID_HEIGHT, GRID_WIDTH, SAMPLE_SLOT_COUNT,
 };
 use crate::native_menu::{SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT};
 use platform_core::NoteBehavior;
+use serde_json::json;
 
-pub(super) fn apply_instrument_identity_payload(
-    slot: &Value,
+pub(super) fn apply_instrument_payload(
+    slot: &InstrumentDto,
     instrument: &mut NativeInstrumentSlot,
 ) {
     if let Some(kind) = slot
-        .get("type")
-        .and_then(Value::as_str)
+        .r#type
+        .as_deref()
         .and_then(InstrumentType::from_wire_name)
     {
         instrument.kind = kind;
     }
     if let Some(note_behavior) = slot
-        .get("noteBehavior")
-        .and_then(Value::as_str)
+        .note_behavior
+        .as_deref()
         .and_then(NoteBehavior::from_wire_name)
     {
         instrument.note_behavior = note_behavior;
     }
-    if let Some(auto_name) = slot.get("autoName").and_then(Value::as_bool) {
+    if let Some(auto_name) = slot.auto_name {
         instrument.auto_name = auto_name;
     }
-    if let Some(name) = slot.get("name").and_then(Value::as_str) {
-        instrument.name = name.into();
+    if let Some(name) = &slot.name {
+        instrument.name.clone_from(name);
     }
-}
-
-pub(super) fn apply_instrument_tile_stamp_payload(
-    slot: &Value,
-    instrument: &mut NativeInstrumentSlot,
-) {
-    let Some(stamp) = slot.get("tileStamp") else {
-        return;
-    };
-    instrument.tile_stamp = NativeTileStamp {
-        tune_semis: tile_offset(stamp, "tuneSemis", 24),
-        tune_cents: tile_offset(stamp, "tuneCents", 100),
-        level: stamp
-            .get("level")
-            .and_then(Value::as_str)
-            .filter(|level| matches!(*level, "high" | "medium" | "low"))
-            .map(Into::into),
-    };
-}
-
-pub(super) fn apply_instrument_mixer_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
-    let Some(mixer) = slot.get("mixer") else {
-        return;
-    };
-    if let Some(volume) = mixer.get("volume").and_then(Value::as_u64) {
-        if let Ok(volume) = u8::try_from(volume) {
+    if let Some(stamp) = &slot.tile_stamp {
+        instrument.tile_stamp = tile_stamp_from_payload(stamp);
+    }
+    if let Some(mixer) = &slot.mixer {
+        if let Some(volume) = mixer.volume {
             instrument.volume = volume.min(100);
         }
-    }
-    if let Some(pan_pos) = mixer.get("panPos").and_then(Value::as_u64) {
-        instrument.pan_pos = sanitize_pan_position_payload(pan_pos);
-    }
-    if let Some(route) = mixer
-        .get("route")
-        .and_then(Value::as_str)
-        .and_then(MixerRoute::from_wire_name)
-    {
-        instrument.route = route;
-    }
-}
-
-pub(super) fn apply_instrument_sample_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
-    let Some(sample) = slot.get("sample") else {
-        return;
-    };
-    apply_sample_slot_selection(sample, instrument);
-    apply_sample_assignments_payload(sample, instrument);
-    apply_sample_amp_payload(sample, instrument);
-    apply_sample_filter_payload(sample, instrument);
-    apply_sample_velocity_payload(sample, instrument);
-}
-
-pub(super) fn apply_sample_slot_selection(sample: &Value, instrument: &mut NativeInstrumentSlot) {
-    if let Some(selected_slot) = sample.get("selectedSlot").and_then(Value::as_u64) {
-        if let Ok(selected_slot) = usize::try_from(selected_slot) {
-            instrument.selected_sample_slot = selected_slot.min(SAMPLE_SLOT_COUNT - 1);
+        if let Some(pan_pos) = mixer.pan_pos {
+            instrument.pan_pos = sanitize_pan_position_payload(u64::from(pan_pos));
+        }
+        if let Some(route) = mixer.route.as_deref().and_then(MixerRoute::from_wire_name) {
+            instrument.route = route;
         }
     }
-    if let Some(base_velocity) = sample.get("baseVelocity").and_then(Value::as_u64) {
-        if let Ok(base_velocity) = u8::try_from(base_velocity) {
-            instrument.sample_base_velocity = base_velocity.clamp(1, 127);
-        }
+    if let Some(sample) = &slot.sample {
+        apply_sample_payload(sample, instrument);
     }
-    if let Some(slots) = sample.get("slots").and_then(Value::as_array) {
-        for (sample_index, sample_slot) in slots.iter().take(SAMPLE_SLOT_COUNT).enumerate() {
-            instrument.sample_paths[sample_index] = sample_slot
-                .get("path")
-                .and_then(Value::as_str)
-                .map(str::to_string);
-            instrument.sample_playback[sample_index] = sample_playback_from_payload(sample_slot);
-        }
-    }
-}
-
-fn sample_playback_from_payload(slot: &Value) -> NativeSamplePlayback {
-    let neutral = NativeSamplePlayback::default();
-    let pct = |key: &str, fallback: u8| {
-        slot.get(key)
-            .and_then(Value::as_u64)
-            .map_or(fallback, |value| value.min(100) as u8)
-    };
-    let loop_start_pct = pct("loopStartPct", neutral.loop_start_pct).min(SAMPLE_START_MAX_PCT);
-    NativeSamplePlayback {
-        loop_mode: slot
-            .get("loop")
-            .and_then(Value::as_str)
-            .and_then(|mode| SAMPLE_LOOP_MODES.into_iter().find(|known| *known == mode))
-            .unwrap_or(neutral.loop_mode),
-        start_pct: pct("startPct", neutral.start_pct).min(SAMPLE_START_MAX_PCT),
-        loop_start_pct,
-        loop_end_pct: pct("loopEndPct", neutral.loop_end_pct).max(loop_start_pct + 1),
-    }
-}
-
-pub(super) fn apply_sample_assignments_payload(
-    sample: &Value,
-    instrument: &mut NativeInstrumentSlot,
-) {
-    if let Some(assignments) = sample.get("assignments").and_then(Value::as_array) {
-        instrument.sample_assignments = assignments
-            .iter()
-            .filter_map(sample_assignment_from_payload)
-            .collect();
-    }
-    if let Some(tune) = sample.get("tuneSemis").and_then(Value::as_i64) {
-        if let Ok(tune) = i8::try_from(tune) {
-            instrument.sample_tune_semis = tune.clamp(-24, 24);
-        }
-    }
-}
-
-pub(super) fn apply_sample_amp_payload(sample: &Value, instrument: &mut NativeInstrumentSlot) {
-    if let Some(gain) = nested_u64(sample, &["amp", "gainPct"]) {
-        if let Ok(gain) = u8::try_from(gain) {
-            instrument.sample_gain_pct = gain.min(100);
-        }
-    }
-    if let Some(velocity_sens) = nested_u64(sample, &["amp", "velocitySensitivityPct"]) {
-        if let Ok(velocity_sens) = u8::try_from(velocity_sens) {
-            instrument.sample_amp_velocity_sensitivity_pct = velocity_sens.min(100);
-        }
-    }
-    if let Some(amp_env) = sample.get("ampEnv").filter(|value| value.is_object()) {
-        instrument.sample_amp_env = amp_env.clone();
-    }
-}
-
-pub(super) fn apply_sample_filter_payload(sample: &Value, instrument: &mut NativeInstrumentSlot) {
-    if let Some(filter) = sample.get("filter").filter(|value| value.is_object()) {
-        instrument.sample_filter = filter.clone();
-    }
-    if let Some(filter_env) = sample.get("filterEnv").filter(|value| value.is_object()) {
-        instrument.sample_filter_env = filter_env.clone();
-    }
-}
-
-pub(super) fn apply_sample_velocity_payload(sample: &Value, instrument: &mut NativeInstrumentSlot) {
-    if let Some(enabled) = sample.get("velocityLevelsEnabled").and_then(Value::as_bool) {
-        instrument.sample_velocity_levels_enabled = enabled;
-    }
-    if let Some(follow) = sample.get("followTranspose").and_then(Value::as_bool) {
-        instrument.sample_follow_transpose = follow;
-    }
-    if let Some(follow) = sample.get("followPitch").and_then(Value::as_bool) {
-        instrument.sample_follow_pitch = follow;
-    }
-    if let Some(levels) = sample.get("velocityLevels") {
-        apply_sample_velocity_levels(levels, instrument);
-    }
-}
-
-pub(super) fn apply_sample_velocity_levels(levels: &Value, instrument: &mut NativeInstrumentSlot) {
-    if let Some(high) = levels.get("high").and_then(Value::as_u64) {
-        if let Ok(high) = u8::try_from(high) {
-            instrument.sample_velocity_high = high.clamp(1, 127);
-        }
-    }
-    if let Some(medium) = levels.get("medium").and_then(Value::as_u64) {
-        if let Ok(medium) = u8::try_from(medium) {
-            instrument.sample_velocity_medium = medium.clamp(1, 127);
-        }
-    }
-    if let Some(low) = levels.get("low").and_then(Value::as_u64) {
-        if let Ok(low) = u8::try_from(low) {
-            instrument.sample_velocity_low = low.clamp(1, 127);
-        }
-    }
-}
-
-pub(super) fn apply_instrument_synth_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
-    let Some(synth) = slot.get("synth") else {
-        return;
-    };
-    instrument.synth_config = synth.clone();
-    if let Some(gain) = nested_u64(synth, &["amp", "gainPct"]) {
-        if let Ok(gain) = u8::try_from(gain) {
+    if let Some(synth) = &slot.synth {
+        instrument.synth_config = json!(synth);
+        if let Some(gain) = synth
+            .amp
+            .as_ref()
+            .and_then(|amp| amp.gain_pct)
+            .and_then(|gain| u8::try_from(gain).ok())
+        {
             instrument.synth_gain_pct = gain.min(100);
         }
     }
-}
-
-pub(super) fn apply_instrument_fm_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
-    if let Some(fm) = slot.get("fm") {
-        instrument.fm_config = fm.clone();
+    if let Some(fm) = &slot.fm {
+        instrument.fm_config = json!(fm);
     }
-}
-
-pub(super) fn apply_instrument_pluck_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
-    if let Some(pluck) = slot.get("pluck") {
-        instrument.pluck_config = pluck.clone();
+    if let Some(pluck) = &slot.pluck {
+        instrument.pluck_config = json!(pluck);
     }
-}
-
-pub(super) fn apply_instrument_drum_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
-    if let Some(drum) = slot.get("drum") {
-        instrument.drum_config = drum.clone();
+    if let Some(drum) = &slot.drum {
+        instrument.drum_config = json!(drum);
     }
-}
-
-pub(super) fn apply_instrument_midi_drum_payload(
-    slot: &Value,
-    instrument: &mut NativeInstrumentSlot,
-) {
-    if let Some(midi_drum) = slot.get("midiDrum") {
-        instrument.midi_drum.apply_payload(midi_drum);
-    }
-}
-
-pub(super) fn apply_instrument_midi_payload(slot: &Value, instrument: &mut NativeInstrumentSlot) {
-    let Some(value) = slot.get("midi") else {
-        return;
-    };
-    if let Some(enabled) = value.get("enabled").and_then(Value::as_bool) {
-        instrument.midi_enabled = enabled;
-    }
-    if let Some(channel) = value.get("channel").and_then(Value::as_u64) {
-        if let Ok(channel) = u8::try_from(channel) {
+    if let Some(midi) = &slot.midi {
+        if let Some(enabled) = midi.enabled {
+            instrument.midi_enabled = enabled;
+        }
+        if let Some(channel) = midi.channel {
             instrument.midi_channel = channel.clamp(1, 16);
         }
-    }
-    if let Some(velocity) = value.get("velocity").and_then(Value::as_u64) {
-        if let Ok(velocity) = u8::try_from(velocity) {
+        if let Some(velocity) = midi.velocity {
             instrument.midi_velocity = velocity.clamp(1, 127);
         }
-    }
-    if let Some(duration_ms) = value.get("durationMs").and_then(Value::as_u64) {
-        if let Ok(duration_ms) = u16::try_from(duration_ms) {
+        if let Some(duration_ms) = midi.duration_ms {
             instrument.midi_duration_ms = duration_ms.clamp(10, 2000);
         }
+    }
+    if let Some(midi_drum) = &slot.midi_drum {
+        instrument.midi_drum.apply(midi_drum);
+    }
+}
+
+fn tile_offset(offset: Option<i8>, limit: i8) -> i8 {
+    offset.map_or(0, |offset| offset.clamp(-limit, limit))
+}
+
+fn tile_level(level: &Option<String>) -> Option<String> {
+    level
+        .clone()
+        .filter(|level| matches!(level.as_str(), "high" | "medium" | "low"))
+}
+
+fn tile_stamp_from_payload(stamp: &TileStampDto) -> NativeTileStamp {
+    NativeTileStamp {
+        tune_semis: tile_offset(stamp.tune_semis, 24),
+        tune_cents: tile_offset(stamp.tune_cents, 100),
+        level: tile_level(&stamp.level),
+    }
+}
+
+fn apply_sample_payload(sample: &SampleDto, instrument: &mut NativeInstrumentSlot) {
+    if let Some(selected_slot) = sample.selected_slot {
+        instrument.selected_sample_slot = selected_slot.min(SAMPLE_SLOT_COUNT - 1);
+    }
+    if let Some(base_velocity) = sample.base_velocity {
+        instrument.sample_base_velocity = base_velocity.clamp(1, 127);
+    }
+    if let Some(slots) = &sample.slots {
+        for (sample_index, sample_slot) in slots.iter().take(SAMPLE_SLOT_COUNT).enumerate() {
+            instrument.sample_paths[sample_index].clone_from(&sample_slot.path);
+            instrument.sample_playback[sample_index] = sample_playback_from_payload(sample_slot);
+        }
+    }
+    if let Some(assignments) = &sample.assignments {
+        instrument.sample_assignments = assignments
+            .iter()
+            .filter_map(|assignment| {
+                Some(NativeSampleAssignment {
+                    x: assignment.x?.min(GRID_WIDTH - 1),
+                    y: assignment.y?.min(GRID_HEIGHT - 1),
+                    sample_slot: assignment.sample_slot?.min(7),
+                    level: tile_level(&assignment.level),
+                    tune_semis: tile_offset(assignment.tune_semis, 24),
+                    tune_cents: tile_offset(assignment.tune_cents, 100),
+                })
+            })
+            .collect();
+    }
+    if let Some(tune) = sample.tune_semis {
+        instrument.sample_tune_semis = tune.clamp(-24, 24);
+    }
+    if let Some(amp) = &sample.amp {
+        if let Some(gain) = amp.gain_pct {
+            instrument.sample_gain_pct = gain.min(100);
+        }
+        if let Some(velocity_sens) = amp.velocity_sensitivity_pct {
+            instrument.sample_amp_velocity_sensitivity_pct = velocity_sens.min(100);
+        }
+    }
+    if let Some(amp_env) = &sample.amp_env {
+        instrument.sample_amp_env = json!(amp_env);
+    }
+    if let Some(filter) = &sample.filter {
+        instrument.sample_filter = json!(filter);
+    }
+    if let Some(filter_env) = &sample.filter_env {
+        instrument.sample_filter_env = json!(filter_env);
+    }
+    if let Some(enabled) = sample.velocity_levels_enabled {
+        instrument.sample_velocity_levels_enabled = enabled;
+    }
+    if let Some(follow) = sample.follow_transpose {
+        instrument.sample_follow_transpose = follow;
+    }
+    if let Some(follow) = sample.follow_pitch {
+        instrument.sample_follow_pitch = follow;
+    }
+    if let Some(levels) = &sample.velocity_levels {
+        for (level, target) in [
+            (levels.high, &mut instrument.sample_velocity_high),
+            (levels.medium, &mut instrument.sample_velocity_medium),
+            (levels.low, &mut instrument.sample_velocity_low),
+        ] {
+            if let Some(level) = level {
+                *target = level.clamp(1, 127);
+            }
+        }
+    }
+}
+
+fn sample_playback_from_payload(slot: &SampleSlotDto) -> NativeSamplePlayback {
+    let neutral = NativeSamplePlayback::default();
+    let pct = |value: Option<u8>, fallback: u8| value.map_or(fallback, |value| value.min(100));
+    let loop_start_pct = pct(slot.loop_start_pct, neutral.loop_start_pct).min(SAMPLE_START_MAX_PCT);
+    NativeSamplePlayback {
+        loop_mode: slot
+            .loop_mode
+            .as_deref()
+            .and_then(|mode| SAMPLE_LOOP_MODES.into_iter().find(|known| *known == mode))
+            .unwrap_or(neutral.loop_mode),
+        start_pct: pct(slot.start_pct, neutral.start_pct).min(SAMPLE_START_MAX_PCT),
+        loop_start_pct,
+        loop_end_pct: pct(slot.loop_end_pct, neutral.loop_end_pct).max(loop_start_pct + 1),
     }
 }

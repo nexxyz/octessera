@@ -4,7 +4,7 @@ use crate::native_runner::InstrumentType;
 use super::grid_assign::GridAssign;
 use super::led_color::LedColor;
 use super::tile_stamp::toggle_tile_stamps;
-use super::{NativeInstrumentSlot, NativeRunner, Value};
+use super::{MidiDrumDto, NativeInstrumentSlot, NativeRunner, Value};
 use crate::native_menu::{
     NativeMenuMidiDrum, MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES,
     MIDI_DRUM_VELOCITIES,
@@ -44,35 +44,32 @@ impl NativeMidiDrum {
         })
     }
 
-    pub(super) fn apply_payload(&mut self, value: &Value) {
-        let number =
-            |key: &str, range| Some(clamped(value.get(key).and_then(Value::as_u64)?, range));
+    pub(super) fn apply(&mut self, midi_drum: &MidiDrumDto) {
         let settings = &mut self.settings;
-        if let Some(enabled) = value.get("enabled").and_then(Value::as_bool) {
+        if let Some(enabled) = midi_drum.enabled {
             settings.enabled = enabled;
         }
-        if let Some(channel) = number("channel", MIDI_DRUM_CHANNELS) {
-            settings.channel = channel as u8;
+        if let Some(channel) = midi_drum.channel {
+            settings.channel = clamped(channel.into(), MIDI_DRUM_CHANNELS) as u8;
         }
-        if let Some(duration_ms) = number("durationMs", MIDI_DRUM_DURATION_MS) {
-            settings.duration_ms = duration_ms;
+        if let Some(duration_ms) = midi_drum.duration_ms {
+            settings.duration_ms = clamped(duration_ms.into(), MIDI_DRUM_DURATION_MS);
         }
-        if let Some(note) = number("tileNote", MIDI_DRUM_NOTES) {
-            settings.tile_note = note as u8;
+        if let Some(note) = midi_drum.tile_note {
+            settings.tile_note = clamped(note.into(), MIDI_DRUM_NOTES) as u8;
         }
-        if let Some(velocity) = number("tileVelocity", MIDI_DRUM_VELOCITIES) {
-            settings.tile_velocity = velocity as u8;
+        if let Some(velocity) = midi_drum.tile_velocity {
+            settings.tile_velocity = clamped(velocity.into(), MIDI_DRUM_VELOCITIES) as u8;
         }
-        if let Some(assignments) = value.get("assignments").and_then(Value::as_array) {
+        if let Some(assignments) = &midi_drum.assignments {
             self.assignments = assignments
                 .iter()
                 .filter_map(|tile| {
-                    let field = |key: &str| tile.get(key).and_then(Value::as_u64);
                     Some(NativeMidiDrumTile {
-                        x: field("x")? as usize,
-                        y: field("y")? as usize,
-                        note: clamped(field("note")?, MIDI_DRUM_NOTES) as u8,
-                        velocity: clamped(field("velocity")?, MIDI_DRUM_VELOCITIES) as u8,
+                        x: tile.x?.into(),
+                        y: tile.y?.into(),
+                        note: clamped(tile.note?.into(), MIDI_DRUM_NOTES) as u8,
+                        velocity: clamped(tile.velocity?.into(), MIDI_DRUM_VELOCITIES) as u8,
                     })
                 })
                 .collect();

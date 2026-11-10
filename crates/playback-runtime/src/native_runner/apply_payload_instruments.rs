@@ -1,35 +1,20 @@
 use crate::native_menu::HOME_VISUALS;
 use crate::protocol::RuntimePlatformEffect;
 
-use super::apply_payload_instrument_values::*;
+use super::apply_payload_instrument_values::apply_instrument_payload;
 use super::apply_payload_mixer_values::*;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::play_pages::{ActivePlayMode, PlayMode};
 use super::{
-    velocity_curve_from_id, AudioOptimization, AudioOutputSet, MidiDto, NativeRunner, SyncSource,
-    UsbDataRole, Value, VoiceStealingMode,
+    velocity_curve_from_id, AudioOptimization, AudioOutputSet, InstrumentDto, MidiDto,
+    NativeRunner, SyncSource, UsbDataRole, Value, VoiceStealingMode,
 };
 use serde::Deserialize;
 
 impl NativeRunner {
-    pub(super) fn apply_instruments_payload(&mut self, runtime: &Value) {
-        let Some(instruments) = runtime.get("instruments").and_then(Value::as_array) else {
-            return;
-        };
-        for (index, slot) in instruments.iter().take(self.instruments.len()).enumerate() {
-            let Some(instrument) = self.instruments.get_mut(index) else {
-                continue;
-            };
-            apply_instrument_identity_payload(slot, instrument);
-            apply_instrument_tile_stamp_payload(slot, instrument);
-            apply_instrument_mixer_payload(slot, instrument);
-            apply_instrument_sample_payload(slot, instrument);
-            apply_instrument_synth_payload(slot, instrument);
-            apply_instrument_fm_payload(slot, instrument);
-            apply_instrument_pluck_payload(slot, instrument);
-            apply_instrument_drum_payload(slot, instrument);
-            apply_instrument_midi_payload(slot, instrument);
-            apply_instrument_midi_drum_payload(slot, instrument);
+    pub(super) fn apply_instruments_payload(&mut self, instruments: &[InstrumentDto]) {
+        for (slot, instrument) in instruments.iter().zip(&mut self.instruments) {
+            apply_instrument_payload(slot, instrument);
         }
     }
 

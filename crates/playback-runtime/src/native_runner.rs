@@ -214,7 +214,6 @@ mod pan_position;
 mod patch_device_payload;
 mod patch_persistence_error;
 mod patch_store;
-mod payload_assign;
 mod persistence_intent;
 mod play_control;
 pub(crate) mod play_fx_config;

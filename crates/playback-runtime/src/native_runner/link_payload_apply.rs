@@ -1,226 +1,247 @@
-use super::payload_assign::{
-    apply_value_lane_payload, assign_bool, assign_i32, assign_mapping, assign_string, assign_u8,
-    assign_wire,
-};
 use super::{
-    ArpMode, ArpSource, LinkEventTiming, NativeLinkArp, NativeLinkLayer, RangeMode, ScanAxis,
-    ScanDirection, ScanMode, TriggerProbabilityMode, Value,
+    ArpDto, ArpMode, ArpSource, AxisDto, LaneCurve, LinkDto, LinkEventTiming, MappingEventDto,
+    NativeLinkArp, NativeLinkLayer, NativeValueLane, PitchDto, RangeMode, ScanAxis, ScanDirection,
+    ScanMode, SlotDto, TriggerAction, TriggerProbabilityMode, ValueLaneDto, INSTRUMENT_COUNT,
 };
 
-pub(super) fn apply_link_payload(layer: &mut NativeLinkLayer, payload: &Value) {
+pub(super) fn apply_link_payload(layer: &mut NativeLinkLayer, payload: &LinkDto) {
     apply_scan_and_trigger_payload(layer, payload);
-    apply_mapping_payload(layer, payload);
-    apply_pitch_payload(layer, payload);
-    apply_arp_payload(layer, payload);
-    apply_axis_payload(layer, payload, "x");
-    apply_axis_payload(layer, payload, "y");
+    if let Some(mapping) = &payload.mapping {
+        let events = [
+            (
+                &mapping.scanned,
+                &mut layer.scanned_slot,
+                &mut layer.scanned_action,
+                &mut layer.scanned_timing,
+            ),
+            (
+                &mapping.scanned_empty,
+                &mut layer.scanned_empty_slot,
+                &mut layer.scanned_empty_action,
+                &mut layer.scanned_empty_timing,
+            ),
+            (
+                &mapping.activate,
+                &mut layer.activate_slot,
+                &mut layer.activate_action,
+                &mut layer.activate_timing,
+            ),
+            (
+                &mapping.stable,
+                &mut layer.stable_slot,
+                &mut layer.stable_action,
+                &mut layer.stable_timing,
+            ),
+            (
+                &mapping.deactivate,
+                &mut layer.deactivate_slot,
+                &mut layer.deactivate_action,
+                &mut layer.deactivate_timing,
+            ),
+        ];
+        for (event, slot, action, timing) in events {
+            if let Some(event) = event {
+                apply_mapping_event_payload(event, slot, action, timing);
+            }
+        }
+    }
+    if let Some(pitch) = &payload.pitch {
+        apply_pitch_payload(layer, pitch);
+    }
+    layer.arp = payload
+        .arp
+        .as_ref()
+        .map_or_else(NativeLinkArp::default, arp_from_payload);
+    if let Some(axis) = &payload.x {
+        apply_axis_payload(
+            axis,
+            (&mut layer.x_from, &mut layer.x_to),
+            (
+                &mut layer.x_pitch_enabled,
+                &mut layer.x_pitch_steps,
+                &mut layer.x_pitch_restart_each_section,
+            ),
+            [
+                &mut layer.x_velocity,
+                &mut layer.x_filter_cutoff,
+                &mut layer.x_filter_resonance,
+            ],
+        );
+    }
+    if let Some(axis) = &payload.y {
+        apply_axis_payload(
+            axis,
+            (&mut layer.y_from, &mut layer.y_to),
+            (
+                &mut layer.y_pitch_enabled,
+                &mut layer.y_pitch_steps,
+                &mut layer.y_pitch_restart_each_section,
+            ),
+            [
+                &mut layer.y_velocity,
+                &mut layer.y_filter_cutoff,
+                &mut layer.y_filter_resonance,
+            ],
+        );
+    }
 }
 
-fn apply_arp_payload(layer: &mut NativeLinkLayer, payload: &Value) {
-    let Some(arp) = payload.get("arp") else {
-        layer.arp = NativeLinkArp::default();
-        return;
-    };
+/// Takes a saved value-set value; a value outside the set changes nothing.
+fn assign_wire<T>(value: &Option<String>, target: &mut T, from_wire_name: fn(&str) -> Option<T>) {
+    if let Some(value) = value.as_deref().and_then(from_wire_name) {
+        *target = value;
+    }
+}
+
+fn assign<T: Copy>(value: Option<T>, target: &mut T) {
+    if let Some(value) = value {
+        *target = value;
+    }
+}
+
+fn arp_from_payload(arp: &ArpDto) -> NativeLinkArp {
     let mut next = NativeLinkArp::default();
-    assign_wire(arp, "mode", &mut next.mode, ArpMode::from_wire_name);
-    assign_wire(arp, "source", &mut next.source, ArpSource::from_wire_name);
-    if let Some(value) = arp.get("stepIntervalSteps").and_then(Value::as_i64) {
-        if let Ok(value) = u8::try_from(value.clamp(1, 16)) {
-            next.step_interval_steps = value;
-        }
+    assign_wire(&arp.mode, &mut next.mode, ArpMode::from_wire_name);
+    assign_wire(&arp.source, &mut next.source, ArpSource::from_wire_name);
+    if let Some(value) = arp.step_interval_steps {
+        next.step_interval_steps = value.clamp(1, 16) as u8;
     }
-    if let Some(value) = arp.get("noteLengthMs").and_then(Value::as_i64) {
-        if let Ok(value) = u16::try_from(value.clamp(10, 2000)) {
-            next.note_length_ms = value;
-        }
+    if let Some(value) = arp.note_length_ms {
+        next.note_length_ms = value.clamp(10, 2000) as u16;
     }
-    if let Some(value) = arp.get("gatePct").and_then(Value::as_i64) {
-        if let Ok(value) = u8::try_from(value.clamp(1, 100)) {
-            next.gate_pct = value;
-        }
+    if let Some(value) = arp.gate_pct {
+        next.gate_pct = value.clamp(1, 100) as u8;
     }
-    if let Some(value) = arp.get("octaveSpread").and_then(Value::as_i64) {
-        if let Ok(value) = u8::try_from(value.clamp(0, 3)) {
-            next.octave_spread = value;
-        }
+    if let Some(value) = arp.octave_spread {
+        next.octave_spread = value.clamp(0, 3) as u8;
     }
-    layer.arp = next;
+    next
 }
 
-fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &Value) {
+fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &LinkDto) {
     assign_wire(
-        payload,
-        "scanMode",
+        &payload.scan_mode,
         &mut layer.scan_mode,
         ScanMode::from_wire_name,
     );
     assign_wire(
-        payload,
-        "scanAxis",
+        &payload.scan_axis,
         &mut layer.scan_axis,
         ScanAxis::from_wire_name,
     );
-    assign_string(payload, "scanUnit", &mut layer.scan_unit);
+    if let Some(unit) = &payload.scan_unit {
+        layer.scan_unit.clone_from(unit);
+    }
     assign_wire(
-        payload,
-        "scanDirection",
+        &payload.scan_direction,
         &mut layer.scan_direction,
         ScanDirection::from_wire_name,
     );
-    assign_u8(payload, "scanSections", &mut layer.scan_sections, 8);
-    if let Some(enabled) = payload.get("eventEnabled").and_then(Value::as_bool) {
-        layer.event_enabled = enabled;
-    }
-    if let Some(enabled) = payload.get("stateNotesEnabled").and_then(Value::as_bool) {
-        layer.state_notes_enabled = enabled;
-    }
-    if let Some(seeded) = payload.get("seeded").and_then(Value::as_bool) {
-        layer.seeded = seeded;
-    }
+    assign(
+        payload.scan_sections.map(|value| value.min(8)),
+        &mut layer.scan_sections,
+    );
+    assign(payload.event_enabled, &mut layer.event_enabled);
+    assign(payload.state_notes_enabled, &mut layer.state_notes_enabled);
+    assign(payload.seeded, &mut layer.seeded);
     assign_wire(
-        payload,
-        "triggerProbabilityMode",
+        &payload.trigger_probability_mode,
         &mut layer.trigger_probability_mode,
         TriggerProbabilityMode::from_wire_name,
     );
-    assign_u8(
-        payload,
-        "triggerProbabilityLowPct",
+    assign(
+        payload
+            .trigger_probability_low_pct
+            .map(|value| value.min(100)),
         &mut layer.trigger_probability_low_pct,
-        100,
     );
-    assign_u8(
-        payload,
-        "triggerProbabilityHighPct",
+    assign(
+        payload
+            .trigger_probability_high_pct
+            .map(|value| value.min(100)),
         &mut layer.trigger_probability_high_pct,
-        100,
     );
 }
 
-fn apply_mapping_payload(layer: &mut NativeLinkLayer, payload: &Value) {
-    let Some(mapping) = payload.get("mapping") else {
-        return;
-    };
-    assign_mapping(
-        mapping,
-        "scanned",
-        &mut layer.scanned_slot,
-        &mut layer.scanned_action,
-    );
-    assign_timing(mapping, "scanned", &mut layer.scanned_timing);
-    assign_mapping(
-        mapping,
-        "scanned_empty",
-        &mut layer.scanned_empty_slot,
-        &mut layer.scanned_empty_action,
-    );
-    assign_timing(mapping, "scanned_empty", &mut layer.scanned_empty_timing);
-    assign_mapping(
-        mapping,
-        "activate",
-        &mut layer.activate_slot,
-        &mut layer.activate_action,
-    );
-    assign_timing(mapping, "activate", &mut layer.activate_timing);
-    assign_mapping(
-        mapping,
-        "stable",
-        &mut layer.stable_slot,
-        &mut layer.stable_action,
-    );
-    assign_timing(mapping, "stable", &mut layer.stable_timing);
-    assign_mapping(
-        mapping,
-        "deactivate",
-        &mut layer.deactivate_slot,
-        &mut layer.deactivate_action,
-    );
-    assign_timing(mapping, "deactivate", &mut layer.deactivate_timing);
-}
-
-fn assign_timing(mapping: &Value, key: &str, timing: &mut LinkEventTiming) {
-    let Some(payload) = mapping.get(key) else {
-        return;
-    };
-    if let Some(delay) = payload.get("delaySteps").and_then(Value::as_u64) {
-        if let Ok(delay) = u8::try_from(delay) {
-            timing.delay_steps = delay.min(16);
-        }
+fn apply_mapping_event_payload(
+    event: &MappingEventDto,
+    slot: &mut usize,
+    action: &mut TriggerAction,
+    timing: &mut LinkEventTiming,
+) {
+    match &event.slot {
+        Some(SlotDto::None(value)) if value == "none" => *slot = usize::MAX,
+        Some(SlotDto::Index(index)) => *slot = (*index).min(INSTRUMENT_COUNT - 1),
+        _ => {}
     }
-    if let Some(retrigger) = payload.get("retriggerCount").and_then(Value::as_u64) {
-        if let Ok(retrigger) = u8::try_from(retrigger) {
-            timing.retrigger_count = retrigger.min(8);
-        }
-    }
+    assign_wire(&event.action, action, TriggerAction::from_wire_name);
+    assign(
+        event.delay_steps.map(|value| value.min(16)),
+        &mut timing.delay_steps,
+    );
+    assign(
+        event.retrigger_count.map(|value| value.min(8)),
+        &mut timing.retrigger_count,
+    );
 }
 
-fn apply_pitch_payload(layer: &mut NativeLinkLayer, payload: &Value) {
-    let Some(pitch) = payload.get("pitch") else {
-        return;
-    };
-    assign_u8(pitch, "lowestNote", &mut layer.lowest_note, 127);
-    assign_u8(pitch, "highestNote", &mut layer.highest_note, 127);
-    assign_u8(pitch, "startingNote", &mut layer.starting_note, 127);
-    assign_string(pitch, "scale", &mut layer.scale);
-    assign_string(pitch, "root", &mut layer.root);
+fn apply_pitch_payload(layer: &mut NativeLinkLayer, pitch: &PitchDto) {
+    assign(
+        pitch.lowest_note.map(|value| value.min(127)),
+        &mut layer.lowest_note,
+    );
+    assign(
+        pitch.highest_note.map(|value| value.min(127)),
+        &mut layer.highest_note,
+    );
+    assign(
+        pitch.starting_note.map(|value| value.min(127)),
+        &mut layer.starting_note,
+    );
+    if let Some(scale) = &pitch.scale {
+        layer.scale.clone_from(scale);
+    }
+    if let Some(root) = &pitch.root {
+        layer.root.clone_from(root);
+    }
     assign_wire(
-        pitch,
-        "outOfRange",
+        &pitch.out_of_range,
         &mut layer.out_of_range,
         RangeMode::from_wire_name,
     );
 }
 
-fn apply_axis_payload(layer: &mut NativeLinkLayer, payload: &Value, axis: &str) {
-    let Some(axis_payload) = payload.get(axis) else {
-        return;
-    };
-    let (
-        from,
-        to,
-        pitch_enabled,
-        pitch_steps,
-        pitch_restart_each_section,
-        velocity,
-        filter_cutoff,
-        filter_resonance,
-    ) = if axis == "x" {
-        (
-            &mut layer.x_from,
-            &mut layer.x_to,
-            &mut layer.x_pitch_enabled,
-            &mut layer.x_pitch_steps,
-            &mut layer.x_pitch_restart_each_section,
-            &mut layer.x_velocity,
-            &mut layer.x_filter_cutoff,
-            &mut layer.x_filter_resonance,
-        )
-    } else {
-        (
-            &mut layer.y_from,
-            &mut layer.y_to,
-            &mut layer.y_pitch_enabled,
-            &mut layer.y_pitch_steps,
-            &mut layer.y_pitch_restart_each_section,
-            &mut layer.y_velocity,
-            &mut layer.y_filter_cutoff,
-            &mut layer.y_filter_resonance,
-        )
-    };
-    assign_u8(axis_payload, "from", from, 7);
-    assign_u8(axis_payload, "to", to, 7);
-    if let Some(pitch) = axis_payload.get("pitch") {
-        assign_bool(pitch, "enabled", pitch_enabled);
-        assign_i32(pitch, "steps", pitch_steps, -16, 16);
-        assign_bool(pitch, "restartEachSection", pitch_restart_each_section);
+fn apply_axis_payload(
+    axis: &AxisDto,
+    (from, to): (&mut u8, &mut u8),
+    (pitch_enabled, pitch_steps, pitch_restart_each_section): (&mut bool, &mut i32, &mut bool),
+    [velocity, filter_cutoff, filter_resonance]: [&mut NativeValueLane; 3],
+) {
+    assign(axis.from.map(|value| value.min(7)), from);
+    assign(axis.to.map(|value| value.min(7)), to);
+    if let Some(pitch) = &axis.pitch {
+        assign(pitch.enabled, pitch_enabled);
+        assign(pitch.steps.map(|value| value.clamp(-16, 16)), pitch_steps);
+        assign(pitch.restart_each_section, pitch_restart_each_section);
     }
-    if let Some(lane) = axis_payload.get("velocity") {
-        apply_value_lane_payload(velocity, lane);
+    for (lane, target) in [
+        (&axis.velocity, velocity),
+        (&axis.filter_cutoff, filter_cutoff),
+        (&axis.filter_resonance, filter_resonance),
+    ] {
+        if let Some(lane) = lane {
+            apply_value_lane_payload(target, lane);
+        }
     }
-    if let Some(lane) = axis_payload.get("filterCutoff") {
-        apply_value_lane_payload(filter_cutoff, lane);
-    }
-    if let Some(lane) = axis_payload.get("filterResonance") {
-        apply_value_lane_payload(filter_resonance, lane);
-    }
+}
+
+fn apply_value_lane_payload(target: &mut NativeValueLane, lane: &ValueLaneDto) {
+    assign(lane.enabled, &mut target.enabled);
+    assign(lane.from.map(|value| value.min(127)), &mut target.from);
+    assign(lane.to.map(|value| value.min(127)), &mut target.to);
+    assign(
+        lane.grid_offset.map(|value| value.clamp(-7, 7)),
+        &mut target.grid_offset,
+    );
+    assign_wire(&lane.curve, &mut target.curve, LaneCurve::from_wire_name);
 }
