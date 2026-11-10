@@ -56,6 +56,7 @@ pub(crate) fn restore(
         screen_recordings_dir,
         &backup_path,
     )?;
+    prune_pre_restore_archives(&staging);
 
     let new_store = staging.join(format!(".octessera-store-new-{session}"));
     let new_samples = staging.join(format!(".octessera-samples-new-{session}"));
@@ -144,6 +145,31 @@ fn read_target_pair(store_dir: &Path) -> Result<(Value, Value), String> {
     .ok_or_else(|| "Default patch is missing".to_string())?;
     crate::platform_service::validate_patch_document(store_dir, &patch)?;
     Ok((system, patch))
+}
+
+/// Each restore leaves its pre-restore archive behind; only the newest ones stay.
+const KEPT_PRE_RESTORE_ARCHIVES: usize = 2;
+
+fn prune_pre_restore_archives(staging: &Path) {
+    let Ok(entries) = fs::read_dir(staging) else {
+        return;
+    };
+    let mut archives: Vec<_> = entries
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            entry.file_name().to_str().is_some_and(|name| {
+                name.starts_with("octessera-pre-restore-") && name.ends_with(".oct")
+            })
+        })
+        .filter_map(|entry| {
+            let metadata = entry.metadata().ok().filter(fs::Metadata::is_file)?;
+            Some((metadata.modified().ok()?, entry.path()))
+        })
+        .collect();
+    archives.sort_by(|left, right| right.cmp(left));
+    for (_, path) in archives.into_iter().skip(KEPT_PRE_RESTORE_ARCHIVES) {
+        let _ = fs::remove_file(path);
+    }
 }
 
 fn write_pre_restore_backup(
