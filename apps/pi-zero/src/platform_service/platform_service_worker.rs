@@ -21,7 +21,19 @@ pub(super) struct PlatformWorkerContext {
 }
 
 pub(super) fn spawn(context: PlatformWorkerContext) {
-    thread::spawn(move || run(context));
+    thread::spawn(move || {
+        lower_priority();
+        run(context)
+    });
+}
+
+/// Store jobs share the app's CPU with the runtime loop. At its priority, the rolling backup's
+/// validate, serialize and write held dispatches off for up to 2.5 ms.
+fn lower_priority() {
+    #[cfg(target_os = "linux")]
+    unsafe {
+        libc::setpriority(libc::PRIO_PROCESS, 0, 10);
+    }
 }
 
 fn run(context: PlatformWorkerContext) {

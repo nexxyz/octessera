@@ -227,7 +227,10 @@ The Raspberry's worst waits (up to about 0.7 ms) were `avahi-daemon` and
 `polkitd` running on CPU 0, so the image keeps both on cores 2 and 3 at
 `Nice=10`, low enough for the DSP workers there to preempt them. The Orange's
 worst waits were the app's own CPU 0 threads; interrupts took at most about
-45 µs on either board.
+45 µs on either board. The largest of them was the rolling backup (due on the
+first change after start, then every five minutes while the patch stays dirty):
+at the runtime's priority its validate, serialize and write held dispatches off
+for up to 2.5 ms, so the store worker runs at nice 10.
 
 The Orange keeps Armbian's `ondemand` governor, but its dips to 480 and 720 MHz
 (about 200 ms every 2 seconds, right in the runtime's heavy layer steps)
