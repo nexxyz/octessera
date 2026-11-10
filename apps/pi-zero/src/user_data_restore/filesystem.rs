@@ -45,6 +45,11 @@ pub(crate) trait Filesystems {
 
     fn is_writable_dir(&self, path: &Path) -> io::Result<bool>;
 
+    /// The lock every SD-card mount and transfer takes; restore holds it while it works.
+    fn sd_card_lock_path(&self) -> &Path {
+        Path::new("/run/octessera-sd-card.lock")
+    }
+
     fn is_other_filesystem(&self, root: &Path, path: &Path) -> io::Result<bool> {
         Ok(self.device(root)? != self.device(path)?)
     }

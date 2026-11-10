@@ -150,3 +150,58 @@ fn recovery_tree_removal_never_descends_into_another_filesystem() {
     );
     let _ = fs::remove_dir_all(root);
 }
+
+/// Records, whenever restore asks about a folder, whether someone else could take the SD lock.
+#[cfg(unix)]
+struct WatchesSdLock {
+    lock: PathBuf,
+    contended: std::cell::Cell<usize>,
+    free: std::cell::Cell<usize>,
+}
+
+#[cfg(unix)]
+impl Filesystems for WatchesSdLock {
+    fn device(&self, path: &Path) -> io::Result<u64> {
+        fs::symlink_metadata(path).map(|_| 0)
+    }
+
+    fn is_writable_dir(&self, _: &Path) -> io::Result<bool> {
+        use std::os::fd::AsRawFd;
+        let probe = fs::File::open(&self.lock)?;
+        if unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0 {
+            self.free.set(self.free.get() + 1);
+        } else {
+            self.contended.set(self.contended.get() + 1);
+        }
+        Ok(true)
+    }
+
+    fn sd_card_lock_path(&self) -> &Path {
+        &self.lock
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn restore_holds_the_sd_card_lock_while_it_builds_and_swaps() {
+    let fixture = Fixture::new("sd-lock");
+    fs::create_dir_all(fixture.samples.join("My Kit")).unwrap();
+    let lock = fixture.root.join("sd-card.lock");
+    fs::write(&lock, b"").unwrap();
+    let watcher = WatchesSdLock {
+        lock: lock.clone(),
+        contended: std::cell::Cell::new(0),
+        free: std::cell::Cell::new(0),
+    };
+
+    restore_on(&fixture, &watcher, "sd-lock", true).unwrap();
+
+    assert!(watcher.contended.get() > 0);
+    assert_eq!(watcher.free.get(), 0);
+    use std::os::fd::AsRawFd;
+    let after = fs::File::open(&lock).unwrap();
+    assert_eq!(
+        unsafe { libc::flock(after.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+        0
+    );
+}
