@@ -68,19 +68,15 @@ fn drum_full_legacy_defaults_partial_patch_preserves_and_v2_unknown_field_stays_
     edited["runtimeConfig"]["instruments"][0]["drum"]["voices"][0]["tonePct"] = json!(87);
     runner.apply_config_payload(edited).unwrap();
     runner
-        .apply_patch_payload_preserving_device(json!({
+        .apply_patch_payload_preserving_device(patch_document(json!({
             "runtimeConfig": { "instruments": [{ "type": "drum" }] }
-        }))
+        })))
         .unwrap();
     assert_eq!(
         runner.instruments[0].drum_config["voices"][0]["tonePct"],
         87
     );
-    runner.apply_config_payload(legacy.clone()).unwrap();
-    assert_eq!(runner.instruments[0].drum_config, defaults);
-    runner
-        .apply_config_payload(unversioned_payload(legacy))
-        .unwrap();
+    runner.apply_config_payload(legacy).unwrap();
     assert_eq!(runner.instruments[0].drum_config, defaults);
 
     let mut source = runner.config_payload();
@@ -328,11 +324,11 @@ fn partial_drum_edit_inherits_new_values_and_invalid_explicit_values_do_not_comm
     payload["runtimeConfig"]["instruments"][0]["drum"]["voices"][0]["levelPct"] = json!(73);
     runner.apply_config_payload(payload).unwrap();
     runner
-        .apply_patch_payload_preserving_device(json!({
+        .apply_patch_payload_preserving_device(patch_document(json!({
             "kind": "octessera.patch",
             "schemaVersion": 2,
             "runtimeConfig": { "instruments": [{ "drum": { "voices": [{ "tonePct": 44 }] } }] }
-        }))
+        })))
         .unwrap();
     assert_eq!(
         runner.instruments[0].drum_config["voices"][0]["sweepSemis"],

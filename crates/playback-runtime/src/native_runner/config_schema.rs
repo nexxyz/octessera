@@ -16,18 +16,6 @@ pub(super) const CONFIG_KIND: &str = "octessera.config";
 pub(super) const PATCH_KIND: &str = "octessera.patch";
 pub(super) const CONFIG_SCHEMA_VERSION: u64 = 2;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum EnvelopeVersion {
-    Unversioned,
-    V2,
-}
-
-impl EnvelopeVersion {
-    fn is_unversioned(self) -> bool {
-        matches!(self, Self::Unversioned)
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct PreparedConfigPayload {
     pub(super) payload: Value,
@@ -40,45 +28,28 @@ pub(super) fn prepare_config_payload(
     input: Value,
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
-    let (input, source_revision, version) = parse_envelope(input, CONFIG_KIND)?;
-    let mut input = input;
+    let (mut input, source_revision) = parse_envelope(input, CONFIG_KIND)?;
     validate_canonical_lfo_bank_shape(&input)?;
-    if version == EnvelopeVersion::V2 && !has_global_lfo_bank(&input) {
+    if !has_global_lfo_bank(&input) {
         return Err("runtimeConfig.linkLfos must be supplied in a v2 full config".into());
     }
-    if version.is_unversioned() {
-        normalize_missing_usb_data_role(&mut input, true);
-    } else {
-        normalize_missing_usb_data_role(&mut input, false);
-    }
+    normalize_missing_usb_data_role(&mut input);
     validate_supplied_audio_outputs(&input)?;
     default_missing_instrument_blocks_in_full_config(&mut input);
     normalize_missing_pluck_fields(&mut input);
     super::drum_config::normalize_complete_voice_bank(&mut input);
     normalize_missing_fm_fields(&mut input);
-    let merge_base = current.clone();
-    let mut payload = merge_values(&merge_base, &input);
-    if version.is_unversioned() {
-        derived_names::canonicalize_partial_payload_names(&mut input, current);
-        payload = merge_values(&merge_base, &input);
-    } else {
-        derived_names::canonicalize_merged_payload_names(&mut payload, &input);
-    }
+    let mut payload = merge_values(current, &input);
+    derived_names::canonicalize_merged_payload_names(&mut payload, &input);
     discard_incompatible_layer_state(&mut payload, &input, current);
     set_config_envelope(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
     );
-    if !version.is_unversioned() {
-        validate_config_payload(&payload)?;
-    }
+    validate_config_payload(&payload)?;
     let envelope = ConfigDto::decode(&payload)?;
     Ok(PreparedConfigPayload {
-        apply_payload: if version.is_unversioned() {
-            input
-        } else {
-            payload.clone()
-        },
+        apply_payload: payload.clone(),
         payload,
         envelope,
         source_revision,
@@ -89,51 +60,33 @@ pub(super) fn prepare_patch_payload(
     input: Value,
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
-    let (input, source_revision, version) = parse_envelope(input, PATCH_KIND)?;
-    let mut input = input;
+    let (mut input, source_revision) = parse_envelope(input, PATCH_KIND)?;
     validate_canonical_lfo_bank_shape(&input)?;
-    if version == EnvelopeVersion::V2 {
-        let mut validation_template = current.clone();
-        default_missing_instrument_blocks_in_full_config(&mut validation_template);
-        normalize_missing_pluck_fields(&mut validation_template);
-        super::drum_config::normalize_complete_voice_bank(&mut validation_template);
-        normalize_missing_fm_fields(&mut validation_template);
-        normalize_missing_pluck_fields(&mut input);
-        validate_portable_patch_fields(&input, &validation_template)?;
-    }
-    if version.is_unversioned() {
-        normalize_missing_usb_data_role(&mut input, true);
-    } else {
-        normalize_missing_usb_data_role(&mut input, false);
-    }
+    let mut validation_template = current.clone();
+    default_missing_instrument_blocks_in_full_config(&mut validation_template);
+    normalize_missing_pluck_fields(&mut validation_template);
+    super::drum_config::normalize_complete_voice_bank(&mut validation_template);
+    normalize_missing_fm_fields(&mut validation_template);
+    normalize_missing_pluck_fields(&mut input);
+    validate_portable_patch_fields(&input, &validation_template)?;
+    normalize_missing_usb_data_role(&mut input);
     strip_device_audio_fields(&mut input);
     normalize_missing_pluck_fields(&mut input);
     super::drum_config::normalize_complete_voice_bank(&mut input);
     normalize_missing_fm_fields(&mut input);
     let mut patch = patch_payload_from_payload(input)?;
-    if version.is_unversioned() {
-        derived_names::canonicalize_partial_payload_names(&mut patch, current);
-    }
     super::random_streams::default_missing_seed_fields(&mut patch);
     let mut payload = merge_values(current, &patch);
-    if !version.is_unversioned() {
-        derived_names::canonicalize_merged_payload_names(&mut payload, &patch);
-    }
+    derived_names::canonicalize_merged_payload_names(&mut payload, &patch);
     discard_incompatible_layer_state(&mut payload, &patch, current);
     set_config_envelope(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
     );
-    if !version.is_unversioned() {
-        validate_config_payload(&payload)?;
-    }
+    validate_config_payload(&payload)?;
     let envelope = ConfigDto::decode(&payload)?;
     Ok(PreparedConfigPayload {
-        apply_payload: if version.is_unversioned() {
-            patch
-        } else {
-            payload.clone()
-        },
+        apply_payload: payload.clone(),
         payload,
         envelope,
         source_revision,
@@ -145,32 +98,20 @@ pub(super) fn prepare_device_payload(
     input: Value,
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
-    let (input, source_revision, version) = parse_envelope(input, CONFIG_KIND)?;
-    let mut input = input;
+    let (mut input, source_revision) = parse_envelope(input, CONFIG_KIND)?;
     validate_canonical_lfo_bank_shape(&input)?;
-    if version.is_unversioned() {
-        normalize_missing_usb_data_role(&mut input, true);
-    } else {
-        normalize_missing_usb_data_role(&mut input, false);
-    }
+    normalize_missing_usb_data_role(&mut input);
     validate_supplied_audio_outputs(&input)?;
     let device = super::device_config_payload_from_payload(input)?;
-    let merge_base = current.clone();
-    let mut payload = merge_values(&merge_base, &device);
+    let mut payload = merge_values(current, &device);
     set_config_envelope(
         &mut payload,
         source_revision.or_else(|| revision_of(current)),
     );
-    if !version.is_unversioned() {
-        validate_config_payload(&payload)?;
-    }
+    validate_config_payload(&payload)?;
     let envelope = ConfigDto::decode(&payload)?;
     Ok(PreparedConfigPayload {
-        apply_payload: if version.is_unversioned() {
-            device
-        } else {
-            payload.clone()
-        },
+        apply_payload: payload.clone(),
         payload,
         envelope,
         source_revision,
@@ -253,39 +194,31 @@ fn discard_incompatible_layer_state(payload: &mut Value, patch: &Value, current:
     }
 }
 
-fn parse_envelope(
-    input: Value,
-    expected_kind: &str,
-) -> Result<(Value, Option<u64>, EnvelopeVersion), String> {
+/// Accepts only a `kind` and `schemaVersion` envelope of the current schema; every saved
+/// document has carried one, so a payload without it is not a document.
+fn parse_envelope(input: Value, expected_kind: &str) -> Result<(Value, Option<u64>), String> {
     let object = input
         .as_object()
         .ok_or_else(|| "configuration payload must be an object".to_string())?;
-    let has_kind = object.contains_key("kind");
-    let has_schema = object.contains_key("schemaVersion");
-    if has_kind != has_schema {
+    if !object.contains_key("kind") || !object.contains_key("schemaVersion") {
         return Err("configuration envelope must include kind and schemaVersion".into());
     }
-    let version = if has_kind {
-        let kind = object
-            .get("kind")
-            .and_then(Value::as_str)
-            .ok_or_else(|| "configuration envelope kind must be a string".to_string())?;
-        if kind != expected_kind {
-            return Err(format!("unsupported configuration envelope kind `{kind}`"));
-        }
-        let version = object
-            .get("schemaVersion")
-            .and_then(Value::as_u64)
-            .ok_or_else(|| "configuration schemaVersion must be an integer".to_string())?;
-        if version != CONFIG_SCHEMA_VERSION {
-            return Err(format!(
-                "unsupported configuration schema version {version}"
-            ));
-        }
-        EnvelopeVersion::V2
-    } else {
-        EnvelopeVersion::Unversioned
-    };
+    let kind = object
+        .get("kind")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "configuration envelope kind must be a string".to_string())?;
+    if kind != expected_kind {
+        return Err(format!("unsupported configuration envelope kind `{kind}`"));
+    }
+    let version = object
+        .get("schemaVersion")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "configuration schemaVersion must be an integer".to_string())?;
+    if version != CONFIG_SCHEMA_VERSION {
+        return Err(format!(
+            "unsupported configuration schema version {version}"
+        ));
+    }
     let revision = object
         .get("revision")
         .map(|value| {
@@ -299,7 +232,7 @@ fn parse_envelope(
             return Err("runtimeConfig must be an object".into());
         }
     }
-    Ok((input, revision, version))
+    Ok((input, revision))
 }
 
 fn has_global_lfo_bank(payload: &Value) -> bool {
@@ -336,7 +269,7 @@ fn validate_supplied_audio_outputs(payload: &Value) -> Result<(), String> {
     validate_audio_outputs(runtime)
 }
 
-fn merge_values(base: &Value, overlay: &Value) -> Value {
+pub(super) fn merge_values(base: &Value, overlay: &Value) -> Value {
     match (base, overlay) {
         (Value::Object(base), Value::Object(overlay)) => {
             let mut merged = base.clone();

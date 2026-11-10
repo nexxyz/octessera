@@ -105,14 +105,14 @@ fn audio_optimization_survives_load_empty_and_patch_load() {
     );
 
     runner
-        .apply_patch_payload_preserving_device(json!({
+        .apply_patch_payload_preserving_device(patch_document(json!({
             "kind": "octessera.patch",
             "schemaVersion": 2,
             "runtimeConfig": {
                 "sound": { "optimizeFor": "latency" },
                 "layers": [{ "build": { "behaviorId": "life" } }]
             }
-        }))
+        })))
         .unwrap();
     assert_eq!(
         runner.audio_io.audio_optimization,

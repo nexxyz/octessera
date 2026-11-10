@@ -153,19 +153,14 @@ fn native_runner_publishes_runtime_config_changes_once() {
         .iter()
         .any(|message| matches!(message, RunnerMessage::RuntimeConfigChanged { .. })));
 
-    runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "transport": { "bpm": 93.5 },
-                "midi": {
-                    "enabled": true,
-                    "outId": "out-1",
-                    "syncMode": "external",
-                    "clockOutEnabled": true
-                }
-            }
-        }))
-        .unwrap();
+    let mut payload = runner.capture_config_snapshot().into_payload();
+    payload["runtimeConfig"]["transport"]["bpm"] = json!(93.5);
+    let midi = &mut payload["runtimeConfig"]["midi"];
+    midi["enabled"] = json!(true);
+    midi["outId"] = json!("out-1");
+    midi["syncMode"] = json!("external");
+    midi["clockOutEnabled"] = json!(true);
+    runner.apply_config_payload(payload).unwrap();
     let changed = runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "other" }),

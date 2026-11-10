@@ -116,27 +116,15 @@ pub(crate) fn aux_binding_to_the_hidden_time_ms_row_reports_the_synced_time() {
 }
 
 #[test]
-pub(crate) fn invalid_delay_fields_normalize_and_non_delay_strips_timing_metadata() {
+pub(crate) fn invalid_delay_fields_are_rejected_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.transport.bpm = 120.0;
-    runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "mixer": {
-                    "buses": [{
-                        "slot1": { "type": "delay", "params": { "timeMode": "banana", "timeNote": "bad", "timeMs": 9999, "feedback": 0.35, "mixPct": 35 } },
-                        "slot2": { "type": "tremolo", "params": { "timeMode": "note", "timeNote": "1/4", "rateHz": 4.0, "depthPct": 60 } }
-                    }]
-                }
-            }
-        }))
-        .unwrap();
-
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 2000);
-    assert_eq!(runner.fx_buses[0].slot1_params["timeNote"], "1/1");
-    assert!(runner.fx_buses[0].slot2_params.get("timeMode").is_none());
-    assert!(runner.fx_buses[0].slot2_params.get("timeNote").is_none());
+    let payload = config_with(
+        &runner,
+        json!({ "runtimeConfig": { "mixer": { "buses": [{
+            "slot1": { "type": "delay", "params": { "timeMode": "banana", "timeNote": "bad", "timeMs": 9999, "feedback": 0.35, "mixPct": 35 } }
+        }] } } }),
+    );
+    assert_rejected_without_byte_changes(&mut runner, payload);
 }
 
 #[test]
@@ -270,7 +258,7 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
 pub(crate) fn note_mode_delay_config_load_uses_payload_bpm() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .apply_config_payload(json!({
+        .apply_config_payload(config_with(&runner, json!({
             "runtimeConfig": {
                 "transport": { "bpm": 60 },
                 "mixer": {
@@ -279,7 +267,7 @@ pub(crate) fn note_mode_delay_config_load_uses_payload_bpm() {
                     }]
                 }
             }
-        }))
+        })))
         .unwrap();
 
     assert_eq!(runner.transport.bpm, 60.0);
@@ -287,19 +275,19 @@ pub(crate) fn note_mode_delay_config_load_uses_payload_bpm() {
 }
 
 #[test]
-pub(crate) fn note_mode_delay_config_load_uses_visible_bpm_clamp() {
+pub(crate) fn note_mode_delay_config_load_uses_the_slowest_visible_bpm() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .apply_config_payload(json!({
+        .apply_config_payload(config_with(&runner, json!({
             "runtimeConfig": {
-                "transport": { "bpm": 20 },
+                "transport": { "bpm": 40 },
                 "mixer": {
                     "buses": [{
                         "slot1": { "type": "delay", "params": { "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 } }
                     }]
                 }
             }
-        }))
+        })))
         .unwrap();
 
     assert_eq!(runner.transport.bpm, 40.0);
@@ -311,22 +299,25 @@ pub(crate) fn sparse_delay_payload_defaults_to_ms_mode_and_audio_strips_timing_m
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "mixer": {
-                    "buses": [{
-                        "slot1": {
-                            "type": "delay",
-                            "params": {
-                                "timeMs": 250,
-                                "feedback": 0.35,
-                                "mixPct": 35
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": {
+                    "mixer": {
+                        "buses": [{
+                            "slot1": {
+                                "type": "delay",
+                                "params": {
+                                    "timeMs": 250,
+                                    "feedback": 0.35,
+                                    "mixPct": 35
+                                }
                             }
-                        }
-                    }]
+                        }]
+                    }
                 }
-            }
-        }))
+            }),
+        ))
         .unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     runner.menu.rebuild(runner.menu_config());

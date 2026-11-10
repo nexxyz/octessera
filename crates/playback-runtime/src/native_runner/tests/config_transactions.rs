@@ -60,16 +60,19 @@ pub(crate) fn one_config_transaction_produces_one_full_revisioned_update() {
 pub(crate) fn config_envelope_round_trips_without_reinterpreting_state() {
     let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     source
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "activeLayerIndex": 1,
-                "layers": [
-                    {},
-                    { "build": { "behaviorId": "sequencer" } }
-                ],
-                "masterVolume": 88
-            }
-        }))
+        .apply_config_payload(config_with(
+            &source,
+            json!({
+                "runtimeConfig": {
+                    "activeLayerIndex": 1,
+                    "layers": [
+                        {},
+                        { "build": { "behaviorId": "sequencer" } }
+                    ],
+                    "masterVolume": 88
+                }
+            }),
+        ))
         .unwrap();
     let payload = source.config_payload();
 
@@ -129,33 +132,6 @@ pub(crate) fn patch_save_and_load_preserve_local_audio_outputs() {
 }
 
 #[test]
-pub(crate) fn unversioned_config_is_emitted_with_current_envelope() {
-    let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut unversioned = source.config_payload();
-    let object = unversioned.as_object_mut().unwrap();
-    object.remove("kind");
-    object.remove("schemaVersion");
-    object.remove("revision");
-    object
-        .get_mut("runtimeConfig")
-        .unwrap()
-        .as_object_mut()
-        .unwrap()
-        .remove("audioOutputs");
-
-    source.apply_config_payload(unversioned).unwrap();
-    let canonical = source.config_payload();
-
-    assert_eq!(canonical["kind"], "octessera.config");
-    assert_eq!(canonical["schemaVersion"], 2);
-    assert!(canonical["runtimeConfig"].is_object());
-    assert_eq!(
-        canonical["runtimeConfig"]["audioOutputs"],
-        json!({ "dac": true, "usb": false, "hdmi": false })
-    );
-}
-
-#[test]
 pub(crate) fn v2_full_config_requires_global_lfo_bank_but_patch_omission_preserves_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.link_lfos[0].depth_pct = 61;
@@ -169,11 +145,11 @@ pub(crate) fn v2_full_config_requires_global_lfo_bank_but_patch_omission_preserv
     assert_eq!(runner.config_payload(), before);
 
     runner
-        .apply_patch_payload_preserving_device(json!({
+        .apply_patch_payload_preserving_device(patch_document(json!({
             "kind": "octessera.patch",
             "schemaVersion": 2,
             "runtimeConfig": { "masterVolume": 74 }
-        }))
+        })))
         .unwrap();
     assert_eq!(runner.link_lfos[0].depth_pct, 61);
 }

@@ -7,7 +7,9 @@ pub(crate) fn save_current_uses_loaded_preset_name() {
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::LoadPresetResult {
                 name: "Alpha".into(),
-                payload: Some(json!({ "runtimeConfig": { "activeBehavior": "sequencer" } })),
+                payload: Some(patch_document(
+                    json!({ "runtimeConfig": { "activeBehavior": "sequencer" } }),
+                )),
             },
         })
         .unwrap();
@@ -56,7 +58,9 @@ pub(crate) fn native_store_and_action_toasts_cover_common_confirmation_results()
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::LoadPresetResult {
                 name: "Alpha".into(),
-                payload: Some(json!({ "runtimeConfig": { "activeBehavior": "sequencer" } })),
+                payload: Some(patch_document(
+                    json!({ "runtimeConfig": { "activeBehavior": "sequencer" } }),
+                )),
             },
         })
         .unwrap();

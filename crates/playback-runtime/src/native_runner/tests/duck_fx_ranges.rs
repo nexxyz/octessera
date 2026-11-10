@@ -60,24 +60,27 @@ pub(crate) fn duck_source_tap_schema_rejects_other_values() {
 pub(crate) fn omitted_duck_source_tap_defaults_to_pre() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "mixer": {
-                    "buses": [{
-                        "slot1": {
-                            "type": "duck",
-                            "params": {
-                                "source": "I1",
-                                "threshold": 0.08,
-                                "amountPct": 60,
-                                "attackMs": 8,
-                                "releaseMs": 160
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": {
+                    "mixer": {
+                        "buses": [{
+                            "slot1": {
+                                "type": "duck",
+                                "params": {
+                                    "source": "I1",
+                                    "threshold": 0.08,
+                                    "amountPct": 60,
+                                    "attackMs": 8,
+                                    "releaseMs": 160
+                                }
                             }
-                        }
-                    }]
+                        }]
+                    }
                 }
-            }
-        }))
+            }),
+        ))
         .unwrap();
 
     assert_eq!(runner.fx_buses[0].slot1_params["sourceTap"], "pre");

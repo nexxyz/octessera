@@ -68,7 +68,7 @@ fn fm_defaults_validate_and_legacy_config_loads_without_a_schema_bump() {
 
 #[test]
 fn fm_full_legacy_load_resets_missing_fm_but_partial_patch_and_slot_preserve_it() {
-    for unversioned in [false, true] {
+    {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         let initial = runner.config_payload();
         runner.apply_config_payload(initial).unwrap();
@@ -90,9 +90,9 @@ fn fm_full_legacy_load_resets_missing_fm_but_partial_patch_and_slot_preserve_it(
         edited["runtimeConfig"]["instruments"][1]["fm"]["index"] = json!(89);
         runner.apply_config_payload(edited).unwrap();
         runner
-            .apply_patch_payload_preserving_device(json!({
+            .apply_patch_payload_preserving_device(patch_document(json!({
                 "runtimeConfig": { "instruments": [{ "type": "fm" }] }
-            }))
+            })))
             .unwrap();
         assert_eq!(runner.instruments[0].fm_config["index"], 87);
         super::super::apply_payload_instrument_values::apply_instrument_payload(
@@ -101,13 +101,7 @@ fn fm_full_legacy_load_resets_missing_fm_but_partial_patch_and_slot_preserve_it(
         );
         assert_eq!(runner.instruments[0].fm_config["index"], 87);
 
-        runner
-            .apply_config_payload(if unversioned {
-                unversioned_payload(legacy)
-            } else {
-                legacy
-            })
-            .unwrap();
+        runner.apply_config_payload(legacy).unwrap();
         assert_eq!(runner.instruments[0].fm_config, defaults);
         assert_eq!(runner.instruments[1].fm_config, defaults);
         assert_eq!(runner.instruments[0].synth_gain_pct, 62);
@@ -175,11 +169,11 @@ fn fm_new_fields_validate_and_legacy_partial_patch_preserves_saved_values() {
     validate_config_payload(&bounds).unwrap();
 
     runner
-        .apply_patch_payload_preserving_device(json!({
+        .apply_patch_payload_preserving_device(patch_document(json!({
             "kind": "octessera.patch",
             "schemaVersion": 2,
             "runtimeConfig": { "instruments": [{ "fm": { "modMixPct": 40 } }] }
-        }))
+        })))
         .unwrap();
     assert_eq!(runner.instruments[0].fm_config["ratioFineCents"], -37);
     assert_eq!(runner.instruments[0].fm_config["velocityToIndexPct"], 42);

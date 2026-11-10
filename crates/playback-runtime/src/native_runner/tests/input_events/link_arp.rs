@@ -1,15 +1,18 @@
 use super::*;
 
 #[test]
-pub(crate) fn link_arp_payload_round_trips_and_clamps() {
+pub(crate) fn link_arp_payload_round_trips_and_rejects_out_of_range() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": { "layers": [{ "link": { "arp": {
-                "mode": "strum", "source": "held", "stepIntervalSteps": 99,
-                "noteLengthMs": 9999, "gatePct": 0, "octaveSpread": 9
-            } } }] }
-        }))
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": { "layers": [{ "link": { "arp": {
+                    "mode": "strum", "source": "held", "stepIntervalSteps": 16,
+                    "noteLengthMs": 2000, "gatePct": 1, "octaveSpread": 3
+                } } }] }
+            }),
+        ))
         .unwrap();
 
     let arp = &runner.layers[0].link.arp;
@@ -24,19 +27,19 @@ pub(crate) fn link_arp_payload_round_trips_and_clamps() {
         "held"
     );
 
-    runner
-        .apply_config_payload(json!({
-            "runtimeConfig": { "layers": [{ "link": { "arp": {
-                "stepIntervalSteps": -9, "noteLengthMs": -9,
-                "gatePct": -9, "octaveSpread": -9
-            } } }] }
-        }))
-        .unwrap();
-    let arp = &runner.layers[0].link.arp;
-    assert_eq!(arp.step_interval_steps, 1);
-    assert_eq!(arp.note_length_ms, 10);
-    assert_eq!(arp.gate_pct, 1);
-    assert_eq!(arp.octave_spread, 0);
+    for arp in [
+        json!({ "stepIntervalSteps": 99 }),
+        json!({ "stepIntervalSteps": -9 }),
+        json!({ "noteLengthMs": 9999 }),
+        json!({ "gatePct": 0 }),
+        json!({ "octaveSpread": 9 }),
+    ] {
+        let payload = config_with(
+            &runner,
+            json!({ "runtimeConfig": { "layers": [{ "link": { "arp": arp } }] } }),
+        );
+        assert_rejected_without_byte_changes(&mut runner, payload);
+    }
 }
 
 #[test]

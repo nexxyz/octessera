@@ -4,6 +4,7 @@ use crate::protocol::SyncSource;
 
 fn runner_with(payload: Value) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let payload = crate::native_runner::tests::config_with(&runner, payload);
     runner.apply_config_payload(payload).unwrap();
     runner
 }
@@ -85,15 +86,13 @@ fn seed_settings_round_trip_and_old_patches_stay_unseeded() {
 }
 
 #[test]
-fn out_of_range_seeds_clamp_on_apply_and_fail_document_validation() {
-    for (seed, expected) in [(0, 1), (10_000, 9999)] {
-        let runner = runner_with(json!({ "runtimeConfig": { "randomSeed": seed } }));
-        assert_eq!(runner.random_seed, expected);
+fn out_of_range_seeds_fail_document_validation() {
+    for seed in [0, 10_000] {
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         let mut document = runner.config_payload();
         document["runtimeConfig"]["randomSeed"] = json!(seed);
-        assert!(
-            super::super::config_schema_validation::validate_config_payload(&document).is_err()
-        );
+        assert!(runner.apply_config_payload(document).is_err());
+        assert_eq!(runner.random_seed, DEFAULT_RANDOM_SEED);
     }
 }
 

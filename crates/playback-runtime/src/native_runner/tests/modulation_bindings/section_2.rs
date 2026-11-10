@@ -230,25 +230,21 @@ pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
 }
 
 #[test]
-pub(crate) fn invalid_aux_and_xy_bindings_are_dropped_on_load() {
+pub(crate) fn invalid_aux_and_xy_bindings_are_rejected_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = unversioned_payload(runner.config_payload());
-    payload["runtimeConfig"]["auxBindings"] = json!({ "aux1": { "turnKey": "../../bad", "pressAction": null }, "aux2": { "turnKey": "sound.noteLengthMs", "pressAction": null } });
-    payload["runtimeConfig"]["xy"]["x"] = json!({ "key": "unknown.path", "kind": "number" });
-    payload["runtimeConfig"]["xy"]["y"] = json!({ "key": "instruments.0.mixer.volume", "kind": "number", "min": 0, "max": 100, "step": 1 });
-
-    runner.apply_config_payload(payload).unwrap();
-
-    assert!(runner.aux_bindings[0].is_none());
-    assert_eq!(
-        runner.aux_bindings[1].as_ref().unwrap().turn_key.as_deref(),
-        Some("sound.noteLengthMs")
-    );
-    assert!(runner.xy.x_binding.is_none());
-    assert_eq!(
-        runner.xy.y_binding.as_ref().unwrap().key,
-        "instruments.0.mixer.volume"
-    );
+    for (key, binding) in [
+        (
+            "auxBindings",
+            json!({ "aux1": { "turnKey": "../../bad", "pressAction": null } }),
+        ),
+        (
+            "xy",
+            json!({ "x": { "key": "unknown.path", "kind": "number" } }),
+        ),
+    ] {
+        let payload = config_with(&runner, json!({ "runtimeConfig": { key: binding } }));
+        assert_rejected_without_byte_changes(&mut runner, payload);
+    }
 }
 
 #[test]
@@ -294,23 +290,26 @@ pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
     runner.xy.smoothing_ms = 0;
     runner.xy.invert_x = true;
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "xy": {
-                        "x": {
-                            "key": "instruments.0.mixer.volume",
-                            "label": "Volume",
-                            "kind": "number",
-                            "min": 0,
-                            "max": 100,
-                            "step": 1,
-                            "userMin": 90,
-                            "userMax": 10,
-                            "invert": true
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": {
+                    "xy": {
+                            "x": {
+                                "key": "instruments.0.mixer.volume",
+                                "label": "Volume",
+                                "kind": "number",
+                                "min": 0,
+                                "max": 100,
+                                "step": 1,
+                                "userMin": 90,
+                                "userMax": 10,
+                                "invert": true
+                            }
                         }
                     }
-                }
-        }))
+            }),
+        ))
         .unwrap();
 
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
@@ -342,20 +341,23 @@ pub(crate) fn custom_range_invert_equal_and_partial_ranges_are_sanitized() {
 pub(crate) fn enum_and_bool_bindings_drop_user_ranges_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "xy": {
-                        "x": {
-                            "key": "sound.voiceStealingMode",
-                            "label": "Steal",
-                            "kind": "enum",
-                            "options": ["auto-balanced", "auto-hard"],
-                            "userMin": 10,
-                            "userMax": 20
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": {
+                    "xy": {
+                            "x": {
+                                "key": "sound.voiceStealingMode",
+                                "label": "Steal",
+                                "kind": "enum",
+                                "options": ["auto-balanced", "auto-hard"],
+                                "userMin": 10,
+                                "userMax": 20
+                            }
                         }
                     }
-                }
-        }))
+            }),
+        ))
         .unwrap();
 
     let binding = runner.xy.x_binding.as_ref().unwrap();

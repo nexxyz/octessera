@@ -269,15 +269,13 @@ impl NativeRunner {
                 *swing = value.clamp(1, 7) as u8;
             }
         }
-        if let Some(value) = runtime.get("playMode").and_then(Value::as_str) {
-            let normalized = match value {
-                "none" => Some(PlayMode::Mix),
-                _ => PlayMode::from_wire_name(value),
-            };
-            if let Some(mode) = normalized {
-                self.play_mode = mode;
-                self.active_play_mode = ActivePlayMode::None;
-            }
+        if let Some(mode) = runtime
+            .get("playMode")
+            .and_then(Value::as_str)
+            .and_then(PlayMode::from_wire_name)
+        {
+            self.play_mode = mode;
+            self.active_play_mode = ActivePlayMode::None;
         }
     }
 

@@ -1,9 +1,4 @@
 use super::*;
-use sha2::{Digest, Sha256};
-
-const PI_DEFAULT_BYTES: &[u8] =
-    include_bytes!("fixtures/config_persistence/pi_canonical_default.json");
-const PI_DEFAULT_SHA256: &str = "ec5bf898a5b7c3023411bfc1d4b4204470ac00943f59532c85c9935f5790ffd5";
 
 #[test]
 pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
@@ -82,17 +77,16 @@ pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
         }
     }
     let mut runner = runner_with_config(base.clone());
-    let mut pi_default = pi_default();
-    assert_default_looper_steps(&pi_default);
+    let pi_patch = portable_patch_payload_for_save(&pi).unwrap();
+    assert_default_looper_steps(&pi_patch);
     for (index, key, expected) in [(2, "pluck", &expected_pluck), (3, "fm", &expected_fm)] {
         assert_eq!(
-            pi_default["runtimeConfig"]["instruments"][index][key],
+            pi_patch["runtimeConfig"]["instruments"][index][key],
             *expected
         );
     }
-    normalize_sample_paths(&mut pi_default);
     runner
-        .apply_patch_payload_preserving_device(pi_default)
+        .apply_patch_payload_preserving_device(pi_patch)
         .unwrap();
     for (index, instrument_type, name) in [(2, "pluck", "Plucked"), (3, "fm", "FM")] {
         assert_eq!(runner.instruments[index].kind.wire_name(), instrument_type);
@@ -119,12 +113,14 @@ pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
     );
 
     let mut expected_desktop = runner_with_config(base.clone());
+    let desktop_device = config_with(&expected_desktop, desktop_override);
     expected_desktop
-        .apply_device_config_payload_preserving_patch(desktop_override)
+        .apply_device_config_payload_preserving_patch(desktop_device)
         .unwrap();
     let mut expected_pi = runner_with_config(base.clone());
+    let pi_device = config_with(&expected_pi, pi_override);
     expected_pi
-        .apply_device_config_payload_preserving_patch(pi_override)
+        .apply_device_config_payload_preserving_patch(pi_device)
         .unwrap();
     assert_eq!(
         device_config_payload_from_payload(desktop.clone()).unwrap(),
@@ -206,34 +202,6 @@ fn runner_with_config(payload: Value) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner
-}
-
-fn pi_default() -> Value {
-    let digest = Sha256::digest(PI_DEFAULT_BYTES);
-    assert_eq!(format!("{digest:x}"), PI_DEFAULT_SHA256);
-    serde_json::from_slice(PI_DEFAULT_BYTES).unwrap()
-}
-
-fn normalize_sample_paths(payload: &mut Value) {
-    let instruments = payload["runtimeConfig"]["instruments"]
-        .as_array_mut()
-        .unwrap();
-    for instrument in instruments {
-        let Some(slots) = instrument["sample"]["slots"].as_array_mut() else {
-            continue;
-        };
-        for slot in slots {
-            let Some(path) = slot["path"].as_str().map(str::to_owned) else {
-                continue;
-            };
-            let path = path.replace('\\', "/");
-            slot["path"] = if path.starts_with("samples/") {
-                Value::String(path)
-            } else {
-                Value::String(format!("samples/{path}"))
-            };
-        }
-    }
 }
 
 #[test]

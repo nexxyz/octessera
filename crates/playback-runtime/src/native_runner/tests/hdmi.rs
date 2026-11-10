@@ -136,16 +136,22 @@ fn hdmi_full_menu_apply_normalizes_terminal() {
 fn hdmi_terminal_payload_displays_terminal() {
     let mut runner = hdmi_runner();
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": { "hdmi": { "mode": "live-grid" } }
-        }))
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": { "hdmi": { "mode": "live-grid" } }
+            }),
+        ))
         .unwrap();
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "hdmi": { "mode": "terminal", "showGridlines": true }
-            }
-        }))
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": {
+                    "hdmi": { "mode": "terminal", "showGridlines": true }
+                }
+            }),
+        ))
         .unwrap();
 
     assert_eq!(
@@ -214,24 +220,18 @@ fn hdmi_bars_per_cycle_is_only_present_in_cycle_behaviors() {
 }
 
 #[test]
-fn hdmi_payload_clamps_cycle_measures_before_casting() {
+fn hdmi_payload_rejects_cycle_measures_past_the_limit() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-
+    let cycle = |measures: u32| json!({ "runtimeConfig": { "hdmi": { "mode": "cycle-behaviors", "cycleMeasures": measures } } });
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "hdmi": {
-                    "mode": "cycle-behaviors",
-                    "cycleMeasures": 1_000
-                }
-            }
-        }))
+        .apply_config_payload(config_with(&runner, cycle(64)))
         .unwrap();
-
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["hdmi"]["cycleMeasures"],
         64
     );
+    let payload = config_with(&runner, cycle(1_000));
+    assert_rejected_without_byte_changes(&mut runner, payload);
 }
 
 #[test]
@@ -239,12 +239,15 @@ fn hdmi_active_behavior_source_follows_loaded_active_layer() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "activeLayerIndex": 2,
-                "hdmi": { "mode": "active-behavior" }
-            }
-        }))
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": {
+                    "activeLayerIndex": 2,
+                    "hdmi": { "mode": "active-behavior" }
+                }
+            }),
+        ))
         .unwrap();
 
     let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());

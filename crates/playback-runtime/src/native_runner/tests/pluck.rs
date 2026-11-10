@@ -201,7 +201,7 @@ fn old_complete_portable_pluck_resets_missing_fields_and_partial_patch_inherits(
 
 #[test]
 fn pluck_legacy_full_defaults_and_partial_patch_preserves_existing() {
-    for unversioned in [false, true] {
+    {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         let defaults = runner.instruments[0].pluck_config.clone();
         let mut legacy = runner.config_payload();
@@ -216,9 +216,9 @@ fn pluck_legacy_full_defaults_and_partial_patch_preserves_existing() {
         edited["runtimeConfig"]["instruments"][0]["pluck"]["decayMs"] = json!(3200);
         runner.apply_config_payload(edited).unwrap();
         runner
-            .apply_patch_payload_preserving_device(json!({
+            .apply_patch_payload_preserving_device(patch_document(json!({
                 "runtimeConfig": { "instruments": [{ "type": "pluck" }] }
-            }))
+            })))
             .unwrap();
         assert_eq!(runner.instruments[0].pluck_config["decayMs"], 3200);
         super::super::apply_payload_instrument_values::apply_instrument_payload(
@@ -226,13 +226,7 @@ fn pluck_legacy_full_defaults_and_partial_patch_preserves_existing() {
             &mut runner.instruments[0],
         );
         assert_eq!(runner.instruments[0].pluck_config["decayMs"], 3200);
-        runner
-            .apply_config_payload(if unversioned {
-                unversioned_payload(legacy)
-            } else {
-                legacy
-            })
-            .unwrap();
+        runner.apply_config_payload(legacy).unwrap();
         assert_eq!(runner.instruments[0].pluck_config, defaults);
         assert_eq!(runner.config_payload()["schemaVersion"], 2);
     }

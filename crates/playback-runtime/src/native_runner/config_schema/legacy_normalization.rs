@@ -105,7 +105,7 @@ pub(super) fn normalize_missing_pluck_fields(payload: &mut Value) {
     }
 }
 
-pub(super) fn normalize_missing_usb_data_role(payload: &mut Value, allow_missing_data_role: bool) {
+pub(super) fn normalize_missing_usb_data_role(payload: &mut Value) {
     let runtime = if payload.get("runtimeConfig").is_some() {
         payload.get_mut("runtimeConfig")
     } else {
@@ -122,7 +122,7 @@ pub(super) fn normalize_missing_usb_data_role(payload: &mut Value, allow_missing
             .get("audioOutputs")
             .and_then(Value::as_object)
             .is_some_and(|outputs| outputs.contains_key("usb"));
-    if !allow_missing_data_role && !has_usb_flags {
+    if !has_usb_flags {
         return;
     }
     let usb = runtime

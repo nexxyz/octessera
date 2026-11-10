@@ -46,9 +46,9 @@ impl crate::render::hdmi::device::HdmiIo for BlockingHdmiIo {
 
 fn live_grid_scene() -> playback_runtime::PresentationScene {
     let mut runner = super::test_scenes::test_runner();
-    runner
-        .apply_config_payload(json!({ "runtimeConfig": { "hdmi": { "mode": "live-grid" } } }))
-        .unwrap();
+    let mut payload = runner.capture_config_snapshot().into_payload();
+    payload["runtimeConfig"]["hdmi"]["mode"] = json!("live-grid");
+    runner.apply_config_payload(payload).unwrap();
     runner.capture_display_scene().unwrap()
 }
 

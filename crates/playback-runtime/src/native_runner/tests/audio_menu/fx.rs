@@ -37,14 +37,14 @@ pub(crate) fn global_fx_slot_type_edits_into_config_payload() {
 pub(crate) fn fx_params_edit_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .apply_config_payload(json!({
+        .apply_config_payload(config_with(&runner, json!({
             "runtimeConfig": {
                 "mixer": {
                     "buses": [{ "slot1": { "type": "delay", "params": { "timeMs": 250, "feedback": 0.35, "mixPct": 35 } } }],
                     "master": { "slots": [{ "type": "distortion", "params": { "drive": 2.5, "clip": 0.6, "mixPct": 100 } }] }
                 }
             }
-        }))
+        })))
         .unwrap();
     runner.menu.rebuild(runner.menu_config());
 
@@ -67,38 +67,15 @@ pub(crate) fn fx_params_edit_into_config_payload() {
 }
 
 #[test]
-pub(crate) fn sparse_fx_bus_payload_defaults_omitted_slot3_to_none() {
+pub(crate) fn invalid_bus_and_global_fx_types_are_rejected_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.fx_buses[0].slot3_type = "tremolo".into();
-    runner.fx_buses[0].slot3_params = json!({ "rateHz": 4.0, "depthPct": 60 });
-    runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "mixer": { "buses": [{ "slot1": { "type": "delay", "params": {} } }] }
-            }
-        }))
-        .unwrap();
-
-    assert_eq!(runner.fx_buses[0].slot3_type, "none");
-    assert_eq!(
-        runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot3"]["type"],
-        "none"
-    );
-}
-
-#[test]
-pub(crate) fn invalid_bus_and_global_fx_types_are_sanitized_on_load() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = unversioned_payload(runner.config_payload());
+    let mut payload = runner.config_payload();
     payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
         json!({ "type": "pitch_shift", "params": {} });
     payload["runtimeConfig"]["mixer"]["master"]["slots"][0] =
         json!({ "type": "delay", "params": {} });
 
-    runner.apply_config_payload(payload).unwrap();
-
-    assert_eq!(runner.fx_buses[0].slot1_type, "none");
-    assert_eq!(runner.global_fx_slots[0], "none");
+    assert_rejected_without_byte_changes(&mut runner, payload);
 }
 
 fn bind_aux2_to_bus_delay_mix(runner: &mut NativeRunner) -> &'static str {

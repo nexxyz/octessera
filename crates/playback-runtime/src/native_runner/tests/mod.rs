@@ -253,13 +253,31 @@ pub(crate) fn assert_rejected_without_byte_changes(runner: &mut NativeRunner, pa
     );
 }
 
-pub(crate) fn unversioned_payload(mut payload: Value) -> Value {
-    if let Some(object) = payload.as_object_mut() {
-        object.remove("kind");
-        object.remove("schemaVersion");
-        object.remove("revision");
+/// The runner's whole config with `overlay` merged over it, as one complete versioned payload.
+/// A layer the overlay gives another behavior keeps no saved state or config of the old one.
+pub(crate) fn config_with(runner: &NativeRunner, overlay: Value) -> Value {
+    let mut payload = merge_values(&runner.config_payload(), &overlay);
+    let layers = overlay["runtimeConfig"]["layers"].as_array().cloned();
+    for (index, layer) in layers.into_iter().flatten().enumerate() {
+        let build = &layer["build"];
+        if build.get("behaviorId").is_none() {
+            continue;
+        }
+        let saved = &mut payload["runtimeConfig"]["layers"][index]["build"];
+        for key in ["savedState", "behaviorConfig"] {
+            if build.get(key).is_none() {
+                saved.as_object_mut().unwrap().remove(key);
+            }
+        }
     }
     payload
+}
+
+/// `patch` under the portable patch envelope.
+pub(crate) fn patch_document(mut patch: Value) -> Value {
+    patch["kind"] = json!(PATCH_KIND);
+    patch["schemaVersion"] = json!(CONFIG_SCHEMA_VERSION);
+    patch
 }
 
 pub(crate) fn device_input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {

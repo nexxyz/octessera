@@ -1,30 +1,6 @@
 use super::super::{derive_bus_name_from_slots, derive_instrument_name, InstrumentType, Value};
 use serde_json::Map;
 
-pub(super) fn canonicalize_partial_payload_names(payload: &mut Value, current: &Value) {
-    let current_runtime = runtime_object(current);
-    let Some(runtime) = runtime_object_mut(payload) else {
-        return;
-    };
-    canonicalize_partial_instrument_names(
-        runtime.get_mut("instruments").and_then(Value::as_array_mut),
-        current_runtime
-            .and_then(|runtime| runtime.get("instruments"))
-            .and_then(Value::as_array),
-    );
-    canonicalize_partial_bus_names(
-        runtime
-            .get_mut("mixer")
-            .and_then(Value::as_object_mut)
-            .and_then(|mixer| mixer.get_mut("buses"))
-            .and_then(Value::as_array_mut),
-        current_runtime
-            .and_then(|runtime| runtime.get("mixer"))
-            .and_then(|mixer| mixer.get("buses"))
-            .and_then(Value::as_array),
-    );
-}
-
 pub(super) fn canonicalize_merged_payload_names(payload: &mut Value, source: &Value) {
     let source_runtime = runtime_object(source);
     let Some(runtime) = runtime_object_mut(payload) else {
@@ -47,33 +23,6 @@ pub(super) fn canonicalize_merged_payload_names(payload: &mut Value, source: &Va
             .and_then(|mixer| mixer.get("buses"))
             .and_then(Value::as_array),
     );
-}
-
-fn canonicalize_partial_instrument_names(
-    instruments: Option<&mut Vec<Value>>,
-    current_instruments: Option<&Vec<Value>>,
-) {
-    let Some(instruments) = instruments else {
-        return;
-    };
-    for (index, instrument) in instruments.iter_mut().enumerate() {
-        let Some(instrument) = instrument.as_object_mut() else {
-            continue;
-        };
-        let current = current_instruments.and_then(|items| items.get(index));
-        let current = current.and_then(Value::as_object);
-        let auto_name = effective_auto_name(instrument, current);
-        if !auto_name {
-            continue;
-        }
-        let kind = effective_instrument_kind(instrument, current);
-        if !instrument.contains_key("name") {
-            instrument.insert(
-                "name".into(),
-                Value::String(derive_instrument_name(index, kind)),
-            );
-        }
-    }
 }
 
 fn canonicalize_merged_instrument_names(
@@ -103,30 +52,6 @@ fn canonicalize_merged_instrument_names(
                 "name".into(),
                 Value::String(derive_instrument_name(index, kind)),
             );
-        }
-    }
-}
-
-fn canonicalize_partial_bus_names(
-    buses: Option<&mut Vec<Value>>,
-    current_buses: Option<&Vec<Value>>,
-) {
-    let Some(buses) = buses else {
-        return;
-    };
-    for (index, bus) in buses.iter_mut().enumerate() {
-        let Some(bus) = bus.as_object_mut() else {
-            continue;
-        };
-        let current = current_buses
-            .and_then(|items| items.get(index))
-            .and_then(Value::as_object);
-        if !effective_auto_name(bus, current) {
-            continue;
-        }
-        let slots = normalized_partial_bus_slots(bus, current);
-        if !bus.contains_key("name") {
-            bus.insert("name".into(), Value::String(canonical_bus_name(&slots)));
         }
     }
 }
@@ -187,67 +112,28 @@ fn effective_auto_name(value: &Map<String, Value>, current: Option<&Map<String, 
         .unwrap_or(true)
 }
 
-fn effective_instrument_kind(
-    value: &Map<String, Value>,
-    current: Option<&Map<String, Value>>,
-) -> InstrumentType {
-    instrument_kind(value.get("type"))
-        .or_else(|| instrument_kind(current.and_then(|current| current.get("type"))))
-        .unwrap_or(InstrumentType::None)
-}
-
 fn normalized_instrument_kind(value: Option<&Value>) -> InstrumentType {
-    instrument_kind(value).unwrap_or(InstrumentType::None)
-}
-
-fn instrument_kind(value: Option<&Value>) -> Option<InstrumentType> {
     value
         .and_then(Value::as_str)
         .and_then(InstrumentType::from_wire_name)
-}
-
-fn normalized_partial_bus_slots(
-    value: &Map<String, Value>,
-    current: Option<&Map<String, Value>>,
-) -> [String; 3] {
-    let current_slots = current
-        .map(normalized_bus_slots)
-        .unwrap_or_else(|| ["none".into(), "none".into(), "none".into()]);
-    [
-        normalized_slot_type(value.get("slot1"), &current_slots[0]),
-        normalized_slot_type(value.get("slot2"), &current_slots[1]),
-        if value.get("slot3").is_some() {
-            normalized_slot_type(value.get("slot3"), &current_slots[2])
-        } else {
-            "none".into()
-        },
-    ]
+        .unwrap_or(InstrumentType::None)
 }
 
 fn normalized_merged_bus_slots(value: &Map<String, Value>) -> [String; 3] {
     [
-        normalized_slot_type(value.get("slot1"), "none"),
-        normalized_slot_type(value.get("slot2"), "none"),
-        normalized_slot_type(value.get("slot3"), "none"),
+        normalized_slot_type(value.get("slot1")),
+        normalized_slot_type(value.get("slot2")),
+        normalized_slot_type(value.get("slot3")),
     ]
 }
 
-fn normalized_bus_slots(value: &Map<String, Value>) -> [String; 3] {
-    normalized_merged_bus_slots(value)
-}
-
-fn normalized_slot_type(value: Option<&Value>, current: &str) -> String {
+fn normalized_slot_type(value: Option<&Value>) -> String {
     value
         .and_then(|value| value.get("type"))
         .and_then(Value::as_str)
-        .map(|kind| {
-            if crate::native_menu::is_valid_fx_bus_slot_type(kind) {
-                kind.to_string()
-            } else {
-                "none".into()
-            }
-        })
-        .unwrap_or_else(|| current.into())
+        .filter(|kind| crate::native_menu::is_valid_fx_bus_slot_type(kind))
+        .unwrap_or("none")
+        .to_string()
 }
 
 fn canonical_bus_name(slots: &[String; 3]) -> String {

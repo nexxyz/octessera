@@ -116,7 +116,7 @@ pub(crate) fn patch_and_device_payloads_split_local_device_fields() {
 }
 
 #[test]
-pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
+pub(crate) fn preset_load_preserves_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.ui.display_brightness = 3;
     runner.audio_io.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
@@ -126,7 +126,7 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::LoadPresetResult {
                 name: "Current".into(),
-                payload: Some(json!({
+                payload: Some(patch_document(json!({
                     "runtimeConfig": {
                         "activeBehavior": "sequencer",
                         "layers": [{ "build": { "behaviorId": "sequencer" } }],
@@ -134,7 +134,7 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
                         "usb": { "midiOutEnabled": true },
                         "midi": { "enabled": true }
                     }
-                })),
+                }))),
             },
         })
         .unwrap();
@@ -152,23 +152,25 @@ pub(crate) fn unversioned_full_preset_load_preserves_device_fields() {
 pub(crate) fn full_default_load_and_device_apply_update_device_fields() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "displayBrightness": 13,
-                "midi": { "enabled": true }
-            }
-        }))
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": {
+                    "displayBrightness": 13,
+                    "midi": { "enabled": true }
+                }
+            }),
+        ))
         .unwrap();
     assert_eq!(runner.display.ui.display_brightness, 13);
     assert!(runner.midi.enabled);
 
+    let device = config_with(
+        &runner,
+        json!({ "runtimeConfig": { "displayBrightness": 5, "activeBehavior": "sequencer" } }),
+    );
     runner
-        .apply_device_config_payload_preserving_patch(json!({
-            "runtimeConfig": {
-                "displayBrightness": 5,
-                "activeBehavior": "sequencer"
-            }
-        }))
+        .apply_device_config_payload_preserving_patch(device)
         .unwrap();
     assert_eq!(runner.display.ui.display_brightness, 5);
     assert_ne!(runner.active_behavior().id(), "sequencer");

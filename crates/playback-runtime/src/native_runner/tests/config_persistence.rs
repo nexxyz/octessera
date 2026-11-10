@@ -23,21 +23,27 @@ pub(crate) fn canonical_full_config_round_trip_through_fresh_runner_is_stable() 
 }
 
 #[test]
-pub(crate) fn unversioned_envelopes_are_reemitted_as_canonical_v2() {
+pub(crate) fn config_and_patch_payloads_without_an_envelope_are_rejected() {
     let canonical = canonical_factory_payload();
-    let mut unversioned = canonical.clone();
-    let unversioned_object = unversioned.as_object_mut().unwrap();
-    unversioned_object.remove("kind");
-    unversioned_object.remove("schemaVersion");
-    unversioned_object.remove("revision");
-
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.apply_config_payload(unversioned).unwrap();
-    let output = runner.config_payload();
-
-    assert_eq!(output, canonical);
-    assert_eq!(output["kind"], "octessera.config");
-    assert_eq!(output["schemaVersion"], 2);
+    for key in ["kind", "schemaVersion"] {
+        let mut unversioned = canonical.clone();
+        unversioned.as_object_mut().unwrap().remove(key);
+        assert_eq!(
+            prepare_config_payload(unversioned.clone(), &canonical).unwrap_err(),
+            "configuration envelope must include kind and schemaVersion"
+        );
+        assert_rejected_without_byte_changes(&mut runner, unversioned);
+    }
+    let before = runner.config_payload();
+    let partial = json!({ "runtimeConfig": { "instruments": [{ "type": "fm" }] } });
+    assert_eq!(
+        runner
+            .apply_patch_payload_preserving_device(partial)
+            .unwrap_err(),
+        "configuration envelope must include kind and schemaVersion"
+    );
+    assert_eq!(runner.config_payload(), before);
 }
 
 #[test]
@@ -145,15 +151,9 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
 }
 
 #[test]
-pub(crate) fn prepared_unversioned_envelopes_decode_as_current_typed_envelopes() {
+pub(crate) fn prepared_envelopes_decode_as_current_typed_envelopes() {
     let canonical = canonical_factory_payload();
-    let mut unversioned = canonical.clone();
-    let unversioned_object = unversioned.as_object_mut().unwrap();
-    unversioned_object.remove("kind");
-    unversioned_object.remove("schemaVersion");
-    unversioned_object.remove("revision");
-
-    let prepared = prepare_config_payload(unversioned, &canonical).unwrap();
+    let prepared = prepare_config_payload(canonical.clone(), &canonical).unwrap();
     assert_eq!(prepared.envelope.kind(), "octessera.config");
     assert_eq!(prepared.envelope.schema_version(), 2);
     assert_eq!(prepared.envelope.revision(), canonical["revision"].as_u64());

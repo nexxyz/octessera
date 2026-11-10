@@ -120,7 +120,7 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
         .any(|cell| cell.as_bool() == Some(true)));
 
     runner
-        .apply_patch_payload_preserving_device(json!({
+        .apply_patch_payload_preserving_device(patch_document(json!({
             "runtimeConfig": {
                 "layers": [{
                     "build": {
@@ -128,7 +128,7 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
                     }
                 }]
             }
-        }))
+        })))
         .unwrap();
     let expected_reset_state = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "life".into(),
@@ -149,7 +149,7 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
     );
 
     runner
-        .apply_patch_payload_preserving_device(json!({
+        .apply_patch_payload_preserving_device(patch_document(json!({
             "runtimeConfig": {
                 "layers": [{
                     "build": {
@@ -159,7 +159,7 @@ pub(crate) fn patch_config_is_authoritative_over_stale_and_explicit_saved_state_
                     }
                 }]
             }
-        }))
+        })))
         .unwrap();
     assert_eq!(
         runner.active_layer().behavior_config["randomCellsPerTick"],

@@ -173,17 +173,12 @@ pub(crate) fn turning_layer_auto_name_on_replaces_manual_name() {
 pub(crate) fn loading_auto_named_layer_ignores_stale_payload_name() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
 
-    runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "activeLayerIndex": 1,
-                "layers": [
-                    { "build": { "behaviorId": "life" }, "autoName": true, "name": "life" },
-                    { "build": { "behaviorId": "none" }, "autoName": true, "name": "sequencer" }
-                ]
-            }
-        }))
-        .unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["activeLayerIndex"] = json!(1);
+    payload["runtimeConfig"]["layers"][1]["build"] = json!({ "behaviorId": "none" });
+    payload["runtimeConfig"]["layers"][1]["autoName"] = json!(true);
+    payload["runtimeConfig"]["layers"][1]["name"] = json!("sequencer");
+    runner.apply_config_payload(payload).unwrap();
 
     assert_eq!(runner.layers[1].behavior_id, "none");
     assert!(runner.layers[1].auto_name);

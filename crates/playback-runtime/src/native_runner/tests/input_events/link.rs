@@ -1,24 +1,19 @@
 use super::*;
 
 #[test]
-pub(crate) fn link_event_timing_payload_round_trips_and_clamps() {
+pub(crate) fn link_event_timing_payload_round_trips_and_rejects_out_of_range() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mapping = |activate_delay: u8, activate_retrigger: u8| {
+        json!({ "runtimeConfig": { "layers": [{ "link": { "mapping": {
+            "activate": { "slot": 0, "action": "note_on", "delaySteps": activate_delay, "retriggerCount": activate_retrigger },
+            "stable": { "slot": 0, "action": "note_on", "delaySteps": 2, "retriggerCount": 3 },
+            "deactivate": { "slot": 0, "action": "note_off", "delaySteps": 4, "retriggerCount": 5 },
+            "scanned": { "slot": 0, "action": "note_on", "delaySteps": 6, "retriggerCount": 7 },
+            "scanned_empty": { "slot": "none", "action": "none", "delaySteps": 8, "retriggerCount": 8 }
+        } } }] } })
+    };
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "layers": [{
-                    "link": {
-                        "mapping": {
-                            "activate": { "slot": 0, "action": "note_on", "delaySteps": 99, "retriggerCount": 99 },
-                            "stable": { "slot": 0, "action": "note_on", "delaySteps": 2, "retriggerCount": 3 },
-                            "deactivate": { "slot": 0, "action": "note_off", "delaySteps": 4, "retriggerCount": 5 },
-                            "scanned": { "slot": 0, "action": "note_on", "delaySteps": 6, "retriggerCount": 7 },
-                            "scanned_empty": { "slot": "none", "action": "none", "delaySteps": 8, "retriggerCount": 9 }
-                        }
-                    }
-                }]
-            }
-        }))
+        .apply_config_payload(config_with(&runner, mapping(16, 8)))
         .unwrap();
 
     let layer = &runner.layers[0].link;
@@ -37,6 +32,10 @@ pub(crate) fn link_event_timing_payload_round_trips_and_clamps() {
         payload["runtimeConfig"]["layers"][0]["link"]["mapping"]["stable"]["retriggerCount"],
         3
     );
+    for (delay, retrigger) in [(17, 8), (16, 9)] {
+        let payload = config_with(&runner, mapping(delay, retrigger));
+        assert_rejected_without_byte_changes(&mut runner, payload);
+    }
 }
 
 #[test]

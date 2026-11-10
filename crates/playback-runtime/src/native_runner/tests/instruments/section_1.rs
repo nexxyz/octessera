@@ -181,7 +181,7 @@ pub(crate) fn sample_slot_menu_is_one_based_but_payload_remains_zero_based_and_b
 #[test]
 pub(crate) fn canonical_bus_route_survives_config_load_and_persists() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = unversioned_payload(runner.config_payload());
+    let mut payload = runner.config_payload();
     payload["runtimeConfig"]["instruments"][0]["mixer"]["route"] = json!("fx_bus_2");
 
     runner.apply_config_payload(payload).unwrap();
@@ -207,9 +207,9 @@ pub(crate) fn canonical_pan_position_payload_applies_without_conversion() {
 }
 
 #[test]
-pub(crate) fn sample_slots_and_assignments_are_sanitized_on_load() {
+pub(crate) fn out_of_range_sample_slots_and_assignments_are_rejected_on_load() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let mut payload = unversioned_payload(runner.config_payload());
+    let mut payload = runner.config_payload();
     payload["runtimeConfig"]["instruments"][0]["sample"]["selectedSlot"] = json!(99);
     payload["runtimeConfig"]["instruments"][0]["sample"]["slots"] = Value::Array(
         (0..12)
@@ -220,15 +220,5 @@ pub(crate) fn sample_slots_and_assignments_are_sanitized_on_load() {
         { "x": 99, "y": 99, "sampleSlot": 99, "level": "loud" }
     ]);
 
-    runner.apply_config_payload(payload).unwrap();
-
-    assert_eq!(runner.instruments[0].selected_sample_slot, 7);
-    assert_eq!(
-        runner.instruments[0].sample_paths[7].as_deref(),
-        Some("s7.wav")
-    );
-    assert_eq!(runner.instruments[0].sample_assignments[0].x, 7);
-    assert_eq!(runner.instruments[0].sample_assignments[0].y, 7);
-    assert_eq!(runner.instruments[0].sample_assignments[0].sample_slot, 7);
-    assert_eq!(runner.instruments[0].sample_assignments[0].level, None);
+    assert_rejected_without_byte_changes(&mut runner, payload);
 }

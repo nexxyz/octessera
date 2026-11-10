@@ -80,7 +80,7 @@ pub(crate) fn preset_load_preserves_local_midi_selection_without_select_effects(
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::LoadPresetResult {
                 name: "Patch".into(),
-                payload: Some(json!({
+                payload: Some(patch_document(json!({
                     "runtimeConfig": {
                         "midi": {
                             "enabled": false,
@@ -89,7 +89,7 @@ pub(crate) fn preset_load_preserves_local_midi_selection_without_select_effects(
                         },
                         "layers": [{ "build": { "behaviorId": "sequencer" } }]
                     }
-                })),
+                }))),
             },
         })
         .unwrap();
@@ -115,12 +115,12 @@ pub(crate) fn patch_load_swaps_active_engine_state_to_loaded_behavior() {
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::LoadPresetResult {
                 name: "Keys".into(),
-                payload: Some(json!({
+                payload: Some(patch_document(json!({
                     "runtimeConfig": {
                         "activeLayerIndex": 0,
                         "layers": [{ "build": { "behaviorId": "keys" } }]
                     }
-                })),
+                }))),
             },
         })
         .unwrap();
@@ -137,7 +137,7 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
     runner.audio_io.audio_outputs = AudioOutputSet::from_flags(true, true, false).unwrap();
 
     runner
-        .apply_patch_payload_preserving_device(json!({
+        .apply_patch_payload_preserving_device(patch_document(json!({
             "kind": "octessera.patch",
             "schemaVersion": 2,
             "runtimeConfig": {
@@ -146,7 +146,7 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
                 "displayBrightness": 15,
                 "usb": { "midiOutEnabled": true }
             }
-        }))
+        })))
         .unwrap();
 
     assert_eq!(runner.active_behavior().id(), "sequencer");

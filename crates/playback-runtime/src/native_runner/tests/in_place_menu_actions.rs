@@ -32,12 +32,12 @@ fn preset_and_default_loads_build_the_menu_once() {
         &mut runner,
         RuntimeStoreResult::LoadPresetResult {
             name: "Seq".into(),
-            payload: Some(json!({
+            payload: Some(patch_document(json!({
                 "runtimeConfig": {
                     "activeBehavior": "sequencer",
                     "layers": [{ "build": { "behaviorId": "sequencer" } }]
                 }
-            })),
+            }))),
         },
     );
     assert_eq!(runner.active_behavior().id(), "sequencer");

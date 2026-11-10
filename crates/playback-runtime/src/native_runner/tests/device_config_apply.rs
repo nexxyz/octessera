@@ -275,7 +275,7 @@ fn scrolling_usb_role_through_host_and_back_keeps_usb_audio_and_midi() {
 }
 
 #[test]
-fn unversioned_usb_role_defaults_to_gadget() {
+fn missing_usb_role_defaults_to_gadget() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         jack_audio_required: true,
         usb_data_role_available: true,
@@ -290,9 +290,7 @@ fn unversioned_usb_role_defaults_to_gadget() {
         .as_object_mut()
         .unwrap()
         .remove("dataRole");
-    runner
-        .apply_config_payload(unversioned_payload(payload))
-        .unwrap();
+    runner.apply_config_payload(payload).unwrap();
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["usb"]["dataRole"],
         "gadget"

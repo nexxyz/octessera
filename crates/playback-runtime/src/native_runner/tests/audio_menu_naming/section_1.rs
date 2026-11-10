@@ -18,25 +18,25 @@ pub(crate) fn layer_and_bus_names_round_trip_with_auto_name_flags() {
     assert_eq!(restored.fx_buses[0].name, "space");
     assert!(!restored.fx_buses[0].auto_name);
 
-    restored
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "mixer": {
-                    "buses": [{ "slot1": { "type": "delay" }, "slot2": { "type": "duck" }, "autoName": true }]
-                }
-            }
-        }))
+    let mut payload = restored.config_payload();
+    let bus = payload["runtimeConfig"]["mixer"]["buses"][0]
+        .as_object_mut()
         .unwrap();
+    bus.insert("slot1".into(), json!({ "type": "delay", "params": {} }));
+    bus.insert("slot2".into(), json!({ "type": "duck", "params": {} }));
+    bus.insert("autoName".into(), json!(true));
+    bus.remove("name");
+    restored.apply_config_payload(payload).unwrap();
     assert_eq!(restored.fx_buses[0].name, "Delay+Duck");
 
-    restored
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "instruments": [{ "type": "sampler", "name": "manual lower", "autoName": false }],
-                "mixer": { "buses": [{ "slot1": { "type": "duck" }, "slot2": { "type": "none" }, "name": "side duck", "autoName": false }] }
-            }
-        }))
-        .unwrap();
+    let payload = config_with(
+        &restored,
+        json!({ "runtimeConfig": {
+            "instruments": [{ "type": "sampler", "name": "manual lower", "autoName": false }],
+            "mixer": { "buses": [{ "name": "side duck", "autoName": false }] }
+        } }),
+    );
+    restored.apply_config_payload(payload).unwrap();
     assert_eq!(restored.instruments[0].name, "manual lower");
     assert_eq!(restored.fx_buses[0].name, "side duck");
 }
@@ -74,11 +74,14 @@ pub(crate) fn native_text_row_edits_layer_name_and_clears_auto_name() {
 pub(crate) fn lowercase_text_edit_and_manual_instrument_name_round_trip() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": {
-                "instruments": [{ "type": "synth", "name": "lead bass", "autoName": false }]
-            }
-        }))
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": {
+                    "instruments": [{ "type": "synth", "name": "lead bass", "autoName": false }]
+                }
+            }),
+        ))
         .unwrap();
     assert_eq!(runner.instruments[0].name, "lead bass");
     assert_eq!(

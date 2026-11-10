@@ -61,20 +61,18 @@ fn play_fx_page_tiles_start_their_effect_through_device_input() {
 }
 
 #[test]
-fn unversioned_play_mode_none_loads_as_mix_and_unknown_modes_are_ignored() {
+fn saved_play_mode_loads_and_unknown_modes_are_rejected() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .apply_config_payload(json!({ "runtimeConfig": { "playMode": "xy" } }))
+        .apply_config_payload(config_with(
+            &runner,
+            json!({ "runtimeConfig": { "playMode": "xy" } }),
+        ))
         .unwrap();
     assert_eq!(runner.play_mode, PlayMode::Xy);
-    runner
-        .apply_config_payload(json!({ "runtimeConfig": { "playMode": "none" } }))
-        .unwrap();
-    assert_eq!(runner.play_mode, PlayMode::Mix);
-    assert_eq!(runner.config_payload()["runtimeConfig"]["playMode"], "mix");
-    runner
-        .apply_config_payload(json!({ "runtimeConfig": { "playMode": "dance" } }))
-        .unwrap();
-    assert_eq!(runner.play_mode, PlayMode::Mix);
+    for mode in ["none", "dance"] {
+        let payload = config_with(&runner, json!({ "runtimeConfig": { "playMode": mode } }));
+        assert_rejected_without_byte_changes(&mut runner, payload);
+    }
     assert_eq!(runner.active_play_mode, ActivePlayMode::None);
 }

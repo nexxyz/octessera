@@ -100,7 +100,7 @@ pub(crate) fn patch_device_audio_fields_are_ignored_and_local_outputs_survive() 
     runner.audio_io.usb_midi_out_enabled = true;
     let before = runner.config_payload();
     runner
-        .apply_patch_payload_preserving_device(json!({
+        .apply_patch_payload_preserving_device(patch_document(json!({
             "kind": "octessera.patch",
             "schemaVersion": 2,
             "runtimeConfig": {
@@ -108,7 +108,7 @@ pub(crate) fn patch_device_audio_fields_are_ignored_and_local_outputs_survive() 
                 "usb": { "midiOutEnabled": false },
                 "transport": { "bpm": 42 }
             }
-        }))
+        })))
         .unwrap();
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["audioOutputs"],

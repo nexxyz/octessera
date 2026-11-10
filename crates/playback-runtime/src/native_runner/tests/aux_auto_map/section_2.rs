@@ -356,7 +356,7 @@ pub(crate) fn shift_fn_aux_binds_shift_bank_and_fn_aux_binds_plain_bank() {
 }
 
 #[test]
-pub(crate) fn shift_aux_bindings_round_trip_and_omitted_payload_defaults_empty() {
+pub(crate) fn shift_aux_bindings_round_trip() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.shift_aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("sound.noteLengthMs".into()),
@@ -378,17 +378,4 @@ pub(crate) fn shift_aux_bindings_round_trip_and_omitted_payload_defaults_empty()
             .as_deref(),
         Some("sound.noteLengthMs")
     );
-
-    let mut old_payload = unversioned_payload(restored.config_payload());
-    old_payload["runtimeConfig"]
-        .as_object_mut()
-        .unwrap()
-        .remove("shiftAuxBindings");
-    let mut old_loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    old_loaded.shift_aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("masterVolume".into()),
-        press_action: None,
-    });
-    old_loaded.apply_config_payload(old_payload).unwrap();
-    assert!(old_loaded.shift_aux_bindings.iter().all(Option::is_none));
 }

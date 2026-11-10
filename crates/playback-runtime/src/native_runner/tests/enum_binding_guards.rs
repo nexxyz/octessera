@@ -83,18 +83,20 @@ fn fx_slot_type_bindings_take_only_their_slot_type_lists() {
 }
 
 #[test]
-fn unversioned_payload_ignores_an_unknown_instrument_route() {
+fn an_unknown_instrument_route_is_rejected() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let payload = config_with(
+        &runner,
+        json!({ "runtimeConfig": { "instruments": [{ "mixer": { "route": "fx_bus_9" } }] } }),
+    );
+    assert_rejected_without_byte_changes(&mut runner, payload);
     runner
-        .apply_config_payload(json!({
-            "runtimeConfig": { "instruments": [{ "mixer": { "route": "fx_bus_9" } }] }
-        }))
-        .unwrap();
-    assert_eq!(runner.instruments[0].route, MixerRoute::Direct);
-    runner
-        .apply_config_payload(json!({
-            "runtimeConfig": { "instruments": [{ "mixer": { "route": "fx_bus_1" } }] }
-        }))
+        .apply_config_payload(config_with(
+            &runner,
+            json!({
+                "runtimeConfig": { "instruments": [{ "mixer": { "route": "fx_bus_1" } }] }
+            }),
+        ))
         .unwrap();
     assert_eq!(runner.instruments[0].route, MixerRoute::FxBus(0));
 }
@@ -129,12 +131,11 @@ fn every_instrument_type_and_note_behavior_saves_its_wire_name() {
 fn voice_stealing_mode_takes_only_known_modes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert!(!write(&mut runner, "sound.voiceStealingMode", "fixed13"));
-    runner
-        .apply_config_payload(json!({
-            "runtimeConfig": { "sound": { "voiceStealingMode": "fixed13" } }
-        }))
-        .unwrap();
-    assert_eq!(runner.voice_stealing_mode, VoiceStealingMode::AutoBalanced);
+    let payload = config_with(
+        &runner,
+        json!({ "runtimeConfig": { "sound": { "voiceStealingMode": "fixed13" } } }),
+    );
+    assert_rejected_without_byte_changes(&mut runner, payload);
     for mode in VoiceStealingMode::ALL {
         write(&mut runner, "sound.voiceStealingMode", mode.wire_name());
         assert_eq!(runner.voice_stealing_mode, mode);
@@ -176,33 +177,28 @@ fn link_enum_bindings_reject_values_outside_their_sets() {
 }
 
 #[test]
-fn unversioned_payload_ignores_unknown_link_values() {
+fn unknown_link_values_are_rejected() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let before = runner.layers[0].link.clone();
-    runner
-        .apply_config_payload(json!({
-            "runtimeConfig": { "layers": [{ "link": {
-                "scanMode": "scan",
-                "scanAxis": "diagonal",
-                "scanDirection": "backward",
-                "triggerProbabilityMode": "half",
-                "triggerProbabilityMap": ["medium", "low"],
-                "mapping": { "activate": { "action": "note_up" } },
-                "pitch": { "outOfRange": "fold" },
-                "x": { "velocity": { "curve": "exponential" } },
-                "arp": { "mode": "sideways", "source": "notes" }
-            } }] }
-        }))
-        .unwrap();
-    assert_eq!(runner.layers[0].link, before);
-    assert_eq!(
-        runner.layers[0].trigger_probability_map[0],
-        TileProbability::Full
-    );
-    assert_eq!(
-        runner.layers[0].trigger_probability_map[1],
-        TileProbability::Low
-    );
+    for link in [
+        json!({ "scanMode": "scan" }),
+        json!({ "scanAxis": "diagonal" }),
+        json!({ "scanDirection": "backward" }),
+        json!({ "triggerProbabilityMode": "half" }),
+        json!({ "mapping": { "activate": { "action": "note_up" } } }),
+        json!({ "pitch": { "outOfRange": "fold" } }),
+        json!({ "x": { "velocity": { "curve": "exponential" } } }),
+        json!({ "arp": { "mode": "sideways" } }),
+        json!({ "arp": { "source": "notes" } }),
+    ] {
+        let payload = config_with(
+            &runner,
+            json!({ "runtimeConfig": { "layers": [{ "link": link }] } }),
+        );
+        assert_rejected_without_byte_changes(&mut runner, payload);
+    }
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["layers"][0]["link"]["triggerProbabilityMap"][0] = json!("medium");
+    assert_rejected_without_byte_changes(&mut runner, payload);
 }
 
 #[test]
