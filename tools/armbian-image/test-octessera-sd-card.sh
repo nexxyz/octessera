@@ -44,7 +44,19 @@ blkid() {
   esac
 }
 test "$(configured_device)" = /dev/sdb1
-test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002
+test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec
+for filesystem in exfat ext4; do
+  blkid() {
+    case "$*" in
+      *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdb1 ;;
+      *'-s TYPE'*) printf '%s\n' "$filesystem" ;;
+    esac
+  }
+  case "$filesystem" in
+    exfat) test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec ;;
+    ext4) test "$(mount_options_for /dev/sdb1)" = nosuid,nodev,noexec ;;
+  esac
+done
 
 blkid() {
   case "$*" in

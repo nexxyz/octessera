@@ -75,8 +75,8 @@ mounted_card_was_replaced() {
 mount_options_for() {
   fstype="$(blkid -o value -s TYPE "$1" 2>/dev/null || true)"
   case "$fstype" in
-    vfat|exfat|fat|msdos) printf 'uid=%s,gid=%s,umask=002' "$SD_OWNER" "$SD_OWNER" ;;
-    *) printf '' ;;
+    vfat|exfat|fat|msdos) printf 'uid=%s,gid=%s,umask=002,nosuid,nodev,noexec' "$SD_OWNER" "$SD_OWNER" ;;
+    *) printf 'nosuid,nodev,noexec' ;;
   esac
 }
 
@@ -124,12 +124,7 @@ remount_card() {
       return 1
     }
   else
-    options="$(mount_options_for "$dev")"
-    if [ -n "$options" ]; then
-      mount -o "$options" "$dev" "$SD_MOUNT"
-    else
-      mount "$dev" "$SD_MOUNT"
-    fi
+    mount -o "$(mount_options_for "$dev")" "$dev" "$SD_MOUNT"
   fi
   prepare_folders
   remember_disk_sequence "$dev"
