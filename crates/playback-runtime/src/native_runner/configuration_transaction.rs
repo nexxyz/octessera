@@ -82,7 +82,7 @@ impl NativeRunner {
 
     pub(super) fn commit_configuration_runtime_plan(&mut self, plan: &ConfigurationRuntimePlan) {
         if let Some(revision) = plan.full_revision() {
-            self.audio_revisions.revision = revision;
+            self.audio_revisions.commit(revision);
         }
     }
 

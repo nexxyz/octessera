@@ -53,22 +53,18 @@ impl NativeRunner {
     pub(super) fn capture_scene_with_changed_audio(
         &mut self,
     ) -> Result<super::PresentationScene, String> {
-        let include_audio_config =
-            self.audio_revisions.last_snapshot != Some(self.audio_revisions.revision);
+        let include_audio_config = self.audio_revisions.changed_since_snapshot();
         let scene = self.capture_presentation_scene(include_audio_config)?;
-        self.audio_revisions.last_snapshot = Some(self.audio_revisions.revision);
+        self.audio_revisions.mark_snapshot();
         Ok(scene)
     }
 
     pub(super) fn queue_audio_config_if_changed(&mut self) {
-        if self.audio_revisions.queued != Some(self.audio_revisions.revision) {
+        if let Some(revision) = self.audio_revisions.take_unqueued() {
             self.invalidate_lfo_audio_cache();
             self.enqueue_configuration_runtime_plan(
-                super::ConfigurationRuntimePlan::FullRevisionedConfiguration {
-                    revision: self.audio_revisions.revision,
-                },
+                super::ConfigurationRuntimePlan::FullRevisionedConfiguration { revision },
             );
-            self.audio_revisions.queued = Some(self.audio_revisions.revision);
             if let Err(error) = self.process_modulation_step(true) {
                 self.show_modulation_unavailable(&error);
             }
