@@ -26,10 +26,9 @@ impl NativeRunner {
 
     pub(super) fn append_runtime_config_if_changed(&mut self, messages: &mut Vec<RunnerMessage>) {
         let config = self.runtime_config();
-        if self.audio_revisions.last_published_runtime_config.as_ref() == Some(&config) {
+        if !self.audio_revisions.publish_runtime_config(&config) {
             return;
         }
-        self.audio_revisions.last_published_runtime_config = Some(config.clone());
         let position = messages
             .iter()
             .rposition(|message| matches!(message, RunnerMessage::RuntimeStatus { .. }))

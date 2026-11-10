@@ -7,7 +7,7 @@ pub(super) struct NativeAudioConfigRevisions {
     /// The audio revision the last JSON snapshot carried the audio settings of.
     pub(super) last_snapshot: Option<u64>,
     /// The audio revision last queued to the engine as a full configuration.
-    pub(super) queued: Option<u64>,
+    queued: Option<u64>,
     pub(super) last_published_runtime_config: Option<RuntimeConfig>,
 }
 
@@ -29,5 +29,14 @@ impl NativeAudioConfigRevisions {
 
     pub(super) fn commit(&mut self, revision: u64) {
         self.revision = revision;
+    }
+
+    /// Remembers `config` as published and returns whether it differs from the last one.
+    pub(super) fn publish_runtime_config(&mut self, config: &RuntimeConfig) -> bool {
+        if self.last_published_runtime_config.as_ref() == Some(config) {
+            return false;
+        }
+        self.last_published_runtime_config = Some(config.clone());
+        true
     }
 }

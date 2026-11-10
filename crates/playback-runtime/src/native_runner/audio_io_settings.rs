@@ -27,4 +27,8 @@ impl NativeAudioIoSettings {
             usb_data_role_available: config.usb_data_role_available,
         }
     }
+
+    pub(super) fn supports_optimization(&self, optimization: AudioOptimization) -> bool {
+        optimization.is_supported(self.audio_optimization_capacity_available)
+    }
 }

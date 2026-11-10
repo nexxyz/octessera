@@ -19,7 +19,7 @@ impl NativeRunner {
             .and_then(Value::as_str)
             .and_then(AudioOptimization::from_wire_name)
             .ok_or_else(|| "System document has an invalid audio optimization".to_string())?;
-        if !optimization.is_supported(self.audio_io.audio_optimization_capacity_available) {
+        if !self.audio_io.supports_optimization(optimization) {
             return Err("audio optimization capacity is unavailable".into());
         }
         let dsp = realtime_engine::synth::DspRuntimeConfig::from_value(

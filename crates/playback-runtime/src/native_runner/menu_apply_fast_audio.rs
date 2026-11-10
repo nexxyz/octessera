@@ -17,7 +17,7 @@ impl NativeRunner {
         let Some(optimization) = AudioOptimization::from_wire_name(value) else {
             return (false, false);
         };
-        if !optimization.is_supported(self.audio_io.audio_optimization_capacity_available) {
+        if !self.audio_io.supports_optimization(optimization) {
             self.restore_audio_optimization_menu_value();
             self.show_toast("Audio optimization unavailable");
             return (true, false);

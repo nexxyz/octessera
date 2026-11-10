@@ -110,7 +110,7 @@ impl NativeRunner {
         {
             let optimization = AudioOptimization::from_wire_name(value)
                 .ok_or_else(|| format!("unsupported audio optimization `{value}`"))?;
-            if !optimization.is_supported(self.audio_io.audio_optimization_capacity_available) {
+            if !self.audio_io.supports_optimization(optimization) {
                 return Err("audio optimization capacity is unavailable".into());
             }
             self.audio_io.audio_optimization = optimization;
