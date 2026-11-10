@@ -1,5 +1,5 @@
 use crate::audio::AudioService;
-use playback_runtime::RuntimeErrorCode;
+use playback_runtime::SampleLoadError;
 use realtime_engine::synth::{
     normalize_audio_config, normalize_instrument_slot_config, NormalizedAudioConfig,
     NormalizedInstrumentSlot, SampleBankConfig, SampleBuffer, SampleSlotConfig,
@@ -7,28 +7,6 @@ use realtime_engine::synth::{
 };
 use rodio_engine_source::{decode_sample_file, EngineEvent};
 use std::path::{Component, Path, PathBuf};
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum SampleLoadError {
-    Unresolved(String),
-    Undecodable(String),
-}
-
-impl SampleLoadError {
-    pub(crate) fn code(&self) -> RuntimeErrorCode {
-        match self {
-            Self::Unresolved(_) => RuntimeErrorCode::NotFound,
-            Self::Undecodable(_) => RuntimeErrorCode::OperationFailed,
-        }
-    }
-
-    pub(crate) fn message(&self) -> String {
-        match self {
-            Self::Unresolved(path) => format!("sample not found: {path}"),
-            Self::Undecodable(path) => format!("sample decode failed: {path}"),
-        }
-    }
-}
 
 #[cfg(test)]
 mod audio_config_parse_tests;

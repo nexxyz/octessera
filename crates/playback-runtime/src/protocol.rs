@@ -44,7 +44,7 @@ pub(crate) use runtime_error::{
 };
 pub use runtime_error::{
     RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
-    RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery,
+    RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery, SampleLoadError,
 };
 pub use setup_portal::{
     RuntimeSetupPortalDisposition, RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase,

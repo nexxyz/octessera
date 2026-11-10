@@ -1,4 +1,3 @@
-use playback_runtime::RuntimeErrorCode;
 use realtime_engine::synth::{
     normalize_audio_config, normalize_instrument_slot_config, InstrumentsConfig, SampleBankConfig,
     SampleBuffer, SampleSlotConfig as EngineSampleSlotConfig, INSTRUMENT_SLOT_COUNT,
@@ -7,31 +6,6 @@ use realtime_engine::synth::{
 use serde_json::Value;
 
 pub type AudioInstrumentsConfig = realtime_engine::synth::NormalizedAudioConfig;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SampleBankError {
-    InvalidConfig(String),
-    Unresolved(String),
-    Undecodable(String),
-}
-
-impl SampleBankError {
-    pub fn code(&self) -> RuntimeErrorCode {
-        match self {
-            Self::InvalidConfig(_) => RuntimeErrorCode::InvalidPayload,
-            Self::Unresolved(_) => RuntimeErrorCode::NotFound,
-            Self::Undecodable(_) => RuntimeErrorCode::OperationFailed,
-        }
-    }
-
-    pub fn message(&self) -> String {
-        match self {
-            Self::InvalidConfig(message) => message.clone(),
-            Self::Unresolved(path) => format!("sample not found: {path}"),
-            Self::Undecodable(path) => format!("sample decode failed: {path}"),
-        }
-    }
-}
 
 pub fn normalize_config(config: &Value) -> Result<AudioInstrumentsConfig, String> {
     normalize_audio_config(config)
@@ -79,9 +53,8 @@ pub fn sample_bank_for_slot_config(
     resolve_sample: impl Fn(&str) -> Option<String>,
     load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
     missing: &mut Vec<String>,
-) -> Result<Option<SampleBankConfig>, SampleBankError> {
-    let instrument =
-        normalize_instrument_slot_config(config).map_err(SampleBankError::InvalidConfig)?;
+) -> Result<Option<SampleBankConfig>, String> {
+    let instrument = normalize_instrument_slot_config(config)?;
     let bank = sample_bank_for_slot(&instrument, resolve_sample, load_sample, missing);
     Ok(instrument.active_sample().is_some().then_some(bank))
 }

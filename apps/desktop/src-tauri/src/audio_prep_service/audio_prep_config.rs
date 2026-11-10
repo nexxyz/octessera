@@ -1,9 +1,10 @@
 use crate::audio_config::{
     normalize_config, parse_instrument_slot_config, sample_bank_for_slot_config,
-    sample_bank_signature, sample_banks, synth_payload, synth_slots, SampleBankError,
+    sample_bank_signature, sample_banks, synth_payload, synth_slots,
 };
 use crate::sample_decode_cache::SampleDecodeCacheError;
 use crate::samples::resolve_sample_file;
+use playback_runtime::SampleLoadError;
 use realtime_engine::synth::{
     prepare_audio_config, prepare_fx_bus_slot, prepare_global_fx_slot,
     prepare_instrument_slot_config, DEFAULT_AUDIO_SAMPLE_RATE, INSTRUMENT_SLOT_COUNT,
@@ -17,7 +18,7 @@ use super::DesktopAudioPrepState;
 pub(super) enum AudioPrepError {
     Superseded,
     InvalidConfig(String),
-    Sample(SampleBankError),
+    Sample(SampleLoadError),
     Failed(String),
 }
 
@@ -128,7 +129,7 @@ pub(super) fn prepare_instrument_slot_event(
         },
         missing_samples,
     )
-    .map_err(|error| AudioPrepError::InvalidConfig(error.message()))?;
+    .map_err(AudioPrepError::InvalidConfig)?;
     Ok(EngineEvent::SetPreparedInstrumentOwner {
         instrument_slot: instrument_slot as u8,
         generation,
@@ -173,11 +174,11 @@ pub(super) fn prepare_sample_preview(
     state: &DesktopAudioPrepState,
 ) -> Result<EngineEvent, AudioPrepError> {
     let full_path = resolve_sample_file(path)
-        .ok_or_else(|| AudioPrepError::Sample(SampleBankError::Unresolved(path.into())))?;
+        .ok_or_else(|| AudioPrepError::Sample(SampleLoadError::Unresolved(path.into())))?;
     let buffer = match state.sample_decode_cache.load(&full_path) {
         Ok(Some(buffer)) => buffer,
         Ok(None) => {
-            return Err(AudioPrepError::Sample(SampleBankError::Undecodable(
+            return Err(AudioPrepError::Sample(SampleLoadError::Undecodable(
                 path.into(),
             )))
         }

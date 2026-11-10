@@ -38,7 +38,7 @@ pub use protocol::{
     RuntimeSetupPortalStatus, RuntimeStatus, RuntimeStatusState, RuntimeStoreResult,
     RuntimeSystemInfo, RuntimeSystemInfoError, RuntimeTransportState, RuntimeUserDataRestorePhase,
     RuntimeUserDataRestoreStatus, RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus,
-    SampleEntry, SyncSource, TileHit, SETUP_PORTAL_SUFFIX_MAX_CHARS,
+    SampleEntry, SampleLoadError, SyncSource, TileHit, SETUP_PORTAL_SUFFIX_MAX_CHARS,
     USER_DATA_TRANSFER_CODE_ALPHABET, USER_DATA_TRANSFER_CODE_LENGTH,
 };
 pub use realtime_engine::synth::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
