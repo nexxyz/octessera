@@ -5,3 +5,4 @@ After=octessera-usb-gadget.service
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/octessera-usb-gadget storage-%i
+TimeoutStartSec=12s

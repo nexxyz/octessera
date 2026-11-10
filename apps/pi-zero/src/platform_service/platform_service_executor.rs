@@ -159,7 +159,7 @@ fn run_orange_storage_command(action: &str) -> RuntimeStoreResult {
                     return store_error(format!("USB SD2 transfer socket failed: {error}"))
                 }
             };
-        let timeout = Duration::from_secs(5);
+        let timeout = Duration::from_secs(13);
         if let Err(error) = stream
             .set_read_timeout(Some(timeout))
             .and_then(|_| stream.set_write_timeout(Some(timeout)))

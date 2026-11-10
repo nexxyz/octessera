@@ -55,7 +55,7 @@ if grep -Eiq '^[[:space:]]*[^#]*\bNOPASSWD[[:space:]]*:[[:space:]]*ALL([[:space:
     exit 1
 fi
 printf '%s\n' 'pi ALL=(root) NOPASSWD: /usr/bin/systemctl start octessera-usb-storage@start.service, /usr/bin/systemctl start octessera-usb-storage@stop.service, /usr/bin/systemctl restart octessera-usb-gadget.service' | cmp -s - "$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-storage"
-printf '%s\n' '[Unit]' 'Description=octessera USB SD2 transfer %i' 'After=octessera-usb-gadget.service' '' '[Service]' 'Type=oneshot' 'ExecStart=/usr/local/sbin/octessera-usb-gadget storage-%i' | cmp -s - "$usb_storage_unit"
+printf '%s\n' '[Unit]' 'Description=octessera USB SD2 transfer %i' 'After=octessera-usb-gadget.service' '' '[Service]' 'Type=oneshot' 'ExecStart=/usr/local/sbin/octessera-usb-gadget storage-%i' 'TimeoutStartSec=12s' | cmp -s - "$usb_storage_unit"
 grep -qF '"$ROOTFS_DIR/etc/systemd/system/octessera-usb-storage@.service"' "$setup_stage"
 grep -qF '"$IMAGE_ROOT/etc/systemd/system/octessera-usb-storage@.service" /etc/systemd/system/octessera-usb-storage@.service' "$root/tools/pi/provision/provision.sh"
 

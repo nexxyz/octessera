@@ -70,6 +70,7 @@ for required_line in \
   'User=root' \
   'Group=root' \
   'NoNewPrivileges=yes' \
+  'TimeoutStartSec=12s' \
   'RestrictAddressFamilies=AF_UNIX'; do
   grep -qFx "$required_line" "$storage_service" || { echo "Orange storage service is missing: $required_line" >&2; exit 1; }
 done
