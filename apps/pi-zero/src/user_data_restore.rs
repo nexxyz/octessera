@@ -11,6 +11,13 @@ pub(crate) use filesystem::{Filesystems, LiveFilesystems};
 #[cfg(test)]
 pub(super) use transaction::{replace_trees_with_faults, FaultInjection};
 
+/// The runtime-owned folder next to the store, on the live folders' filesystem, that holds the
+/// pre-restore archive and the new and old trees while they swap.
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) const STAGING_DIR_NAME: &str = "restore";
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) const STAGING_DIR_NAME: &str = ".octessera-restore";
+
 pub(crate) fn restore(
     filesystems: &dyn Filesystems,
     store_dir: &Path,
@@ -30,11 +37,12 @@ pub(crate) fn restore(
         &staged.bundle.default_state.patch,
         &staged.bundle.preferences,
     )?;
-    let parent = store_dir
+    let staging = store_dir
         .parent()
-        .ok_or_else(|| "store path has no parent".to_string())?;
-    fs::create_dir_all(parent).map_err(io_error)?;
-    let backup_path = parent.join(format!("octessera-pre-restore-{session}.oct"));
+        .ok_or_else(|| "store path has no parent".to_string())?
+        .join(STAGING_DIR_NAME);
+    fs::create_dir_all(&staging).map_err(io_error)?;
+    let backup_path = staging.join(format!("octessera-pre-restore-{session}.oct"));
     if fs::symlink_metadata(&backup_path).is_ok() {
         return Err(format!(
             "pre-restore backup already exists: {}",
@@ -49,14 +57,14 @@ pub(crate) fn restore(
         &backup_path,
     )?;
 
-    let new_store = parent.join(format!(".octessera-store-new-{session}"));
-    let new_samples = parent.join(format!(".octessera-samples-new-{session}"));
-    let old_store = parent.join(format!(".octessera-store-old-{session}"));
-    let old_samples = parent.join(format!(".octessera-samples-old-{session}"));
-    let new_recordings = sibling_path(recordings_dir, "new", session);
-    let new_screen_recordings = sibling_path(screen_recordings_dir, "new", session);
-    let old_recordings = sibling_path(recordings_dir, "old", session);
-    let old_screen_recordings = sibling_path(screen_recordings_dir, "old", session);
+    let new_store = staging.join(format!(".octessera-store-new-{session}"));
+    let new_samples = staging.join(format!(".octessera-samples-new-{session}"));
+    let old_store = staging.join(format!(".octessera-store-old-{session}"));
+    let old_samples = staging.join(format!(".octessera-samples-old-{session}"));
+    let new_recordings = staging_path(&staging, recordings_dir, "new", session);
+    let new_screen_recordings = staging_path(&staging, screen_recordings_dir, "new", session);
+    let old_recordings = staging_path(&staging, recordings_dir, "old", session);
+    let old_screen_recordings = staging_path(&staging, screen_recordings_dir, "old", session);
     for path in [
         &new_store,
         &new_samples,
@@ -281,15 +289,13 @@ fn copy_staged_media(
     Ok(())
 }
 
-fn sibling_path(path: &Path, role: &str, session: &str) -> PathBuf {
-    path.parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join(format!(
-            ".octessera-{role}-{}-{session}",
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("media")
-        ))
+fn staging_path(staging: &Path, path: &Path, role: &str, session: &str) -> PathBuf {
+    staging.join(format!(
+        ".octessera-{role}-{}-{session}",
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("media")
+    ))
 }
 
 fn copy_packaged_samples(

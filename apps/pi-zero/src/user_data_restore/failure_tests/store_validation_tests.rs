@@ -72,7 +72,7 @@ fn restore_rejects_invalid_target_stores_without_mutation() {
         assert_eq!(snapshot_tree(&fixture.root), original, "{invalid}");
         assert!(
             !fixture
-                .root
+                .staging
                 .join(format!("octessera-pre-restore-{session}.oct"))
                 .exists(),
             "{invalid}"

@@ -20,6 +20,7 @@ struct Fixture {
     samples: PathBuf,
     recordings: PathBuf,
     screen_recordings: PathBuf,
+    staging: PathBuf,
 }
 
 impl Fixture {
@@ -29,6 +30,7 @@ impl Fixture {
         let samples = root.join("samples");
         let recordings = root.join("recordings");
         let screen_recordings = root.join("screen-recordings");
+        let staging = root.join(STAGING_DIR_NAME);
         fs::create_dir_all(store.join("patches")).unwrap();
         for path in [&samples, &recordings, &screen_recordings] {
             fs::create_dir_all(path).unwrap();
@@ -67,6 +69,7 @@ impl Fixture {
             samples,
             recordings,
             screen_recordings,
+            staging,
         }
     }
 
@@ -174,9 +177,9 @@ fn symlink_dir(target: &Path, link: &Path) -> io::Result<()> {
 fn pre_restore_backup_failure_leaves_live_store_and_samples_untouched() {
     let fixture = Fixture::new("backup-failure");
     let backup_path = fixture
-        .root
+        .staging
         .join("octessera-pre-restore-backup-failure.oct");
-    fs::create_dir(&backup_path).unwrap();
+    fs::create_dir_all(&backup_path).unwrap();
 
     assert!(fixture.restore("backup-failure", true).is_err());
     fixture.assert_live_data();
@@ -184,10 +187,36 @@ fn pre_restore_backup_failure_leaves_live_store_and_samples_untouched() {
 }
 
 #[test]
+fn restore_writes_only_into_its_staging_folder() {
+    let fixture = Fixture::new("staging-only");
+    let names = |path: &Path| {
+        let mut names: Vec<_> = fs::read_dir(path)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+            .collect();
+        names.sort();
+        names
+    };
+    let mut before = names(&fixture.root);
+    before.push(STAGING_DIR_NAME.to_string());
+    before.sort();
+
+    fixture.restore("staging-only", true).unwrap();
+
+    assert_eq!(names(&fixture.root), before);
+    assert_eq!(
+        names(&fixture.staging),
+        ["octessera-pre-restore-staging-only.oct"]
+    );
+}
+
+#[test]
 fn recovery_path_collision_keeps_the_new_pre_restore_archive() {
     let fixture = Fixture::new("recovery-collision");
-    let old_path = fixture.root.join(".octessera-store-old-recovery-collision");
-    fs::create_dir(&old_path).unwrap();
+    let old_path = fixture
+        .staging
+        .join(".octessera-store-old-recovery-collision");
+    fs::create_dir_all(&old_path).unwrap();
     fs::write(old_path.join("recovery-marker"), b"keep me").unwrap();
 
     assert!(fixture.restore("recovery-collision", true).is_err());
@@ -197,7 +226,7 @@ fn recovery_path_collision_keeps_the_new_pre_restore_archive() {
         b"keep me"
     );
     assert!(fixture
-        .root
+        .staging
         .join("octessera-pre-restore-recovery-collision.oct")
         .is_file());
 }
@@ -441,7 +470,7 @@ fn restore_preserves_target_host_role_and_keeps_backup_role_free() {
         payload["runtimeConfig"]["displayBrightness"],
         user_data_archive::canonical_defaults()["runtimeConfig"]["displayBrightness"]
     );
-    let backup = fs::read(fixture.root.join("octessera-pre-restore-host-role.oct")).unwrap();
+    let backup = fs::read(fixture.staging.join("octessera-pre-restore-host-role.oct")).unwrap();
     assert!(!backup
         .windows(b"dataRole".len())
         .any(|window| window == b"dataRole"));

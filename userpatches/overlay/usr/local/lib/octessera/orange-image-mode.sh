@@ -167,9 +167,9 @@ octessera_configure_runtime_account() {
       reject_runtime_sudoers_file "$sudoers_file" || return 1
     done < <(find -P /etc/sudoers.d -type f -print0)
   fi
-  install -d -m 0755 -o octessera-runtime -g octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings /var/lib/octessera/show-hold
-  chown octessera-runtime:octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings /var/lib/octessera/show-hold
-  chmod 0755 /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings /var/lib/octessera/show-hold
+  install -d -m 0755 -o octessera-runtime -g octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings /var/lib/octessera/restore /var/lib/octessera/show-hold
+  chown octessera-runtime:octessera-runtime /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings /var/lib/octessera/restore /var/lib/octessera/show-hold
+  chmod 0755 /var/lib/octessera/presets /var/lib/octessera/samples /var/lib/octessera/recordings /var/lib/octessera/screen-recordings /var/lib/octessera/restore /var/lib/octessera/show-hold
 }
 
 octessera_configure_background_maintenance() {

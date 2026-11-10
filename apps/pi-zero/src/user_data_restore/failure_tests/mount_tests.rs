@@ -66,11 +66,11 @@ fn restore_keeps_a_mounted_sd_card_in_place_and_untouched() {
             b"card sample"
         );
         assert!(!fixture
-            .root
+            .staging
             .join(format!(".octessera-samples-old-{session}"))
             .exists());
         assert!(!fixture
-            .root
+            .staging
             .join(format!(".octessera-samples-new-{session}"))
             .exists());
     }
@@ -98,7 +98,7 @@ fn restore_leaves_a_read_only_library_folder_in_place() {
             b"bundled kick"
         );
         assert!(!fixture
-            .root
+            .staging
             .join(format!(".octessera-samples-old-{session}"))
             .exists());
     }

@@ -262,13 +262,15 @@ fn confirmed_restore_writes_backup_and_preserves_protected_files() {
         ))
         .unwrap()
     );
-    assert!(fs::read_dir(&root)
-        .unwrap()
-        .filter_map(Result::ok)
-        .any(|entry| entry
-            .file_name()
-            .to_string_lossy()
-            .starts_with("octessera-pre-restore-")));
+    assert!(
+        fs::read_dir(root.join(crate::user_data_restore::STAGING_DIR_NAME))
+            .unwrap()
+            .filter_map(Result::ok)
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("octessera-pre-restore-"))
+    );
     service.stop();
     let _ = fs::remove_dir_all(root);
 }
@@ -318,8 +320,10 @@ fn active_recording_restore_is_rejected_before_tree_mutation() {
         original
     );
     assert!(!root
+        .join(crate::user_data_restore::STAGING_DIR_NAME)
         .read_dir()
-        .unwrap()
+        .into_iter()
+        .flatten()
         .filter_map(Result::ok)
         .any(|entry| entry
             .file_name()
