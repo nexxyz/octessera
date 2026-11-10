@@ -112,7 +112,7 @@ fn pi_prepared_startup_seeds_static_recording_from_the_acknowledged_menu() {
     let (audio, control_rx, _event_rx, prep_result_tx) =
         test_service_with_recording_dir(root.join("actual"));
     crate::host_audio_prep::spawn_audio_control_worker(control_rx, audio.clone(), prep_result_tx);
-    let mut prepared = prepared_runtime(audio.clone(), &root, None);
+    let mut prepared = prepared_runtime(audio.clone(), &root, None, repository_samples());
     let snapshot = prepared.playback.last_snapshot().unwrap().clone();
     assert!(
         crate::normal_menu::is_normal_menu_snapshot(&snapshot),
@@ -157,7 +157,12 @@ fn pi_prepared_startup_write_failure_keeps_recording_seed_and_ready_marker_absen
     let (audio, control_rx, _event_rx, prep_result_tx) =
         test_service_with_recording_dir(root.join("recording"));
     crate::host_audio_prep::spawn_audio_control_worker(control_rx, audio.clone(), prep_result_tx);
-    let prepared = prepared_runtime(audio.clone(), &root, Some(marker.clone()));
+    let prepared = prepared_runtime(
+        audio.clone(),
+        &root,
+        Some(marker.clone()),
+        repository_samples(),
+    );
     let worker = render_worker();
     worker.fail_next_startup_oled_write_for_test();
 
@@ -169,20 +174,45 @@ fn pi_prepared_startup_write_failure_keeps_recording_seed_and_ready_marker_absen
 }
 
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[test]
+fn pi_startup_presents_missing_samples_over_the_first_menu_frame() {
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-startup-missing-samples");
+    let (audio, control_rx, _event_rx, prep_result_tx) =
+        test_service_with_recording_dir(root.join("recording"));
+    crate::host_audio_prep::spawn_audio_control_worker(control_rx, audio.clone(), prep_result_tx);
+    let samples = root.join("samples");
+    std::fs::create_dir_all(&samples).unwrap();
+    let mut prepared = prepared_runtime(audio.clone(), &root, None, samples);
+    assert!(!prepared.runner.is_canonical_menu_presentation());
+    let worker = render_worker();
+
+    prepared.publish_initial_scene(&worker).unwrap();
+
+    assert!(audio.latest_physical_oled_frame().is_some());
+    worker.publish_shutdown().unwrap();
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+fn repository_samples() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../samples")
+        .canonicalize()
+        .unwrap()
+}
+
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 fn prepared_runtime(
     audio: crate::audio::AudioService,
     root: &std::path::Path,
     marker: Option<std::path::PathBuf>,
+    samples: std::path::PathBuf,
 ) -> PreparedRuntime {
     let defaults: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../../config/generated/pi/default.json"
     ))
     .unwrap();
     crate::pi_store_test_support::write_pair(&root.join("store"), &defaults);
-    let samples = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../samples")
-        .canonicalize()
-        .unwrap();
     let mut adapter = PiHostAdapter::new(
         Some(audio),
         root.join("store"),

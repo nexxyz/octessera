@@ -5,9 +5,19 @@ impl NativeRunner {
         self.shown_full_screen_signal().is_none() && self.is_unobstructed_presentation()
     }
 
+    /// The first board frame: the canonical menu, which a help popup may already cover because
+    /// the audio prep lane can report a patch's missing samples before that frame.
+    pub fn is_startup_menu_presentation(&self) -> bool {
+        self.shown_full_screen_signal().is_none() && self.is_unobstructed_but_for_help()
+    }
+
     /// No splash, dark screen, modal, overlay or runtime error covers the menu or an open
     /// Shape signal view.
     pub(super) fn is_unobstructed_presentation(&self) -> bool {
+        self.display.help_popup.is_none() && self.is_unobstructed_but_for_help()
+    }
+
+    fn is_unobstructed_but_for_help(&self) -> bool {
         self.display.oled_mode == NativeOledMode::Normal
             && self.display.oled_splash_until.is_none()
             && self.display.confirm_dialog.is_none()
@@ -19,7 +29,6 @@ impl NativeRunner {
             && self.display.usb_sd_transfer_modal.is_none()
             && self.display.system_info_modal.is_none()
             && self.display.hardware_test.is_none()
-            && self.display.help_popup.is_none()
             && !self.display.aux_mapping_peek_visible
             && self.display.runtime_error_presentation.is_none()
     }
@@ -104,10 +113,11 @@ mod tests {
                 runner.display.aux_mapping_peek_visible = true;
             },
         ];
-        for install_modal in modal_factories {
+        for (index, install_modal) in modal_factories.into_iter().enumerate() {
             let mut runner = canonical_runner();
             install_modal(&mut runner);
             assert!(!runner.is_canonical_menu_presentation());
+            assert_eq!(runner.is_startup_menu_presentation(), index == 1);
         }
     }
 }

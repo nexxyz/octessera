@@ -98,7 +98,7 @@ pub(crate) fn publish_initial_scene(
     {
         return Err(format!("initial snapshot has a runtime error: {error:?}"));
     }
-    if !runner.is_canonical_menu_presentation() {
+    if !runner.is_startup_menu_presentation() {
         return Err("native runner is not presenting the canonical menu".into());
     }
     let revision = playback.last_snapshot_revision();
