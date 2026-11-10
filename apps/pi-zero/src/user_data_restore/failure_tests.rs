@@ -211,6 +211,24 @@ fn restore_writes_only_into_its_staging_folder() {
 }
 
 #[test]
+fn a_media_restore_keeps_the_bundled_library_at_its_paths() {
+    let fixture = Fixture::new("library-paths");
+    let kick = fixture.samples.join("Drum/kick/Kick2.wav");
+    let vocal = fixture.samples.join("Vocal/Word_Up.wav");
+    for (path, bytes) in [(&kick, b"kick"), (&vocal, b"word")] {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, bytes).unwrap();
+    }
+
+    fixture.restore("library-paths", true).unwrap();
+
+    assert_eq!(fs::read(&kick).unwrap(), b"kick");
+    assert_eq!(fs::read(&vocal).unwrap(), b"word");
+    assert!(!fixture.samples.join("Drum/Drum").exists());
+    assert!(!fixture.samples.join("Vocal/Vocal").exists());
+}
+
+#[test]
 fn recovery_path_collision_keeps_the_new_pre_restore_archive() {
     let fixture = Fixture::new("recovery-collision");
     let old_path = fixture

@@ -322,7 +322,7 @@ fn copy_packaged_samples(
             .ok_or_else(|| "sample file name is not valid UTF-8".to_string())?
             .replace('\\', "/");
         if metadata.is_dir() {
-            copy_packaged_samples(filesystems, root, &path, &target.join(relative))?;
+            copy_packaged_samples(filesystems, root, &path, target)?;
         } else if metadata.is_file() && crate::sample_browser::is_packaged_library_file(&relative) {
             copy_file(&path, &target.join(relative))?;
         }
