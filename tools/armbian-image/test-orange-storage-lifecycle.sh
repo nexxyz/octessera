@@ -214,6 +214,7 @@ grep -qFx 'HOST_STATE=configured' "$work/stdout"
 test -e "$fixture/storage.state"
 grep -qFx 'WAS_MOUNTED=1' "$fixture/storage.state"
 test -d "$fixture/config/usb_gadget/octessera-orange-pi"
+grep -qFx 0 "$fixture/config/usb_gadget/octessera-orange-pi/functions/mass_storage.usb0/stall"
 test ! -e "$fixture/normal-active"
 expect_failure storage-start
 "$fixture/storage" storage-stop > "$work/stdout"

@@ -179,7 +179,8 @@ create_storage_gadget() {
   printf '%s\n' octessera-orange-pi > "$GADGET/strings/0x409/serialnumber"
   printf '%s\n' 250 > "$GADGET/configs/c.1/MaxPower"
   printf '%s\n' 'Octessera SD2 Transfer' > "$GADGET/configs/c.1/strings/0x409/configuration"
-  printf '%s\n' 1 > "$STORAGE_FUNCTION/stall"
+  # The sunxi musb UDC mishandles bulk halts; one froze a Windows host's storage stack.
+  printf '%s\n' 0 > "$STORAGE_FUNCTION/stall"
   printf '%s\n' 0 > "$STORAGE_LUN/ro"
   printf '%s\n' 1 > "$STORAGE_LUN/removable"
   [ ! -e "$STORAGE_LUN/nofua" ] || printf '%s\n' 0 > "$STORAGE_LUN/nofua"
