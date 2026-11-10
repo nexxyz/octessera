@@ -17,8 +17,17 @@ impl HeadlessSession {
     /// Answers as the platform service does after listing one MIDI output and one input, so the
     /// MIDI Host menus can pick them. The port id names no real port: a pick connects nothing,
     /// and the runtime still sends to its MIDI out, which [`Self::midi_out`] records. Opening a
-    /// port list scans the real ports, so call this after that scan has answered.
+    /// port list scans this computer's ports, which can take longer than a quiet settle, so this
+    /// first waits for that scan's answer; otherwise it would replace the test port afterwards.
     pub fn list_test_midi_ports(&mut self) -> Result<(), String> {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        while !std::mem::take(&mut self.midi_port_scan_answered) {
+            if std::time::Instant::now() >= deadline {
+                return Err("the MIDI port scan did not answer within 20 s".into());
+            }
+            self.poll_services()?;
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
         let ports = vec![MidiPort {
             id: "999".into(),
             name: "e2e port".into(),

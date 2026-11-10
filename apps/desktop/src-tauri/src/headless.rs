@@ -19,7 +19,7 @@ use logging_adapter::LoggingAdapter;
 pub use midi::PlayedMidi;
 use playback_runtime::{
     HostMessage, NativeRunner, PlaybackRuntime, RunnerMessage, RuntimeDispatchInput, RuntimeIngest,
-    RuntimePlatformEffect,
+    RuntimeOperation, RuntimePlatformEffect,
 };
 use realtime_engine::synth::{DEFAULT_AUDIO_SAMPLE_RATE, INSTRUMENT_SLOT_COUNT};
 use rodio_engine_source::{event_queue, EngineSource};
@@ -60,6 +60,7 @@ pub struct HeadlessSession {
     recording_tap: RecordingTapState,
     recording_started_frame: Option<usize>,
     last_snapshot_at: f64,
+    midi_port_scan_answered: bool,
 }
 
 impl HeadlessSession {
@@ -123,6 +124,7 @@ impl HeadlessSession {
             recording_tap,
             recording_started_frame: None,
             last_snapshot_at: 0.0,
+            midi_port_scan_answered: false,
         };
         let output = session.playback.dispatch_runner_messages(
             vec![RunnerMessage::PlatformEffects {
@@ -324,6 +326,12 @@ impl HeadlessSession {
         while let Ok(messages) = self.platform_rx.try_recv() {
             any = true;
             for message in messages {
+                if let HostMessage::RuntimeResult { result } = &message {
+                    self.midi_port_scan_answered |= matches!(
+                        result.operation(),
+                        RuntimeOperation::MidiListOutputs | RuntimeOperation::MidiListInputs
+                    );
+                }
                 self.dispatch(message)?;
             }
         }
