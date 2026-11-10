@@ -81,7 +81,7 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
                     .status
                     .portal_passphrase
                     .as_deref()
-                    .map(|passphrase| format!("Pass: {passphrase}")),
+                    .map(|passphrase| format!("Password: {passphrase}")),
                 Some("Open 192.168.42.1".into()),
                 Some("Portal: 10 minutes".into()),
             ]

@@ -1,11 +1,11 @@
-use super::{RuntimeErrorCode, USER_DATA_TRANSFER_CODE_ALPHABET};
+use super::RuntimeErrorCode;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 
 pub const SETUP_PORTAL_SUFFIX_MAX_CHARS: usize = 4;
-const SETUP_PORTAL_PASSPHRASE_CHARS: usize = 10;
+const SETUP_PORTAL_PASSPHRASE_DIGITS: usize = 8;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -177,15 +177,10 @@ impl RuntimeSetupPortalStatus {
 }
 
 fn validate_portal_passphrase(value: &str) -> Result<(), String> {
-    if value.len() != SETUP_PORTAL_PASSPHRASE_CHARS
-        || !value
-            .bytes()
-            .all(|character| USER_DATA_TRANSFER_CODE_ALPHABET.contains(&character))
+    if value.len() != SETUP_PORTAL_PASSPHRASE_DIGITS
+        || !value.bytes().all(|byte| byte.is_ascii_digit())
     {
-        return Err(
-            "setup portal portalPassphrase must be ten characters from the clear code alphabet"
-                .into(),
-        );
+        return Err("setup portal portalPassphrase must be eight digits".into());
     }
     Ok(())
 }

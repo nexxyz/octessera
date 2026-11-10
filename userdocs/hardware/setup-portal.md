@@ -13,8 +13,8 @@ steps.
    on.
 2. On a phone or computer, join `Octessera Setup <suffix>`, exactly as shown on
    the OLED, with the password on the line below it. Every portal gets a fresh
-   one, so last time's password won't work. It skips look-alikes such as `0`
-   and `O` or `1` and `l`, so what you read is what you type.
+   one, so last time's password won't work. It is eight digits, so there are
+   no look-alike letters to squint at.
 3. Browse to `http://192.168.42.1`.
 4. Fill in the country and Wi-Fi network, set the local device password, choose
    the SSH mode, and optionally enter a hostname.

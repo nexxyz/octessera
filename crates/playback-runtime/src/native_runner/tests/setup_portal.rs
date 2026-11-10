@@ -26,7 +26,7 @@ fn portal_status(phase: RuntimeSetupPortalPhase) -> RuntimeStoreResult {
         status: RuntimeSetupPortalStatus {
             phase,
             disposition,
-            portal_passphrase: suffix.as_ref().map(|_| "k7Mx9pQ2wz".into()),
+            portal_passphrase: suffix.as_ref().map(|_| "48213957".into()),
             portal_suffix: suffix,
             reboot_required: false,
             error_code,
@@ -132,7 +132,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             vec![
                 "Hotspot:",
                 "Octessera Setup 1a2f",
-                "Pass: k7Mx9pQ2wz",
+                "Password: 48213957",
                 "Open 192.168.42.1",
                 "Portal: 10 minutes",
                 "Hide",

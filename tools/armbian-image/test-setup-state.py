@@ -50,7 +50,7 @@ for index, path in enumerate(COORDINATORS):
     assert expected_status in TMPFILES[index].read_text(encoding="utf-8").splitlines()
     valid = (
         coordinator._status("starting", disposition="accepted"),
-        coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase="k7Mx9pQ2wz"),
+        coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase="48213957"),
         coordinator._status("finalizing"),
         coordinator._status("succeeded"),
         coordinator._status("failed", error_code="operation_failed"),
@@ -58,7 +58,7 @@ for index, path in enumerate(COORDINATORS):
     )
     expected = (
         {"type": "setup_portal_status", "phase": "starting", "disposition": "accepted", "rebootRequired": False},
-        {"type": "setup_portal_status", "phase": "portal_ready", "portalSuffix": "abcd", "portalPassphrase": "k7Mx9pQ2wz", "rebootRequired": False},
+        {"type": "setup_portal_status", "phase": "portal_ready", "portalSuffix": "abcd", "portalPassphrase": "48213957", "rebootRequired": False},
         {"type": "setup_portal_status", "phase": "finalizing", "rebootRequired": False},
         {"type": "setup_portal_status", "phase": "succeeded", "rebootRequired": False},
         {"type": "setup_portal_status", "phase": "failed", "rebootRequired": False, "errorCode": "operation_failed"},
@@ -69,12 +69,12 @@ for index, path in enumerate(COORDINATORS):
         assert "transfer" not in status
     for args in (
         ("starting", None, None, None),
-        ("portal_ready", None, "ABCD", None, "k7Mx9pQ2wz"),
+        ("portal_ready", None, "ABCD", None, "48213957"),
         ("portal_ready", None, "abcd", None),
         ("portal_ready", None, "abcd", None, "k7Mx9pQ"),
         ("portal_ready", None, "abcd", None, "k7Mx9pQ0"),
         ("portal_ready", None, "abcd", None, "k7Mx9pQl"),
-        ("finalizing", None, None, None, "k7Mx9pQ2wz"),
+        ("finalizing", None, None, None, "48213957"),
         ("failed", None, None, "unavailable"),
         ("timed_out", None, None, "operation_failed"),
         ("unsupported", None, None, "unsupported"),
