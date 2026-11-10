@@ -66,7 +66,7 @@ check_pi_linux_host_tests() {
     return 0
   fi
   local root_wsl script
-  root_wsl="$(MSYS2_ARG_CONV_EXCL='*' wsl.exe wslpath -u "$(cygpath -m "$ROOT")" | tr -d '\r')"
+  root_wsl="$(MSYS2_ARG_CONV_EXCL='*' wsl.exe wslpath -u "$(cygpath -m "$(git rev-parse --show-toplevel)")" | tr -d '\r')"
   script='set -e
 for feature in hardware-raspberry-pi-zero-2w hardware-orange-pi-zero-2w; do
   cargo test -p octessera-pi --no-default-features --features "$feature profiling"
