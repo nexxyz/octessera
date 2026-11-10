@@ -87,7 +87,7 @@ impl PcmMirrorProducer {
             current_sequence: 0,
             current_right: 0,
             current_channel: 0,
-            priming: false,
+            priming: write_sequence != 0,
             steering: false,
             crossfade_remaining: 0,
             crossfade_drops: false,

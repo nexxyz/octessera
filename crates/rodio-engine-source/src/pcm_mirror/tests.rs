@@ -350,3 +350,21 @@ fn large_callbacks_keep_a_full_callback_of_headroom_above_the_target() {
     assert!(output.iter().all(Option::is_some));
     assert!(!consumer.priming);
 }
+
+#[test]
+fn a_consumer_created_while_the_producer_runs_primes_and_then_steers() {
+    let PcmMirrorPair {
+        producer,
+        consumer: _first,
+    } = new_pcm_mirror();
+    let target = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES;
+    producer.publish(&frames(0, target), target);
+    let mut consumer = producer.new_consumer();
+    let callback = 64;
+
+    producer.publish(&frames(target, callback / 2), callback / 2);
+    assert!(!consumer.begin_callback(callback));
+    producer.publish(&frames(target + callback / 2, callback), callback);
+    assert!(consumer.begin_callback(callback));
+    assert!(consumer.steering);
+}
