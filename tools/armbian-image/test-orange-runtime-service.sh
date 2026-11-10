@@ -73,6 +73,7 @@ for required_line in \
   'RestrictAddressFamilies=AF_UNIX'; do
   grep -qFx "$required_line" "$storage_service" || { echo "Orange storage service is missing: $required_line" >&2; exit 1; }
 done
+octessera_reject_file_match 'Orange storage control must mount and unmount SD2 in the host mount namespace.' -Eq '^(ProtectSystem|ProtectHome|PrivateTmp|PrivateMounts|ReadWritePaths|ReadOnlyPaths|InaccessiblePaths|TemporaryFileSystem|BindPaths|BindReadOnlyPaths|MountFlags)=' "$storage_service"
 octessera_reject_file_match 'Orange storage control has a generic privilege path.' -Eiq 'sudo|systemctl|sh -c|eval' "$storage_control"
 octessera_reject_file_match 'Orange storage helper exposes configurable paths.' -Eq -- '--config|OCTESSERA_SD_[A-Z_]+=' "$storage_helper"
 for required_line in \

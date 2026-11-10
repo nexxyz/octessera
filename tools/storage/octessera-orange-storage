@@ -249,7 +249,7 @@ storage_start_unlocked() {
   DEV=$dev
   WAS_MOUNTED=0
   if mountpoint -q "$SD_MOUNT"; then
-    mounted_dev="$(mounted_device)" || return 1
+    mounted_dev="$(mounted_device)" || { storage_log "could not identify the SD card mounted at $SD_MOUNT"; return 1; }
     [ "$mounted_dev" = "$dev" ] || {
       storage_log "$SD_MOUNT is mounted from $mounted_dev, expected $dev"
       return 1
