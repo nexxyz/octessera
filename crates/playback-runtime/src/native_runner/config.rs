@@ -181,7 +181,7 @@ impl NativeRunner {
             midi_clock_out_enabled: self.midi.clock_out_enabled,
             midi_clock_in_enabled: self.midi.clock_in_enabled,
             midi_respond_to_start_stop: self.midi.respond_to_start_stop,
-            midi_send_instruments: self.midi.send_instruments.clone(),
+            midi_send_instruments: self.midi.send_instruments,
             audio_outputs: self.audio_io.audio_outputs,
             board: self.audio_io.jack_audio_required,
             audio_optimization: self.audio_io.audio_optimization,

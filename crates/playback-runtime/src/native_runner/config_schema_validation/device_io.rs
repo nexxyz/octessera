@@ -1,5 +1,6 @@
 use super::canonical::{bool_field, enum_field, object_field, unsigned_field};
 use super::Value;
+use crate::native_runner::MidiSendInstruments;
 use crate::AudioOutputSet;
 use serde_json::Map;
 
@@ -17,7 +18,12 @@ pub(super) fn validate_midi(runtime: &Map<String, Value>) -> Result<(), String> 
         }
     }
     enum_field(midi, "syncMode", path, &["internal", "external"])?;
-    enum_field(midi, "sendInstruments", path, &["midi", "all"])?;
+    enum_field(
+        midi,
+        "sendInstruments",
+        path,
+        &MidiSendInstruments::ALL.map(MidiSendInstruments::wire_name),
+    )?;
     for key in ["clockOutEnabled", "clockInEnabled", "respondToStartStop"] {
         bool_field(midi, key, path)?;
     }

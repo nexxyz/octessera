@@ -2,7 +2,7 @@ use super::{
     action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
     NativeMenuAction, NativeMenuConfig, NativeMenuItem,
 };
-use crate::native_runner::UsbDataRole;
+use crate::native_runner::{MidiSendInstruments, UsbDataRole};
 
 pub(super) const MIDI_HOST_LABEL: &str = "MIDI Host";
 pub(super) const USB_DEVICE_LABEL: &str = "USB Device";
@@ -98,8 +98,13 @@ pub(super) fn midi_group(
         enum_item(
             "Send MIDI",
             "midi.sendInstruments",
-            vec!["midi", "all"],
-            selected_index(&["midi", "all"], &config.midi_send_instruments),
+            MidiSendInstruments::ALL
+                .map(MidiSendInstruments::wire_name)
+                .to_vec(),
+            selected_index(
+                &MidiSendInstruments::ALL.map(MidiSendInstruments::wire_name),
+                config.midi_send_instruments.wire_name(),
+            ),
         ),
     ];
     if !config.usb_data_role_available || host_role {

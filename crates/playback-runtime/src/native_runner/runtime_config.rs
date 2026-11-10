@@ -16,7 +16,7 @@ impl NativeRunner {
     }
 
     fn midi_internal_note_channels(&self) -> u16 {
-        if self.midi.send_instruments != "all" {
+        if self.midi.send_instruments != super::MidiSendInstruments::All {
             return 0;
         }
         (0..INSTRUMENT_COUNT)

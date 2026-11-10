@@ -2,7 +2,7 @@ use super::play_pages::PlayMode;
 use crate::protocol::RuntimeAudioCommand;
 
 use super::menu_apply_fast::value_changed;
-use super::{AudioOutputSet, AuxPriority, NativeRunner};
+use super::{AudioOutputSet, AuxPriority, MidiSendInstruments, NativeRunner};
 use realtime_engine::synth::{
     BusIdleThreshold, DspRuntimeConfig, VoiceStealingMode, WorkerWarningThreshold,
 };
@@ -24,7 +24,9 @@ impl NativeRunner {
                 bool_changed(&mut runner.midi.respond_to_start_stop, value)
             })),
             "midi.sendInstruments" => Some(self.fast_string_menu_key(key, |runner, value| {
-                value_changed(&mut runner.midi.send_instruments, value)
+                MidiSendInstruments::from_wire_name(&value).is_some_and(|instruments| {
+                    value_changed(&mut runner.midi.send_instruments, instruments)
+                })
             })),
             "audioOutputs.usb" | "audioOutputs.hdmi" => Some(self.fast_audio_outputs_menu_key(key)),
             "usb.midiOutEnabled" => Some(self.fast_usb_midi_out_menu_key()),

@@ -1,7 +1,7 @@
 use crate::native_runner::play_pages::PlayMode;
 use crate::native_runner::{
     ArpMode, ArpSource, AudioOptimization, AudioOutputSet, AuxPriority, InstrumentType, LaneCurve,
-    ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode, UsbDataRole,
+    MidiSendInstruments, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode, UsbDataRole,
 };
 use crate::protocol::SyncSource;
 use platform_core::{NoteBehavior, RangeMode, TriggerAction};
@@ -107,7 +107,7 @@ pub struct NativeMenuConfig {
     pub midi_clock_out_enabled: bool,
     pub midi_clock_in_enabled: bool,
     pub midi_respond_to_start_stop: bool,
-    pub midi_send_instruments: String,
+    pub midi_send_instruments: MidiSendInstruments,
     pub audio_outputs: AudioOutputSet,
     pub board: bool,
     pub audio_optimization: AudioOptimization,

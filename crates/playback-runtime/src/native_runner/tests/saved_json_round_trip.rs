@@ -39,6 +39,7 @@ const PLAY_MODES: [&str; 11] = [
 ];
 
 const AUX_PRIORITIES: [&str; 2] = ["manual", "auto"];
+const MIDI_SEND_INSTRUMENTS: [&str; 2] = ["midi", "all"];
 
 const SCAN_MODES: [&str; 2] = ["none", "scanning"];
 const LINK_ACTIONS: [&str; 3] = ["none", "note_on", "note_off"];
@@ -185,6 +186,8 @@ fn every_enum_fixture(round: usize, voice_stealing: &str, play_mode: &str) -> Va
     runtime["sound"]["voiceStealingMode"] = json!(voice_stealing);
     runtime["playMode"] = json!(play_mode);
     runtime["auxPriority"] = json!(AUX_PRIORITIES[round % AUX_PRIORITIES.len()]);
+    runtime["midi"]["sendInstruments"] =
+        json!(MIDI_SEND_INSTRUMENTS[round % MIDI_SEND_INSTRUMENTS.len()]);
     full["system"]["playMode"] = json!(play_mode);
     full
 }
@@ -216,6 +219,10 @@ fn every_saved_enum_value_loads_and_saves_byte_identically() {
         assert_eq!(
             system["runtimeConfig"]["auxPriority"],
             AUX_PRIORITIES[round % AUX_PRIORITIES.len()]
+        );
+        assert_eq!(
+            system["runtimeConfig"]["midi"]["sendInstruments"],
+            MIDI_SEND_INSTRUMENTS[round % MIDI_SEND_INSTRUMENTS.len()]
         );
         for (index, layer) in runtime["layers"].as_array().unwrap().iter().enumerate() {
             for (pointer, value) in link_values(round, index) {

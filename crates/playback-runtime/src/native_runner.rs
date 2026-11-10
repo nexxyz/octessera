@@ -284,6 +284,7 @@ pub use config_snapshot::NativeConfigSnapshot;
 pub use instrument_type::InstrumentType;
 pub(crate) use link_arp_mode::{ArpMode, ArpSource};
 pub(crate) use link_scan::{ScanAxis, ScanDirection, ScanMode};
+pub(crate) use midi_settings::MidiSendInstruments;
 pub use persistence_intent::NativePersistenceIntent;
 pub(crate) use retired_config_keys::without_retired_keys;
 pub use runner_config::NativeRunnerConfig;

@@ -144,7 +144,7 @@ fn midi_inst_still_sends_midi_instrument_notes() {
 fn all_inst_mirrors_internal_notes_on_their_slot_channel() {
     let mut rig = Rig::new("synth");
     rig.turn_send_to_midi(1);
-    assert_eq!(rig.runner.midi.send_instruments, "all");
+    assert_eq!(rig.runner.midi.send_instruments, MidiSendInstruments::All);
     assert_eq!(
         rig.runtime.config().midi_out_internal_channels,
         (1 << INSTRUMENT_COUNT) - 1
@@ -168,7 +168,7 @@ fn switching_to_midi_inst_ends_each_held_mirrored_note_once() {
     assert_eq!(notes(&rig.take_midi()).len(), 1);
 
     rig.turn_send_to_midi(-1);
-    assert_eq!(rig.runner.midi.send_instruments, "midi");
+    assert_eq!(rig.runner.midi.send_instruments, MidiSendInstruments::Midi);
     assert_eq!(notes(&rig.take_midi()), vec![vec![0x80, note, 0]]);
 
     rig.release_tile();
@@ -231,7 +231,7 @@ fn send_to_midi_row_shows_its_help_and_survives_a_system_save() {
     assert_eq!(saved["runtimeConfig"]["midi"]["sendInstruments"], "all");
 
     let reloaded = reload_system_payload(saved);
-    assert_eq!(reloaded.midi.send_instruments, "all");
+    assert_eq!(reloaded.midi.send_instruments, MidiSendInstruments::All);
     assert_eq!(
         reloaded.menu.value_for_key(SEND_TO_MIDI).as_deref(),
         Some("all")
