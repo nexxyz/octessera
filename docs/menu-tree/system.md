@@ -344,10 +344,10 @@ changed edit saves System like any other System preference, shows `Applying...`,
   cleanup. Playback never auto-resumes. It emits the typed setup portal effect, and opening the
   portal switches the Wi-Fi setting back on and removes the switch file before the radio comes on.
 - The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>`,
-  `Password: <passphrase>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`,
+  `Pass: <passphrase>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`,
   `failed`, `timed_out`, or desktop `unsupported`. The modal ranks after confirmation dialogs and
   ahead of system info and help.
-- The hotspot is WPA2-protected. Each portal start draws a fresh 8-character passphrase from the
+- The hotspot is WPA2-protected. Each portal start draws a fresh 10-character passphrase from the
   clear code alphabet (no `0`, `O`, `1`, `I`, `l` or `o`, and none of `5`/`S`, `6`/`G` or
   `8`/`B`, which the OLED font draws one pixel apart); the coordinator hands it to wifi-connect
   through `PORTAL_PASSPHRASE` and publishes it only in the `portal_ready` status

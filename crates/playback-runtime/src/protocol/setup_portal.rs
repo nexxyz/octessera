@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 
 pub const SETUP_PORTAL_SUFFIX_MAX_CHARS: usize = 4;
-const SETUP_PORTAL_PASSPHRASE_CHARS: usize = 8;
+const SETUP_PORTAL_PASSPHRASE_CHARS: usize = 10;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -183,7 +183,7 @@ fn validate_portal_passphrase(value: &str) -> Result<(), String> {
             .all(|character| USER_DATA_TRANSFER_CODE_ALPHABET.contains(&character))
     {
         return Err(
-            "setup portal portalPassphrase must be eight characters from the clear code alphabet"
+            "setup portal portalPassphrase must be ten characters from the clear code alphabet"
                 .into(),
         );
     }

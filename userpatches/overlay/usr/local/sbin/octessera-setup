@@ -81,7 +81,7 @@ def _status(phase, disposition=None, portal_suffix=None, error_code=None, portal
         if disposition != "accepted" or portal_suffix is not None or portal_passphrase is not None or error_code is not None:
             raise ValueError("invalid starting status")
     elif phase == "portal_ready":
-        if disposition is not None or error_code is not None or not isinstance(portal_suffix, str) or len(portal_suffix) != 4 or any(character not in "0123456789abcdef" for character in portal_suffix) or not isinstance(portal_passphrase, str) or len(portal_passphrase) != 8 or any(character not in PASSPHRASE_ALPHABET for character in portal_passphrase):
+        if disposition is not None or error_code is not None or not isinstance(portal_suffix, str) or len(portal_suffix) != 4 or any(character not in "0123456789abcdef" for character in portal_suffix) or not isinstance(portal_passphrase, str) or len(portal_passphrase) != 10 or any(character not in PASSPHRASE_ALPHABET for character in portal_passphrase):
             raise ValueError("invalid portal status")
     elif phase in ("finalizing", "succeeded"):
         if disposition is not None or portal_suffix is not None or portal_passphrase is not None or error_code is not None:
@@ -187,7 +187,7 @@ class Coordinator:
         self.staged = None
         self.staged_at = None
         self.portal_suffix = None
-        self.portal_passphrase = "".join(secrets.choice(PASSPHRASE_ALPHABET) for _ in range(8))
+        self.portal_passphrase = "".join(secrets.choice(PASSPHRASE_ALPHABET) for _ in range(10))
         self.stop_requested = False
         self.terminal_published = False
         self.radio_checked_at = None
