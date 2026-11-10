@@ -84,7 +84,7 @@ impl NativeRunner {
 
     /// Aux Priority Auto: the page's auto map wins a side it fills; Manual: your bindings win.
     fn aux_auto_first(&self) -> bool {
-        self.aux_priority == "auto"
+        self.aux_priority == AuxPriority::Auto
     }
 
     fn current_auto_aux_slot(&self, index: usize) -> Option<ResolvedAuxSlot> {

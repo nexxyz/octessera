@@ -6,7 +6,7 @@ use super::apply_payload_mixer_values::*;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::play_pages::{ActivePlayMode, PlayMode};
 use super::{
-    velocity_curve_from_id, AudioOptimization, AudioOutputSet, InstrumentDto, MidiDto,
+    velocity_curve_from_id, AudioOptimization, AudioOutputSet, AuxPriority, InstrumentDto, MidiDto,
     NativeRunner, SyncSource, UsbDataRole, Value, VoiceStealingMode,
 };
 use serde::Deserialize;
@@ -233,10 +233,12 @@ impl NativeRunner {
         if let Some(value) = runtime.get("auxAutoMapEnabled").and_then(Value::as_bool) {
             self.aux_auto_map_enabled = value;
         }
-        if let Some(value) = runtime.get("auxPriority").and_then(Value::as_str) {
-            if matches!(value, "manual" | "auto") {
-                self.aux_priority = value.into();
-            }
+        if let Some(priority) = runtime
+            .get("auxPriority")
+            .and_then(Value::as_str)
+            .and_then(AuxPriority::from_wire_name)
+        {
+            self.aux_priority = priority;
         }
         if let Some(value) = runtime.get("auxBindings") {
             apply_aux_bindings_payload(&mut self.aux_bindings, value);

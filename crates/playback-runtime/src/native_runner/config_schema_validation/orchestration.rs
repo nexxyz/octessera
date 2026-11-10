@@ -12,6 +12,7 @@ use super::Value;
 use crate::native_menu::HOME_VISUALS;
 use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_types};
 use crate::native_runner::play_pages::PlayMode;
+use crate::native_runner::AuxPriority;
 use realtime_engine::synth::DspRuntimeConfig;
 use serde_json::Map;
 
@@ -34,7 +35,12 @@ pub(super) fn validate_runtime(runtime: &Map<String, Value>) -> Result<(), Strin
     enum_field(runtime, "smallFont", "runtimeConfig", FONT_SETS)?;
     enum_field(runtime, "homeVisual", "runtimeConfig", HOME_VISUALS)?;
     play_mode_field(runtime, "runtimeConfig")?;
-    enum_field(runtime, "auxPriority", "runtimeConfig", AUX_PRIORITIES)?;
+    enum_field(
+        runtime,
+        "auxPriority",
+        "runtimeConfig",
+        &AuxPriority::ALL.map(AuxPriority::wire_name),
+    )?;
     enum_field(runtime, "xyRelease", "runtimeConfig", XY_RELEASES)?;
     validate_dsp(runtime)?;
     instruments::validate_sound(runtime)?;
@@ -140,7 +146,6 @@ fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
 }
 
 const DISPLAY_MODES: &[&str] = &["bar", "numbers"];
-const AUX_PRIORITIES: &[&str] = &["manual", "auto"];
 const FONT_SETS: &[&str] = &["octessera", "original"];
 const XY_RELEASES: &[&str] = &["sample-hold", "reset-center"];
 const PLAY_TARGETS: &[&str] = &[

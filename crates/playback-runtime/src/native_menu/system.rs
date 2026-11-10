@@ -7,6 +7,7 @@ use super::{
     action_item, bool_item, enum_item, group, number_item, selected_index, NativeMenuAction,
     NativeMenuConfig, NativeMenuItem,
 };
+use crate::native_runner::AuxPriority;
 
 pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
     let host_role = config.usb_data_role_available && config.usb_data_role.is_host();
@@ -179,7 +180,7 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
         ),
     ];
     if config.aux_auto_map_enabled {
-        children.insert(2, aux_priority_item(&config.aux_priority));
+        children.insert(2, aux_priority_item(config.aux_priority));
     }
     if config.board {
         children.push(hdmi_video_group(config));
@@ -189,11 +190,14 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
 
 /// Shown only while Auto Map is on: which wins when an Aux side has both an auto and a manual
 /// target, stored as `manual` or `auto`.
-pub(super) fn aux_priority_item(priority: &str) -> NativeMenuItem {
+pub(super) fn aux_priority_item(priority: AuxPriority) -> NativeMenuItem {
     enum_item(
         "Aux Prio.",
         "auxPriority",
         vec!["Manual", "Auto"],
-        selected_index(&["manual", "auto"], priority),
+        selected_index(
+            &AuxPriority::ALL.map(AuxPriority::wire_name),
+            priority.wire_name(),
+        ),
     )
 }

@@ -77,7 +77,7 @@ impl NativeMenuModel {
     }
 
     /// Aux Priority sits right after Auto Map while Auto Map is on.
-    pub fn show_aux_priority_row(&mut self, priority: Option<&str>) {
+    pub fn show_aux_priority_row(&mut self, priority: Option<crate::native_runner::AuxPriority>) {
         if let Some(display) = self.system_group_containing("auxAutoMapEnabled") {
             display
                 .children

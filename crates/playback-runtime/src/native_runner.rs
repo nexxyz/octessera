@@ -64,6 +64,7 @@ mod aux_auto_map_overlay;
 mod aux_binding_payload_apply;
 mod aux_generated_behavior_turn;
 mod aux_hints;
+mod aux_priority;
 mod aux_turn_input;
 mod behavior_config_recomposition;
 mod behavior_menu;
@@ -273,6 +274,7 @@ pub use audio_optimization::AudioOptimization;
 pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;
 pub(crate) use audio_outputs::JACK_AUDIO_REQUIRED_MESSAGE;
+pub(crate) use aux_priority::AuxPriority;
 pub use config_documents::{
     compose_local_system_patch_documents, compose_system_patch_documents, saved_patch_header,
     split_local_system_patch_documents, split_system_patch_documents, SystemPatchDocuments,
@@ -398,7 +400,7 @@ pub struct NativeRunner {
     active_play_fx: Vec<(String, String)>,
     xy: NativeXyState,
     aux_auto_map_enabled: bool,
-    aux_priority: String,
+    aux_priority: AuxPriority,
     play_live: play_pages::PlayLiveState,
     transpose: play_transpose::PlayTranspose,
     layers: Vec<NativeLayer>,

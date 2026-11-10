@@ -38,6 +38,8 @@ const PLAY_MODES: [&str; 11] = [
     "trigger-gate",
 ];
 
+const AUX_PRIORITIES: [&str; 2] = ["manual", "auto"];
+
 const SCAN_MODES: [&str; 2] = ["none", "scanning"];
 const LINK_ACTIONS: [&str; 3] = ["none", "note_on", "note_off"];
 const LINK_MAPPINGS: [&str; 5] = [
@@ -182,6 +184,7 @@ fn every_enum_fixture(round: usize, voice_stealing: &str, play_mode: &str) -> Va
     }
     runtime["sound"]["voiceStealingMode"] = json!(voice_stealing);
     runtime["playMode"] = json!(play_mode);
+    runtime["auxPriority"] = json!(AUX_PRIORITIES[round % AUX_PRIORITIES.len()]);
     full["system"]["playMode"] = json!(play_mode);
     full
 }
@@ -210,6 +213,10 @@ fn every_saved_enum_value_loads_and_saves_byte_identically() {
         assert_eq!(runtime["sound"]["voiceStealingMode"], voice_stealing);
         assert_eq!(runtime["playMode"], play_mode);
         assert!(system["runtimeConfig"].get("playMode").is_none());
+        assert_eq!(
+            system["runtimeConfig"]["auxPriority"],
+            AUX_PRIORITIES[round % AUX_PRIORITIES.len()]
+        );
         for (index, layer) in runtime["layers"].as_array().unwrap().iter().enumerate() {
             for (pointer, value) in link_values(round, index) {
                 assert_eq!(layer["link"].pointer(&pointer).unwrap(), value, "{pointer}");

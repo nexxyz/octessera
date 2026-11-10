@@ -2,7 +2,7 @@ use super::play_pages::PlayMode;
 use crate::protocol::RuntimeAudioCommand;
 
 use super::menu_apply_fast::value_changed;
-use super::{AudioOutputSet, NativeRunner};
+use super::{AudioOutputSet, AuxPriority, NativeRunner};
 use realtime_engine::synth::{
     BusIdleThreshold, DspRuntimeConfig, VoiceStealingMode, WorkerWarningThreshold,
 };
@@ -125,13 +125,14 @@ impl NativeRunner {
             "auxAutoMapEnabled" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 let changed = bool_changed(&mut runner.aux_auto_map_enabled, value);
                 if changed {
-                    let priority = value.then_some(runner.aux_priority.as_str());
+                    let priority = value.then_some(runner.aux_priority);
                     runner.menu.show_aux_priority_row(priority);
                 }
                 changed
             })),
             "auxPriority" => Some(self.fast_string_menu_key(key, |runner, value| {
-                value_changed(&mut runner.aux_priority, value.to_lowercase())
+                AuxPriority::from_wire_name(&value.to_lowercase())
+                    .is_some_and(|priority| value_changed(&mut runner.aux_priority, priority))
             })),
             "autoSaveDefault" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.auto_save_default, value)

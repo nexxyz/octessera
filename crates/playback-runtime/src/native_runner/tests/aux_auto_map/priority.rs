@@ -47,7 +47,7 @@ fn cutoff_row_line(runner: &mut NativeRunner) -> String {
 #[test]
 pub(crate) fn aux_priority_decides_a_turn_claimed_by_both_a_manual_binding_and_the_auto_map() {
     let (mut runner, cutoff_key) = filter_page_with_manual_aux1();
-    assert_eq!(runner.aux_priority, "manual");
+    assert_eq!(runner.aux_priority, AuxPriority::Manual);
     let cutoff = runner.menu.number_for_key(&cutoff_key);
     let volume = runner.display.ui.master_volume;
 
@@ -59,7 +59,7 @@ pub(crate) fn aux_priority_decides_a_turn_claimed_by_both_a_manual_binding_and_t
     assert!(!cutoff_row_line(&mut runner).contains("1-"));
 
     set_aux_priority(&mut runner, 1);
-    assert_eq!(runner.aux_priority, "auto");
+    assert_eq!(runner.aux_priority, AuxPriority::Auto);
     let volume = runner.display.ui.master_volume;
     turn_aux1(&mut runner);
     assert_eq!(runner.display.ui.master_volume, volume);

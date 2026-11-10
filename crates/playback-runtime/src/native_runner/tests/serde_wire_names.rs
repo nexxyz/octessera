@@ -1,4 +1,4 @@
-use crate::native_runner::{AudioOptimization, UsbDataRole};
+use crate::native_runner::{AudioOptimization, AuxPriority, UsbDataRole};
 use platform_core::{NoteBehavior, RangeMode, TriggerAction};
 use serde_json::{json, Value};
 
@@ -8,6 +8,7 @@ fn serde_names_match_hand_written_wire_names() {
     pairs.extend(TriggerAction::ALL.map(|v| (json!(v), v.wire_name())));
     pairs.extend(RangeMode::ALL.map(|v| (json!(v), v.wire_name())));
     pairs.extend(NoteBehavior::ALL.map(|v| (json!(v), v.wire_name())));
+    pairs.extend(AuxPriority::ALL.map(|v| (json!(v), v.wire_name())));
     pairs.extend([UsbDataRole::Gadget, UsbDataRole::Host].map(|v| (json!(v), v.as_str())));
     for (serialized, wire_name) in pairs {
         assert_eq!(serialized, json!(wire_name));

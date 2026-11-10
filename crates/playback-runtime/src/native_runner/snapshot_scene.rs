@@ -10,6 +10,7 @@ use super::{
 use crate::native_menu::NativeMenuBarValue;
 use crate::native_runner::display_animations::AnimationFrame;
 use crate::native_runner::snapshot_display::{DisplayScrollMetadata, DisplaySnapshot};
+use crate::native_runner::AuxPriority;
 use crate::oled_frame::{
     OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput, OledFont,
     OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash,
@@ -72,7 +73,7 @@ pub struct PresentationScene {
     input_events_while_paused: bool,
     leds_dimmed: bool,
     aux_auto_map_enabled: bool,
-    aux_priority: String,
+    aux_priority: AuxPriority,
     audio_config_revision: u64,
     auto_save_flash: bool,
     auto_save_flash_serial: u64,
@@ -233,7 +234,7 @@ impl NativeRunner {
             input_events_while_paused: self.input_events_while_paused,
             leds_dimmed: self.leds_dimmed(),
             aux_auto_map_enabled: self.aux_auto_map_enabled,
-            aux_priority: self.aux_priority.clone(),
+            aux_priority: self.aux_priority,
             audio_config_revision: self.audio_revisions.revision,
             auto_save_flash: self.auto_save_flash_active(),
             auto_save_flash_serial: self.display.auto_save_flash_serial,
