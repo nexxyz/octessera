@@ -52,6 +52,11 @@ pub(super) struct Voice {
 }
 
 impl Voice {
+    /// Active, but its output or filter history went non-finite, so it would never recover.
+    pub(super) fn is_poisoned(&self) -> bool {
+        self.active && !(self.last_output.is_finite() && self.filt.is_finite())
+    }
+
     pub(super) fn off() -> Self {
         Self {
             active: false,

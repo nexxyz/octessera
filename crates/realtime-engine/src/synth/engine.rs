@@ -39,6 +39,8 @@ mod momentary_fx_state;
 mod momentary_fx_voice;
 #[cfg(test)]
 mod nonfinite_output_tests;
+#[cfg(test)]
+mod nonfinite_voice_tests;
 mod note_control;
 #[cfg(test)]
 mod output_stereo_bus_tests;

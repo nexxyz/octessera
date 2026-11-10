@@ -13,6 +13,13 @@ pub(super) struct SynthVoicePartition {
 }
 
 impl SynthVoicePartition {
+    /// Ends every voice whose output or filter history went non-finite.
+    pub(super) fn end_poisoned_voices(&mut self) {
+        for voice in self.lanes.iter_mut().filter(|voice| voice.is_poisoned()) {
+            voice.active = false;
+        }
+    }
+
     pub(super) fn new(parity: usize) -> Self {
         Self {
             parity,

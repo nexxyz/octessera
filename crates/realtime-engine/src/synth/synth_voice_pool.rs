@@ -53,6 +53,13 @@ impl SynthVoicePool {
         self.partitions_home()
     }
 
+    /// Ends the non-finite voices of the partitions at home; a worker sweeps the ones it holds.
+    pub(super) fn end_poisoned_voices(&mut self) {
+        for partition in self.partitions.iter_mut().flatten() {
+            partition.end_poisoned_voices();
+        }
+    }
+
     pub(super) fn lane(&self, lane: usize) -> Option<&Voice> {
         if !self.partitions_home() {
             return None;

@@ -35,6 +35,11 @@ pub(in crate::synth) struct BiquadState {
 }
 
 impl BiquadState {
+    /// Whether the filter history is finite; a non-finite one poisons every later sample.
+    pub(in crate::synth) fn is_finite(&self) -> bool {
+        self.x1.is_finite() && self.x2.is_finite() && self.y1.is_finite() && self.y2.is_finite()
+    }
+
     pub(in crate::synth) fn new() -> Self {
         Self {
             x1: 0.0,

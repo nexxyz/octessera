@@ -24,6 +24,13 @@ pub(super) struct SampleVoicePartition {
 }
 
 impl SampleVoicePartition {
+    /// Ends every voice whose output or filter history went non-finite.
+    pub(super) fn end_poisoned_voices(&mut self) {
+        for voice in self.lanes.iter_mut().filter(|voice| voice.is_poisoned()) {
+            voice.active = false;
+        }
+    }
+
     fn new(parity: usize) -> Self {
         Self {
             parity,
@@ -105,6 +112,13 @@ impl SampleVoicePool {
 
     pub(super) fn has_home(&self) -> bool {
         self.partitions_home()
+    }
+
+    /// Ends the non-finite voices of the partitions at home; a worker sweeps the ones it holds.
+    pub(super) fn end_poisoned_voices(&mut self) {
+        for partition in self.partitions.iter_mut().flatten() {
+            partition.end_poisoned_voices();
+        }
     }
 
     pub(super) fn lane(&self, lane: usize) -> Option<&SampleVoice> {

@@ -245,10 +245,13 @@ impl SynthEngine {
         }
     }
 
-    /// Clears the master and bus FX history a non-finite frame may have left behind; the
-    /// routing-tree workers clear the bus chains they hold when they see the new generation.
+    /// Clears the master and bus FX history a non-finite frame may have left behind and ends the
+    /// voices that went non-finite; the routing-tree workers do both for what they hold when they
+    /// see the new generation.
     #[cold]
     fn silence_fx_state(&mut self) {
+        self.synth_voice_pool.end_poisoned_voices();
+        self.sample_voice_pool.end_poisoned_voices();
         for state in &mut self.master_slot_state {
             state.silence();
         }

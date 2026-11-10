@@ -238,6 +238,11 @@ pub(super) fn render_owner(
         for carrier in owner.bus_carriers.iter_mut().flatten() {
             carrier.silence();
         }
+        owner.partitions.synth.end_poisoned_voices();
+        owner.partitions.sample.end_poisoned_voices();
+        if let Some(bank) = routing.source_bank.as_mut() {
+            bank.end_poisoned_voices();
+        }
     }
     let result = if !routing.scratch.prepare(stamp.frames) || !routing.output.prepare(stamp.frames)
     {

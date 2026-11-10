@@ -81,6 +81,12 @@ pub(super) struct SampleVoice {
 }
 
 impl SampleVoice {
+    /// Active, but its filter history went non-finite, so it would never recover. A non-finite
+    /// output alone can be one bad sample in the source data, which the next sample replaces.
+    pub(super) fn is_poisoned(&self) -> bool {
+        self.active && !self.filt.is_finite()
+    }
+
     pub(super) fn off() -> Self {
         Self {
             active: false,
