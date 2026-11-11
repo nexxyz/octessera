@@ -159,6 +159,39 @@ fn a_fast_consumer_crossfades_one_frame_in_below_the_band() {
     assert_frames_near(&output, &expected);
 }
 
+/// The Raspberry's Capacity profile renders 256-frame blocks, and its USB gadget pulls 88- to
+/// 133-frame callbacks; with a late block now and then the fill a callback sees spans about 340
+/// frames (the board measured up to 320 in one second) without any clock drift to correct.
+#[test]
+fn a_256_frame_producer_with_usb_callbacks_holds_the_band_without_steering() {
+    let PcmMirrorPair {
+        producer,
+        mut consumer,
+    } = new_pcm_mirror();
+    let block = 256;
+    let callbacks = [88, 133, 89, 132];
+    let (mut published, mut consumed, mut drops, mut settled_steers) = (0, 0, 0, 0);
+    for index in 0..40_000 {
+        let callback = callbacks[index % callbacks.len()];
+        let now = consumed + 100;
+        while published + block + if (published / block) % 7 == 3 { 32 } else { 0 } <= now {
+            producer.publish(&frames(published, block), block);
+            published += block;
+        }
+        if consumer.begin_callback(callback) {
+            if consumer.crossfade_remaining == PCM_MIRROR_STEER_CROSSFADE_FRAMES {
+                drops += usize::from(consumer.crossfade_drops);
+                settled_steers += usize::from(index > 20_000);
+            }
+            for _ in 0..callback * 2 {
+                consumer.next_sample();
+            }
+        }
+        consumed += callback;
+    }
+    assert_eq!((drops, settled_steers), (0, 0));
+}
+
 #[test]
 fn a_consumer_on_a_fresh_writer_is_silent_until_the_target() {
     let PcmMirrorPair {

@@ -1,9 +1,9 @@
 use std::sync::atomic::{fence, AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 
-pub const PCM_MIRROR_CAPACITY_FRAMES: usize = 1_024;
+pub const PCM_MIRROR_CAPACITY_FRAMES: usize = 2_048;
 pub const PCM_MIRROR_TARGET_OCCUPANCY_FRAMES: usize = 256;
-const PCM_MIRROR_DROP_ABOVE_FRAMES: u64 = 448;
+const PCM_MIRROR_DROP_ABOVE_FRAMES: u64 = 576;
 const PCM_MIRROR_REPEAT_BELOW_FRAMES: u64 = 128;
 const PCM_MIRROR_STEER_CROSSFADE_FRAMES: u8 = 192;
 const FRAME_SEQUENCE_MASK: u64 = (1_u64 << 63) - 1;
