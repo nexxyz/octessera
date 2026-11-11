@@ -165,6 +165,18 @@ pub(super) fn store_retired_momentary(
     *slot = Some(state);
 }
 
+pub(super) fn retire_momentary_states(
+    states: &mut Vec<MomentaryFxState>,
+    slots: &mut [Option<MomentaryFxState>; MOMENTARY_FX_CAPACITY],
+) {
+    for slot in slots.iter_mut().filter(|slot| slot.is_none()) {
+        let Some(state) = states.pop() else {
+            return;
+        };
+        *slot = Some(state);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

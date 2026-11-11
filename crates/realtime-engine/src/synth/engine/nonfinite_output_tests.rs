@@ -168,3 +168,94 @@ fn routing_tree_workers_clear_the_bus_fx_a_nan_reached() {
     assert_recovered(&blocks, "routing tree");
     lifecycle.shutdown(runtime.retire());
 }
+
+/// Two held Play FX whose buffers the NaN reaches: one on the instrument, one on the master.
+fn held_play_fx_nan_engine() -> SynthEngine {
+    let mut engine = nan_engine();
+    for (id, kind, target) in [
+        (
+            "throw",
+            "dub_throw",
+            MomentaryFxTarget::Instrument { index: 0 },
+        ),
+        ("wash", "wash", MomentaryFxTarget::Global),
+    ] {
+        engine.momentary_fx_start(id.into(), kind.into(), BTreeMap::new(), target);
+    }
+    engine
+}
+
+fn retired_momentary_count(engine: &SynthEngine) -> usize {
+    engine
+        .pending_render_retired
+        .displaced_momentary_fx
+        .iter()
+        .flatten()
+        .count()
+}
+
+#[test]
+fn block_render_retires_held_play_fx_a_nan_reached() {
+    let mut engine = held_play_fx_nan_engine();
+    let (mut left, mut right, mut out) = (Vec::new(), Vec::new(), Vec::new());
+    engine.render_interleaved_block(BLOCK, &mut left, &mut right, &mut out);
+    assert!(engine.take_output_clipped());
+
+    let blocks: Vec<Vec<f32>> = (0..BLOCKS)
+        .map(|_| {
+            engine.render_interleaved_block(BLOCK, &mut left, &mut right, &mut out);
+            out.clone()
+        })
+        .collect();
+    assert_recovered(&blocks, "held Play FX");
+    assert!(!engine.take_output_clipped());
+    assert!(engine.momentary_fx.is_empty());
+    assert_eq!(retired_momentary_count(&engine), 2);
+}
+
+#[cfg(feature = "routing-tree-executor")]
+#[test]
+fn routing_tree_retires_held_play_fx_a_nan_reached() {
+    let mut engine = held_play_fx_nan_engine();
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, BLOCK)
+            .expect("routing-tree runtime");
+    runtime.set_deadline_for_test(std::time::Duration::from_secs(1));
+    let mut left = vec![0.0; BLOCK];
+    let mut right = vec![0.0; BLOCK];
+    let mut out = vec![0.0; BLOCK * 2];
+    let mut render = |engine: &mut SynthEngine| {
+        assert_eq!(
+            engine.render_interleaved_block_with_source_runtime_ready(
+                &mut runtime,
+                BLOCK,
+                &mut left,
+                &mut right,
+                &mut out,
+            ),
+            SourceWorkerRenderDisposition::Fresh
+        );
+        out.clone()
+    };
+    render(&mut engine);
+    assert!(engine.take_output_clipped());
+    let _in_flight = render(&mut engine);
+    let blocks: Vec<Vec<f32>> = (0..BLOCKS).map(|_| render(&mut engine)).collect();
+    assert_recovered(&blocks, "routing tree held Play FX");
+    assert!(!engine.take_output_clipped());
+    assert!(engine.momentary_fx.is_empty());
+    assert!(runtime.collect_wait_for_test(&mut engine));
+    let owners = runtime.take_home_owners_for_test().expect("worker owners");
+    let routings = || {
+        owners
+            .iter()
+            .filter_map(|owner| owner.routing_tree.as_ref())
+    };
+    assert!(routings().all(|routing| routing.momentary_fx.is_empty()));
+    let worker_retired: usize = routings()
+        .map(|routing| routing.retired_momentary_fx.iter().flatten().count())
+        .sum();
+    assert_eq!(worker_retired, 1);
+    runtime.return_home_owners_for_test(owners);
+    lifecycle.shutdown(runtime.retire());
+}

@@ -243,6 +243,10 @@ pub(super) fn render_owner(
         if let Some(bank) = routing.source_bank.as_mut() {
             bank.end_poisoned_voices();
         }
+        super::retired_state::retire_momentary_states(
+            &mut routing.momentary_fx,
+            &mut routing.retired_momentary_fx,
+        );
     }
     let result = if !routing.scratch.prepare(stamp.frames) || !routing.output.prepare(stamp.frames)
     {
