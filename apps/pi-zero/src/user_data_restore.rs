@@ -140,7 +140,7 @@ pub(crate) fn restore(
     .iter()
     .all(|path| fs::symlink_metadata(path).is_err());
     if result.is_ok() {
-        prune_pre_restore_archives(&staging);
+        prune_pre_restore_archives(&staging, &backup_path);
     } else if rolled_back_cleanly {
         for path in [
             &new_store,
@@ -201,10 +201,11 @@ fn hold_sd_card_lock(_path: &Path) -> Result<Option<File>, String> {
     Ok(None)
 }
 
-/// Each restore leaves its pre-restore archive behind; only the newest ones stay.
-const KEPT_PRE_RESTORE_ARCHIVES: usize = 2;
+/// Each restore leaves its pre-restore archive behind; the one just written and the newest other
+/// one stay, so a clock running behind older archives cannot prune the latest.
+const KEPT_OLDER_PRE_RESTORE_ARCHIVES: usize = 1;
 
-fn prune_pre_restore_archives(staging: &Path) {
+fn prune_pre_restore_archives(staging: &Path, kept: &Path) {
     let Ok(entries) = fs::read_dir(staging) else {
         return;
     };
@@ -219,9 +220,10 @@ fn prune_pre_restore_archives(staging: &Path) {
             let metadata = entry.metadata().ok().filter(fs::Metadata::is_file)?;
             Some((metadata.modified().ok()?, entry.path()))
         })
+        .filter(|(_, path)| path != kept)
         .collect();
     archives.sort_by(|left, right| right.cmp(left));
-    for (_, path) in archives.into_iter().skip(KEPT_PRE_RESTORE_ARCHIVES) {
+    for (_, path) in archives.into_iter().skip(KEPT_OLDER_PRE_RESTORE_ARCHIVES) {
         let _ = fs::remove_file(path);
     }
 }
