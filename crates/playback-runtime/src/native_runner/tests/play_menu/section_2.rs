@@ -105,11 +105,11 @@ pub(crate) fn trigger_gate_page_edits_only_selected_layer_row() {
         .unwrap();
 
     assert_eq!(
-        runner.layers[0].trigger_gate_mode,
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Full
     );
     assert_eq!(
-        runner.layers[1].trigger_gate_mode,
+        runner.layers[1].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
     );
     let changed_snapshot = snapshot_from(&changed);
@@ -134,14 +134,13 @@ pub(crate) fn trigger_gate_all_layers_button_edits_all_rows() {
     assert!(runner
         .layers
         .iter()
-        .map(|layer| &layer.trigger_gate_mode)
+        .map(|layer| &layer.link.trigger_probability_mode)
         .all(|mode| *mode == TriggerProbabilityMode::Custom));
 }
 
 #[test]
 pub(crate) fn combined_modifier_left_column_toggles_layer_trigger_mode_to_zero_and_restores_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layers[0].trigger_gate_mode = TriggerProbabilityMode::Custom;
     runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
 
     let _ = runner
@@ -157,10 +156,6 @@ pub(crate) fn combined_modifier_left_column_toggles_layer_trigger_mode_to_zero_a
         })
         .unwrap();
     assert_eq!(
-        runner.layers[0].trigger_gate_mode,
-        TriggerProbabilityMode::Zero
-    );
-    assert_eq!(
         runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
     );
@@ -175,10 +170,6 @@ pub(crate) fn combined_modifier_left_column_toggles_layer_trigger_mode_to_zero_a
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(
-        runner.layers[0].trigger_gate_mode,
-        TriggerProbabilityMode::Custom
-    );
     assert_eq!(
         runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Custom
@@ -196,7 +187,6 @@ pub(crate) fn combined_modifier_left_column_toggles_layer_trigger_mode_to_zero_a
 pub(crate) fn combined_modifier_left_column_toggles_selected_layer_trigger_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_layer_index = 2;
-    runner.layers[2].trigger_gate_mode = TriggerProbabilityMode::Custom;
     runner.layers[2].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
 
     let _ = runner
@@ -213,11 +203,11 @@ pub(crate) fn combined_modifier_left_column_toggles_selected_layer_trigger_mode(
         .unwrap();
 
     assert_eq!(
-        runner.layers[0].trigger_gate_mode,
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Full
     );
     assert_eq!(
-        runner.layers[2].trigger_gate_mode,
+        runner.layers[2].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
     );
     assert_eq!(

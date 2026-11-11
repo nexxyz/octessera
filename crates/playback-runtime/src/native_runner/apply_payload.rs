@@ -87,7 +87,6 @@ impl NativeRunner {
         self.xy.y_glide = source.xy.y_glide.clone();
         self.active_play_fx = source.active_play_fx.clone();
         for (layer, source) in self.layers.iter_mut().zip(&source.layers) {
-            layer.trigger_gate_mode = source.trigger_gate_mode;
             layer.trigger_gate_restore_mode = source.trigger_gate_restore_mode;
         }
         self.transpose = source.transpose.clone();

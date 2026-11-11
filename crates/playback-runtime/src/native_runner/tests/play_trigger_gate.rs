@@ -49,7 +49,7 @@ fn bottom_row_right_tiles_set_every_layer() {
         assert!(runner
             .layers
             .iter()
-            .map(|layer| &layer.trigger_gate_mode)
+            .map(|layer| &layer.link.trigger_probability_mode)
             .all(|value| value.wire_name() == mode));
     }
 }

@@ -281,7 +281,6 @@ impl NativeRunner {
                 .trigger_gate_restore_mode
                 .take()
                 .unwrap_or(TriggerProbabilityMode::Full);
-            layer.trigger_gate_mode = restore;
             layer.link.trigger_probability_mode = restore;
             self.show_toast(format!("L{} triggers {}", index + 1, restore.wire_name()));
         } else {

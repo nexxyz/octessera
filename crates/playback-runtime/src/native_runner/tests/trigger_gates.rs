@@ -32,7 +32,7 @@ pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_tiles() {
         })
         .unwrap();
     assert_eq!(
-        runner.layers[0].trigger_gate_mode,
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
     );
     assert!(runner.active_engine().model().unwrap().tiles[platform_core::grid_index(0, 0)]);
@@ -44,7 +44,7 @@ pub(crate) fn combined_modifier_layer_toggle_preserves_sequencer_tiles() {
         })
         .unwrap();
     assert_eq!(
-        runner.layers[0].trigger_gate_mode,
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Full
     );
     assert!(runner.active_engine().model().unwrap().tiles[platform_core::grid_index(0, 0)]);
@@ -78,7 +78,7 @@ pub(crate) fn combined_modifier_layer_toggle_restores_triggered_input_events_aft
         })
         .unwrap();
     assert_eq!(
-        runner.layers[0].trigger_gate_mode,
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
     );
 
@@ -101,7 +101,7 @@ pub(crate) fn combined_modifier_layer_toggle_restores_triggered_input_events_aft
         })
         .unwrap();
     assert_eq!(
-        runner.layers[0].trigger_gate_mode,
+        runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Full
     );
 
@@ -132,10 +132,6 @@ pub(crate) fn combined_modifier_left_column_toggles_selected_layer_without_switc
         .unwrap();
 
     assert_eq!(runner.active_layer_index, 0);
-    assert_eq!(
-        runner.layers[2].trigger_gate_mode,
-        TriggerProbabilityMode::Zero
-    );
     assert_eq!(
         runner.layers[2].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero
@@ -194,10 +190,6 @@ pub(crate) fn hardware_trigger_gate_toggle_preserves_active_layer_state_and_tran
         })
         .unwrap();
 
-    assert_eq!(
-        runner.layers[0].trigger_gate_mode,
-        TriggerProbabilityMode::Zero
-    );
     assert_eq!(
         runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Zero

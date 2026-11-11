@@ -163,7 +163,6 @@ pub(crate) fn disabling_one_layer_leaves_another_layer_held() {
 #[test]
 pub(crate) fn repeated_layer_disable_is_idempotent_and_reenable_restores_gate_only() {
     let mut runner = held_keys_runner();
-    runner.layers[0].trigger_gate_mode = TriggerProbabilityMode::Custom;
     runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
     runner.transport.tick = 7;
     runner.transport.current_ppqn_pulse = 13;
@@ -185,10 +184,6 @@ pub(crate) fn repeated_layer_disable_is_idempotent_and_reenable_restores_gate_on
     assert!(routed_events(&repeated_disable, false).is_empty());
 
     let reenabled = disable_layer(&mut runner, 0);
-    assert_eq!(
-        runner.layers[0].trigger_gate_mode,
-        TriggerProbabilityMode::Custom
-    );
     assert_eq!(
         runner.layers[0].link.trigger_probability_mode,
         TriggerProbabilityMode::Custom
