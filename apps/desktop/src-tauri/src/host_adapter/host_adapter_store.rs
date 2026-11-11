@@ -4,6 +4,7 @@ use playback_runtime::{
     HostMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
     RuntimePlatformRequest, RuntimeStoreResult,
 };
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use store_files::{read_json_file, write_json_atomically};
 
@@ -89,25 +90,34 @@ impl DesktopPlaybackHostAdapter {
         )?)
     }
 
+    /// Saves the preset; `true` when it replaced a preset whose name differs only in case,
+    /// which names the same file on the desktop's case-insensitive store.
     pub(super) fn save_preset_payload(
         &self,
         name: &str,
         payload: &serde_json::Value,
-    ) -> Result<(), String> {
+    ) -> Result<bool, String> {
         let presets_dir = self.store_dir.join("presets");
         std::fs::create_dir_all(&presets_dir).map_err(|e| e.to_string())?;
         let path = preset_patch_file_path(&presets_dir, name)?;
-        write_json_atomically(&path, payload)
+        let case_variant = stored_entry(&path, false)?;
+        if let Some(case_variant) = &case_variant {
+            std::fs::rename(case_variant, &path).map_err(|e| e.to_string())?;
+        }
+        write_json_atomically(&path, payload)?;
+        Ok(case_variant.is_some())
     }
 
+    /// Deletes the preset. A name whose file a case-only rename took over is already gone, so
+    /// its delete succeeds without touching the renamed preset.
     pub(super) fn delete_preset_payload(&self, name: &str) -> Result<bool, String> {
         let presets_dir = self.store_dir.join("presets");
         let patch = preset_patch_file_path(&presets_dir, name)?;
-        if patch.is_file() {
+        if stored_entry(&patch, true)?.is_some() {
             std::fs::remove_file(&patch).map_err(|e| e.to_string())?;
             return Ok(true);
         }
-        Ok(false)
+        Ok(stored_entry(&patch, false)?.is_some())
     }
 
     pub(super) fn load_default_result(
@@ -181,6 +191,33 @@ impl DesktopPlaybackHostAdapter {
             .map(Some)
             .map_err(|e| e.to_string()))
     }
+}
+
+/// The stored file named exactly like `path`, or, with `exact` false, one named like it in
+/// another case.
+fn stored_entry(path: &Path, exact: bool) -> Result<Option<PathBuf>, String> {
+    let (Some(dir), Some(name)) = (path.parent(), path.file_name().and_then(|n| n.to_str())) else {
+        return Ok(None);
+    };
+    if !dir.is_dir() {
+        return Ok(None);
+    }
+    for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let file_name = entry.file_name();
+        let Some(entry_name) = file_name.to_str() else {
+            continue;
+        };
+        let matches = if exact {
+            entry_name == name
+        } else {
+            entry_name != name && entry_name.to_lowercase() == name.to_lowercase()
+        };
+        if matches && entry.path().is_file() {
+            return Ok(Some(entry.path()));
+        }
+    }
+    Ok(None)
 }
 
 fn pending_patch_load_failure(operation: RuntimeOperation) -> RuntimeStoreResult {

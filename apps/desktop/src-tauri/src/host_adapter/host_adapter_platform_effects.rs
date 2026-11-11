@@ -32,13 +32,21 @@ impl DesktopPlaybackHostAdapter {
                 payload,
                 mode: _,
             } => {
-                self.save_preset_payload(name, payload)?;
-                Ok(vec![HostMessage::RuntimeResult {
+                let replaced_case_variant = self.save_preset_payload(name, payload)?;
+                let mut results = vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::SavePresetResult {
                         name: name.clone(),
                         outcome: "created".to_string(),
                     },
-                }])
+                }];
+                if replaced_case_variant {
+                    results.push(HostMessage::RuntimeResult {
+                        result: RuntimeStoreResult::ListPresetsResult {
+                            names: self.list_preset_names()?,
+                        },
+                    });
+                }
+                Ok(results)
             }
             RuntimePlatformEffect::StoreDeletePreset { name } => {
                 let ok = self.delete_preset_payload(name)?;

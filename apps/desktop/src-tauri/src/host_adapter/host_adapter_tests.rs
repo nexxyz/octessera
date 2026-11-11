@@ -93,6 +93,7 @@ mod audio;
 mod drum;
 mod momentary;
 mod platform;
+mod preset_case;
 mod recording;
 mod sampler;
 mod startup_menu;
