@@ -101,16 +101,14 @@ pub(in crate::synth) fn process_eq_channel(
     params: &EqParams,
     sample_rate: u32,
 ) -> f32 {
-    let fs = sample_rate as f32;
-
     let y = input;
     let y = biquad_shelf(
         y,
         &mut state.low,
+        true,
         params.low_gain_db,
         250.0,
         0.707,
-        fs,
         sample_rate,
     );
     let y = biquad_peak(
@@ -119,16 +117,15 @@ pub(in crate::synth) fn process_eq_channel(
         params.mid_gain_db,
         params.mid_freq_hz,
         params.mid_q,
-        fs,
         sample_rate,
     );
     biquad_shelf(
         y,
         &mut state.high,
+        false,
         params.high_gain_db,
         4000.0,
         0.707,
-        fs,
         sample_rate,
     )
 }
@@ -136,17 +133,19 @@ pub(in crate::synth) fn process_eq_channel(
 fn biquad_shelf(
     x: f32,
     state: &mut EqBandState,
+    low: bool,
     gain_db: f32,
     fc: f32,
     q: f32,
-    fs: f32,
     sample_rate: u32,
 ) -> f32 {
     if gain_db.abs() < 0.05 {
         return x;
     }
     let key = coeff_key(EqFilterKind::Shelf, gain_db, fc, q, sample_rate);
-    let coeffs = cached_coeffs(state, key, || shelf_coeffs(gain_db, fc, q, fs));
+    let coeffs = cached_coeffs(state, key, || {
+        shelf_coeffs(low, gain_db, fc, q, sample_rate as f32)
+    });
     apply_biquad(x, &mut state.filter, coeffs)
 }
 
@@ -156,14 +155,15 @@ fn biquad_peak(
     gain_db: f32,
     fc: f32,
     q: f32,
-    fs: f32,
     sample_rate: u32,
 ) -> f32 {
     if gain_db.abs() < 0.05 {
         return x;
     }
     let key = coeff_key(EqFilterKind::Peak, gain_db, fc, q, sample_rate);
-    let coeffs = cached_coeffs(state, key, || peak_coeffs(gain_db, fc, q, fs));
+    let coeffs = cached_coeffs(state, key, || {
+        peak_coeffs(gain_db, fc, q, sample_rate as f32)
+    });
     apply_biquad(x, &mut state.filter, coeffs)
 }
 
@@ -193,15 +193,14 @@ fn cached_coeffs(
     coeffs
 }
 
-fn shelf_coeffs(gain_db: f32, fc: f32, q: f32, fs: f32) -> BiquadCoeffs {
+fn shelf_coeffs(low: bool, gain_db: f32, fc: f32, q: f32, fs: f32) -> BiquadCoeffs {
     let a = 10.0_f32.powf(gain_db / 40.0);
     let sqrt_a = a.sqrt();
     let w0 = 2.0 * PI * fc / fs;
     let cos_w0 = w0.cos();
     let sin_w0 = w0.sin();
     let alpha = sin_w0 / (2.0 * q.max(0.001));
-    let is_low = gain_db > 0.0;
-    let (b0, b1, b2, a0, a1, a2) = if is_low {
+    let (b0, b1, b2, a0, a1, a2) = if low {
         (
             a * ((a + 1.0) - (a - 1.0) * cos_w0 + 2.0 * sqrt_a * alpha),
             2.0 * a * ((a - 1.0) - (a + 1.0) * cos_w0),

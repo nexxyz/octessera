@@ -1,115 +1,70 @@
 use super::*;
 
-#[test]
-fn cached_eq_matches_reference_with_static_params() {
-    let params = EqParams {
-        low_gain_db: 3.0,
-        mid_gain_db: -2.5,
-        mid_freq_hz: 900.0,
-        mid_q: 0.8,
-        high_gain_db: 1.75,
+const SAMPLE_RATE: u32 = 48_000;
+
+fn params(low_gain_db: f32, high_gain_db: f32) -> EqParams {
+    EqParams {
+        low_gain_db,
+        mid_gain_db: 0.0,
+        mid_freq_hz: 1000.0,
+        mid_q: 0.7,
+        high_gain_db,
         mix: 1.0,
-    };
-    assert_matches_reference(&[params], 2048);
-}
-
-#[test]
-fn cached_eq_matches_reference_across_param_changes() {
-    let params = [
-        EqParams {
-            low_gain_db: 3.0,
-            mid_gain_db: -2.5,
-            mid_freq_hz: 900.0,
-            mid_q: 0.8,
-            high_gain_db: 1.75,
-            mix: 1.0,
-        },
-        EqParams {
-            low_gain_db: -4.0,
-            mid_gain_db: 2.25,
-            mid_freq_hz: 1500.0,
-            mid_q: 1.2,
-            high_gain_db: -1.5,
-            mix: 1.0,
-        },
-    ];
-    assert_matches_reference(&params, 4096);
-}
-
-fn assert_matches_reference(params: &[EqParams], frames: usize) {
-    let mut cached = EqChannelState::new();
-    let mut reference = ReferenceEqChannelState::new();
-    for frame in 0..frames {
-        let input = ((frame as f32) * 0.013).sin() * 0.4 + ((frame as f32) * 0.031).cos() * 0.2;
-        let params = &params[(frame * params.len()) / frames];
-        let actual = process_eq_channel(&mut cached, input, params, 44_100);
-        let expected = reference_process_eq_channel(&mut reference, input, params, 44_100);
-        assert!(
-            (actual - expected).abs() < 1.0e-6,
-            "frame {frame}: {actual} != {expected}"
-        );
     }
 }
 
-struct ReferenceEqChannelState {
-    low: BiquadState,
-    mid: BiquadState,
-    high: BiquadState,
+fn sine(frequency_hz: f32, frame: usize) -> f32 {
+    (2.0 * PI * frequency_hz * frame as f32 / SAMPLE_RATE as f32).sin() * 0.25
 }
 
-impl ReferenceEqChannelState {
-    fn new() -> Self {
-        Self {
-            low: BiquadState::new(),
-            mid: BiquadState::new(),
-            high: BiquadState::new(),
+fn measured_gain_db(state: &mut EqChannelState, params: &EqParams, frequency_hz: f32) -> f32 {
+    let settle = SAMPLE_RATE as usize / 2;
+    let window = SAMPLE_RATE as usize / 5;
+    let (mut input_energy, mut output_energy) = (0.0_f64, 0.0_f64);
+    for frame in 0..settle + window {
+        let input = sine(frequency_hz, frame);
+        let output = process_eq_channel(state, input, params, SAMPLE_RATE);
+        if frame >= settle {
+            input_energy += f64::from(input * input);
+            output_energy += f64::from(output * output);
         }
     }
+    (10.0 * (output_energy / input_energy).log10()) as f32
 }
 
-fn reference_process_eq_channel(
-    state: &mut ReferenceEqChannelState,
-    input: f32,
-    params: &EqParams,
-    sample_rate: u32,
-) -> f32 {
-    let fs = sample_rate as f32;
-    let y = reference_biquad_shelf(input, &mut state.low, params.low_gain_db, 250.0, 0.707, fs);
-    let y = reference_biquad_peak(
-        y,
-        &mut state.mid,
-        params.mid_gain_db,
-        params.mid_freq_hz,
-        params.mid_q,
-        fs,
+fn assert_gain(params: &EqParams, frequency_hz: f32, expected_db: f32, tolerance_db: f32) {
+    let gain = measured_gain_db(&mut EqChannelState::new(), params, frequency_hz);
+    assert!(
+        (gain - expected_db).abs() <= tolerance_db,
+        "low {} dB / high {} dB at {frequency_hz} Hz: measured {gain} dB, expected {expected_db} dB",
+        params.low_gain_db,
+        params.high_gain_db,
     );
-    reference_biquad_shelf(y, &mut state.high, params.high_gain_db, 4000.0, 0.707, fs)
 }
 
-fn reference_biquad_shelf(
-    x: f32,
-    state: &mut BiquadState,
-    gain_db: f32,
-    fc: f32,
-    q: f32,
-    fs: f32,
-) -> f32 {
-    if gain_db.abs() < 0.05 {
-        return x;
+#[test]
+fn low_band_shelves_the_lows_for_boost_and_cut() {
+    for gain in [6.0, -6.0] {
+        let params = params(gain, 0.0);
+        assert_gain(&params, 50.0, gain, 0.5);
+        assert_gain(&params, 10_000.0, 0.0, 0.25);
     }
-    apply_biquad(x, state, shelf_coeffs(gain_db, fc, q, fs))
 }
 
-fn reference_biquad_peak(
-    x: f32,
-    state: &mut BiquadState,
-    gain_db: f32,
-    fc: f32,
-    q: f32,
-    fs: f32,
-) -> f32 {
-    if gain_db.abs() < 0.05 {
-        return x;
+#[test]
+fn high_band_shelves_the_highs_for_boost_and_cut() {
+    for gain in [6.0, -6.0] {
+        let params = params(0.0, gain);
+        assert_gain(&params, 10_000.0, gain, 1.0);
+        assert_gain(&params, 50.0, 0.0, 0.25);
     }
-    apply_biquad(x, state, peak_coeffs(gain_db, fc, q, fs))
+}
+
+#[test]
+fn changed_band_gain_takes_effect_on_the_running_filter() {
+    let mut state = EqChannelState::new();
+    let boost = measured_gain_db(&mut state, &params(6.0, 0.0), 50.0);
+    let cut = measured_gain_db(&mut state, &params(-6.0, 0.0), 50.0);
+    assert!((boost - 6.0).abs() <= 0.5, "boost measured {boost} dB");
+    assert!((cut + 6.0).abs() <= 0.5, "cut measured {cut} dB");
 }
