@@ -412,15 +412,7 @@ pub(super) fn revoke_inner(inner: &TransferInner) -> Option<PendingRestore> {
 }
 
 fn random_code(random: &RandomSource) -> Result<String, String> {
-    let mut bytes = [0; USER_DATA_TRANSFER_CODE_LENGTH];
-    random(&mut bytes)?;
-    Ok(bytes
-        .into_iter()
-        .map(|byte| {
-            USER_DATA_TRANSFER_CODE_ALPHABET[byte as usize % USER_DATA_TRANSFER_CODE_ALPHABET.len()]
-                as char
-        })
-        .collect())
+    random_alphabet_code(random, USER_DATA_TRANSFER_CODE_LENGTH)
 }
 
 fn lock_error<T>(_error: std::sync::PoisonError<T>) -> String {

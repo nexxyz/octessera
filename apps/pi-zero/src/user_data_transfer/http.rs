@@ -351,15 +351,7 @@ fn expected_host(inner: &Arc<TransferInner>) -> String {
 }
 
 fn random_session(random: &RandomSource) -> Result<String, String> {
-    let mut bytes = [0; 16];
-    random(&mut bytes)?;
-    Ok(bytes
-        .into_iter()
-        .map(|byte| {
-            USER_DATA_TRANSFER_CODE_ALPHABET[byte as usize % USER_DATA_TRANSFER_CODE_ALPHABET.len()]
-                as char
-        })
-        .collect())
+    random_alphabet_code(random, 16)
 }
 
 fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {

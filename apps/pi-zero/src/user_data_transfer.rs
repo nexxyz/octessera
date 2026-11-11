@@ -22,6 +22,24 @@ pub(crate) fn production_random_source() -> RandomSource {
     Arc::new(fill_cryptographic_random)
 }
 
+/// Draws each character from bytes below the largest multiple of the alphabet size, so every
+/// character is equally likely.
+fn random_alphabet_code(random: &RandomSource, length: usize) -> Result<String, String> {
+    let alphabet = USER_DATA_TRANSFER_CODE_ALPHABET;
+    let limit = 256 - 256 % alphabet.len();
+    let mut code = String::with_capacity(length);
+    let mut bytes = vec![0; length];
+    while code.len() < length {
+        random(&mut bytes)?;
+        for byte in bytes.iter().map(|byte| usize::from(*byte)) {
+            if byte < limit && code.len() < length {
+                code.push(char::from(alphabet[byte % alphabet.len()]));
+            }
+        }
+    }
+    Ok(code)
+}
+
 fn fill_cryptographic_random(bytes: &mut [u8]) -> Result<(), String> {
     #[cfg(unix)]
     {

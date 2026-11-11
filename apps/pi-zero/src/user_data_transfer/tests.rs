@@ -76,6 +76,28 @@ fn random_source() -> RandomSource {
     })
 }
 
+#[test]
+fn random_codes_draw_again_for_bytes_past_the_last_full_alphabet_cycle() {
+    let script = Mutex::new(VecDeque::from([250_u8, 255, 0, 49, 251, 50]));
+    let random: RandomSource = Arc::new(move |bytes: &mut [u8]| {
+        let mut script = script.lock().unwrap();
+        for byte in bytes {
+            *byte = script.pop_front().unwrap();
+        }
+        Ok(())
+    });
+
+    let code = random_alphabet_code(&random, 3).unwrap();
+
+    let alphabet = USER_DATA_TRANSFER_CODE_ALPHABET;
+    let expected: String = [alphabet[0], alphabet[49], alphabet[0]]
+        .into_iter()
+        .map(char::from)
+        .collect();
+    assert_eq!(alphabet.len(), 50);
+    assert_eq!(code, expected);
+}
+
 fn transfer_request(id: &str, revision: u64) -> RuntimePlatformRequest {
     RuntimePlatformRequest::new(
         RuntimePlatformEffect::UserDataTransferOpen,
