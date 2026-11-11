@@ -93,6 +93,7 @@ impl HeadlessSession {
                 engine_tx,
                 audio_control,
                 recording,
+                output_reopen_tx: std::sync::mpsc::channel().0,
             },
             Arc::new(Mutex::new(None)),
             Arc::new(|_| {}),

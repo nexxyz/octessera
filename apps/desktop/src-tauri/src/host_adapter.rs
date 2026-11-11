@@ -20,7 +20,7 @@ use playback_runtime::{
 use rodio_engine_source::{EngineEvent, EngineEventSender, QueueKind, QueueSendError};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{Receiver, Sender, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -45,6 +45,16 @@ pub(crate) struct DesktopHostAudioState {
     pub(crate) engine_tx: EngineEventSender,
     pub(crate) audio_control: DesktopAudioControl,
     pub(crate) recording: DesktopRecording,
+    /// Asks the audio thread to reopen a lost output; the reply says it is back.
+    pub(crate) output_reopen_tx: Sender<Sender<()>>,
+}
+
+impl DesktopHostAudioState {
+    pub(crate) fn request_output_reopen(&self) -> Option<Receiver<()>> {
+        let (reopened_tx, reopened_rx) = std::sync::mpsc::channel();
+        self.output_reopen_tx.send(reopened_tx).ok()?;
+        Some(reopened_rx)
+    }
 }
 
 impl DesktopPlaybackHostAdapter {

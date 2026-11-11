@@ -1,6 +1,7 @@
+use crate::audio_output_watch::{OutputWatch, OUTPUT_CHECK_INTERVAL};
 use crate::contained_audio_source::panic_message;
 use crate::recording::{RecordingEngineSource, RecordingTapState};
-use crate::types::AudioRuntime;
+use crate::types::{AudioRuntime, SharedEngine};
 use playback_runtime::{
     RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
     RuntimePresentationMetrics,
@@ -11,6 +12,8 @@ use rodio_engine_source::{
     AudioLoadStatusReceiver, AudioLoadStatusSender, EngineEventReceiver, EngineSource,
 };
 use serde::Serialize;
+use std::sync::atomic::Ordering;
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::Emitter;
@@ -36,7 +39,8 @@ struct AudioLoadPayload {
 pub(crate) fn spawn_audio_engine_thread(
     control_rx: EngineEventReceiver,
     load_tx: AudioLoadStatusSender,
-    failure_tx: std::sync::mpsc::Sender<RuntimeAdapterError>,
+    failure_tx: Sender<RuntimeAdapterError>,
+    reopen_rx: Receiver<Sender<()>>,
     no_audio: bool,
     recording_tap: RecordingTapState,
 ) {
@@ -48,39 +52,76 @@ pub(crate) fn spawn_audio_engine_thread(
 
     thread::spawn(move || {
         use std::panic::{catch_unwind, AssertUnwindSafe};
-        let result = catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
-            let mut audio = AudioRuntime::new(recording_tap)?;
-            audio.start_engine(control_rx, load_tx, failure_tx.clone())?;
-            let (_keepalive, shutdown_rx) = std::sync::mpsc::channel::<()>();
-            while shutdown_rx
-                .recv_timeout(std::time::Duration::from_secs(60))
-                .is_err()
-            {}
-            Ok(())
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let engine = SharedEngine::new(control_rx, load_tx, recording_tap);
+            run_output(&engine, &reopen_rx, &failure_tx);
         }));
-        match result {
-            Ok(Ok(())) => {}
-            Ok(Err(error)) => {
-                eprintln!("audio error: {error}");
-                let _ = failure_tx.send(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
-                    RuntimeErrorDomain::Audio,
-                    RuntimeErrorCode::AudioThreadFailed,
-                    RuntimeOperation::AudioThread,
-                    Some(error),
-                )));
-            }
-            Err(panic) => {
-                let msg = panic_message(panic.as_ref());
-                eprintln!("audio thread panicked: {msg}");
-                let _ = failure_tx.send(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
-                    RuntimeErrorDomain::Audio,
-                    RuntimeErrorCode::AudioThreadFailed,
-                    RuntimeOperation::AudioThread,
-                    Some(format!("panic: {msg}")),
-                )));
-            }
+        if let Err(panic) = result {
+            let msg = panic_message(panic.as_ref());
+            eprintln!("audio thread panicked: {msg}");
+            report_audio_failure(&failure_tx, format!("panic: {msg}"));
         }
     });
+}
+
+/// Plays the engine on the default output. An output that fails to open or stops pulling is
+/// reported once, and the next reopen request (a Play or Start) opens the default device again;
+/// the request's reply tells the runtime worker that audio is back.
+fn run_output(
+    engine: &SharedEngine,
+    reopen_rx: &Receiver<Sender<()>>,
+    failure_tx: &Sender<RuntimeAdapterError>,
+) {
+    let mut watch = OutputWatch::default();
+    let mut output = open_output(engine, failure_tx);
+    if output.is_none() {
+        watch.lost();
+    }
+    loop {
+        match reopen_rx.recv_timeout(OUTPUT_CHECK_INTERVAL) {
+            Ok(reopened) => {
+                if watch.needs_reopen() {
+                    drop(output.take());
+                    output = open_output(engine, failure_tx);
+                    if output.is_some() {
+                        watch.reopened();
+                        let _ = reopened.send(());
+                    }
+                }
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                if output.is_some() && watch.newly_stalled(engine.pulls.load(Ordering::Relaxed)) {
+                    eprintln!("audio output stopped pulling");
+                    report_audio_failure(
+                        failure_tx,
+                        "Audio output stopped. Press Play to reopen it.".into(),
+                    );
+                }
+            }
+            Err(RecvTimeoutError::Disconnected) => return,
+        }
+    }
+}
+
+fn open_output(
+    engine: &SharedEngine,
+    failure_tx: &Sender<RuntimeAdapterError>,
+) -> Option<AudioRuntime> {
+    AudioRuntime::open(engine, failure_tx.clone())
+        .inspect_err(|error| {
+            eprintln!("audio error: {error}");
+            report_audio_failure(failure_tx, error.clone());
+        })
+        .ok()
+}
+
+fn report_audio_failure(failure_tx: &Sender<RuntimeAdapterError>, message: String) {
+    let _ = failure_tx.send(RuntimeAdapterError::from_facts(RuntimeErrorFacts::new(
+        RuntimeErrorDomain::Audio,
+        RuntimeErrorCode::AudioThreadFailed,
+        RuntimeOperation::AudioThread,
+        Some(message),
+    )));
 }
 
 /// Pulls the engine at its real-time pace and drops the audio, so the runtime, recordings and

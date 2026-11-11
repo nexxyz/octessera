@@ -1,4 +1,5 @@
 mod audio_config;
+mod audio_output_watch;
 mod audio_prep_service;
 mod audio_thread;
 mod commands;
@@ -81,10 +82,12 @@ pub fn run() {
                 recording_dir,
                 screen_recording_dir,
             );
+            let (output_reopen_tx, output_reopen_rx) = mpsc::channel();
             spawn_audio_engine_thread(
                 engine_rx,
                 load_tx,
                 audio_failure_tx,
+                output_reopen_rx,
                 no_audio,
                 recording.tap_state(),
             );
@@ -110,6 +113,7 @@ pub fn run() {
                         engine_tx: engine_tx.clone(),
                         audio_control,
                         recording: recording.clone(),
+                        output_reopen_tx,
                     },
                     midi_in.clone(),
                     Arc::new(move |bytes| {

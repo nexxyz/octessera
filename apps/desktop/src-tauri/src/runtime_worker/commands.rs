@@ -11,6 +11,12 @@ impl RuntimeWorker {
             })
     }
 
+    fn is_transport_playing(&self) -> bool {
+        self.playback.last_status().is_some_and(|status| {
+            status.transport == playback_runtime::RuntimeTransportState::Playing
+        })
+    }
+
     pub(super) fn handle_command_batch(
         &mut self,
         first: WorkerCommand,
@@ -61,6 +67,7 @@ impl RuntimeWorker {
         #[cfg(debug_assertions)]
         let started_at = Instant::now();
         let was_internal_playing = self.is_internal_playing();
+        let was_playing = self.is_transport_playing();
         match command {
             WorkerCommand::Dispatch(message, reply) => {
                 let output = self.playback.dispatch(
@@ -100,6 +107,11 @@ impl RuntimeWorker {
                 let result = self.prepare_for_exit();
                 let _ = done.send(());
                 result?;
+            }
+        }
+        if !was_playing && self.is_transport_playing() {
+            if let Some(reopened) = self.adapter.audio.request_output_reopen() {
+                self.output_reopened_rx = Some(reopened);
             }
         }
         let is_internal_playing = self.is_internal_playing();

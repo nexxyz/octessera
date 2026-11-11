@@ -1,52 +1,77 @@
 use playback_runtime::{
     RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
 };
+use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio::Source;
 use std::any::Any;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 
 /// Pulls the desktop output one engine block at a time inside `catch_unwind`. A panic leaves the
 /// output silent from then on, never touching the source again, and reports the audio thread as
-/// failed once.
+/// failed once. The source is shared, so a reopened output keeps pulling the same engine;
+/// `pulls` counts the blocks, which tells whether the output is still running.
 pub(crate) struct ContainedAudioSource<S> {
-    source: S,
+    source: Arc<Mutex<S>>,
+    channels: u16,
+    sample_rate: u32,
     block: Vec<f32>,
     idx: usize,
     panicked: bool,
+    pulls: Arc<AtomicU64>,
     failure_tx: Option<Sender<RuntimeAdapterError>>,
 }
 
 impl<S: Source<Item = f32>> ContainedAudioSource<S> {
     pub(crate) fn new(
-        source: S,
+        source: Arc<Mutex<S>>,
         block_samples: usize,
+        pulls: Arc<AtomicU64>,
         failure_tx: Sender<RuntimeAdapterError>,
     ) -> Self {
         let block_samples = block_samples.max(1);
+        let (channels, sample_rate) = source
+            .lock()
+            .map_or((2, DEFAULT_AUDIO_SAMPLE_RATE), |source| {
+                (source.channels(), source.sample_rate())
+            });
         Self {
             source,
+            channels,
+            sample_rate,
             block: vec![0.0; block_samples],
             idx: block_samples,
             panicked: false,
+            pulls,
             failure_tx: Some(failure_tx),
         }
     }
 
     fn fill_block(&mut self) {
         self.idx = 0;
+        self.pulls.fetch_add(1, Ordering::Relaxed);
         if !self.panicked {
-            let (source, block) = (&mut self.source, &mut self.block);
-            let filled = catch_unwind(AssertUnwindSafe(|| {
-                for sample in block.iter_mut() {
-                    *sample = source.next().unwrap_or(0.0);
+            let filled = match self.source.try_lock() {
+                Ok(mut source) => {
+                    let block = &mut self.block;
+                    Some(catch_unwind(AssertUnwindSafe(|| {
+                        for sample in block.iter_mut() {
+                            *sample = source.next().unwrap_or(0.0);
+                        }
+                    })))
                 }
-            }));
-            let Err(panic) = filled else {
-                return;
+                Err(_) => None,
             };
-            self.panicked = true;
-            self.report_panic(panic.as_ref());
+            match filled {
+                Some(Ok(())) => return,
+                Some(Err(panic)) => {
+                    self.panicked = true;
+                    self.report_panic(panic.as_ref());
+                }
+                None => {}
+            }
         }
         self.block.fill(0.0);
     }
@@ -91,11 +116,11 @@ impl<S: Source<Item = f32>> Source for ContainedAudioSource<S> {
     }
 
     fn channels(&self) -> u16 {
-        self.source.channels()
+        self.channels
     }
 
     fn sample_rate(&self) -> u32 {
-        self.source.sample_rate()
+        self.sample_rate
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {

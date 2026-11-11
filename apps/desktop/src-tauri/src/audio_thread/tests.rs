@@ -7,7 +7,14 @@ fn no_audio_keeps_the_engine_taking_events() {
     let (load_tx, _load_rx) = rodio_engine_source::audio_load_status_channel();
     let (failure_tx, failure_rx) = std::sync::mpsc::channel();
 
-    spawn_audio_engine_thread(engine_rx, load_tx, failure_tx, true, Default::default());
+    spawn_audio_engine_thread(
+        engine_rx,
+        load_tx,
+        failure_tx,
+        std::sync::mpsc::channel().1,
+        true,
+        Default::default(),
+    );
 
     assert!(engine_tx.send(EngineEvent::AllNotesOff).is_ok());
     assert!(failure_rx.try_recv().is_err());

@@ -55,6 +55,7 @@ fn test_adapter_with_recording_dir(
             engine_tx,
             audio_control,
             recording: DesktopRecording::new(recording_dir),
+            output_reopen_tx: mpsc::channel().0,
         },
         midi_out: playback_runtime::TimedMidiSender::new("midi-test", || {}),
         midi_in: Arc::new(Mutex::new(None)),

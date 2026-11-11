@@ -64,8 +64,10 @@ Everything else works the same as on the hardware, combos included, so the
 ## Limits
 
 The simulator plays through your computer's audio output, and its own audio
-settings don't change the computer's default output. It doesn't reproduce the
-feel of the physical grid and encoders, the LED brightness, the DAC, power
-behavior or USB gadget connections, and board-only rows (Bluetooth, SD Card 2,
-HDMI Video, Live Show Mode) aren't in its System menu. Recording works and
+settings don't change the computer's default output. Unplug the headphones it
+was playing through and it tells you the audio output stopped; press Play and
+it picks up whatever your computer's default output is now. It doesn't
+reproduce the feel of the physical grid and encoders, the LED brightness, the
+DAC, power behavior or USB gadget connections, and board-only rows (Bluetooth,
+SD Card 2, HDMI Video, Live Show Mode) aren't in its System menu. Recording works and
 saves to your Music folder; see [Recording](recording.md).
