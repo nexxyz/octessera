@@ -458,7 +458,6 @@ jobs:
         run: |
           sudo visudo -cf tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-update
           sudo visudo -cf userpatches/overlay/etc/sudoers.d/octessera-update
-          cmp tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-switch@.service userpatches/overlay/etc/systemd/system/octessera-update-switch@.service
           root="$(mktemp -d)"
           mkdir -p "$root/etc/systemd/system"
           printf '%s\n' '[Unit]' 'Description=CI validation sysinit target' > "$root/etc/systemd/system/sysinit.target"
@@ -466,6 +465,31 @@ jobs:
           install -D -m 0644 tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-update-switch@.service "$root/etc/systemd/system/octessera-update-switch@.service"
           systemd-analyze --root="$root" verify octessera-update-switch@1.2.3.service
           rm -rf "$root"
+      - name: Check files shared by both board images are identical
+        run: |
+          stage4=tools/pi-image/stage4-octessera/files/root
+          for shared in \
+            etc/default/locale \
+            etc/profile.d/octessera-welcome.sh \
+            etc/systemd/system/octessera-setup-request.path \
+            etc/systemd/system/octessera-setup.service \
+            etc/systemd/system/octessera-show-hold.path \
+            etc/systemd/system/octessera-update-switch@.service \
+            usr/local/lib/octessera/setup_config.py \
+            usr/local/lib/octessera/setup_http.py \
+            usr/local/sbin/octessera-setup \
+            usr/local/share/octessera-setup-ui/README.md \
+            usr/local/share/octessera-setup-ui/css/styles.css \
+            usr/local/share/octessera-setup-ui/img/octessera-mark.svg \
+            usr/local/share/octessera-setup-ui/img/octessera-wordmark.svg \
+            usr/local/share/octessera-setup-ui/js/app.js; do
+            cmp "$stage4/$shared" "userpatches/overlay/$shared"
+          done
+          for storage in octessera-orange-storage octessera-orange-storage-control octessera-sd-card; do
+            cmp "tools/storage/$storage" "userpatches/overlay/usr/local/sbin/$storage"
+          done
+          cmp tools/storage/octessera-sd-card-lib.sh userpatches/overlay/usr/local/lib/octessera/octessera-sd-card-lib.sh
+          cmp tools/orange-pi/orange-pi-usb-gadget.sh userpatches/overlay/usr/local/sbin/octessera-orange-usb-gadget
 
   desktop_build_smoke:
     name: Desktop Build Smoke
