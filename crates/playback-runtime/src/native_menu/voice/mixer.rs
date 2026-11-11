@@ -8,7 +8,10 @@ pub(super) fn mixer_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
             enum_item(
                 "Route",
                 format!("{prefix}.mixer.route"),
-                MixerRoute::ALL.map(MixerRoute::wire_name).into(),
+                MixerRoute::ALL
+                    .into_iter()
+                    .filter_map(MixerRoute::wire_name)
+                    .collect(),
                 MixerRoute::ALL
                     .iter()
                     .position(|route| *route == config.route)

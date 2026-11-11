@@ -187,20 +187,20 @@ impl NativeRunner {
     }
 
     fn set_route_from_grid(&mut self, index: usize, route: MixerRoute) {
+        let Some(route_name) = route.wire_name() else {
+            return;
+        };
         if !self.instrument_has_audio(index) {
             return;
         }
         if self.set_instrument_route(index, route) {
-            self.menu.set_enum_value_for_key(
-                &format!("instruments.{index}.mixer.route"),
-                route.wire_name(),
-            );
+            self.menu
+                .set_enum_value_for_key(&format!("instruments.{index}.mixer.route"), route_name);
             self.show_instruments_rows(&[index]);
         }
-        let target = route.bus_index().map_or_else(
-            || route.wire_name().to_string(),
-            |bus| format!("B{}", bus + 1),
-        );
+        let target = route
+            .bus_index()
+            .map_or_else(|| route_name.to_string(), |bus| format!("B{}", bus + 1));
         self.show_toast(format!("I{} {target}", index + 1));
     }
 

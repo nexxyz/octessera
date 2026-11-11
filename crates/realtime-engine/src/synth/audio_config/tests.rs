@@ -68,7 +68,7 @@ fn mixer_routes_parse_by_wire_name_and_reject_unknown_names() {
     let wire_names: Vec<_> = MixerRoute::ALL.map(MixerRoute::wire_name).into();
     assert_eq!(
         wire_names,
-        ["direct", "fx_bus_1", "fx_bus_2", "fx_bus_3", "fx_bus_4"]
+        ["direct", "fx_bus_1", "fx_bus_2", "fx_bus_3", "fx_bus_4"].map(Some)
     );
     for route in MixerRoute::ALL {
         let slot = normalize_instrument_slot_config(&serde_json::json!({
@@ -77,8 +77,13 @@ fn mixer_routes_parse_by_wire_name_and_reject_unknown_names() {
         }))
         .unwrap();
         assert_eq!(slot.slot.mixer.unwrap().route, route);
-        assert_eq!(serde_json::json!(route), route.wire_name());
+        assert_eq!(
+            Some(serde_json::json!(route)),
+            route.wire_name().map(Into::into)
+        );
     }
+    assert_eq!(MixerRoute::FxBus(crate::synth::BUS_COUNT).wire_name(), None);
+    assert!(serde_json::to_value(MixerRoute::FxBus(crate::synth::BUS_COUNT)).is_err());
     for unknown in ["fx_bus_0", "fx_bus_5", "fx_bus_01", "bus_1", ""] {
         assert!(normalize_instrument_slot_config(&serde_json::json!({
             "type": "synth",

@@ -1,5 +1,5 @@
 use super::BUS_COUNT;
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 
 /// Where an instrument's mixer strip sends its signal; `FxBus` holds the zero-based bus index.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -20,17 +20,17 @@ impl MixerRoute {
         Self::FxBus(3),
     ];
 
-    pub const fn wire_name(self) -> &'static str {
+    pub fn wire_name(self) -> Option<&'static str> {
         match self {
-            Self::Direct => "direct",
-            Self::FxBus(index) => FX_BUS_WIRE_NAMES[index],
+            Self::Direct => Some("direct"),
+            Self::FxBus(index) => FX_BUS_WIRE_NAMES.get(index).copied(),
         }
     }
 
     pub fn from_wire_name(value: &str) -> Option<Self> {
         Self::ALL
             .into_iter()
-            .find(|route| route.wire_name() == value)
+            .find(|route| route.wire_name() == Some(value))
     }
 
     pub const fn bus_index(self) -> Option<usize> {
@@ -43,7 +43,10 @@ impl MixerRoute {
 
 impl Serialize for MixerRoute {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(self.wire_name())
+        let name = self
+            .wire_name()
+            .ok_or_else(|| ser::Error::custom(format!("unknown mixer route {self:?}")))?;
+        serializer.serialize_str(name)
     }
 }
 

@@ -380,7 +380,8 @@ pub(super) fn instrument_item_label(
                 .get(index)
                 .copied()
                 .unwrap_or_default()
-                .wire_name(),
+                .wire_name()
+                .unwrap_or_default(),
         ),
     };
     format!("{short} {suffix}")
