@@ -13,6 +13,7 @@ pub(crate) struct FinishStats {
     pub(crate) overflow_count: u64,
     pub(crate) overflow_frames: u64,
     pub(crate) incomplete: bool,
+    pub(crate) size_limited: bool,
 }
 
 struct HeaderOffsets {
@@ -276,6 +277,7 @@ impl AviWriter {
             path: final_path,
             frames_written: stats.frames,
             status,
+            size_limited: stats.size_limited,
         })
     }
 

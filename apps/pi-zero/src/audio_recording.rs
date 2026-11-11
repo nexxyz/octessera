@@ -157,6 +157,15 @@ pub(crate) fn poll_recording_status(
         }
     }
     match result {
+        Ok(Some(outcome)) if outcome.size_limited => {
+            eprintln!(
+                "recording cut at the file-size cap: path={} frames={} status={:?}",
+                outcome.path.display(),
+                outcome.frames_written,
+                outcome.status
+            );
+            Some(size_limit_recording_status())
+        }
         Ok(Some(outcome)) if stop_requested => {
             println!(
                 "recording stopped: path={} frames={} status={:?}",
@@ -192,6 +201,15 @@ pub(crate) fn recording_status(status: RecordingStatus) -> RuntimeStoreResult {
 
 pub(crate) fn max_time_recording_status(status: RecordingStatus) -> RuntimeStoreResult {
     recording_status_with_complete_message(status, "Max time: saved")
+}
+
+/// The take reached the recording file-size cap before Stop or Max Time and was cut there.
+pub(crate) fn size_limit_recording_status() -> RuntimeStoreResult {
+    RuntimeStoreResult::RecordingStatus {
+        ok: false,
+        message: "Max size: cut short".into(),
+        active: false,
+    }
 }
 
 fn recording_status_with_complete_message(

@@ -43,6 +43,9 @@ What the OLED tells you:
   one is.
 - `Recording saved` or `Recording incomplete` after you press Stop.
 - `Max time: saved` when Max Time ended a clean take.
+- `Max size: cut short` when an Audio+Video take grew to the 3.5 GB file cap
+  first. Everything up to that point is saved; the rest of the jam lives on
+  only in your memory.
 
 The OLED still goes to sleep on its usual `System > Display > OLED Sleep`
 timer during a take, so a long unattended recording won't burn your menu into

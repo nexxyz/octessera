@@ -174,6 +174,14 @@ fn recording_completion_uses_existing_status_toast_result() {
             active: false,
         } if message == "Max time: saved"
     ));
+    assert!(matches!(
+        super::super::audio_recording::size_limit_recording_status(),
+        RuntimeStoreResult::RecordingStatus {
+            ok: false,
+            message,
+            active: false,
+        } if message == "Max size: cut short"
+    ));
 }
 
 fn push_frames(service: &AudioService, count: usize) {

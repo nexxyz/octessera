@@ -223,7 +223,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
 - Both formats capture only the final internal stereo output; external MIDI instruments are not
   recorded.
 - Toasts: `Recording started`; `Recording is already running` for a duplicate start; `Recording
-  saved` or `Recording incomplete` on manual Stop; `Max time: saved` on a clean max-duration finish.
+  saved` or `Recording incomplete` on manual Stop; `Max time: saved` on a clean max-duration finish;
+  `Max size: cut short` when an Audio+Video take reaches the 3.5 GB file cap and is cut there.
 - Recording does not keep the OLED awake. The normal `OLED Sleep` timer applies, and an Audio+Video
   take records all-black frames (OLED, keys, and grid) while the screen sleeps.
 - Roots are fixed per host adapter: desktop uses the Tauri Audio/Music directory under

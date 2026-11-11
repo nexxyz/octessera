@@ -58,6 +58,7 @@ fn future_frames_stay_bounded_and_screen_loss_keeps_the_take_complete() {
                 overflow_count: 0,
                 overflow_frames: 0,
                 incomplete: false,
+                size_limited: false,
             },
             0,
         )

@@ -173,6 +173,7 @@ impl WavWriter {
             path: final_path,
             frames_written: frames,
             status,
+            size_limited: false,
         })
     }
 }

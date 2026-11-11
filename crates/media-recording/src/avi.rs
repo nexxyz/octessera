@@ -113,6 +113,7 @@ pub(crate) fn write_recording(
         overflow_count: state.overflow_chunks.load(Ordering::Acquire),
         overflow_frames: state.overflow_frames.load(Ordering::Acquire),
         incomplete: gap_count != 0 || state.overflow_chunks.load(Ordering::Acquire) != 0,
+        size_limited,
     };
     timeline.finish(stats, oled.material_loss_count())
 }
@@ -248,7 +249,8 @@ impl Timeline {
                 .map_err(|error| recording_error(self.writer.partial_path(), error))?;
             let audio = std::mem::take(&mut self.pending_audio);
             match self.writer.write_unit(&frame, &audio) {
-                Ok(true) | Ok(false) => {}
+                Ok(true) => {}
+                Ok(false) => stats.size_limited = true,
                 Err(error) => self.writer.fail(error),
             }
         }

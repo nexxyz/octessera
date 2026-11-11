@@ -247,7 +247,7 @@ fn avi_duration_limit_cleanly_stops_and_finalizes() {
     }
     let outcome = service.stop_audio().unwrap().unwrap();
     assert_eq!(outcome.frames_written, 4_410);
-    assert_eq!(outcome.status, RecordingStatus::Complete);
+    assert!(!outcome.size_limited && outcome.status == RecordingStatus::Complete);
     assert!(outcome
         .path
         .extension()
@@ -290,7 +290,7 @@ fn avi_size_limit_stops_at_a_complete_interleave_unit() {
     })
     .unwrap();
     assert_eq!(outcome.frames_written, 2_205);
-    assert_eq!(outcome.status, RecordingStatus::Complete);
+    assert!(outcome.size_limited && outcome.status == RecordingStatus::Complete);
     assert!(fs::metadata(outcome.path).unwrap().len() <= 15_000);
     remove_temp_dir(dir);
 }

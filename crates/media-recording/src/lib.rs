@@ -249,6 +249,8 @@ pub struct RecordingOutcome {
     pub path: PathBuf,
     pub frames_written: u64,
     pub status: RecordingStatus,
+    /// The take hit the AVI file-size cap and was cut there.
+    pub size_limited: bool,
 }
 
 #[derive(Debug, Eq, PartialEq)]
