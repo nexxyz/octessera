@@ -349,6 +349,46 @@ pub(crate) fn link_arp_rotating_and_random_vary() {
 }
 
 #[test]
+fn random_arp_orders_are_not_a_fixed_cycle() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.layers[0].link.arp.mode = ArpMode::Random;
+    let mut orders = Vec::new();
+    for _ in 0..600 {
+        runner.clear_link_arp_state_for_layer(0);
+        let routed = RoutedMusicalEvents {
+            audio: vec![note_on(60), note_on(64), note_on(67)],
+            midi: vec![],
+            tiles: Vec::new(),
+        };
+        let immediate = runner.apply_link_timing(0, &[], routed);
+        let mut order = musical_note_ons_from_events(&immediate.audio);
+        order.extend(
+            runner.delayed_link_events[0]
+                .drain(..)
+                .flat_map(|entry| musical_note_ons_from_events(&entry.events.audio)),
+        );
+        orders.push(order.iter().map(|(_, note)| *note).collect::<Vec<_>>());
+    }
+    let mut counts = std::collections::BTreeMap::new();
+    for order in &orders {
+        *counts.entry(order.clone()).or_insert(0) += 1;
+    }
+    assert_eq!(counts.len(), 6, "{counts:?}");
+    assert!(
+        counts.values().all(|count| (60..=140).contains(count)),
+        "{counts:?}"
+    );
+
+    let leads = orders.iter().map(|order| order[0] < order[1]);
+    let flips = leads
+        .clone()
+        .zip(leads.skip(1))
+        .filter(|(before, after)| before != after)
+        .count();
+    assert!((240..=360).contains(&flips), "{flips} flips");
+}
+
+#[test]
 fn routed_random_arp_draws_from_the_seeded_layer_stream() {
     for seeded in [false, true] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

@@ -393,6 +393,6 @@ fn outside_in_notes(notes: Vec<MusicalEvent>) -> Vec<MusicalEvent> {
 fn shuffle_notes(notes: &mut [MusicalEvent], state: &mut u32) {
     for index in (1..notes.len()).rev() {
         *state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        notes.swap(index, (*state as usize) % (index + 1));
+        notes.swap(index, (*state >> 16) as usize % (index + 1));
     }
 }
