@@ -1,13 +1,20 @@
 use realtime_engine::synth::SampleBuffer;
-use std::io::Cursor;
+use std::io::Read;
 use std::path::Path;
+
+const WAVE_FORMAT_EXTENSIBLE: [u8; 2] = 0xfffe_u16.to_le_bytes();
 
 pub fn decode_sample_file(path: impl AsRef<Path>) -> Option<SampleBuffer> {
     let bytes = std::fs::read(path.as_ref()).ok()?;
-    let mut reader = wav_reader(bytes.clone()).or_else(|| {
-        let normalized = normalize_wav_chunks(&bytes)?;
-        hound::WavReader::new(Cursor::new(normalized)).ok()
-    })?;
+    if let Ok(reader) = hound::WavReader::new(bytes.as_slice()) {
+        return decode_wav(reader);
+    }
+    let normalized = normalize_wav_chunks(&bytes)?;
+    drop(bytes);
+    decode_wav(hound::WavReader::new(normalized.as_slice()).ok()?)
+}
+
+fn decode_wav<R: Read>(mut reader: hound::WavReader<R>) -> Option<SampleBuffer> {
     let spec = reader.spec();
     let channels = spec.channels;
     let sample_rate = spec.sample_rate;
@@ -41,10 +48,6 @@ pub fn decode_sample_file(path: impl AsRef<Path>) -> Option<SampleBuffer> {
         channels,
         sample_rate,
     })
-}
-
-fn wav_reader(bytes: Vec<u8>) -> Option<hound::WavReader<Cursor<Vec<u8>>>> {
-    hound::WavReader::new(Cursor::new(bytes)).ok()
 }
 
 struct RiffChunk<'a> {
@@ -124,21 +127,20 @@ fn normalize_wav_chunks(bytes: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
     let mut fmt_offset = None;
-    let mut fmt_size = None;
+    let mut trim_fmt = false;
     let mut block_align = None;
     for chunk in riff_chunks(bytes) {
         let chunk = chunk.ok()?;
         let size = chunk.data.len();
         if chunk.id == b"fmt " && size >= 16 {
             fmt_offset = Some(chunk.offset);
-            fmt_size = Some(size);
+            trim_fmt = size > 16 && chunk.data[0..2] != WAVE_FORMAT_EXTENSIBLE;
             block_align = Some(u16::from_le_bytes(chunk.data[12..14].try_into().ok()?) as usize);
         }
     }
     let fmt_offset = fmt_offset?;
-    let fmt_size = fmt_size?;
     let block_align = block_align?;
-    let mut changed = fmt_size > 16;
+    let mut changed = trim_fmt;
     for chunk in riff_chunks(bytes) {
         let chunk = chunk.ok()?;
         let size = chunk.data.len();
@@ -155,7 +157,7 @@ fn normalize_wav_chunks(bytes: &[u8]) -> Option<Vec<u8>> {
     for chunk in riff_chunks(bytes) {
         let chunk = chunk.ok()?;
         let size = chunk.data.len();
-        if chunk.offset == fmt_offset {
+        if chunk.offset == fmt_offset && trim_fmt {
             normalized.extend_from_slice(b"fmt ");
             normalized.extend_from_slice(&16_u32.to_le_bytes());
             normalized.extend_from_slice(&chunk.data[..16]);
@@ -340,6 +342,44 @@ mod tests {
             assert_eq!(buffer.sample_rate, 44_100);
             assert_eq!(buffer.samples.len(), 2);
         }
+    }
+
+    fn extensible_fmt(channels: u16, sample_rate: u32) -> Vec<u8> {
+        let block_align = channels * 2;
+        let mut fmt = Vec::new();
+        fmt.extend_from_slice(&0xfffe_u16.to_le_bytes());
+        fmt.extend_from_slice(&channels.to_le_bytes());
+        fmt.extend_from_slice(&sample_rate.to_le_bytes());
+        fmt.extend_from_slice(&(sample_rate * u32::from(block_align)).to_le_bytes());
+        fmt.extend_from_slice(&block_align.to_le_bytes());
+        fmt.extend_from_slice(&16_u16.to_le_bytes());
+        fmt.extend_from_slice(&22_u16.to_le_bytes());
+        fmt.extend_from_slice(&16_u16.to_le_bytes());
+        fmt.extend_from_slice(&3_u32.to_le_bytes());
+        fmt.extend_from_slice(&[
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38,
+            0x9b, 0x71,
+        ]);
+        fmt
+    }
+
+    #[test]
+    fn public_decoder_repairs_extensible_wav_with_misaligned_data() {
+        let fixture = TempFixture::new();
+        let fmt = extensible_fmt(2, 48_000);
+        let data = [0x00, 0x40, 0x00, 0xc0, 0xff, 0x7f, 0x01, 0x80, 0x55];
+        let path = fixture.write(
+            "extensible.wav",
+            &riff_with_chunks(&[(b"fmt ", &fmt, 0), (b"data", &data, 0)]),
+        );
+
+        let buffer = decode_sample_file(path).expect("extensible WAV should decode");
+
+        assert_eq!(buffer.channels, 2);
+        assert_eq!(buffer.sample_rate, 48_000);
+        assert_eq!(buffer.samples.len(), 4);
+        assert_eq!(buffer.samples[0], 0.5);
+        assert_eq!(buffer.samples[1], -0.5);
     }
 
     #[test]
