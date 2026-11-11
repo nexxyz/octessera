@@ -351,6 +351,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
   minimum, which a portal open for at most 10 minutes needs no more than; the coordinator hands it to wifi-connect
   through `PORTAL_PASSPHRASE` and publishes it only in the `portal_ready` status
   (`portalPassphrase`), which later phases replace.
+- Accepted risk: an 8-digit numeric passphrase is a deliberate user decision. The hotspot is open
+  for at most 10 minutes (`PORTAL_WINDOW_SECONDS = 600` in `octessera-setup`), and digits are easy
+  to type on a phone.
 - The browser's Applying page is provisional and an AP disconnect is expected; the OLED result is
   authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a
   default route, DNS, or ICMP.
@@ -457,13 +460,21 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
 
 - Direct, unconfirmed action with stable key `system.backupRestore`.
 - On Pi it opens the authenticated service at `http://<regular-ip>:8081`, using the usable regular
-  `wlan0` IPv4 address, a generated 10-character code, and a 15-minute lifetime. The OLED card shows
+  `wlan0` IPv4 address, a generated 10-character code, and a 15-minute lifetime. The code draws from
+  the case-sensitive `USER_DATA_TRANSFER_CODE_ALPHABET`, which leaves out the look-alikes `0`, `1`,
+  `5`, `6`, `8`, `B`, `G`, `I`, `O`, `S`, `l` and `o`. The OLED card shows
   IP, port, code, expiry, and `> Stop service`. Back hides the card while the service keeps running;
   Stop closes it and revokes the code. The card ranks after confirmation dialogs and the setup
   portal, ahead of system info and help. Desktop has no Backup / Restore row.
 - The `.oct` archive carries music, selected portable preferences, and optionally media. It is not a
   complete device backup: USB role, MIDI/audio endpoint IDs, and favorites stay local to the
   destination. Rolling `Saves > Default > Backups` are separate and patch-only.
+- An upload unpacks into a staging folder and only prepares the restore; the OLED asks for Main to
+  apply or Back to cancel. Applying swaps the store, samples and recordings in from staging next to
+  the store, after writing a pre-restore archive there. It never copies, moves or deletes across a
+  mount, so the SD2 card and its mount stay untouched, and the bundled sample library stays in
+  place. Saving pauses while it runs. A failed restore rolls back and cleans up after itself, and
+  saving resumes.
 
 ### Reset
 

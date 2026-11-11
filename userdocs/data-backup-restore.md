@@ -54,8 +54,10 @@ desktop simulator doesn't have it.
 
 1. On the board, choose `System > Maintenance > Backup / Restore`.
 2. The OLED shows the board's `IP`, `PORT 8081`, a 10-character `CODE` and how
-   long is left (15 minutes). If the board has no network address, it can't
-   start.
+   long is left (15 minutes). The code is case-sensitive and leaves out
+   look-alikes (`0`, `1`, `5`, `6`, `8`, `B`, `G`, `I`, `O`, `S`, `l`, `o`), so
+   what you read is what you type. If the board has no network address, it
+   can't start.
 3. On a computer on the same network, download the backup:
 
    ```sh
@@ -97,9 +99,10 @@ anything on that board you want to keep.
 5. Wait for the final result before stopping the service or powering down.
 
 A broken upload, or a failure before applying, leaves the board's data as it
-was. If something fails after the data has been replaced, the instrument
-reports it and stops saving; it doesn't roll back on its own. That's why you
-keep the source card and the downloaded file until you're happy.
+was. If something fails while the restore runs, the instrument puts the old
+data back, cleans up after itself, reports the failure and carries on saving
+as before. Still, keep the source card and the downloaded file until you're
+happy.
 
 If a restored patch uses a sample that isn't on the new board, that slot stays
 silent and shows `N/A-<name>`, and a popup lists what's missing. Copy the WAVs

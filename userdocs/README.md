@@ -230,5 +230,7 @@ the `SD card` favorite.
 To copy files from a computer without pulling the card, use
 **System > Connections > SD Card 2 > Start Transfer** in USB Gadget mode
 (Raspberry) or on the Orange. USB audio, USB MIDI and recording need to be off
-first. When you're done, eject the drive on the computer, then press **Back**
-or click **Main** on the instrument to end the transfer.
+first. Transfers are slow, about 0.75 MB/s, so a big sample pack is a good
+moment for a cup of tea. When you're done, eject the drive on the computer
+first, then press **Back** or click **Main** on the instrument to end the
+transfer. Don't pull the cable while files are still copying.

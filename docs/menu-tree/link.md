@@ -205,8 +205,8 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 - Sources: `simultaneous` routed note-on batches, or `held` notes tracked by playback-runtime.
   Unsupported sources normalize to `simultaneous`.
 - `none` keeps the normal Link path. Other modes emit finite note-ons lasting
-  `noteLengthMs * gatePct / 100` and create no held notes; strum-like modes space notes by `Step`
-  Link ticks. Matching note-offs update held membership and never cut off arp-owned finite notes.
+  `noteLengthMs * gatePct / 100`, never shorter than 10 ms, and create no held notes; strum-like
+  modes space notes by `Step` Link ticks. Matching note-offs update held membership and never cut off arp-owned finite notes.
 - Clamps: `stepIntervalSteps` 1..16, `noteLengthMs` 10..2000, `gatePct` 1..100, `octaveSpread`
   0..3.
 

@@ -93,9 +93,9 @@ password, the address to open, and a 10-minute countdown for the portal.
 On a phone or computer:
 
 1. Join the Wi-Fi network `Octessera Setup <suffix>` shown on the OLED, using
-   the password on the line below it. It's made fresh every time you open the
-   portal and leaves out look-alikes such as `0`/`O` and `1`/`l`, so type it
-   exactly as you see it, capitals and all.
+   the password on the line below it. Every portal gets a fresh one, so last
+   time's password won't work. It is eight digits, so there are no look-alike
+   letters to squint at.
 2. Browse to `http://192.168.42.1`.
 3. Enter your two-letter country code, then type the network name under
    **Manual SSID** or pick it from the scanned list below, and enter its
