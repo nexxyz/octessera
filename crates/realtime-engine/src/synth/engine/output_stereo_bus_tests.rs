@@ -122,6 +122,39 @@ fn assert_samples_match(actual: &mut SynthEngine, expected: &mut SynthEngine, fr
     }
 }
 
+#[test]
+fn barely_engaged_spread_keeps_a_panned_bus_level() {
+    for (pan_pos, auto_pan) in [(0, false), (8, false), (DEFAULT_PAN_POSITIONS / 2, true)] {
+        let mut engines = [0.0, 0.01].map(|spread_pct| {
+            let mut config = spread_bus_config(Some(spread_pct), 50.0, false);
+            let bus = &mut config.mixer.as_mut().unwrap().buses[0];
+            bus.pan_pos = pan_pos;
+            if auto_pan {
+                bus.slots.push(FxBusSlotConfig::Config {
+                    kind: "auto_pan".to_string(),
+                    params: BTreeMap::from([
+                        ("rateHz".to_string(), json!(20.0)),
+                        ("depthPct".to_string(), json!(100.0)),
+                    ]),
+                });
+            }
+            let mut engine = SynthEngine::new(48_000);
+            engine.set_instruments(config);
+            engine.set_sample_banks(vec![sample_bank(vec![1.0; 128])]);
+            engine.note_on(0, 36, 127, 0);
+            engine
+        });
+        for frame in 0..128 {
+            let (left, right) = engines[0].next_stereo_sample();
+            let (spread_left, spread_right) = engines[1].next_stereo_sample();
+            assert!(
+                (left - spread_left).abs() < 1.0e-4 && (right - spread_right).abs() < 1.0e-4,
+                "pan {pan_pos} auto {auto_pan} frame {frame}: ({left}, {right}) became ({spread_left}, {spread_right})"
+            );
+        }
+    }
+}
+
 fn spread_sample_bus_engine(spread_pct: f32, mix_pct: f32, downstream_mono: bool) -> SynthEngine {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(spread_bus_config(

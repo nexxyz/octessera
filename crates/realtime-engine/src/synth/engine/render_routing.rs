@@ -289,31 +289,19 @@ pub(super) fn render_bus_stereo_output(
     mono_pan_gains: (f32, f32),
     volume: f32,
 ) -> (f32, f32) {
-    let stereo_output = if output.spread > 0.0 {
-        Some(spread_state.process(output.mono, output.spread))
-    } else if let Some(pos) = output.auto_pan_pos {
-        let (gl, gr) = pan_gains_float(pos);
-        Some((output.mono * gl, output.mono * gr))
+    let (gain_l, gain_r) = if let Some(pos) = output.auto_pan_pos {
+        let (auto_l, auto_r) = pan_gains_float(pos);
+        let (bus_l, bus_r) = stereo_balance_gains_from_pan(pan_pos, pan_positions);
+        (auto_l * bus_l, auto_r * bus_r)
     } else {
-        None
+        mono_pan_gains
     };
-    if let Some((mut bus_left, mut bus_right)) = stereo_output {
-        if output.spread > 0.0 {
-            if let Some(pos) = output.auto_pan_pos {
-                let (gl, gr) = stereo_balance_gains(pos);
-                bus_left *= gl;
-                bus_right *= gr;
-            }
-        }
-        let (gl, gr) = stereo_balance_gains_from_pan(pan_pos, pan_positions);
-        bus_left *= gl;
-        bus_right *= gr;
-        (bus_left * volume, bus_right * volume)
+    if output.spread > 0.0 {
+        let (left, right) = spread_state.process(output.mono, output.spread);
+        let scale = std::f32::consts::SQRT_2 * volume;
+        (left * gain_l * scale, right * gain_r * scale)
     } else {
-        (
-            output.mono * mono_pan_gains.0 * volume,
-            output.mono * mono_pan_gains.1 * volume,
-        )
+        (output.mono * gain_l * volume, output.mono * gain_r * volume)
     }
 }
 
