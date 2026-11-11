@@ -1,17 +1,58 @@
 use super::WorkerCommand;
-use playback_runtime::{HostMessage, RunnerMessage};
-use std::sync::mpsc;
+use playback_runtime::{
+    HostMessage, RunnerMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorMetadata,
+    RuntimeOperation, RuntimeRecovery, RuntimeStatus, RuntimeStatusState, RuntimeTransportState,
+    SyncSource,
+};
+use std::sync::mpsc::{self, RecvTimeoutError, Sender};
+use std::time::Duration;
 
+/// Shorter than the UI's own IPC timeout, so the UI hears why instead of timing out.
+pub(crate) const DISPATCH_REPLY_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// A worker that is gone answers with a runtime error status, which the UI shows like any other.
 pub(crate) fn request_worker_dispatch(
-    state: &crate::AppState,
+    worker_tx: &Sender<WorkerCommand>,
     message: HostMessage,
+    timeout: Duration,
 ) -> Result<Vec<RunnerMessage>, String> {
     let (reply_tx, reply_rx) = mpsc::channel();
-    state
-        .worker_tx
+    if worker_tx
         .send(WorkerCommand::Dispatch(message, reply_tx))
-        .map_err(|e| format!("runtime worker unavailable: {e}"))?;
-    reply_rx
-        .recv()
-        .map_err(|e| format!("runtime worker reply unavailable: {e}"))?
+        .is_err()
+    {
+        return Ok(vec![worker_stopped_status()]);
+    }
+    match reply_rx.recv_timeout(timeout) {
+        Ok(reply) => reply,
+        Err(RecvTimeoutError::Disconnected) => Ok(vec![worker_stopped_status()]),
+        Err(RecvTimeoutError::Timeout) => Err(format!(
+            "runtime worker did not answer within {} s",
+            timeout.as_secs()
+        )),
+    }
 }
+
+fn worker_stopped_status() -> RunnerMessage {
+    let message = "The runtime stopped. Please restart Octessera.".to_string();
+    RunnerMessage::RuntimeStatus {
+        status: RuntimeStatus {
+            state: RuntimeStatusState::Error,
+            transport: RuntimeTransportState::Stopped,
+            current_ppqn_pulse: 0,
+            pending_resync: false,
+            sync_source: SyncSource::Internal,
+            message: Some(message.clone()),
+            error: Some(RuntimeErrorMetadata::new(
+                RuntimeErrorDomain::Runtime,
+                RuntimeErrorCode::OperationFailed,
+                RuntimeOperation::RuntimeDispatch,
+                RuntimeRecovery::StopAndSilence,
+                Some(message),
+            )),
+        },
+    }
+}
+
+#[cfg(test)]
+mod tests;

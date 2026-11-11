@@ -1,4 +1,4 @@
-use crate::runtime_worker::request_worker_dispatch;
+use crate::runtime_worker::{request_worker_dispatch, DISPATCH_REPLY_TIMEOUT};
 use crate::types::{encode_runtime_responses, RuntimeMessagesPayload};
 use serde_json::Value;
 
@@ -13,12 +13,17 @@ pub(crate) fn runtime_drain_messages(
     Ok(std::mem::take(&mut *guard))
 }
 
-#[tauri::command]
+/// Runs off the main thread, so a slow or stuck worker never freezes the window.
+#[tauri::command(async)]
 pub(crate) fn runtime_dispatch(
     message: Value,
     state: tauri::State<crate::AppState>,
 ) -> Result<Vec<Value>, String> {
     let host_message = serde_json::from_value::<playback_runtime::HostMessage>(message)
         .map_err(|e| format!("invalid runtime host message: {e}"))?;
-    encode_runtime_responses(request_worker_dispatch(&state, host_message)?)
+    encode_runtime_responses(request_worker_dispatch(
+        &state.worker_tx,
+        host_message,
+        DISPATCH_REPLY_TIMEOUT,
+    )?)
 }

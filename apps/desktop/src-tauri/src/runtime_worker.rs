@@ -29,7 +29,7 @@ pub(crate) use config::desktop_native_runner_config;
 #[cfg(debug_assertions)]
 use perf::RuntimePerfCounters;
 use queue::{queue_by_priority, retain_runtime_outbox_batch, MAX_COMMANDS_PER_WAKE};
-pub(crate) use requests::request_worker_dispatch;
+pub(crate) use requests::{request_worker_dispatch, DISPATCH_REPLY_TIMEOUT};
 
 const PLAYING_SNAPSHOT_INTERVAL_MS: u64 = 50;
 const XY_GLIDE_TICK: Duration = Duration::from_millis(8);
