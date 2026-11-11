@@ -4,6 +4,7 @@ use std::sync::mpsc::{Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 
 mod avi;
+mod avi_repair;
 mod avi_writer;
 mod led_frame;
 mod oled_ingress;
@@ -11,6 +12,7 @@ mod service;
 mod video_frame;
 mod wav;
 
+pub use avi_repair::{partial_avi_paths, repair_partial_avi};
 pub use led_frame::{LedColors, LedFrame, GRID_LED_COUNT, NEOKEY_COUNT};
 use oled_ingress::OledIngressState;
 pub use oled_ingress::{OledFrame, OledFrameError, OledIngress, OledSubmission};

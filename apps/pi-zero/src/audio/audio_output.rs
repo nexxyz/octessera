@@ -164,6 +164,7 @@ impl AudioManager {
             set_status(&route_registry, AudioSink::Jack, error.status());
             return Err(error.to_string());
         }
+        crate::audio_recording::spawn_partial_take_repair(screen_recordings_dir());
         Self::new_with_opener(
             AudioConstructionConfig::raspberry(profile),
             AudioOpenPolicy::Outputs(outputs),
@@ -183,6 +184,7 @@ impl AudioManager {
             set_status(&route_registry, AudioSink::Jack, error.status());
             return Err(OrangeAudioInitError::Open(error.to_string()));
         }
+        crate::audio_recording::spawn_partial_take_repair(screen_recordings_dir());
         Self::new_with_opener(
             AudioConstructionConfig::orange(profile),
             AudioOpenPolicy::Outputs(outputs),

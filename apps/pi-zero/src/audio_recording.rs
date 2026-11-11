@@ -126,6 +126,34 @@ impl RecordingServices {
     }
 }
 
+/// Saves Audio+Video takes a power cut left as `.partial.avi`. They are listed here, before any
+/// take can start; walking a long take's chunks can take a while on the SD card, so that runs on
+/// a short-lived thread instead of holding up startup.
+pub(crate) fn spawn_partial_take_repair(dir: PathBuf) {
+    let partials = media_recording::partial_avi_paths(&dir);
+    if partials.is_empty() {
+        return;
+    }
+    let spawned = std::thread::Builder::new()
+        .name("octessera-avi-repair".into())
+        .spawn(move || {
+            pin_writer_off_audio_core();
+            for partial in partials {
+                match media_recording::repair_partial_avi(&partial) {
+                    Ok(outcome) => eprintln!(
+                        "interrupted recording saved: path={} frames={}",
+                        outcome.path.display(),
+                        outcome.frames_written
+                    ),
+                    Err(error) => eprintln!("interrupted recording left as is: {error}"),
+                }
+            }
+        });
+    if let Err(error) = spawned {
+        eprintln!("interrupted recording repair could not start: {error}");
+    }
+}
+
 fn pin_writer_off_audio_core() {
     #[cfg(any(
         feature = "hardware-orange-pi-zero-2w",

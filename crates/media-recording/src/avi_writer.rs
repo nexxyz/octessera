@@ -3,7 +3,7 @@ use super::{
     VIDEO_FPS, VIDEO_HEIGHT, VIDEO_WIDTH,
 };
 use std::fs::{self, File};
-use std::io::{self, Seek, SeekFrom, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 pub(crate) struct FinishStats {
@@ -67,7 +67,51 @@ impl AviWriter {
     ) -> Result<Self, RecordingError> {
         let offsets =
             write_headers(&mut file).map_err(|error| recording_error(&partial_path, error))?;
-        Ok(Self {
+        Ok(Self::with_offsets(
+            file,
+            partial_path,
+            final_path,
+            file_limit,
+            offsets,
+        ))
+    }
+
+    /// Reopens a `.partial.avi` take whose header this writer produced, positioned at the end of
+    /// the movi chunks recorded so far, for `finish` to write the sizes and index.
+    pub(crate) fn reopen(
+        mut file: File,
+        partial_path: PathBuf,
+        final_path: PathBuf,
+    ) -> Result<Self, RecordingError> {
+        let mut expected = io::Cursor::new(Vec::new());
+        let offsets =
+            write_headers(&mut expected).map_err(|error| recording_error(&partial_path, error))?;
+        let mut header = vec![0; expected.get_ref().len()];
+        file.read_exact(&mut header)
+            .map_err(|error| recording_error(&partial_path, error))?;
+        if header != *expected.get_ref() {
+            return Err(recording_error(
+                &partial_path,
+                "header was not written by this recorder",
+            ));
+        }
+        Ok(Self::with_offsets(
+            file,
+            partial_path,
+            final_path,
+            u64::MAX,
+            offsets,
+        ))
+    }
+
+    fn with_offsets(
+        file: File,
+        partial_path: PathBuf,
+        final_path: PathBuf,
+        file_limit: u64,
+        offsets: HeaderOffsets,
+    ) -> Self {
+        Self {
             file,
             partial_path,
             final_path,
@@ -87,7 +131,15 @@ impl AviWriter {
             video_frames: 0,
             audio_frames: 0,
             write_failed: None,
-        })
+        }
+    }
+
+    pub(crate) fn movi_data_start(&self) -> u64 {
+        self.movi_list_start + 12
+    }
+
+    pub(crate) fn file_mut(&mut self) -> &mut File {
+        &mut self.file
     }
 
     pub(crate) fn write_unit(&mut self, frame: &[u8], audio: &[i16]) -> Result<bool, String> {
@@ -104,7 +156,7 @@ impl AviWriter {
         if projected > self.file_limit || projected.saturating_sub(8) > u64::from(u32::MAX) {
             return Ok(false);
         }
-        self.write_chunk(*b"00dc", frame, 0x10)
+        self.write_chunk(*b"00dc", frame)
             .map_err(|error| error.to_string())?;
         self.write_audio(audio).map_err(|error| error.to_string())?;
         Ok(true)
@@ -115,10 +167,10 @@ impl AviWriter {
         for sample in samples {
             bytes.extend_from_slice(&sample.to_le_bytes());
         }
-        self.write_chunk(*b"01wb", &bytes, 0)
+        self.write_chunk(*b"01wb", &bytes)
     }
 
-    fn write_chunk(&mut self, id: [u8; 4], payload: &[u8], flags: u32) -> io::Result<()> {
+    fn write_chunk(&mut self, id: [u8; 4], payload: &[u8]) -> io::Result<()> {
         let offset = self.file.stream_position()? - (self.movi_list_start + 8);
         let offset = u32::try_from(offset).map_err(|_| io::Error::other("AVI index overflow"))?;
         let size =
@@ -129,6 +181,13 @@ impl AviWriter {
         if !payload.len().is_multiple_of(2) {
             self.file.write_all(&[0])?;
         }
+        self.record_chunk(id, offset, size);
+        Ok(())
+    }
+
+    /// Indexes a movi chunk; `offset` counts from the `movi` fourcc, as idx1 expects.
+    pub(crate) fn record_chunk(&mut self, id: [u8; 4], offset: u32, size: u32) {
+        let flags = if id == *b"00dc" { 0x10 } else { 0 };
         self.index.push(IndexEntry {
             id,
             flags,
@@ -146,7 +205,6 @@ impl AviWriter {
         } else {
             0
         };
-        Ok(())
     }
 
     pub(crate) fn fail(&mut self, error: String) {
@@ -294,7 +352,7 @@ fn chunk_size(payload: usize) -> u64 {
     8 + payload as u64 + (payload % 2) as u64
 }
 
-fn write_headers(file: &mut File) -> io::Result<HeaderOffsets> {
+fn write_headers<W: Write + Seek>(file: &mut W) -> io::Result<HeaderOffsets> {
     file.write_all(b"RIFF")?;
     file.write_all(&[0; 4])?;
     file.write_all(b"AVI ")?;
@@ -324,7 +382,7 @@ fn write_headers(file: &mut File) -> io::Result<HeaderOffsets> {
     })
 }
 
-fn write_avih(file: &mut File) -> io::Result<(u64, u64, u64)> {
+fn write_avih<W: Write + Seek>(file: &mut W) -> io::Result<(u64, u64, u64)> {
     write_chunk_header(file, *b"avih", 56)?;
     let start = file.stream_position()?;
     let mut data = [0_u8; 56];
@@ -337,7 +395,7 @@ fn write_avih(file: &mut File) -> io::Result<(u64, u64, u64)> {
     Ok((start + 16, start + 4, start + 28))
 }
 
-fn write_video_stream(file: &mut File) -> io::Result<(u64, u64, u64)> {
+fn write_video_stream<W: Write + Seek>(file: &mut W) -> io::Result<(u64, u64, u64)> {
     write_chunk_header(file, *b"strh", 56)?;
     let start = file.stream_position()?;
     let mut data = [0_u8; 56];
@@ -362,7 +420,7 @@ fn write_video_stream(file: &mut File) -> io::Result<(u64, u64, u64)> {
     Ok((start + 32, start + 36, start_format + 20))
 }
 
-fn write_audio_stream(file: &mut File) -> io::Result<(u64, u64)> {
+fn write_audio_stream<W: Write + Seek>(file: &mut W) -> io::Result<(u64, u64)> {
     write_chunk_header(file, *b"strh", 56)?;
     let start = file.stream_position()?;
     let mut data = [0_u8; 56];
@@ -395,7 +453,7 @@ fn write_audio_stream(file: &mut File) -> io::Result<(u64, u64)> {
     Ok((start + 32, start + 36))
 }
 
-fn begin_list(file: &mut File, kind: [u8; 4]) -> io::Result<u64> {
+fn begin_list<W: Write + Seek>(file: &mut W, kind: [u8; 4]) -> io::Result<u64> {
     let start = file.stream_position()?;
     file.write_all(b"LIST")?;
     file.write_all(&[0; 4])?;
@@ -403,19 +461,19 @@ fn begin_list(file: &mut File, kind: [u8; 4]) -> io::Result<u64> {
     Ok(start)
 }
 
-fn end_list(file: &mut File, start: u64) -> io::Result<()> {
+fn end_list<W: Write + Seek>(file: &mut W, start: u64) -> io::Result<()> {
     let end = file.stream_position()?;
     patch_u32(file, start + 4, u32::try_from(end - start - 8).unwrap())?;
     file.seek(SeekFrom::End(0))?;
     Ok(())
 }
 
-fn write_chunk_header(file: &mut File, id: [u8; 4], size: u32) -> io::Result<()> {
+fn write_chunk_header<W: Write + Seek>(file: &mut W, id: [u8; 4], size: u32) -> io::Result<()> {
     file.write_all(&id)?;
     file.write_all(&size.to_le_bytes())
 }
 
-fn patch_u32(file: &mut File, offset: u64, value: u32) -> io::Result<()> {
+fn patch_u32<W: Write + Seek>(file: &mut W, offset: u64, value: u32) -> io::Result<()> {
     file.seek(SeekFrom::Start(offset))?;
     file.write_all(&value.to_le_bytes())
 }
