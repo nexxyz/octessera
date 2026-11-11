@@ -1,13 +1,18 @@
 use crate::contained_audio_source::panic_message;
-use crate::recording::RecordingTapState;
+use crate::recording::{RecordingEngineSource, RecordingTapState};
 use crate::types::AudioRuntime;
 use playback_runtime::{
     RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
     RuntimePresentationMetrics,
 };
-use rodio_engine_source::{AudioLoadStatusReceiver, AudioLoadStatusSender, EngineEventReceiver};
+use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
+use rodio::Source;
+use rodio_engine_source::{
+    AudioLoadStatusReceiver, AudioLoadStatusSender, EngineEventReceiver, EngineSource,
+};
 use serde::Serialize;
 use std::thread;
+use std::time::{Duration, Instant};
 use tauri::Emitter;
 
 #[derive(Clone, Serialize)]
@@ -36,8 +41,8 @@ pub(crate) fn spawn_audio_engine_thread(
     recording_tap: RecordingTapState,
 ) {
     if no_audio {
-        drop(control_rx);
         eprintln!("audio disabled (--no-audio)");
+        thread::spawn(move || render_without_output(control_rx, load_tx, recording_tap));
         return;
     }
 
@@ -78,6 +83,30 @@ pub(crate) fn spawn_audio_engine_thread(
     });
 }
 
+/// Pulls the engine at its real-time pace and drops the audio, so the runtime, recordings and
+/// load reports behave as with a sound card.
+fn render_without_output(
+    control_rx: EngineEventReceiver,
+    load_tx: AudioLoadStatusSender,
+    recording_tap: RecordingTapState,
+) {
+    let engine =
+        EngineSource::with_load_status_tx(control_rx, DEFAULT_AUDIO_SAMPLE_RATE, Some(load_tx));
+    let block_frames = engine.block_frames();
+    let block_samples = block_frames * usize::from(engine.channels());
+    let block_time =
+        Duration::from_secs_f64(block_frames as f64 / DEFAULT_AUDIO_SAMPLE_RATE as f64);
+    let mut source = RecordingEngineSource::new(engine, recording_tap);
+    let mut next_block_at = Instant::now();
+    loop {
+        if source.by_ref().take(block_samples).count() < block_samples {
+            return;
+        }
+        next_block_at += block_time;
+        thread::sleep(next_block_at.saturating_duration_since(Instant::now()));
+    }
+}
+
 pub(crate) fn spawn_load_listener(
     load_rx: AudioLoadStatusReceiver,
     app_handle: tauri::AppHandle,
@@ -109,3 +138,6 @@ pub(crate) fn spawn_load_listener(
         }
     });
 }
+
+#[cfg(test)]
+mod tests;
