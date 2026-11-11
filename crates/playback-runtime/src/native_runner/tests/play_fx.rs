@@ -76,7 +76,7 @@ pub(crate) fn play_fx_same_config_assignment_toggles_tile_clear() {
 }
 
 #[test]
-pub(crate) fn play_fx_press_blocks_same_type_and_limits_concurrency() {
+pub(crate) fn play_fx_press_takes_over_its_type_and_limits_concurrency() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
     for (x, fx_type) in ["stutter", "freeze", "filter_sweep", "pitch_shift"]
@@ -105,8 +105,7 @@ pub(crate) fn play_fx_press_blocks_same_type_and_limits_concurrency() {
     }
     assert_eq!(runner.active_play_fx.len(), 2);
 
-    let same_type = runner.play_fx_press_effects(4, 0);
-    assert!(same_type.is_empty());
+    assert_eq!(runner.play_fx_press_effects(4, 0).len(), 2);
     assert_eq!(runner.active_play_fx.len(), 2);
 
     let limited = runner.play_fx_press_effects(5, 0);

@@ -348,6 +348,32 @@ fn prepared_momentary_press_takes_over_its_own_releasing_tail() {
 }
 
 #[test]
+fn a_same_type_stop_then_start_beside_a_held_effect_leaves_one_voice_of_that_type() {
+    for fx_type in ["stutter", "freeze", "filter_sweep", "pitch_shift", "wash"] {
+        let mut engine = SynthEngine::new(44_100);
+        press(&mut engine, 1, fx_type, MomentaryFxTarget::Global);
+        press(&mut engine, 2, "crush", MomentaryFxTarget::Global);
+        ring(&mut engine, 5_000);
+        engine.momentary_fx_stop_by_epoch(1);
+        press(&mut engine, 3, fx_type, MomentaryFxTarget::Global);
+        let kind = parse_momentary_fx_kind(fx_type);
+        let sounding = |engine: &SynthEngine| {
+            engine
+                .momentary_fx
+                .iter()
+                .filter(|fx| Some(fx.kind) == kind && fx.retire_fade.is_none())
+                .map(|fx| fx.epoch)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(sounding(&engine), vec![3], "{fx_type}");
+        ring(&mut engine, 441);
+        let mut running = running_epochs(&engine);
+        running.sort_unstable();
+        assert_eq!(running, vec![2, 3], "{fx_type}");
+    }
+}
+
+#[test]
 fn prepared_momentary_preparation_rejects_unknown_or_invalid_input() {
     let mut unknown = BTreeMap::new();
     unknown.insert("notAParameter".into(), json!(1.0));

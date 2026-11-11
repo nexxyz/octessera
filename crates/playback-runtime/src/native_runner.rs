@@ -218,6 +218,7 @@ mod patch_store;
 mod persistence_intent;
 mod play_control;
 pub(crate) mod play_fx_config;
+mod play_fx_hold;
 mod play_fx_presentation;
 pub(crate) mod play_pages;
 mod play_transpose;
@@ -399,6 +400,8 @@ pub struct NativeRunner {
     grid_assign: Option<GridAssign>,
     play_fx_assignments: Vec<NativePlayFxAssignment>,
     active_play_fx: Vec<(String, String)>,
+    /// Play FX tiles still held under a newer press of their type, oldest first.
+    displaced_play_fx: Vec<(String, String)>,
     xy: NativeXyState,
     aux_auto_map_enabled: bool,
     aux_priority: AuxPriority,

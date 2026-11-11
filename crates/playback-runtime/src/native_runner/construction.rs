@@ -80,6 +80,7 @@ impl NativeRunner {
             grid_assign: None,
             play_fx_assignments: vec![],
             active_play_fx: Vec::new(),
+            displaced_play_fx: Vec::new(),
             xy: NativeXyState {
                 touch: NativeXyTouch::default(),
                 release: seed.xy_release,

@@ -120,7 +120,7 @@ pub(crate) fn every_new_play_fx_type_maps_to_a_tile_and_plays_while_held() {
 }
 
 #[test]
-pub(crate) fn new_play_fx_types_respect_the_concurrency_limits() {
+pub(crate) fn new_play_fx_types_take_over_their_type_within_the_limit() {
     let mut runner = runner();
     for (index, (fx_type, target)) in NEW_TYPES.into_iter().take(3).enumerate() {
         map_type_to_tile(&mut runner, fx_type, target, index);
@@ -128,13 +128,13 @@ pub(crate) fn new_play_fx_types_respect_the_concurrency_limits() {
     map_type_to_tile(&mut runner, "tape_stop", "fx_bus_1", 3);
 
     assert_eq!(momentary_starts(&grid_press(&mut runner, 0, 6)).len(), 1);
-    assert!(momentary_starts(&grid_press(&mut runner, 3, 6)).is_empty());
-    assert_eq!(toast(&runner), "FX tape stop already on");
+    assert_eq!(momentary_starts(&grid_press(&mut runner, 3, 6)).len(), 1);
     assert_eq!(momentary_starts(&grid_press(&mut runner, 1, 6)).len(), 1);
     assert!(momentary_starts(&grid_press(&mut runner, 2, 6)).is_empty());
     assert_eq!(toast(&runner), "FX limit: 2 at once");
     assert_eq!(runner.active_play_fx.len(), 2);
 
+    assert_eq!(momentary_starts(&grid_release(&mut runner, 3, 6)).len(), 1);
     let _ = grid_release(&mut runner, 0, 6);
     assert_eq!(momentary_starts(&grid_press(&mut runner, 2, 6)).len(), 1);
 }

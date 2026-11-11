@@ -1,107 +1,17 @@
 use crate::native_runner::InstrumentType;
-use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
+use crate::protocol::RuntimePlatformEffect;
 
 use super::grid_assign::GridAssign;
 use super::pan_mapping::touch_pan_pos_from_grid_x;
-use super::play_fx_config::{play_fx_audio_params, play_fx_target_key, play_fx_type};
+use super::play_fx_config::play_fx_type;
 use super::play_pages::PlayMode;
 use super::{
-    momentary_fx_target, play_fx_tile_id, NativePlayFxAssignment, NativeRunner,
-    TriggerProbabilityMode, GRID_HEIGHT, GRID_WIDTH, PLAY_FX_MAX_CONCURRENT,
+    NativePlayFxAssignment, NativeRunner, TriggerProbabilityMode, GRID_HEIGHT, GRID_WIDTH,
 };
 
 pub(super) const MIX_MASTER_COLUMN: usize = 5;
 
 impl NativeRunner {
-    fn play_fx_start_effect_for_assignment(
-        &self,
-        assignment: &NativePlayFxAssignment,
-    ) -> Option<RuntimePlatformEffect> {
-        let x = assignment.x;
-        let y = assignment.y;
-        let fx_type = play_fx_type(&assignment.config).to_string();
-        if fx_type == "none" {
-            return None;
-        }
-        Some(RuntimePlatformEffect::AudioCommand {
-            command: RuntimeAudioCommand::MomentaryFxStart {
-                id: play_fx_tile_id(x, y),
-                epoch: 0,
-                fx_type,
-                params: play_fx_audio_params(&assignment.config, self.play_fx_tempo_bpm()),
-                target: momentary_fx_target(play_fx_target_key(&assignment.config)),
-            },
-        })
-    }
-
-    pub(super) fn play_fx_press_effects(
-        &mut self,
-        x: usize,
-        y: usize,
-    ) -> Vec<RuntimePlatformEffect> {
-        let Some(assignment) = self.play_fx_assignment_at(x, y).cloned() else {
-            return Vec::new();
-        };
-        let fx_type = play_fx_type(&assignment.config).to_string();
-        if fx_type == "none" {
-            return Vec::new();
-        }
-        let id = play_fx_tile_id(x, y);
-        if self
-            .active_play_fx
-            .iter()
-            .any(|(active_id, _)| active_id == &id)
-        {
-            return Vec::new();
-        }
-        let mut effects = Vec::new();
-        if self
-            .active_play_fx
-            .iter()
-            .any(|(_, active_type)| active_type == &fx_type)
-        {
-            self.show_toast(format!(
-                "FX {} already on",
-                play_fx_type_label(&assignment.config)
-            ));
-            return Vec::new();
-        } else if self.active_play_fx.len() >= PLAY_FX_MAX_CONCURRENT {
-            self.show_toast(format!("FX limit: {PLAY_FX_MAX_CONCURRENT} at once"));
-            return Vec::new();
-        }
-        if let Some(start) = self.play_fx_start_effect_for_assignment(&assignment) {
-            self.active_play_fx.push((id, fx_type));
-            self.play_live.held_fx_bpm = Some(self.play_fx_tempo_bpm());
-            effects.push(start);
-        }
-        effects
-    }
-
-    pub(super) fn play_fx_release_effects(
-        &mut self,
-        x: usize,
-        y: usize,
-    ) -> Vec<RuntimePlatformEffect> {
-        let id = play_fx_tile_id(x, y);
-        let Some(index) = self
-            .active_play_fx
-            .iter()
-            .position(|(active_id, _)| active_id == &id)
-        else {
-            return Vec::new();
-        };
-        let (id, _) = self.active_play_fx.remove(index);
-        vec![RuntimePlatformEffect::AudioCommand {
-            command: RuntimeAudioCommand::MomentaryFxStop { id, epoch: 0 },
-        }]
-    }
-
-    fn play_fx_assignment_at(&self, x: usize, y: usize) -> Option<&NativePlayFxAssignment> {
-        self.play_fx_assignments
-            .iter()
-            .find(|assignment| assignment.x == x && assignment.y == y)
-    }
-
     pub(super) fn handle_play_fx_assignment_grid_press(&mut self, x: usize, y: usize) {
         let Some(GridAssign::PlayFx(config)) = self.grid_assign.take() else {
             return;

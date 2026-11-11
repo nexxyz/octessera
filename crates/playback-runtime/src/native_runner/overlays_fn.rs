@@ -103,8 +103,8 @@ impl NativeRunner {
                 .active_play_fx
                 .iter()
                 .any(|(_, active_type)| active_type == fx_type);
-            let limited = !active
-                && (self.active_play_fx.len() >= PLAY_FX_MAX_CONCURRENT || same_type_active);
+            let limited =
+                !active && !same_type_active && self.active_play_fx.len() >= PLAY_FX_MAX_CONCURRENT;
             let color = play_fx_color(fx_type);
             self.set_display_led(
                 leds,

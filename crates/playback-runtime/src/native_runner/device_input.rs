@@ -334,13 +334,13 @@ impl NativeRunner {
         }
         let fx_effects = self.play_fx_release_effects(x, y);
         let xy_held = self.xy.touch.active && self.play_live.xy_held_tile == Some((x, y));
-        if self.active_play_mode != ActivePlayMode::None || !fx_effects.is_empty() || xy_held {
+        if self.active_play_mode != ActivePlayMode::None || fx_effects.is_some() || xy_held {
             self.release_fader_tile(x, y);
             if self.active_play_mode == ActivePlayMode::Page(PlayMode::Xy) || xy_held {
                 self.handle_play_xy_release();
             }
-            if !fx_effects.is_empty() {
-                return self.messages_with_effects(fx_effects);
+            if let Some(effects) = fx_effects.filter(|effects| !effects.is_empty()) {
+                return self.messages_with_effects(effects);
             }
             return self.messages_with_snapshot();
         }

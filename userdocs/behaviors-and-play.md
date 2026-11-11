@@ -193,9 +193,12 @@ including an external MIDI clock when you sync to one.
 
 - **Target** is `master` (the whole mix), one of the FX buses, or a single
   instrument.
-- Two momentary effects can run at once.
-- Only one of each type at a time. A second tile of the same type is ignored
-  while the first is held, and a toast tells you why. Blocked tiles dim.
+- Two momentary effect types can run at once. A tile of a third type is
+  ignored while two are held, and a toast tells you why. Blocked tiles dim.
+- One tile per type sounds. Hold `pitch +12`, press `pitch +7`, and `+7`
+  takes over; let go of `+7` while still holding `+12`, and `+12` comes back.
+  Stack as many tiles of one type as you have fingers: the newest press wins,
+  and letting go falls back to the newest one you are still holding.
 
 ## A useful patch recipe
 

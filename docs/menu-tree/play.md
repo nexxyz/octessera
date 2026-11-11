@@ -260,8 +260,14 @@ The menu lists the technical bank, then the musical bank.
   the DSP.
 - On the `fx` page, pressing a mapped tile starts its effect and releasing stops it, even when
   Back, a layer select, or a page switch left the page while it was held. At most two
-  momentary FX run at once (Play FX concurrency capability), and only one per type. A press that
-  would exceed either limit is ignored with `FX limit: 2 at once` or `FX <type> already on`.
+  momentary FX types run at once (Play FX concurrency capability), one tile per type. A press of
+  a third type is ignored with `FX limit: 2 at once`. A press of a type that already runs takes
+  over: the older tile's effect stops, the new tile's starts and lights, and the older tile stays
+  held underneath. Releasing the sounding tile while older tiles of its type are still held
+  restarts the most recently pressed of them, which lights again (last press wins, like a mono
+  synth); releasing a tile held underneath only drops it, with no audio change. A takeover or
+  fallback reaches the engine as the sounding tile's stop followed by the next tile's start, so
+  the release rules below apply to it.
   Toasts and rows show the display names (`filter sweep`, `tape stop`, `HP riser`).
 - The seven types after `pitch_shift` finish their release on their own, from a 5 ms crush fade
   to the dub_throw and wash tails. A press of the same type and Target during that release takes

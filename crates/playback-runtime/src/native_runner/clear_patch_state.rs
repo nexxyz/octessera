@@ -59,6 +59,7 @@ impl NativeRunner {
         self.global_fx_params = default_global_fx_params();
         self.play_fx_selected = default_play_fx_selected();
         self.play_fx_assignments.clear();
+        self.displaced_play_fx.clear();
         for (id, _) in std::mem::take(&mut self.active_play_fx) {
             self.queue_audio_command(crate::protocol::RuntimeAudioCommand::MomentaryFxStop {
                 id,
