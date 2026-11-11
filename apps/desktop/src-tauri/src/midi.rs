@@ -1,6 +1,7 @@
 use midir::MidiInputConnection;
 use midir::{Ignore, MidiInput, MidiOutput};
 use playback_runtime::TimedMidiSender;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, serde::Serialize)]
@@ -11,66 +12,47 @@ pub struct MidiPortInfo {
 
 pub(crate) fn list_outputs() -> Result<Vec<MidiPortInfo>, String> {
     let out = MidiOutput::new("octessera-midi-out").map_err(|e| e.to_string())?;
-    let ports = out.ports();
-    let mut res = Vec::new();
-    for (idx, port) in ports.iter().enumerate() {
-        let name = out
-            .port_name(port)
-            .unwrap_or_else(|_| "<unknown>".to_string());
-        res.push(MidiPortInfo {
-            id: idx.to_string(),
-            name,
-        });
-    }
-    Ok(res)
+    let names = port_names(&out.ports(), |port| out.port_name(port));
+    Ok(port_infos(names))
 }
 
 pub(crate) fn list_inputs() -> Result<Vec<MidiPortInfo>, String> {
     let mut input = MidiInput::new("octessera-midi-in").map_err(|e| e.to_string())?;
     input.ignore(Ignore::None);
-    let ports = input.ports();
-    let mut res = Vec::new();
-    for (idx, port) in ports.iter().enumerate() {
-        let name = input
-            .port_name(port)
-            .unwrap_or_else(|_| "<unknown>".to_string());
-        res.push(MidiPortInfo {
-            id: idx.to_string(),
-            name,
-        });
-    }
-    Ok(res)
+    let names = port_names(&input.ports(), |port| input.port_name(port));
+    Ok(port_infos(names))
 }
 
+/// Connects the port saved as `id`; `Ok(false)` when it is not plugged in.
 pub(crate) fn select_output(
     id: Option<String>,
     midi_out: &mut TimedMidiSender,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     midi_out.set_sink(None)?;
     let Some(id) = id else {
-        return Ok(());
+        return Ok(true);
     };
-    let idx: usize = id
-        .parse()
-        .map_err(|_| "invalid midi output id".to_string())?;
     let out = MidiOutput::new("octessera-midi-out").map_err(|e| e.to_string())?;
     let ports = out.ports();
-    let Some(port) = ports.get(idx) else {
-        return Ok(());
+    let names = port_names(&ports, |port| out.port_name(port));
+    let Some(port) = port_position(&id, &names).map(|index| &ports[index]) else {
+        return Ok(false);
     };
     let mut conn = out
         .connect(port, "octessera-midi-out-conn")
         .map_err(|e| e.to_string())?;
     midi_out.set_sink(Some(Box::new(move |bytes| {
         conn.send(bytes).map_err(|e| e.to_string())
-    })))
+    })))?;
+    Ok(true)
 }
 
+/// Connects the port saved as `id`; `Ok(false)` when it is not plugged in.
 pub(crate) fn select_input_with_handler<F>(
     id: Option<String>,
     midi_in: &Arc<Mutex<Option<MidiInputConnection<()>>>>,
     mut handler: F,
-) -> Result<(), String>
+) -> Result<bool, String>
 where
     F: FnMut(Vec<u8>) + Send + 'static,
 {
@@ -79,16 +61,14 @@ where
         .map_err(|_| "midi mutex poisoned".to_string())?;
     *guard = None;
     let Some(id) = id else {
-        return Ok(());
+        return Ok(true);
     };
-    let idx: usize = id
-        .parse()
-        .map_err(|_| "invalid midi input id".to_string())?;
     let mut input = MidiInput::new("octessera-midi-in").map_err(|e| e.to_string())?;
     input.ignore(Ignore::None);
     let ports = input.ports();
-    let Some(port) = ports.get(idx) else {
-        return Ok(());
+    let names = port_names(&ports, |port| input.port_name(port));
+    let Some(port) = port_position(&id, &names).map(|index| &ports[index]) else {
+        return Ok(false);
     };
     let conn = input
         .connect(
@@ -101,5 +81,44 @@ where
         )
         .map_err(|e| e.to_string())?;
     *guard = Some(conn);
-    Ok(())
+    Ok(true)
 }
+
+fn port_names<P, E>(ports: &[P], name: impl Fn(&P) -> Result<String, E>) -> Vec<String> {
+    ports
+        .iter()
+        .map(|port| name(port).unwrap_or_else(|_| "<unknown>".to_string()))
+        .collect()
+}
+
+fn port_infos(names: Vec<String>) -> Vec<MidiPortInfo> {
+    port_ids(&names)
+        .into_iter()
+        .zip(names)
+        .map(|(id, name)| MidiPortInfo { id, name })
+        .collect()
+}
+
+/// The boards' port IDs: the name, with `#n` for the n-th repeat of a name.
+fn port_ids(names: &[String]) -> Vec<String> {
+    let mut occurrences = HashMap::new();
+    names
+        .iter()
+        .map(|name| {
+            let occurrence = occurrences.entry(name.as_str()).or_insert(0_usize);
+            let id = match *occurrence {
+                0 => format!("name:{name}"),
+                repeat => format!("name:{name}#{repeat}"),
+            };
+            *occurrence += 1;
+            id
+        })
+        .collect()
+}
+
+fn port_position(id: &str, names: &[String]) -> Option<usize> {
+    port_ids(names).iter().position(|port_id| port_id == id)
+}
+
+#[cfg(test)]
+mod tests;

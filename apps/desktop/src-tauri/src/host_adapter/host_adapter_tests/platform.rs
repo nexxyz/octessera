@@ -172,34 +172,36 @@ fn midi_status(
 }
 
 #[test]
-fn midi_ports_that_fail_to_connect_stay_selected_until_a_later_select() {
+fn missing_remembered_midi_ports_stay_selected_as_not_connected() {
     let (mut adapter, _) = test_adapter();
-    let failing = Some("not-a-port".to_string());
+    let missing = Some("name:Octessera test port that is never plugged in".to_string());
 
     let (ok, message, out_id, in_id) = midi_status(
         &mut adapter,
         RuntimePlatformEffect::MidiSelectOutput {
-            id: failing.clone(),
+            id: missing.clone(),
         },
     );
-    assert!(!ok && message.is_some());
-    assert_eq!((out_id, in_id), (failing.clone(), None));
+    assert!(ok);
+    assert_eq!(message.as_deref(), Some("not connected"));
+    assert_eq!((out_id, in_id), (missing.clone(), None));
 
     let (ok, message, out_id, in_id) = midi_status(
         &mut adapter,
         RuntimePlatformEffect::MidiSelectInput {
-            id: failing.clone(),
+            id: missing.clone(),
         },
     );
-    assert!(!ok && message.is_some());
-    assert_eq!((out_id, in_id), (failing.clone(), failing.clone()));
+    assert!(ok);
+    assert_eq!(message.as_deref(), Some("not connected"));
+    assert_eq!((out_id, in_id), (missing.clone(), missing.clone()));
 
     let (ok, message, out_id, in_id) = midi_status(
         &mut adapter,
         RuntimePlatformEffect::MidiSelectOutput { id: None },
     );
     assert!(ok && message.is_none());
-    assert_eq!((out_id, in_id), (None, failing));
+    assert_eq!((out_id, in_id), (None, missing));
 }
 
 #[test]

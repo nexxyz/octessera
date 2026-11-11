@@ -148,14 +148,7 @@ impl DesktopPlaybackHostAdapter {
             RuntimePlatformEffect::MidiSelectOutput { id } => {
                 let result = midi::select_output(id.clone(), &mut self.midi_out);
                 self.selected_midi_output_id = id.clone();
-                Ok(vec![HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::MidiStatus {
-                        ok: result.is_ok(),
-                        message: result.err(),
-                        selected_out_id: self.selected_midi_output_id.clone(),
-                        selected_in_id: self.selected_midi_input_id.clone(),
-                    },
-                }])
+                Ok(vec![self.midi_selection_status(result)])
             }
             RuntimePlatformEffect::MidiSelectInput { id } => {
                 let handler = self.midi_in_handler.clone();
@@ -164,14 +157,7 @@ impl DesktopPlaybackHostAdapter {
                         handler(bytes);
                     });
                 self.selected_midi_input_id = id.clone();
-                Ok(vec![HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::MidiStatus {
-                        ok: result.is_ok(),
-                        message: result.err(),
-                        selected_out_id: self.selected_midi_output_id.clone(),
-                        selected_in_id: self.selected_midi_input_id.clone(),
-                    },
-                }])
+                Ok(vec![self.midi_selection_status(result)])
             }
             RuntimePlatformEffect::MidiPanic => {
                 let audio_error = self.silence_internal_audio().err();
@@ -244,6 +230,22 @@ impl DesktopPlaybackHostAdapter {
                     dir: dir.clone(),
                 },
             )),
+        }
+    }
+
+    fn midi_selection_status(&self, connected: Result<bool, String>) -> HostMessage {
+        let (ok, message) = match connected {
+            Ok(true) => (true, None),
+            Ok(false) => (true, Some("not connected".to_string())),
+            Err(error) => (false, Some(error)),
+        };
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::MidiStatus {
+                ok,
+                message,
+                selected_out_id: self.selected_midi_output_id.clone(),
+                selected_in_id: self.selected_midi_input_id.clone(),
+            },
         }
     }
 }
