@@ -226,3 +226,26 @@ fn shutdown_black_cleanup_carries_a_bounded_deadline() {
     assert_eq!(outputs.desired_grid, Some([[0; 3]; 64]));
     assert_eq!(outputs.desired_keys, Some([[0; 3]; 4]));
 }
+
+#[test]
+fn a_re_set_up_board_gets_its_applied_outputs_written_again() {
+    let (command_tx, command_rx) = mpsc::channel();
+    let grid = [[4; 3]; 64];
+    let keys = [[5; 3]; 4];
+    command_tx.send(SeesawCommand::GridFrame(grid)).unwrap();
+    command_tx.send(SeesawCommand::NeoKeyColors(keys)).unwrap();
+    let start = Instant::now();
+    let mut outputs = DesiredLedOutputs::default();
+    let mut writer = fake_output(0, 0);
+    drain_commands(&command_rx, &mut outputs, &mut writer, start);
+
+    outputs.resend_after_setup(true, false);
+    drain_commands(&command_rx, &mut outputs, &mut writer, start);
+    assert_eq!(writer.grid_frames, vec![grid, grid]);
+    assert_eq!(writer.key_attempts, vec![0, 1, 2, 3]);
+
+    outputs.resend_after_setup(false, true);
+    drain_commands(&command_rx, &mut outputs, &mut writer, start);
+    assert_eq!(writer.grid_frames, vec![grid, grid]);
+    assert_eq!(writer.key_attempts, vec![0, 1, 2, 3, 0, 1, 2, 3]);
+}

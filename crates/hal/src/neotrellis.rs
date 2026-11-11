@@ -17,6 +17,8 @@ pub struct NeoTrellis {
     devices: [(u16, [u8; 16]); 4],
     transports: [Box<dyn SeesawTransport>; 4],
     delay: Box<dyn SeesawDelay>,
+    needs_setup: [bool; 4],
+    led_refresh: bool,
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
@@ -90,6 +92,8 @@ impl NeoTrellis {
                         devices: addresses.map(|address| (address, [0; 16])),
                         transports,
                         delay,
+                        needs_setup: [false; 4],
+                        led_refresh: false,
                     });
                 }
                 Err(error) => {
@@ -125,6 +129,8 @@ impl NeoTrellis {
                         devices: addresses.map(|address| (address, [0; 16])),
                         transports,
                         delay,
+                        needs_setup: [false; 4],
+                        led_refresh: false,
                     });
                 }
                 Err(error) => {
@@ -141,36 +147,70 @@ impl NeoTrellis {
     /// Append `(x, y, pressed)` in the lower-left coordinate space; on error, events already read
     /// from earlier boards stay in `events` because the Trellis reports each edge only once.
     pub fn scan_keys(&mut self, events: &mut Vec<(usize, usize, bool)>) -> Result<(), String> {
-        for (dev_idx, (_, _)) in self.devices.iter().enumerate() {
-            let mut count = [0_u8; 1];
-            read_register(
-                &mut *self.transports[dev_idx],
-                SEESAW_KEYPAD_BASE,
-                SEESAW_KEYPAD_COUNT,
-                &mut count,
-                "Trellis scan count failed",
-            )?;
-            let key_count = usize::from(count[0]).min(TRELLIS_PIXELS_PER_DEVICE);
-            if key_count == 0 {
-                continue;
-            }
-            let mut buffer = [0_u8; 16];
-            read_register(
-                &mut *self.transports[dev_idx],
-                SEESAW_KEYPAD_BASE,
-                SEESAW_KEYPAD_FIFO,
-                &mut buffer[..key_count],
-                "Trellis scan FIFO failed",
-            )?;
-            for event in buffer.iter().take(key_count) {
-                let Some((key, pressed)) = decode_trellis_key_event(*event) else {
-                    continue;
-                };
-                if let Some((x, y)) = trellis_coordinate(dev_idx, key) {
-                    events.push((x, y, pressed));
-                }
+        for dev_idx in 0..self.devices.len() {
+            if let Err(error) = self.scan_device(dev_idx, events) {
+                self.needs_setup[dev_idx] = true;
+                return Err(error);
             }
         }
+        Ok(())
+    }
+
+    /// True once after a board's setup was re-applied, so the caller resends the LED frame.
+    pub fn take_led_refresh(&mut self) -> bool {
+        std::mem::take(&mut self.led_refresh)
+    }
+
+    fn scan_device(
+        &mut self,
+        dev_idx: usize,
+        events: &mut Vec<(usize, usize, bool)>,
+    ) -> Result<(), String> {
+        if self.needs_setup[dev_idx] {
+            self.restore_setup(dev_idx)?;
+        }
+        let mut count = [0_u8; 1];
+        read_register(
+            &mut *self.transports[dev_idx],
+            SEESAW_KEYPAD_BASE,
+            SEESAW_KEYPAD_COUNT,
+            &mut count,
+            "Trellis scan count failed",
+        )?;
+        let key_count = usize::from(count[0]).min(TRELLIS_PIXELS_PER_DEVICE);
+        if key_count == 0 {
+            return Ok(());
+        }
+        let mut buffer = [0_u8; 16];
+        read_register(
+            &mut *self.transports[dev_idx],
+            SEESAW_KEYPAD_BASE,
+            SEESAW_KEYPAD_FIFO,
+            &mut buffer[..key_count],
+            "Trellis scan FIFO failed",
+        )?;
+        for event in buffer.iter().take(key_count) {
+            let Some((key, pressed)) = decode_trellis_key_event(*event) else {
+                continue;
+            };
+            if let Some((x, y)) = trellis_coordinate(dev_idx, key) {
+                events.push((x, y, pressed));
+            }
+        }
+        Ok(())
+    }
+
+    /// No Seesaw register reads back its keypad or NeoPixel setup, so a brown-out reset is only
+    /// visible as the board dropping off the bus. A board that failed a transaction gets its
+    /// setup re-applied, without another reset, once it answers again.
+    fn restore_setup(&mut self, dev_idx: usize) -> Result<(), String> {
+        let address = self.devices[dev_idx].0;
+        configure_device(address, &mut *self.transports[dev_idx])?;
+        self.needs_setup[dev_idx] = false;
+        self.led_refresh = true;
+        eprintln!(
+            "NeoTrellis {address:#04x} answered again after an I2C failure; setup re-applied"
+        );
         Ok(())
     }
 
@@ -185,16 +225,18 @@ impl NeoTrellis {
                     data.extend_from_slice(&grb_color(frame[y * 8 + x]));
                 }
             }
-            write_led_buffer_chunks(&mut *self.transports[dev_idx], &data)?;
+            write_led_buffer_chunks(&mut *self.transports[dev_idx], &data)
+                .inspect_err(|_| self.needs_setup[dev_idx] = true)?;
         }
-        for transport in &mut self.transports {
+        for (dev_idx, transport) in self.transports.iter_mut().enumerate() {
             write_register(
                 &mut **transport,
                 SEESAW_NEOPIXEL_BASE,
                 SEESAW_NEOPIXEL_SHOW,
                 &[],
                 "Trellis LED show failed",
-            )?;
+            )
+            .inspect_err(|_| self.needs_setup[dev_idx] = true)?;
         }
         self.delay.sleep(TRELLIS_SHOW_SETTLE);
         Ok(())
@@ -255,56 +297,61 @@ fn initialize_once(
     delay.sleep(Duration::from_millis(500));
 
     for (address, transport) in addresses.iter().copied().zip(transports.iter_mut()) {
-        let mut hw_id = [0_u8; 1];
-        read_register(
-            &mut **transport,
-            SEESAW_STATUS_BASE,
-            SEESAW_HW_ID,
-            &mut hw_id,
-            "Trellis HW ID read failed",
-        )?;
-        if !matches!(hw_id[0], 0x55 | 0x84..=0x89) {
-            return Err(format!(
-                "Trellis HW ID invalid at {address:#04x}: {:#04x}",
-                hw_id[0]
-            ));
-        }
-        write_register(
-            &mut **transport,
-            SEESAW_KEYPAD_BASE,
-            SEESAW_KEYPAD_INTENSET,
-            &[0x01],
-            "Trellis keypad interrupt init failed",
-        )?;
-        for key in 0..TRELLIS_PIXELS_PER_DEVICE as u8 {
-            let seesaw_key = trellis_key_to_seesaw_key(key);
-            for edge in [KEYPAD_EDGE_FALLING, KEYPAD_EDGE_RISING] {
-                let state = 0x01 | (1 << (edge + 1));
-                write_register(
-                    &mut **transport,
-                    SEESAW_KEYPAD_BASE,
-                    SEESAW_KEYPAD_EVENT,
-                    &[seesaw_key, state],
-                    "Trellis keypad event init failed",
-                )?;
-            }
-        }
-        write_register(
-            &mut **transport,
-            SEESAW_NEOPIXEL_BASE,
-            SEESAW_NEOPIXEL_PIN,
-            &[TRELLIS_NEOPIXEL_PIN],
-            "Trellis LED pin init failed",
-        )?;
-        write_register(
-            &mut **transport,
-            SEESAW_NEOPIXEL_BASE,
-            SEESAW_NEOPIXEL_BUF_LENGTH,
-            &(TRELLIS_PIXEL_BYTES_PER_DEVICE as u16).to_be_bytes(),
-            "Trellis LED length init failed",
-        )?;
+        configure_device(address, &mut **transport)?;
     }
     Ok(())
+}
+
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+fn configure_device(address: u16, transport: &mut dyn SeesawTransport) -> Result<(), String> {
+    let mut hw_id = [0_u8; 1];
+    read_register(
+        transport,
+        SEESAW_STATUS_BASE,
+        SEESAW_HW_ID,
+        &mut hw_id,
+        "Trellis HW ID read failed",
+    )?;
+    if !matches!(hw_id[0], 0x55 | 0x84..=0x89) {
+        return Err(format!(
+            "Trellis HW ID invalid at {address:#04x}: {:#04x}",
+            hw_id[0]
+        ));
+    }
+    write_register(
+        transport,
+        SEESAW_KEYPAD_BASE,
+        SEESAW_KEYPAD_INTENSET,
+        &[0x01],
+        "Trellis keypad interrupt init failed",
+    )?;
+    for key in 0..TRELLIS_PIXELS_PER_DEVICE as u8 {
+        let seesaw_key = trellis_key_to_seesaw_key(key);
+        for edge in [KEYPAD_EDGE_FALLING, KEYPAD_EDGE_RISING] {
+            let state = 0x01 | (1 << (edge + 1));
+            write_register(
+                transport,
+                SEESAW_KEYPAD_BASE,
+                SEESAW_KEYPAD_EVENT,
+                &[seesaw_key, state],
+                "Trellis keypad event init failed",
+            )?;
+        }
+    }
+    write_register(
+        transport,
+        SEESAW_NEOPIXEL_BASE,
+        SEESAW_NEOPIXEL_PIN,
+        &[TRELLIS_NEOPIXEL_PIN],
+        "Trellis LED pin init failed",
+    )?;
+    write_register(
+        transport,
+        SEESAW_NEOPIXEL_BASE,
+        SEESAW_NEOPIXEL_BUF_LENGTH,
+        &(TRELLIS_PIXEL_BYTES_PER_DEVICE as u16).to_be_bytes(),
+        "Trellis LED length init failed",
+    )
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
@@ -403,6 +450,10 @@ impl NeoTrellis {
 
     pub fn scan_keys(&mut self, _events: &mut Vec<(usize, usize, bool)>) -> Result<(), String> {
         Ok(())
+    }
+
+    pub fn take_led_refresh(&mut self) -> bool {
+        false
     }
 
     pub fn write_led_frame(&mut self, _frame: &[[u8; 3]; 64]) -> Result<(), String> {

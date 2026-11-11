@@ -135,6 +135,15 @@ impl DesiredLedOutputs {
             SeesawCommand::Shutdown { .. } => {}
         }
     }
+    fn resend_after_setup(&mut self, grid: bool, keys: bool) {
+        if grid {
+            self.applied_grid = None;
+        }
+        if keys {
+            self.applied_key_valid = [false; 4];
+        }
+    }
+
     fn apply_due<W: LedOutputWriter>(&mut self, writer: &mut W, now: Instant) {
         self.apply_grid_if_due(writer, now);
         self.apply_keys_if_due(writer, now);
@@ -307,6 +316,7 @@ pub(crate) fn spawn(
                     &worker_scan_generation,
                 );
                 schedule.record_scan(scanned, neokey.settling(), Instant::now());
+                outputs.resend_after_setup(trellis.take_led_refresh(), neokey.take_led_refresh());
             }
 
             let mut output = HardwareLedOutput {

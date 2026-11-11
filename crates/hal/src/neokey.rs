@@ -14,6 +14,8 @@ pub struct NeoKey {
     transport: Box<dyn SeesawTransport>,
     debouncer: NeoKeyDebouncer,
     delay: Box<dyn SeesawDelay>,
+    needs_setup: bool,
+    led_refresh: bool,
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
@@ -93,6 +95,8 @@ impl NeoKey {
                         transport,
                         debouncer: NeoKeyDebouncer::default(),
                         delay,
+                        needs_setup: false,
+                        led_refresh: false,
                     });
                 }
                 Err(error) => {
@@ -124,6 +128,8 @@ impl NeoKey {
                         transport,
                         debouncer: NeoKeyDebouncer::default(),
                         delay,
+                        needs_setup: false,
+                        led_refresh: false,
                     });
                 }
                 Err(error) => {
@@ -149,9 +155,32 @@ impl NeoKey {
         self.debouncer.settling()
     }
 
+    /// No Seesaw register reads back the GPIO or NeoPixel setup, so a brown-out reset is only
+    /// visible as the board dropping off the bus. After a failed transaction the setup is
+    /// re-applied, without another reset, once the board answers again.
     pub fn scan_interrupts(&mut self) -> Result<Vec<(u8, bool)>, String> {
-        self.clear_interrupt_flags()?;
-        self.scan()
+        let result = self.restore_setup_if_needed().and_then(|()| {
+            self.clear_interrupt_flags()?;
+            self.scan()
+        });
+        self.needs_setup |= result.is_err();
+        result
+    }
+
+    /// True once after the setup was re-applied, so the caller resends the key colors.
+    pub fn take_led_refresh(&mut self) -> bool {
+        std::mem::take(&mut self.led_refresh)
+    }
+
+    fn restore_setup_if_needed(&mut self) -> Result<(), String> {
+        if !self.needs_setup {
+            return Ok(());
+        }
+        configure(&mut *self.transport)?;
+        self.needs_setup = false;
+        self.led_refresh = true;
+        eprintln!("NeoKey answered again after an I2C failure; setup re-applied");
+        Ok(())
     }
 
     pub fn raw_button_state(&mut self) -> Result<u32, String> {
@@ -181,10 +210,16 @@ impl NeoKey {
         if key >= 4 {
             return Err(format!("NeoKey LED index out of range: {key}"));
         }
+        let result = self.write_led(key, [g, r, b]);
+        self.needs_setup |= result.is_err();
+        result
+    }
+
+    fn write_led(&mut self, key: u8, grb: [u8; 3]) -> Result<(), String> {
         let offset = u16::from(key) * 3;
         let mut data = Vec::with_capacity(5);
         data.extend_from_slice(&offset.to_be_bytes());
-        data.extend_from_slice(&[g, r, b]);
+        data.extend_from_slice(&grb);
         write_register(
             &mut *self.transport,
             SEESAW_NEOPIXEL_BASE,
@@ -209,8 +244,6 @@ fn initialize_once(
     transport: &mut dyn SeesawTransport,
     delay: &mut dyn SeesawDelay,
 ) -> Result<(), String> {
-    let mask = NEOKEY_BUTTON_MASK.to_be_bytes();
-    let led_bytes = NEOKEY_LED_BYTES.to_be_bytes();
     write_register(
         transport,
         SEESAW_STATUS_BASE,
@@ -219,7 +252,13 @@ fn initialize_once(
         "NeoKey reset failed",
     )?;
     delay.sleep(Duration::from_millis(500));
+    configure(transport)
+}
 
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+fn configure(transport: &mut dyn SeesawTransport) -> Result<(), String> {
+    let mask = NEOKEY_BUTTON_MASK.to_be_bytes();
+    let led_bytes = NEOKEY_LED_BYTES.to_be_bytes();
     let mut hw_id = [0_u8; 1];
     read_register(
         transport,
@@ -342,6 +381,10 @@ impl NeoKey {
 
     pub fn scan_interrupts(&mut self) -> Result<Vec<(u8, bool)>, String> {
         self.scan()
+    }
+
+    pub fn take_led_refresh(&mut self) -> bool {
+        false
     }
 
     pub fn raw_button_state(&mut self) -> Result<u32, String> {
