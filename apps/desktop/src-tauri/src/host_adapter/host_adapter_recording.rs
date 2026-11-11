@@ -1,5 +1,5 @@
 use crate::recording::DesktopRecording;
-use media_recording::{RecordingStartError, RecordingStatus};
+use media_recording::{RecordingOutcome, RecordingStartError, RecordingStatus};
 use playback_runtime::{
     PlaybackRuntime, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,
     RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
@@ -34,16 +34,25 @@ pub(crate) fn finalize_for_shutdown(
 ) -> Result<Option<RuntimeStoreResult>, RuntimeAdapterError> {
     recording
         .stop_audio()
-        .map(|outcome| outcome.map(|outcome| status_for_recording(outcome.status)))
+        .map(|outcome| outcome.map(|outcome| status_for_outcome(outcome, true)))
         .map_err(recording_finalization_error)
 }
 
-pub(crate) fn status_for_recording(status: RecordingStatus) -> RuntimeStoreResult {
-    status_for_recording_with_message(status, "Recording saved")
-}
-
-pub(crate) fn max_time_status_for_recording(status: RecordingStatus) -> RuntimeStoreResult {
-    status_for_recording_with_message(status, "Max time: saved")
+/// The finished take's status; `stopped` when Stop ended it rather than Max Time.
+pub(crate) fn status_for_outcome(outcome: RecordingOutcome, stopped: bool) -> RuntimeStoreResult {
+    if outcome.size_limited {
+        return RuntimeStoreResult::RecordingStatus {
+            ok: false,
+            message: "Max size: cut short".into(),
+            active: false,
+        };
+    }
+    let complete_message = if stopped {
+        "Recording saved"
+    } else {
+        "Max time: saved"
+    };
+    status_for_recording_with_message(outcome.status, complete_message)
 }
 
 fn status_for_recording_with_message(
@@ -99,8 +108,7 @@ fn recording_finalization_error(error: String) -> RuntimeAdapterError {
 
 pub(crate) fn poll_status(recording: &DesktopRecording) -> Option<RuntimeStoreResult> {
     match recording.poll_completion() {
-        Ok(Some((outcome, true))) => Some(status_for_recording(outcome.status)),
-        Ok(Some((outcome, false))) => Some(max_time_status_for_recording(outcome.status)),
+        Ok(Some((outcome, stopped))) => Some(status_for_outcome(outcome, stopped)),
         Ok(None) => None,
         Err(error) => Some(RuntimeStoreResult::RuntimeFailure {
             error: RuntimeErrorFacts::new(

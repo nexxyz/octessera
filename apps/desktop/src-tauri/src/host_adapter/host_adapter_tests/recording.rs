@@ -248,46 +248,67 @@ fn desktop_recording_stop_when_idle_is_harmless() {
     let _ = fs::remove_dir_all(directory);
 }
 
+fn outcome(status: RecordingStatus, size_limited: bool) -> media_recording::RecordingOutcome {
+    media_recording::RecordingOutcome {
+        path: std::path::PathBuf::from("take.avi"),
+        frames_written: 1,
+        status,
+        size_limited,
+    }
+}
+
+fn status_message(result: RuntimeStoreResult) -> (bool, String) {
+    match result {
+        RuntimeStoreResult::RecordingStatus {
+            ok,
+            message,
+            active: false,
+        } => (ok, message),
+        other => panic!("expected a finished recording status, got {other:?}"),
+    }
+}
+
 #[test]
 fn desktop_recording_completion_uses_existing_status_toast_result() {
-    let saved =
-        super::super::host_adapter_recording::status_for_recording(RecordingStatus::Complete);
-    assert!(matches!(
-        saved,
-        RuntimeStoreResult::RecordingStatus {
-            ok: true,
-            message,
-            active: false,
-        }
-            if message == "Recording saved"
-    ));
+    use super::super::host_adapter_recording::status_for_outcome;
 
-    let incomplete =
-        super::super::host_adapter_recording::status_for_recording(RecordingStatus::Incomplete {
-            gap_count: 0,
-            gap_frames: 0,
-            overflow_count: 0,
-            overflow_frames: 2,
-        });
-    assert!(matches!(
-        incomplete,
-        RuntimeStoreResult::RecordingStatus {
-            ok: false,
-            message,
-            active: false,
-        }
-            if message == "Recording incomplete"
-    ));
-
-    let max_time = super::super::host_adapter_recording::max_time_status_for_recording(
-        RecordingStatus::Complete,
+    assert_eq!(
+        status_message(status_for_outcome(
+            outcome(RecordingStatus::Complete, false),
+            true
+        )),
+        (true, "Recording saved".to_string())
     );
-    assert!(matches!(
-        max_time,
-        RuntimeStoreResult::RecordingStatus {
-            ok: true,
-            message,
-            active: false,
-        } if message == "Max time: saved"
-    ));
+    let incomplete = RecordingStatus::Incomplete {
+        gap_count: 0,
+        gap_frames: 0,
+        overflow_count: 0,
+        overflow_frames: 2,
+    };
+    assert_eq!(
+        status_message(status_for_outcome(outcome(incomplete, false), true)),
+        (false, "Recording incomplete".to_string())
+    );
+    assert_eq!(
+        status_message(status_for_outcome(
+            outcome(RecordingStatus::Complete, false),
+            false
+        )),
+        (true, "Max time: saved".to_string())
+    );
+}
+
+#[test]
+fn a_take_cut_at_the_size_cap_says_so_like_the_boards() {
+    use super::super::host_adapter_recording::status_for_outcome;
+
+    for stopped in [true, false] {
+        assert_eq!(
+            status_message(status_for_outcome(
+                outcome(RecordingStatus::Complete, true),
+                stopped
+            )),
+            (false, "Max size: cut short".to_string())
+        );
+    }
 }
