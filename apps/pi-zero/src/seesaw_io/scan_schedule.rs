@@ -33,11 +33,6 @@ impl ScanSchedule {
         self.backing_off
     }
 
-    /// A NeoKey setup clears its interrupt flags, so a press it caught is only seen by a scan.
-    pub(super) fn rescan_now(&mut self, now: Instant) {
-        self.next_scan_at = now;
-    }
-
     pub(super) fn record_scan(
         &mut self,
         scanned: bool,
@@ -96,17 +91,6 @@ mod tests {
         assert!(schedule.scan_due(start + Duration::from_millis(50), true, true));
         schedule.record_scan(true, true, false, start + Duration::from_millis(50));
         assert!(schedule.scan_due(start + Duration::from_millis(51), false, true));
-    }
-
-    #[test]
-    fn a_requested_rescan_is_due_without_an_interrupt() {
-        let start = Instant::now();
-        let mut schedule = ScanSchedule::new(start);
-        schedule.record_scan(true, false, false, start);
-        let later = start + Duration::from_millis(20);
-        assert!(!schedule.scan_due(later, false, false));
-        schedule.rescan_now(later);
-        assert!(schedule.scan_due(later, false, false));
     }
 
     #[test]

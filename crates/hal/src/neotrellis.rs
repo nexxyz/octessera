@@ -215,12 +215,17 @@ impl NeoTrellis {
     }
 
     /// A board that soft-resets quickly answers every transaction and has no reset flag, so the
-    /// caller re-applies each board's keypad and NeoPixel setup periodically. The firmware treats
-    /// every setup write as idempotent and none of them touches the pixel buffer or the LEDs.
-    pub fn reapply_setup(&mut self, dev_idx: usize) -> Result<(), String> {
-        let address = self.devices[dev_idx].0;
-        configure_device(address, &mut *self.transports[dev_idx])
-            .inspect_err(|_| self.needs_setup[dev_idx] = true)
+    /// caller re-applies each board's keypad and NeoPixel setup periodically, one short part per
+    /// call so a key scan never waits long behind it. The firmware treats every setup write as
+    /// idempotent and none touches the pixel buffer or the LEDs. Returns whether parts remain.
+    pub fn reapply_setup_part(&mut self, dev_idx: usize, part: usize) -> Result<bool, String> {
+        let first = part * SETUP_WRITES_PER_PART;
+        let end = (first + SETUP_WRITES_PER_PART).min(TRELLIS_SETUP_WRITES);
+        for index in first..end {
+            write_setup(&mut *self.transports[dev_idx], index)
+                .inspect_err(|_| self.needs_setup[dev_idx] = true)?;
+        }
+        Ok(end < TRELLIS_SETUP_WRITES)
     }
 
     /// Write an 8x8 RGB frame to the four NeoPixel buffers, then latch all four.
@@ -309,58 +314,6 @@ fn initialize_once(
         configure_device(address, &mut **transport)?;
     }
     Ok(())
-}
-
-#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
-fn configure_device(address: u16, transport: &mut dyn SeesawTransport) -> Result<(), String> {
-    let mut hw_id = [0_u8; 1];
-    read_register(
-        transport,
-        SEESAW_STATUS_BASE,
-        SEESAW_HW_ID,
-        &mut hw_id,
-        "Trellis HW ID read failed",
-    )?;
-    if !matches!(hw_id[0], 0x55 | 0x84..=0x89) {
-        return Err(format!(
-            "Trellis HW ID invalid at {address:#04x}: {:#04x}",
-            hw_id[0]
-        ));
-    }
-    write_register(
-        transport,
-        SEESAW_KEYPAD_BASE,
-        SEESAW_KEYPAD_INTENSET,
-        &[0x01],
-        "Trellis keypad interrupt init failed",
-    )?;
-    for key in 0..TRELLIS_PIXELS_PER_DEVICE as u8 {
-        let seesaw_key = trellis_key_to_seesaw_key(key);
-        for edge in [KEYPAD_EDGE_FALLING, KEYPAD_EDGE_RISING] {
-            let state = 0x01 | (1 << (edge + 1));
-            write_register(
-                transport,
-                SEESAW_KEYPAD_BASE,
-                SEESAW_KEYPAD_EVENT,
-                &[seesaw_key, state],
-                "Trellis keypad event init failed",
-            )?;
-        }
-    }
-    write_register(
-        transport,
-        SEESAW_NEOPIXEL_BASE,
-        SEESAW_NEOPIXEL_PIN,
-        &[TRELLIS_NEOPIXEL_PIN],
-        "Trellis LED pin init failed",
-    )?;
-    write_register(
-        transport,
-        SEESAW_NEOPIXEL_BASE,
-        SEESAW_NEOPIXEL_BUF_LENGTH,
-        &(TRELLIS_PIXEL_BYTES_PER_DEVICE as u16).to_be_bytes(),
-        "Trellis LED length init failed",
-    )
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
@@ -465,8 +418,8 @@ impl NeoTrellis {
         false
     }
 
-    pub fn reapply_setup(&mut self, _dev_idx: usize) -> Result<(), String> {
-        Ok(())
+    pub fn reapply_setup_part(&mut self, _dev_idx: usize, _part: usize) -> Result<bool, String> {
+        Ok(false)
     }
 
     pub fn write_led_frame(&mut self, _frame: &[[u8; 3]; 64]) -> Result<(), String> {
@@ -480,6 +433,11 @@ impl std::fmt::Debug for NeoTrellis {
         write!(f, "NeoTrellis {{ ... }}")
     }
 }
+
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+mod setup;
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+use setup::{configure_device, write_setup, SETUP_WRITES_PER_PART, TRELLIS_SETUP_WRITES};
 
 #[cfg(test)]
 mod tests;

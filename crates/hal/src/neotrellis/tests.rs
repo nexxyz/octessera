@@ -193,13 +193,11 @@ fn expected_device_init() -> Vec<Transaction> {
     ];
     for key in 0..16_u8 {
         let seesaw_key = trellis_key_to_seesaw_key(key);
-        for edge in [KEYPAD_EDGE_FALLING, KEYPAD_EDGE_RISING] {
-            transactions.push(Transaction::Write {
-                base: SEESAW_KEYPAD_BASE,
-                function: SEESAW_KEYPAD_EVENT,
-                data: vec![seesaw_key, 0x01 | (1 << (edge + 1))],
-            });
-        }
+        transactions.push(Transaction::Write {
+            base: SEESAW_KEYPAD_BASE,
+            function: SEESAW_KEYPAD_EVENT,
+            data: vec![seesaw_key, 0x19],
+        });
     }
     transactions.extend([
         Transaction::Write {
@@ -422,3 +420,4 @@ fn every_quadrant_buffer_is_written_before_any_board_latches() {
 }
 
 mod i2c_failure_tests;
+mod setup_refresh_tests;

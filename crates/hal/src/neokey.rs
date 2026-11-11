@@ -16,6 +16,7 @@ pub struct NeoKey {
     delay: Box<dyn SeesawDelay>,
     needs_setup: bool,
     led_refresh: bool,
+    colors: [[u8; 3]; 4],
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
@@ -55,9 +56,19 @@ const NEOKEY_NEOPIXEL_PIN: u8 = 3;
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 const NEOKEY_LED_BYTES: u16 = 12;
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+const NEOKEY_LED_BYTES_BE: [u8; 2] = NEOKEY_LED_BYTES.to_be_bytes();
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 const NEOKEY_INIT_ATTEMPTS: usize = 3;
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 const NEOKEY_INIT_RETRY_DELAY: Duration = Duration::from_millis(250);
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+const NEOKEY_SETUP_WRITES: usize = 6;
+/// The periodic refresh also re-sends the pixel buffer and shows it, because a soft reset clears it.
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+const NEOKEY_REFRESH_WRITES: usize = NEOKEY_SETUP_WRITES + 2;
+/// Two writes take at most about 2 ms on the Orange's 100 kHz bus.
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+const SETUP_WRITES_PER_PART: usize = 2;
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 mod debounce;
@@ -97,6 +108,7 @@ impl NeoKey {
                         delay,
                         needs_setup: false,
                         led_refresh: false,
+                        colors: [[0; 3]; 4],
                     });
                 }
                 Err(error) => {
@@ -130,6 +142,7 @@ impl NeoKey {
                         delay,
                         needs_setup: false,
                         led_refresh: false,
+                        colors: [[0; 3]; 4],
                     });
                 }
                 Err(error) => {
@@ -172,13 +185,34 @@ impl NeoKey {
         std::mem::take(&mut self.led_refresh)
     }
 
-    /// A quick soft reset leaves no trace on the bus, so the caller re-applies the setup
-    /// periodically; every write is idempotent and none touches the pixel buffer or the LEDs.
-    /// The setup clears the GPIO interrupt flags, so the caller scans right afterwards.
-    pub fn reapply_setup(&mut self) -> Result<(), String> {
-        let result = configure(&mut *self.transport);
+    /// A quick soft reset leaves no trace on the bus and clears the pixel buffer, so the caller
+    /// re-applies the setup and the current key colors periodically, one short part per call so
+    /// a key scan never waits long behind it. Showing the unchanged colors does not flicker.
+    /// Returns whether parts remain.
+    pub fn reapply_setup_part(&mut self, part: usize) -> Result<bool, String> {
+        let first = part * SETUP_WRITES_PER_PART;
+        let end = (first + SETUP_WRITES_PER_PART).min(NEOKEY_REFRESH_WRITES);
+        let result = (first..end).try_for_each(|index| self.write_refresh(index));
         self.needs_setup |= result.is_err();
-        result
+        result.map(|()| end < NEOKEY_REFRESH_WRITES)
+    }
+
+    fn write_refresh(&mut self, index: usize) -> Result<(), String> {
+        match index {
+            NEOKEY_SETUP_WRITES => {
+                let mut data = vec![0, 0];
+                data.extend_from_slice(self.colors.as_flattened());
+                write_register(
+                    &mut *self.transport,
+                    SEESAW_NEOPIXEL_BASE,
+                    SEESAW_NEOPIXEL_BUF,
+                    &data,
+                    "NeoKey LED write failed",
+                )
+            }
+            index if index > NEOKEY_SETUP_WRITES => self.show(),
+            _ => write_setup(&mut *self.transport, index),
+        }
     }
 
     fn restore_setup_if_needed(&mut self) -> Result<(), String> {
@@ -236,6 +270,12 @@ impl NeoKey {
             &data,
             "NeoKey LED write failed",
         )?;
+        self.show()?;
+        self.colors[usize::from(key)] = grb;
+        Ok(())
+    }
+
+    fn show(&mut self) -> Result<(), String> {
         write_register(
             &mut *self.transport,
             SEESAW_NEOPIXEL_BASE,
@@ -266,8 +306,6 @@ fn initialize_once(
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 fn configure(transport: &mut dyn SeesawTransport) -> Result<(), String> {
-    let mask = NEOKEY_BUTTON_MASK.to_be_bytes();
-    let led_bytes = NEOKEY_LED_BYTES.to_be_bytes();
     let mut hw_id = [0_u8; 1];
     read_register(
         transport,
@@ -280,34 +318,7 @@ fn configure(transport: &mut dyn SeesawTransport) -> Result<(), String> {
         return Err(format!("NeoKey HW ID invalid: {:#04x}", hw_id[0]));
     }
 
-    write_register(
-        transport,
-        SEESAW_GPIO_BASE,
-        SEESAW_GPIO_DIRCLR_BULK,
-        &mask,
-        "NeoKey GPIO direction init failed",
-    )?;
-    write_register(
-        transport,
-        SEESAW_GPIO_BASE,
-        SEESAW_GPIO_PULLENSET,
-        &mask,
-        "NeoKey GPIO pullup init failed",
-    )?;
-    write_register(
-        transport,
-        SEESAW_GPIO_BASE,
-        SEESAW_GPIO_BULK_SET,
-        &mask,
-        "NeoKey GPIO pullup set failed",
-    )?;
-    write_register(
-        transport,
-        SEESAW_GPIO_BASE,
-        SEESAW_GPIO_INTENSET,
-        &mask,
-        "NeoKey GPIO interrupt init failed",
-    )?;
+    (0..NEOKEY_SETUP_WRITES).try_for_each(|index| write_setup(transport, index))?;
     let mut flags = [0_u8; 4];
     read_register(
         transport,
@@ -315,21 +326,51 @@ fn configure(transport: &mut dyn SeesawTransport) -> Result<(), String> {
         SEESAW_GPIO_INTFLAG,
         &mut flags,
         "NeoKey GPIO interrupt clear failed",
-    )?;
-    write_register(
-        transport,
-        SEESAW_NEOPIXEL_BASE,
-        SEESAW_NEOPIXEL_PIN,
-        &[NEOKEY_NEOPIXEL_PIN],
-        "NeoKey LED pin init failed",
-    )?;
-    write_register(
-        transport,
-        SEESAW_NEOPIXEL_BASE,
-        SEESAW_NEOPIXEL_BUF_LENGTH,
-        &led_bytes,
-        "NeoKey LED length init failed",
     )
+}
+
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+fn write_setup(transport: &mut dyn SeesawTransport, index: usize) -> Result<(), String> {
+    let mask = NEOKEY_BUTTON_MASK.to_be_bytes();
+    let (base, function, data, context): (u8, u8, &[u8], &str) = match index {
+        0 => (
+            SEESAW_GPIO_BASE,
+            SEESAW_GPIO_DIRCLR_BULK,
+            &mask,
+            "NeoKey GPIO direction init failed",
+        ),
+        1 => (
+            SEESAW_GPIO_BASE,
+            SEESAW_GPIO_PULLENSET,
+            &mask,
+            "NeoKey GPIO pullup init failed",
+        ),
+        2 => (
+            SEESAW_GPIO_BASE,
+            SEESAW_GPIO_BULK_SET,
+            &mask,
+            "NeoKey GPIO pullup set failed",
+        ),
+        3 => (
+            SEESAW_GPIO_BASE,
+            SEESAW_GPIO_INTENSET,
+            &mask,
+            "NeoKey GPIO interrupt init failed",
+        ),
+        4 => (
+            SEESAW_NEOPIXEL_BASE,
+            SEESAW_NEOPIXEL_PIN,
+            &[NEOKEY_NEOPIXEL_PIN],
+            "NeoKey LED pin init failed",
+        ),
+        _ => (
+            SEESAW_NEOPIXEL_BASE,
+            SEESAW_NEOPIXEL_BUF_LENGTH,
+            &NEOKEY_LED_BYTES_BE,
+            "NeoKey LED length init failed",
+        ),
+    };
+    write_register(transport, base, function, data, context)
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
@@ -396,8 +437,8 @@ impl NeoKey {
         false
     }
 
-    pub fn reapply_setup(&mut self) -> Result<(), String> {
-        Ok(())
+    pub fn reapply_setup_part(&mut self, _part: usize) -> Result<bool, String> {
+        Ok(false)
     }
 
     pub fn raw_button_state(&mut self) -> Result<u32, String> {

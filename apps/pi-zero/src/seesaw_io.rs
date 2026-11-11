@@ -291,8 +291,9 @@ pub(crate) fn spawn(
                 schedule.record_scan(scan.is_ok(), found_input, neokey.settling(), Instant::now());
                 outputs.resend_after_setup(trellis.take_led_refresh(), neokey.take_led_refresh());
             } else if !schedule.backing_off() {
-                if let Some(board) = setup_refresh.take_due(now) {
-                    reapply_board_setup(&mut trellis, &mut neokey, board, &mut schedule);
+                if let Some(due) = setup_refresh.take_due(now) {
+                    let more = reapply_setup_part(&mut trellis, &mut neokey, due);
+                    setup_refresh.record_part(more, Instant::now());
                 }
             }
 
@@ -433,26 +434,23 @@ fn drain_commands<W: LedOutputWriter>(
     shutdown
 }
 
-fn reapply_board_setup(
+fn reapply_setup_part(
     trellis: &mut NeoTrellis,
     neokey: &mut NeoKey,
-    board: SeesawBoard,
-    schedule: &mut ScanSchedule,
-) {
+    (board, part): (SeesawBoard, usize),
+) -> bool {
     let result = match board {
         SeesawBoard::Trellis(index) => trellis
-            .reapply_setup(index)
+            .reapply_setup_part(index, part)
             .map_err(|error| format!("NeoTrellis setup refresh failed: {error}")),
-        SeesawBoard::NeoKey => {
-            schedule.rescan_now(Instant::now());
-            neokey
-                .reapply_setup()
-                .map_err(|error| format!("NeoKey setup refresh failed: {error}"))
-        }
+        SeesawBoard::NeoKey => neokey
+            .reapply_setup_part(part)
+            .map_err(|error| format!("NeoKey setup refresh failed: {error}")),
     };
-    if let Err(error) = result {
+    result.unwrap_or_else(|error| {
         eprintln!("{error}");
-    }
+        false
+    })
 }
 
 fn scan_inputs(

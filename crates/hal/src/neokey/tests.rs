@@ -251,11 +251,6 @@ fn expected_init() -> Vec<Transaction> {
             function: SEESAW_GPIO_INTENSET,
             data: mask,
         },
-        Transaction::Read {
-            base: SEESAW_GPIO_BASE,
-            function: SEESAW_GPIO_INTFLAG,
-            length: 4,
-        },
         Transaction::Write {
             base: SEESAW_NEOPIXEL_BASE,
             function: SEESAW_NEOPIXEL_PIN,
@@ -265,6 +260,11 @@ fn expected_init() -> Vec<Transaction> {
             base: SEESAW_NEOPIXEL_BASE,
             function: SEESAW_NEOPIXEL_BUF_LENGTH,
             data: NEOKEY_LED_BYTES.to_be_bytes().to_vec(),
+        },
+        Transaction::Read {
+            base: SEESAW_GPIO_BASE,
+            function: SEESAW_GPIO_INTFLAG,
+            length: 4,
         },
     ]);
     transactions
@@ -445,38 +445,4 @@ fn a_failed_led_write_sets_the_board_up_again_on_the_next_scan() {
     assert_eq!(lock_state(&state).transactions, expected);
 }
 
-#[test]
-fn a_periodic_setup_writes_only_the_gpio_and_led_config() {
-    let (transport, state) = fake_state();
-    let mut neokey = NeoKey::from_transport(Box::new(transport)).unwrap();
-    lock_state(&state).transactions.clear();
-
-    neokey.reapply_setup().unwrap();
-
-    assert_eq!(
-        lock_state(&state).transactions,
-        expected_init().split_off(1)
-    );
-    assert!(!neokey.take_led_refresh());
-    lock_state(&state).transactions.clear();
-    neokey.scan_interrupts().unwrap();
-    assert_eq!(lock_state(&state).transactions, interrupt_scan());
-}
-
-#[test]
-fn a_failed_periodic_setup_is_applied_again_on_the_next_scan() {
-    let (transport, state) = fake_state();
-    let mut neokey = NeoKey::from_transport(Box::new(transport)).unwrap();
-    {
-        let mut state = lock_state(&state);
-        state.fail_write_at = Some(state.write_calls + 1);
-    }
-    assert!(neokey.reapply_setup().is_err());
-    lock_state(&state).transactions.clear();
-
-    neokey.scan_interrupts().unwrap();
-
-    let mut expected = expected_init().split_off(1);
-    expected.extend(interrupt_scan());
-    assert_eq!(lock_state(&state).transactions, expected);
-}
+mod setup_refresh_tests;
