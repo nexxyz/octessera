@@ -52,11 +52,24 @@ pub fn write_json_atomically(path: &Path, payload: &serde_json::Value) -> Result
 }
 
 pub fn write_rotated_backup(dir: &Path, payload: &serde_json::Value) -> Result<(), String> {
-    fs::create_dir_all(dir).map_err(|error| error.to_string())?;
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|error| error.to_string())?
         .as_millis();
+    write_rotated_backup_at(dir, payload, millis)
+}
+
+/// A backup name already taken in this millisecond moves to the next free one, so names stay
+/// unique and keep sorting oldest first.
+fn write_rotated_backup_at(
+    dir: &Path,
+    payload: &serde_json::Value,
+    mut millis: u128,
+) -> Result<(), String> {
+    fs::create_dir_all(dir).map_err(|error| error.to_string())?;
+    while dir.join(format!("bak-{millis}.json")).exists() {
+        millis += 1;
+    }
     write_json_atomically(&dir.join(format!("bak-{millis}.json")), payload)?;
     let mut paths = Vec::new();
     for entry in fs::read_dir(dir).map_err(|error| error.to_string())? {

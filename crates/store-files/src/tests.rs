@@ -104,3 +104,29 @@ fn rotated_backup_creates_the_backup_directory() {
     assert_eq!(file_names(&backups).len(), 1);
     let _ = fs::remove_dir_all(dir);
 }
+
+#[test]
+fn backups_in_the_same_millisecond_keep_distinct_sortable_names() {
+    let dir = temp_dir("same-millis");
+
+    write_rotated_backup_at(
+        &dir,
+        &serde_json::json!({ "first": true }),
+        1_700_000_000_000,
+    )
+    .unwrap();
+    write_rotated_backup_at(
+        &dir,
+        &serde_json::json!({ "second": true }),
+        1_700_000_000_000,
+    )
+    .unwrap();
+
+    let names = file_names(&dir);
+    assert_eq!(names, ["bak-1700000000000.json", "bak-1700000000001.json"]);
+    assert_eq!(
+        read_json_file(&dir.join(&names[1])).unwrap(),
+        Some(serde_json::json!({ "second": true }))
+    );
+    let _ = fs::remove_dir_all(dir);
+}
