@@ -3096,7 +3096,6 @@ version = "0.8.15"
 dependencies = [
  "base64 0.22.1",
  "chrono",
- "flate2",
  "image",
  "platform-core",
  "realtime-engine",
