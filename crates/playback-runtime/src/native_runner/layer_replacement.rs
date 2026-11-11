@@ -49,9 +49,7 @@ impl NativeRunner {
             self.layer_behavior_rebuilds = self.layer_behavior_rebuilds.saturating_add(1);
         }
 
-        self.drain_layer_engine_notes(layer_index);
-        self.clear_layer_replacement_state(layer_index);
-        self.clear_layer_emitted_route_notes(layer_index);
+        self.drain_layer_owned_notes(layer_index);
         if let Some(layer) = self.layers.get_mut(layer_index) {
             layer.engine = next_engine;
         }
@@ -96,11 +94,12 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn drain_all_layer_engine_notes(&mut self) {
+    pub(super) fn drain_all_layer_notes(&mut self) {
         for layer_index in 0..self.layers.len() {
             self.drain_layer_engine_notes(layer_index);
         }
-        self.clear_all_emitted_route_notes();
+        self.drain_all_play_transpose_notes();
+        self.release_all_remaining_owned_notes();
     }
 
     pub(super) fn drain_layer_engine_notes(&mut self, layer_index: usize) {

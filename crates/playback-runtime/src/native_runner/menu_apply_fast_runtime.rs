@@ -235,8 +235,7 @@ impl NativeRunner {
         };
         if bool_changed(&mut self.midi.enabled, value) {
             if !value {
-                self.drain_all_layer_engine_notes();
-                self.drain_all_play_transpose_notes();
+                self.drain_all_layer_notes();
             }
             self.mark_system_dirty();
         }

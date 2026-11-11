@@ -121,7 +121,7 @@ impl NativeRunner {
             self.restore_after_live_play(&ended_live);
             return Ok(());
         }
-        self.drain_all_layer_engine_notes();
+        self.drain_all_layer_notes();
         candidate.transpose.pending_note_offs = self.transpose.pending_note_offs.clone();
         candidate.preserve_sample_availability_from(self);
         let focused_key = self.menu.current_key().map(str::to_owned);

@@ -193,10 +193,34 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn clear_all_emitted_route_notes(&mut self) {
-        for layer in &mut self.layers {
-            layer.emitted_note_owners.clear();
-            layer.emitted_tile_owners.clear();
+    /// Queues note-offs for emitted notes whose own note-off has not gone out, such as one still
+    /// waiting in the Link delay queue, skipping releases already pending, then forgets every
+    /// layer's ownership.
+    pub(super) fn release_all_remaining_owned_notes(&mut self) {
+        for layer_index in 0..self.layers.len() {
+            let owned = self.layer_owned_route_note_offs(layer_index);
+            let pending = &mut self.transpose.pending_note_offs;
+            for (lane, events) in [
+                (&mut pending.audio, owned.audio),
+                (&mut pending.midi, owned.midi),
+            ] {
+                for event in events {
+                    if !lane.contains(&event) {
+                        lane.push(event);
+                    }
+                }
+            }
+            for hit in owned.tiles {
+                let already_released = pending.tiles.iter().any(|pending| {
+                    pending.velocity == 0
+                        && pending.instrument_slot == hit.instrument_slot
+                        && pending.tile == hit.tile
+                });
+                if !already_released {
+                    pending.tiles.push(hit);
+                }
+            }
+            self.clear_layer_emitted_route_notes(layer_index);
         }
     }
 

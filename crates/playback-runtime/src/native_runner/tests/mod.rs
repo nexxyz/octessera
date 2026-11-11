@@ -74,6 +74,7 @@ mod config_transactions;
 mod construction_defaults;
 mod controls;
 mod default_patch_bindings;
+mod delayed_note_off_release;
 mod device_config_apply;
 mod dim_sleep;
 mod display_animations;

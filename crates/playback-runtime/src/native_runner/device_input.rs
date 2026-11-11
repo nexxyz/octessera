@@ -388,8 +388,7 @@ impl NativeRunner {
                         RuntimeTransportState::Playing
                     };
                 if was_playing && self.transport.transport == RuntimeTransportState::Paused {
-                    self.drain_all_layer_engine_notes();
-                    self.drain_all_play_transpose_notes();
+                    self.drain_all_layer_notes();
                 }
                 if starting {
                     return self.start_on_the_downbeat();
