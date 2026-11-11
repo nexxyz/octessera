@@ -68,3 +68,25 @@ fn changed_band_gain_takes_effect_on_the_running_filter() {
     assert!((boost - 6.0).abs() <= 0.5, "boost measured {boost} dB");
     assert!((cut + 6.0).abs() <= 0.5, "cut measured {cut} dB");
 }
+
+#[test]
+fn re_engaged_band_starts_without_stale_history() {
+    let mut state = EqChannelState::new();
+    let cut = params(-12.0, -12.0);
+    for frame in 0..4800 {
+        process_eq_channel(&mut state, sine(40.0, frame) * 3.0, &cut, SAMPLE_RATE);
+    }
+    let bypassed = params(0.0, 0.0);
+    for frame in 0..480 {
+        process_eq_channel(&mut state, sine(440.0, frame), &bypassed, SAMPLE_RATE);
+    }
+    let nearly_flat = params(0.1, 0.1);
+    for frame in 480..960 {
+        let input = sine(440.0, frame);
+        let output = process_eq_channel(&mut state, input, &nearly_flat, SAMPLE_RATE);
+        assert!(
+            (output - input).abs() < 0.01,
+            "frame {frame}: re-engaged output {output} jumps away from input {input}"
+        );
+    }
+}

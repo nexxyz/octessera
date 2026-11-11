@@ -38,6 +38,12 @@ impl EqBandState {
             coeffs: None,
         }
     }
+
+    fn bypass(&mut self) {
+        if self.coeffs.take().is_some() {
+            self.filter.clear_history();
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -140,6 +146,7 @@ fn biquad_shelf(
     sample_rate: u32,
 ) -> f32 {
     if gain_db.abs() < 0.05 {
+        state.bypass();
         return x;
     }
     let key = coeff_key(EqFilterKind::Shelf, gain_db, fc, q, sample_rate);
@@ -158,6 +165,7 @@ fn biquad_peak(
     sample_rate: u32,
 ) -> f32 {
     if gain_db.abs() < 0.05 {
+        state.bypass();
         return x;
     }
     let key = coeff_key(EqFilterKind::Peak, gain_db, fc, q, sample_rate);
