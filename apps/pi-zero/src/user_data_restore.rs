@@ -7,6 +7,7 @@ use store_files::write_json_atomically;
 
 mod filesystem;
 mod transaction;
+use filesystem::remove_tree_within;
 pub(crate) use filesystem::{Filesystems, LiveFilesystems};
 #[cfg(test)]
 pub(super) use transaction::{replace_trees_with_faults, FaultInjection};
@@ -56,7 +57,6 @@ pub(crate) fn restore(
         screen_recordings_dir,
         &backup_path,
     )?;
-    prune_pre_restore_archives(&staging);
 
     let new_store = staging.join(format!(".octessera-store-new-{session}"));
     let new_samples = staging.join(format!(".octessera-samples-new-{session}"));
@@ -83,8 +83,8 @@ pub(crate) fn restore(
             ));
         }
     }
-    let _sd_card = hold_sd_card_lock(filesystems.sd_card_lock_path())?;
     let result = (|| {
+        let _sd_card = hold_sd_card_lock(filesystems.sd_card_lock_path())?;
         build_store_tree(
             filesystems,
             store_dir,
@@ -131,6 +131,34 @@ pub(crate) fn restore(
         ];
         transaction::replace_trees(filesystems, &trees, samples_dir)
     })();
+    let rolled_back_cleanly = [
+        &old_store,
+        &old_samples,
+        &old_recordings,
+        &old_screen_recordings,
+    ]
+    .iter()
+    .all(|path| fs::symlink_metadata(path).is_err());
+    if result.is_ok() {
+        prune_pre_restore_archives(&staging);
+    } else if rolled_back_cleanly {
+        for path in [
+            &new_store,
+            &new_samples,
+            &new_recordings,
+            &new_screen_recordings,
+        ] {
+            if fs::symlink_metadata(path).is_ok() {
+                if let Err(error) = remove_tree_within(filesystems, path, path) {
+                    eprintln!(
+                        "restore failed and could not remove its staging folder {}: {error}",
+                        path.display()
+                    );
+                }
+            }
+        }
+        let _ = fs::remove_file(&backup_path);
+    }
     result
 }
 

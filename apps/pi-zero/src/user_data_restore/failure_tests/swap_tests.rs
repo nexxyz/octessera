@@ -183,7 +183,38 @@ fn an_unwritable_folder_fails_the_restore_and_keeps_live_data() {
         assert!(error.contains("My Kit"), "{error}");
         fixture.assert_live_data();
         assert_eq!(fs::read(kit.join("snare.wav")).unwrap(), b"my snare");
+        assert!(entry_names(&fixture.staging).is_empty());
     }
+}
+
+#[test]
+fn a_rolled_back_restore_keeps_earlier_archives_and_leaves_no_staging_behind() {
+    let fixture = Fixture::new("swap-rollback");
+    let patches = fixture.store.join("patches");
+    fs::create_dir_all(&fixture.staging).unwrap();
+    let earlier =
+        ["first", "second", "third"].map(|session| format!("octessera-pre-restore-{session}.oct"));
+    for name in &earlier {
+        fs::write(fixture.staging.join(name), b"earlier data").unwrap();
+    }
+
+    let error = super::super::restore(
+        &ReadOnlyDirs(vec![patches]),
+        &fixture.store,
+        &fixture.samples,
+        &fixture.recordings,
+        &fixture.screen_recordings,
+        "swap-rollback",
+        fixture.staged(true),
+    )
+    .unwrap_err();
+
+    assert!(error.contains("patches"), "{error}");
+    assert!(!error.contains("rollback failed"), "{error}");
+    fixture.assert_live_data();
+    let mut left = entry_names(&fixture.staging);
+    left.sort();
+    assert_eq!(left, earlier);
 }
 
 #[cfg(unix)]
