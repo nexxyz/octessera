@@ -57,7 +57,7 @@ impl OrangeEncoderGpio {
             .switch_available(uart0_active)
             .then(|| request_switch(&chip_path, pins))
             .transpose()?;
-        let initial = quadrature_state(&quadrature, pins)?;
+        let initial = QuadratureState::new_bits(quadrature_bits(&quadrature, pins)?);
         let stop = Arc::new(AtomicBool::new(false));
         let worker_stop = Arc::clone(&stop);
         let descriptor = *pins;
@@ -110,10 +110,7 @@ fn request_switch(chip_path: &Path, pins: &OrangeEncoderPins) -> Result<Request,
 }
 
 #[cfg(target_os = "linux")]
-fn quadrature_state(
-    request: &Request,
-    pins: &OrangeEncoderPins,
-) -> Result<QuadratureState, String> {
+fn quadrature_bits(request: &Request, pins: &OrangeEncoderPins) -> Result<u8, String> {
     let a = value_bit(
         request
             .value(pins.a)
@@ -124,7 +121,7 @@ fn quadrature_state(
             .value(pins.b)
             .map_err(|error| format!("encoder B GPIO read failed: {error}"))?,
     );
-    Ok(QuadratureState::new_bits((a << 1) | b))
+    Ok((a << 1) | b)
 }
 
 #[cfg(target_os = "linux")]
@@ -142,23 +139,26 @@ fn run_worker(
     while !stop.load(Ordering::Acquire) {
         let mut handled = false;
         match quadrature_events.has_event() {
-            Ok(true) => match quadrature_events.read_event() {
-                Ok(event) => {
-                    handled = true;
-                    if let Some(delta) =
-                        update_quadrature(&mut state, descriptor.a, event.offset, event.kind)
-                    {
-                        let _ = tx.send(HardwareEvent::EncoderTurn {
-                            id,
-                            delta: descriptor.canonical_turn_delta(delta),
-                        });
-                    }
-                }
-                Err(error) => {
+            Ok(true) => {
+                if let Err(error) = quadrature_events.read_event() {
                     eprintln!("{id} Orange encoder edge read failed: {error}");
                     break;
                 }
-            },
+                handled = true;
+                let next = match quadrature_bits(&quadrature, &descriptor) {
+                    Ok(next) => next,
+                    Err(error) => {
+                        eprintln!("{id} Orange {error}");
+                        break;
+                    }
+                };
+                if let Some(delta) = state.update(next) {
+                    let _ = tx.send(HardwareEvent::EncoderTurn {
+                        id,
+                        delta: descriptor.canonical_turn_delta(delta),
+                    });
+                }
+            }
             Ok(false) => {}
             Err(error) => {
                 eprintln!("{id} Orange encoder edge wait failed: {error}");
@@ -207,34 +207,10 @@ fn wait_for_edges(quadrature: &Request, switch: Option<&Request>) {
 }
 
 #[cfg(target_os = "linux")]
-fn update_quadrature(
-    state: &mut QuadratureState,
-    a_offset: u32,
-    offset: u32,
-    kind: EdgeKind,
-) -> Option<i8> {
-    let bit = edge_bit(kind);
-    let next = if offset == a_offset {
-        (bit << 1) | (state.bits() & 0b01)
-    } else {
-        (state.bits() & 0b10) | bit
-    };
-    state.update(next)
-}
-
-#[cfg(target_os = "linux")]
 fn switch_event(id: &'static str, kind: EdgeKind) -> Option<HardwareEvent> {
     match kind {
         EdgeKind::Falling => Some(HardwareEvent::EncoderPress { id }),
         EdgeKind::Rising => Some(HardwareEvent::EncoderRelease { id }),
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn edge_bit(kind: EdgeKind) -> u8 {
-    match kind {
-        EdgeKind::Rising => 1,
-        EdgeKind::Falling => 0,
     }
 }
 
@@ -279,37 +255,10 @@ pub(crate) fn find_gpio_chip(chip_label: &str, offsets: &[u32]) -> Result<PathBu
 
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
-    use super::{edge_bit, switch_event, update_quadrature};
+    use super::switch_event;
     use crate::board_profiles::ORANGE_PI_ZERO_2W_DEVICES;
-    use crate::encoder_gpio::{HardwareEvent, QuadratureState};
+    use crate::encoder_gpio::HardwareEvent;
     use gpiocdev::line::EdgeKind;
-
-    #[test]
-    fn quadrature_edges_preserve_the_other_channel() {
-        let pins = ORANGE_PI_ZERO_2W_DEVICES.encoders[0];
-        let mut state = QuadratureState::new_bits(0);
-        assert_eq!(
-            update_quadrature(&mut state, pins.a, pins.a, EdgeKind::Rising),
-            None
-        );
-        assert_eq!(state.bits(), 0b10);
-        assert_eq!(
-            update_quadrature(&mut state, pins.a, pins.b, EdgeKind::Rising),
-            None
-        );
-        assert_eq!(state.bits(), 0b11);
-        assert_eq!(
-            update_quadrature(&mut state, pins.a, pins.a, EdgeKind::Falling),
-            None
-        );
-        assert_eq!(state.bits(), 0b01);
-    }
-
-    #[test]
-    fn both_edges_map_to_the_existing_quadrature_bits() {
-        assert_eq!(edge_bit(EdgeKind::Rising), 1);
-        assert_eq!(edge_bit(EdgeKind::Falling), 0);
-    }
 
     #[test]
     fn switch_edges_keep_active_low_hardware_event_semantics() {
