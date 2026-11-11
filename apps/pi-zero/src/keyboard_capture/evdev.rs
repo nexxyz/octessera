@@ -1,8 +1,9 @@
-use super::{sorted_event_nodes, KeyboardKey};
+use super::{InputNodeListing, KeyboardKey};
 use evdev::{BusType, Device, EventType, KeyCode};
 use std::fs;
 use std::io;
 use std::os::fd::AsRawFd;
+use std::os::unix::fs::DirEntryExt;
 use std::path::PathBuf;
 
 /// `EVIOCGRAB` from linux/input.h. The grab is set here rather than through
@@ -14,7 +15,10 @@ pub(super) struct EvdevKeyboard {
     device: Device,
 }
 
-pub(super) struct EvdevAcquirer;
+#[derive(Default)]
+pub(super) struct EvdevAcquirer {
+    rejected: Option<InputNodeListing>,
+}
 
 impl super::worker::KeyboardAcquirer for EvdevAcquirer {
     type Device = EvdevKeyboard;
@@ -23,7 +27,19 @@ impl super::worker::KeyboardAcquirer for EvdevAcquirer {
         &mut self,
         buses: super::KeyboardBuses,
     ) -> super::worker::Acquisition<Self::Device> {
-        discover_keyboard(buses)
+        let entries = fs::read_dir("/dev/input")
+            .into_iter()
+            .flatten()
+            .filter_map(Result::ok)
+            .map(|entry| (entry.path(), entry.ino()))
+            .collect();
+        let listing = InputNodeListing::new(buses, entries);
+        if self.rejected.as_ref() == Some(&listing) {
+            return super::worker::Acquisition::None;
+        }
+        let (acquisition, every_node_rejected) = discover_keyboard(buses, listing.paths());
+        self.rejected = every_node_rejected.then_some(listing);
+        acquisition
     }
 }
 
@@ -58,33 +74,33 @@ impl super::worker::KeyboardDevice for EvdevKeyboard {
     }
 }
 
-pub(super) fn discover_keyboard(
+/// Also reports whether every node opened and was rejected as no supported keyboard; a node that
+/// failed to open, such as one udev has not yet given to the input group, must be probed again.
+fn discover_keyboard(
     buses: super::KeyboardBuses,
-) -> super::worker::Acquisition<EvdevKeyboard> {
+    event_nodes: Vec<PathBuf>,
+) -> (super::worker::Acquisition<EvdevKeyboard>, bool) {
     use super::worker::Acquisition::{GrabFailed, None, Ready};
 
-    let paths = fs::read_dir("/dev/input")
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .collect::<Vec<PathBuf>>();
-    for path in sorted_event_nodes(paths) {
+    let mut every_node_rejected = true;
+    for path in event_nodes {
         let Ok(device) = Device::open(&path) else {
+            every_node_rejected = false;
             continue;
         };
         if !is_supported_keyboard(&device, buses) {
             continue;
         }
         if device.set_nonblocking(true).is_err() {
+            every_node_rejected = false;
             continue;
         }
         if grab(&device).is_err() {
-            return GrabFailed;
+            return (GrabFailed, false);
         }
-        return Ready(EvdevKeyboard { device });
+        return (Ready(EvdevKeyboard { device }), false);
     }
-    None
+    (None, every_node_rejected)
 }
 
 fn is_supported_keyboard(device: &Device, buses: super::KeyboardBuses) -> bool {

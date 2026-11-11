@@ -206,6 +206,32 @@ pub(crate) fn sorted_event_nodes(paths: impl IntoIterator<Item = PathBuf>) -> Ve
     nodes.into_iter().map(|(_, path)| path).collect()
 }
 
+/// The event nodes, with their inodes, and the buses of a discovery pass that found no keyboard.
+/// While none of them change, another pass would only reopen the same rejected devices; a
+/// replugged device gets a new node inode even when it reuses the old name.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct InputNodeListing {
+    buses: KeyboardBuses,
+    nodes: Vec<(PathBuf, u64)>,
+}
+
+impl InputNodeListing {
+    pub(crate) fn new(buses: KeyboardBuses, entries: Vec<(PathBuf, u64)>) -> Self {
+        let nodes = sorted_event_nodes(entries.iter().map(|(path, _)| path.clone()))
+            .into_iter()
+            .filter_map(|path| {
+                let (_, inode) = entries.iter().find(|(entry, _)| *entry == path)?;
+                Some((path, *inode))
+            })
+            .collect();
+        Self { buses, nodes }
+    }
+
+    pub(crate) fn paths(&self) -> Vec<PathBuf> {
+        self.nodes.iter().map(|(path, _)| path.clone()).collect()
+    }
+}
+
 fn host_message(input: KeyboardInput) -> HostMessage {
     match input {
         KeyboardInput::EncoderTurn { id, delta } => {

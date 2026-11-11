@@ -57,7 +57,7 @@ pub(super) fn required_keys() -> impl Iterator<Item = KeyboardKey> {
 
 #[cfg(target_os = "linux")]
 pub(super) fn run(control: KeyboardCaptureControl, input_tx: Sender<HostMessage>) {
-    run_with_acquirer(control, input_tx, super::evdev::EvdevAcquirer);
+    run_with_acquirer(control, input_tx, super::evdev::EvdevAcquirer::default());
 }
 
 pub(super) fn run_with_acquirer<A>(

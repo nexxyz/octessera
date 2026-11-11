@@ -153,3 +153,35 @@ fn owning_guard_shutdown_joins_without_physical_evdev() {
     drop(rx);
     capture.shutdown().unwrap();
 }
+
+#[test]
+fn a_rejected_listing_matches_only_the_same_nodes_and_buses() {
+    let usb = KeyboardBuses {
+        usb: true,
+        bluetooth: false,
+    };
+    let entries = |inode: u64| {
+        vec![
+            (PathBuf::from("/dev/input/event1"), 10),
+            (PathBuf::from("/dev/input/mouse0"), 11),
+            (PathBuf::from("/dev/input/event0"), inode),
+        ]
+    };
+    let listing = InputNodeListing::new(usb, entries(12));
+
+    assert_eq!(
+        listing.paths(),
+        vec![
+            PathBuf::from("/dev/input/event0"),
+            PathBuf::from("/dev/input/event1"),
+        ]
+    );
+    assert!(listing == InputNodeListing::new(usb, entries(12)));
+    assert!(listing != InputNodeListing::new(usb, entries(13)));
+    assert!(listing != InputNodeListing::new(usb, entries(12)[..2].to_vec()));
+    let both = KeyboardBuses {
+        usb: true,
+        bluetooth: true,
+    };
+    assert!(listing != InputNodeListing::new(both, entries(12)));
+}
