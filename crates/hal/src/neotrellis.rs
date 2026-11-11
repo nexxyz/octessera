@@ -214,6 +214,15 @@ impl NeoTrellis {
         Ok(())
     }
 
+    /// A board that soft-resets quickly answers every transaction and has no reset flag, so the
+    /// caller re-applies each board's keypad and NeoPixel setup periodically. The firmware treats
+    /// every setup write as idempotent and none of them touches the pixel buffer or the LEDs.
+    pub fn reapply_setup(&mut self, dev_idx: usize) -> Result<(), String> {
+        let address = self.devices[dev_idx].0;
+        configure_device(address, &mut *self.transports[dev_idx])
+            .inspect_err(|_| self.needs_setup[dev_idx] = true)
+    }
+
     /// Write an 8x8 RGB frame to the four NeoPixel buffers, then latch all four.
     pub fn write_led_frame(&mut self, frame: &[[u8; 3]; 64]) -> Result<(), String> {
         for dev_idx in 0..self.devices.len() {
@@ -454,6 +463,10 @@ impl NeoTrellis {
 
     pub fn take_led_refresh(&mut self) -> bool {
         false
+    }
+
+    pub fn reapply_setup(&mut self, _dev_idx: usize) -> Result<(), String> {
+        Ok(())
     }
 
     pub fn write_led_frame(&mut self, _frame: &[[u8; 3]; 64]) -> Result<(), String> {

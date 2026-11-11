@@ -2,6 +2,7 @@ use crate::input::{grid_message, neokey_message};
 use octessera_hal::{NeoKey, NeoTrellis, SeesawInterrupt};
 use playback_runtime::HostMessage;
 use scan_schedule::ScanSchedule;
+use setup_refresh::{SeesawBoard, SetupRefresh};
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -256,6 +257,7 @@ pub(crate) fn spawn(
         let mut previous_neokey = [false; 4];
         let mut outputs = DesiredLedOutputs::default();
         let mut schedule = ScanSchedule::new(Instant::now());
+        let mut setup_refresh = SetupRefresh::new(Instant::now());
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let mut startup_scan_succeeded = false;
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -268,7 +270,8 @@ pub(crate) fn spawn(
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let mut shutdown_ack = None;
         loop {
-            if schedule.scan_due(Instant::now(), interrupt.pending(), interrupt.asserted()) {
+            let now = Instant::now();
+            if schedule.scan_due(now, interrupt.pending(), interrupt.asserted()) {
                 let scan = scan_inputs(
                     &mut trellis,
                     &mut neokey,
@@ -287,6 +290,10 @@ pub(crate) fn spawn(
                 let found_input = scan.as_ref().is_ok_and(|found| *found);
                 schedule.record_scan(scan.is_ok(), found_input, neokey.settling(), Instant::now());
                 outputs.resend_after_setup(trellis.take_led_refresh(), neokey.take_led_refresh());
+            } else if !schedule.backing_off() {
+                if let Some(board) = setup_refresh.take_due(now) {
+                    reapply_board_setup(&mut trellis, &mut neokey, board, &mut schedule);
+                }
             }
 
             let mut output = HardwareLedOutput {
@@ -426,6 +433,28 @@ fn drain_commands<W: LedOutputWriter>(
     shutdown
 }
 
+fn reapply_board_setup(
+    trellis: &mut NeoTrellis,
+    neokey: &mut NeoKey,
+    board: SeesawBoard,
+    schedule: &mut ScanSchedule,
+) {
+    let result = match board {
+        SeesawBoard::Trellis(index) => trellis
+            .reapply_setup(index)
+            .map_err(|error| format!("NeoTrellis setup refresh failed: {error}")),
+        SeesawBoard::NeoKey => {
+            schedule.rescan_now(Instant::now());
+            neokey
+                .reapply_setup()
+                .map_err(|error| format!("NeoKey setup refresh failed: {error}"))
+        }
+    };
+    if let Err(error) = result {
+        eprintln!("{error}");
+    }
+}
+
 fn scan_inputs(
     trellis: &mut NeoTrellis,
     neokey: &mut NeoKey,
@@ -460,5 +489,6 @@ fn scan_inputs(
 }
 
 mod scan_schedule;
+mod setup_refresh;
 #[cfg(test)]
 mod tests;

@@ -172,6 +172,15 @@ impl NeoKey {
         std::mem::take(&mut self.led_refresh)
     }
 
+    /// A quick soft reset leaves no trace on the bus, so the caller re-applies the setup
+    /// periodically; every write is idempotent and none touches the pixel buffer or the LEDs.
+    /// The setup clears the GPIO interrupt flags, so the caller scans right afterwards.
+    pub fn reapply_setup(&mut self) -> Result<(), String> {
+        let result = configure(&mut *self.transport);
+        self.needs_setup |= result.is_err();
+        result
+    }
+
     fn restore_setup_if_needed(&mut self) -> Result<(), String> {
         if !self.needs_setup {
             return Ok(());
@@ -385,6 +394,10 @@ impl NeoKey {
 
     pub fn take_led_refresh(&mut self) -> bool {
         false
+    }
+
+    pub fn reapply_setup(&mut self) -> Result<(), String> {
+        Ok(())
     }
 
     pub fn raw_button_state(&mut self) -> Result<u32, String> {
