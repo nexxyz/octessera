@@ -91,6 +91,17 @@ fn resolve_sample_file_handles_canonical_prefix_spaces_and_separate_user_data() 
 }
 
 #[test]
+fn user_samples_follow_an_explicit_store_root() {
+    let store_root = unique_temp_dir("octessera-user-samples-store-root");
+
+    let user_root = sample_roots::user_samples_root_in(Some(store_root.clone())).unwrap();
+
+    assert_eq!(user_root, store_root.join("samples"));
+    assert!(user_root.is_dir());
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
 fn bundled_resolution_does_not_require_a_user_samples_root() {
     let root = unique_temp_dir("octessera_bundled_samples_only");
     let missing_user_root = root.join("user-data-that-must-not-be-created");

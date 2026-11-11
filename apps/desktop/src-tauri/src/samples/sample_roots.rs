@@ -69,7 +69,17 @@ fn resolve_dev_samples_root() -> Result<PathBuf, String> {
 }
 
 pub(super) fn resolve_user_samples_root() -> Result<PathBuf, String> {
-    let dir = user_data_dir()?.join("samples");
+    user_samples_root_in(crate::store_startup::explicit_store_root())
+}
+
+pub(super) fn user_samples_root_in(
+    explicit_store_root: Option<PathBuf>,
+) -> Result<PathBuf, String> {
+    let dir = match explicit_store_root {
+        Some(store_root) => store_root,
+        None => user_data_dir()?,
+    }
+    .join("samples");
     fs::create_dir_all(&dir).map_err(|e| format!("create user samples dir failed: {e}"))?;
     Ok(dir)
 }

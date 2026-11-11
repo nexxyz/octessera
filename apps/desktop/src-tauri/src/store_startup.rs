@@ -55,11 +55,14 @@ impl fmt::Display for DesktopStoreStartupError {
 impl std::error::Error for DesktopStoreStartupError {}
 
 pub(crate) fn ensure_store_dir(app: &tauri::App) -> Result<PathBuf, DesktopStoreStartupError> {
-    let dir = resolve_store_root(
-        std::env::var_os("OCTESSERA_DESKTOP_STORE_DIR").map(PathBuf::from),
-        || app.path().app_data_dir().map_err(|error| error.to_string()),
-    )?;
+    let dir = resolve_store_root(explicit_store_root(), || {
+        app.path().app_data_dir().map_err(|error| error.to_string())
+    })?;
     ensure_store_dir_at(dir)
+}
+
+pub(crate) fn explicit_store_root() -> Option<PathBuf> {
+    std::env::var_os("OCTESSERA_DESKTOP_STORE_DIR").map(PathBuf::from)
 }
 
 fn resolve_store_root<F>(

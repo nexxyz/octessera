@@ -162,7 +162,9 @@ OCTESSERA_STORE_COPY="$PWD/target/board-stores" cargo test -p playback-runtime -
 
 The desktop store lives in `%APPDATA%/xyz.nex.octessera/` (or
 `OCTESSERA_DESKTOP_STORE_DIR`); copy its `system.json`, `default.patch.json`,
-and `presets/` into a third folder next to the boards to compose it too.
+and `presets/` into a third folder next to the boards to compose it too. With
+`OCTESSERA_DESKTOP_STORE_DIR` set, user samples live in its `samples/` folder
+too.
 
 For every document that fails, rewrite only the offending keys or values to the
 current schema with a throwaway script under `target/`, keep a backup of the
