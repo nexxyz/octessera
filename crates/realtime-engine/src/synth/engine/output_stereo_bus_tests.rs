@@ -155,6 +155,37 @@ fn barely_engaged_spread_keeps_a_panned_bus_level() {
     }
 }
 
+#[test]
+fn auto_pan_keeps_a_hard_panned_bus_level_over_a_sweep() {
+    let [reference, swept] = [false, true].map(|auto_pan| {
+        let mut config = spread_bus_config(Some(0.0), 0.0, false);
+        let bus = &mut config.mixer.as_mut().unwrap().buses[0];
+        bus.pan_pos = 0;
+        if auto_pan {
+            bus.slots.push(FxBusSlotConfig::Config {
+                kind: "auto_pan".to_string(),
+                params: BTreeMap::from([
+                    ("rateHz".to_string(), json!(20.0)),
+                    ("depthPct".to_string(), json!(100.0)),
+                ]),
+            });
+        }
+        let mut engine = SynthEngine::new(48_000);
+        engine.set_instruments(config);
+        engine.set_sample_banks(vec![sample_bank(vec![0.25; 4_800])]);
+        engine.note_on(0, 36, 127, 0);
+        let power: f32 = (0..2_400)
+            .map(|_| engine.next_stereo_sample())
+            .map(|(left, right)| left * left + right * right)
+            .sum();
+        10.0 * power.log10()
+    });
+    assert!(
+        (swept - reference).abs() < 0.25,
+        "auto-pan {swept} dB against {reference} dB"
+    );
+}
+
 fn spread_sample_bus_engine(spread_pct: f32, mix_pct: f32, downstream_mono: bool) -> SynthEngine {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(spread_bus_config(

@@ -197,8 +197,6 @@ pub(super) fn stage_components(
             let (left, right) = render_bus_stereo_output(
                 output,
                 spread_state,
-                Some(context.bus_pan_pos[bus]),
-                context.pan_positions,
                 context.bus_pan_gains[bus],
                 context.bus_volume[bus],
             );

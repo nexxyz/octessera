@@ -145,10 +145,8 @@ pub(super) struct RoutingTreeWorkerContext {
     pub(super) slot_route: [super::render_plan::RenderPlanRoute; INSTRUMENT_SLOT_COUNT],
     pub(super) slot_volume: [f32; INSTRUMENT_SLOT_COUNT],
     pub(super) slot_pan_gains: [(f32, f32); INSTRUMENT_SLOT_COUNT],
-    pub(super) bus_pan_pos: [usize; BUS_COUNT],
     pub(super) bus_pan_gains: [(f32, f32); BUS_COUNT],
     pub(super) bus_volume: [f32; BUS_COUNT],
-    pub(super) pan_positions: usize,
     pub(super) bus_count: usize,
     pub(super) sample_rate: u32,
     pub(super) synth_context: SynthSourceContext,
@@ -184,9 +182,6 @@ impl RoutingTreeWorkerContext {
             slot_route: std::array::from_fn(|slot| engine.render_plan.instrument_slots[slot].route),
             slot_volume: engine.slot_volume,
             slot_pan_gains: engine.slot_pan_gains,
-            bus_pan_pos: std::array::from_fn(|bus| {
-                engine.bus_pan_pos.get(bus).copied().unwrap_or(0)
-            }),
             bus_pan_gains: std::array::from_fn(|bus| {
                 engine
                     .bus_pan_gains_cache
@@ -197,7 +192,6 @@ impl RoutingTreeWorkerContext {
             bus_volume: std::array::from_fn(|bus| {
                 engine.bus_volume.get(bus).copied().unwrap_or(1.0)
             }),
-            pan_positions: engine.pan_positions,
             bus_count,
             sample_rate: engine.sample_rate,
             synth_context: engine.synth_source_context(),

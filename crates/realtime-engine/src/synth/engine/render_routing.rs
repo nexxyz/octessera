@@ -205,8 +205,6 @@ impl SynthEngine {
         render_bus_stereo_output(
             output,
             spread_state,
-            self.bus_pan_pos.get(bus_idx).copied(),
-            self.pan_positions,
             pan_gains,
             self.bus_volume.get(bus_idx).copied().unwrap_or(1.0),
         )
@@ -284,15 +282,16 @@ impl SynthEngine {
 pub(super) fn render_bus_stereo_output(
     output: BusChainFrameOutput,
     spread_state: &mut FxBusOutputSpreadState,
-    pan_pos: Option<usize>,
-    pan_positions: usize,
     mono_pan_gains: (f32, f32),
     volume: f32,
 ) -> (f32, f32) {
     let (gain_l, gain_r) = if let Some(pos) = output.auto_pan_pos {
         let (auto_l, auto_r) = pan_gains_float(pos);
-        let (bus_l, bus_r) = stereo_balance_gains_from_pan(pan_pos, pan_positions);
-        (auto_l * bus_l, auto_r * bus_r)
+        let scale = std::f32::consts::SQRT_2;
+        (
+            auto_l * mono_pan_gains.0 * scale,
+            auto_r * mono_pan_gains.1 * scale,
+        )
     } else {
         mono_pan_gains
     };
@@ -302,27 +301,5 @@ pub(super) fn render_bus_stereo_output(
         (left * gain_l * scale, right * gain_r * scale)
     } else {
         (output.mono * gain_l * volume, output.mono * gain_r * volume)
-    }
-}
-
-fn stereo_balance_gains_from_pan(pan_pos: Option<usize>, pan_positions: usize) -> (f32, f32) {
-    let Some(pan_pos) = pan_pos else {
-        return (1.0, 1.0);
-    };
-    if pan_positions <= 1 {
-        return (1.0, 1.0);
-    }
-    let pos = (pan_pos.min(pan_positions - 1) as f32) / ((pan_positions - 1) as f32);
-    stereo_balance_gains(pos)
-}
-
-fn stereo_balance_gains(pos: f32) -> (f32, f32) {
-    let pos = pos.clamp(0.0, 1.0);
-    if pos <= 0.5 {
-        let right = crate::sine::sin_turns(pos * 0.5);
-        (1.0, right)
-    } else {
-        let left = crate::sine::sin_turns((1.0 - pos) * 0.5);
-        (left, 1.0)
     }
 }
