@@ -45,8 +45,8 @@ pub use fields::lightning::{
     lightning_on_tick, lightning_render_model, lightning_serialize, LightningState,
 };
 pub use fields::raindrops::{
-    raindrops_config_menu, raindrops_init, raindrops_on_input, raindrops_on_tick,
-    raindrops_render_model, RaindropsState,
+    raindrops_config_menu, raindrops_deserialize, raindrops_init, raindrops_on_input,
+    raindrops_on_tick, raindrops_render_model, RaindropsState,
 };
 pub use fields::reaction_diffusion::{
     reaction_diffusion_config_menu, reaction_diffusion_deserialize, reaction_diffusion_init,

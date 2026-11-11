@@ -13,6 +13,17 @@ pub struct Ball {
     pub vy: i8,
 }
 
+impl Ball {
+    /// A saved ball moves at most one tile per axis and step, like every serve and hit.
+    pub(crate) fn with_unit_velocity(self) -> Self {
+        Self {
+            vx: self.vx.clamp(-1, 1),
+            vy: self.vy.clamp(-1, 1),
+            ..self
+        }
+    }
+}
+
 /// What the CPU means to do with the ball coming its way: meet it with paddle tile `aim`
 /// (0 is the low or left edge), or let it slip past.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

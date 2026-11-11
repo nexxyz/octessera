@@ -30,6 +30,8 @@ mod palette_tests;
 #[cfg(test)]
 mod pattern_music_tests;
 #[cfg(test)]
+mod saved_state_bounds_tests;
+#[cfg(test)]
 mod tests;
 
 pub use catalog::{behavior_catalog, behavior_categories, BehaviorCatalogEntry, BehaviorCategory};

@@ -76,7 +76,10 @@ fn from_value(value: Value) -> PongState {
     let center = center_start(paddle_size);
     let restored = config.paddles.is_some();
     let mut state = PongState {
-        ball: config.ball.filter(|ball| ball.x <= RIGHT && ball.y <= TOP),
+        ball: config
+            .ball
+            .filter(|ball| ball.x <= RIGHT && ball.y <= TOP)
+            .map(Ball::with_unit_velocity),
         paddles: config
             .paddles
             .unwrap_or([center; 2])

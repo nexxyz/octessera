@@ -63,6 +63,24 @@ pub fn raindrops_init(config: Value) -> Result<RaindropsState, String> {
     })
 }
 
+/// A saved state fitted to the grid: off-grid drops and rings are dropped, the tile and trigger
+/// lists sized to it.
+pub fn raindrops_deserialize(data: Value) -> Result<RaindropsState, String> {
+    let mut state: RaindropsState =
+        serde_json::from_value(data).map_err(|error| error.to_string())?;
+    state
+        .drops
+        .retain(|drop| drop.x < GRID_WIDTH && drop.y < GRID_HEIGHT);
+    state
+        .rings
+        .retain(|ring| ring.ox < GRID_WIDTH && ring.oy < GRID_HEIGHT);
+    state.tiles.resize(TILE_COUNT, false);
+    state
+        .trigger_types
+        .resize(TILE_COUNT, TileTriggerType::None);
+    Ok(state)
+}
+
 pub fn raindrops_on_input(
     state: RaindropsState,
     input: DeviceInput,

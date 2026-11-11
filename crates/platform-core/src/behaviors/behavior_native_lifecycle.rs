@@ -183,7 +183,7 @@ impl NativeBehavior {
                 data,
             )?)),
             NativeBehavior::Raindrops => Ok(NativeBehaviorState::Raindrops(
-                native_impl::deserialize(data)?,
+                native_impl::raindrops_deserialize(data)?,
             )),
             NativeBehavior::ReactionDiffusion => Ok(NativeBehaviorState::ReactionDiffusion(
                 native_impl::reaction_diffusion_deserialize(data)?,

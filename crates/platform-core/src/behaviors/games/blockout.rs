@@ -99,7 +99,10 @@ fn from_value(value: Value) -> BlockoutState {
     let mut state = BlockoutState {
         rows,
         paddle: config.paddle.unwrap_or(2).min(GRID_WIDTH as u8 - PADDLE),
-        ball: config.ball.filter(|ball| ball.x <= RIGHT && ball.y <= TOP),
+        ball: config
+            .ball
+            .filter(|ball| ball.x <= RIGHT && ball.y <= TOP)
+            .map(Ball::with_unit_velocity),
         plan: config.plan.unwrap_or_default(),
         serve_pause: config.serve_pause.unwrap_or(0).min(SERVE_PAUSE_TICKS),
         rows_cleared: config.rows_cleared.unwrap_or(0),
