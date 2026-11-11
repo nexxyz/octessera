@@ -4,6 +4,8 @@ use super::NativeRunner;
 use crate::protocol::TileHit;
 use platform_core::MusicalEvent;
 
+const ALL_NOTES_OFF: u8 = 123;
+
 impl NativeRunner {
     pub(super) fn drain_layer_owned_notes(&mut self, layer_index: usize) {
         let audio_start = self.transpose.pending_note_offs.audio.len();
@@ -37,6 +39,11 @@ impl NativeRunner {
         layer_index: usize,
         events: &RoutedMusicalEvents,
     ) {
+        for event in &events.midi {
+            if let MusicalEvent::NoteOn { channel, .. } = event {
+                self.transport.midi_channels_sounded |= 1 << (channel & 15);
+            }
+        }
         let Some(layer) = self.layers.get_mut(layer_index) else {
             return;
         };
@@ -83,6 +90,25 @@ impl NativeRunner {
                             && held.sampler_tile == Some((hit.voice, hit.tile))
                     })
                 })
+    }
+
+    /// Stop's backstop: All Notes Off on every external MIDI channel that sounded since the last
+    /// Stop, sent after the note-offs the transport reset queued.
+    pub(super) fn queue_all_notes_off_for_sounded_midi_channels(&mut self) {
+        let channels = std::mem::take(&mut self.transport.midi_channels_sounded);
+        if !self.midi.enabled {
+            return;
+        }
+        for channel in (0..16).filter(|channel| channels & (1 << channel) != 0) {
+            self.transpose
+                .pending_note_offs
+                .midi
+                .push(MusicalEvent::Cc {
+                    channel,
+                    controller: ALL_NOTES_OFF,
+                    value: 0,
+                });
+        }
     }
 
     pub(super) fn forget_layer_owned_route_note_offs(

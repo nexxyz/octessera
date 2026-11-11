@@ -84,12 +84,14 @@ impl NativeRunner {
         }
         self.transport.transport = RuntimeTransportState::Stopped;
         self.reset_transport_position();
+        self.queue_all_notes_off_for_sounded_midi_channels();
         self.messages_with_snapshot()
     }
 
     pub(super) fn send_transport_stop(&mut self) -> Result<Vec<RunnerMessage>, String> {
         self.transport.transport = RuntimeTransportState::Stopped;
         self.reset_transport_position();
+        self.queue_all_notes_off_for_sounded_midi_channels();
         self.messages_with_snapshot()
     }
 

@@ -177,6 +177,8 @@ pub(super) struct NativeTransportState {
     pub(super) algorithm_step_pulses: u32,
     pub(super) layer_algorithm_step_pulses: Vec<u32>,
     pub(super) layer_pulse_accumulators: Vec<u32>,
+    /// External MIDI channels, one bit each, that sounded a note since the last Stop.
+    pub(super) midi_channels_sounded: u16,
 }
 
 impl NativeTransportState {
@@ -203,6 +205,7 @@ impl NativeTransportState {
             algorithm_step_pulses,
             layer_algorithm_step_pulses: vec![algorithm_step_pulses; LAYER_COUNT],
             layer_pulse_accumulators: vec![0; LAYER_COUNT],
+            midi_channels_sounded: 0,
         }
     }
 }

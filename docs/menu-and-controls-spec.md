@@ -247,6 +247,9 @@ Aux mappings modal:
   autonomous Build cadence, Pattern phase, and the Looper playback position. Evolved worlds,
   configuration, and recorded loops are kept; other behavior-owned state follows each behavior's
   reset contract.
+- Stop (Shift+Space, Fn+Space, host Stop, accepted MIDI Stop) releases every held note, including
+  one whose note-off was still waiting on a Link delay, then sends All Notes Off (CC123) once to
+  each external MIDI channel that sounded a note since the previous Stop.
 - While transport runs, clearing or replacing a behavior reinitializes or restores its own state but
   keeps the transport-owned interpretation cursor, fractional accumulator, and page/section phase.
 - Sequencer alone has origin-immediate static-grid semantics: page 1 step 1 sits on the transport
