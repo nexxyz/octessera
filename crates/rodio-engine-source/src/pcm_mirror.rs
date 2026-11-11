@@ -57,7 +57,6 @@ pub struct PcmMirrorConsumer {
     current_right: u32,
     current_channel: u8,
     priming: bool,
-    steering: bool,
     crossfade_remaining: u8,
     crossfade_drops: bool,
     callback_active: bool,
@@ -87,8 +86,7 @@ impl PcmMirrorProducer {
             current_sequence: 0,
             current_right: 0,
             current_channel: 0,
-            priming: write_sequence != 0,
-            steering: false,
+            priming: true,
             crossfade_remaining: 0,
             crossfade_drops: false,
             callback_active: false,
@@ -163,8 +161,7 @@ impl PcmMirrorConsumer {
             return false;
         }
         let fill = frame_distance(write_sequence, self.read_sequence);
-        self.steering |= fill >= target;
-        if self.steering && self.crossfade_remaining == 0 {
+        if self.crossfade_remaining == 0 {
             self.steer_toward_target(fill.saturating_sub(callback_frames as u64));
         }
         self.callback_active = true;
@@ -246,7 +243,6 @@ impl PcmMirrorConsumer {
         self.current_sequence = 0;
         self.current_channel = 0;
         self.priming = true;
-        self.steering = false;
         self.crossfade_remaining = 0;
         self.callback_active = false;
     }

@@ -12,6 +12,8 @@ fn mirror_callback_preserves_stereo_for_arbitrary_callback_sizes() {
     let producer = pair.producer;
     let mut callback_source = MirrorCallbackSource::new(pair.consumer);
     producer.publish(&[1.0, -1.0, 2.0, -2.0, 3.0, -3.0], 3);
+    let filler = rodio_engine_source::PCM_MIRROR_TARGET_OCCUPANCY_FRAMES - 2;
+    producer.publish(&[0.0, 0.0].repeat(filler), filler);
 
     let mut first = [0.0_f32; 2];
     fill_mirror_callback_with_scheduler(
@@ -86,7 +88,7 @@ fn mirror_callback_rejects_odd_output_without_consuming_a_left_sample_into_right
 }
 
 #[test]
-fn mirror_callback_recovers_on_a_complete_channel_pair_after_underrun() {
+fn mirror_callback_starts_on_a_complete_channel_pair_after_target_priming() {
     let _guard = install_test_scheduling(InjectedSchedulingOutcomes::success_for_cpu(0));
     let pair = new_pcm_mirror();
     let producer = pair.producer;
@@ -96,7 +98,7 @@ fn mirror_callback_recovers_on_a_complete_channel_pair_after_underrun() {
 
     let mut output = [1.0_f32; 4];
     fill_mirror_callback_with_scheduler(&mut output, &mut callback_source, &scheduler);
-    assert_eq!(output, [5.0, -5.0, 0.0, 0.0]);
+    assert_eq!(output, [0.0; 4]);
 
     let primed = rodio_engine_source::PCM_MIRROR_TARGET_OCCUPANCY_FRAMES + 1;
     producer.publish(&[6.0, -6.0].repeat(primed), primed);

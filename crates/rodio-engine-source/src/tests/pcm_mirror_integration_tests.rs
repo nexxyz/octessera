@@ -17,9 +17,12 @@ fn inline_source_publishes_the_exact_final_jack_block_once() {
     let mut source = EngineSource::with_block_frames(rx, 44_100, 32);
     source.set_pcm_mirror_producers([Some(producer), None]);
 
-    let jack: Vec<u32> = (0..64).map(|_| source.next().unwrap().to_bits()).collect();
+    let samples = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES * 2;
+    let jack: Vec<u32> = (0..samples)
+        .map(|_| source.next().unwrap().to_bits())
+        .collect();
     assert!(mirror.begin_callback(0));
-    let mirrored: Vec<u32> = (0..64)
+    let mirrored: Vec<u32> = (0..samples)
         .map(|_| mirror.next_sample().unwrap().to_bits())
         .collect();
 

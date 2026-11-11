@@ -21,6 +21,8 @@ fn keeping_up_preserves_stereo_sample_bits() {
     } = new_pcm_mirror();
     let input = [1.0, -0.0, f32::from_bits(0x7fc0_1234), -2.0];
     producer.publish(&input, 2);
+    let rest = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES - 2;
+    producer.publish(&frames(2, rest), rest);
 
     let output = consume(&mut consumer, input.len());
     assert_eq!(
@@ -41,33 +43,32 @@ fn arbitrary_callback_sizes_keep_channel_alignment_across_blocks() {
         producer,
         mut consumer,
     } = new_pcm_mirror();
-    let input = frames(0, 12);
-    producer.publish(&input[..10], 5);
+    let target = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES;
+    let input = frames(0, target + 7);
+    producer.publish(&input[..target * 2], target);
     let mut output = consume(&mut consumer, 6);
-    producer.publish(&input[10..], 7);
-    output.extend(consume(&mut consumer, 18));
+    producer.publish(&input[target * 2..], 7);
+    output.extend(consume(&mut consumer, input.len() - 6));
     assert_eq!(output, input);
 }
 
 #[test]
-fn empty_callbacks_are_silent_until_target_occupancy_is_available() {
+fn a_drained_consumer_is_silent_until_target_occupancy_is_available_again() {
     let PcmMirrorPair {
         producer,
         mut consumer,
     } = new_pcm_mirror();
-    producer.publish(&frames(0, 1), 1);
-    assert!(consumer.begin_callback(0));
-    assert_eq!(consumer.next_sample(), Some(0.0));
-    assert_eq!(consumer.next_sample(), Some(-0.0));
+    let target = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES;
+    producer.publish(&frames(0, target), target);
+    assert_eq!(consume(&mut consumer, target * 2), frames(0, target));
     assert!(!consumer.begin_callback(0));
     assert_eq!(consumer.next_sample(), None);
 
-    producer.publish(
-        &frames(1, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES),
-        PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
-    );
+    producer.publish(&frames(target, target - 1), target - 1);
+    assert!(!consumer.begin_callback(0));
+    producer.publish(&frames(target * 2 - 1, 1), 1);
     assert!(consumer.begin_callback(0));
-    assert_eq!(consumer.next_sample(), Some(1.0));
+    assert_eq!(consumer.next_sample(), Some(target as f32));
 }
 
 #[test]
@@ -159,25 +160,29 @@ fn a_fast_consumer_crossfades_one_frame_in_below_the_band() {
 }
 
 #[test]
-fn a_consumer_that_never_reached_the_target_does_not_repeat() {
+fn a_consumer_on_a_fresh_writer_is_silent_until_the_target() {
     let PcmMirrorPair {
         producer,
         mut consumer,
     } = new_pcm_mirror();
+    let target = PCM_MIRROR_TARGET_OCCUPANCY_FRAMES;
     producer.publish(&frames(0, 8), 8);
+    assert!(!consumer.begin_callback(0));
+    assert_eq!(consumer.next_sample(), None);
+    producer.publish(&frames(8, target - 8), target - 8);
     assert_eq!(consume(&mut consumer, 4), frames(0, 2));
-    assert_eq!(consume(&mut consumer, 2), frames(2, 1));
 }
 
 #[test]
-fn a_consumer_opened_before_the_producer_filled_starts_steering_at_the_target() {
+fn a_consumer_opened_before_the_producer_filled_primes_to_the_latest_target_frames() {
     let PcmMirrorPair {
         producer,
         mut consumer,
     } = new_pcm_mirror();
     let count = PCM_MIRROR_DROP_ABOVE_FRAMES as usize + 1;
     producer.publish(&frames(0, count), count);
-    assert_frames_near(&consume(&mut consumer, 2), &crossfaded_lefts(0, 1.0)[..1]);
+    let start = count - PCM_MIRROR_TARGET_OCCUPANCY_FRAMES;
+    assert_eq!(consume(&mut consumer, 4), frames(start, 2));
 }
 
 #[test]
@@ -352,7 +357,7 @@ fn large_callbacks_keep_a_full_callback_of_headroom_above_the_target() {
 }
 
 #[test]
-fn a_consumer_created_while_the_producer_runs_primes_and_then_steers() {
+fn a_consumer_created_while_the_producer_runs_primes_at_the_target() {
     let PcmMirrorPair {
         producer,
         consumer: _first,
@@ -366,5 +371,5 @@ fn a_consumer_created_while_the_producer_runs_primes_and_then_steers() {
     assert!(!consumer.begin_callback(callback));
     producer.publish(&frames(target + callback / 2, callback), callback);
     assert!(consumer.begin_callback(callback));
-    assert!(consumer.steering);
+    assert!(!consumer.priming);
 }

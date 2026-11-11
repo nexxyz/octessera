@@ -354,7 +354,7 @@ fn mirror_callback_has_no_allocation_activity_after_warmup() {
     let producer = pair.producer;
     let mut callback_source = MirrorCallbackSource::new(pair.consumer);
     let scheduler = CallbackSchedulingHandle::new_mirror();
-    producer.publish(&[1.0, -1.0].repeat(128), 128);
+    producer.publish(&[1.0, -1.0].repeat(264), 264);
     let mut output = [0.0_f32; 16];
 
     let (_, allocations, deallocations) = count_allocations_and_deallocations(|| {
@@ -362,6 +362,7 @@ fn mirror_callback_has_no_allocation_activity_after_warmup() {
     });
 
     assert_eq!((allocations, deallocations), (0, 0));
+    assert_eq!(output, [1.0, -1.0].repeat(8).as_slice());
 }
 
 #[test]
