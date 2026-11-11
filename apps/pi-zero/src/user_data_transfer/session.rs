@@ -265,7 +265,7 @@ impl UserDataTransferService {
         }
     }
 
-    fn join_restore_worker(&self) {
+    pub(super) fn join_restore_worker(&self) {
         if let Ok(mut worker) = self.inner.restore_worker.lock() {
             if let Some(join) = worker.take() {
                 let _ = join.join();

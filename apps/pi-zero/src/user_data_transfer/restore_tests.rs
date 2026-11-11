@@ -216,15 +216,9 @@ fn confirmed_restore_writes_backup_and_preserves_protected_files() {
         service.store_write_barrier().current_generation(),
         generation + 1
     );
-    let mut status_body = String::new();
-    for _ in 0..100 {
-        let status = restore_request(&service, "GET", "/restore/status", &code, &[]);
-        status_body = String::from_utf8(status.1).unwrap();
-        if status_body.contains("restored") {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(2));
-    }
+    service.join_restore_worker();
+    let status = restore_request(&service, "GET", "/restore/status", &code, &[]);
+    let status_body = String::from_utf8(status.1).unwrap();
     assert!(status_body.contains("restored"), "{status_body}");
     assert!(service.store_write_barrier().is_blocked());
     service.store_write_barrier().acknowledge();
@@ -301,15 +295,9 @@ fn active_recording_restore_is_rejected_before_tree_mutation() {
         "id":"main"
     }));
 
-    let mut status_body = String::new();
-    for _ in 0..100 {
-        let status = restore_request(&service, "GET", "/restore/status", &code, &[]);
-        status_body = String::from_utf8(status.1).unwrap();
-        if status_body.contains("blocked_recording_active") {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(2));
-    }
+    service.join_restore_worker();
+    let status = restore_request(&service, "GET", "/restore/status", &code, &[]);
+    let status_body = String::from_utf8(status.1).unwrap();
     assert!(
         status_body.contains("blocked_recording_active"),
         "{status_body}"
