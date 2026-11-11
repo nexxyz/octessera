@@ -47,18 +47,32 @@ fn preset_directory_creation_failure_is_reported() {
 }
 
 #[test]
-fn unknown_store_file_is_refused_and_preserved() {
-    let root = unique_temp_dir("octessera-malformed-default");
-    let original = b"{ malformed";
-    fs::write(root.join("default.json"), original).expect("malformed default");
-
-    let error = ensure_store_dir_at(root.clone()).expect_err("unknown files block seeding");
+fn moving_both_documents_out_seeds_a_fresh_default_and_keeps_everything_else() {
+    let root = unique_temp_dir("octessera-start-again");
+    fs::write(root.join("system.json"), b"not json").expect("system bytes");
+    let error = ensure_store_dir_at(root.clone()).expect_err("partial pair must fail");
     assert!(error.to_string().contains("start again"));
 
+    fs::remove_file(root.join("system.json")).expect("move system.json out");
+    fs::create_dir_all(root.join("presets")).expect("presets");
+    fs::write(root.join("presets").join("Song.json"), b"{}").expect("preset");
+    fs::create_dir_all(root.join("backups")).expect("backups");
+    fs::write(root.join("backups").join("old.json"), b"{}").expect("backup");
+    fs::write(root.join("default.json"), b"{ malformed").expect("legacy default");
+
+    ensure_store_dir_at(root.clone()).expect("advice must lead to a fresh default");
+
+    assert!(root.join("system.json").is_file());
+    assert!(root.join("default.patch.json").is_file());
     assert_eq!(
-        fs::read(root.join("default.json")).expect("existing default"),
-        original
+        fs::read(root.join("presets").join("Song.json")).unwrap(),
+        b"{}"
     );
+    assert_eq!(
+        fs::read(root.join("backups").join("old.json")).unwrap(),
+        b"{}"
+    );
+    assert_eq!(fs::read(root.join("default.json")).unwrap(), b"{ malformed");
     remove_temp_dir(&root);
 }
 
@@ -134,27 +148,6 @@ fn complete_invalid_pair_is_refused_without_changing_bytes() {
         fs::read(root.join("default.patch.json")).unwrap(),
         patch_bytes
     );
-    remove_temp_dir(&root);
-}
-
-#[test]
-fn unknown_store_document_is_refused_without_overwriting() {
-    let root = unique_temp_dir("octessera-existing-custom-default");
-    let custom = serde_json::json!({ "kept": true });
-    fs::write(
-        root.join("default.json"),
-        serde_json::to_vec(&custom).expect("serialize custom default"),
-    )
-    .expect("write custom default");
-
-    let error = ensure_store_dir_at(root.clone()).expect_err("unknown files block seeding");
-    assert!(error.to_string().contains("start again"));
-    assert_eq!(
-        fs::read(root.join("default.json")).unwrap(),
-        serde_json::to_vec(&custom).unwrap()
-    );
-    assert!(!root.join("system.json").exists());
-    assert!(!root.join("default.patch.json").exists());
     remove_temp_dir(&root);
 }
 

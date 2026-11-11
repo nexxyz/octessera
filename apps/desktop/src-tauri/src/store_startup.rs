@@ -117,7 +117,7 @@ fn ensure_split_documents(dir: &std::path::Path) -> Result<(), DesktopStoreStart
             })?;
             Ok(())
         }
-        (false, false) if fresh_store_root(dir)? => {
+        (false, false) => {
             let bundled: serde_json::Value = serde_json::from_str(BUNDLED_DEFAULT_CONFIG)
                 .map_err(|error| DesktopStoreStartupError::ParseBundledDefault {
                     source: error.to_string(),
@@ -153,7 +153,7 @@ fn ensure_split_documents(dir: &std::path::Path) -> Result<(), DesktopStoreStart
         }
         (system_exists, patch_exists) => Err(DesktopStoreStartupError::InvalidStore {
             detail: format!(
-                "the store is incomplete (system.json: {system_exists}, default.patch.json: {patch_exists}); move both files out of the store folder and start again for a fresh default"
+                "the store is incomplete (system.json: {system_exists}, default.patch.json: {patch_exists}); move the remaining file out of the store folder and start again for a fresh default"
             ),
         }),
     }
@@ -170,29 +170,6 @@ fn read_document(path: &std::path::Path) -> Result<serde_json::Value, DesktopSto
             path.display()
         ),
     })
-}
-
-fn fresh_store_root(dir: &std::path::Path) -> Result<bool, DesktopStoreStartupError> {
-    for entry in std::fs::read_dir(dir).map_err(|error| DesktopStoreStartupError::InvalidStore {
-        detail: format!("unable to inspect store root: {error}"),
-    })? {
-        let entry = entry.map_err(|error| DesktopStoreStartupError::InvalidStore {
-            detail: format!("unable to inspect store root: {error}"),
-        })?;
-        if entry.file_name() != "presets" || !entry.path().is_dir() {
-            return Ok(false);
-        }
-        if std::fs::read_dir(entry.path())
-            .map_err(|error| DesktopStoreStartupError::InvalidStore {
-                detail: format!("unable to inspect preset directory: {error}"),
-            })?
-            .next()
-            .is_some()
-        {
-            return Ok(false);
-        }
-    }
-    Ok(true)
 }
 
 #[cfg(test)]
