@@ -13,8 +13,8 @@ fn precomputed_render_matches_reference_for_sine_with_mods() {
     assert_precomputed_matches_reference(
         cfg,
         InstrumentMod {
-            cutoff_cc: 0.6,
-            resonance_cc: 0.3,
+            cutoff_cc: Some(0.6),
+            resonance_cc: Some(0.3),
         },
     );
 }
@@ -48,7 +48,7 @@ fn synth_and_fm_key_tracking_follow_note_octaves_without_changing_zero_tracking(
                 let mut voice = test_voice();
                 voice.midi_note = note;
                 refresh_synth_voice_render_cache(&mut voice, &cfg, 44_100, 1);
-                let cutoff = synth_voice_cutoff(&cfg, 0.0, 0.0, voice.filter_key_scale, 44_100);
+                let cutoff = synth_voice_cutoff(&cfg, None, 0.0, voice.filter_key_scale, 44_100);
                 assert!(
                     (cutoff - expected_cutoff).abs() < 0.001,
                     "{note} {tracking}"
@@ -69,17 +69,17 @@ fn key_tracking_multiplies_filter_envelope_but_cc_overrides_both() {
     voice.midi_note = 72;
     refresh_synth_voice_render_cache(&mut voice, &cfg, 44_100, 1);
     assert_eq!(
-        synth_voice_cutoff(&cfg, 0.0, 1.0, voice.filter_key_scale, 44_100),
+        synth_voice_cutoff(&cfg, None, 1.0, voice.filter_key_scale, 44_100),
         3_000.0
     );
     assert_eq!(
-        synth_voice_cutoff(&cfg, 0.5, 1.0, voice.filter_key_scale, 44_100),
-        synth_voice_cutoff(&cfg, 0.5, 0.0, 1.0, 44_100)
+        synth_voice_cutoff(&cfg, Some(0.5), 1.0, voice.filter_key_scale, 44_100),
+        synth_voice_cutoff(&cfg, Some(0.5), 0.0, 1.0, 44_100)
     );
     voice.midi_note = 127;
     refresh_synth_voice_render_cache(&mut voice, &cfg, 44_100, 2);
     assert_eq!(
-        synth_voice_cutoff(&cfg, 0.0, 1.0, voice.filter_key_scale, 44_100),
+        synth_voice_cutoff(&cfg, None, 1.0, voice.filter_key_scale, 44_100),
         20_000.0
     );
 }
@@ -272,23 +272,18 @@ fn reference_render_synth_voice_sample(
     filtered * amp_env * vel_gain * gain * 0.35
 }
 
-fn reference_synth_voice_cutoff(cfg: &SynthConfig, cutoff_cc: f32, filt_env: f32) -> f32 {
+fn reference_synth_voice_cutoff(cfg: &SynthConfig, cutoff_cc: Option<f32>, filt_env: f32) -> f32 {
     let cutoff_base = cfg.filter.cutoff_hz;
     let env_amt = (cfg.filter.env_amount_pct / 100.0).clamp(-1.0, 1.0);
     let cutoff_env = cutoff_base * (1.0 + env_amt * filt_env).max(0.0);
-    if cutoff_cc > 0.0 {
-        120.0 + cutoff_cc * 15_880.0
-    } else {
-        cutoff_env
+    match cutoff_cc {
+        Some(cutoff_cc) => 120.0 + cutoff_cc * 15_880.0,
+        None => cutoff_env,
     }
 }
 
-fn reference_synth_voice_q(cfg: &SynthConfig, resonance_cc: f32) -> f32 {
-    let resonance = if resonance_cc > 0.0 {
-        resonance_cc * 100.0
-    } else {
-        cfg.filter.resonance
-    };
+fn reference_synth_voice_q(cfg: &SynthConfig, resonance_cc: Option<f32>) -> f32 {
+    let resonance = resonance_cc.map_or(cfg.filter.resonance, |resonance_cc| resonance_cc * 100.0);
     0.5 + (resonance.clamp(0.0, 100.0) / 100.0) * 11.5
 }
 

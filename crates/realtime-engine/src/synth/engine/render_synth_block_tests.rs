@@ -225,6 +225,30 @@ fn synth_block_dynamic_filter_prepares_at_control_rate() {
     assert_eq!(prepare_count_for_test(), 256 / 16);
 }
 
+#[test]
+fn filter_ccs_at_zero_hold_the_bottom_of_their_range() {
+    let mut patch = default_synth_config();
+    patch.filter.env_amount_pct = 0.0;
+    patch.filter.cutoff_hz = 6_000.0;
+    patch.filter.resonance = 70.0;
+    let mut swept = synth_engine(patch);
+    swept.cc(0, 74, 0);
+    swept.cc(0, 71, 0);
+
+    let mut bottom = patch;
+    bottom.filter.cutoff_hz = 120.0;
+    bottom.filter.resonance = 0.0;
+    let mut expected = synth_engine(bottom);
+
+    swept.note_on(0, 60, 96, 10_000);
+    expected.note_on(0, 60, 96, 10_000);
+    for _ in 0..512 {
+        let (actual, wanted) = (swept.next_stereo_sample(), expected.next_stereo_sample());
+        assert_eq!(actual.0.to_bits(), wanted.0.to_bits());
+        assert_eq!(actual.1.to_bits(), wanted.1.to_bits());
+    }
+}
+
 fn synth_engine(cfg: SynthConfig) -> SynthEngine {
     let mut engine = SynthEngine::new(44_100);
     engine.set_instruments(InstrumentsConfig {

@@ -224,7 +224,7 @@ const FILTER_CONTROL_FRAMES: u8 = 16;
 
 fn control_rate_filter(
     cfg: &SynthVoiceRenderConfig,
-    cutoff_cc: f32,
+    cutoff_cc: Option<f32>,
     v: &mut Voice,
     filt_env: f32,
     q: f32,
@@ -251,7 +251,7 @@ pub(super) fn prepare_synth_voice_block(
     let vel_sens = cfg.amp_velocity_sensitivity;
     let velocity_gain = (1.0 - vel_sens) + vel_sens * velocity_norm;
     let q = synth_voice_q(cfg, mods.resonance_cc);
-    let static_cutoff = if mods.cutoff_cc > 0.0 || cfg.filter_env_amount == 0.0 {
+    let static_cutoff = if mods.cutoff_cc.is_some() || cfg.filter_env_amount == 0.0 {
         Some(synth_voice_cutoff(
             cfg,
             mods.cutoff_cc,
@@ -373,7 +373,7 @@ fn osc_sample_precomputed(cfg: OscRenderConfig, inc: f32, phase: &mut f32) -> f3
 
 fn synth_voice_cutoff(
     cfg: &SynthVoiceRenderConfig,
-    cutoff_cc: f32,
+    cutoff_cc: Option<f32>,
     filt_env: f32,
     key_scale: f32,
     sample_rate: u32,
@@ -381,20 +381,15 @@ fn synth_voice_cutoff(
     let cutoff_base = cfg.filter_cutoff_hz;
     let env_amt = cfg.filter_env_amount;
     let cutoff_env = cutoff_base * (1.0 + env_amt * filt_env).max(0.0);
-    let cutoff = if cutoff_cc > 0.0 {
-        120.0 + cutoff_cc * 15_880.0
-    } else {
-        cutoff_env * key_scale
+    let cutoff = match cutoff_cc {
+        Some(cutoff_cc) => 120.0 + cutoff_cc * 15_880.0,
+        None => cutoff_env * key_scale,
     };
     cutoff.clamp(20.0, (sample_rate as f32 * 0.49).clamp(20.0, 20_000.0))
 }
 
-fn synth_voice_q(cfg: &SynthVoiceRenderConfig, resonance_cc: f32) -> f32 {
-    let resonance = if resonance_cc > 0.0 {
-        resonance_cc * 100.0
-    } else {
-        cfg.filter_resonance
-    };
+fn synth_voice_q(cfg: &SynthVoiceRenderConfig, resonance_cc: Option<f32>) -> f32 {
+    let resonance = resonance_cc.map_or(cfg.filter_resonance, |resonance_cc| resonance_cc * 100.0);
     0.5 + (resonance.clamp(0.0, 100.0) / 100.0) * 11.5
 }
 

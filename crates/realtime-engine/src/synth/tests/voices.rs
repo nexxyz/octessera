@@ -137,8 +137,8 @@ fn cc_updates_mod_slots_without_all_notes_off_semantics() {
     engine.cc(0, 74, 127);
     engine.cc(0, 71, 64);
     let (cutoff, resonance) = engine.mod_values_for_slot(0);
-    assert!(cutoff > 0.99);
-    assert!(resonance > 0.49 && resonance < 0.51);
+    assert!(cutoff.is_some_and(|cutoff| cutoff > 0.99));
+    assert!(resonance.is_some_and(|resonance| resonance > 0.49 && resonance < 0.51));
 
     engine.note_on(0, 60, 100, 50_000);
     engine.cc(0, 74, 0);

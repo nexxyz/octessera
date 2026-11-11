@@ -99,15 +99,15 @@ impl Voice {
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct InstrumentMod {
-    pub(super) cutoff_cc: f32,
-    pub(super) resonance_cc: f32,
+    pub(super) cutoff_cc: Option<f32>,
+    pub(super) resonance_cc: Option<f32>,
 }
 
 impl InstrumentMod {
     pub(super) fn new() -> Self {
         Self {
-            cutoff_cc: 0.0,
-            resonance_cc: 0.0,
+            cutoff_cc: None,
+            resonance_cc: None,
         }
     }
 }

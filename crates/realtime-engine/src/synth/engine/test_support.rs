@@ -70,7 +70,7 @@ impl SynthEngine {
     }
 
     #[cfg(test)]
-    pub(in crate::synth) fn mod_values_for_slot(&self, slot: usize) -> (f32, f32) {
+    pub(in crate::synth) fn mod_values_for_slot(&self, slot: usize) -> (Option<f32>, Option<f32>) {
         let s = slot.min(INSTRUMENT_SLOT_COUNT - 1);
         (self.mods[s].cutoff_cc, self.mods[s].resonance_cc)
     }
