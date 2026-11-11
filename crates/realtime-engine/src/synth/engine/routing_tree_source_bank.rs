@@ -11,7 +11,8 @@ pub(super) struct RoutingTreeSourceBank {
 }
 
 impl RoutingTreeSourceBank {
-    /// Ends every voice whose output or filter history went non-finite.
+    /// Ends every synth voice whose output or filter history went non-finite and every sample
+    /// voice whose filter history did.
     pub(super) fn end_poisoned_voices(&mut self) {
         for voice in self.synth.iter_mut().filter(|voice| voice.is_poisoned()) {
             voice.active = false;

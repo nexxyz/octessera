@@ -24,7 +24,7 @@ pub(super) struct SampleVoicePartition {
 }
 
 impl SampleVoicePartition {
-    /// Ends every voice whose output or filter history went non-finite.
+    /// Ends every voice whose filter history went non-finite.
     pub(super) fn end_poisoned_voices(&mut self) {
         for voice in self.lanes.iter_mut().filter(|voice| voice.is_poisoned()) {
             voice.active = false;

@@ -21,7 +21,7 @@ pub(super) struct StealDeclick {
 impl StealDeclick {
     pub(super) fn from_output(output: f32) -> Self {
         Self {
-            residual: output,
+            residual: if output.is_finite() { output } else { 0.0 },
             fade_left: 0,
         }
     }
@@ -118,6 +118,18 @@ mod tests {
         assert!(samples[300..].iter().all(|sample| *sample == 0.0));
         assert_eq!(last, 0.0);
         assert_eq!(declick.residual, 0.0);
+    }
+
+    #[test]
+    fn a_non_finite_old_output_adds_no_offset() {
+        for output in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let mut declick = StealDeclick::from_output(output);
+            let mut last = 0.0;
+            let mut samples = [0.25; 64];
+            assert_eq!(declick.finish_block(&mut last, &mut samples, 48_000), None);
+            assert!(samples.iter().all(|sample| *sample == 0.25));
+            assert_eq!(declick.residual, 0.0);
+        }
     }
 
     #[test]
