@@ -373,3 +373,18 @@ fn a_consumer_created_while_the_producer_runs_primes_at_the_target() {
     assert!(consumer.begin_callback(callback));
     assert!(!consumer.priming);
 }
+
+#[test]
+fn a_callback_larger_than_the_ring_still_primes_below_capacity() {
+    let PcmMirrorPair {
+        producer,
+        mut consumer,
+    } = new_pcm_mirror();
+    let callback = PCM_MIRROR_CAPACITY_FRAMES;
+    let target = PCM_MIRROR_CAPACITY_FRAMES - usize::from(PCM_MIRROR_STEER_CROSSFADE_FRAMES);
+    producer.publish(&frames(0, target - 1), target - 1);
+    assert!(!consumer.begin_callback(callback));
+    producer.publish(&frames(target - 1, 1), 1);
+    assert!(consumer.begin_callback(callback));
+    assert_eq!(consumer.next_sample(), Some(0.0));
+}
