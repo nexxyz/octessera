@@ -178,21 +178,16 @@ pub(super) fn sanitize_play_fx_config(config: &Value) -> Value {
     json!({ "fxType": fx_type, "targetKey": target_key, "params": params })
 }
 
+pub(crate) fn play_fx_targets() -> Vec<String> {
+    let mut targets = vec!["master".to_string()];
+    targets.extend((1..=platform_core::BUS_COUNT).map(|index| format!("fx_bus_{index}")));
+    targets
+        .extend((1..=platform_core::INSTRUMENT_COUNT).map(|index| format!("instrument_{index}")));
+    targets
+}
+
 pub(super) fn is_play_fx_target(key: &str) -> bool {
-    matches!(
-        key,
-        "master"
-            | "fx_bus_1"
-            | "fx_bus_2"
-            | "instrument_1"
-            | "instrument_2"
-            | "instrument_3"
-            | "instrument_4"
-            | "instrument_5"
-            | "instrument_6"
-            | "instrument_7"
-            | "instrument_8"
-    )
+    play_fx_targets().iter().any(|target| target == key)
 }
 
 pub(super) fn play_fx_type(config: &Value) -> &str {

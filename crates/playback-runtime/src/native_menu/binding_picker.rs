@@ -1,5 +1,3 @@
-use platform_core::BUS_COUNT as FX_BUS_COUNT;
-
 use super::binding_behavior::behavior_binding_groups;
 use super::binding_link::link_binding_group;
 use super::binding_picker_rows::show_picker_binding;
@@ -17,13 +15,6 @@ use super::{NativeMenuPick, NativeMenuValue, NativeParamBindingSpec};
 pub(super) const PLAY_FX_BINDING_GROUP: &str = "binding.group.play_fx";
 pub(super) const SYSTEM_BINDING_GROUP: &str = "binding.group.system";
 pub(super) const INSTRUMENTS_BINDING_GROUP: &str = "binding.group.instruments";
-
-pub(super) fn play_fx_targets() -> Vec<String> {
-    let mut targets = vec!["master".to_string()];
-    targets.extend((1..=FX_BUS_COUNT).map(|index| format!("fx_bus_{index}")));
-    targets.extend((1..=8).map(|index| format!("instrument_{index}")));
-    targets
-}
 
 pub(super) fn axis_binding_label(label: &str, binding: Option<&NativeParamBindingSpec>) -> String {
     binding

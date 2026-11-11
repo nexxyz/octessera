@@ -10,7 +10,7 @@ use super::mixer_fx;
 use super::modulation;
 use super::Value;
 use crate::native_menu::HOME_VISUALS;
-use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_types};
+use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_targets, play_fx_types};
 use crate::native_runner::play_pages::PlayMode;
 use crate::native_runner::AuxPriority;
 use realtime_engine::synth::DspRuntimeConfig;
@@ -122,7 +122,13 @@ fn validate_play(runtime: &Map<String, Value>) -> Result<(), String> {
 fn validate_play_config(value: &Value, path: &str) -> Result<(), String> {
     let object = object_value(value, path)?;
     enum_field(object, "fxType", path, &play_fx_types().collect::<Vec<_>>())?;
-    enum_field(object, "targetKey", path, PLAY_TARGETS)?;
+    let targets = play_fx_targets();
+    enum_field(
+        object,
+        "targetKey",
+        path,
+        &targets.iter().map(String::as_str).collect::<Vec<_>>(),
+    )?;
     if let Some(params) = object_field(object, "params", path)? {
         let fx_type = object
             .get("fxType")
@@ -148,16 +154,3 @@ fn play_param_range(fx_type: &str, key: &str) -> Option<(i64, i64)> {
 const DISPLAY_MODES: &[&str] = &["bar", "numbers"];
 const FONT_SETS: &[&str] = &["octessera", "original"];
 const XY_RELEASES: &[&str] = &["sample-hold", "reset-center"];
-const PLAY_TARGETS: &[&str] = &[
-    "master",
-    "fx_bus_1",
-    "fx_bus_2",
-    "instrument_1",
-    "instrument_2",
-    "instrument_3",
-    "instrument_4",
-    "instrument_5",
-    "instrument_6",
-    "instrument_7",
-    "instrument_8",
-];

@@ -265,3 +265,22 @@ pub(crate) fn a_slow_clock_drift_retimes_a_held_dub_throw_once_it_adds_up() {
     assert_eq!(bar(&mut runner, 121.4), 1, "1.2 % off the timed tempo");
     assert_eq!(bar(&mut runner, 122.1), 0, "0.6 % off the retimed tempo");
 }
+
+#[test]
+pub(crate) fn play_fx_targets_on_fx_bus_3_and_4_round_trip() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["playFx"] = json!({
+        "selected": { "fxType": "stutter", "targetKey": "fx_bus_4", "params": {} },
+        "assignments": [
+            { "x": 1, "y": 2, "config": { "fxType": "crush", "targetKey": "fx_bus_3", "params": {} } }
+        ]
+    });
+    runner.apply_config_payload(payload).unwrap();
+
+    let saved = runner.config_payload();
+    let mut fresh = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    fresh.apply_config_payload(saved).unwrap();
+    assert_eq!(fresh.play_fx_selected["targetKey"], "fx_bus_4");
+    assert_eq!(fresh.play_fx_assignments[0].config["targetKey"], "fx_bus_3");
+}

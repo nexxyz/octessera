@@ -52,6 +52,16 @@ fn play_fx_enum_bindings_reject_values_outside_their_sets() {
 }
 
 #[test]
+fn play_fx_target_bindings_take_every_fx_bus() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    for target in ["fx_bus_3", "fx_bus_4"] {
+        assert!(write(&mut runner, "play.fx.target", target), "{target}");
+        assert_eq!(runner.play_fx_selected["targetKey"], target);
+    }
+    assert!(!write(&mut runner, "play.fx.target", "fx_bus_5"));
+}
+
+#[test]
 fn fx_slot_type_bindings_take_only_their_slot_type_lists() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let bus_before = runner.fx_buses[0].clone();
