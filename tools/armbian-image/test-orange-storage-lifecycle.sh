@@ -45,6 +45,9 @@ cat > "$bin/rmdir" <<'EOF'
 target=$1
 [ "$target" = -- ] && target=$2
 case "$target" in
+  */octessera-orange-pi) [ "${RMDIR_FAIL:-0}" = 1 ] && exit 1 ;;
+esac
+case "$target" in
   */mass_storage.usb0)
     "$REAL_RM" -rf "$target/lun.0"
     "$REAL_RM" -f "$target/stall"
@@ -177,7 +180,8 @@ reset_fixture() {
   FAIL_SETUP=0
   FAIL_TEARDOWN=0
   MOUNT_ELSEWHERE=0
-  export BLKID_MODE BIND_FAIL FAIL_SETUP FAIL_TEARDOWN MOUNT_ELSEWHERE
+  RMDIR_FAIL=0
+  export BLKID_MODE BIND_FAIL FAIL_SETUP FAIL_TEARDOWN MOUNT_ELSEWHERE RMDIR_FAIL
 }
 
 expect_failure() {
@@ -227,5 +231,28 @@ BIND_FAIL=1
 export BIND_FAIL
 expect_failure storage-start
 assert_restored
+
+assert_held_after_failed_cleanup() {
+  grep -qF 'storage gadget cleanup was incomplete' "$work/stderr"
+  test ! -e "$fixture/mounted"
+  test ! -e "$fixture/normal-active"
+  test -e "$fixture/storage.state"
+}
+
+reset_fixture
+touch "$fixture/mounted"
+"$fixture/storage" storage-start > "$work/stdout"
+RMDIR_FAIL=1
+export RMDIR_FAIL
+expect_failure storage-stop
+assert_held_after_failed_cleanup
+
+reset_fixture
+touch "$fixture/mounted"
+BIND_FAIL=1
+RMDIR_FAIL=1
+export BIND_FAIL RMDIR_FAIL
+expect_failure storage-start
+assert_held_after_failed_cleanup
 
 printf '%s\n' 'Orange storage lifecycle fixtures passed'

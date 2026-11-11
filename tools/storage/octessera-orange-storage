@@ -92,25 +92,25 @@ remove_directory() {
 }
 
 clear_storage_function() {
-  status=0
+  clear_status=0
   if [ -e "$STORAGE_LUN/forced_eject" ]; then
-    printf '1\n' > "$STORAGE_LUN/forced_eject" || status=1
+    printf '1\n' > "$STORAGE_LUN/forced_eject" || clear_status=1
   fi
   if [ -e "$STORAGE_LUN/file" ]; then
-    printf '\n' > "$STORAGE_LUN/file" || status=1
+    printf '\n' > "$STORAGE_LUN/file" || clear_status=1
   fi
-  remove_link "$GADGET/configs/c.1/mass_storage.usb0" || status=1
-  remove_directory "$STORAGE_FUNCTION" || status=1
-  return "$status"
+  remove_link "$GADGET/configs/c.1/mass_storage.usb0" || clear_status=1
+  remove_directory "$STORAGE_FUNCTION" || clear_status=1
+  return "$clear_status"
 }
 
 remove_storage_gadget() {
-  status=0
-  remove_directory "$GADGET/configs/c.1/strings/0x409" || status=1
-  remove_directory "$GADGET/configs/c.1" || status=1
-  remove_directory "$GADGET/strings/0x409" || status=1
-  remove_directory "$GADGET" || status=1
-  return "$status"
+  remove_status=0
+  remove_directory "$GADGET/configs/c.1/strings/0x409" || remove_status=1
+  remove_directory "$GADGET/configs/c.1" || remove_status=1
+  remove_directory "$GADGET/strings/0x409" || remove_status=1
+  remove_directory "$GADGET" || remove_status=1
+  return "$remove_status"
 }
 
 storage_present() { [ -d "$STORAGE_FUNCTION" ] || [ -e "$STORAGE_FUNCTION" ]; }
@@ -209,20 +209,20 @@ create_storage_gadget() {
 }
 
 cleanup_storage() {
-  status=0
-  unbind_storage_gadget || status=1
-  clear_storage_function || status=1
-  remove_storage_gadget || status=1
-  if [ "$status" != 0 ]; then
+  cleanup_status=0
+  unbind_storage_gadget || cleanup_status=1
+  clear_storage_function || cleanup_status=1
+  remove_storage_gadget || cleanup_status=1
+  if [ "$cleanup_status" != 0 ]; then
     storage_log "storage gadget cleanup was incomplete"
   fi
-  return "$status"
+  return "$cleanup_status"
 }
 
 restore_after_start_failure() {
   status=0
   cleanup_storage || status=1
-  if [ "${WAS_MOUNTED:-0}" = 1 ]; then
+  if [ "$status" = 0 ] && [ "${WAS_MOUNTED:-0}" = 1 ]; then
     remount_card "$DEV" || status=1
   fi
   if [ "$status" = 0 ]; then
@@ -288,7 +288,7 @@ storage_stop_unlocked() {
   if [ "$storage_available" = 1 ]; then
     normal_teardown || status=1
   fi
-  if [ "$state_available" = 1 ] && [ "$WAS_MOUNTED" = 1 ]; then
+  if [ "$status" = 0 ] && [ "$state_available" = 1 ] && [ "$WAS_MOUNTED" = 1 ]; then
     remount_card "$DEV" || status=1
   fi
   if [ "$status" = 0 ]; then
