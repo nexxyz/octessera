@@ -50,7 +50,7 @@ Data sources the spec relies on:
     high tom High), so only landing drops play; L6 Link `X Axis > Velocity` 112..127 and Trigger
     Prob. `custom` (x0/2/5/6 High, x1/3/4/7 Low) keep them sparse. L7-L8 and I7-I8 are empty. I3 to
     I6 are their named factory presets.
-  - 120 BPM, swing 5:4. B1 `Delay+Reverb+Duck` (delay 1/8 note mode, reverb Mix 20 %, duck from
+  - 120 BPM, straight (swing 4:4). B1 `Delay+Reverb+Duck` (delay 1/8 note mode, reverb Mix 20 %, duck from
     I2) for I3 and I5; B2 bitcrusher and saturator; B3 `Delay+Duck` for I1 alone (delay 250 ms,
     Mix 35 %, Feedback 35, duck from I2, no reverb); global compressor.
   - LFO1 on, I1 Osc 2 Pulse Width, `2/1`, 29 % (duty about 37..63 %); LFO2 off, I3 Plucked

@@ -106,7 +106,7 @@ pub(crate) fn checked_in_default_emits_life_and_scanned_drum_over_initial_steps(
     hits.extend(tile_hit_ons(&third));
     assert!(
         hits.iter().any(|(slot, _)| *slot == 1),
-        "the 5:4 swing lands the first scanned offbeat in the third step"
+        "the straight first scanned offbeat lands in the third step"
     );
 }
 

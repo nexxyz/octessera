@@ -45,7 +45,7 @@ I'd go for the Orange.
 The shipped patch is wired up and ready. Layer 1 runs a `life` colony into a
 dark little synth with its own echo, Layer 2 a `sequencer` beat on sampled
 kick, clap and open hat, Layer 3 a `looper` into a kalimba and Layer 4 a bass
-line, at 120 BPM with a little swing. Layer 5 is a `twinkle` sky that sleeps until you wake it, and
+line, at a straight 120 BPM. Layer 5 is a `twinkle` sky that sleeps until you wake it, and
 Layer 6 lets `raindrops` fall onto the synth drum kit, so a stray tom or rim
 shot lands wherever a drop hits the bottom row. Layers 3 to 6 play factory
 presets, so `Preset > Load` on any of those slots is a quick "what else could
