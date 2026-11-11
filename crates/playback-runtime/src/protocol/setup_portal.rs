@@ -1,11 +1,11 @@
-use super::RuntimeErrorCode;
+use super::{RuntimeErrorCode, USER_DATA_TRANSFER_CODE_ALPHABET};
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 
 pub const SETUP_PORTAL_SUFFIX_MAX_CHARS: usize = 4;
-const SETUP_PORTAL_PASSPHRASE_DIGITS: usize = 8;
+const SETUP_PORTAL_PASSPHRASE_GROUP_CHARS: usize = 4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -177,12 +177,23 @@ impl RuntimeSetupPortalStatus {
 }
 
 fn validate_portal_passphrase(value: &str) -> Result<(), String> {
-    if value.len() != SETUP_PORTAL_PASSPHRASE_DIGITS
-        || !value.bytes().all(|byte| byte.is_ascii_digit())
-    {
-        return Err("setup portal portalPassphrase must be eight digits".into());
+    let grouped = value.split_once('-').is_some_and(|(first, second)| {
+        is_portal_passphrase_group(first) && is_portal_passphrase_group(second)
+    });
+    if !grouped {
+        return Err(
+            "setup portal portalPassphrase must be two dash-joined groups of four transfer-code characters"
+                .into(),
+        );
     }
     Ok(())
+}
+
+fn is_portal_passphrase_group(group: &str) -> bool {
+    group.len() == SETUP_PORTAL_PASSPHRASE_GROUP_CHARS
+        && group
+            .bytes()
+            .all(|character| USER_DATA_TRANSFER_CODE_ALPHABET.contains(&character))
 }
 
 fn validate_portal_suffix(value: &str) -> Result<(), String> {

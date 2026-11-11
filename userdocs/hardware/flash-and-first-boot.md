@@ -94,8 +94,9 @@ On a phone or computer:
 
 1. Join the Wi-Fi network `Octessera Setup <suffix>` shown on the OLED, using
    the password on the line below it. Every portal gets a fresh one, so last
-   time's password won't work. It is eight digits, so there are no look-alike
-   letters to squint at.
+   time's password won't work. Type it exactly as shown, capitals and dash
+   included. The tiny screen font has a few look-alikes, so the password
+   simply never uses them; no squinting at 0 versus O.
 2. Browse to `http://192.168.42.1`.
 3. Enter your two-letter country code, then type the network name under
    **Manual SSID** or pick it from the scanned list below, and enter its

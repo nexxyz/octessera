@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import os
+import re
 import stat
 import tempfile
 from importlib.machinery import SourceFileLoader
@@ -40,8 +41,15 @@ def load(path, name):
     return module, http_module
 
 
+TRANSFER_CODE_ALPHABET = re.search(
+    r'USER_DATA_TRANSFER_CODE_ALPHABET: &\[u8\] =\s*b"([^"]+)";',
+    (ROOT / "crates/playback-runtime/src/protocol/user_data_transfer.rs").read_text(encoding="utf-8"),
+).group(1)
+
+
 for index, path in enumerate(COORDINATORS):
     coordinator, _http_module = load(path, f"status_coordinator_{index}")
+    assert coordinator.PASSPHRASE_ALPHABET == TRANSFER_CODE_ALPHABET
     expected_status = (
         "d /run/octessera-setup-status 0750 root octessera-runtime -"
         if index == 0
@@ -50,7 +58,7 @@ for index, path in enumerate(COORDINATORS):
     assert expected_status in TMPFILES[index].read_text(encoding="utf-8").splitlines()
     valid = (
         coordinator._status("starting", disposition="accepted"),
-        coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase="48213957"),
+        coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase="k7Mx-9pQa"),
         coordinator._status("finalizing"),
         coordinator._status("succeeded"),
         coordinator._status("failed", error_code="operation_failed"),
@@ -58,7 +66,7 @@ for index, path in enumerate(COORDINATORS):
     )
     expected = (
         {"type": "setup_portal_status", "phase": "starting", "disposition": "accepted", "rebootRequired": False},
-        {"type": "setup_portal_status", "phase": "portal_ready", "portalSuffix": "abcd", "portalPassphrase": "48213957", "rebootRequired": False},
+        {"type": "setup_portal_status", "phase": "portal_ready", "portalSuffix": "abcd", "portalPassphrase": "k7Mx-9pQa", "rebootRequired": False},
         {"type": "setup_portal_status", "phase": "finalizing", "rebootRequired": False},
         {"type": "setup_portal_status", "phase": "succeeded", "rebootRequired": False},
         {"type": "setup_portal_status", "phase": "failed", "rebootRequired": False, "errorCode": "operation_failed"},
@@ -69,12 +77,20 @@ for index, path in enumerate(COORDINATORS):
         assert "transfer" not in status
     for args in (
         ("starting", None, None, None),
-        ("portal_ready", None, "ABCD", None, "48213957"),
+        ("portal_ready", None, "ABCD", None, "k7Mx-9pQa"),
         ("portal_ready", None, "abcd", None),
-        ("portal_ready", None, "abcd", None, "k7Mx9pQ"),
-        ("portal_ready", None, "abcd", None, "k7Mx9pQ0"),
-        ("portal_ready", None, "abcd", None, "k7Mx9pQl"),
-        ("finalizing", None, None, None, "48213957"),
+        ("portal_ready", None, "abcd", None, "k7Mx9pQa"),
+        ("portal_ready", None, "abcd", None, "k7Mx9-pQa"),
+        ("portal_ready", None, "abcd", None, "k7M-x9pQa"),
+        ("portal_ready", None, "abcd", None, "k7Mx-9pQ"),
+        ("portal_ready", None, "abcd", None, "k7Mx-9pQa7"),
+        ("portal_ready", None, "abcd", None, "k7Mx-9pQO"),
+        ("portal_ready", None, "abcd", None, "k7Mx-9pQ0"),
+        ("portal_ready", None, "abcd", None, "k7Mx-9pQl"),
+        ("portal_ready", None, "abcd", None, "k7Mx 9pQa"),
+        ("portal_ready", None, "abcd", None, "k7Mx-9pQ "),
+        ("portal_ready", None, "abcd", None, "k7Mx-9pQ٥"),
+        ("finalizing", None, None, None, "k7Mx-9pQa"),
         ("failed", None, None, "unavailable"),
         ("timed_out", None, None, "operation_failed"),
         ("unsupported", None, None, "unsupported"),

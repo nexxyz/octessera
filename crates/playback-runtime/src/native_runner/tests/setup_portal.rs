@@ -26,7 +26,7 @@ fn portal_status(phase: RuntimeSetupPortalPhase) -> RuntimeStoreResult {
         status: RuntimeSetupPortalStatus {
             phase,
             disposition,
-            portal_passphrase: suffix.as_ref().map(|_| "48213957".into()),
+            portal_passphrase: suffix.as_ref().map(|_| "MWmw-MWmw".into()),
             portal_suffix: suffix,
             reboot_required: false,
             error_code,
@@ -132,7 +132,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             vec![
                 "Hotspot:",
                 "Octessera Setup 1a2f",
-                "Password: 48213957",
+                "Pass: MWmw-MWmw",
                 "Open 192.168.42.1",
                 "Portal: 10 minutes",
                 "Hide",
@@ -191,6 +191,9 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
         assert!(lines.len() <= 7);
         assert!(lines.iter().all(|line| line.chars().count() <= 28));
         if phase == RuntimeSetupPortalPhase::PortalReady {
+            assert!(lines
+                .iter()
+                .all(|line| crate::oled_frame::body_text_fits(line)));
             let laid_out = crate::oled_frame::layout_card_body(
                 &lines,
                 Some(lines.len() - 1),

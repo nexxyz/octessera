@@ -95,7 +95,7 @@ fn setup_status(phase: RuntimeSetupPortalPhase) -> Value {
         }
         RuntimeSetupPortalPhase::PortalReady => {
             status["portalSuffix"] = json!("abcd");
-            status["portalPassphrase"] = json!("48213957");
+            status["portalPassphrase"] = json!("k7Mx-9pQa");
         }
         RuntimeSetupPortalPhase::Failed => {
             status["errorCode"] = json!("operation_failed");
@@ -243,7 +243,7 @@ fn setup_service_publishes_fixed_marker_and_already_running_disposition() {
     assert!(matches!(
         result(second.poll_one().unwrap()),
         RuntimeStoreResult::Identified { result, .. }
-            if matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::PortalReady && status.portal_passphrase.as_deref() == Some("48213957"))
+            if matches!(result.as_ref(), RuntimeStoreResult::SetupPortalStatus { status } if status.phase == RuntimeSetupPortalPhase::PortalReady && status.portal_passphrase.as_deref() == Some("k7Mx-9pQa"))
     ));
 }
 
@@ -286,19 +286,31 @@ fn portal_passphrase_is_optional_clear_and_only_in_portal_ready() {
     };
     let ready = setup_status(RuntimeSetupPortalPhase::PortalReady);
     let parsed = parse(ready.clone()).unwrap().status;
-    assert_eq!(parsed.portal_passphrase.as_deref(), Some("48213957"));
+    assert_eq!(parsed.portal_passphrase.as_deref(), Some("k7Mx-9pQa"));
 
     let mut without = ready.clone();
     without.as_object_mut().unwrap().remove("portalPassphrase");
     assert_eq!(parse(without).unwrap().status.portal_passphrase, None);
 
-    for passphrase in ["4821395", "482139570", "4821395a", "4821395 ", "482139٥7"] {
+    for passphrase in [
+        "k7Mx9pQa",
+        "k7Mx9-pQa",
+        "k7M-x9pQa",
+        "k7Mx-9pQ",
+        "k7Mx-9pQa7",
+        "k7Mx-9pQO",
+        "k7Mx-9pQ0",
+        "k7Mx-9pQl",
+        "k7Mx 9pQa",
+        "k7Mx-9pQ ",
+        "k7Mx-9pÄ",
+    ] {
         let mut status = ready.clone();
         status["portalPassphrase"] = json!(passphrase);
         assert!(parse(status).is_err(), "{passphrase}");
     }
     let mut finalizing = setup_status(RuntimeSetupPortalPhase::Finalizing);
-    finalizing["portalPassphrase"] = json!("48213957");
+    finalizing["portalPassphrase"] = json!("k7Mx-9pQa");
     assert!(parse(finalizing).is_err());
 }
 
