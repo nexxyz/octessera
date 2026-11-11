@@ -247,31 +247,29 @@ fn input_event_check(
             println!("STEP input event logging skipped by operator");
             break;
         }
-        match trellis.scan_keys() {
-            Ok(events) => {
-                for (x, y, pressed) in events {
-                    println!(
-                        "GRID {} x={x} y={y}",
-                        if pressed { "press" } else { "release" }
-                    );
-                    if x < 8 && y < 8 {
-                        grid_seen[y][x] = true;
-                        frame[y * 8 + x] = if pressed {
-                            dim(palette::YELLOW, 2)
-                        } else {
-                            dim(palette::BLUE, 6)
-                        };
-                        if let Err(error) = trellis.write_led_frame(&frame) {
-                            println!("FAIL NeoTrellis input feedback write: {error}");
-                            passed = false;
-                        }
-                    }
+        let mut events = Vec::new();
+        let scan = trellis.scan_keys(&mut events);
+        for (x, y, pressed) in events {
+            println!(
+                "GRID {} x={x} y={y}",
+                if pressed { "press" } else { "release" }
+            );
+            if x < 8 && y < 8 {
+                grid_seen[y][x] = true;
+                frame[y * 8 + x] = if pressed {
+                    dim(palette::YELLOW, 2)
+                } else {
+                    dim(palette::BLUE, 6)
+                };
+                if let Err(error) = trellis.write_led_frame(&frame) {
+                    println!("FAIL NeoTrellis input feedback write: {error}");
+                    passed = false;
                 }
             }
-            Err(error) => {
-                println!("FAIL NeoTrellis scan: {error}");
-                passed = false;
-            }
+        }
+        if let Err(error) = scan {
+            println!("FAIL NeoTrellis scan: {error}");
+            passed = false;
         }
         match neokey.scan() {
             Ok(keys) => {

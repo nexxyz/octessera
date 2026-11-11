@@ -255,10 +255,9 @@ fn reads_fifo_edges_and_maps_coordinates() {
         lock_state(state).transactions.clear();
     }
 
-    assert_eq!(
-        trellis.scan_keys().unwrap(),
-        vec![(0, 7, true), (2, 6, false)]
-    );
+    let mut events = Vec::new();
+    trellis.scan_keys(&mut events).unwrap();
+    assert_eq!(events, vec![(0, 7, true), (2, 6, false)]);
     assert_eq!(
         lock_state(&states[0]).transactions,
         vec![
@@ -455,4 +454,23 @@ fn every_quadrant_buffer_is_written_before_any_board_latches() {
             .map(|device| (device, SEESAW_NEOPIXEL_SHOW))
             .collect::<Vec<_>>()
     );
+}
+
+#[test]
+fn a_failed_board_keeps_the_events_already_read_from_earlier_boards() {
+    let (transports, states) = fake_transports();
+    {
+        let mut state = lock_state(&states[0]);
+        state.scan_count = 2;
+        state.fifo = vec![KEYPAD_EDGE_RISING, (1 << 2) | KEYPAD_EDGE_FALLING];
+    }
+    let mut trellis = NeoTrellis::from_transport([0x2E, 0x2F, 0x30, 0x31], transports).unwrap();
+    lock_state(&states[2]).fail_reads = true;
+
+    let mut events = Vec::new();
+    let error = trellis.scan_keys(&mut events).unwrap_err();
+
+    assert!(error.contains("Trellis scan count failed: fake read failure"));
+    assert_eq!(events, vec![(0, 7, true), (1, 7, false)]);
+    assert_eq!(lock_state(&states[3]).read_calls, 1);
 }

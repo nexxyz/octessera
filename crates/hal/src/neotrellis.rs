@@ -138,9 +138,9 @@ impl NeoTrellis {
         Err(last_error.unwrap_or_else(|| "Trellis init failed".to_string()))
     }
 
-    /// Scan all keys, returning `(x, y, pressed)` in the existing lower-left coordinate space.
-    pub fn scan_keys(&mut self) -> Result<Vec<(usize, usize, bool)>, String> {
-        let mut result = Vec::new();
+    /// Append `(x, y, pressed)` in the lower-left coordinate space; on error, events already read
+    /// from earlier boards stay in `events` because the Trellis reports each edge only once.
+    pub fn scan_keys(&mut self, events: &mut Vec<(usize, usize, bool)>) -> Result<(), String> {
         for (dev_idx, (_, _)) in self.devices.iter().enumerate() {
             let mut count = [0_u8; 1];
             read_register(
@@ -167,11 +167,11 @@ impl NeoTrellis {
                     continue;
                 };
                 if let Some((x, y)) = trellis_coordinate(dev_idx, key) {
-                    result.push((x, y, pressed));
+                    events.push((x, y, pressed));
                 }
             }
         }
-        Ok(result)
+        Ok(())
     }
 
     /// Write an 8x8 RGB frame to the four NeoPixel buffers, then latch all four.
@@ -401,8 +401,8 @@ impl NeoTrellis {
         Ok(Self { _private: () })
     }
 
-    pub fn scan_keys(&mut self) -> Result<Vec<(usize, usize, bool)>, String> {
-        Ok(Vec::new())
+    pub fn scan_keys(&mut self, _events: &mut Vec<(usize, usize, bool)>) -> Result<(), String> {
+        Ok(())
     }
 
     pub fn write_led_frame(&mut self, _frame: &[[u8; 3]; 64]) -> Result<(), String> {

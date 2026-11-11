@@ -452,14 +452,12 @@ fn scan_inputs(
     previous_neokey: &mut [bool; 4],
     input_tx: &Sender<HostMessage>,
 ) -> Result<(), String> {
-    let presses = trellis
-        .scan_keys()
-        .map_err(|error| format!("NeoTrellis input scan failed: {error}"))?;
-    {
-        for (x, y, pressed) in presses {
-            let _ = input_tx.send(grid_message(x, y, pressed));
-        }
+    let mut presses = Vec::new();
+    let trellis_result = trellis.scan_keys(&mut presses);
+    for (x, y, pressed) in presses {
+        let _ = input_tx.send(grid_message(x, y, pressed));
     }
+    trellis_result.map_err(|error| format!("NeoTrellis input scan failed: {error}"))?;
 
     let keys = neokey
         .scan_interrupts()

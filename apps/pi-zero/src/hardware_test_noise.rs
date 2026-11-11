@@ -63,18 +63,16 @@ pub(crate) fn input_idle_noise_check(
 
 fn poll_trellis_noise(trellis: &mut Option<&mut NeoTrellis>, noise: &mut IdleNoise) {
     if let Some(trellis) = trellis.as_deref_mut() {
-        match trellis.scan_keys() {
-            Ok(events) => {
-                noise
-                    .grid_events
-                    .extend(events.into_iter().map(|(x, y, pressed)| {
-                        format!("x={x} y={y} {}", if pressed { "press" } else { "release" })
-                    }));
-            }
-            Err(error) => {
-                println!("FAIL NeoTrellis idle scan: {error}");
-                noise.trellis_read_failures += 1;
-            }
+        let mut events = Vec::new();
+        let scan = trellis.scan_keys(&mut events);
+        noise
+            .grid_events
+            .extend(events.into_iter().map(|(x, y, pressed)| {
+                format!("x={x} y={y} {}", if pressed { "press" } else { "release" })
+            }));
+        if let Err(error) = scan {
+            println!("FAIL NeoTrellis idle scan: {error}");
+            noise.trellis_read_failures += 1;
         }
     }
 }
