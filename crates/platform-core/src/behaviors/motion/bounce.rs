@@ -126,7 +126,7 @@ pub fn bounce_on_tick(state: BounceState, _context: &mut BehaviorContext) -> Bou
             ball.x = -ball.x;
             ball.vx = -ball.vx;
         }
-        if ball.x >= GRID_WIDTH as f32 {
+        if ball.x > (GRID_WIDTH - 1) as f32 {
             ball.x = 2.0 * (GRID_WIDTH - 1) as f32 - ball.x;
             ball.vx = -ball.vx;
         }
@@ -134,7 +134,7 @@ pub fn bounce_on_tick(state: BounceState, _context: &mut BehaviorContext) -> Bou
             ball.y = -ball.y;
             ball.vy = -ball.vy;
         }
-        if ball.y >= GRID_HEIGHT as f32 {
+        if ball.y > (GRID_HEIGHT - 1) as f32 {
             ball.y = 2.0 * (GRID_HEIGHT - 1) as f32 - ball.y;
             ball.vy = -ball.vy;
         }
