@@ -61,6 +61,7 @@ Link
 │   │   ├── Mode: [0% | custom | 100%]           default 100%; stored as zero, custom, full
 │   │   ├── Prob Low: [0..100] step 1             default 0
 │   │   ├── Prob High: [0..100] step 1            default 100
+│   │   ├── Prob Note Off: [on | off]             default off; off lets note-offs past probability and the Trigger Gate
 │   │   └── Map Prob Grid (action)
 │   ├── Note Mapping (group)
 │   │   ├── Low Note: [0..127] step 1             default 24; shown as note name + MIDI number, e.g. C1 (24)

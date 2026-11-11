@@ -304,7 +304,9 @@ The `ms` rows use the curved time steps from
 - Columns `3..4` are an unassigned gap. Bottom-row columns `5..7` are always-bright all-layer
   actions: every layer to `0%`, `custom`, or `100%`.
 - Filtering per layer: `zero` blocks all triggers, `full` passes all, `custom` uses the stored
-  per-tile probability map with that layer's `Prob Low` and `Prob High`.
+  per-tile probability map with that layer's `Prob Low` and `Prob High`. Triggers mapped to
+  `note off` always pass unless that layer's `Prob Note Off` is on, so a gated layer still releases
+  its held notes.
 - `Shift+Fn` + left-column layer toggles that layer between `0%` and its previous mode without
   rewriting the map or changing the active layer. Note release on disable is described in the
   [Cheat Sheet](../menu-and-controls-spec.md#cheat-sheet).

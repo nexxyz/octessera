@@ -38,6 +38,7 @@ pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
         trigger_probability_mode: TriggerProbabilityMode::Full,
         trigger_probability_low_pct: 0,
         trigger_probability_high_pct: 100,
+        trigger_probability_note_offs: false,
         state_notes_enabled: true,
         seeded: false,
         lowest_note: 24,

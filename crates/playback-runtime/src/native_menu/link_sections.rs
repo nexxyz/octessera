@@ -289,6 +289,11 @@ pub(super) fn trigger_probability_group(
                 100,
                 1,
             ),
+            bool_item(
+                "Prob Note Off",
+                format!("{prefix}.triggerProbabilityNoteOffs"),
+                sense.trigger_probability_note_offs,
+            ),
             action_item(
                 "Map Prob Grid",
                 format!("{prefix}.triggerProbability.map"),

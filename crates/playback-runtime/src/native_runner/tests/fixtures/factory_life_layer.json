@@ -136,6 +136,7 @@
       "full"
     ],
     "triggerProbabilityMode": "full",
+    "triggerProbabilityNoteOffs": false,
     "x": {
       "filterCutoff": {
         "curve": "linear",

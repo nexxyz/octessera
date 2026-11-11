@@ -96,6 +96,9 @@ layer makes the delay bloom.
   cycles a tile through zero (dark), low (magenta), high (yellow) and full
   (green); *Shift* paints a row and *Shift* + *Fn* a column.
 - **Prob Low** and **Prob High** set what "low" and "high" mean, in percent.
+- **Prob Note Off** decides whether note-offs roll the dice too. It starts
+  off, so a held note always gets its release, even at `zero`. Turn it on
+  if you like notes that sometimes forget to stop.
 
 Play's **Trigger Gate** page overrides the mode live without changing what's
 saved.

@@ -293,6 +293,11 @@ pub(super) fn apply_link_probability_and_pitch_menu_state(
         &format!("{prefix}.triggerProbabilityHighPct"),
         100,
     );
+    changed |= set_bool_from_menu(
+        menu,
+        &mut layer.trigger_probability_note_offs,
+        &format!("{prefix}.triggerProbabilityNoteOffs"),
+    );
     changed |= set_u8_from_menu(
         menu,
         &mut layer.lowest_note,

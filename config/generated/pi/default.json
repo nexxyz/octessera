@@ -2000,6 +2000,7 @@
             "full"
           ],
           "triggerProbabilityMode": "full",
+          "triggerProbabilityNoteOffs": false,
           "x": {
             "filterCutoff": {
               "curve": "linear",
@@ -2422,6 +2423,7 @@
             "full"
           ],
           "triggerProbabilityMode": "full",
+          "triggerProbabilityNoteOffs": false,
           "x": {
             "filterCutoff": {
               "curve": "linear",
@@ -2750,6 +2752,7 @@
             "full"
           ],
           "triggerProbabilityMode": "full",
+          "triggerProbabilityNoteOffs": false,
           "x": {
             "filterCutoff": {
               "curve": "linear",
@@ -3028,6 +3031,7 @@
             "full"
           ],
           "triggerProbabilityMode": "full",
+          "triggerProbabilityNoteOffs": false,
           "x": {
             "filterCutoff": {
               "curve": "linear",
@@ -3377,6 +3381,7 @@
             "full"
           ],
           "triggerProbabilityMode": "zero",
+          "triggerProbabilityNoteOffs": false,
           "x": {
             "filterCutoff": {
               "curve": "linear",
@@ -3724,6 +3729,7 @@
             "full"
           ],
           "triggerProbabilityMode": "custom",
+          "triggerProbabilityNoteOffs": false,
           "x": {
             "filterCutoff": {
               "curve": "linear",
@@ -3931,6 +3937,7 @@
             "full"
           ],
           "triggerProbabilityMode": "full",
+          "triggerProbabilityNoteOffs": false,
           "x": {
             "filterCutoff": {
               "curve": "linear",
@@ -4138,6 +4145,7 @@
             "full"
           ],
           "triggerProbabilityMode": "full",
+          "triggerProbabilityNoteOffs": false,
           "x": {
             "filterCutoff": {
               "curve": "linear",

@@ -126,6 +126,16 @@ pub(super) fn link_binding_group(
                         vec![],
                         target,
                     ),
+                    binding_action(
+                        "Prob Note Off",
+                        &format!("{prefix}.triggerProbabilityNoteOffs"),
+                        "bool",
+                        None,
+                        None,
+                        None,
+                        vec![],
+                        target,
+                    ),
                 ],
             ),
             group(

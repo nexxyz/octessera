@@ -187,6 +187,7 @@ mod swing_timing;
 mod transport_origins;
 mod transport_phase_resets;
 mod trigger_gates;
+mod trigger_probability_note_offs;
 mod twinkle;
 mod ui_scenario;
 mod usb_role_rows;

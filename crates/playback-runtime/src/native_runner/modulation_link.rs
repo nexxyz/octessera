@@ -38,6 +38,9 @@ pub(super) fn apply_link_binding_value(
         "triggerProbabilityHighPct" => {
             apply_u8_value(&mut layer.trigger_probability_high_pct, value, 100)
         }
+        "triggerProbabilityNoteOffs" => {
+            apply_bool_value(&mut layer.trigger_probability_note_offs, value)
+        }
         "pitch.lowestNote" => apply_u8_value(&mut layer.lowest_note, value, 127),
         "pitch.highestNote" => apply_u8_value(&mut layer.highest_note, value, 127),
         "pitch.startingNote" => apply_u8_value(&mut layer.starting_note, value, 127),

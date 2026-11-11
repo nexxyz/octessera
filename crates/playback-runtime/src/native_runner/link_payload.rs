@@ -14,6 +14,7 @@ pub(super) fn link_layer_payload(
         "triggerProbabilityMode": layer.trigger_probability_mode,
         "triggerProbabilityLowPct": layer.trigger_probability_low_pct,
         "triggerProbabilityHighPct": layer.trigger_probability_high_pct,
+        "triggerProbabilityNoteOffs": layer.trigger_probability_note_offs,
         "stateNotesEnabled": layer.state_notes_enabled,
         "seeded": layer.seeded,
         "triggerProbabilityMap": &probability_map[..],

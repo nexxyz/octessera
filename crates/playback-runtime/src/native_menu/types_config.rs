@@ -200,6 +200,7 @@ pub struct NativeLinkLayerConfig {
     pub trigger_probability_mode: TriggerProbabilityMode,
     pub trigger_probability_low_pct: u8,
     pub trigger_probability_high_pct: u8,
+    pub trigger_probability_note_offs: bool,
     pub state_notes_enabled: bool,
     pub seeded: bool,
     pub lowest_note: u8,

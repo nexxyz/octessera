@@ -161,6 +161,10 @@ fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &LinkDto
             .map(|value| value.min(100)),
         &mut layer.trigger_probability_high_pct,
     );
+    assign(
+        payload.trigger_probability_note_offs,
+        &mut layer.trigger_probability_note_offs,
+    );
 }
 
 fn apply_mapping_event_payload(

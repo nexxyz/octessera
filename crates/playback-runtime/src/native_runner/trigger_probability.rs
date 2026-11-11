@@ -1,5 +1,5 @@
 use super::{NativeLinkLayer, GRID_HEIGHT, GRID_WIDTH};
-use platform_core::TileTriggerIntent;
+use platform_core::{TileTriggerIntent, TileTriggerKind, TriggerAction};
 use serde::{Serialize, Serializer};
 
 /// A layer's trigger probability: every trigger off, the tile map, or every trigger on.
@@ -85,6 +85,12 @@ pub(super) fn trigger_probability_allows(
     rng: &mut u64,
     intent: &TileTriggerIntent,
 ) -> bool {
+    if link_layer.is_some_and(|layer| {
+        !layer.trigger_probability_note_offs
+            && link_action(layer, intent.kind) == TriggerAction::NoteOff
+    }) {
+        return true;
+    }
     let pct = trigger_probability_pct(link_layer, map, intent.x, intent.y);
     if pct == 0 {
         return false;
@@ -93,6 +99,16 @@ pub(super) fn trigger_probability_allows(
         return true;
     }
     next_probability_random(rng) < f64::from(pct) / 100.0
+}
+
+fn link_action(layer: &NativeLinkLayer, kind: TileTriggerKind) -> TriggerAction {
+    match kind {
+        TileTriggerKind::Activate => layer.activate_action,
+        TileTriggerKind::Deactivate => layer.deactivate_action,
+        TileTriggerKind::Stable => layer.stable_action,
+        TileTriggerKind::Scanned => layer.scanned_action,
+        TileTriggerKind::ScannedEmpty => layer.scanned_empty_action,
+    }
 }
 
 fn trigger_probability_pct(

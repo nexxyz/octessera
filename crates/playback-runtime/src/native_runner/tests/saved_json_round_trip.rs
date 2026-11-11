@@ -306,6 +306,10 @@ fn typed_layer_values(index: usize) -> Vec<(String, Value)> {
         ("/link/stateNotesEnabled".into(), json!(index % 3 == 1)),
         ("/link/triggerProbabilityLowPct".into(), json!(10 + i)),
         ("/link/triggerProbabilityHighPct".into(), json!(70 + i)),
+        (
+            "/link/triggerProbabilityNoteOffs".into(),
+            json!(index % 3 == 2),
+        ),
         ("/link/mapping/activate/slot".into(), slot),
         ("/link/mapping/activate/delaySteps".into(), json!(i % 4)),
         ("/link/mapping/stable/retriggerCount".into(), json!(i % 3)),

@@ -293,6 +293,7 @@ const PULSES_FIELDS: &[&str] = &[
     "triggerProbabilityMode",
     "triggerProbabilityLowPct",
     "triggerProbabilityHighPct",
+    "triggerProbabilityNoteOffs",
     "pitch.lowestNote",
     "pitch.highestNote",
     "pitch.startingNote",
@@ -366,6 +367,7 @@ const PULSES_ENUM_FIELDS: &[&str] = &[
 const PULSES_BOOL_FIELDS: &[&str] = &[
     "eventEnabled",
     "stateNotesEnabled",
+    "triggerProbabilityNoteOffs",
     "x.pitch.enabled",
     "x.pitch.restartEachSection",
     "y.pitch.enabled",

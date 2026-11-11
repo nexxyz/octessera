@@ -61,6 +61,8 @@ pub struct LinkDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) trigger_probability_high_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(in crate::native_runner) trigger_probability_note_offs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) state_notes_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) trigger_probability_map: Option<Vec<String>>,
