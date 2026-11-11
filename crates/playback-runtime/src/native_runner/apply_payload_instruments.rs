@@ -34,7 +34,7 @@ impl NativeRunner {
             crate::delay_timing::visible_bpm_u16(self.transport.bpm),
         );
         self.apply_ui_payload(runtime);
-        self.apply_midi_payload(runtime);
+        self.apply_midi_payload(runtime)?;
         self.apply_usb_payload(runtime);
         self.apply_recording_payload(runtime);
         if let Some(mapping_config) = mapping_config {
@@ -279,10 +279,12 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_midi_payload(&mut self, runtime: &Value) {
-        let Some(Ok(midi)) = runtime.get("midi").map(MidiDto::deserialize) else {
-            return;
+    pub(super) fn apply_midi_payload(&mut self, runtime: &Value) -> Result<(), String> {
+        let Some(midi) = runtime.get("midi") else {
+            return Ok(());
         };
+        let midi = MidiDto::deserialize(midi)
+            .map_err(|error| format!("invalid runtimeConfig.midi: {error}"))?;
         self.midi.apply(&midi);
         if let Some(sync_mode) = &midi.sync_mode {
             self.transport.sync_source = if sync_mode == "external" {
@@ -292,6 +294,7 @@ impl NativeRunner {
             };
         }
         self.queue_midi_selection_effects();
+        Ok(())
     }
 
     pub(super) fn apply_usb_payload(&mut self, runtime: &Value) {

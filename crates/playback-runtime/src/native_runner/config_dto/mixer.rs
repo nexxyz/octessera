@@ -1,3 +1,4 @@
+use realtime_engine::synth::MixerRoute;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -51,5 +52,5 @@ pub struct InstrumentMixerDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) pan_pos: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) route: Option<String>,
+    pub(in crate::native_runner) route: Option<MixerRoute>,
 }

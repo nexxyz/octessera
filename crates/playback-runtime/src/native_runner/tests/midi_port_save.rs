@@ -198,7 +198,9 @@ fn a_null_midi_port_clears_it_and_an_absent_port_keeps_it() {
     runner.apply_config_payload(payload).unwrap();
     assert_eq!(runner.midi.output_id.as_deref(), Some("out1"));
 
-    runner.apply_midi_payload(&json!({ "midi": { "outId": null } }));
+    runner
+        .apply_midi_payload(&json!({ "midi": { "outId": null } }))
+        .unwrap();
     assert_eq!(runner.midi.output_id, None);
     assert_eq!(runner.midi.input_id.as_deref(), Some("in1"));
 }

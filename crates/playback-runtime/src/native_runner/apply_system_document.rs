@@ -58,12 +58,12 @@ impl NativeRunner {
             self.audio_io.usb_data_role,
         );
         let before = self.configuration_aggregate();
+        self.apply_midi_payload(runtime)?;
         self.apply_system_sound_payload(runtime);
         self.dsp_config = dsp;
         self.apply_display_payload(runtime);
         self.apply_runtime_input_payload(runtime);
         self.apply_aux_mapping_payload(runtime);
-        self.apply_midi_payload(runtime);
         self.apply_usb_payload(runtime);
         self.audio_io.audio_outputs = audio_outputs;
         self.apply_recording_payload(runtime);

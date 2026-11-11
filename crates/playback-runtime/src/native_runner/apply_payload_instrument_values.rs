@@ -1,5 +1,5 @@
 use super::{
-    sanitize_pan_position_payload, InstrumentDto, InstrumentType, MixerRoute, NativeInstrumentSlot,
+    sanitize_pan_position_payload, InstrumentDto, InstrumentType, NativeInstrumentSlot,
     NativeSampleAssignment, NativeSamplePlayback, NativeTileStamp, SampleDto, SampleSlotDto,
     TileStampDto, GRID_HEIGHT, GRID_WIDTH, SAMPLE_SLOT_COUNT,
 };
@@ -41,7 +41,7 @@ pub(super) fn apply_instrument_payload(
         if let Some(pan_pos) = mixer.pan_pos {
             instrument.pan_pos = sanitize_pan_position_payload(u64::from(pan_pos));
         }
-        if let Some(route) = mixer.route.as_deref().and_then(MixerRoute::from_wire_name) {
+        if let Some(route) = mixer.route {
             instrument.route = route;
         }
     }
