@@ -50,6 +50,7 @@ tools/pi-image/stage4-octessera/files/root/usr/
 tools/pi-image/stage4-octessera/files/root/usr/*
 !tools/pi-image/stage4-octessera/files/root/usr/local/
 tools/pi-image/stage4-octessera/files/root/usr/local/*
+!tools/pi-image/stage4-octessera/files/root/usr/local/bin/
 !tools/pi-image/stage4-octessera/files/root/usr/local/sbin/
 tools/pi-image/stage4-octessera/files/root/usr/local/sbin/*
 !tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget
