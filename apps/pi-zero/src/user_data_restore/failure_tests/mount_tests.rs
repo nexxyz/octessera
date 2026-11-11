@@ -206,18 +206,19 @@ fn restore_holds_the_sd_card_lock_while_it_builds_and_swaps() {
     );
 }
 
-#[cfg(unix)]
 #[test]
-fn restore_runs_without_the_sd_card_lock_when_no_card_operation_created_it() {
+fn restore_fails_when_the_boot_time_sd_card_lock_is_missing() {
     let root = temp_root("sd-lock-missing");
 
-    let lock = hold_sd_card_lock(&root.join("sd-card.lock")).unwrap();
+    let error = hold_sd_card_lock(&root.join("sd-card.lock")).unwrap_err();
 
-    assert!(lock.is_none());
+    assert!(
+        error.starts_with("restore could not open the SD card lock"),
+        "{error}"
+    );
     let _ = fs::remove_dir_all(root);
 }
 
-#[cfg(unix)]
 #[test]
 fn restore_fails_when_it_cannot_open_the_sd_card_lock() {
     let root = temp_root("sd-lock-unopenable");

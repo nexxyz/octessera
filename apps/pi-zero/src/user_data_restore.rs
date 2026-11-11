@@ -177,28 +177,25 @@ fn read_target_pair(store_dir: &Path) -> Result<(Value, Value), String> {
 }
 
 /// Keeps a card insert or transfer from mounting into the samples folder while restore reads and
-/// swaps it. The boot-time card mount creates the lock file, so a missing file means no card
-/// operation has run since boot.
-#[cfg(unix)]
-fn hold_sd_card_lock(path: &Path) -> Result<Option<File>, String> {
-    use std::os::fd::AsRawFd;
-    let file = match File::open(path) {
-        Ok(file) => file,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(format!("restore could not open the SD card lock: {error}")),
-    };
-    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
-        return Err(format!(
-            "restore could not take the SD card lock: {}",
-            io::Error::last_os_error()
-        ));
+/// swaps it. Both boards create the lock file at boot, so restore never runs without it.
+fn hold_sd_card_lock(path: &Path) -> Result<File, String> {
+    let file = File::open(path).map_err(|error| {
+        format!(
+            "restore could not open the SD card lock {}: {error}",
+            path.display()
+        )
+    })?;
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd;
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+            return Err(format!(
+                "restore could not take the SD card lock: {}",
+                io::Error::last_os_error()
+            ));
+        }
     }
-    Ok(Some(file))
-}
-
-#[cfg(not(unix))]
-fn hold_sd_card_lock(_path: &Path) -> Result<Option<File>, String> {
-    Ok(None)
+    Ok(file)
 }
 
 /// Each restore leaves its pre-restore archive behind; the one just written and the newest other

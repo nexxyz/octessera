@@ -47,7 +47,7 @@ pub(crate) trait Filesystems {
 
     /// The lock every SD-card mount and transfer takes; restore holds it while it works.
     fn sd_card_lock_path(&self) -> &Path {
-        Path::new("/run/octessera-sd-card.lock")
+        boot_sd_card_lock_path()
     }
 
     fn is_other_filesystem(&self, root: &Path, path: &Path) -> io::Result<bool> {
@@ -73,6 +73,26 @@ pub(crate) trait Filesystems {
         }
         Err(PlacementError::Unmovable(path.to_path_buf()))
     }
+}
+
+#[cfg(not(test))]
+fn boot_sd_card_lock_path() -> &'static Path {
+    Path::new("/run/octessera-sd-card.lock")
+}
+
+/// Tests share one lock file in place of the one the boards create at boot.
+#[cfg(test)]
+fn boot_sd_card_lock_path() -> &'static Path {
+    static LOCK: std::sync::LazyLock<PathBuf> = std::sync::LazyLock::new(|| {
+        let path = std::env::temp_dir().join("octessera-test-sd-card.lock");
+        fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .unwrap();
+        path
+    });
+    &LOCK
 }
 
 fn is_bundled_library_folder(root: &Path, path: &Path) -> bool {
