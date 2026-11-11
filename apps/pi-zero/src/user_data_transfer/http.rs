@@ -138,12 +138,28 @@ fn handle_export(inner: &Arc<TransferInner>, stream: &mut TcpStream, query: Opti
             return;
         }
     };
-    let header = response_header(
+    let mut header = response_header(
         200,
         "application/octet-stream",
         length,
         Some("octessera-user-data.oct"),
     );
+    let blank_line = header.len() - 2;
+    for warning in &plan.warnings {
+        eprintln!("User-data export: {warning}");
+        let printable = warning
+            .chars()
+            .map(|c| {
+                if c.is_ascii_graphic() || c == ' ' {
+                    c
+                } else {
+                    '?'
+                }
+            })
+            .collect::<String>();
+        let line = format!("X-Octessera-Export-Warning: {printable}\r\n");
+        header.splice(blank_line..blank_line, line.into_bytes());
+    }
     if stream.write_all(&header).is_err() {
         return;
     }

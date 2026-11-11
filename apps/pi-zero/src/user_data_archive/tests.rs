@@ -286,6 +286,7 @@ fn audio_media_stages_separately_from_samples() {
                 },
                 path: media_path,
             }],
+            warnings: Vec::new(),
         },
         &mut archive,
     )
@@ -317,4 +318,50 @@ fn packaged_library_folders_match_the_bundled_sample_tree() {
         "Mine/x.wav"
     ));
     assert!(!crate::sample_browser::is_packaged_library_file("Top.wav"));
+}
+
+#[test]
+fn export_skips_unreadable_patches_and_presets_with_warnings() {
+    let root = root("corrupt-store-export");
+    let store = root.join("store");
+    fs::create_dir_all(store.join("patches")).unwrap();
+    let defaults = canonical_defaults();
+    write_split_store(&store, &defaults);
+    let patch = playback_runtime::split_system_patch_documents(&defaults)
+        .unwrap()
+        .patch;
+    fs::write(
+        store.join("patches").join("Good.json"),
+        serde_json::to_vec(&patch).unwrap(),
+    )
+    .unwrap();
+    fs::write(store.join("patches").join("Broken.json"), b"{").unwrap();
+    fs::write(crate::platform_service::current_patch_path(&store), b"{").unwrap();
+    fs::write(crate::platform_service::recovery_patch_path(&store), b"[").unwrap();
+
+    let plan = build_export_plan(
+        &store,
+        &root.join("samples"),
+        &root.join("recordings"),
+        &root.join("screen-recordings"),
+        false,
+    )
+    .unwrap();
+
+    let names = plan
+        .bundle
+        .presets
+        .iter()
+        .map(|preset| preset.display_name.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(names, ["Good"]);
+    assert_eq!(
+        plan.bundle.current_state.patch,
+        plan.bundle.default_state.patch
+    );
+    assert_eq!(plan.warnings.len(), 3, "{:?}", plan.warnings);
+    assert!(plan.warnings[0].starts_with("current patch skipped: "));
+    assert!(plan.warnings[1].starts_with("recovery patch skipped: "));
+    assert!(plan.warnings[2].starts_with("preset `Broken` skipped: "));
+    let _ = fs::remove_dir_all(root);
 }

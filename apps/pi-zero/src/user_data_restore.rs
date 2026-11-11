@@ -239,6 +239,9 @@ fn write_pre_restore_backup(
         screen_recordings_dir,
         true,
     )?;
+    for warning in &plan.warnings {
+        eprintln!("Pre-restore backup: {warning}");
+    }
     let temp = backup_path.with_file_name(format!(
         ".{}.tmp-{}",
         backup_path

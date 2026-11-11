@@ -71,6 +71,10 @@ desktop simulator doesn't have it.
    the board (folders too, up to four levels deep) and your recordings. The
    bundled library and samples on the SD2 card stay where they are.
 
+   If a saved patch or preset on the board is damaged, the export leaves it out
+   rather than giving up, and names each one in an `X-Octessera-Export-Warning`
+   response header. Add `-D -` to the curl line to see them.
+
 4. Keep `octessera-user-data.oct` somewhere safe, and don't erase or reuse the
    old card until a restore from it has worked.
 

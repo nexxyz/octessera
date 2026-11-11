@@ -30,6 +30,8 @@ pub(crate) struct MediaFile {
 pub(crate) struct ExportPlan {
     pub(crate) bundle: UserDataBundle,
     pub(crate) media: Vec<MediaFile>,
+    /// Store files left out because they could not be read or validated.
+    pub(crate) warnings: Vec<String>,
 }
 
 pub(crate) struct StagedMedia {
@@ -72,29 +74,46 @@ pub(crate) fn build_export_plan(
         "Default patch",
     )?;
     crate::platform_service::validate_patch_document(store_dir, &default_patch)?;
-    let current_patch = validate_optional_patch(
+    let mut warnings = Vec::new();
+    let current_patch = readable_optional_patch(
         store_dir,
-        crate::platform_service::load_current_patch(store_dir)?,
-    )?
-    .or(validate_optional_patch(
-        store_dir,
-        crate::platform_service::load_recovery_patch(store_dir)?,
-    )?)
+        "current patch",
+        crate::platform_service::load_current_patch(store_dir),
+        &mut warnings,
+    )
+    .or_else(|| {
+        readable_optional_patch(
+            store_dir,
+            "recovery patch",
+            crate::platform_service::load_recovery_patch(store_dir),
+            &mut warnings,
+        )
+    })
     .unwrap_or_else(|| default_patch.clone());
     let default_state = playback_runtime::compose_system_patch_documents(&system, &default_patch)?;
     let current_state = playback_runtime::compose_system_patch_documents(&system, &current_patch)?;
     let presets = crate::platform_service::list_presets(store_dir)?
         .into_iter()
-        .map(|display_name| {
-            let path = crate::platform_service::preset_patch_path(store_dir, &display_name)?;
-            let patch = crate::platform_service::load_json(&path)?
-                .ok_or_else(|| format!("preset `{display_name}` disappeared during export"))?;
-            Ok(UserDataPreset {
-                display_name,
-                patch,
-            })
+        .filter_map(|display_name| {
+            let patch = (|| {
+                let path = crate::platform_service::preset_patch_path(store_dir, &display_name)?;
+                let patch = crate::platform_service::load_json(&path)?
+                    .ok_or_else(|| "it disappeared during export".to_string())?;
+                crate::platform_service::validate_named_preset_document(store_dir, &patch)?;
+                Ok::<_, String>(patch)
+            })();
+            match patch {
+                Ok(patch) => Some(UserDataPreset {
+                    display_name,
+                    patch,
+                }),
+                Err(error) => {
+                    warnings.push(format!("preset `{display_name}` skipped: {error}"));
+                    None
+                }
+            }
         })
-        .collect::<Result<Vec<_>, String>>()?;
+        .collect::<Vec<_>>();
     let preferences = preference_delta_from_config(&current_state, &canonical)?;
     let media = if include_media {
         let mut media = sample_media(samples_dir)?;
@@ -135,7 +154,11 @@ pub(crate) fn build_export_plan(
     )?;
     let mut media = media;
     media.sort_by(|left, right| media_key(&left.reference).cmp(&media_key(&right.reference)));
-    Ok(ExportPlan { bundle, media })
+    Ok(ExportPlan {
+        bundle,
+        media,
+        warnings,
+    })
 }
 
 pub(crate) fn archive_len(plan: &ExportPlan) -> Result<u64, String> {
@@ -287,15 +310,23 @@ fn read_required_config(path: &Path, label: &str) -> Result<Value, String> {
     crate::platform_service::load_json(path)?.ok_or_else(|| format!("{label} is missing"))
 }
 
-fn validate_optional_patch(
+/// An unreadable or invalid optional patch is left out of the export as if absent.
+fn readable_optional_patch(
     store_dir: &Path,
-    patch: Option<Value>,
-) -> Result<Option<Value>, String> {
-    let Some(patch) = patch else {
-        return Ok(None);
-    };
-    crate::platform_service::validate_patch_document(store_dir, &patch)?;
-    Ok(Some(patch))
+    label: &str,
+    loaded: Result<Option<Value>, String>,
+    warnings: &mut Vec<String>,
+) -> Option<Value> {
+    let validated = loaded.and_then(|patch| {
+        if let Some(patch) = &patch {
+            crate::platform_service::validate_patch_document(store_dir, patch)?;
+        }
+        Ok(patch)
+    });
+    validated
+        .inspect_err(|error| warnings.push(format!("{label} skipped: {error}")))
+        .ok()
+        .flatten()
 }
 
 fn copy_exact<R: Read, W: Write>(
