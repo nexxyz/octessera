@@ -140,8 +140,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::runtime_dispatch,
-            commands::runtime_drain_messages,
-            samples::sample_list
+            commands::runtime_drain_messages
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

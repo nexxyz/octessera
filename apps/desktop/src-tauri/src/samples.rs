@@ -15,7 +15,6 @@ pub struct SampleEntry {
     pub(crate) is_dir: bool,
 }
 
-#[tauri::command]
 pub fn sample_list(dir: String) -> Result<Vec<SampleEntry>, String> {
     let root = resolve_samples_root()?;
     sample_list_from_root(&root, &dir)
