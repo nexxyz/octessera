@@ -75,7 +75,7 @@ install_overlay_file() {
   local src="$1"
   local dest="$2"
   local mode="$3"
-  [[ -f "$overlay_dir/$src" ]] || return 0
+  [[ -f "$overlay_dir/$src" ]] || { echo "Missing overlay file $src." >&2; exit 1; }
   install -D -m "$mode" -o root -g root "$overlay_dir/$src" "$dest"
 }
 
