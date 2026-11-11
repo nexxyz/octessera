@@ -21,6 +21,21 @@ const sourceExe = resolve(
 const outputExe = resolve(desktopDir, 'dist-desktop', 'octessera.exe');
 const outputSamples = resolve(desktopDir, 'dist-desktop', 'samples');
 const sourceSamples = resolve(repoRoot, 'release-samples', 'samples');
+const outputLegal = resolve(desktopDir, 'dist-desktop', 'legal');
+const sourceLegal = resolve(
+  repoRoot,
+  'release-legal',
+  'usr',
+  'share',
+  'doc',
+  'octessera',
+);
+const sourceNoticeBundle = resolve(
+  repoRoot,
+  'resources',
+  'legal',
+  'notice-bundle.json',
+);
 const result = spawnSync(
   process.env.ComSpec ?? 'cmd.exe',
   ['/d', '/s', '/c', 'call', tauriCli, 'build', '--no-bundle'],
@@ -43,4 +58,7 @@ mkdirSync(dirname(outputExe), { recursive: true });
 copyFileSync(sourceExe, outputExe);
 rmSync(outputSamples, { recursive: true, force: true });
 cpSync(sourceSamples, outputSamples, { recursive: true, errorOnExist: true });
+rmSync(outputLegal, { recursive: true, force: true });
+cpSync(sourceLegal, outputLegal, { recursive: true, errorOnExist: true });
+copyFileSync(sourceNoticeBundle, resolve(outputLegal, 'notice-bundle.json'));
 console.log(`Portable exe copied to ${outputExe}`);

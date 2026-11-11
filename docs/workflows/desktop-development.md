@@ -45,7 +45,9 @@ Portable desktop executable:
 corepack pnpm --filter @octessera/desktop tauri:build:exe
 ```
 
-The portable executable is copied to `apps/desktop/dist-desktop/octessera.exe`.
+The portable executable is copied to `apps/desktop/dist-desktop/octessera.exe`,
+with the sample library in `samples/` and the legal notices in `legal/` next to
+it, laid out like the release portable ZIP.
 The Tauri bundle uses its configured `bundle.resources` entry for the legal
 resource tree. Release checks inspect that configured resource contract and the
 portable notice ZIP without extracting an installer.
