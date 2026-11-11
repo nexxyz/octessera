@@ -29,7 +29,10 @@ pub(crate) use config::desktop_native_runner_config;
 #[cfg(debug_assertions)]
 use perf::RuntimePerfCounters;
 use queue::{queue_by_priority, retain_runtime_outbox_batch, MAX_COMMANDS_PER_WAKE};
-pub(crate) use requests::{request_worker_dispatch, DISPATCH_REPLY_TIMEOUT};
+pub(crate) use requests::{
+    request_worker_dispatch, request_worker_exit_preparation, DISPATCH_REPLY_TIMEOUT,
+    EXIT_PREPARATION_TIMEOUT,
+};
 
 const PLAYING_SNAPSHOT_INTERVAL_MS: u64 = 50;
 const XY_GLIDE_TICK: Duration = Duration::from_millis(8);
@@ -43,6 +46,7 @@ pub(crate) enum WorkerCommand {
     NativeMidiRealtime(Vec<u8>, Instant),
     NativeMidiControlChange(playback_runtime::MidiControlChange),
     PresentationMetrics(RuntimePresentationMetrics),
+    PrepareExit(Sender<()>),
 }
 
 pub(crate) struct RuntimeWorker {
@@ -153,7 +157,7 @@ impl RuntimeWorker {
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => continue,
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    if let Err(err) = self.flush_pending_host_work_now() {
+                    if let Err(err) = self.prepare_for_exit() {
                         self.handle_error(err);
                     }
                     break;

@@ -33,6 +33,19 @@ pub(crate) fn request_worker_dispatch(
     }
 }
 
+/// Long enough to write the last save and finish a recording, short enough to never hang the exit.
+pub(crate) const EXIT_PREPARATION_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Whether the worker finished its exit work in time.
+pub(crate) fn request_worker_exit_preparation(
+    worker_tx: &Sender<WorkerCommand>,
+    timeout: Duration,
+) -> bool {
+    let (done_tx, done_rx) = mpsc::channel();
+    worker_tx.send(WorkerCommand::PrepareExit(done_tx)).is_ok()
+        && done_rx.recv_timeout(timeout).is_ok()
+}
+
 fn worker_stopped_status() -> RunnerMessage {
     let message = "The runtime stopped. Please restart Octessera.".to_string();
     RunnerMessage::RuntimeStatus {

@@ -68,6 +68,13 @@ impl DesktopPlaybackHostAdapter {
         }
     }
 
+    /// Writes the pending default save and finishes an active recording before the app exits.
+    pub(crate) fn finish_for_exit(&mut self) -> Result<(), String> {
+        let saved = self.flush_pending_default_save_now();
+        self.audio.recording.stop_audio()?;
+        saved
+    }
+
     pub(crate) fn take_shutdown_request(&mut self) -> bool {
         let requested = self.shutdown_requested;
         self.shutdown_requested = false;

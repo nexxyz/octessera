@@ -96,6 +96,11 @@ impl RuntimeWorker {
                     .update_presentation_metrics(metrics, Instant::now());
                 self.emit_runtime_output(output)?;
             }
+            WorkerCommand::PrepareExit(done) => {
+                let result = self.prepare_for_exit();
+                let _ = done.send(());
+                result?;
+            }
         }
         let is_internal_playing = self.is_internal_playing();
         if was_internal_playing != is_internal_playing || !is_internal_playing {

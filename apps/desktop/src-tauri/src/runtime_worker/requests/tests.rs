@@ -1,4 +1,7 @@
-use super::{request_worker_dispatch, DISPATCH_REPLY_TIMEOUT};
+use super::{
+    request_worker_dispatch, request_worker_exit_preparation, DISPATCH_REPLY_TIMEOUT,
+    EXIT_PREPARATION_TIMEOUT,
+};
 use crate::runtime_worker::WorkerCommand;
 use playback_runtime::{
     HostMessage, RunnerMessage, RuntimeErrorDomain, RuntimeOperation, RuntimeStatusState,
@@ -77,4 +80,32 @@ fn a_worker_reply_passes_through() {
         messages,
         vec![RunnerMessage::PresentedRuntimeErrorDismissed]
     );
+}
+
+#[test]
+fn exit_waits_for_the_worker_to_finish_its_exit_work() {
+    let (worker_tx, worker_rx) = mpsc::channel::<WorkerCommand>();
+    let worker = std::thread::spawn(move || {
+        let Ok(WorkerCommand::PrepareExit(done)) = worker_rx.recv() else {
+            panic!("expected exit preparation");
+        };
+        done.send(()).unwrap();
+    });
+
+    assert!(request_worker_exit_preparation(
+        &worker_tx,
+        EXIT_PREPARATION_TIMEOUT
+    ));
+    worker.join().unwrap();
+}
+
+#[test]
+fn exit_does_not_wait_for_a_stopped_worker() {
+    let (worker_tx, worker_rx) = mpsc::channel::<WorkerCommand>();
+    drop(worker_rx);
+
+    assert!(!request_worker_exit_preparation(
+        &worker_tx,
+        EXIT_PREPARATION_TIMEOUT
+    ));
 }

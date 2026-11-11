@@ -204,6 +204,40 @@ fn desktop_recording_reports_already_active_and_filesystem_errors() {
 }
 
 #[test]
+fn exit_finishes_the_active_recording_and_writes_the_pending_default_save() {
+    let directory = temp_store_dir("exit-flush");
+    let (mut adapter, _) = test_adapter_with_recording_dir(directory.join("recordings"));
+    adapter.store_dir = directory.clone();
+    adapter
+        .handle_platform_effect(&platform_request(
+            RuntimePlatformEffect::RecordingStartAudio { max_minutes: 1 },
+        ))
+        .unwrap();
+    let payload = serde_json::json!({ "runtimeConfig": { "layers": [{ "name": "life" }] } });
+    adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveDefault {
+            payload: payload.clone(),
+            mode: Some("deferred".into()),
+        }))
+        .unwrap();
+
+    adapter.finish_for_exit().unwrap();
+
+    let saved = fs::read_to_string(directory.join("default.patch.json")).unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&saved).unwrap(),
+        payload
+    );
+    let recordings = fs::read_dir(directory.join("recordings"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(recordings.len(), 1);
+    assert!(recordings[0].ends_with(".wav") && !recordings[0].ends_with(".partial.wav"));
+    let _ = fs::remove_dir_all(directory);
+}
+
+#[test]
 fn desktop_recording_stop_when_idle_is_harmless() {
     let directory = temp_store_dir("recording-idle");
     let (mut adapter, _) = test_adapter_with_recording_dir(directory.clone());

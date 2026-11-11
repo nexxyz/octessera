@@ -143,6 +143,18 @@ pub fn run() {
             commands::runtime_drain_messages,
             samples::sample_list
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                if let Some(state) = app.try_state::<AppState>() {
+                    if !runtime_worker::request_worker_exit_preparation(
+                        &state.worker_tx,
+                        runtime_worker::EXIT_PREPARATION_TIMEOUT,
+                    ) {
+                        eprintln!("runtime worker did not finish its exit work in time");
+                    }
+                }
+            }
+        });
 }
