@@ -74,6 +74,17 @@ test -e "$root/storage.state"
 test -d "$gadget/functions/mass_storage.usb0"
 rm -rf "$gadget"
 
+root=$TEST_ROOT/storage-lock-held
+prepare_storage_root "$root"
+run_setup "$root" "$COMBINED_CONFIG" > "$root/setup-normal.log"
+flock "$root/lifecycle.lock" sleep 6 &
+lock_holder=$!
+sleep 1
+assert_failed run_storage_action "$root" storage-start "$COMBINED_CONFIG"
+test ! -e "$root/storage.state"
+kill "$lock_holder" 2>/dev/null || true
+wait "$lock_holder" 2>/dev/null || true
+
 root=$TEST_ROOT/host-role-cleanup
 prepare_storage_root "$root"
 : > "$root/mounted"

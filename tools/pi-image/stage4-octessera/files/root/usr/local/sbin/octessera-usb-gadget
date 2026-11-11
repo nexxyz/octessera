@@ -362,11 +362,6 @@ storage_create_unlocked() (
   ln -s "$G/functions/mass_storage.usb0" "$G/configs/c.1/mass_storage.usb0"
   [ -L "$G/configs/c.1/mass_storage.usb0" ] || exit 1
   bind_udc_unlocked "$UDC" || exit 1
-  if [ -r "$UDC_ROOT/$UDC/state" ]; then
-    printf 'HOST_STATE=%s\n' "$(cat "$UDC_ROOT/$UDC/state")"
-  else
-    printf 'HOST_STATE=unknown\n'
-  fi
 )
 
 storage_start_unlocked() {
@@ -444,7 +439,7 @@ storage_stop_unlocked() {
 
 with_lifecycle_lock() {
   (
-    flock 9
+    flock -w 2 9 || { log "gadget lifecycle operation is already in progress"; exit 1; }
     "$@"
   ) 9>"$LIFECYCLE_LOCK"
 }
