@@ -239,26 +239,6 @@ fn spawn_seesaw_health_monitor(scan_generation: Arc<AtomicU64>) {
     });
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn scan_raspberry_inputs(
-    trellis: &mut NeoTrellis,
-    neokey: &mut NeoKey,
-    previous_neokey: &mut [bool; 4],
-    input_tx: &Sender<HostMessage>,
-    scan_generation: &AtomicU64,
-) -> bool {
-    match scan_inputs(trellis, neokey, previous_neokey, input_tx) {
-        Ok(()) => {
-            scan_generation.fetch_add(1, Ordering::Relaxed);
-            true
-        }
-        Err(error) => {
-            eprintln!("{error}");
-            false
-        }
-    }
-}
-
 pub(crate) fn spawn(
     mut trellis: NeoTrellis,
     mut neokey: NeoKey,
@@ -288,34 +268,24 @@ pub(crate) fn spawn(
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
         let mut shutdown_ack = None;
         loop {
-            let interrupt_pending = interrupt.pending() || interrupt.asserted();
-            if schedule.scan_due(Instant::now(), interrupt_pending) {
-                #[cfg(feature = "hardware-orange-pi-zero-2w")]
-                let scanned = match scan_inputs(
+            if schedule.scan_due(Instant::now(), interrupt.pending(), interrupt.asserted()) {
+                let scan = scan_inputs(
                     &mut trellis,
                     &mut neokey,
                     &mut previous_neokey,
                     &worker_input_tx,
-                ) {
-                    Ok(()) => true,
-                    Err(error) => {
-                        eprintln!("{error}");
-                        false
-                    }
-                };
+                )
+                .inspect_err(|error| eprintln!("{error}"));
                 #[cfg(feature = "hardware-orange-pi-zero-2w")]
                 {
-                    startup_scan_succeeded = scanned;
+                    startup_scan_succeeded = scan.is_ok();
                 }
                 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-                let scanned = scan_raspberry_inputs(
-                    &mut trellis,
-                    &mut neokey,
-                    &mut previous_neokey,
-                    &worker_input_tx,
-                    &worker_scan_generation,
-                );
-                schedule.record_scan(scanned, neokey.settling(), Instant::now());
+                if scan.is_ok() {
+                    worker_scan_generation.fetch_add(1, Ordering::Relaxed);
+                }
+                let found_input = scan.as_ref().is_ok_and(|found| *found);
+                schedule.record_scan(scan.is_ok(), found_input, neokey.settling(), Instant::now());
                 outputs.resend_after_setup(trellis.take_led_refresh(), neokey.take_led_refresh());
             }
 
@@ -461,9 +431,10 @@ fn scan_inputs(
     neokey: &mut NeoKey,
     previous_neokey: &mut [bool; 4],
     input_tx: &Sender<HostMessage>,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     let mut presses = Vec::new();
     let trellis_result = trellis.scan_keys(&mut presses);
+    let mut found_input = !presses.is_empty();
     for (x, y, pressed) in presses {
         let _ = input_tx.send(grid_message(x, y, pressed));
     }
@@ -479,12 +450,13 @@ fn scan_inputs(
                 continue;
             }
             previous_neokey[index] = pressed;
+            found_input = true;
             if let Some(message) = neokey_message(key, pressed) {
                 let _ = input_tx.send(message);
             }
         }
     }
-    Ok(())
+    Ok(found_input)
 }
 
 mod scan_schedule;
