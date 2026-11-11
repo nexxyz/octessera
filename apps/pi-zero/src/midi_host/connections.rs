@@ -266,11 +266,20 @@ impl MidiConnections {
         };
         if !self.usb_midi_out_enabled {
             self.gadget_appear_checks = 0;
-            if let Err(error) = output {
-                eprintln!("MIDI output reconnect failed: {error}");
-            }
-            if let Err(error) = input {
-                eprintln!("MIDI input reconnect failed: {error}");
+            match (output, input) {
+                (Ok(()), Ok(())) => {
+                    if let Some(status) = self.status_result(Ok(())) {
+                        self.emit(MidiConnectEvent::Result(status));
+                    }
+                }
+                (output, input) => {
+                    if let Err(error) = output {
+                        eprintln!("MIDI output reconnect failed: {error}");
+                    }
+                    if let Err(error) = input {
+                        eprintln!("MIDI input reconnect failed: {error}");
+                    }
+                }
             }
             return;
         }
@@ -286,12 +295,34 @@ impl MidiConnections {
         }
     }
 
+    /// A remembered MIDI Host port that is not plugged in, so it stays selected but unconnected.
+    fn remembered_host_port_missing(&self) -> bool {
+        let missing = |id: &Option<String>, connected: bool, error: &Option<String>| {
+            id.is_some() && !connected && error.is_none()
+        };
+        missing(
+            &self.host_midi_output_id,
+            self.midi_output_connected,
+            &self.midi_output_error,
+        ) || missing(
+            &self.host_midi_input_id,
+            self.midi_input_connected,
+            &self.midi_input_error,
+        )
+    }
+
     pub(super) fn selection_status(
         &self,
         result: Result<(), String>,
     ) -> Option<(bool, Option<String>)> {
         if !self.usb_midi_out_enabled {
-            return Some(result.map_or_else(|error| (false, Some(error)), |_| (true, None)));
+            return Some(match result {
+                Err(error) => (false, Some(error)),
+                Ok(()) if self.remembered_host_port_missing() => {
+                    (true, Some("not connected".into()))
+                }
+                Ok(()) => (true, None),
+            });
         }
         if let Some(message) = self
             .midi_output_error

@@ -167,6 +167,7 @@ fn failed_connect_of_a_saved_port_keeps_it_and_a_later_connect_reports_ok() {
             Some("MIDI output connect failed"),
             "MIDI output connect failed",
         ),
+        (true, Some("not connected"), "not connected"),
         (true, None, "MIDI ok"),
     ] {
         let messages = runner
@@ -187,6 +188,17 @@ fn failed_connect_of_a_saved_port_keeps_it_and_a_later_connect_reports_ok() {
         assert_eq!(runner.midi.input_id.as_deref(), Some("in1"));
         assert_eq!(runner.pending.system_persistence.dirty_revision, None);
     }
+}
+
+#[test]
+fn a_not_connected_midi_status_raises_no_error() {
+    let status = RuntimeStoreResult::MidiStatus {
+        ok: true,
+        message: Some("not connected".into()),
+        selected_out_id: Some("out1".into()),
+        selected_in_id: None,
+    };
+    assert!(status.error_facts().is_none());
 }
 
 #[test]

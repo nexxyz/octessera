@@ -200,8 +200,16 @@ fn missing_remembered_midi_ports_stay_selected_as_not_connected() {
         &mut adapter,
         RuntimePlatformEffect::MidiSelectOutput { id: None },
     );
-    assert!(ok && message.is_none());
+    assert!(ok);
+    assert_eq!(message.as_deref(), Some("not connected"));
     assert_eq!((out_id, in_id), (None, missing));
+
+    let (ok, message, out_id, in_id) = midi_status(
+        &mut adapter,
+        RuntimePlatformEffect::MidiSelectInput { id: None },
+    );
+    assert!(ok && message.is_none());
+    assert_eq!((out_id, in_id), (None, None));
 }
 
 #[test]

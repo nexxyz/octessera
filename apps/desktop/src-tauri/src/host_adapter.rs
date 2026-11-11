@@ -34,6 +34,8 @@ pub(crate) struct DesktopPlaybackHostAdapter {
     platform_service_tx: SyncSender<DesktopPlatformServiceRequest>,
     selected_midi_output_id: Option<String>,
     selected_midi_input_id: Option<String>,
+    midi_output_missing: bool,
+    midi_input_missing: bool,
     shutdown_requested: bool,
     momentary_fx_types: HashMap<String, (u64, String)>,
 }
@@ -63,6 +65,8 @@ impl DesktopPlaybackHostAdapter {
             platform_service_tx,
             selected_midi_output_id: None,
             selected_midi_input_id: None,
+            midi_output_missing: false,
+            midi_input_missing: false,
             shutdown_requested: false,
             momentary_fx_types: HashMap::new(),
         }

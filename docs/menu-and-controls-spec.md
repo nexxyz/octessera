@@ -393,7 +393,7 @@ change; only the distance per detent does.
   first menu shown is the saved patch's. A missing saved patch starts on defaults, and a failed
   load shows its error frame over that menu.
 - MIDI is hot-pluggable. A remembered MIDI Host port that is not plugged in stays selected without
-  an error and connects when it appears; the runtime looks for added or removed MIDI devices once a
+  an error, its MIDI status reads `not connected`, and it connects when it appears; the runtime looks for added or removed MIDI devices once a
   second and reconnects the remembered ports. An output that stops taking messages (unplugged, or a
   computer that is not reading the USB MIDI gadget) is logged, not shown as an error. The same
   watch reconnects the USB MIDI gadget port after a live gadget rebuild. A remembered port that

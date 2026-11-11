@@ -1,4 +1,4 @@
-use super::connections::{MidiConnections, GADGET_APPEAR_CHECKS};
+use super::connections::{MidiConnectEvent, MidiConnections, GADGET_APPEAR_CHECKS};
 use super::test_backend::TestMidiBackend;
 use super::*;
 use playback_runtime::{HostMessage, MidiPort, RuntimePlatformEffect, RuntimeStoreResult};
@@ -100,6 +100,34 @@ fn a_remembered_host_port_connects_when_it_is_plugged_in() {
 
     assert!(host.midi_output_connected);
     assert_eq!(host.host_midi_output_id.as_deref(), Some("name:Keyboard"));
+}
+
+#[test]
+fn a_missing_remembered_host_port_reports_not_connected_until_it_is_plugged_in() {
+    let (events, received) = mpsc::channel();
+    let mut host = MidiConnections::new(events, Arc::new(|_| {}), false);
+    host.set_test_backend(backend(Vec::new(), Vec::new(), []));
+
+    let output = host.handle_effect(&RuntimePlatformEffect::MidiSelectOutput {
+        id: Some("name:Keyboard".into()),
+    });
+    assert_eq!(
+        midi_status(output),
+        Some((true, Some("not connected".into())))
+    );
+
+    host.set_test_backend(backend(["Keyboard".to_string()], [], [Ok(())]));
+    host.port_watch.assume_known(vec![("midiC9D0".into(), 1)]);
+    host.reconnect_if_ports_changed(Instant::now());
+
+    let statuses = received
+        .try_iter()
+        .filter_map(|event| match event {
+            MidiConnectEvent::Result(result) => midi_status(Some(result)),
+            MidiConnectEvent::Output(_) => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(statuses.last(), Some(&(true, None)));
 }
 
 #[test]

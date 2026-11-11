@@ -64,6 +64,8 @@ fn test_adapter_with_recording_dir(
         platform_service_tx,
         selected_midi_output_id: None,
         selected_midi_input_id: None,
+        midi_output_missing: false,
+        midi_input_missing: false,
         shutdown_requested: false,
         momentary_fx_types: std::collections::HashMap::new(),
     };
