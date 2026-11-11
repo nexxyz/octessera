@@ -235,7 +235,7 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   `.incomplete.wav`/`.incomplete.avi` after audio gaps or audio ingress overflow. A dropped screen
   frame only holds the previous picture and is logged. Failed workers keep the partial file, and
   existing takes are never replaced.
-- At startup each board lists the `.partial.avi` takes in the Audio+Video folder, then a
+- At startup each board and the desktop list the `.partial.avi` takes in the Audio+Video folder, then a
   background thread rebuilds their sizes and `idx1` index from the whole chunks present
   (dropping a torn tail) and saves them as `.incomplete.avi`. A file the recorder did not write,
   or one whose final name is taken, stays as it is; each result is logged.

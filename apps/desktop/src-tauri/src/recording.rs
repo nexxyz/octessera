@@ -460,5 +460,8 @@ fn parse_snapshot_led_colors(snapshot: &serde_json::Value) -> Option<LedColors> 
     )
 }
 
+mod partial_take_repair;
+pub(crate) use partial_take_repair::spawn_partial_take_repair;
+
 #[cfg(test)]
 mod recording_tests;
