@@ -235,6 +235,7 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
         file.sync_all().map_err(io_error)?;
         let staged = user_data_archive::stage_archive(&upload_path, &stage_root)?;
         validate_free_space(
+            &crate::user_data_restore::LiveFilesystems,
             &inner.store_dir,
             &inner.samples_dir,
             &inner.recordings_dir,
