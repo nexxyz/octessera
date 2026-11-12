@@ -12,6 +12,7 @@ fn no_audio_keeps_the_engine_taking_events() {
         load_tx,
         failure_tx,
         std::sync::mpsc::channel().1,
+        std::sync::mpsc::channel().0,
         true,
         Default::default(),
     );

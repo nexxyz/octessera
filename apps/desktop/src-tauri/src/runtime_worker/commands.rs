@@ -110,9 +110,7 @@ impl RuntimeWorker {
             }
         }
         if !was_playing && self.is_transport_playing() {
-            if let Some(reopened) = self.adapter.audio.request_output_reopen() {
-                self.output_reopened_rx = Some(reopened);
-            }
+            self.adapter.audio.request_output_reopen();
         }
         let is_internal_playing = self.is_internal_playing();
         if was_internal_playing != is_internal_playing || !is_internal_playing {

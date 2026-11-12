@@ -85,16 +85,9 @@ impl RuntimeWorker {
         while let Ok(failure) = self.audio_failure_rx.try_recv() {
             self.handle_typed_error(failure.facts);
         }
-        if let Some(reopened) = &self.output_reopened_rx {
-            match reopened.try_recv() {
-                Ok(()) => {
-                    self.output_reopened_rx = None;
-                    self.playback
-                        .clear_error(playback_runtime::RuntimeOperation::AudioThread);
-                }
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => self.output_reopened_rx = None,
-                Err(std::sync::mpsc::TryRecvError::Empty) => {}
-            }
+        if self.output_back_rx.try_iter().count() > 0 {
+            self.playback
+                .clear_error(playback_runtime::RuntimeOperation::AudioThread);
         }
     }
 

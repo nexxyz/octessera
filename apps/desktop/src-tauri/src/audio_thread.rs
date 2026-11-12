@@ -1,4 +1,4 @@
-use crate::audio_output_watch::{OutputWatch, OUTPUT_CHECK_INTERVAL};
+use crate::audio_output_watch::{OutputCheck, OutputWatch, OUTPUT_CHECK_INTERVAL};
 use crate::contained_audio_source::panic_message;
 use crate::recording::{RecordingEngineSource, RecordingTapState};
 use crate::types::{AudioRuntime, SharedEngine};
@@ -40,7 +40,8 @@ pub(crate) fn spawn_audio_engine_thread(
     control_rx: EngineEventReceiver,
     load_tx: AudioLoadStatusSender,
     failure_tx: Sender<RuntimeAdapterError>,
-    reopen_rx: Receiver<Sender<()>>,
+    reopen_rx: Receiver<()>,
+    output_back_tx: Sender<()>,
     no_audio: bool,
     recording_tap: RecordingTapState,
 ) {
@@ -54,7 +55,7 @@ pub(crate) fn spawn_audio_engine_thread(
         use std::panic::{catch_unwind, AssertUnwindSafe};
         let result = catch_unwind(AssertUnwindSafe(|| {
             let engine = SharedEngine::new(control_rx, load_tx, recording_tap);
-            run_output(&engine, &reopen_rx, &failure_tx);
+            run_output(&engine, &reopen_rx, &output_back_tx, &failure_tx);
         }));
         if let Err(panic) = result {
             let msg = panic_message(panic.as_ref());
@@ -65,11 +66,13 @@ pub(crate) fn spawn_audio_engine_thread(
 }
 
 /// Plays the engine on the default output. An output that fails to open or stops pulling is
-/// reported once, and the next reopen request (a Play or Start) opens the default device again;
-/// the request's reply tells the runtime worker that audio is back.
+/// reported once, and the next reopen request (a Play or Start) opens the default device again.
+/// `output_back_tx` tells the runtime worker that audio is fine: after a reopen request finds a
+/// healthy output, and when a stalled output resumes by itself.
 fn run_output(
     engine: &SharedEngine,
-    reopen_rx: &Receiver<Sender<()>>,
+    reopen_rx: &Receiver<()>,
+    output_back_tx: &Sender<()>,
     failure_tx: &Sender<RuntimeAdapterError>,
 ) {
     let mut watch = OutputWatch::default();
@@ -79,25 +82,27 @@ fn run_output(
     }
     loop {
         match reopen_rx.recv_timeout(OUTPUT_CHECK_INTERVAL) {
-            Ok(reopened) => {
-                if watch.needs_reopen() {
-                    drop(output.take());
-                    output = open_output(engine, failure_tx);
-                    if output.is_some() {
-                        watch.reopened();
-                        let _ = reopened.send(());
+            Ok(()) => {
+                if watch.serve_reopen(&mut output, || open_output(engine, failure_tx)) {
+                    let _ = output_back_tx.send(());
+                }
+            }
+            Err(RecvTimeoutError::Timeout) if output.is_some() => {
+                match watch.check(engine.pulls.load(Ordering::Relaxed)) {
+                    OutputCheck::Stalled => {
+                        eprintln!("audio output stopped pulling");
+                        report_audio_failure(
+                            failure_tx,
+                            "Audio output stopped. Press Play to reopen it.".into(),
+                        );
                     }
+                    OutputCheck::Resumed => {
+                        let _ = output_back_tx.send(());
+                    }
+                    OutputCheck::Unchanged => {}
                 }
             }
-            Err(RecvTimeoutError::Timeout) => {
-                if output.is_some() && watch.newly_stalled(engine.pulls.load(Ordering::Relaxed)) {
-                    eprintln!("audio output stopped pulling");
-                    report_audio_failure(
-                        failure_tx,
-                        "Audio output stopped. Press Play to reopen it.".into(),
-                    );
-                }
-            }
+            Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => return,
         }
     }

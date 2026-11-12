@@ -83,11 +83,13 @@ pub fn run() {
                 screen_recording_dir,
             );
             let (output_reopen_tx, output_reopen_rx) = mpsc::channel();
+            let (output_back_tx, output_back_rx) = mpsc::channel();
             spawn_audio_engine_thread(
                 engine_rx,
                 load_tx,
                 audio_failure_tx,
                 output_reopen_rx,
+                output_back_tx,
                 no_audio,
                 recording.tap_state(),
             );
@@ -107,6 +109,7 @@ pub fn run() {
                 app_handle.clone(),
                 runtime_outbox.clone(),
                 audio_failure_rx,
+                output_back_rx,
                 audio_prep_result_rx,
                 DesktopPlaybackHostAdapter::new(
                     DesktopHostAudioState {
