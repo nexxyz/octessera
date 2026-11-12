@@ -26,8 +26,9 @@ pub fn partial_avi_paths(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Finalizes a take a power cut left without sizes or index: keeps every whole movi chunk,
-/// drops a torn tail, and saves it as `.incomplete.avi`. A file this recorder did not write is
-/// left untouched.
+/// drops a torn tail, and saves it as `.incomplete.avi`. A take cut after its index was
+/// written gets its sizes rewritten and keeps its `.avi` name. A file this recorder did not
+/// write is left untouched.
 pub fn repair_partial_avi(partial_path: &Path) -> Result<RecordingOutcome, String> {
     let name = partial_path
         .file_name()
@@ -42,7 +43,7 @@ pub fn repair_partial_avi(partial_path: &Path) -> Result<RecordingOutcome, Strin
         .map_err(|error| format!("{}: {error}", partial_path.display()))?;
     let mut writer = AviWriter::reopen(file, partial_path.to_path_buf(), final_path)
         .map_err(|error| error.to_string())?;
-    index_whole_chunks(&mut writer)
+    let finished = index_whole_chunks(&mut writer)
         .map_err(|error| format!("{}: {error}", partial_path.display()))?;
     let frames = writer.audio_frames;
     writer
@@ -52,17 +53,20 @@ pub fn repair_partial_avi(partial_path: &Path) -> Result<RecordingOutcome, Strin
             gap_frames: 0,
             overflow_count: 0,
             overflow_frames: 0,
-            incomplete: true,
+            incomplete: !finished,
             size_limited: false,
         })
         .map_err(|error| error.to_string())
 }
 
-fn index_whole_chunks(writer: &mut AviWriter) -> std::io::Result<()> {
+/// `true` when the chunks end in a whole idx1 that indexes all of them: `finish` was cut short.
+fn index_whole_chunks(writer: &mut AviWriter) -> std::io::Result<bool> {
     let movi_fourcc = writer.movi_data_start() - 4;
     let mut position = writer.movi_data_start();
     let length = writer.file_mut().metadata()?.len();
     let mut header = [0_u8; 8];
+    let mut chunks = 0_u64;
+    let mut finished = false;
     while position + 8 <= length {
         let file = writer.file_mut();
         file.seek(SeekFrom::Start(position))?;
@@ -71,18 +75,20 @@ fn index_whole_chunks(writer: &mut AviWriter) -> std::io::Result<()> {
         let size = u32::from_le_bytes([header[4], header[5], header[6], header[7]]);
         let end = position + 8 + u64::from(size) + u64::from(size % 2);
         if !matches!(&id, b"00dc" | b"01wb") || end > length {
+            finished = &id == b"idx1" && end == length && u64::from(size) == chunks * 16;
             break;
         }
         let Ok(offset) = u32::try_from(position - movi_fourcc) else {
             break;
         };
         writer.record_chunk(id, offset, size);
+        chunks += 1;
         position = end;
     }
     let file = writer.file_mut();
     file.set_len(position)?;
     file.seek(SeekFrom::Start(position))?;
-    Ok(())
+    Ok(finished)
 }
 
 #[cfg(test)]

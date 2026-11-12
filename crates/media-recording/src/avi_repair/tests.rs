@@ -97,6 +97,58 @@ fn a_take_cut_inside_its_first_chunk_finalizes_empty() {
 }
 
 #[test]
+fn a_take_cut_between_finishing_and_its_rename_keeps_its_name_and_bytes() {
+    let dir = temp_dir("finished");
+    let reference = finished_reference(&dir, 2);
+    let partial = dir.join("octessera-4.partial.avi");
+    fs::write(&partial, &reference).unwrap();
+
+    let outcome = repair_partial_avi(&partial).unwrap();
+
+    assert_eq!(outcome.path, dir.join("octessera-4.avi"));
+    assert_eq!(outcome.status, RecordingStatus::Complete);
+    assert_eq!(outcome.frames_written, 2 * 2_205);
+    assert!(!partial.exists());
+    assert_eq!(fs::read(&outcome.path).unwrap(), reference);
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_take_cut_while_its_sizes_were_patched_gets_them_all_rewritten() {
+    let dir = temp_dir("half-patched");
+    let reference = finished_reference(&dir, 2);
+    let mut cut = reference.clone();
+    cut[4..8].fill(0);
+    let partial = dir.join("octessera-5.partial.avi");
+    fs::write(&partial, &cut).unwrap();
+
+    let outcome = repair_partial_avi(&partial).unwrap();
+
+    assert_eq!(outcome.path, dir.join("octessera-5.avi"));
+    assert_eq!(fs::read(&outcome.path).unwrap(), reference);
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_finished_take_whose_name_is_taken_stays_partial() {
+    let dir = temp_dir("finished-collision");
+    let reference = finished_reference(&dir, 1);
+    let partial = dir.join("octessera-6.partial.avi");
+    fs::write(&partial, &reference).unwrap();
+    fs::write(dir.join("octessera-6.avi"), b"another take").unwrap();
+
+    let error = repair_partial_avi(&partial).unwrap_err();
+
+    assert!(error.contains("already exists"), "{error}");
+    assert!(partial.exists());
+    assert_eq!(
+        fs::read(dir.join("octessera-6.avi")).unwrap(),
+        b"another take"
+    );
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
 fn a_file_without_our_header_is_left_alone() {
     let dir = temp_dir("foreign");
     let partial = dir.join("octessera-3.partial.avi");
