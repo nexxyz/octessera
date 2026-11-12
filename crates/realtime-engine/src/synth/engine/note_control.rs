@@ -428,10 +428,15 @@ impl SynthEngine {
         self.release_sample_voices(slot, |voice| voice.sample_slot == sample_slot);
     }
 
+    /// Forgets every slot's latched CC74/CC71, as a patch load or Panic does.
+    pub fn clear_filter_cc_latches(&mut self) {
+        self.mods = [InstrumentMod::new(); INSTRUMENT_SLOT_COUNT];
+    }
+
     pub fn all_notes_off(&mut self) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
         let event_sample_clock = self.event_block_sample_clock();
-        self.mods = [InstrumentMod::new(); INSTRUMENT_SLOT_COUNT];
+        self.clear_filter_cc_latches();
         if !self.voice_pools_home() {
             return retired;
         }

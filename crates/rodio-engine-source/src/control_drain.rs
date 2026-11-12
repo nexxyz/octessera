@@ -108,7 +108,9 @@ impl<'a> ControlDrain<'a> {
             panic_processed = true;
             timed.park.clear();
             work_units += 1;
-            if !emergency_redundant {
+            if emergency_redundant {
+                engine.clear_filter_cc_latches();
+            } else {
                 let retired =
                     Self::apply_source_event(engine, source_event_sample_clock, |engine| {
                         engine.all_notes_off()
@@ -201,7 +203,9 @@ impl<'a> ControlDrain<'a> {
             if class == QueueEventClass::Emergency {
                 panic_processed = true;
                 timed.park.clear();
-                if !self.emergency_retirement_is_blocked() {
+                if self.emergency_retirement_is_blocked() {
+                    engine.clear_filter_cc_latches();
+                } else {
                     let retired =
                         Self::apply_source_event(engine, source_event_sample_clock, |engine| {
                             engine.all_notes_off()
