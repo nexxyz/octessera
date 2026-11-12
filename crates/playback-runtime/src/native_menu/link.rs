@@ -108,15 +108,7 @@ pub(super) fn link_layer_group(
                 "X Axis",
                 "x",
                 config,
-                AxisMenuConfig {
-                    offset_limit: 7,
-                    pitch_enabled: sense.x_pitch_enabled,
-                    pitch_steps: sense.x_pitch_steps,
-                    restart_each_section: sense.x_pitch_restart_each_section,
-                    velocity: &sense.x_velocity,
-                    filter_cutoff: &sense.x_filter_cutoff,
-                    filter_resonance: &sense.x_filter_resonance,
-                },
+                axis_menu_config(sense, "x"),
             ),
             axis_group_with_param_mods(
                 index,
@@ -124,20 +116,39 @@ pub(super) fn link_layer_group(
                 "Y Axis",
                 "y",
                 config,
-                AxisMenuConfig {
-                    offset_limit: 7,
-                    pitch_enabled: sense.y_pitch_enabled,
-                    pitch_steps: sense.y_pitch_steps,
-                    restart_each_section: sense.y_pitch_restart_each_section,
-                    velocity: &sense.y_velocity,
-                    filter_cutoff: &sense.y_filter_cutoff,
-                    filter_resonance: &sense.y_filter_resonance,
-                },
+                axis_menu_config(sense, "y"),
             ),
             arp_group(&format!("{prefix}.arp"), &sense.arp),
             bool_item("Seeded", format!("{prefix}.seeded"), sense.seeded),
         ],
     )
+}
+
+pub(super) fn axis_menu_config<'a>(
+    sense: &'a NativeLinkLayerConfig,
+    axis: &str,
+) -> AxisMenuConfig<'a> {
+    if axis == "x" {
+        AxisMenuConfig {
+            offset_limit: 7,
+            pitch_enabled: sense.x_pitch_enabled,
+            pitch_steps: sense.x_pitch_steps,
+            restart_each_section: sense.x_pitch_restart_each_section,
+            velocity: &sense.x_velocity,
+            filter_cutoff: &sense.x_filter_cutoff,
+            filter_resonance: &sense.x_filter_resonance,
+        }
+    } else {
+        AxisMenuConfig {
+            offset_limit: 7,
+            pitch_enabled: sense.y_pitch_enabled,
+            pitch_steps: sense.y_pitch_steps,
+            restart_each_section: sense.y_pitch_restart_each_section,
+            velocity: &sense.y_velocity,
+            filter_cutoff: &sense.y_filter_cutoff,
+            filter_resonance: &sense.y_filter_resonance,
+        }
+    }
 }
 
 pub(super) fn link_instrument_options(instrument_labels: &[String]) -> Vec<String> {

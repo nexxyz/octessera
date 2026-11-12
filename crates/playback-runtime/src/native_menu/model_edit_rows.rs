@@ -5,7 +5,8 @@ use super::binding_picker::labelled_binding;
 use super::binding_picker_rows::{
     show_picker_binding, update_instrument_bindings, update_play_fx_bindings, update_shape_bindings,
 };
-use super::link::link_instrument_options;
+use super::link::{axis_menu_config, link_instrument_options};
+use super::link_axis::axis_group;
 use super::link_sections::scanning_group;
 use super::model_root::{instrument_item, instrument_item_label};
 use super::model_search::{
@@ -172,6 +173,28 @@ impl NativeMenuModel {
             &format!("{prefix}.scanMode"),
             &scanning.children,
         );
+        self.clamp_cursor_to_siblings();
+    }
+
+    /// Shows or hides an axis group's Pitch Steps and lane rows after their `Enabled` changes.
+    pub fn show_link_axis_rows(&mut self, layer_index: usize, sense: &NativeLinkLayerConfig) {
+        let prefix = format!("layers.{layer_index}.link");
+        for axis in ["x", "y"] {
+            let rows = axis_group(
+                &format!("{prefix}.{axis}"),
+                "",
+                axis_menu_config(sense, axis),
+            );
+            for group in &rows.children {
+                if let Some(enabled) = group.children.first().and_then(|row| row.key.as_deref()) {
+                    replace_group_children_containing_direct_key(
+                        &mut self.root,
+                        enabled,
+                        &group.children,
+                    );
+                }
+            }
+        }
         self.clamp_cursor_to_siblings();
     }
 

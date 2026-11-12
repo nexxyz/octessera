@@ -83,6 +83,12 @@ impl NativeRunner {
                     &instrument_labels(&self.instruments),
                 );
             }
+            if (suffix.starts_with("link.x.") || suffix.starts_with("link.y."))
+                && suffix.ends_with(".enabled")
+            {
+                let sense = link_layer_config(layer);
+                self.menu.show_link_axis_rows(index, &sense);
+            }
             if suffix.starts_with("link.arp.") {
                 self.clear_link_arp_state_for_layer(index);
             }

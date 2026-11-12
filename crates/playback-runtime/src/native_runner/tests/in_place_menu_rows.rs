@@ -187,6 +187,15 @@ fn link_scan_mode_detents_update_their_rows_in_place() {
 }
 
 #[test]
+fn link_axis_enabled_detents_update_their_rows_in_place() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+
+    assert_detents_match_fresh_build(&mut runner, "layers.0.link.x.velocity.enabled", &[1, -1, 1]);
+    assert!(runner.menu.focus_item_key("layers.0.link.x.velocity.from"));
+    assert_detents_match_fresh_build(&mut runner, "layers.0.link.y.pitch.enabled", &[1, -1]);
+}
+
+#[test]
 fn sample_browser_steps_update_only_the_browser_rows() {
     let mut runner = runner_with_instrument("sampler");
     let rebuilds = runner.menu.rebuild_count;
