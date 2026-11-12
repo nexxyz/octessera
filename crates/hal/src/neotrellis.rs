@@ -19,6 +19,8 @@ pub struct NeoTrellis {
     delay: Box<dyn SeesawDelay>,
     needs_setup: [bool; 4],
     led_refresh: bool,
+    /// Each board's GRB pixel buffer as last written, for the setup refresh to send again.
+    pixels: [[u8; TRELLIS_PIXEL_BYTES_PER_DEVICE]; 4],
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
@@ -55,6 +57,8 @@ const TRELLIS_PIXELS_PER_DEVICE: usize = 16;
 const TRELLIS_PIXEL_BYTES_PER_DEVICE: usize = TRELLIS_PIXELS_PER_DEVICE * 3;
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 const TRELLIS_LED_CHUNK_BYTES: usize = 24;
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+const TRELLIS_LED_CHUNKS: usize = TRELLIS_PIXEL_BYTES_PER_DEVICE.div_ceil(TRELLIS_LED_CHUNK_BYTES);
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
 const TRELLIS_INIT_ATTEMPTS: usize = 3;
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
@@ -94,6 +98,7 @@ impl NeoTrellis {
                         delay,
                         needs_setup: [false; 4],
                         led_refresh: false,
+                        pixels: [[0; TRELLIS_PIXEL_BYTES_PER_DEVICE]; 4],
                     });
                 }
                 Err(error) => {
@@ -131,6 +136,7 @@ impl NeoTrellis {
                         delay,
                         needs_setup: [false; 4],
                         led_refresh: false,
+                        pixels: [[0; TRELLIS_PIXEL_BYTES_PER_DEVICE]; 4],
                     });
                 }
                 Err(error) => {
@@ -217,15 +223,22 @@ impl NeoTrellis {
     /// A board that soft-resets quickly answers every transaction and has no reset flag, so the
     /// caller re-applies each board's keypad and NeoPixel setup periodically, one short part per
     /// call so a key scan never waits long behind it. The firmware treats every setup write as
-    /// idempotent and none touches the pixel buffer or the LEDs. Returns whether parts remain.
+    /// idempotent. A reset also cleared the pixel buffer, so the last parts write the board's
+    /// pixels again, one chunk per part, and then latch them. Returns whether parts remain.
     pub fn reapply_setup_part(&mut self, dev_idx: usize, part: usize) -> Result<bool, String> {
-        let first = part * SETUP_WRITES_PER_PART;
-        let end = (first + SETUP_WRITES_PER_PART).min(TRELLIS_SETUP_WRITES);
-        for index in first..end {
-            write_setup(&mut *self.transports[dev_idx], index)
-                .inspect_err(|_| self.needs_setup[dev_idx] = true)?;
-        }
-        Ok(end < TRELLIS_SETUP_WRITES)
+        let setup_parts = TRELLIS_SETUP_WRITES.div_ceil(SETUP_WRITES_PER_PART);
+        let transport = &mut *self.transports[dev_idx];
+        let result = if part < setup_parts {
+            let first = part * SETUP_WRITES_PER_PART;
+            let end = (first + SETUP_WRITES_PER_PART).min(TRELLIS_SETUP_WRITES);
+            (first..end).try_for_each(|index| write_setup(transport, index))
+        } else if part - setup_parts < TRELLIS_LED_CHUNKS {
+            write_led_buffer_chunk(transport, &self.pixels[dev_idx], part - setup_parts)
+        } else {
+            write_led_show(transport).map(|()| self.delay.sleep(TRELLIS_SHOW_SETTLE))
+        };
+        result.inspect_err(|_| self.needs_setup[dev_idx] = true)?;
+        Ok(part < setup_parts + TRELLIS_LED_CHUNKS)
     }
 
     /// Write an 8x8 RGB frame to the four NeoPixel buffers, then latch all four.
@@ -239,18 +252,15 @@ impl NeoTrellis {
                     data.extend_from_slice(&grb_color(frame[y * 8 + x]));
                 }
             }
-            write_led_buffer_chunks(&mut *self.transports[dev_idx], &data)
+            (0..TRELLIS_LED_CHUNKS)
+                .try_for_each(|chunk| {
+                    write_led_buffer_chunk(&mut *self.transports[dev_idx], &data, chunk)
+                })
                 .inspect_err(|_| self.needs_setup[dev_idx] = true)?;
+            self.pixels[dev_idx].copy_from_slice(&data);
         }
         for (dev_idx, transport) in self.transports.iter_mut().enumerate() {
-            write_register(
-                &mut **transport,
-                SEESAW_NEOPIXEL_BASE,
-                SEESAW_NEOPIXEL_SHOW,
-                &[],
-                "Trellis LED show failed",
-            )
-            .inspect_err(|_| self.needs_setup[dev_idx] = true)?;
+            write_led_show(&mut **transport).inspect_err(|_| self.needs_setup[dev_idx] = true)?;
         }
         self.delay.sleep(TRELLIS_SHOW_SETTLE);
         Ok(())
@@ -372,21 +382,34 @@ fn read_register(
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
-fn write_led_buffer_chunks(transport: &mut dyn SeesawTransport, data: &[u8]) -> Result<(), String> {
-    for offset in (0..data.len()).step_by(TRELLIS_LED_CHUNK_BYTES) {
-        let end = (offset + TRELLIS_LED_CHUNK_BYTES).min(data.len());
-        let mut chunk = Vec::with_capacity(2 + end - offset);
-        chunk.extend_from_slice(&(offset as u16).to_be_bytes());
-        chunk.extend_from_slice(&data[offset..end]);
-        write_register(
-            transport,
-            SEESAW_NEOPIXEL_BASE,
-            SEESAW_NEOPIXEL_BUF,
-            &chunk,
-            "Trellis LED buffer write failed",
-        )?;
-    }
-    Ok(())
+fn write_led_buffer_chunk(
+    transport: &mut dyn SeesawTransport,
+    data: &[u8],
+    chunk: usize,
+) -> Result<(), String> {
+    let offset = chunk * TRELLIS_LED_CHUNK_BYTES;
+    let end = (offset + TRELLIS_LED_CHUNK_BYTES).min(data.len());
+    let mut payload = Vec::with_capacity(2 + end - offset);
+    payload.extend_from_slice(&(offset as u16).to_be_bytes());
+    payload.extend_from_slice(&data[offset..end]);
+    write_register(
+        transport,
+        SEESAW_NEOPIXEL_BASE,
+        SEESAW_NEOPIXEL_BUF,
+        &payload,
+        "Trellis LED buffer write failed",
+    )
+}
+
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+fn write_led_show(transport: &mut dyn SeesawTransport) -> Result<(), String> {
+    write_register(
+        transport,
+        SEESAW_NEOPIXEL_BASE,
+        SEESAW_NEOPIXEL_SHOW,
+        &[],
+        "Trellis LED show failed",
+    )
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]

@@ -11,8 +11,9 @@ pub(super) enum SeesawBoard {
 }
 
 /// A Seesaw that soft-resets quickly never fails a transaction, so its keypad and LED setup is
-/// lost silently. The setup goes out one board at a time and one short part per worker pass, so
-/// a key scan only ever waits behind a couple of writes.
+/// lost silently. The setup and then the board's pixels go out one board at a time and one short
+/// part per worker pass, so a key scan only ever waits behind a couple of writes or one pixel
+/// chunk.
 pub(super) struct SetupRefresh {
     next_at: Instant,
     next_board: usize,
