@@ -67,8 +67,8 @@ pub(crate) fn spawn_audio_engine_thread(
 
 /// Plays the engine on the default output. An output that fails to open or stops pulling is
 /// reported once, and the next reopen request (a Play or Start) opens the default device again.
-/// `output_back_tx` tells the runtime worker that audio is fine: after a reopen request finds a
-/// healthy output, and when a stalled output resumes by itself.
+/// `output_back_tx` tells the runtime worker that audio plays again: after a reopen request
+/// replaced a lost output, and when a stalled output resumes by itself.
 fn run_output(
     engine: &SharedEngine,
     reopen_rx: &Receiver<()>,

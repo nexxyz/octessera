@@ -37,18 +37,20 @@ impl OutputWatch {
         self.stalled = true;
     }
 
-    /// Answers a reopen request: a lost output is replaced by a fresh `open`. `true` when the
-    /// output is healthy afterwards, whether it was reopened or never lost.
+    /// Answers a reopen request: a lost output is replaced by a fresh `open`. `true` only when a
+    /// lost output was reopened; a healthy output is left alone and reports nothing, so an
+    /// unrelated audio error such as a source panic stays visible.
     pub(crate) fn serve_reopen<T>(
         &mut self,
         output: &mut Option<T>,
         open: impl FnOnce() -> Option<T>,
     ) -> bool {
-        if self.stalled {
-            drop(output.take());
-            *output = open();
-            self.stalled = output.is_none();
+        if !self.stalled {
+            return false;
         }
+        drop(output.take());
+        *output = open();
+        self.stalled = output.is_none();
         !self.stalled
     }
 }
@@ -82,12 +84,13 @@ mod tests {
     }
 
     #[test]
-    fn a_reopen_request_on_a_healthy_output_keeps_it_and_reports_it_healthy() {
+    fn a_reopen_request_on_a_healthy_output_reports_nothing_so_another_audio_error_stays() {
         let mut watch = OutputWatch::default();
         assert_eq!(watch.check(3), OutputCheck::Unchanged);
+        assert_eq!(watch.check(4), OutputCheck::Unchanged);
         let mut output = Some(1);
 
-        assert!(watch.serve_reopen(&mut output, || panic!("a healthy output is not reopened")));
+        assert!(!watch.serve_reopen(&mut output, || panic!("a healthy output is not reopened")));
         assert_eq!(output, Some(1));
     }
 
@@ -110,6 +113,6 @@ mod tests {
         assert_eq!(watch.check(6), OutputCheck::Resumed);
         assert_eq!(watch.check(7), OutputCheck::Unchanged);
         let mut output = Some(1);
-        assert!(watch.serve_reopen(&mut output, || panic!("a resumed output is not reopened")));
+        assert!(!watch.serve_reopen(&mut output, || panic!("a resumed output is not reopened")));
     }
 }
