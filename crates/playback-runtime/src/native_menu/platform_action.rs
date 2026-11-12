@@ -120,7 +120,7 @@ impl PlatformAction {
     /// The menu section that owns the action, so a hint for it takes that section's colour.
     pub(crate) fn home_section(&self) -> &'static str {
         match self {
-            Self::MidiCcLearn(_) => LINK_LABEL,
+            Self::MidiCcLearn(_) | Self::TriggerProbabilityAssign(_) => LINK_LABEL,
             Self::PlayFxMap | Self::FaderTileMap => PLAY_LABEL,
             Self::Signal(_)
             | Self::SampleAssign { .. }
@@ -173,8 +173,7 @@ impl PlatformAction {
             | Self::BluetoothScan
             | Self::BluetoothToggle(_)
             | Self::BluetoothPair(_)
-            | Self::BluetoothForget(_)
-            | Self::TriggerProbabilityAssign(_) => SYSTEM_LABEL,
+            | Self::BluetoothForget(_) => SYSTEM_LABEL,
         }
     }
 

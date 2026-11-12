@@ -145,7 +145,33 @@ impl NativeRunner {
                     action: RuntimeBluetoothDeviceAction::Forget,
                 })
             }
-            _ => None,
+            PlatformAction::PresetRenamePick(_)
+            | PlatformAction::FactoryLoad
+            | PlatformAction::SystemClearAll
+            | PlatformAction::SystemReboot
+            | PlatformAction::SystemShutdown
+            | PlatformAction::SystemControlsHelp
+            | PlatformAction::SystemHardwareTest
+            | PlatformAction::SystemConfigureWifi
+            | PlatformAction::RestartSaveChoice
+            | PlatformAction::RestartSaving
+            | PlatformAction::RestartApp
+            | PlatformAction::MidiCcLearn(_)
+            | PlatformAction::PlayFxMap
+            | PlatformAction::FaderTileMap
+            | PlatformAction::TriggerProbabilityAssign(_)
+            | PlatformAction::Signal(_)
+            | PlatformAction::SampleAssign { .. }
+            | PlatformAction::SampleOpen { .. }
+            | PlatformAction::SampleEnter { .. }
+            | PlatformAction::SampleUp { .. }
+            | PlatformAction::SamplePick { .. }
+            | PlatformAction::SampleFavoriteSet { .. }
+            | PlatformAction::SampleFavoriteRemove { .. }
+            | PlatformAction::DrumAssign { .. }
+            | PlatformAction::DrumPreview { .. }
+            | PlatformAction::MidiDrumAssign(_)
+            | PlatformAction::FactoryInstrumentLoad { .. } => None,
         };
         Ok(effect)
     }

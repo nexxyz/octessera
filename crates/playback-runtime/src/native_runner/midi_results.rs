@@ -10,7 +10,6 @@ impl NativeRunner {
                 self.midi_outputs = outputs;
                 self.menu.show_midi_ports(
                     "MIDI Out",
-                    "midi.output",
                     PlatformAction::MidiOutput,
                     &midi_port_rows(&self.midi_outputs),
                 );
@@ -20,7 +19,6 @@ impl NativeRunner {
                 self.display.runtime_error_presentation = None;
                 self.menu.show_midi_ports(
                     "MIDI In",
-                    "midi.input",
                     PlatformAction::MidiInput,
                     &midi_port_rows(&self.midi_inputs),
                 );

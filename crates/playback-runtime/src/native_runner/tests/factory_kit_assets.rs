@@ -71,7 +71,7 @@ fn three_factory_sampler_kits_reference_library_files_in_voice_order() {
 }
 
 #[test]
-fn sampler_factory_load_does_not_change_sample_browser_navigation_or_preview() {
+fn sampler_factory_load_does_not_change_sample_browser_navigation() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
         .execute_confirmed_action(NativeMenuAction::PlatformEffect(

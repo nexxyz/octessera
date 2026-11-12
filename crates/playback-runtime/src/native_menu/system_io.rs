@@ -153,13 +153,8 @@ pub(super) fn midi_host_group(
     group(
         MIDI_HOST_LABEL,
         vec![
-            midi_ports_group(
-                "MIDI Out",
-                "midi.output",
-                PlatformAction::MidiOutput,
-                outputs,
-            ),
-            midi_ports_group("MIDI In", "midi.input", PlatformAction::MidiInput, inputs),
+            midi_ports_group("MIDI Out", PlatformAction::MidiOutput, outputs),
+            midi_ports_group("MIDI In", PlatformAction::MidiInput, inputs),
         ],
     )
 }
@@ -177,10 +172,10 @@ pub(super) fn usb_device_group(usb_midi_out_enabled: bool) -> NativeMenuItem {
 
 pub(super) fn midi_ports_group(
     label: &str,
-    key_prefix: &str,
     action: fn(Option<String>) -> PlatformAction,
     ports: &[(String, String)],
 ) -> NativeMenuItem {
+    let key_prefix = midi_ports_key_prefix(action);
     let mut children = vec![action_item(
         "Disconnect",
         format!("{key_prefix}.none"),
@@ -194,6 +189,11 @@ pub(super) fn midi_ports_group(
         )
     }));
     group(label, children)
+}
+
+/// The row key prefix of a port list, the action's wire family (`midi.output`, `midi.input`).
+pub(super) fn midi_ports_key_prefix(action: fn(Option<String>) -> PlatformAction) -> String {
+    action(None).as_wire().trim_end_matches(':').to_owned()
 }
 
 pub(super) fn usb_data_role_item(config: &NativeMenuConfig) -> NativeMenuItem {

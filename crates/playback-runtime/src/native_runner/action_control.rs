@@ -113,7 +113,7 @@ impl NativeRunner {
     }
 
     fn queue_music_first_manual_save(&mut self, action: &PlatformAction) -> bool {
-        if !self.pending.external_autosave_deferred {
+        if !self.pending.external_autosave_deferred || !action.is_manual_save() {
             return false;
         }
         if *action == PlatformAction::PresetSaveCurrent
@@ -122,43 +122,36 @@ impl NativeRunner {
             self.show_toast("No preset loaded");
             return true;
         }
-        let request = match action {
-            PlatformAction::DefaultSave => {
-                if self.restart_settings.has_pending_write() {
-                    self.show_toast("Save in progress");
-                    return true;
-                }
-                NativeManualSaveRequest::Default
+        let request = if *action == PlatformAction::DefaultSave {
+            if self.restart_settings.has_pending_write() {
+                self.show_toast("Save in progress");
+                return true;
             }
-            PlatformAction::PresetSaveAs
-            | PlatformAction::PresetRenameApply
-            | PlatformAction::PresetSaveCurrent => {
-                if self.pending.manual_save_request.is_some()
-                    || self.pending.native_preset_write.is_some()
-                {
-                    self.show_toast("Save in progress");
-                    return true;
-                }
-                let name = if *action == PlatformAction::PresetSaveCurrent {
-                    self.patch_store
-                        .current_preset_name
-                        .clone()
-                        .expect("checked current preset")
+            NativeManualSaveRequest::Default
+        } else {
+            if self.pending.manual_save_request.is_some()
+                || self.pending.native_preset_write.is_some()
+            {
+                self.show_toast("Save in progress");
+                return true;
+            }
+            let name = if *action == PlatformAction::PresetSaveCurrent {
+                self.patch_store
+                    .current_preset_name
+                    .clone()
+                    .expect("checked current preset")
+            } else {
+                crate::clean_preset_name(&self.patch_store.preset_draft_name)
+            };
+            NativeManualSaveRequest::Preset {
+                name,
+                mode: (*action == PlatformAction::PresetSaveCurrent).then(|| "overwrite".into()),
+                rename_from: if *action == PlatformAction::PresetRenameApply {
+                    self.patch_store.preset_rename_source.clone()
                 } else {
-                    crate::clean_preset_name(&self.patch_store.preset_draft_name)
-                };
-                NativeManualSaveRequest::Preset {
-                    name,
-                    mode: (*action == PlatformAction::PresetSaveCurrent)
-                        .then(|| "overwrite".into()),
-                    rename_from: if *action == PlatformAction::PresetRenameApply {
-                        self.patch_store.preset_rename_source.clone()
-                    } else {
-                        None
-                    },
-                }
+                    None
+                },
             }
-            _ => return false,
         };
         if self.pending.manual_save_request.is_some() {
             self.show_toast("Save in progress");
@@ -173,6 +166,12 @@ impl NativeRunner {
         &mut self,
         effect: RuntimePlatformEffect,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
+        let toast = match effect {
+            RuntimePlatformEffect::Reboot => "Rebooting",
+            RuntimePlatformEffect::RestartApp => "Restarting",
+            RuntimePlatformEffect::Shutdown => "Shutting down",
+            other => return Err(format!("not a power action: {other:?}")),
+        };
         if self.pending.system_persistence.has_pending_save()
             || self.pending.system_persistence.has_completed_auto_save()
         {
@@ -193,11 +192,7 @@ impl NativeRunner {
             std::time::Instant::now()
                 + std::time::Duration::from_millis(super::OLED_SHUTDOWN_SPLASH_FAILSAFE_MS),
         );
-        self.show_toast(match effect {
-            RuntimePlatformEffect::Reboot => "Rebooting",
-            RuntimePlatformEffect::RestartApp => "Restarting",
-            _ => "Shutting down",
-        });
+        self.show_toast(toast);
         self.outbox.push_platform_effect(effect);
         self.recovery_save_effect()
     }
