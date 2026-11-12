@@ -384,12 +384,15 @@ pub(crate) fn aux_click_picker_exposes_assignable_actions() {
     assert!(contains_aux_click_action(
         &menu.browsable_root(),
         0,
-        "sample.assign:0:0"
+        &PlatformAction::SampleAssign {
+            instrument_slot: 0,
+            sample_slot: 0,
+        }
     ));
     assert!(contains_aux_click_action(
         &menu.browsable_root(),
         0,
-        "play.fx.map"
+        &PlatformAction::PlayFxMap
     ));
     assert!(contains_aux_click_reset(&menu.browsable_root(), 0));
 }

@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 #[test]
 pub(crate) fn auto_map_context_updates_after_navigation_only_group_enter() {
@@ -242,7 +243,7 @@ pub(crate) fn aux_click_action_toast_is_shown_for_platform_effect_actions() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic)),
     });
 
     let _ = runner
@@ -263,11 +264,13 @@ pub(crate) fn shift_aux_press_uses_shifted_bank_not_plain_bank() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic)),
     });
     runner.shift_aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("preset.refresh".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(
+            PlatformAction::PresetRefresh,
+        )),
     });
     runner.display.ui.shift_held = true;
 
@@ -360,7 +363,7 @@ pub(crate) fn shift_aux_bindings_round_trip() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.shift_aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("sound.noteLengthMs".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic)),
     });
     let payload = runner.config_payload();
     assert_eq!(

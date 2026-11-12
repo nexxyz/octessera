@@ -1,18 +1,7 @@
-pub(super) fn parse_sample_action(rest: &str) -> Result<(usize, usize, Option<String>), String> {
-    let mut layers = rest.splitn(3, ':');
-    let instrument_slot = layers
-        .next()
-        .and_then(|value| value.parse::<usize>().ok())
-        .ok_or_else(|| format!("invalid sample action `{rest}`"))?;
-    let sample_slot = layers
-        .next()
-        .and_then(|value| value.parse::<usize>().ok())
-        .ok_or_else(|| format!("invalid sample action `{rest}`"))?;
-    Ok((
-        instrument_slot,
-        sample_slot,
-        layers.next().map(str::to_string),
-    ))
+/// The instrument and sample slots of a `sample.choose:` browse row key, without its prefix.
+pub(super) fn parse_sample_choose_slots(slots: &str) -> Option<(usize, usize)> {
+    let (instrument_slot, sample_slot) = slots.split_once(':')?;
+    Some((instrument_slot.parse().ok()?, sample_slot.parse().ok()?))
 }
 
 pub(super) fn parent_dir(dir: &str) -> String {

@@ -55,14 +55,6 @@ pub(super) fn midi_cc_target_slot(target: &str) -> Option<usize> {
     (slot < MIDI_CC_SLOT_COUNT).then_some(slot)
 }
 
-pub(super) fn midi_cc_learn_slot(action: &str) -> Option<usize> {
-    let slot = action
-        .strip_prefix(crate::native_menu::MIDI_CC_LEARN_ACTION_PREFIX)?
-        .parse::<usize>()
-        .ok()?;
-    (slot < MIDI_CC_SLOT_COUNT).then_some(slot)
-}
-
 pub(super) fn midi_cc_mappings_payload(mappings: &[NativeMidiCcMapping]) -> Value {
     Value::Array(
         mappings

@@ -1,4 +1,7 @@
-use super::{NativeMenuAction, NativeMenuHelpTarget, NativeMenuItem, NativeMenuValue};
+use super::{
+    FactoryLoadKind, NativeMenuAction, NativeMenuHelpTarget, NativeMenuItem, NativeMenuValue,
+    PlatformAction,
+};
 
 #[cfg(test)]
 pub(super) fn collect_help_targets(
@@ -146,133 +149,82 @@ fn menu_action_help_target(action: &NativeMenuAction) -> (String, String) {
             ("action:instrument_reset".into(), "action".into())
         }
         NativeMenuAction::PlatformEffect(effect) => {
-            (platform_effect_help_key(effect), "action".into())
+            (platform_action_help_key(effect), "action".into())
         }
     }
 }
 
-fn platform_effect_help_key(effect: &str) -> String {
-    preset_effect_help_key(effect)
-        .or_else(|| default_system_effect_help_key(effect))
-        .or_else(|| midi_effect_help_key(effect))
-        .or_else(|| bluetooth_effect_help_key(effect))
-        .or_else(|| sample_effect_help_key(effect))
-        .or_else(|| synth_effect_help_key(effect))
-        .or_else(|| trigger_probability_effect_help_key(effect))
-        .unwrap_or_else(|| format!("action:{effect}"))
-}
-
-fn bluetooth_effect_help_key(effect: &str) -> Option<String> {
-    let (verb, _) = effect.strip_prefix("bluetooth.")?.split_once(':')?;
-    Some(format!("action:bluetooth_{verb}:*"))
-}
-
-fn preset_effect_help_key(effect: &str) -> Option<String> {
-    match effect {
-        "preset.saveAs" => Some("action:preset_save".into()),
-        "preset.saveCurrent" => Some("action:preset_save_current".into()),
-        "preset.load" => Some("action:preset_load".into()),
-        "preset.refresh" => Some("action:refresh_presets".into()),
-        "preset.renameApply" => Some("action:preset_rename_apply".into()),
-        value if value.starts_with("preset.load:") => Some("action:preset_load:*".into()),
-        value if value.starts_with("preset.delete:") => Some("action:preset_delete:*".into()),
-        value if value.starts_with("preset.renamePick:") => {
-            Some("action:preset_rename_pick:*".into())
+/// The help key of a platform action. Most name their row explicitly; the rest use their wire
+/// form, which help rows match with `*` for any slot, voice or port.
+fn platform_action_help_key(action: &PlatformAction) -> String {
+    let key = match action {
+        PlatformAction::PresetSaveAs => "preset_save",
+        PlatformAction::PresetSaveCurrent => "preset_save_current",
+        PlatformAction::PresetRefresh => "refresh_presets",
+        PlatformAction::PresetRenameApply => "preset_rename_apply",
+        PlatformAction::PresetLoad(_) => "preset_load:*",
+        PlatformAction::PresetDelete(_) => "preset_delete:*",
+        PlatformAction::PresetRenamePick(_) => "preset_rename_pick:*",
+        PlatformAction::DefaultSave => "default_save",
+        PlatformAction::DefaultLoad => "default_load",
+        PlatformAction::SystemSave => "system_save",
+        PlatformAction::SystemLoad => "system_load",
+        PlatformAction::FactoryLoad => "factory_load",
+        PlatformAction::SystemClearAll => "system_clear_all",
+        PlatformAction::SystemReboot => "system_reboot",
+        PlatformAction::SystemShutdown => "system_shutdown",
+        PlatformAction::SystemHardwareTest => "system_hardware_test",
+        PlatformAction::SystemConfigureWifi => "system_configure_wifi",
+        PlatformAction::SystemBackupRestore => "system_backup_restore",
+        PlatformAction::SystemUpdateCheck => "system_update_check",
+        PlatformAction::SystemUpdateApply => "system_update_apply",
+        PlatformAction::SystemRollback => "system_rollback",
+        PlatformAction::PlayFxMap => "fx_assign_enter",
+        PlatformAction::FaderTileMap => "fader_tile_assign_enter",
+        PlatformAction::Signal(_) => "signal_view",
+        PlatformAction::MidiPanic => "midi_panic",
+        PlatformAction::MidiOutput(None) => "midi_select_output:null",
+        PlatformAction::MidiOutput(Some(_)) => "midi_select_output:*",
+        PlatformAction::MidiInput(None) => "midi_select_input:null",
+        PlatformAction::MidiInput(Some(_)) => "midi_select_input:*",
+        PlatformAction::BluetoothScan => "bluetooth_scan",
+        PlatformAction::BluetoothToggle(_) => "bluetooth_toggle:*",
+        PlatformAction::BluetoothPair(_) => "bluetooth_pair:*",
+        PlatformAction::BluetoothForget(_) => "bluetooth_forget:*",
+        PlatformAction::TriggerProbabilityAssign(_) => "trigger_probability_assign_enter",
+        PlatformAction::SampleAssign { .. } => "sample_assign_enter",
+        PlatformAction::SampleOpen { .. } => "sample.open",
+        PlatformAction::SampleEnter { .. } => "sample.enter",
+        PlatformAction::SampleUp { .. } => "sample.up",
+        PlatformAction::SamplePick { .. } => "sample.pick",
+        PlatformAction::SampleFavoriteSet { .. } => "sample_favourite_set",
+        PlatformAction::SampleFavoriteRemove { .. } => "sample_favourite_remove",
+        PlatformAction::FactoryInstrumentLoad { kind, id, .. } => {
+            let family = match kind {
+                FactoryLoadKind::SampleKit => return "action:sample_kit_load".into(),
+                FactoryLoadKind::SynthPreset => "synth_preset_load",
+                FactoryLoadKind::FmPreset => "fm_preset_load",
+                FactoryLoadKind::PluckPreset => "pluck_preset_load",
+                FactoryLoadKind::DrumKit => "drum_kit_load",
+            };
+            return format!("action:{family}:{id}");
         }
-        _ => None,
-    }
-}
-
-fn default_system_effect_help_key(effect: &str) -> Option<String> {
-    match effect {
-        "default.save" => Some("action:default_save".into()),
-        "default.load" => Some("action:default_load".into()),
-        "system.save" => Some("action:system_save".into()),
-        "system.load" => Some("action:system_load".into()),
-        "factory.load" => Some("action:factory_load".into()),
-        "system.clearAll" => Some("action:system_clear_all".into()),
-        "system.reboot" => Some("action:system_reboot".into()),
-        "system.shutdown" => Some("action:system_shutdown".into()),
-        "system.hardwareTest" => Some("action:system_hardware_test".into()),
-        "system.configureWifi" => Some("action:system_configure_wifi".into()),
-        "system.backupRestore" => Some("action:system_backup_restore".into()),
-        "system.updateCheck" => Some("action:system_update_check".into()),
-        "system.updateApply" => Some("action:system_update_apply".into()),
-        "system.rollback" => Some("action:system_rollback".into()),
-        "play.fx.map" => Some("action:fx_assign_enter".into()),
-        "play.faders.tile.map" => Some("action:fader_tile_assign_enter".into()),
-        value if value.starts_with("signal.") => Some("action:signal_view".into()),
-        _ => None,
-    }
-}
-
-fn midi_effect_help_key(effect: &str) -> Option<String> {
-    match effect {
-        "midi.panic" => Some("action:midi_panic".into()),
-        value if value.starts_with("midi.out:") || value.starts_with("midi.output:") => {
-            Some(midi_output_effect_help_key(value))
-        }
-        value if value.starts_with("midi.in:") || value.starts_with("midi.input:") => {
-            Some(midi_input_effect_help_key(value))
-        }
-        _ => None,
-    }
-}
-
-fn midi_output_effect_help_key(effect: &str) -> String {
-    if effect == "midi.out:" || effect == "midi.output:" {
-        "action:midi_select_output:null".into()
-    } else {
-        "action:midi_select_output:*".into()
-    }
-}
-
-fn midi_input_effect_help_key(effect: &str) -> String {
-    if effect == "midi.in:" || effect == "midi.input:" {
-        "action:midi_select_input:null".into()
-    } else {
-        "action:midi_select_input:*".into()
-    }
-}
-
-fn sample_effect_help_key(effect: &str) -> Option<String> {
-    match effect {
-        value if value.starts_with("sample.open:") => Some("action:sample.open".into()),
-        value if value.starts_with("sample.up:") => Some("action:sample.up".into()),
-        value if value.starts_with("sample.enter:") => Some("action:sample.enter".into()),
-        value if value.starts_with("sample.pick:") => Some("action:sample.pick".into()),
-        value if value.starts_with("sample.preview:") => Some("action:sample_preview".into()),
-        value if value.starts_with("sample.assign:") => Some("action:sample_assign_enter".into()),
-        value if value.starts_with("sample.favorite.set:") => {
-            Some("action:sample_favourite_set".into())
-        }
-        value if value.starts_with("sample.favorite.remove:") => {
-            Some("action:sample_favourite_remove".into())
-        }
-        _ => None,
-    }
-}
-
-/// Sampler kits share one help row; every factory instrument preset has its own.
-fn synth_effect_help_key(effect: &str) -> Option<String> {
-    let (kind, rest) = effect.split_once(':')?;
-    let action = match kind {
-        "sample.kit" => return Some("action:sample_kit_load".into()),
-        "synth.preset" => "synth_preset_load",
-        "fm.preset" => "fm_preset_load",
-        "pluck.preset" => "pluck_preset_load",
-        "drum.kit" => "drum_kit_load",
-        _ => return None,
+        PlatformAction::SystemControlsHelp
+        | PlatformAction::SystemInfo
+        | PlatformAction::MaintenanceHold
+        | PlatformAction::MaintenanceRelease
+        | PlatformAction::UsbSdTransferStart
+        | PlatformAction::UsbSdTransferStop
+        | PlatformAction::RecordingStartAudio
+        | PlatformAction::RecordingStartAudioOled
+        | PlatformAction::RecordingStop
+        | PlatformAction::RestartSaveChoice
+        | PlatformAction::RestartSaving
+        | PlatformAction::RestartApp
+        | PlatformAction::MidiCcLearn(_)
+        | PlatformAction::DrumAssign { .. }
+        | PlatformAction::DrumPreview { .. }
+        | PlatformAction::MidiDrumAssign(_) => return format!("action:{}", action.as_wire()),
     };
-    let (_, id) = rest.split_once(':')?;
-    Some(format!("action:{action}:{id}"))
-}
-
-fn trigger_probability_effect_help_key(effect: &str) -> Option<String> {
-    match effect {
-        value if value.starts_with("trigger.probability.assign:") => {
-            Some("action:trigger_probability_assign_enter".into())
-        }
-        _ => None,
-    }
+    format!("action:{key}")
 }

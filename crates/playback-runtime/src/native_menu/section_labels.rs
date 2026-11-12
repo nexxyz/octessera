@@ -11,8 +11,8 @@ pub(crate) const PLAY_SHORT_LABEL: &str = "P";
 
 pub(crate) const PLAY_PATH_PREFIX: &str = "Menu > Play";
 
-/// The menu section that owns a control key or platform action, so a hint for it takes that
-/// section's colour wherever it is shown. Play remote pages own no targets of their own.
+/// The menu section that owns a control key, so a hint for it takes that section's colour
+/// wherever it is shown. Play remote pages own no targets of their own.
 pub(crate) fn key_home_section(key: &str) -> &'static str {
     let layer_field = key
         .strip_prefix("layers.")

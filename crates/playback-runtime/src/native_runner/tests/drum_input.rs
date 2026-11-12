@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
     runner
@@ -39,7 +40,7 @@ fn with_modifier(runner: &mut NativeRunner, modifier: &str, x: usize, y: usize) 
 fn assign_voice(runner: &mut NativeRunner, voice: usize) {
     runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            format!("drum.assign:0:{voice}"),
+            PlatformAction::DrumAssign { slot: 0, voice },
         ))
         .unwrap();
 }
@@ -246,7 +247,7 @@ fn drum_assignment_leds_use_world_to_display_index_and_override_play_fn_navigati
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.assign:0:1".into(),
+            PlatformAction::DrumAssign { slot: 0, voice: 1 },
         ))
         .unwrap();
     input(&mut runner, json!({ "type": "button_fn", "pressed": true }));

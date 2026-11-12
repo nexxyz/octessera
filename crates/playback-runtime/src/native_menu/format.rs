@@ -333,14 +333,18 @@ pub(super) fn note_unit_to_pulses(value: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::native_menu::{NativeMenuAction, NativeMenuItem, NativeMenuPick, NativeMenuValue};
+    use crate::native_menu::{
+        NativeMenuAction, NativeMenuItem, NativeMenuPick, NativeMenuValue, PlatformAction,
+    };
 
     fn action_item(label: &str) -> NativeMenuItem {
         NativeMenuItem {
             label: label.into(),
             breadcrumb: None,
             key: None,
-            value: NativeMenuValue::Action(NativeMenuAction::PlatformEffect("test".into())),
+            value: NativeMenuValue::Action(NativeMenuAction::PlatformEffect(
+                PlatformAction::SystemInfo,
+            )),
             children: Vec::new(),
             pick: NativeMenuPick::None,
         }

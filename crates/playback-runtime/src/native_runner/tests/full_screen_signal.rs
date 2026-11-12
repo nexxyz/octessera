@@ -1,5 +1,4 @@
 use super::*;
-use crate::native_runner::signal_view::signal_row_source;
 use crate::native_runner::signal_view::SignalTapReader;
 use crate::oled_frame::{OledPresentationInput, OledPresentationMetrics, OledSignalArea};
 use realtime_engine::synth::{SignalSource, SignalTap};
@@ -27,20 +26,6 @@ fn open_signal_view(key: &str) -> (NativeRunner, &'static SignalTap) {
 
 #[test]
 fn signal_rows_name_their_instrument_bus_or_the_master() {
-    assert_eq!(
-        signal_row_source("signal.instrument.3"),
-        Some(SignalSource::Instrument(3))
-    );
-    assert_eq!(
-        signal_row_source("signal.bus.1"),
-        Some(SignalSource::Bus(1))
-    );
-    assert_eq!(
-        signal_row_source("signal.global"),
-        Some(SignalSource::Master)
-    );
-    assert_eq!(signal_row_source("signal.layer.1"), None);
-    assert_eq!(signal_row_source("system.info"), None);
     for (key, source) in [
         ("signal.instrument.0", SignalSource::Instrument(0)),
         ("signal.bus.2", SignalSource::Bus(2)),

@@ -2,7 +2,7 @@ use super::{
     action_item, bool_item, enum_item, enum_item_from_strings, group, number_item,
     parameter_picker_group_numeric, selected_index, slot_option_selected, wire_enum_item,
     NativeLinkArpConfig, NativeLinkLayerConfig, NativeLinkLfoConfig, NativeMenuAction,
-    NativeMenuConfig, NativeMenuItem,
+    NativeMenuConfig, NativeMenuItem, PlatformAction,
 };
 use crate::native_runner::{
     ArpMode, ArpSource, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode,
@@ -297,7 +297,7 @@ pub(super) fn trigger_probability_group(
             action_item(
                 "Map Prob Grid",
                 format!("{prefix}.triggerProbability.map"),
-                NativeMenuAction::PlatformEffect(format!("trigger.probability.assign:{index}")),
+                NativeMenuAction::PlatformEffect(PlatformAction::TriggerProbabilityAssign(index)),
             ),
         ],
     )

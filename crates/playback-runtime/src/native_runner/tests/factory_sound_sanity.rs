@@ -1,6 +1,6 @@
 use super::*;
 use crate::instrument_presets::instrument_presets;
-use crate::native_menu::NativeMenuAction;
+use crate::native_menu::{FactoryLoadKind, NativeMenuAction, PlatformAction};
 use realtime_engine::synth::{InstrumentSlotConfig, SynthEngine};
 
 const SAMPLE_RATE: u32 = 48_000;
@@ -9,10 +9,17 @@ const NOTE_MS: u32 = 300;
 const STEP_FRAMES: usize = 24_000;
 const TAIL_FRAMES: usize = SAMPLE_RATE as usize * 3;
 
-fn factory_slot(action: &str) -> InstrumentSlotConfig {
+fn factory_slot(kind: FactoryLoadKind, id: &str) -> InstrumentSlotConfig {
+    let action = format!("{kind:?} {id}");
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
-        .execute_confirmed_action(NativeMenuAction::PlatformEffect(action.into()))
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect(
+            PlatformAction::FactoryInstrumentLoad {
+                kind,
+                slot: 0,
+                id: id.into(),
+            },
+        ))
         .unwrap();
     serde_json::from_value(runner.instrument_audio_config(0).unwrap())
         .unwrap_or_else(|error| panic!("{action}: {error}"))
@@ -55,8 +62,9 @@ fn render(slot: InstrumentSlotConfig, drum: bool) -> (Vec<f32>, Vec<usize>) {
     (mono, onsets)
 }
 
-fn assert_sane(action: &str, drum: bool) {
-    let (peaks, onsets) = render(factory_slot(action), drum);
+fn assert_sane(kind: FactoryLoadKind, id: &str) {
+    let action = format!("{kind:?} {id}");
+    let (peaks, onsets) = render(factory_slot(kind, id), kind == FactoryLoadKind::DrumKit);
     assert!(
         peaks.iter().all(|value| value.is_finite()),
         "{action}: non-finite output"
@@ -79,14 +87,14 @@ fn assert_sane(action: &str, drum: bool) {
 
 #[test]
 fn every_factory_sound_plays_stays_below_clipping_and_ends() {
-    for (family, action) in [
-        ("synth", "synth.preset"),
-        ("fm", "fm.preset"),
-        ("pluck", "pluck.preset"),
-        ("drum", "drum.kit"),
+    for (family, kind) in [
+        ("synth", FactoryLoadKind::SynthPreset),
+        ("fm", FactoryLoadKind::FmPreset),
+        ("pluck", FactoryLoadKind::PluckPreset),
+        ("drum", FactoryLoadKind::DrumKit),
     ] {
         for preset in instrument_presets(family) {
-            assert_sane(&format!("{action}:0:{}", preset.id), family == "drum");
+            assert_sane(kind, &preset.id);
         }
     }
 }

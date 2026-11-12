@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::{FactoryLoadKind, PlatformAction};
 
 #[test]
 pub(crate) fn save_current_uses_loaded_preset_name() {
@@ -100,7 +101,7 @@ pub(crate) fn native_store_and_action_toasts_cover_common_confirmation_results()
 pub(crate) fn midi_panic_and_synth_preset_actions_show_toasts() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let effect = runner
-        .execute_confirmed_action(NativeMenuAction::PlatformEffect("midi.panic".into()))
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic))
         .unwrap();
     assert_eq!(effect, Some(RuntimePlatformEffect::MidiPanic));
     assert_eq!(
@@ -110,7 +111,11 @@ pub(crate) fn midi_panic_and_synth_preset_actions_show_toasts() {
 
     runner
         .execute_confirmed_action(NativeMenuAction::PlatformEffect(
-            "synth.preset:0:saw_lead".into(),
+            PlatformAction::FactoryInstrumentLoad {
+                kind: FactoryLoadKind::SynthPreset,
+                slot: 0,
+                id: "saw_lead".into(),
+            },
         ))
         .unwrap();
     assert_eq!(

@@ -3,6 +3,7 @@ use super::{
     enum_item, factory_load_group, factory_preset_choices, group, number_item, selected_index,
     InstrumentMenuConfig, NativeMenuItem,
 };
+use crate::native_menu::FactoryLoadKind;
 
 pub(super) fn fm_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let fm = config.fm_config;
@@ -10,9 +11,8 @@ pub(super) fn fm_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nativ
         "FM",
         vec![
             factory_load_group(
-                "fm",
+                FactoryLoadKind::FmPreset,
                 config.index,
-                "preset",
                 "Preset",
                 factory_preset_choices("fm"),
             ),

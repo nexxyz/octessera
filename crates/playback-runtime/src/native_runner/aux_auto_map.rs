@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 use crate::oled_frame::OledAuxCap;
 
 #[derive(Clone)]
@@ -148,9 +149,8 @@ impl NativeRunner {
     pub(super) fn aux_binding_action_label(&self, action: &NativeMenuAction) -> String {
         self.aux_action_target_label(action)
             .unwrap_or_else(|| match action {
-                NativeMenuAction::BehaviorAction(id) | NativeMenuAction::PlatformEffect(id) => {
-                    id.clone()
-                }
+                NativeMenuAction::BehaviorAction(id) => id.clone(),
+                NativeMenuAction::PlatformEffect(action) => action.as_wire(),
                 NativeMenuAction::LayerBehaviorAction {
                     layer_index,
                     action_type,
@@ -176,20 +176,14 @@ impl NativeRunner {
             } => self
                 .layer_behavior_action_label(*layer_index, action_type)
                 .map(|label| format!("L{} {label}", layer_index + 1)),
-            NativeMenuAction::PlatformEffect(action_type) if action_type == "play.fx.map" => {
-                Some("Map".into())
-            }
-            NativeMenuAction::PlatformEffect(action_type) if action_type == "midi.panic" => {
+            NativeMenuAction::PlatformEffect(PlatformAction::PlayFxMap) => Some("Map".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic) => {
                 Some("MIDI Panic".into())
             }
-            NativeMenuAction::PlatformEffect(action_type)
-                if action_type == "store.refresh" || action_type == "preset.refresh" =>
-            {
+            NativeMenuAction::PlatformEffect(PlatformAction::PresetRefresh) => {
                 Some("Refresh".into())
             }
-            NativeMenuAction::PlatformEffect(action_type)
-                if action_type.starts_with("sample.assign:") =>
-            {
+            NativeMenuAction::PlatformEffect(PlatformAction::SampleAssign { .. }) => {
                 Some("Assign".into())
             }
             NativeMenuAction::ResetBehavior => Some("Reset".into()),

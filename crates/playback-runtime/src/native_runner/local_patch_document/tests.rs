@@ -1,5 +1,6 @@
 use super::super::{portable_patch_projection, split_system_patch_documents};
 use super::*;
+use crate::native_menu::PlatformAction;
 use crate::native_runner::InstrumentType;
 use crate::{NativeRunner, NativeRunnerConfig};
 use serde_json::json;
@@ -98,7 +99,7 @@ fn local_documents_round_trip_exact_paths_and_complete_inactive_sampler_arrays()
 fn local_default_autosave_backup_recovery_and_load_preserve_paths_and_system_settings() {
     let mut runner = runner_with_local_samples();
     let manual = runner
-        .platform_effect_for_action("default.save")
+        .platform_effect_for_action(&PlatformAction::DefaultSave)
         .unwrap()
         .unwrap();
     let crate::protocol::RuntimePlatformEffect::StoreSaveDefault {
@@ -142,7 +143,7 @@ fn local_default_autosave_backup_recovery_and_load_preserve_paths_and_system_set
     assert_eq!(backup, manual_payload);
 
     let recovery = runner_with_local_samples()
-        .platform_effect_for_action("system.reboot")
+        .recovery_save_effect()
         .unwrap()
         .unwrap();
     let crate::protocol::RuntimePlatformEffect::StoreSaveRecovery {
@@ -197,7 +198,7 @@ fn unsafe_local_paths_fail_without_mutation_or_save_effect_and_remain_visible_di
         runner.config_dirty = true;
         let before = runner.config_payload();
         assert!(runner
-            .platform_effect_for_action("default.save")
+            .platform_effect_for_action(&PlatformAction::DefaultSave)
             .unwrap()
             .is_none());
         assert_eq!(runner.config_payload(), before, "{path}");
@@ -249,7 +250,9 @@ fn unsafe_local_paths_fail_without_mutation_or_save_effect_and_remain_visible_di
 #[test]
 fn named_presets_and_user_data_archives_carry_user_sample_paths() {
     let mut runner = runner_with_local_samples();
-    runner.platform_effect_for_action("preset.saveAs").unwrap();
+    runner
+        .platform_effect_for_action(&PlatformAction::PresetSaveAs)
+        .unwrap();
     let before = runner.config_payload();
     let patch = portable_patch_projection(&before).unwrap();
     runner.apply_patch_payload_preserving_device(patch).unwrap();

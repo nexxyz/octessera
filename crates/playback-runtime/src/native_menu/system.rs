@@ -5,7 +5,7 @@ use super::system_maintenance::{live_show_group, maintenance_group};
 use super::system_saves::{load_preset_group, saves_group};
 use super::{
     action_item, bool_item, enum_item, group, number_item, selected_index, NativeMenuAction,
-    NativeMenuConfig, NativeMenuItem,
+    NativeMenuConfig, NativeMenuItem, PlatformAction,
 };
 use crate::native_runner::AuxPriority;
 
@@ -28,17 +28,17 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
                 action_item(
                     "Start Audio",
                     "recording.startAudio",
-                    NativeMenuAction::PlatformEffect("recording.startAudio".into()),
+                    NativeMenuAction::PlatformEffect(PlatformAction::RecordingStartAudio),
                 ),
                 action_item(
                     "Audio+Video",
                     "recording.startAudioOled",
-                    NativeMenuAction::PlatformEffect("recording.startAudioOled".into()),
+                    NativeMenuAction::PlatformEffect(PlatformAction::RecordingStartAudioOled),
                 ),
                 action_item(
                     "Stop",
                     "recording.stop",
-                    NativeMenuAction::PlatformEffect("recording.stop".into()),
+                    NativeMenuAction::PlatformEffect(PlatformAction::RecordingStop),
                 ),
             ],
         ),
@@ -84,22 +84,22 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
         action_item(
             "Panic",
             "midi.panic",
-            NativeMenuAction::PlatformEffect("midi.panic".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic),
         ),
         action_item(
             "Basic Help",
             "system.controlsHelp",
-            NativeMenuAction::PlatformEffect("system.controlsHelp".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::SystemControlsHelp),
         ),
         action_item(
             "Reboot",
             "system.reboot",
-            NativeMenuAction::PlatformEffect("system.reboot".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::SystemReboot),
         ),
         action_item(
             "Shutdown",
             "system.shutdown",
-            NativeMenuAction::PlatformEffect("system.shutdown".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::SystemShutdown),
         ),
     ]);
     group(SYSTEM_LABEL, children)

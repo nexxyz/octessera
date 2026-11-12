@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 #[test]
 pub(crate) fn no_op_config_edit_produces_no_runtime_plan_or_audio_revision() {
@@ -111,7 +112,7 @@ pub(crate) fn patch_save_and_load_preserve_local_audio_outputs() {
     let patch = portable_patch_projection(&default_payload).unwrap();
     source.apply_patch_payload_preserving_device(patch).unwrap();
     let RuntimePlatformEffect::StoreSaveDefault { payload, .. } = source
-        .platform_effect_for_action("default.save")
+        .platform_effect_for_action(&PlatformAction::DefaultSave)
         .unwrap()
         .unwrap()
     else {

@@ -5,6 +5,7 @@ use super::{
     NativeFxBusConfig, NativeMenuItem,
 };
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
+use realtime_engine::synth::SignalSource;
 
 pub(crate) const FX_BUSES_LABEL: &str = "FX Buses";
 pub(crate) const GLOBAL_FX_LABEL: &str = "Global FX";
@@ -65,7 +66,10 @@ pub(super) fn fx_buses_group(config: &[NativeFxBusConfig], bpm: u16) -> NativeMe
                             32,
                             1,
                         ),
-                        signal_item(format!("signal.bus.{bus_index}")),
+                        signal_item(
+                            format!("signal.bus.{bus_index}"),
+                            SignalSource::Bus(bus_index),
+                        ),
                         bool_item("Auto Label", format!("{prefix}.autoName"), bus.auto_name),
                         text_item("Name", format!("{prefix}.name"), bus.name.clone(), 32),
                     ],
@@ -98,7 +102,7 @@ pub(super) fn global_fx_group(
             )
         })
         .collect();
-    children.push(signal_item("signal.global".into()));
+    children.push(signal_item("signal.global".into(), SignalSource::Master));
     group(GLOBAL_FX_LABEL, children)
 }
 

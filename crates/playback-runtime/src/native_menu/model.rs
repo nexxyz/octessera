@@ -14,7 +14,7 @@ use super::model_values::{number_from_item, value_from_item};
 use super::note_mapping::mark_selected_note_set;
 use super::{
     build_root, NativeMenuAction, NativeMenuConfig, NativeMenuHelpTarget, NativeMenuItem,
-    NativeMenuModel, NativeMenuState, NativeMenuValue, NativeParamBindingSpec,
+    NativeMenuModel, NativeMenuState, NativeMenuValue, NativeParamBindingSpec, PlatformAction,
 };
 
 impl NativeMenuModel {
@@ -78,8 +78,11 @@ impl NativeMenuModel {
             .get(self.state.cursor)
             .and_then(|item| item.key.clone());
         if let Some(load) = find_item_by_key_mut(&mut self.root, "preset.load") {
-            load.children =
-                super::system_saves::preset_action_children("preset.load", "preset.load", names);
+            load.children = super::system_saves::preset_action_children(
+                "preset.load",
+                PlatformAction::PresetLoad,
+                names,
+            );
         }
         if let Some(save_as) = find_item_by_key_mut(&mut self.root, "preset.library.saveAs") {
             *save_as = super::system_saves::save_as_group(draft_name);
@@ -88,7 +91,7 @@ impl NativeMenuModel {
             *load = super::pick_list(super::system_saves::preset_action_group(
                 "Load",
                 "preset.library.load",
-                "preset.load",
+                PlatformAction::PresetLoad,
                 names,
             ));
         }
@@ -99,7 +102,7 @@ impl NativeMenuModel {
             *delete = super::system_saves::preset_action_group(
                 "Delete",
                 "preset.library.delete",
-                "preset.delete",
+                PlatformAction::PresetDelete,
                 names,
             );
         }

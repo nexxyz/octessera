@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use crate::native_menu::{NativeMenuAction, NativeMenuSnapshot};
+use crate::native_menu::{NativeMenuAction, NativeMenuSnapshot, PlatformAction};
 use crate::protocol::RuntimeStoreResult;
 
-use super::{parse_sample_action, NativeRunner, NativeSampleBrowser};
+use super::{NativeRunner, NativeSampleBrowser};
 
 impl NativeRunner {
     pub(super) fn apply_sample_browser_result(
@@ -69,12 +69,13 @@ impl NativeRunner {
         let now = self.display.transients.now();
         let sounding = self.display.transients.sounding_sample_preview(now)?;
         let row = menu.selected_row?;
-        let Some(Some(NativeMenuAction::PlatformEffect(action))) = menu.line_actions.get(row)
+        let Some(Some(NativeMenuAction::PlatformEffect(PlatformAction::SamplePick {
+            path, ..
+        }))) = menu.line_actions.get(row)
         else {
             return None;
         };
-        let (_, _, path) = parse_sample_action(action.strip_prefix("sample.pick:")?).ok()?;
-        (path.as_deref() == Some(sounding)).then_some(row)
+        (path == sounding).then_some(row)
     }
 
     pub(super) fn sample_browser_matches(

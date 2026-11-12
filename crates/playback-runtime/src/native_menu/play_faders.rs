@@ -4,13 +4,12 @@ use super::model_search::{find_item_by_key_mut, find_item_path_by_key};
 use super::system_aux::{click_picker_group, show_click_binding, ClickPickerSlot};
 use super::{
     action_item, bool_item, enum_item, group, keyed_group, number_item, selected_index,
-    NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuModel,
+    NativeMenuAction, NativeMenuConfig, NativeMenuItem, NativeMenuModel, PlatformAction,
 };
 use crate::native_runner::play_pages::faders::FADER_SIDE_FIELDS;
 
 /// The Tile Map's parameter picker; a param tile steps its key like an Aux turn.
 pub(crate) const FADER_TILE_TARGET: &str = "play.faders.tile.target";
-pub(crate) const FADER_TILE_MAP_ACTION: &str = "play.faders.tile.map";
 pub(crate) const FADER_TILE_TYPES: [&str; 3] = ["none", "action", "param"];
 const TILE_MAP_KEY: &str = "play.faders.tile";
 
@@ -91,8 +90,8 @@ fn tile_map_children(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
     }
     children.push(action_item(
         "Map to Grid",
-        FADER_TILE_MAP_ACTION,
-        NativeMenuAction::PlatformEffect(FADER_TILE_MAP_ACTION.into()),
+        "play.faders.tile.map",
+        NativeMenuAction::PlatformEffect(PlatformAction::FaderTileMap),
     ));
     children
 }

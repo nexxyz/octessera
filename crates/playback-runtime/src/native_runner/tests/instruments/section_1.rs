@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::{FactoryLoadKind, PlatformAction};
 
 #[test]
 pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_is_editable() {
@@ -7,7 +8,11 @@ pub(crate) fn synth_preset_load_changes_full_synth_payload_and_filter_resonance_
 
     runner
         .execute_confirmed_action(NativeMenuAction::PlatformEffect(
-            "synth.preset:0:bright_pluck".into(),
+            PlatformAction::FactoryInstrumentLoad {
+                kind: FactoryLoadKind::SynthPreset,
+                slot: 0,
+                id: "bright_pluck".into(),
+            },
         ))
         .unwrap();
     let changed = runner.config_payload()["runtimeConfig"]["instruments"][0]["synth"].clone();

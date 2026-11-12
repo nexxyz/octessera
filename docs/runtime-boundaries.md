@@ -42,6 +42,7 @@ are in [`board-profiles.md`](board-profiles.md).
   - owns lifecycle (`start`/`stop`)
   - schedules transport pulses and realtime status through Rust runtime code
   - owns native menu state, config payloads, snapshots, platform effects, and `NativeRunner`
+  - menu platform actions are the typed `PlatformAction` enum (`native_menu/platform_action.rs`); its wire string form (`platform_action/wire.rs`) exists only for saved Aux, Shift-Aux and Faders-tile click bindings (`{"kind":"platform_effect","action":…}`) and help keys, and an unknown saved action fails schema validation
   - builds the startup menu once: hosts construct `NativeRunner::new_with_unbuilt_menu`, apply the synchronous System and saved-patch store results, then call `finish_startup_load`; loads applied before that skip their own menu builds
   - owns schema-v2 global modulation state, legacy migration, keyed Link LFO menu/binding paths, canonical global Play XY serialization, and transient global-LFO endpoint composition; it emits resolved audio commands while the realtime engine owns rendering
   - owns the schema-v2 canonical device audio contract: atomic `AudioOutputSet` values for Jack, USB, and HDMI output preferences, the Raspberry-only `UsbDataRole` Gadget/Host contract, Host validation that disables USB Audio and USB MIDI, whole-set validation, strict canonical `audioOutputs` and USB field validation, and next-boot apply confirmation; adapters open the selected exact physical routes under this native contract

@@ -3,7 +3,8 @@ use super::{
     NativeMenuItem,
 };
 use crate::native_menu::{
-    MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES, MIDI_DRUM_VELOCITIES,
+    PlatformAction, MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES,
+    MIDI_DRUM_VELOCITIES,
 };
 
 /// General MIDI percussion names for notes 35..=81, cut to eight characters so `81 A5 Tri Open`
@@ -68,7 +69,7 @@ pub(super) fn midi_drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -
             action_item(
                 "Assign",
                 format!("midiDrum.assign.{}", config.index),
-                NativeMenuAction::PlatformEffect(format!("midiDrum.assign:{}", config.index)),
+                NativeMenuAction::PlatformEffect(PlatformAction::MidiDrumAssign(config.index)),
             ),
         ],
     )

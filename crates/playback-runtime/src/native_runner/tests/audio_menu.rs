@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 mod delay;
 mod fx;
@@ -42,7 +43,7 @@ pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
     assert!(runner.menu.focus_item_key("usb.sdTransferStop"));
     assert_eq!(
         runner
-            .platform_effect_for_action("usb.sdTransferStop")
+            .platform_effect_for_action(&PlatformAction::UsbSdTransferStop)
             .unwrap(),
         Some(RuntimePlatformEffect::UsbSdTransferStop)
     );

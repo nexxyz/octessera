@@ -239,11 +239,19 @@ fn drum_slot_filter_volume_actions_and_binding_picker_keep_voice_scope() {
         NativeMenuValue::Enum { options, selected } if options == &["lowpass", "highpass", "bandpass", "notch"] && options[*selected] == "lowpass")
     );
     for (key, effect) in [
-        ("drum.assign.0.0", "drum.assign:0:0"),
-        ("drum.preview.0.0", "drum.preview:0:0"),
+        (
+            "drum.assign.0.0",
+            PlatformAction::DrumAssign { slot: 0, voice: 0 },
+        ),
+        (
+            "drum.preview.0.0",
+            PlatformAction::DrumPreview { slot: 0, voice: 0 },
+        ),
     ] {
-        assert!(matches!(menu.item_for_key(key).unwrap().value,
-            NativeMenuValue::Action(NativeMenuAction::PlatformEffect(actual)) if actual == effect));
+        assert_eq!(
+            menu.item_for_key(key).unwrap().value,
+            NativeMenuValue::Action(NativeMenuAction::PlatformEffect(effect))
+        );
     }
     let picker = menu.item_for_key("aux:0:turn").expect("Aux picker");
     let drum = picker

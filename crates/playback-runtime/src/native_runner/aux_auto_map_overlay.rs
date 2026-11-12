@@ -1,6 +1,7 @@
 use super::aux_auto_map::{AuxBindingSource, ResolvedAuxSlot};
 use super::*;
 use crate::native_menu::section_labels::{BUILD_LABEL, PLAY_LABEL};
+use crate::native_menu::PlatformAction;
 use crate::oled_frame::body_text_fits;
 
 impl NativeRunner {
@@ -31,8 +32,12 @@ impl NativeRunner {
                 return label.into();
             }
         }
-        if matches!(selected_action, Some(NativeMenuAction::PlatformEffect(action)) if action.starts_with("sample.assign:"))
-        {
+        if matches!(
+            selected_action,
+            Some(NativeMenuAction::PlatformEffect(
+                PlatformAction::SampleAssign { .. }
+            ))
+        ) {
             return "Sample".into();
         }
         if path.contains(BUILD_LABEL) {

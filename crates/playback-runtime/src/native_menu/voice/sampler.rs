@@ -10,14 +10,14 @@ use crate::native_menu::{
     sample_display_name, NativeMenuPick, NativeMenuValue, NativeSampleAvailability,
     NativeSamplePlayback, SAMPLER_KITS, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
 };
+use crate::native_menu::{FactoryLoadKind, PlatformAction};
 
 pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let sample_slot = config.sample_slot.min(7);
     let mut children = vec![
         factory_load_group(
-            "sample",
+            FactoryLoadKind::SampleKit,
             config.index,
-            "kit",
             "Kit",
             SAMPLER_KITS.iter().map(|(id, label, _)| (*id, *label)),
         ),
@@ -58,10 +58,10 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
         action_item(
             "Assign",
             format!("sample.assign.{}.{}", config.index, sample_slot),
-            NativeMenuAction::PlatformEffect(format!(
-                "sample.assign:{}:{sample_slot}",
-                config.index
-            )),
+            NativeMenuAction::PlatformEffect(PlatformAction::SampleAssign {
+                instrument_slot: config.index,
+                sample_slot,
+            }),
         ),
         number_item(
             "Tune",
@@ -270,9 +270,13 @@ fn loaded_sample_item(
         key: Some(format!(
             "sample.loaded:{instrument_slot}:{sample_slot}:{path}"
         )),
-        value: NativeMenuValue::Action(NativeMenuAction::PlatformEffect(format!(
-            "sample.open:{instrument_slot}:{sample_slot}:{browse_dir}"
-        ))),
+        value: NativeMenuValue::Action(NativeMenuAction::PlatformEffect(
+            PlatformAction::SampleOpen {
+                instrument_slot,
+                sample_slot,
+                dir: browse_dir,
+            },
+        )),
         children: vec![],
         pick: NativeMenuPick::Value,
     }

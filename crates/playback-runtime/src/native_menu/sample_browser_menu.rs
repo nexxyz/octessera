@@ -1,6 +1,6 @@
 use super::{
     action_item, NativeMenuAction, NativeMenuItem, NativeMenuPick, NativeMenuValue,
-    NativeSampleBrowserConfig,
+    NativeSampleBrowserConfig, PlatformAction,
 };
 
 pub(super) fn sample_browser_group(
@@ -27,15 +27,30 @@ pub(super) fn sample_browser_group(
             children.push(action_item(
                 "..",
                 format!("sample.up.{instrument_slot}.{sample_slot}"),
-                NativeMenuAction::PlatformEffect(format!(
-                    "sample.up:{instrument_slot}:{sample_slot}"
-                )),
+                NativeMenuAction::PlatformEffect(PlatformAction::SampleUp {
+                    instrument_slot,
+                    sample_slot,
+                }),
             ));
             for entry in &browser.entries {
-                let action = if entry.is_dir {
-                    "sample.enter"
+                let (key, action) = if entry.is_dir {
+                    (
+                        "sample.enter",
+                        PlatformAction::SampleEnter {
+                            instrument_slot,
+                            sample_slot,
+                            dir: entry.path.clone(),
+                        },
+                    )
                 } else {
-                    "sample.pick"
+                    (
+                        "sample.pick",
+                        PlatformAction::SamplePick {
+                            instrument_slot,
+                            sample_slot,
+                            path: entry.path.clone(),
+                        },
+                    )
                 };
                 children.push(active_if(
                     holds_loaded(&entry.path),
@@ -45,11 +60,8 @@ pub(super) fn sample_browser_group(
                         } else {
                             entry.name.clone()
                         },
-                        format!("{action}.{instrument_slot}.{sample_slot}.{}", entry.path),
-                        NativeMenuAction::PlatformEffect(format!(
-                            "{action}:{instrument_slot}:{sample_slot}:{}",
-                            entry.path
-                        )),
+                        format!("{key}.{instrument_slot}.{sample_slot}.{}", entry.path),
+                        NativeMenuAction::PlatformEffect(action),
                     ),
                 ));
             }
@@ -64,9 +76,11 @@ pub(super) fn sample_browser_group(
                         action_item(
                             format!("[★ {}]", favourite_label(&dir)),
                             format!("sample.favorite.open.{instrument_slot}.{sample_slot}.{dir}"),
-                            NativeMenuAction::PlatformEffect(format!(
-                                "sample.enter:{instrument_slot}:{sample_slot}:{dir}"
-                            )),
+                            NativeMenuAction::PlatformEffect(PlatformAction::SampleEnter {
+                                instrument_slot,
+                                sample_slot,
+                                dir: dir.clone(),
+                            }),
                         ),
                     ));
                 }
@@ -83,10 +97,11 @@ pub(super) fn sample_browser_group(
                 children.push(action_item(
                     "(empty)",
                     format!("sample.open.{instrument_slot}.{sample_slot}"),
-                    NativeMenuAction::PlatformEffect(format!(
-                        "sample.open:{instrument_slot}:{sample_slot}:{}",
-                        browser.dir
-                    )),
+                    NativeMenuAction::PlatformEffect(PlatformAction::SampleOpen {
+                        instrument_slot,
+                        sample_slot,
+                        dir: browser.dir.clone(),
+                    }),
                 ));
             }
             children.push(NativeMenuItem {
@@ -110,41 +125,52 @@ pub(super) fn sample_browser_group(
                     pick: NativeMenuPick::None,
                 });
             } else {
-                let favorite_action = if sample_favourite_dirs.iter().any(|dir| dir == &browser.dir)
-                {
-                    "sample.favorite.remove"
-                } else {
-                    "sample.favorite.set"
-                };
-                let favorite_label = if favorite_action.ends_with("remove") {
-                    "Remove Favorite"
-                } else {
-                    "Set Favorite"
-                };
+                let (favorite_label, favorite_key, favorite_action) =
+                    if sample_favourite_dirs.iter().any(|dir| dir == &browser.dir) {
+                        (
+                            "Remove Favorite",
+                            "sample.favorite.remove",
+                            PlatformAction::SampleFavoriteRemove {
+                                instrument_slot,
+                                sample_slot,
+                            },
+                        )
+                    } else {
+                        (
+                            "Set Favorite",
+                            "sample.favorite.set",
+                            PlatformAction::SampleFavoriteSet {
+                                instrument_slot,
+                                sample_slot,
+                            },
+                        )
+                    };
                 children.push(action_item(
                     favorite_label,
-                    format!("{favorite_action}.{instrument_slot}.{sample_slot}"),
-                    NativeMenuAction::PlatformEffect(format!(
-                        "{favorite_action}:{instrument_slot}:{sample_slot}"
-                    )),
+                    format!("{favorite_key}.{instrument_slot}.{sample_slot}"),
+                    NativeMenuAction::PlatformEffect(favorite_action),
                 ));
             }
         } else {
             children.push(action_item(
                 "(loading...)",
                 format!("sample.open.{instrument_slot}.{sample_slot}"),
-                NativeMenuAction::PlatformEffect(format!(
-                    "sample.open:{instrument_slot}:{sample_slot}:"
-                )),
+                NativeMenuAction::PlatformEffect(PlatformAction::SampleOpen {
+                    instrument_slot,
+                    sample_slot,
+                    dir: String::new(),
+                }),
             ));
         }
     } else {
         children.push(action_item(
             "(loading...)",
             format!("sample.open.{instrument_slot}.{sample_slot}"),
-            NativeMenuAction::PlatformEffect(format!(
-                "sample.open:{instrument_slot}:{sample_slot}:"
-            )),
+            NativeMenuAction::PlatformEffect(PlatformAction::SampleOpen {
+                instrument_slot,
+                sample_slot,
+                dir: String::new(),
+            }),
         ));
     }
     NativeMenuItem {

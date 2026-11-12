@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 #[test]
 pub(crate) fn transport_stop_drains_active_and_inactive_held_notes_to_their_routes() {
@@ -135,7 +136,7 @@ pub(crate) fn transport_origin_resets_probability_rng_but_pause_continue_and_pan
     assert_eq!(runner.trigger_probability_rng, 42);
 
     let panic = runner
-        .execute_confirmed_action(NativeMenuAction::PlatformEffect("midi.panic".into()))
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic))
         .unwrap();
     assert_eq!(panic, Some(RuntimePlatformEffect::MidiPanic));
     assert_eq!(runner.trigger_probability_rng, 42);

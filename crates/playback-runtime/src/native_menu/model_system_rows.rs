@@ -9,7 +9,7 @@ use super::system_io::{
     hdmi_cycle_measures_item, midi_host_group, midi_ports_group, sd_transfer_start_item,
     usb_audio_item, usb_device_group, MIDI_HOST_LABEL, USB_DEVICE_LABEL,
 };
-use super::{NativeBluetoothRows, NativeMenuItem, NativeMenuModel};
+use super::{NativeBluetoothRows, NativeMenuItem, NativeMenuModel, PlatformAction};
 
 impl NativeMenuModel {
     /// Host shows the MIDI Host ports; Gadget shows USB Audio, USB MIDI and
@@ -58,9 +58,15 @@ impl NativeMenuModel {
         }
     }
 
-    pub fn show_midi_ports(&mut self, label: &str, prefix: &str, ports: &[(String, String)]) {
+    pub fn show_midi_ports(
+        &mut self,
+        label: &str,
+        prefix: &str,
+        action: fn(Option<String>) -> PlatformAction,
+        ports: &[(String, String)],
+    ) {
         if let Some(group) = self.system_group_containing(&format!("{prefix}.none")) {
-            *group = midi_ports_group(label, prefix, ports);
+            *group = midi_ports_group(label, prefix, action, ports);
             self.clamp_cursor_to_siblings();
         }
     }

@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 #[test]
 pub(crate) fn menu_binding_actions_update_param_xy_and_aux_targets() {
@@ -54,13 +55,23 @@ pub(crate) fn menu_binding_actions_update_param_xy_and_aux_targets() {
         .execute_menu_action(NativeMenuAction::SetAuxClick {
             index: 0,
             action: Some(Box::new(NativeMenuAction::PlatformEffect(
-                "sample.assign:0:0".into(),
+                PlatformAction::SampleAssign {
+                    instrument_slot: 0,
+                    sample_slot: 0,
+                },
             ))),
         })
         .unwrap();
     assert!(matches!(
-        runner.aux_bindings[0].as_ref().and_then(|binding| binding.press_action.as_ref()),
-        Some(NativeMenuAction::PlatformEffect(action)) if action == "sample.assign:0:0"
+        runner.aux_bindings[0]
+            .as_ref()
+            .and_then(|binding| binding.press_action.as_ref()),
+        Some(NativeMenuAction::PlatformEffect(
+            PlatformAction::SampleAssign {
+                instrument_slot: 0,
+                sample_slot: 0
+            }
+        ))
     ));
 }
 

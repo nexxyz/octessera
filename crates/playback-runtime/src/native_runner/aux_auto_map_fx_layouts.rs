@@ -3,6 +3,7 @@ use super::aux_auto_map::{
 };
 use super::play_fx_config::play_fx_type;
 use super::*;
+use crate::native_menu::PlatformAction;
 
 impl NativeRunner {
     pub(super) fn fx_slot_auto_map(&self, key: &str) -> Option<AuxAutoMap> {
@@ -212,7 +213,7 @@ impl NativeRunner {
             },
             turn: first.and_then(|slot| slot.turn),
             press: Some(ResolvedAuxPress {
-                action: NativeMenuAction::PlatformEffect("play.fx.map".into()),
+                action: NativeMenuAction::PlatformEffect(PlatformAction::PlayFxMap),
                 label: "Map".into(),
             }),
             press_source: AuxBindingSource::Auto,

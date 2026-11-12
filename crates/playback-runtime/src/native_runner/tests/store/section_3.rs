@@ -1,15 +1,16 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 #[test]
 pub(crate) fn patch_load_brings_its_own_aux_layout_including_system_targets() {
     let mut source = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     source.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic)),
     });
     source.aux_bindings[1] = Some(NativeAuxBinding {
         turn_key: Some("sound.noteLengthMs".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("play.fx.map".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::PlayFxMap)),
     });
     source.shift_aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("displayBrightness".into()),
@@ -160,7 +161,7 @@ pub(crate) fn patch_envelope_device_fields_do_not_override_local_device_config()
 #[test]
 pub(crate) fn recovery_and_backup_payloads_are_patch_only() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let effect = runner.platform_effect_for_action("system.reboot").unwrap();
+    let effect = runner.recovery_save_effect().unwrap();
     let payload = match effect {
         Some(RuntimePlatformEffect::StoreSaveRecovery { payload }) => payload,
         _ => panic!("unexpected effect"),

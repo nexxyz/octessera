@@ -1,95 +1,16 @@
-use super::play_pages::{ActivePlayMode, PlayMode};
-use crate::native_menu::NativeMenuAction;
+use crate::native_menu::{NativeMenuAction, PlatformAction};
 use crate::native_runner::{InstrumentType, MixerRoute};
 use crate::protocol::RuntimePlatformEffect;
 
 mod factory_instrument_load;
+mod platform_action_dispatch;
 
-use super::grid_assign::GridAssign;
 use super::{
-    derive_instrument_name, native_binding_from_spec, parse_sample_action, NativeInstrumentSlot,
-    NativeManualSaveRequest, NativeRunner, RuntimeTransportState, GRID_HEIGHT,
+    derive_instrument_name, native_binding_from_spec, NativeInstrumentSlot,
+    NativeManualSaveRequest, NativeRunner,
 };
 
 impl NativeRunner {
-    pub(super) fn handle_sample_action(
-        &mut self,
-        action: &str,
-    ) -> Result<Option<RuntimePlatformEffect>, String> {
-        if action == "factory.load" {
-            self.apply_factory_payload()?;
-            return Ok(None);
-        }
-        if action == crate::native_menu::FADER_TILE_MAP_ACTION {
-            self.enter_fader_tile_assign();
-            return Ok(None);
-        }
-        if action == "play.fx.map" {
-            let config = self.play_fx_selected.clone();
-            self.grid_assign = Some(GridAssign::PlayFx(config.clone()));
-            self.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
-            self.show_toast(format!(
-                "FX {}: press tiles to assign",
-                super::play_control::play_fx_type_label(&config)
-            ));
-            return Ok(None);
-        }
-        if let Some(rest) = action.strip_prefix("sample.assign:") {
-            let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
-            self.grid_assign = Some(GridAssign::Sample {
-                slot: instrument_slot,
-                sample_slot,
-            });
-            self.show_toast(format!("S{}: press tiles to assign", sample_slot + 1));
-            return Ok(None);
-        }
-        if let Some(rest) = action.strip_prefix("drum.assign:") {
-            let (slot, voice) = rest.split_once(':').ok_or("invalid Drum Assign action")?;
-            self.enter_drum_assign(
-                slot.parse().map_err(|_| "invalid Drum slot")?,
-                voice.parse().map_err(|_| "invalid Drum voice")?,
-            );
-            return Ok(None);
-        }
-        if let Some(slot) = action.strip_prefix("midiDrum.assign:") {
-            self.enter_midi_drum_assign(slot.parse().map_err(|_| "invalid MIDI Drum slot")?);
-            return Ok(None);
-        }
-        if let Some(rest) = action.strip_prefix("drum.preview:") {
-            let (slot, voice) = rest.split_once(':').ok_or("invalid Drum Preview action")?;
-            self.preview_drum_voice(
-                slot.parse().map_err(|_| "invalid Drum slot")?,
-                voice.parse().map_err(|_| "invalid Drum voice")?,
-            );
-            return Ok(None);
-        }
-        if let Some(rest) = action.strip_prefix("trigger.probability.assign:") {
-            if let Ok(layer_index) = rest.parse::<usize>() {
-                self.grid_assign = Some(GridAssign::TriggerProbability(
-                    layer_index.min(GRID_HEIGHT - 1),
-                ));
-                self.show_toast(format!("L{}: press tiles to assign", layer_index + 1));
-            }
-            return Ok(None);
-        }
-        if [
-            "synth.preset:",
-            "fm.preset:",
-            "pluck.preset:",
-            "sample.kit:",
-            "drum.kit:",
-        ]
-        .iter()
-        .any(|prefix| action.starts_with(prefix))
-        {
-            if let Err(error) = self.load_factory_instrument_action(action) {
-                self.show_toast(format!("Factory load rejected: {error}"));
-            }
-            return Ok(None);
-        }
-        self.handle_sample_browser_action(action)
-    }
-
     pub(super) fn execute_confirmed_action(
         &mut self,
         action: NativeMenuAction,
@@ -145,78 +66,11 @@ impl NativeRunner {
                 self.menu.back();
                 Ok(None)
             }
-            NativeMenuAction::PlatformEffect(action_type) => {
-                if self.queue_music_first_manual_save(&action_type) {
+            NativeMenuAction::PlatformEffect(action) => {
+                if self.queue_music_first_manual_save(&action) {
                     Ok(None)
-                } else if action_type.starts_with("restart.") {
-                    self.execute_restart_action(&action_type)
-                } else if let Some(name) = action_type.strip_prefix("preset.renamePick:") {
-                    self.patch_store.preset_rename_source = Some(name.into());
-                    self.patch_store.preset_draft_name = name.into();
-                    Ok(None)
-                } else if action_type == "preset.saveCurrent"
-                    && self.patch_store.current_preset_name.is_none()
-                {
-                    self.show_toast("No preset loaded");
-                    Ok(None)
-                } else if action_type == "midi.panic" {
-                    self.show_toast("MIDI panic sent");
-                    self.platform_effect_for_action(&action_type)
-                } else if let Some(slot) = super::midi_cc_in::midi_cc_learn_slot(&action_type) {
-                    self.start_midi_cc_learn(slot);
-                    Ok(None)
-                } else if action_type == "system.controlsHelp" {
-                    self.open_controls_help();
-                    Ok(None)
-                } else if let Some(source) = super::signal_view::signal_row_source(&action_type) {
-                    self.open_full_screen_signal(source);
-                    Ok(None)
-                } else if action_type == "system.hardwareTest" {
-                    self.open_hardware_test();
-                    Ok(None)
-                } else if action_type == "system.info" {
-                    self.open_system_info();
-                    self.platform_effect_for_action(&action_type)
-                } else if action_type == "system.configureWifi" {
-                    self.stop_for_setup_portal();
-                    if !self.wifi_enabled {
-                        self.wifi_enabled = true;
-                        self.menu.set_bool_value_for_key("wifi.enabled", true);
-                        self.mark_system_dirty();
-                    }
-                    self.outbox
-                        .push_platform_effect(RuntimePlatformEffect::MidiPanic);
-                    self.outbox
-                        .push_platform_effect(RuntimePlatformEffect::SetupPortalOpen);
-                    Ok(None)
-                } else if action_type == "system.clearAll" {
-                    self.clear_patch_state()?;
-                    Ok(None)
-                } else if action_type == "system.reboot" || action_type == "system.shutdown" {
-                    self.start_power_action(&action_type)
-                } else if action_type == "usb.sdTransferStart" {
-                    self.transport.transport = RuntimeTransportState::Stopped;
-                    self.reset_transport_position();
-                    self.display.help_popup = None;
-                    self.open_usb_sd_transfer_modal();
-                    self.platform_effect_for_action(&action_type)
-                } else if let Some(toast) = board_setup_toast(&action_type) {
-                    self.show_toast(toast);
-                    self.platform_effect_for_action(&action_type)
-                } else if let Some(effect) = self.handle_sample_action(&action_type)? {
-                    Ok(Some(effect))
                 } else {
-                    let result = self.platform_effect_for_action(&action_type);
-                    if let Err(error) = &result {
-                        if matches!(
-                            action_type.as_str(),
-                            "preset.saveAs" | "preset.renameApply" | "preset.saveCurrent"
-                        ) {
-                            self.show_toast(format!("Preset save rejected: {error}"));
-                            return Ok(None);
-                        }
-                    }
-                    result
+                    self.execute_platform_action(action)
                 }
             }
             NativeMenuAction::SetParamBinding { target, binding } => {
@@ -258,30 +112,34 @@ impl NativeRunner {
         }
     }
 
-    fn queue_music_first_manual_save(&mut self, action: &str) -> bool {
+    fn queue_music_first_manual_save(&mut self, action: &PlatformAction) -> bool {
         if !self.pending.external_autosave_deferred {
             return false;
         }
-        if action == "preset.saveCurrent" && self.patch_store.current_preset_name.is_none() {
+        if *action == PlatformAction::PresetSaveCurrent
+            && self.patch_store.current_preset_name.is_none()
+        {
             self.show_toast("No preset loaded");
             return true;
         }
         let request = match action {
-            "default.save" => {
+            PlatformAction::DefaultSave => {
                 if self.restart_settings.has_pending_write() {
                     self.show_toast("Save in progress");
                     return true;
                 }
                 NativeManualSaveRequest::Default
             }
-            "preset.saveAs" | "preset.renameApply" | "preset.saveCurrent" => {
+            PlatformAction::PresetSaveAs
+            | PlatformAction::PresetRenameApply
+            | PlatformAction::PresetSaveCurrent => {
                 if self.pending.manual_save_request.is_some()
                     || self.pending.native_preset_write.is_some()
                 {
                     self.show_toast("Save in progress");
                     return true;
                 }
-                let name = if action == "preset.saveCurrent" {
+                let name = if *action == PlatformAction::PresetSaveCurrent {
                     self.patch_store
                         .current_preset_name
                         .clone()
@@ -291,8 +149,9 @@ impl NativeRunner {
                 };
                 NativeManualSaveRequest::Preset {
                     name,
-                    mode: (action == "preset.saveCurrent").then(|| "overwrite".into()),
-                    rename_from: if action == "preset.renameApply" {
+                    mode: (*action == PlatformAction::PresetSaveCurrent)
+                        .then(|| "overwrite".into()),
+                    rename_from: if *action == PlatformAction::PresetRenameApply {
                         self.patch_store.preset_rename_source.clone()
                     } else {
                         None
@@ -309,21 +168,19 @@ impl NativeRunner {
         true
     }
 
+    /// Reboots, shuts down or restarts the app (`effect`) after a recovery save of the patch.
     pub(super) fn start_power_action(
         &mut self,
-        action_type: &str,
+        effect: RuntimePlatformEffect,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
-        if matches!(
-            action_type,
-            "system.reboot" | "system.shutdown" | "system.restartApp"
-        ) && (self.pending.system_persistence.has_pending_save()
-            || self.pending.system_persistence.has_completed_auto_save())
+        if self.pending.system_persistence.has_pending_save()
+            || self.pending.system_persistence.has_completed_auto_save()
         {
             self.display.confirm_dialog = None;
             self.show_toast("System save pending, try again");
             return Ok(None);
         }
-        if action_type != "system.shutdown" {
+        if effect != RuntimePlatformEffect::Shutdown {
             if let Some(message) = self.reboot_blocked_by_pending_saves() {
                 self.display.confirm_dialog = None;
                 self.show_toast(message);
@@ -336,14 +193,13 @@ impl NativeRunner {
             std::time::Instant::now()
                 + std::time::Duration::from_millis(super::OLED_SHUTDOWN_SPLASH_FAILSAFE_MS),
         );
-        let (toast, effect) = match action_type {
-            "system.reboot" => ("Rebooting", RuntimePlatformEffect::Reboot),
-            "system.restartApp" => ("Restarting", RuntimePlatformEffect::RestartApp),
-            _ => ("Shutting down", RuntimePlatformEffect::Shutdown),
-        };
-        self.show_toast(toast);
+        self.show_toast(match effect {
+            RuntimePlatformEffect::Reboot => "Rebooting",
+            RuntimePlatformEffect::RestartApp => "Restarting",
+            _ => "Shutting down",
+        });
         self.outbox.push_platform_effect(effect);
-        self.platform_effect_for_action(action_type)
+        self.recovery_save_effect()
     }
 
     fn clone_instrument(&mut self, index: usize) {
@@ -400,13 +256,5 @@ impl NativeRunner {
 
     fn set_shift_aux_click_target(&mut self, index: usize, action: Option<NativeMenuAction>) {
         self.set_aux_click_binding(index, true, action);
-    }
-}
-
-fn board_setup_toast(action_type: &str) -> Option<&'static str> {
-    match action_type {
-        "maintenance.hold" => Some("Live Show Mode: 48h"),
-        "maintenance.release" => Some("Live Show Mode off"),
-        _ => None,
     }
 }

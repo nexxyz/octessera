@@ -1,3 +1,4 @@
+use crate::native_menu::PlatformAction;
 use crate::protocol::{MidiPort, RuntimeStoreResult};
 
 use super::NativeRunner;
@@ -10,6 +11,7 @@ impl NativeRunner {
                 self.menu.show_midi_ports(
                     "MIDI Out",
                     "midi.output",
+                    PlatformAction::MidiOutput,
                     &midi_port_rows(&self.midi_outputs),
                 );
             }
@@ -19,6 +21,7 @@ impl NativeRunner {
                 self.menu.show_midi_ports(
                     "MIDI In",
                     "midi.input",
+                    PlatformAction::MidiInput,
                     &midi_port_rows(&self.midi_inputs),
                 );
             }

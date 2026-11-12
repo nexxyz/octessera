@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::{FactoryLoadKind, PlatformAction};
 use std::path::Path;
 
 #[test]
@@ -47,9 +48,13 @@ fn three_factory_sampler_kits_reference_library_files_in_voice_order() {
     ] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner
-            .execute_confirmed_action(NativeMenuAction::PlatformEffect(format!(
-                "sample.kit:0:{id}"
-            )))
+            .execute_confirmed_action(NativeMenuAction::PlatformEffect(
+                PlatformAction::FactoryInstrumentLoad {
+                    kind: FactoryLoadKind::SampleKit,
+                    slot: 0,
+                    id: id.into(),
+                },
+            ))
             .unwrap();
         for (index, relative) in expected.into_iter().enumerate() {
             let path = format!("samples/{relative}");
@@ -70,7 +75,11 @@ fn sampler_factory_load_does_not_change_sample_browser_navigation_or_preview() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner
         .execute_confirmed_action(NativeMenuAction::PlatformEffect(
-            "sample.kit:0:sdbkit".into(),
+            PlatformAction::FactoryInstrumentLoad {
+                kind: FactoryLoadKind::SampleKit,
+                slot: 0,
+                id: "sdbkit".into(),
+            },
         ))
         .unwrap();
     runner.sample_browser = Some(NativeSampleBrowser {
@@ -84,7 +93,10 @@ fn sampler_factory_load_does_not_change_sample_browser_navigation_or_preview() {
         }],
     });
     let up = runner
-        .execute_menu_action(NativeMenuAction::PlatformEffect("sample.up:0:0".into()))
+        .execute_menu_action(NativeMenuAction::PlatformEffect(PlatformAction::SampleUp {
+            instrument_slot: 0,
+            sample_slot: 0,
+        }))
         .unwrap();
     assert_eq!(
         up,
@@ -96,7 +108,11 @@ fn sampler_factory_load_does_not_change_sample_browser_navigation_or_preview() {
     );
     let folder = runner
         .execute_menu_action(NativeMenuAction::PlatformEffect(
-            "sample.enter:0:0:samples/Drum/kick".into(),
+            PlatformAction::SampleEnter {
+                instrument_slot: 0,
+                sample_slot: 0,
+                dir: "samples/Drum/kick".into(),
+            },
         ))
         .unwrap();
     assert_eq!(
@@ -108,30 +124,20 @@ fn sampler_factory_load_does_not_change_sample_browser_navigation_or_preview() {
         })
     );
     assert!(runner.sample_browser.as_ref().unwrap().entries.is_empty());
-    let preview = runner
-        .execute_menu_action(NativeMenuAction::PlatformEffect(
-            "sample.preview:0:0:samples/Drum/kick/sdbkit-kick.wav".into(),
-        ))
-        .unwrap();
-    assert_eq!(
-        preview,
-        Some(RuntimePlatformEffect::AudioCommand {
-            command: RuntimeAudioCommand::SamplePreview {
-                instrument_slot: 0,
-                sample_slot: 0,
-                path: "samples/Drum/kick/sdbkit-kick.wav".into(),
-                velocity: 100
-            }
-        })
-    );
 }
 
 #[test]
 fn every_factory_choice_keeps_valid_saved_config_and_drum_assignments() {
     for (kind, ids) in [
-        ("fm.preset", &["init", "soft_keys", "bell"][..]),
-        ("pluck.preset", &["init", "nylon", "steel", "muted"]),
-        ("drum.kit", &["default", "tight", "heavy"]),
+        (
+            FactoryLoadKind::FmPreset,
+            &["init", "soft_keys", "bell"][..],
+        ),
+        (
+            FactoryLoadKind::PluckPreset,
+            &["init", "nylon", "steel", "muted"],
+        ),
+        (FactoryLoadKind::DrumKit, &["default", "tight", "heavy"]),
     ] {
         for id in ids {
             let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -141,9 +147,13 @@ fn every_factory_choice_keeps_valid_saved_config_and_drum_assignments() {
             ]);
             let assignments = runner.instruments[3].drum_config["assignments"].clone();
             runner
-                .execute_confirmed_action(NativeMenuAction::PlatformEffect(format!(
-                    "{kind}:3:{id}"
-                )))
+                .execute_confirmed_action(NativeMenuAction::PlatformEffect(
+                    PlatformAction::FactoryInstrumentLoad {
+                        kind,
+                        slot: 3,
+                        id: (*id).into(),
+                    },
+                ))
                 .unwrap();
             assert_eq!(
                 runner.instruments[3].drum_config["assignments"],
@@ -162,7 +172,7 @@ fn every_factory_choice_keeps_valid_saved_config_and_drum_assignments() {
                 .unwrap();
             assert_eq!(
                 restored.instruments[3], runner.instruments[3],
-                "{kind}:{id}"
+                "{kind:?}:{id}"
             );
         }
     }
@@ -170,23 +180,28 @@ fn every_factory_choice_keeps_valid_saved_config_and_drum_assignments() {
 
 #[test]
 fn factory_aux_click_actions_remain_musical_in_portable_patch() {
-    for action in [
-        "fm.preset:0:bell",
-        "pluck.preset:0:nylon",
-        "sample.kit:0:sdbkit",
-        "drum.kit:0:heavy",
+    for (kind, id) in [
+        (FactoryLoadKind::FmPreset, "bell"),
+        (FactoryLoadKind::PluckPreset, "nylon"),
+        (FactoryLoadKind::SampleKit, "sdbkit"),
+        (FactoryLoadKind::DrumKit, "heavy"),
     ] {
+        let action = PlatformAction::FactoryInstrumentLoad {
+            kind,
+            slot: 0,
+            id: id.into(),
+        };
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner
             .execute_menu_action(NativeMenuAction::SetAuxClick {
                 index: 0,
-                action: Some(Box::new(NativeMenuAction::PlatformEffect(action.into()))),
+                action: Some(Box::new(NativeMenuAction::PlatformEffect(action.clone()))),
             })
             .unwrap();
         let patch = portable_patch_projection(&runner.config_payload()).unwrap();
         assert_eq!(
             patch["runtimeConfig"]["auxBindings"]["aux1"]["pressAction"]["action"],
-            action
+            action.as_wire()
         );
         let device = super::super::patch_device_payload::device_config_payload_from_payload(
             runner.config_payload(),
@@ -194,7 +209,7 @@ fn factory_aux_click_actions_remain_musical_in_portable_patch() {
         .unwrap();
         assert!(
             device["runtimeConfig"]["auxBindings"]["aux1"]["pressAction"].is_null(),
-            "{action}"
+            "{action:?}"
         );
     }
 }

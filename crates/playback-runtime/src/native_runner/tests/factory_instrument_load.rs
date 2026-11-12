@@ -1,4 +1,13 @@
 use super::*;
+use crate::native_menu::{FactoryLoadKind, PlatformAction};
+
+fn factory_load(kind: FactoryLoadKind, slot: usize, id: &str) -> NativeMenuAction {
+    NativeMenuAction::PlatformEffect(PlatformAction::FactoryInstrumentLoad {
+        kind,
+        slot,
+        id: id.into(),
+    })
+}
 
 fn press(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     runner
@@ -151,14 +160,14 @@ fn custom_names_and_inactive_type_blocks_survive_factory_loads_and_portable_roun
     slot.drum_config["filter"]["resonance"] = json!(65);
     let original = slot.clone();
 
-    for action in [
-        "fm.preset:1:soft_keys",
-        "pluck.preset:1:nylon",
-        "sample.kit:1:distkit",
-        "drum.kit:1:heavy",
+    for (kind, id) in [
+        (FactoryLoadKind::FmPreset, "soft_keys"),
+        (FactoryLoadKind::PluckPreset, "nylon"),
+        (FactoryLoadKind::SampleKit, "distkit"),
+        (FactoryLoadKind::DrumKit, "heavy"),
     ] {
         runner
-            .execute_confirmed_action(NativeMenuAction::PlatformEffect(action.into()))
+            .execute_confirmed_action(factory_load(kind, 1, id))
             .unwrap();
     }
     let current = &runner.instruments[1];
@@ -198,19 +207,19 @@ fn custom_names_and_inactive_type_blocks_survive_factory_loads_and_portable_roun
 fn unknown_catalog_ids_and_invalid_slots_leave_patch_and_audio_unchanged() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let before = runner.config_payload();
-    for action in [
-        "fm.preset:0:missing",
-        "pluck.preset:0:missing",
-        "sample.kit:0:missing",
-        "drum.kit:0:missing",
-        "sample.kit:8:sdbkit",
-        "synth.preset:0:missing",
+    for (kind, slot, id) in [
+        (FactoryLoadKind::FmPreset, 0, "missing"),
+        (FactoryLoadKind::PluckPreset, 0, "missing"),
+        (FactoryLoadKind::SampleKit, 0, "missing"),
+        (FactoryLoadKind::DrumKit, 0, "missing"),
+        (FactoryLoadKind::SampleKit, 8, "sdbkit"),
+        (FactoryLoadKind::SynthPreset, 0, "missing"),
     ] {
         let result = runner
-            .execute_confirmed_action(NativeMenuAction::PlatformEffect(action.into()))
+            .execute_confirmed_action(factory_load(kind, slot, id))
             .unwrap();
         assert!(result.is_none());
-        assert_eq!(runner.config_payload(), before, "{action}");
+        assert_eq!(runner.config_payload(), before, "{kind:?} {slot} {id}");
         assert!(
             runner
                 .display

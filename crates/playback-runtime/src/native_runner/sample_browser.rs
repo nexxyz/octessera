@@ -1,145 +1,106 @@
-use crate::native_menu::{sample_display_name, NativeMenuAction, NativeSampleAvailability};
+use crate::native_menu::{
+    sample_display_name, NativeMenuAction, NativeSampleAvailability, PlatformAction,
+};
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect, SampleEntry};
 
-use super::{parent_dir, parse_sample_action, same_sample_path, NativeRunner, NativeSampleBrowser};
+use super::{
+    parent_dir, parse_sample_choose_slots, same_sample_path, NativeRunner, NativeSampleBrowser,
+};
 
 mod sample_availability;
 
 impl NativeRunner {
-    pub(super) fn handle_sample_browser_action(
+    /// Opens the browser at `dir`; from a slot's loaded-sample row it opens that slot's browse
+    /// list too.
+    pub(super) fn open_sample_browser(
         &mut self,
-        action: &str,
-    ) -> Result<Option<RuntimePlatformEffect>, String> {
-        if let Some(rest) = action.strip_prefix("sample.open:") {
-            let (instrument_slot, sample_slot, dir) = parse_sample_action(rest)?;
-            let dir = dir.unwrap_or_default();
-            let from_loaded_row = self
-                .menu
-                .current_key()
-                .is_some_and(|key| key.starts_with("sample.loaded:"));
-            self.show_sample_browser(
-                Some(NativeSampleBrowser {
-                    instrument_slot,
-                    sample_slot,
-                    dir: dir.clone(),
-                    entries: vec![],
-                }),
-                instrument_slot,
-            );
-            if from_loaded_row {
-                self.menu
-                    .open_item_key(&format!("sample.choose:{instrument_slot}:{sample_slot}"));
-            }
-            return Ok(Some(RuntimePlatformEffect::SampleListRequest {
+        instrument_slot: usize,
+        sample_slot: usize,
+        dir: String,
+    ) -> RuntimePlatformEffect {
+        let from_loaded_row = self
+            .menu
+            .current_key()
+            .is_some_and(|key| key.starts_with("sample.loaded:"));
+        let effect = self.browse_sample_dir(instrument_slot, sample_slot, dir);
+        if from_loaded_row {
+            self.menu
+                .open_item_key(&format!("sample.choose:{instrument_slot}:{sample_slot}"));
+        }
+        effect
+    }
+
+    /// Shows the browser at `dir`, empty until the host lists it.
+    pub(super) fn browse_sample_dir(
+        &mut self,
+        instrument_slot: usize,
+        sample_slot: usize,
+        dir: String,
+    ) -> RuntimePlatformEffect {
+        self.show_sample_browser(
+            Some(NativeSampleBrowser {
                 instrument_slot,
                 sample_slot,
-                dir,
-            }));
+                dir: dir.clone(),
+                entries: vec![],
+            }),
+            instrument_slot,
+        );
+        RuntimePlatformEffect::SampleListRequest {
+            instrument_slot,
+            sample_slot,
+            dir,
         }
-        if let Some(rest) = action.strip_prefix("sample.enter:") {
-            let (instrument_slot, sample_slot, dir) = parse_sample_action(rest)?;
-            let dir = dir.unwrap_or_default();
-            self.show_sample_browser(
-                Some(NativeSampleBrowser {
-                    instrument_slot,
-                    sample_slot,
-                    dir: dir.clone(),
-                    entries: vec![],
-                }),
-                instrument_slot,
-            );
-            return Ok(Some(RuntimePlatformEffect::SampleListRequest {
-                instrument_slot,
-                sample_slot,
-                dir,
-            }));
-        }
-        if let Some(rest) = action.strip_prefix("sample.up:") {
-            let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
-            let dir = self
-                .sample_browser
-                .as_ref()
-                .map(|browser| parent_dir(&browser.dir))
-                .unwrap_or_default();
-            self.show_sample_browser(
-                Some(NativeSampleBrowser {
-                    instrument_slot,
-                    sample_slot,
-                    dir: dir.clone(),
-                    entries: vec![],
-                }),
-                instrument_slot,
-            );
-            return Ok(Some(RuntimePlatformEffect::SampleListRequest {
-                instrument_slot,
-                sample_slot,
-                dir,
-            }));
-        }
-        if let Some(rest) = action.strip_prefix("sample.pick:") {
-            let (instrument_slot, sample_slot, path) = parse_sample_action(rest)?;
-            let Some(path) = path else {
-                return Ok(None);
-            };
-            let repicked_missing = self
-                .current_sample_path(instrument_slot, sample_slot)
-                .is_some_and(|current| same_sample_path(current, &path))
-                && self
+    }
+
+    pub(super) fn browse_sample_parent_dir(
+        &mut self,
+        instrument_slot: usize,
+        sample_slot: usize,
+    ) -> RuntimePlatformEffect {
+        let dir = self
+            .sample_browser
+            .as_ref()
+            .map(|browser| parent_dir(&browser.dir))
+            .unwrap_or_default();
+        self.browse_sample_dir(instrument_slot, sample_slot, dir)
+    }
+
+    pub(super) fn pick_sample(&mut self, instrument_slot: usize, sample_slot: usize, path: String) {
+        let repicked_missing = self
+            .current_sample_path(instrument_slot, sample_slot)
+            .is_some_and(|current| same_sample_path(current, &path))
+            && self
+                .sample_availability
+                .get(instrument_slot)
+                .and_then(|slots| slots.get(sample_slot))
+                == Some(&NativeSampleAvailability::Unavailable);
+        let mut changed = false;
+        if let Some(instrument) = self.instruments.get_mut(instrument_slot) {
+            if sample_slot < instrument.sample_paths.len() {
+                instrument.sample_paths[sample_slot] = Some(path);
+                if let Some(availability) = self
                     .sample_availability
-                    .get(instrument_slot)
-                    .and_then(|slots| slots.get(sample_slot))
-                    == Some(&NativeSampleAvailability::Unavailable);
-            let mut changed = false;
-            if let Some(instrument) = self.instruments.get_mut(instrument_slot) {
-                if sample_slot < instrument.sample_paths.len() {
-                    instrument.sample_paths[sample_slot] = Some(path);
-                    if let Some(availability) = self
-                        .sample_availability
-                        .get_mut(instrument_slot)
-                        .and_then(|slots| slots.get_mut(sample_slot))
-                    {
-                        *availability = if repicked_missing {
-                            NativeSampleAvailability::Unknown
-                        } else {
-                            NativeSampleAvailability::Available
-                        };
-                    }
-                    changed = true;
+                    .get_mut(instrument_slot)
+                    .and_then(|slots| slots.get_mut(sample_slot))
+                {
+                    *availability = if repicked_missing {
+                        NativeSampleAvailability::Unknown
+                    } else {
+                        NativeSampleAvailability::Available
+                    };
                 }
+                changed = true;
             }
-            if changed {
-                self.queue_instrument_slot_config(instrument_slot);
-                self.mark_fast_autosave_dirty();
-                self.show_sample_browser(None, instrument_slot);
-                let _ = self
-                    .menu
-                    .focus_item_key(&format!("sample.choose:{instrument_slot}:{sample_slot}"));
-            }
-            return Ok(None);
         }
-        if let Some(rest) = action.strip_prefix("sample.favorite.set:") {
-            let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
-            return self.toggle_sample_favourite(instrument_slot, sample_slot, true);
+        if changed {
+            self.queue_instrument_slot_config(instrument_slot);
+            self.mark_fast_autosave_dirty();
+            self.show_sample_browser(None, instrument_slot);
+            let _ = self
+                .menu
+                .focus_item_key(&format!("sample.choose:{instrument_slot}:{sample_slot}"));
         }
-        if let Some(rest) = action.strip_prefix("sample.favorite.remove:") {
-            let (instrument_slot, sample_slot, _) = parse_sample_action(rest)?;
-            return self.toggle_sample_favourite(instrument_slot, sample_slot, false);
-        }
-        if let Some(rest) = action.strip_prefix("sample.preview:") {
-            let (instrument_slot, sample_slot, path) = parse_sample_action(rest)?;
-            if let Some(path) = path {
-                return Ok(Some(RuntimePlatformEffect::AudioCommand {
-                    command: RuntimeAudioCommand::SamplePreview {
-                        instrument_slot,
-                        sample_slot,
-                        path,
-                        velocity: 100,
-                    },
-                }));
-            }
-            return Ok(None);
-        }
-        Ok(None)
     }
 
     pub(super) fn show_sample_browser(
@@ -229,7 +190,7 @@ impl NativeRunner {
             .and_then(Option::as_deref)
     }
 
-    fn toggle_sample_favourite(
+    pub(super) fn toggle_sample_favourite(
         &mut self,
         instrument_slot: usize,
         sample_slot: usize,
@@ -280,7 +241,7 @@ impl NativeRunner {
         key: &str,
     ) -> Option<RuntimePlatformEffect> {
         let key = key.strip_prefix("sample.choose:").unwrap_or(key);
-        let (instrument_slot, sample_slot, _) = parse_sample_action(key).ok()?;
+        let (instrument_slot, sample_slot) = parse_sample_choose_slots(key)?;
         let dir = self
             .sample_browser
             .as_ref()
@@ -289,32 +250,16 @@ impl NativeRunner {
             })
             .map(|browser| browser.dir.clone())
             .unwrap_or_default();
-        self.show_sample_browser(
-            Some(NativeSampleBrowser {
-                instrument_slot,
-                sample_slot,
-                dir: dir.clone(),
-                entries: vec![],
-            }),
-            instrument_slot,
-        );
-        Some(RuntimePlatformEffect::SampleListRequest {
-            instrument_slot,
-            sample_slot,
-            dir,
-        })
+        Some(self.browse_sample_dir(instrument_slot, sample_slot, dir))
     }
 
     pub(super) fn preview_selected_sample(&self) -> Result<Option<RuntimePlatformEffect>, String> {
-        let Some(NativeMenuAction::PlatformEffect(action)) = self.menu.snapshot().selected_action
+        let Some(NativeMenuAction::PlatformEffect(PlatformAction::SamplePick {
+            instrument_slot,
+            sample_slot,
+            path,
+        })) = self.menu.snapshot().selected_action
         else {
-            return Ok(None);
-        };
-        let Some(rest) = action.strip_prefix("sample.pick:") else {
-            return Ok(None);
-        };
-        let (instrument_slot, sample_slot, path) = parse_sample_action(rest)?;
-        let Some(path) = path else {
             return Ok(None);
         };
         Ok(Some(RuntimePlatformEffect::AudioCommand {

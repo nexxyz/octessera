@@ -1,4 +1,4 @@
-use crate::native_menu::NativeMenuAction;
+use crate::native_menu::{NativeMenuAction, PlatformAction};
 use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 use serde_json::Value;
 use std::sync::Arc;
@@ -292,44 +292,47 @@ impl NativeRunner {
         self.display.confirm_dialog = None;
     }
 
-    pub(super) fn execute_restart_action(
-        &mut self,
-        action: &str,
-    ) -> Result<Option<RuntimePlatformEffect>, String> {
-        match action {
-            "restart.saveSetting" => {
-                if self.restart_settings.has_pending_write() {
-                    self.display.confirm_dialog = Some(self.save_choice_dialog());
-                    return Ok(None);
-                }
-                if !self.restart_settings.is_save_choice() {
-                    return Ok(None);
-                }
-                let Some(payload) = self.setting_payload_for_restart(&self.config_payload()) else {
-                    return Ok(None);
-                };
-                self.start_restart_system_save(payload, DefaultSaveScope::RestartSetting);
-                Ok(None)
-            }
-            "restart.saveEverything" => {
-                if !self.restart_settings.is_save_choice() {
-                    return Ok(None);
-                }
-                if self.restart_settings.has_pending_write() {
-                    self.display.confirm_dialog = Some(self.save_choice_dialog());
-                    return Ok(None);
-                }
-                let payload =
-                    super::system_persistence::SystemPersistenceState::system_document(self)?;
-                self.start_restart_system_save(payload, DefaultSaveScope::RestartEverything);
-                Ok(None)
-            }
-            "restart.app" if self.restart_settings.is_restart_choice() => {
-                self.restart_settings.continue_after_save();
-                self.start_power_action("system.restartApp")
-            }
-            _ => Ok(None),
+    /// The Apply System dialog's `Save this one`: saves only the setting that needs the restart.
+    pub(super) fn save_restart_setting(&mut self) -> Result<Option<RuntimePlatformEffect>, String> {
+        if self.restart_settings.has_pending_write() {
+            self.display.confirm_dialog = Some(self.save_choice_dialog());
+            return Ok(None);
         }
+        if !self.restart_settings.is_save_choice() {
+            return Ok(None);
+        }
+        let Some(payload) = self.setting_payload_for_restart(&self.config_payload()) else {
+            return Ok(None);
+        };
+        self.start_restart_system_save(payload, DefaultSaveScope::RestartSetting);
+        Ok(None)
+    }
+
+    /// The Apply System dialog's `Save System`.
+    pub(super) fn save_restart_everything(
+        &mut self,
+    ) -> Result<Option<RuntimePlatformEffect>, String> {
+        if !self.restart_settings.is_save_choice() {
+            return Ok(None);
+        }
+        if self.restart_settings.has_pending_write() {
+            self.display.confirm_dialog = Some(self.save_choice_dialog());
+            return Ok(None);
+        }
+        let payload = super::system_persistence::SystemPersistenceState::system_document(self)?;
+        self.start_restart_system_save(payload, DefaultSaveScope::RestartEverything);
+        Ok(None)
+    }
+
+    /// The Restart? dialog's `Restart now`, once the restart save is done.
+    pub(super) fn restart_app_after_save(
+        &mut self,
+    ) -> Result<Option<RuntimePlatformEffect>, String> {
+        if !self.restart_settings.is_restart_choice() {
+            return Ok(None);
+        }
+        self.restart_settings.continue_after_save();
+        self.start_power_action(RuntimePlatformEffect::RestartApp)
     }
 
     fn reconcile_dirty_with_persisted_default(&mut self) {
@@ -384,7 +387,7 @@ fn save_choice_dialog(can_save_setting: bool) -> NativeConfirmDialog {
         lines: vec!["Restart required.".into()],
         options,
         cursor: 0,
-        action: NativeMenuAction::PlatformEffect("restart.saveChoice".into()),
+        action: NativeMenuAction::PlatformEffect(PlatformAction::RestartSaveChoice),
         cancel_toast: Some("Canceled".into()),
         confirm_before_execute: false,
     }
@@ -396,7 +399,7 @@ fn saving_dialog() -> NativeConfirmDialog {
         lines: vec!["Please wait".into()],
         options: Vec::new(),
         cursor: 0,
-        action: NativeMenuAction::PlatformEffect("restart.saving".into()),
+        action: NativeMenuAction::PlatformEffect(PlatformAction::RestartSaving),
         cancel_toast: None,
         confirm_before_execute: false,
     }
@@ -412,7 +415,7 @@ fn restart_choice_dialog() -> NativeConfirmDialog {
         ],
         options: vec!["Continue".into(), "Restart now".into()],
         cursor: 0,
-        action: NativeMenuAction::PlatformEffect("restart.app".into()),
+        action: NativeMenuAction::PlatformEffect(PlatformAction::RestartApp),
         cancel_toast: None,
         confirm_before_execute: false,
     }

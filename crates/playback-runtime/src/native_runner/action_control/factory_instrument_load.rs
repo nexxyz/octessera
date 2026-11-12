@@ -4,7 +4,7 @@ use super::super::{
     NativeSampleAvailability, Value,
 };
 use crate::instrument_presets::instrument_preset_config;
-use crate::native_menu::SAMPLER_KITS;
+use crate::native_menu::{FactoryLoadKind, SAMPLER_KITS};
 
 /// What a factory load puts into a slot: a family's preset config or a Sampler kit's paths.
 enum FactoryLoad {
@@ -12,20 +12,19 @@ enum FactoryLoad {
     SampleKit(&'static [&'static str; 8]),
 }
 
-fn factory_load(kind: &str, id: &str) -> Result<FactoryLoad, String> {
+fn factory_load(kind: FactoryLoadKind, id: &str) -> Result<FactoryLoad, String> {
     let family = match kind {
-        "synth.preset" => "synth",
-        "fm.preset" => "fm",
-        "pluck.preset" => "pluck",
-        "drum.kit" => "drum",
-        "sample.kit" => {
+        FactoryLoadKind::SynthPreset => "synth",
+        FactoryLoadKind::FmPreset => "fm",
+        FactoryLoadKind::PluckPreset => "pluck",
+        FactoryLoadKind::DrumKit => "drum",
+        FactoryLoadKind::SampleKit => {
             return SAMPLER_KITS
                 .iter()
                 .find(|(kit, ..)| *kit == id)
                 .map(|(_, _, paths)| FactoryLoad::SampleKit(paths))
                 .ok_or_else(|| format!("unknown Sampler kit {id}"));
         }
-        _ => return Err(format!("unknown factory load action {kind}")),
     };
     Ok(FactoryLoad::Preset(family, factory_preset(family, id)?))
 }
@@ -43,14 +42,12 @@ fn factory_preset(family: &str, id: &str) -> Result<Value, String> {
 }
 
 impl NativeRunner {
-    pub(super) fn load_factory_instrument_action(&mut self, action: &str) -> Result<(), String> {
-        let (kind, rest) = action
-            .split_once(':')
-            .ok_or("invalid factory load action")?;
-        let (slot, id) = rest.split_once(':').ok_or("invalid factory load action")?;
-        let slot = slot
-            .parse::<usize>()
-            .map_err(|_| "invalid factory instrument slot")?;
+    pub(super) fn load_factory_instrument(
+        &mut self,
+        kind: FactoryLoadKind,
+        slot: usize,
+        id: &str,
+    ) -> Result<(), String> {
         if self.instruments.get(slot).is_none() {
             return Err(format!("invalid factory instrument slot {slot}"));
         }

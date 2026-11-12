@@ -1,4 +1,4 @@
-use crate::native_menu::NativeMenuAction;
+use crate::native_menu::{NativeMenuAction, PlatformAction};
 use crate::native_runner::{NativeRunner, NativeRunnerConfig};
 use crate::{CoreRunner, HostMessage, RunnerMessage, RuntimeAudioCommand};
 use serde_json::{json, Value};
@@ -115,7 +115,9 @@ fn normal_and_shift_aux_sides_with_system_targets_dirty_only_the_patch() {
         runner.aux_bindings[0]
             .as_ref()
             .and_then(|binding| binding.press_action.as_ref()),
-        Some(&NativeMenuAction::PlatformEffect("system.info".into()))
+        Some(&NativeMenuAction::PlatformEffect(
+            PlatformAction::SystemInfo
+        ))
     );
     assert_eq!(
         runner.shift_aux_bindings[0]
@@ -127,7 +129,9 @@ fn normal_and_shift_aux_sides_with_system_targets_dirty_only_the_patch() {
         runner.shift_aux_bindings[0]
             .as_ref()
             .and_then(|binding| binding.press_action.as_ref()),
-        Some(&NativeMenuAction::PlatformEffect("system.clearAll".into()))
+        Some(&NativeMenuAction::PlatformEffect(
+            PlatformAction::SystemClearAll
+        ))
     );
     assert!(runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());

@@ -5,6 +5,7 @@ use super::{
     factory_preset_choices, group, number_item, selected_index, InstrumentMenuConfig,
     NativeMenuAction, NativeMenuItem,
 };
+use crate::native_menu::{FactoryLoadKind, PlatformAction};
 
 const SOUNDS: [&str; 8] = [
     "kick",
@@ -44,9 +45,8 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
         .collect();
     let mut children = vec![
         factory_load_group(
-            "drum",
+            FactoryLoadKind::DrumKit,
             config.index,
-            "kit",
             "Kit",
             factory_preset_choices("drum"),
         ),
@@ -137,18 +137,18 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
         action_item(
             "Assign",
             format!("drum.assign.{}.{selected_voice}", config.index),
-            NativeMenuAction::PlatformEffect(format!(
-                "drum.assign:{}:{selected_voice}",
-                config.index
-            )),
+            NativeMenuAction::PlatformEffect(PlatformAction::DrumAssign {
+                slot: config.index,
+                voice: selected_voice,
+            }),
         ),
         action_item(
             "Preview",
             format!("drum.preview.{}.{selected_voice}", config.index),
-            NativeMenuAction::PlatformEffect(format!(
-                "drum.preview:{}:{selected_voice}",
-                config.index
-            )),
+            NativeMenuAction::PlatformEffect(PlatformAction::DrumPreview {
+                slot: config.index,
+                voice: selected_voice,
+            }),
         ),
         velocity_levels_group(drum, prefix),
         bool_item(

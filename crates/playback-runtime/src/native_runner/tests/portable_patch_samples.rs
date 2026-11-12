@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 fn generated_pi_default() -> Value {
     serde_json::from_str(include_str!(
@@ -66,7 +67,9 @@ pub(crate) fn portable_patches_accept_safe_relative_sample_paths() {
         assert!(portable_patch_bytes(&payload).is_ok(), "{valid}");
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.apply_config_payload(payload).unwrap();
-        runner.platform_effect_for_action("preset.saveAs").unwrap();
+        runner
+            .platform_effect_for_action(&PlatformAction::PresetSaveAs)
+            .unwrap();
     }
 }
 
@@ -120,12 +123,14 @@ pub(crate) fn full_config_saves_preserve_local_and_sd_sample_paths() {
         };
         assert_saved_path(&runner.config_payload());
 
-        for action in ["default.save", "system.reboot"] {
-            let effect = runner.platform_effect_for_action(action).unwrap().unwrap();
-            let payload = match effect {
+        for effect in [
+            runner.platform_effect_for_action(&PlatformAction::DefaultSave),
+            runner.recovery_save_effect(),
+        ] {
+            let payload = match effect.unwrap().unwrap() {
                 RuntimePlatformEffect::StoreSaveDefault { payload, .. }
                 | RuntimePlatformEffect::StoreSaveRecovery { payload } => payload,
-                _ => panic!("unexpected full-save effect for {action}"),
+                effect => panic!("unexpected full-save effect {effect:?}"),
             };
             assert_saved_path(&payload);
         }

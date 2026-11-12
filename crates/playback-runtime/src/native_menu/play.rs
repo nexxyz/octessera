@@ -1,7 +1,7 @@
 use super::{
     action_item, enum_item, enum_item_from_strings, group, keyed_group, number_item,
     selected_index, xy_pad_items, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
-    NativeMenuValue,
+    NativeMenuValue, PlatformAction,
 };
 use crate::native_menu::section_labels::PLAY_LABEL;
 use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_targets, play_fx_types};
@@ -47,8 +47,9 @@ fn play_aux_map_items(config: &NativeMenuConfig) -> Vec<NativeMenuItem> {
                 .is_some_and(|key| key.starts_with("play.fx.params."))
                 || matches!(
                     &item.value,
-                    NativeMenuValue::Action(NativeMenuAction::PlatformEffect(effect))
-                        if effect == "play.fx.map"
+                    NativeMenuValue::Action(NativeMenuAction::PlatformEffect(
+                        PlatformAction::PlayFxMap
+                    ))
                 )
         })
         .collect()
@@ -87,7 +88,7 @@ pub(super) fn play_fx_page_items(config: &NativeMenuConfig) -> Vec<NativeMenuIte
     children.push(action_item(
         "Map to Grid",
         "play.fx.map",
-        NativeMenuAction::PlatformEffect("play.fx.map".into()),
+        NativeMenuAction::PlatformEffect(PlatformAction::PlayFxMap),
     ));
     children
 }

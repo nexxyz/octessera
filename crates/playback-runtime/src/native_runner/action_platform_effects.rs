@@ -1,17 +1,22 @@
-use crate::protocol::RuntimePlatformEffect;
+use crate::native_menu::PlatformAction;
+use crate::protocol::{RuntimeBluetoothDeviceAction, RuntimePlatformEffect};
 
 use super::restart_settings::DefaultSaveScope;
 use super::{clean_preset_name, portable_patch_payload_for_save, NativeRunner};
 
 impl NativeRunner {
+    /// The host effect of a platform action, `None` for actions the runner handles itself;
+    /// `execute_platform_action` decides which actions reach it.
     pub(super) fn platform_effect_for_action(
         &mut self,
-        action: &str,
+        action: &PlatformAction,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
         let effect = match action {
-            "preset.refresh" => Some(RuntimePlatformEffect::StoreListPresets),
-            "default.load" => self.admit_patch_load(RuntimePlatformEffect::StoreLoadDefault),
-            "default.save" => {
+            PlatformAction::PresetRefresh => Some(RuntimePlatformEffect::StoreListPresets),
+            PlatformAction::DefaultLoad => {
+                self.admit_patch_load(RuntimePlatformEffect::StoreLoadDefault)
+            }
+            PlatformAction::DefaultSave => {
                 if self.restart_settings.has_pending_patch_write() {
                     self.show_toast("Save in progress");
                     return Ok(None);
@@ -36,7 +41,7 @@ impl NativeRunner {
                     mode: None,
                 })
             }
-            "system.save" => {
+            PlatformAction::SystemSave => {
                 if self.pending.system_persistence.has_pending_request()
                     || self.pending.system_persistence.has_completed_auto_save()
                     || self.system_apply_pending()
@@ -52,7 +57,7 @@ impl NativeRunner {
                     })
                 }
             }
-            "system.load" => {
+            PlatformAction::SystemLoad => {
                 if self.pending.system_persistence.has_pending_request()
                     || self.pending.system_persistence.has_completed_auto_save()
                     || self.system_apply_pending()
@@ -63,17 +68,18 @@ impl NativeRunner {
                     Some(RuntimePlatformEffect::StoreLoadSystem)
                 }
             }
-            "preset.saveAs" => Some(RuntimePlatformEffect::StoreSavePreset {
+            PlatformAction::PresetSaveAs => Some(RuntimePlatformEffect::StoreSavePreset {
                 name: clean_preset_name(&self.patch_store.preset_draft_name),
                 payload: portable_patch_payload_for_save(&self.config_payload())?,
                 mode: None,
             }),
-            "preset.renameApply" => Some(RuntimePlatformEffect::StoreSavePreset {
+            PlatformAction::PresetRenameApply => Some(RuntimePlatformEffect::StoreSavePreset {
                 name: clean_preset_name(&self.patch_store.preset_draft_name),
                 payload: portable_patch_payload_for_save(&self.config_payload())?,
                 mode: None,
             }),
-            "preset.saveCurrent" => match self.patch_store.current_preset_name.clone() {
+            PlatformAction::PresetSaveCurrent => match self.patch_store.current_preset_name.clone()
+            {
                 Some(name) => Some(RuntimePlatformEffect::StoreSavePreset {
                     name,
                     payload: portable_patch_payload_for_save(&self.config_payload())?,
@@ -81,61 +87,80 @@ impl NativeRunner {
                 }),
                 None => None,
             },
-            action if action.starts_with("preset.load:") => {
-                action.strip_prefix("preset.load:").and_then(|name| {
-                    self.admit_patch_load(RuntimePlatformEffect::StoreLoadPreset {
-                        name: name.into(),
-                    })
+            PlatformAction::PresetLoad(name) => {
+                self.admit_patch_load(RuntimePlatformEffect::StoreLoadPreset { name: name.clone() })
+            }
+            PlatformAction::PresetDelete(name) => {
+                Some(RuntimePlatformEffect::StoreDeletePreset { name: name.clone() })
+            }
+            PlatformAction::MidiPanic => Some(RuntimePlatformEffect::MidiPanic),
+            PlatformAction::UsbSdTransferStart => Some(RuntimePlatformEffect::UsbSdTransferStart),
+            PlatformAction::UsbSdTransferStop => Some(RuntimePlatformEffect::UsbSdTransferStop),
+            PlatformAction::MaintenanceHold => {
+                Some(RuntimePlatformEffect::MaintenanceHold { active: true })
+            }
+            PlatformAction::MaintenanceRelease => {
+                Some(RuntimePlatformEffect::MaintenanceHold { active: false })
+            }
+            PlatformAction::RecordingStartAudio => {
+                Some(RuntimePlatformEffect::RecordingStartAudio {
+                    max_minutes: self.audio_io.recording_max_minutes,
                 })
             }
-            action if action.starts_with("preset.delete:") => action
-                .strip_prefix("preset.delete:")
-                .map(|name| RuntimePlatformEffect::StoreDeletePreset { name: name.into() }),
-            "midi.panic" => Some(RuntimePlatformEffect::MidiPanic),
-            "system.reboot" | "system.shutdown" | "system.restartApp" => {
-                match super::system_persistence::SystemPersistenceState::patch_document(self) {
-                    Ok(payload) => Some(RuntimePlatformEffect::StoreSaveRecovery { payload }),
-                    Err(error) => {
-                        self.present_patch_persistence_error(
-                            crate::RuntimeOperation::StoreSaveRecovery,
-                            error,
-                        )?;
-                        None
-                    }
-                }
-            }
-            "usb.sdTransferStart" => Some(RuntimePlatformEffect::UsbSdTransferStart),
-            "usb.sdTransferStop" => Some(RuntimePlatformEffect::UsbSdTransferStop),
-            "maintenance.hold" => Some(RuntimePlatformEffect::MaintenanceHold { active: true }),
-            "maintenance.release" => Some(RuntimePlatformEffect::MaintenanceHold { active: false }),
-            "recording.startAudio" => Some(RuntimePlatformEffect::RecordingStartAudio {
-                max_minutes: self.audio_io.recording_max_minutes,
-            }),
-            "recording.startAudioOled" => Some(RuntimePlatformEffect::RecordingStartAudioOled {
-                max_minutes: self.audio_io.recording_max_minutes,
-            }),
-            "recording.stop" => Some(RuntimePlatformEffect::RecordingStop),
-            "system.info" => Some(RuntimePlatformEffect::SystemInfoRequest),
-            "system.configureWifi" => Some(RuntimePlatformEffect::SetupPortalOpen),
-            "system.backupRestore" => Some(RuntimePlatformEffect::UserDataTransferOpen),
-            "system.updateCheck" => Some(RuntimePlatformEffect::UpdateCheck),
-            "system.updateApply" => Some(RuntimePlatformEffect::UpdateApply),
-            "system.rollback" => Some(RuntimePlatformEffect::Rollback),
-            action if action.starts_with("midi.output:") => {
-                let id = action.strip_prefix("midi.output:").unwrap_or_default();
-                Some(RuntimePlatformEffect::MidiSelectOutput {
-                    id: if id.is_empty() { None } else { Some(id.into()) },
+            PlatformAction::RecordingStartAudioOled => {
+                Some(RuntimePlatformEffect::RecordingStartAudioOled {
+                    max_minutes: self.audio_io.recording_max_minutes,
                 })
             }
-            action if action.starts_with("midi.input:") => {
-                let id = action.strip_prefix("midi.input:").unwrap_or_default();
-                Some(RuntimePlatformEffect::MidiSelectInput {
-                    id: if id.is_empty() { None } else { Some(id.into()) },
+            PlatformAction::RecordingStop => Some(RuntimePlatformEffect::RecordingStop),
+            PlatformAction::SystemInfo => Some(RuntimePlatformEffect::SystemInfoRequest),
+            PlatformAction::SystemBackupRestore => {
+                Some(RuntimePlatformEffect::UserDataTransferOpen)
+            }
+            PlatformAction::SystemUpdateCheck => Some(RuntimePlatformEffect::UpdateCheck),
+            PlatformAction::SystemUpdateApply => Some(RuntimePlatformEffect::UpdateApply),
+            PlatformAction::SystemRollback => Some(RuntimePlatformEffect::Rollback),
+            PlatformAction::MidiOutput(id) => {
+                Some(RuntimePlatformEffect::MidiSelectOutput { id: id.clone() })
+            }
+            PlatformAction::MidiInput(id) => {
+                Some(RuntimePlatformEffect::MidiSelectInput { id: id.clone() })
+            }
+            PlatformAction::BluetoothScan => Some(self.start_bluetooth_scan()),
+            PlatformAction::BluetoothToggle(address) => {
+                Some(RuntimePlatformEffect::BluetoothDevice {
+                    address: address.clone(),
+                    action: self.bluetooth_toggle_action(address),
                 })
             }
-            "bluetooth.scan" => Some(self.start_bluetooth_scan()),
-            action => self.bluetooth_effect_for_action(action),
+            PlatformAction::BluetoothPair(address) => {
+                Some(RuntimePlatformEffect::BluetoothDevice {
+                    address: address.clone(),
+                    action: RuntimeBluetoothDeviceAction::Pair,
+                })
+            }
+            PlatformAction::BluetoothForget(address) => {
+                Some(RuntimePlatformEffect::BluetoothDevice {
+                    address: address.clone(),
+                    action: RuntimeBluetoothDeviceAction::Forget,
+                })
+            }
+            _ => None,
         };
         Ok(effect)
+    }
+
+    /// The recovery save of the patch that precedes a reboot, shutdown or app restart.
+    pub(super) fn recovery_save_effect(&mut self) -> Result<Option<RuntimePlatformEffect>, String> {
+        match super::system_persistence::SystemPersistenceState::patch_document(self) {
+            Ok(payload) => Ok(Some(RuntimePlatformEffect::StoreSaveRecovery { payload })),
+            Err(error) => {
+                self.present_patch_persistence_error(
+                    crate::RuntimeOperation::StoreSaveRecovery,
+                    error,
+                )?;
+                Ok(None)
+            }
+        }
     }
 }

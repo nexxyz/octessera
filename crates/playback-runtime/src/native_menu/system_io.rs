@@ -1,6 +1,6 @@
 use super::{
     action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
-    NativeMenuAction, NativeMenuConfig, NativeMenuItem,
+    NativeMenuAction, NativeMenuConfig, NativeMenuItem, PlatformAction,
 };
 use crate::native_runner::{MidiSendInstruments, UsbDataRole};
 
@@ -153,8 +153,13 @@ pub(super) fn midi_host_group(
     group(
         MIDI_HOST_LABEL,
         vec![
-            midi_ports_group("MIDI Out", "midi.output", outputs),
-            midi_ports_group("MIDI In", "midi.input", inputs),
+            midi_ports_group(
+                "MIDI Out",
+                "midi.output",
+                PlatformAction::MidiOutput,
+                outputs,
+            ),
+            midi_ports_group("MIDI In", "midi.input", PlatformAction::MidiInput, inputs),
         ],
     )
 }
@@ -172,19 +177,20 @@ pub(super) fn usb_device_group(usb_midi_out_enabled: bool) -> NativeMenuItem {
 
 pub(super) fn midi_ports_group(
     label: &str,
-    action_prefix: &str,
+    key_prefix: &str,
+    action: fn(Option<String>) -> PlatformAction,
     ports: &[(String, String)],
 ) -> NativeMenuItem {
     let mut children = vec![action_item(
         "Disconnect",
-        format!("{action_prefix}.none"),
-        NativeMenuAction::PlatformEffect(format!("{action_prefix}:")),
+        format!("{key_prefix}.none"),
+        NativeMenuAction::PlatformEffect(action(None)),
     )];
     children.extend(ports.iter().map(|(id, name)| {
         action_item(
             name.clone(),
-            format!("{action_prefix}.{id}"),
-            NativeMenuAction::PlatformEffect(format!("{action_prefix}:{id}")),
+            format!("{key_prefix}.{id}"),
+            NativeMenuAction::PlatformEffect(action(Some(id.clone()))),
         )
     }));
     group(label, children)
@@ -207,7 +213,7 @@ pub(super) fn sd_card_2_group(host_role: bool) -> NativeMenuItem {
     children.push(action_item(
         "Stop Transfer",
         "usb.sdTransferStop",
-        NativeMenuAction::PlatformEffect("usb.sdTransferStop".into()),
+        NativeMenuAction::PlatformEffect(PlatformAction::UsbSdTransferStop),
     ));
     group("SD Card 2", children)
 }
@@ -216,7 +222,7 @@ pub(super) fn sd_transfer_start_item() -> NativeMenuItem {
     action_item(
         "Start Transfer",
         "usb.sdTransferStart",
-        NativeMenuAction::PlatformEffect("usb.sdTransferStart".into()),
+        NativeMenuAction::PlatformEffect(PlatformAction::UsbSdTransferStart),
     )
 }
 

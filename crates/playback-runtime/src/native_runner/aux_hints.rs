@@ -125,7 +125,7 @@ fn action_home_color(action: &NativeMenuAction) -> u16 {
         NativeMenuAction::BehaviorAction(_)
         | NativeMenuAction::LayerBehaviorAction { .. }
         | NativeMenuAction::ResetBehavior => section_color(BUILD_LABEL),
-        NativeMenuAction::PlatformEffect(effect) => key_home_section_color(effect),
+        NativeMenuAction::PlatformEffect(action) => section_color(action.home_section()),
         _ => key_home_section_color(""),
     }
 }
@@ -133,6 +133,7 @@ fn action_home_color(action: &NativeMenuAction) -> u16 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::native_menu::PlatformAction;
     use crate::native_runner::NativeRunnerConfig;
     use platform_core::palette;
 
@@ -173,7 +174,9 @@ mod tests {
             .focus_item_key("mixer.buses.0.slot1.params.feedback"));
         runner.aux_bindings[2] = Some(NativeAuxBinding {
             turn_key: Some("masterVolume".into()),
-            press_action: Some(NativeMenuAction::PlatformEffect("recording.stop".into())),
+            press_action: Some(NativeMenuAction::PlatformEffect(
+                PlatformAction::RecordingStop,
+            )),
         });
         let hints = runner.aux_hints();
         let manual = &hints.normal[2];

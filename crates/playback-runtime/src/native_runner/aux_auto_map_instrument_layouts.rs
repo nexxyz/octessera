@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 use crate::native_runner::aux_auto_map::{aux_auto_map, AuxAutoMap};
 
 pub(super) fn instrument_filter_auto_map(
@@ -166,7 +167,10 @@ pub(super) fn instrument_sample_auto_map(
         Some(runner.turn_press_slot(
             format!("{prefix}.sample.selectedSlot"),
             "Slot",
-            NativeMenuAction::PlatformEffect(format!("sample.assign:{index}:{sample_slot}")),
+            NativeMenuAction::PlatformEffect(PlatformAction::SampleAssign {
+                instrument_slot: index,
+                sample_slot,
+            }),
             "Assign",
         )),
         Some(runner.turn_slot(format!("{prefix}.sample.tuneSemis"), "Tune")),

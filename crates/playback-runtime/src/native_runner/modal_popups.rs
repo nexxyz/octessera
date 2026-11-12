@@ -1,3 +1,5 @@
+use crate::native_menu::{NativeMenuAction, PlatformAction};
+
 use super::{
     wrap_help_text, NativeHelpPopup, NativeRunner, NativeSystemInfoModal, NativeUsbSdTransferModal,
 };
@@ -72,25 +74,25 @@ impl NativeRunner {
         let Some(confirm) = self.display.confirm_dialog.take() else {
             return Ok(None);
         };
-        if let crate::native_menu::NativeMenuAction::PlatformEffect(action) = &confirm.action {
-            if action == "restart.saveChoice" {
+        match &confirm.action {
+            NativeMenuAction::PlatformEffect(PlatformAction::RestartSaveChoice) => {
                 if confirm.cursor == 0 {
                     self.cancel_restart_flow();
                     return Ok(None);
                 }
-                let action = if confirm.options.len() == 3 && confirm.cursor == 1 {
-                    "restart.saveSetting"
-                } else {
-                    "restart.saveEverything"
-                };
                 self.require_synchronous_action_presentation();
-                return self.execute_restart_action(action);
+                return if confirm.options.len() == 3 && confirm.cursor == 1 {
+                    self.save_restart_setting()
+                } else {
+                    self.save_restart_everything()
+                };
             }
-            if action == "restart.app" && confirm.cursor == 0 {
+            NativeMenuAction::PlatformEffect(PlatformAction::RestartApp) if confirm.cursor == 0 => {
                 self.require_synchronous_action_presentation();
                 self.restart_settings.continue_after_save();
                 return Ok(None);
             }
+            _ => {}
         }
         if confirm.cursor == 0 {
             if let Some(message) = confirm.cancel_toast {
@@ -105,14 +107,7 @@ impl NativeRunner {
         let deferred_manual_save = self.pending.external_autosave_deferred
             && matches!(
                 &confirm.action,
-                crate::native_menu::NativeMenuAction::PlatformEffect(action)
-                    if matches!(
-                        action.as_str(),
-                        "default.save"
-                            | "preset.saveAs"
-                            | "preset.renameApply"
-                            | "preset.saveCurrent"
-                    )
+                NativeMenuAction::PlatformEffect(action) if action.is_manual_save()
             );
         if !deferred_manual_save {
             self.require_synchronous_action_presentation();

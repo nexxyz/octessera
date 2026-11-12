@@ -1,12 +1,13 @@
 use super::*;
 use crate::instrument_presets::instrument_presets;
+use crate::native_menu::{FactoryLoadKind, PlatformAction};
 use crate::native_menu::{NativeMenuAction, NativeMenuValue};
 
-const FAMILIES: [(&str, &str, usize); 4] = [
-    ("synth", "synth.preset", 11),
-    ("fm", "fm.preset", 11),
-    ("pluck", "pluck.preset", 11),
-    ("drum", "drum.kit", 10),
+const FAMILIES: [(&str, FactoryLoadKind, usize); 4] = [
+    ("synth", FactoryLoadKind::SynthPreset, 11),
+    ("fm", FactoryLoadKind::FmPreset, 11),
+    ("pluck", FactoryLoadKind::PluckPreset, 11),
+    ("drum", FactoryLoadKind::DrumKit, 10),
 ];
 
 #[test]
@@ -108,14 +109,17 @@ fn assert_in_menu_range(runner: &NativeRunner, family: &str, field: &str, value:
 
 #[test]
 fn every_factory_preset_override_is_inside_its_parameter_range() {
-    for (family, action, _) in FAMILIES {
+    for (family, kind, _) in FAMILIES {
         for preset in instrument_presets(family) {
             let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
             runner
-                .execute_confirmed_action(NativeMenuAction::PlatformEffect(format!(
-                    "{action}:0:{}",
-                    preset.id
-                )))
+                .execute_confirmed_action(NativeMenuAction::PlatformEffect(
+                    PlatformAction::FactoryInstrumentLoad {
+                        kind,
+                        slot: 0,
+                        id: preset.id.clone(),
+                    },
+                ))
                 .unwrap();
             assert_eq!(
                 runner.instruments[0].kind.wire_name(),

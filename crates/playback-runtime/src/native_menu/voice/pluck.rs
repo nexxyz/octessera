@@ -3,6 +3,7 @@ use super::{
     enum_item, factory_load_group, factory_preset_choices, group, number_item, selected_index,
     InstrumentMenuConfig, NativeMenuItem,
 };
+use crate::native_menu::FactoryLoadKind;
 
 pub(super) fn pluck_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let pluck = config.pluck_config;
@@ -10,9 +11,8 @@ pub(super) fn pluck_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
         "Plucked",
         vec![
             factory_load_group(
-                "pluck",
+                FactoryLoadKind::PluckPreset,
                 config.index,
-                "preset",
                 "Preset",
                 factory_preset_choices("pluck"),
             ),

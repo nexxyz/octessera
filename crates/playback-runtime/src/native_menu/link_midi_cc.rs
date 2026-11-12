@@ -1,10 +1,8 @@
 use super::binding_picker::parameter_picker_group;
 use super::{
     action_item, bool_item, enum_item_from_strings, group, number_item, NativeMenuAction,
-    NativeMenuConfig, NativeMenuItem, NativeMidiCcConfig,
+    NativeMenuConfig, NativeMenuItem, NativeMidiCcConfig, PlatformAction,
 };
-
-pub(crate) const MIDI_CC_LEARN_ACTION_PREFIX: &str = "midiCc.learn:";
 
 pub(super) fn midi_cc_in_group(config: &NativeMenuConfig) -> NativeMenuItem {
     group(
@@ -43,7 +41,7 @@ fn midi_cc_slot_group(slot: usize, mapping: &NativeMidiCcConfig) -> NativeMenuIt
             action_item(
                 "Learn",
                 format!("{prefix}.learn"),
-                NativeMenuAction::PlatformEffect(format!("{MIDI_CC_LEARN_ACTION_PREFIX}{slot}")),
+                NativeMenuAction::PlatformEffect(PlatformAction::MidiCcLearn(slot)),
             ),
             parameter_picker_group(
                 "Target",

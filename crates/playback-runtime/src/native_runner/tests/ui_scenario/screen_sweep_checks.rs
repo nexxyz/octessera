@@ -2,7 +2,9 @@
 //! values show display labels.
 
 use crate::native_help::resolve_native_help_entry;
-use crate::native_menu::{NativeMenuAction, NativeMenuHelpTarget, NativeMenuItem, NativeMenuValue};
+use crate::native_menu::{
+    NativeMenuAction, NativeMenuHelpTarget, NativeMenuItem, NativeMenuValue, PlatformAction,
+};
 use crate::oled_frame::{
     menu_row_text_overflows, rows_show_aux_caps, OledDisplayLayout, OledMenuRowInput,
     OledMenuRowKind, OledPresentationInput,
@@ -155,14 +157,15 @@ pub(super) fn value_failure(item: &NativeMenuItem, row: &OledMenuRowInput) -> Op
 
 /// Whether `action` opens a confirm dialog or a page the sweep walks into.
 pub(super) fn walks_into(action: &NativeMenuAction, label: &str) -> bool {
-    let NativeMenuAction::PlatformEffect(effect) = action else {
-        return false;
-    };
-    effect.starts_with("sample.choose:")
-        || effect.starts_with("sample.open")
-        || effect.starts_with("sample.loaded:")
-        || effect.starts_with("sample.favorite.open")
-        || effect == "system.controlsHelp"
-        || effect == "system.info"
-        || effect.starts_with("sample.pick") && label.contains("rodrigo")
+    match action {
+        NativeMenuAction::PlatformEffect(
+            PlatformAction::SampleOpen { .. }
+            | PlatformAction::SystemControlsHelp
+            | PlatformAction::SystemInfo,
+        ) => true,
+        NativeMenuAction::PlatformEffect(PlatformAction::SamplePick { .. }) => {
+            label.contains("rodrigo")
+        }
+        _ => false,
+    }
 }

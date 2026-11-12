@@ -14,7 +14,7 @@ mod full_screen;
 mod scope;
 mod spectrum;
 
-pub(super) use full_screen::{signal_row_source, NativeFullScreenSignal};
+pub(super) use full_screen::NativeFullScreenSignal;
 
 /// The newest tapped samples each live step reads.
 const WINDOW: usize = 1024;

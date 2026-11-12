@@ -1,4 +1,7 @@
-use super::{NativeMenuAction, NativeMenuItem, NativeMenuPick, NativeMenuValue, NumberCurve};
+use super::{
+    NativeMenuAction, NativeMenuItem, NativeMenuPick, NativeMenuValue, NumberCurve, PlatformAction,
+};
+use realtime_engine::synth::SignalSource;
 
 pub(in crate::native_menu) fn group(
     label: impl Into<String>,
@@ -140,12 +143,12 @@ pub(in crate::native_menu) fn action_item(
     }
 }
 
-/// A Shape page's Signal row; `target` is its `signal.*` key and the effect that opens it.
-pub(in crate::native_menu) fn signal_item(target: String) -> NativeMenuItem {
+/// A Shape page's Signal row, keyed `signal.*`, which opens the view of `source`.
+pub(in crate::native_menu) fn signal_item(key: String, source: SignalSource) -> NativeMenuItem {
     action_item(
         "Signal",
-        target.clone(),
-        NativeMenuAction::PlatformEffect(target),
+        key,
+        NativeMenuAction::PlatformEffect(PlatformAction::Signal(source)),
     )
 }
 

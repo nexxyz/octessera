@@ -1,5 +1,6 @@
 use super::in_place_menu_actions::press_key;
 use super::*;
+use crate::native_menu::{FactoryLoadKind, PlatformAction};
 use crate::native_runner::led_color::LedColor;
 
 const VELOCITY: &str = "sound.velocityScalePct";
@@ -143,7 +144,11 @@ fn a_preset_load_keeps_the_preset_value() {
     );
     runner
         .execute_confirmed_action(NativeMenuAction::PlatformEffect(
-            "synth.preset:0:acid_bass".into(),
+            PlatformAction::FactoryInstrumentLoad {
+                kind: FactoryLoadKind::SynthPreset,
+                slot: 0,
+                id: "acid_bass".into(),
+            },
         ))
         .unwrap();
     pulses(&mut runner, 16);

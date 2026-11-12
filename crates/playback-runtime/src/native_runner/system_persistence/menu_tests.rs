@@ -1,4 +1,5 @@
 use super::super::{NativeRunner, NativeRunnerConfig};
+use crate::native_menu::PlatformAction;
 use crate::{
     CoreRunner, HostMessage, RunnerMessage, RuntimePlatformEffect, RuntimePlatformRequest,
     RuntimeStoreResult,
@@ -36,7 +37,7 @@ fn start_pending_patch_save(runner: &mut NativeRunner, request_id: &str) -> u64 
     runner.mark_config_dirty();
     let revision = runner.dirty_revision.unwrap();
     let effect = runner
-        .platform_effect_for_action("default.save")
+        .platform_effect_for_action(&PlatformAction::DefaultSave)
         .unwrap()
         .unwrap();
     assert!(

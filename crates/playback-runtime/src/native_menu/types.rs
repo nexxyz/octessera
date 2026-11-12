@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub use super::platform_action::{FactoryLoadKind, PlatformAction};
 pub use super::types_config::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -21,7 +22,7 @@ pub enum NativeMenuAction {
         note_set_id: String,
     },
     NavigateBack,
-    PlatformEffect(String),
+    PlatformEffect(PlatformAction),
     SetParamBinding {
         target: String,
         binding: NativeParamBindingSpec,

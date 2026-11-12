@@ -1,4 +1,4 @@
-use crate::native_menu::NativeMenuAction;
+use crate::native_menu::{NativeMenuAction, PlatformAction};
 use crate::native_runner::InstrumentType;
 use crate::protocol::RunnerMessage;
 
@@ -14,9 +14,7 @@ use super::modulation_assignment_validation::{
     inert_sample_binding_key, validate_binding_changes, BindingChange, BindingValidationError,
 };
 use super::modulation_source::ModulationAxis;
-use super::{
-    native_binding_from_spec, parse_sample_action, NativeParamBinding, NativeRunner, GRID_HEIGHT,
-};
+use super::{native_binding_from_spec, NativeParamBinding, NativeRunner, GRID_HEIGHT};
 
 impl NativeRunner {
     pub(super) fn set_param_binding_target(
@@ -320,14 +318,13 @@ impl NativeRunner {
             } => self
                 .layer_behavior_action_label(*layer_index, action_type)
                 .is_some(),
-            NativeMenuAction::PlatformEffect(action) => action
-                .strip_prefix("sample.assign:")
-                .and_then(|rest| parse_sample_action(rest).ok())
-                .is_none_or(|(instrument_slot, _, _)| {
-                    self.instruments
-                        .get(instrument_slot)
-                        .is_some_and(|instrument| instrument.kind == InstrumentType::Sampler)
-                }),
+            NativeMenuAction::PlatformEffect(PlatformAction::SampleAssign {
+                instrument_slot,
+                ..
+            }) => self
+                .instruments
+                .get(*instrument_slot)
+                .is_some_and(|instrument| instrument.kind == InstrumentType::Sampler),
             _ => true,
         }
     }

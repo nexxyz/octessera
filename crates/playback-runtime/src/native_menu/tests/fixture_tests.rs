@@ -119,6 +119,13 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
     dynamic.sample_favourite_dirs = vec![String::new()];
     configs.push(dynamic);
 
+    let mut bluetooth = config();
+    bluetooth.board = true;
+    bluetooth.bluetooth_enabled = true;
+    bluetooth.bluetooth_paired = vec![("AA:BB:CC:DD:EE:01".into(), "Keys".into())];
+    bluetooth.bluetooth_found = vec![("AA:BB:CC:DD:EE:02".into(), "Speaker".into())];
+    configs.push(bluetooth);
+
     for tile_type in ["action", "param"] {
         let mut faders = config();
         faders.faders.tile_type = tile_type.into();
@@ -201,7 +208,7 @@ pub(crate) fn contains_set_binding(item: &NativeMenuItem, target: &str, key: &st
 pub(crate) fn contains_aux_click_action(
     item: &NativeMenuItem,
     index: usize,
-    action_key: &str,
+    action_key: &PlatformAction,
 ) -> bool {
     if let NativeMenuValue::Action(NativeMenuAction::SetAuxClick {
         index: action_index,
@@ -333,7 +340,11 @@ pub(crate) fn unavailable_loaded_sample_row_shows_na_filename_but_keeps_source_k
         .unwrap()
         .value,
         NativeMenuValue::Action(NativeMenuAction::PlatformEffect(
-            "sample.open:0:2:userdata/User Kit".into(),
+            PlatformAction::SampleOpen {
+                instrument_slot: 0,
+                sample_slot: 2,
+                dir: "userdata/User Kit".into()
+            }
         ))
     );
 }

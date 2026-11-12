@@ -10,8 +10,9 @@ fn system_actions_preserve_direct_effects_and_named_presets() {
     ));
     assert!(matches!(
         menu.item_for_key("preset.load.none").map(|item| item.value),
-        Some(NativeMenuValue::Action(NativeMenuAction::PlatformEffect(effect)))
-            if effect == "preset.refresh"
+        Some(NativeMenuValue::Action(NativeMenuAction::PlatformEffect(
+            PlatformAction::PresetRefresh
+        )))
     ));
     for key in [
         "midi.panic",
@@ -37,8 +38,9 @@ fn system_actions_preserve_direct_effects_and_named_presets() {
         named_menu
             .item_for_key("preset.load.Alpha")
             .map(|item| item.value),
-        Some(NativeMenuValue::Action(NativeMenuAction::PlatformEffect(effect)))
-            if effect == "preset.load:Alpha"
+        Some(NativeMenuValue::Action(NativeMenuAction::PlatformEffect(
+            PlatformAction::PresetLoad(name)
+        ))) if name == "Alpha"
     ));
 }
 

@@ -1,4 +1,4 @@
-use crate::native_menu::NativeMenuAction;
+use crate::native_menu::{NativeMenuAction, PlatformAction};
 
 use super::{supported_aux_turn_key, NativeAuxBinding, Value, LAYER_COUNT};
 
@@ -43,7 +43,8 @@ pub(super) fn parse_aux_press_action(value: &Value) -> Option<NativeMenuAction> 
         "platform_effect" => value
             .get("action")
             .and_then(Value::as_str)
-            .map(|action| NativeMenuAction::PlatformEffect(action.into())),
+            .and_then(PlatformAction::parse)
+            .map(NativeMenuAction::PlatformEffect),
         "instrument_clone" => value.get("slot").and_then(Value::as_u64).map(|slot| {
             NativeMenuAction::CloneInstrument {
                 index: slot as usize,

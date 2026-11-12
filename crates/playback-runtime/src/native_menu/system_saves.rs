@@ -1,13 +1,13 @@
 use super::{
     action_item, bool_item, group, keyed_group, pick_list, NativeMenuAction, NativeMenuConfig,
-    NativeMenuItem,
+    NativeMenuItem, PlatformAction,
 };
 
 pub(super) fn load_preset_group(names: &[String]) -> NativeMenuItem {
     pick_list(keyed_group(
         "Load Preset",
         "preset.load",
-        preset_action_children("preset.load", "preset.load", names),
+        preset_action_children("preset.load", PlatformAction::PresetLoad, names),
     ))
 }
 
@@ -22,7 +22,7 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     pick_list(preset_action_group(
                         "Load",
                         "preset.library.load",
-                        "preset.load",
+                        PlatformAction::PresetLoad,
                         &config.preset_names,
                     )),
                     preset_rename_group(
@@ -33,18 +33,18 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     preset_action_group(
                         "Delete",
                         "preset.library.delete",
-                        "preset.delete",
+                        PlatformAction::PresetDelete,
                         &config.preset_names,
                     ),
                     action_item(
                         "Save Current",
                         "preset.saveCurrent",
-                        NativeMenuAction::PlatformEffect("preset.saveCurrent".into()),
+                        NativeMenuAction::PlatformEffect(PlatformAction::PresetSaveCurrent),
                     ),
                     action_item(
                         "Refresh List",
                         "preset.refresh",
-                        NativeMenuAction::PlatformEffect("preset.refresh".into()),
+                        NativeMenuAction::PlatformEffect(PlatformAction::PresetRefresh),
                     ),
                 ],
             ),
@@ -56,12 +56,12 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     action_item(
                         "Save Patch",
                         "default.save",
-                        NativeMenuAction::PlatformEffect("default.save".into()),
+                        NativeMenuAction::PlatformEffect(PlatformAction::DefaultSave),
                     ),
                     action_item(
                         "Load Patch",
                         "default.load",
-                        NativeMenuAction::PlatformEffect("default.load".into()),
+                        NativeMenuAction::PlatformEffect(PlatformAction::DefaultLoad),
                     ),
                 ],
             ),
@@ -71,12 +71,12 @@ pub(super) fn saves_group(config: &NativeMenuConfig) -> NativeMenuItem {
                     action_item(
                         "Save System",
                         "system.save",
-                        NativeMenuAction::PlatformEffect("system.save".into()),
+                        NativeMenuAction::PlatformEffect(PlatformAction::SystemSave),
                     ),
                     action_item(
                         "Load System",
                         "system.load",
-                        NativeMenuAction::PlatformEffect("system.load".into()),
+                        NativeMenuAction::PlatformEffect(PlatformAction::SystemLoad),
                     ),
                 ],
             ),
@@ -93,7 +93,7 @@ pub(super) fn save_as_group(draft_name: &str) -> NativeMenuItem {
             action_item(
                 "Save",
                 "preset.saveAs.save",
-                NativeMenuAction::PlatformEffect("preset.saveAs".into()),
+                NativeMenuAction::PlatformEffect(PlatformAction::PresetSaveAs),
             ),
         ],
     )
@@ -102,27 +102,27 @@ pub(super) fn save_as_group(draft_name: &str) -> NativeMenuItem {
 pub(super) fn preset_action_group(
     label: &str,
     group_key: &str,
-    action_prefix: &str,
+    action: fn(String) -> PlatformAction,
     names: &[String],
 ) -> NativeMenuItem {
     keyed_group(
         label,
         group_key,
-        preset_action_children(group_key, action_prefix, names),
+        preset_action_children(group_key, action, names),
     )
 }
 
 /// One action per preset, keyed under its own list so a focus restore finds the list it was in.
 pub(super) fn preset_action_children(
     group_key: &str,
-    action_prefix: &str,
+    action: fn(String) -> PlatformAction,
     names: &[String],
 ) -> Vec<NativeMenuItem> {
     if names.is_empty() {
         vec![action_item(
             "(none)",
             format!("{group_key}.none"),
-            NativeMenuAction::PlatformEffect("preset.refresh".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::PresetRefresh),
         )]
     } else {
         names
@@ -131,7 +131,7 @@ pub(super) fn preset_action_children(
                 action_item(
                     name.clone(),
                     format!("{group_key}.{name}"),
-                    NativeMenuAction::PlatformEffect(format!("{action_prefix}:{name}")),
+                    NativeMenuAction::PlatformEffect(action(name.clone())),
                 )
             })
             .collect()
@@ -147,7 +147,7 @@ pub(super) fn preset_rename_group(
         vec![action_item(
             "(none)",
             "preset.rename.none",
-            NativeMenuAction::PlatformEffect("preset.refresh".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::PresetRefresh),
         )]
     } else {
         names
@@ -156,7 +156,9 @@ pub(super) fn preset_rename_group(
                 action_item(
                     name.clone(),
                     format!("preset.renamePick.{name}"),
-                    NativeMenuAction::PlatformEffect(format!("preset.renamePick:{name}")),
+                    NativeMenuAction::PlatformEffect(PlatformAction::PresetRenamePick(
+                        name.clone(),
+                    )),
                 )
             })
             .collect()
@@ -171,7 +173,7 @@ pub(super) fn preset_rename_group(
         children.push(action_item(
             "Apply",
             "preset.rename.apply",
-            NativeMenuAction::PlatformEffect("preset.renameApply".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::PresetRenameApply),
         ));
     }
     keyed_group("Rename", "preset.library.rename", children)

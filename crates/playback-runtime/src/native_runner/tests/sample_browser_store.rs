@@ -226,9 +226,7 @@ pub(crate) fn replacement_and_assignment_preserve_sample_path_contract() {
     let replacement = "userdata/User Kit/replacement.wav";
     let mut runner = sampler_with_path(missing);
     runner.apply_store_result(sample_failure(missing)).unwrap();
-    runner
-        .handle_sample_browser_action(&format!("sample.pick:0:0:{replacement}"))
-        .unwrap();
+    runner.pick_sample(0, 0, replacement.into());
     assert_eq!(
         runner.instruments[0].sample_paths[0].as_deref(),
         Some(replacement)
@@ -272,9 +270,7 @@ pub(crate) fn repicking_a_missing_sample_from_the_browser_drops_its_na_prefix() 
     let mut runner = sampler_with_path(path);
     runner.apply_store_result(sample_failure(path)).unwrap();
 
-    runner
-        .handle_sample_browser_action(&format!("sample.pick:0:0:{path}"))
-        .unwrap();
+    runner.pick_sample(0, 0, path.into());
 
     assert_eq!(
         runner.sample_availability[0][0],

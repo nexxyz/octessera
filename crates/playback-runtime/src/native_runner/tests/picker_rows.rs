@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 use crate::protocol::SampleEntry;
 
 fn press_main(runner: &mut NativeRunner) -> Value {
@@ -249,11 +250,13 @@ pub(crate) fn clk_pickers_show_the_bound_action_name() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("play.fx.map".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::PlayFxMap)),
     });
     runner.shift_aux_bindings[1] = Some(NativeAuxBinding {
         turn_key: None,
-        press_action: Some(NativeMenuAction::PlatformEffect("default.save".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(
+            PlatformAction::DefaultSave,
+        )),
     });
     runner.menu.rebuild(runner.menu_config());
     assert_eq!(

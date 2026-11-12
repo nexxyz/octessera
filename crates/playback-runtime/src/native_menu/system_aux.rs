@@ -3,7 +3,7 @@ use super::binding_picker_rows::picker_entry_for_action;
 use super::model_search::find_item_by_action;
 use super::{
     action_item, group, mark_active, NativeMenuAction, NativeMenuConfig, NativeMenuItem,
-    NativeMenuPick, NativeMenuValue,
+    NativeMenuPick, NativeMenuValue, PlatformAction,
 };
 
 pub(super) fn aux_mappings_group(config: &NativeMenuConfig) -> NativeMenuItem {
@@ -140,9 +140,12 @@ pub(super) fn click_picker_group(
                 action_item(
                     label.clone(),
                     format!("{root}.sample.{instrument}"),
-                    slot.action(Some(Box::new(NativeMenuAction::PlatformEffect(format!(
-                        "sample.assign:{instrument}:0"
-                    ))))),
+                    slot.action(Some(Box::new(NativeMenuAction::PlatformEffect(
+                        PlatformAction::SampleAssign {
+                            instrument_slot: instrument,
+                            sample_slot: 0,
+                        },
+                    )))),
                 )
             })
             .collect(),
@@ -154,7 +157,7 @@ pub(super) fn click_picker_group(
                 "Map FX",
                 format!("{root}.fx_map"),
                 slot.action(Some(Box::new(NativeMenuAction::PlatformEffect(
-                    "play.fx.map".into(),
+                    PlatformAction::PlayFxMap,
                 )))),
             ),
             action_item(

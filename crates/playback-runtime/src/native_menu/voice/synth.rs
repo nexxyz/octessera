@@ -4,15 +4,15 @@ use super::{
     enum_item, factory_load_group, factory_preset_choices, group, number_item, selected_index,
     InstrumentMenuConfig, NativeMenuItem,
 };
+use crate::native_menu::FactoryLoadKind;
 
 pub(super) fn synth_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     group(
         "Synth",
         vec![
             factory_load_group(
-                "synth",
+                FactoryLoadKind::SynthPreset,
                 config.index,
-                "preset",
                 "Preset",
                 factory_preset_choices("synth"),
             ),

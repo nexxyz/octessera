@@ -1,10 +1,13 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 #[test]
 pub(crate) fn factory_load_applies_native_factory_without_loading_user_default() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let effect = runner
-        .execute_confirmed_action(NativeMenuAction::PlatformEffect("factory.load".into()))
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect(
+            PlatformAction::FactoryLoad,
+        ))
         .unwrap();
 
     assert!(effect.is_none());
@@ -71,7 +74,9 @@ pub(crate) fn clear_all_confirmation_cancel_is_noop() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.patch_store.current_preset_name = Some("keeper".into());
     runner
-        .execute_menu_action(NativeMenuAction::PlatformEffect("system.clearAll".into()))
+        .execute_menu_action(NativeMenuAction::PlatformEffect(
+            PlatformAction::SystemClearAll,
+        ))
         .unwrap();
     assert_eq!(
         runner.display.confirm_dialog.as_ref().unwrap().title,
@@ -114,7 +119,9 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     });
 
     runner
-        .execute_confirmed_action(NativeMenuAction::PlatformEffect("system.clearAll".into()))
+        .execute_confirmed_action(NativeMenuAction::PlatformEffect(
+            PlatformAction::SystemClearAll,
+        ))
         .unwrap();
 
     assert_eq!(runner.transport.transport, RuntimeTransportState::Stopped);

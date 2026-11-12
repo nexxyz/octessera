@@ -16,28 +16,58 @@ fn factory_load_lists_are_type_specific_and_emit_exact_platform_effects() {
             ("acid_bass", "Acid Bass")
         ]
     );
-    for (kind, effect_kind, family, choices) in [
-        ("synth", "synth", "preset", presets("synth")),
-        ("fm", "fm", "preset", presets("fm")),
-        ("pluck", "pluck", "preset", presets("pluck")),
+    for (kind, effect_kind, family, load, choices) in [
+        (
+            "synth",
+            "synth",
+            "preset",
+            FactoryLoadKind::SynthPreset,
+            presets("synth"),
+        ),
+        (
+            "fm",
+            "fm",
+            "preset",
+            FactoryLoadKind::FmPreset,
+            presets("fm"),
+        ),
+        (
+            "pluck",
+            "pluck",
+            "preset",
+            FactoryLoadKind::PluckPreset,
+            presets("pluck"),
+        ),
         (
             "sampler",
             "sample",
             "kit",
+            FactoryLoadKind::SampleKit,
             vec![
                 ("sdbkit", "SDB Kit"),
                 ("synthkit", "Synth Kit"),
                 ("distkit", "Dist Kit"),
             ],
         ),
-        ("drum", "drum", "kit", presets("drum")),
+        (
+            "drum",
+            "drum",
+            "kit",
+            FactoryLoadKind::DrumKit,
+            presets("drum"),
+        ),
     ] {
         let mut cfg = config();
         cfg.instrument_types[0] = InstrumentType::from_wire_name(kind).unwrap();
         let mut menu = NativeMenuModel::new(cfg);
         for (id, label) in choices {
             let key = format!("{effect_kind}.{family}.0.{id}");
-            let effect = format!("{effect_kind}.{family}:0:{id}");
+            let effect = PlatformAction::FactoryInstrumentLoad {
+                kind: load,
+                slot: 0,
+                id: id.into(),
+            };
+            assert_eq!(effect.as_wire(), format!("{effect_kind}.{family}:0:{id}"));
             let item = menu.item_for_key(&key).expect("factory load action");
             assert_eq!(item.label, label);
             assert!(menu.focus_item_key(&key));

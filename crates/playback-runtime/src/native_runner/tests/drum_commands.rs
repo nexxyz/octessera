@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 fn commands(messages: &[RunnerMessage]) -> Vec<RuntimeAudioCommand> {
     messages
@@ -177,7 +178,7 @@ fn preview_is_one_transient_hit_without_tile_offset_or_config_command() {
     let _ = runner.messages_with_snapshot().unwrap();
     runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "drum.preview:0:4".into(),
+            PlatformAction::DrumPreview { slot: 0, voice: 4 },
         ))
         .unwrap();
     let preview = runner.messages_with_snapshot().unwrap();

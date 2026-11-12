@@ -1,4 +1,4 @@
-use super::{action_item, group, NativeMenuAction, NativeMenuItem};
+use super::{action_item, group, NativeMenuAction, NativeMenuItem, PlatformAction};
 
 pub(super) fn maintenance_group(device: bool) -> NativeMenuItem {
     let mut children = vec![updates_group(device)];
@@ -6,20 +6,20 @@ pub(super) fn maintenance_group(device: bool) -> NativeMenuItem {
         children.push(action_item(
             "Backup / Restore",
             "system.backupRestore",
-            NativeMenuAction::PlatformEffect("system.backupRestore".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::SystemBackupRestore),
         ));
     }
     children.extend([
         action_item(
             "Hardware Test",
             "system.hardwareTest",
-            NativeMenuAction::PlatformEffect("system.hardwareTest".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::SystemHardwareTest),
         ),
         reset_group(),
         action_item(
             "Sys. Info",
             "system.info",
-            NativeMenuAction::PlatformEffect("system.info".into()),
+            NativeMenuAction::PlatformEffect(PlatformAction::SystemInfo),
         ),
     ]);
     group("Maintenance", children)
@@ -29,19 +29,19 @@ fn updates_group(device: bool) -> NativeMenuItem {
     let mut children = vec![action_item(
         "Check",
         "system.updateCheck",
-        NativeMenuAction::PlatformEffect("system.updateCheck".into()),
+        NativeMenuAction::PlatformEffect(PlatformAction::SystemUpdateCheck),
     )];
     if device {
         children.extend([
             action_item(
                 "Apply",
                 "system.updateApply",
-                NativeMenuAction::PlatformEffect("system.updateApply".into()),
+                NativeMenuAction::PlatformEffect(PlatformAction::SystemUpdateApply),
             ),
             action_item(
                 "Rollback",
                 "system.rollback",
-                NativeMenuAction::PlatformEffect("system.rollback".into()),
+                NativeMenuAction::PlatformEffect(PlatformAction::SystemRollback),
             ),
         ]);
     }
@@ -55,12 +55,12 @@ fn reset_group() -> NativeMenuItem {
             action_item(
                 "Load Empty",
                 "system.clearAll",
-                NativeMenuAction::PlatformEffect("system.clearAll".into()),
+                NativeMenuAction::PlatformEffect(PlatformAction::SystemClearAll),
             ),
             action_item(
                 "Load Factory",
                 "factory.load",
-                NativeMenuAction::PlatformEffect("factory.load".into()),
+                NativeMenuAction::PlatformEffect(PlatformAction::FactoryLoad),
             ),
         ],
     )
@@ -73,12 +73,12 @@ pub(super) fn live_show_group() -> NativeMenuItem {
             action_item(
                 "Start 48h",
                 "maintenance.hold",
-                NativeMenuAction::PlatformEffect("maintenance.hold".into()),
+                NativeMenuAction::PlatformEffect(PlatformAction::MaintenanceHold),
             ),
             action_item(
                 "End",
                 "maintenance.release",
-                NativeMenuAction::PlatformEffect("maintenance.release".into()),
+                NativeMenuAction::PlatformEffect(PlatformAction::MaintenanceRelease),
             ),
         ],
     )

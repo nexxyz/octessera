@@ -1,5 +1,6 @@
 use super::tests::snapshot_from;
 use super::*;
+use crate::native_menu::PlatformAction;
 
 fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
     runner
@@ -220,7 +221,9 @@ fn cleared_pending_patch_save_allows_default_load_and_system_info_is_not_blocked
     runner.mark_config_dirty();
     runner.pending.pending_save_revision = Some(runner.config_revision);
     assert_eq!(
-        runner.platform_effect_for_action("system.info").unwrap(),
+        runner
+            .platform_effect_for_action(&PlatformAction::SystemInfo)
+            .unwrap(),
         Some(RuntimePlatformEffect::SystemInfoRequest)
     );
 }

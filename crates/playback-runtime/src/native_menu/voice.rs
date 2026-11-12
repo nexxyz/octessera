@@ -15,6 +15,7 @@ mod synth;
 mod tile_stamp_items;
 
 use crate::instrument_presets::instrument_presets;
+use crate::native_menu::{FactoryLoadKind, PlatformAction};
 use crate::native_runner::InstrumentType;
 use drum::drum_group;
 use fm::fm_group;
@@ -25,6 +26,7 @@ use mixer::mixer_group;
 use platform_core::NoteBehavior;
 use pluck::pluck_group;
 use realtime_engine::synth::MixerRoute;
+use realtime_engine::synth::SignalSource;
 use sampler::sampler_group;
 use synth::synth_group;
 
@@ -78,9 +80,8 @@ pub(super) struct InstrumentMenuConfig<'a> {
 }
 
 pub(super) fn factory_load_group<'c>(
-    kind: &str,
+    kind: FactoryLoadKind,
     index: usize,
-    family: &str,
     label: &str,
     choices: impl IntoIterator<Item = (&'c str, &'c str)>,
 ) -> NativeMenuItem {
@@ -93,8 +94,12 @@ pub(super) fn factory_load_group<'c>(
                 .map(|(id, label)| {
                     action_item(
                         label,
-                        format!("{kind}.{family}.{index}.{id}"),
-                        NativeMenuAction::PlatformEffect(format!("{kind}.{family}:{index}:{id}")),
+                        format!("{}.{index}.{id}", kind.wire_name()),
+                        NativeMenuAction::PlatformEffect(PlatformAction::FactoryInstrumentLoad {
+                            kind,
+                            slot: index,
+                            id: id.into(),
+                        }),
                     )
                 })
                 .collect(),
@@ -185,7 +190,10 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
             | InstrumentType::Drum
     ) {
         children.push(mixer_group(&config, &prefix));
-        children.push(signal_item(format!("signal.instrument.{}", config.index)));
+        children.push(signal_item(
+            format!("signal.instrument.{}", config.index),
+            SignalSource::Instrument(config.index),
+        ));
     }
     children.push(bool_item(
         "Auto Label",

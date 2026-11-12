@@ -1,4 +1,4 @@
-use crate::native_menu::NativeMenuAction;
+use crate::native_menu::{FactoryLoadKind, NativeMenuAction, PlatformAction};
 
 use super::{clean_preset_name, wrap_help_text, NativeConfirmDialog, NativeRunner};
 
@@ -27,95 +27,90 @@ impl NativeRunner {
                 confirm_before_execute: false,
             });
         }
-        let NativeMenuAction::PlatformEffect(action_type) = action else {
+        let NativeMenuAction::PlatformEffect(platform_action) = action else {
             return None;
         };
-        let (title, detail) =
-            if let Some(detail) = self.preset_store_confirmation_detail(action_type) {
-                detail
-            } else if action_type == "factory.load" {
-                ("Confirm Factory", "Load factory settings?".into())
-            } else if action_type == "system.clearAll" {
-                ("Confirm Load Empty", "Load empty patch state?".into())
-            } else if action_type == "midi.panic" {
-                ("Confirm MIDI", "Send MIDI panic?".into())
-            } else if action_type == "system.reboot" {
-                ("Confirm Reboot", "Reboot Octessera?".into())
-            } else if action_type == "system.shutdown" {
-                ("Confirm Shutdown", "Shut down Octessera?".into())
-            } else if action_type == "usb.sdTransferStart" {
-                (
+        let (title, detail) = if let Some(detail) =
+            self.preset_store_confirmation_detail(platform_action)
+        {
+            detail
+        } else {
+            match platform_action {
+                PlatformAction::FactoryLoad => ("Confirm Factory", "Load factory settings?".into()),
+                PlatformAction::SystemClearAll => {
+                    ("Confirm Load Empty", "Load empty patch state?".into())
+                }
+                PlatformAction::MidiPanic => ("Confirm MIDI", "Send MIDI panic?".into()),
+                PlatformAction::SystemReboot => ("Confirm Reboot", "Reboot Octessera?".into()),
+                PlatformAction::SystemShutdown => {
+                    ("Confirm Shutdown", "Shut down Octessera?".into())
+                }
+                PlatformAction::UsbSdTransferStart => (
                     "Confirm SD2 Transfer",
                     "USB audio/MIDI disconnect. Host owns OLED SD2 until stopped.".into(),
-                )
-            } else if action_type == "usb.sdTransferStop" {
-                (
+                ),
+                PlatformAction::UsbSdTransferStop => (
                     "Confirm SD2 Transfer",
                     "Eject OLED SD2 on the host first, then stop transfer.".into(),
-                )
-            } else if action_type == "system.hardwareTest" {
-                ("Confirm Hardware Test", "Run the hardware test?".into())
-            } else if action_type == "system.configureWifi" {
-                return Some(NativeConfirmDialog {
-                    title: "Open Wi-Fi Setup".into(),
-                    lines: vec![
-                        "Playback stops.".into(),
-                        "Wi-Fi disconnects.".into(),
-                        "Setup may change:".into(),
-                        "SSH, hostname,".into(),
-                        "and login.".into(),
-                    ],
-                    options: vec!["Cancel".into(), "Open Portal".into()],
-                    cursor: 0,
-                    action: action.clone(),
-                    cancel_toast: Some("Canceled".into()),
-                    confirm_before_execute: false,
-                });
-            } else if action_type == "maintenance.hold" {
-                return Some(NativeConfirmDialog {
-                    title: "Live Show Mode".into(),
-                    lines: vec![
-                        "48 h: Wi-Fi off,".into(),
-                        "so no SSH, updates".into(),
-                        "or Wi-Fi setup.".into(),
-                        "Housekeeping waits.".into(),
-                        "End brings it back.".into(),
-                    ],
-                    options: vec!["Cancel".into(), "Start".into()],
-                    cursor: 0,
-                    action: action.clone(),
-                    cancel_toast: Some("Canceled".into()),
-                    confirm_before_execute: false,
-                });
-            } else if action_type == "system.updateApply" {
-                ("Confirm Update", "Apply the update now?".into())
-            } else if action_type == "system.rollback" {
-                (
+                ),
+                PlatformAction::SystemHardwareTest => {
+                    ("Confirm Hardware Test", "Run the hardware test?".into())
+                }
+                PlatformAction::SystemConfigureWifi => {
+                    return Some(NativeConfirmDialog {
+                        title: "Open Wi-Fi Setup".into(),
+                        lines: vec![
+                            "Playback stops.".into(),
+                            "Wi-Fi disconnects.".into(),
+                            "Setup may change:".into(),
+                            "SSH, hostname,".into(),
+                            "and login.".into(),
+                        ],
+                        options: vec!["Cancel".into(), "Open Portal".into()],
+                        cursor: 0,
+                        action: action.clone(),
+                        cancel_toast: Some("Canceled".into()),
+                        confirm_before_execute: false,
+                    })
+                }
+                PlatformAction::MaintenanceHold => {
+                    return Some(NativeConfirmDialog {
+                        title: "Live Show Mode".into(),
+                        lines: vec![
+                            "48 h: Wi-Fi off,".into(),
+                            "so no SSH, updates".into(),
+                            "or Wi-Fi setup.".into(),
+                            "Housekeeping waits.".into(),
+                            "End brings it back.".into(),
+                        ],
+                        options: vec!["Cancel".into(), "Start".into()],
+                        cursor: 0,
+                        action: action.clone(),
+                        cancel_toast: Some("Canceled".into()),
+                        confirm_before_execute: false,
+                    })
+                }
+                PlatformAction::SystemUpdateApply => {
+                    ("Confirm Update", "Apply the update now?".into())
+                }
+                PlatformAction::SystemRollback => (
                     "Confirm Rollback",
                     "Rollback to the previous release?".into(),
-                )
-            } else {
-                let (title, kind, rest) = [
-                    ("Confirm Synth", "Synth preset", "synth.preset:"),
-                    ("Confirm FM", "FM preset", "fm.preset:"),
-                    ("Confirm Plucked", "Plucked preset", "pluck.preset:"),
-                    ("Confirm Sampler", "Sampler kit", "sample.kit:"),
-                    ("Confirm Drum", "Drum kit", "drum.kit:"),
-                ]
-                .into_iter()
-                .find_map(|(title, kind, prefix)| {
-                    action_type
-                        .strip_prefix(prefix)
-                        .map(|rest| (title, kind, rest))
-                })?;
-                let (slot, choice) = rest.split_once(':')?;
-                let slot = slot.parse::<usize>().ok()?.checked_add(1)?;
-                let name = self
-                    .menu
-                    .action_label(action)
-                    .unwrap_or_else(|| choice.to_string());
-                (title, format!("Load I{slot} {kind} {name}?"))
-            };
+                ),
+                PlatformAction::FactoryInstrumentLoad { kind, slot, id } => {
+                    let (title, family) = match kind {
+                        FactoryLoadKind::SynthPreset => ("Confirm Synth", "Synth preset"),
+                        FactoryLoadKind::FmPreset => ("Confirm FM", "FM preset"),
+                        FactoryLoadKind::PluckPreset => ("Confirm Plucked", "Plucked preset"),
+                        FactoryLoadKind::SampleKit => ("Confirm Sampler", "Sampler kit"),
+                        FactoryLoadKind::DrumKit => ("Confirm Drum", "Drum kit"),
+                    };
+                    let name = self.menu.action_label(action).unwrap_or_else(|| id.clone());
+                    (title, format!("Load I{} {family} {name}?", slot + 1))
+                }
+                _ => return None,
+            }
+        };
         let options = vec!["Cancel".into(), "Confirm".into()];
         Some(NativeConfirmDialog {
             title: title.into(),
@@ -130,24 +125,24 @@ impl NativeRunner {
 
     fn preset_store_confirmation_detail(
         &self,
-        action_type: &str,
+        action: &PlatformAction,
     ) -> Option<(&'static str, String)> {
-        match action_type {
-            "preset.saveAs" => Some((
+        match action {
+            PlatformAction::PresetSaveAs => Some((
                 "Confirm Save",
                 format!(
                     "Save preset {}?",
                     clean_preset_name(&self.patch_store.preset_draft_name)
                 ),
             )),
-            "preset.saveCurrent" => Some((
+            PlatformAction::PresetSaveCurrent => Some((
                 "Confirm Save",
                 format!(
                     "Overwrite preset {}?",
                     self.patch_store.current_preset_name.as_ref()?
                 ),
             )),
-            "preset.renameApply" => {
+            PlatformAction::PresetRenameApply => {
                 let from = self.patch_store.preset_rename_source.as_ref()?;
                 Some((
                     "Confirm Rename",
@@ -157,21 +152,16 @@ impl NativeRunner {
                     ),
                 ))
             }
-            "default.save" => Some(("Confirm Patch", "Save current patch?".into())),
-            "default.load" => Some(("Confirm Patch", "Load saved patch?".into())),
-            "system.save" => Some(("Confirm System", "Save System settings?".into())),
-            "system.load" => Some(("Confirm System", "Load System settings?".into())),
-            _ if action_type.starts_with("preset.load:") => Some((
-                "Confirm Load",
-                format!("Load preset {}?", action_type.strip_prefix("preset.load:")?),
-            )),
-            _ if action_type.starts_with("preset.delete:") => Some((
-                "Confirm Delete",
-                format!(
-                    "Delete preset {}?",
-                    action_type.strip_prefix("preset.delete:")?
-                ),
-            )),
+            PlatformAction::DefaultSave => Some(("Confirm Patch", "Save current patch?".into())),
+            PlatformAction::DefaultLoad => Some(("Confirm Patch", "Load saved patch?".into())),
+            PlatformAction::SystemSave => Some(("Confirm System", "Save System settings?".into())),
+            PlatformAction::SystemLoad => Some(("Confirm System", "Load System settings?".into())),
+            PlatformAction::PresetLoad(name) => {
+                Some(("Confirm Load", format!("Load preset {name}?")))
+            }
+            PlatformAction::PresetDelete(name) => {
+                Some(("Confirm Delete", format!("Delete preset {name}?")))
+            }
             _ => None,
         }
     }

@@ -34,22 +34,6 @@ impl NativeFullScreenSignal {
     }
 }
 
-/// The source a `signal.*` Signal row opens: `signal.instrument.N`, `signal.bus.N` or
-/// `signal.global`.
-pub(in crate::native_runner) fn signal_row_source(action: &str) -> Option<SignalSource> {
-    let target = action.strip_prefix("signal.")?;
-    if target == "global" {
-        return Some(SignalSource::Master);
-    }
-    let (kind, index) = target.split_once('.')?;
-    let index = index.parse().ok()?;
-    match kind {
-        "instrument" => Some(SignalSource::Instrument(index)),
-        "bus" => Some(SignalSource::Bus(index)),
-        _ => None,
-    }
-}
-
 impl NativeRunner {
     pub(in crate::native_runner) fn open_full_screen_signal(&mut self, source: SignalSource) {
         let Some(key) = self.menu.current_key() else {

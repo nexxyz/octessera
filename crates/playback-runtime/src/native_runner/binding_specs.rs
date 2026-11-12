@@ -81,7 +81,7 @@ pub(super) fn press_action_payload(action: Option<&NativeMenuAction>) -> Value {
             json!({ "kind": "behavior_action", "actionType": action_type, "layer": layer_index })
         }
         Some(NativeMenuAction::PlatformEffect(action)) => {
-            json!({ "kind": "platform_effect", "action": action })
+            json!({ "kind": "platform_effect", "action": action.as_wire() })
         }
         Some(NativeMenuAction::CloneInstrument { index }) => {
             json!({ "kind": "instrument_clone", "slot": index })

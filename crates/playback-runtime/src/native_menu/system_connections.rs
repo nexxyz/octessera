@@ -2,7 +2,7 @@ use super::system_bluetooth::bluetooth_group;
 use super::system_io::{sd_card_2_group, usb_data_role_item};
 use super::{
     action_item, bool_item, group, NativeBluetoothRows, NativeMenuAction, NativeMenuConfig,
-    NativeMenuItem,
+    NativeMenuItem, PlatformAction,
 };
 
 pub(super) fn connections_group(config: &NativeMenuConfig, host_role: bool) -> NativeMenuItem {
@@ -31,7 +31,7 @@ fn wifi_group(config: &NativeMenuConfig) -> NativeMenuItem {
             action_item(
                 "Setup Portal",
                 "system.configureWifi",
-                NativeMenuAction::PlatformEffect("system.configureWifi".into()),
+                NativeMenuAction::PlatformEffect(PlatformAction::SystemConfigureWifi),
             ),
         ],
     )

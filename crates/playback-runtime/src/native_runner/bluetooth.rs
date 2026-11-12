@@ -165,24 +165,13 @@ impl NativeRunner {
         RuntimePlatformEffect::BluetoothScan { active: true }
     }
 
-    pub(super) fn bluetooth_effect_for_action(
-        &self,
-        action: &str,
-    ) -> Option<RuntimePlatformEffect> {
-        let (verb, address) = action.strip_prefix("bluetooth.")?.split_once(':')?;
-        let action = match verb {
-            "pair" => RuntimeBluetoothDeviceAction::Pair,
-            "forget" => RuntimeBluetoothDeviceAction::Forget,
-            "toggle" if self.bluetooth.connected(address) => {
-                RuntimeBluetoothDeviceAction::Disconnect
-            }
-            "toggle" => RuntimeBluetoothDeviceAction::Connect,
-            _ => return None,
-        };
-        Some(RuntimePlatformEffect::BluetoothDevice {
-            address: address.to_string(),
-            action,
-        })
+    /// A paired device's row disconnects it while connected and connects it otherwise.
+    pub(super) fn bluetooth_toggle_action(&self, address: &str) -> RuntimeBluetoothDeviceAction {
+        if self.bluetooth.connected(address) {
+            RuntimeBluetoothDeviceAction::Disconnect
+        } else {
+            RuntimeBluetoothDeviceAction::Connect
+        }
     }
 
     pub(super) fn in_bluetooth_pair_page(&self) -> bool {

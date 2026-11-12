@@ -1,6 +1,6 @@
 use super::super::{NativeRunner, NativeRunnerConfig};
 use super::prefix_line;
-use crate::native_menu::{NativeMenuAction, NativeMenuItem, NativeMenuValue};
+use crate::native_menu::{NativeMenuAction, NativeMenuItem, NativeMenuValue, PlatformAction};
 use std::time::{Duration, Instant};
 
 const SNAPSHOT_TICK: Duration = Duration::from_millis(33);
@@ -45,12 +45,12 @@ fn auto_mapped_value_rows_keep_turn_prefix_alignment() {
 
 #[test]
 fn system_save_and_load_confirmations_fit_their_detail_on_one_line() {
-    for (action_type, detail) in [
-        ("system.save", "Save System"),
-        ("system.load", "Load System"),
+    for (platform_action, detail) in [
+        (PlatformAction::SystemSave, "Save System"),
+        (PlatformAction::SystemLoad, "Load System"),
     ] {
         let mut runner = runner_at(Instant::now());
-        let action = NativeMenuAction::PlatformEffect(action_type.into());
+        let action = NativeMenuAction::PlatformEffect(platform_action);
         runner.display.confirm_dialog = runner.confirmation_for_action(&action);
         let snapshot = runner.snapshot().unwrap();
         let lines = snapshot["display"]["lines"].as_array().unwrap();

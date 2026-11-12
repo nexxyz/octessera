@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 fn fn_main_click(runner: &mut NativeRunner) {
     runner.skip_startup_splash();
@@ -29,11 +30,13 @@ fn fn_main_opens_scrollable_aux_mapping_popup_and_aux_inputs_are_ignored() {
     runner.menu.state.editing = true;
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("midi.panic".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic)),
     });
     runner.shift_aux_bindings[2] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("store.refresh".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(
+            PlatformAction::PresetRefresh,
+        )),
     });
 
     fn_main_click(&mut runner);

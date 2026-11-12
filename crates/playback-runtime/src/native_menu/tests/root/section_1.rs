@@ -226,7 +226,9 @@ pub(crate) fn system_controls_row_is_help_action() {
     assert!(snapshot.lines.iter().any(|line| line == " !Basic Help"));
     assert!(matches!(
         snapshot.selected_action,
-        Some(NativeMenuAction::PlatformEffect(ref action)) if action == "system.controlsHelp"
+        Some(NativeMenuAction::PlatformEffect(
+            PlatformAction::SystemControlsHelp
+        ))
     ));
 }
 

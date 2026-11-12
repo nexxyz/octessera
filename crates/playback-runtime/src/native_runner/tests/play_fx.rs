@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 
 #[test]
 pub(crate) fn play_fx_grid_press_and_release_emit_audio_commands() {
@@ -192,7 +193,7 @@ pub(crate) fn play_fx_map_to_grid_stores_config_and_payload_round_trips() {
     });
     let _ = runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "play.fx.map".into(),
+            PlatformAction::PlayFxMap,
         ))
         .unwrap();
     assert!(matches!(runner.grid_assign, Some(GridAssign::PlayFx(_))));

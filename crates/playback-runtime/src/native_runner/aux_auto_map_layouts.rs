@@ -6,6 +6,7 @@ use super::aux_auto_map_instrument_layouts::{
 };
 use super::*;
 use crate::native_menu::section_labels::{LINK_LABEL, PLAY_LABEL};
+use crate::native_menu::PlatformAction;
 
 impl NativeRunner {
     pub(super) fn resolve_aux_auto_map(
@@ -22,7 +23,10 @@ impl NativeRunner {
             && (selected_key.is_some_and(|key| key.starts_with("play.fx.params."))
                 || selected_action
                     .map(|action| {
-                        matches!(action, NativeMenuAction::PlatformEffect(effect) if effect == "play.fx.map")
+                        matches!(
+                            action,
+                            NativeMenuAction::PlatformEffect(PlatformAction::PlayFxMap)
+                        )
                     })
                     .unwrap_or(false))
         {
@@ -45,13 +49,15 @@ impl NativeRunner {
             return self.behavior_auto_map();
         }
 
-        if let Some(NativeMenuAction::PlatformEffect(action)) = selected_action {
-            if let Some(slot) = self.sample_action_auto_map(action) {
-                return slot;
-            }
-            if action == "play.fx.map" {
+        match selected_action {
+            Some(NativeMenuAction::PlatformEffect(PlatformAction::SampleAssign {
+                instrument_slot,
+                sample_slot,
+            })) => return self.sample_action_auto_map(*instrument_slot, *sample_slot),
+            Some(NativeMenuAction::PlatformEffect(PlatformAction::PlayFxMap)) => {
                 return self.play_fx_auto_map();
             }
+            _ => {}
         }
 
         AuxAutoMap::default()
@@ -194,24 +200,22 @@ impl NativeRunner {
             .or_else(|| instrument_mixer_auto_map(self, field, &prefix))
     }
 
-    fn sample_action_auto_map(&self, action: &str) -> Option<AuxAutoMap> {
-        let rest = action.strip_prefix("sample.assign:")?;
-        let (instrument_slot, sample_slot, _) = parse_sample_action(rest).ok()?;
+    fn sample_action_auto_map(&self, instrument_slot: usize, sample_slot: usize) -> AuxAutoMap {
         let prefix = format!("instruments.{instrument_slot}.sample");
-        Some(aux_auto_map([
+        aux_auto_map([
             Some(self.turn_press_slot(
                 format!("{prefix}.selectedSlot"),
                 "Slot",
-                NativeMenuAction::PlatformEffect(format!(
-                    "sample.assign:{instrument_slot}:{}",
-                    sample_slot.min(SAMPLE_SLOT_COUNT - 1)
-                )),
+                NativeMenuAction::PlatformEffect(PlatformAction::SampleAssign {
+                    instrument_slot,
+                    sample_slot: sample_slot.min(SAMPLE_SLOT_COUNT - 1),
+                }),
                 "Assign",
             )),
             Some(self.turn_slot(format!("{prefix}.tuneSemis"), "Tune")),
             Some(self.turn_slot(format!("{prefix}.baseVelocity"), "Base")),
             Some(self.turn_slot(format!("{prefix}.velocityLevelsEnabled"), "Levels")),
             Some(self.turn_slot(format!("{prefix}.amp.gainPct"), "Gain")),
-        ]))
+        ])
     }
 }

@@ -1,5 +1,6 @@
 use super::super::device_config_apply::commit_setting;
 use super::*;
+use crate::native_menu::PlatformAction;
 use crate::oled_frame::OledHintSource;
 
 fn filter_page_with_manual_aux1() -> (NativeRunner, String) {
@@ -7,7 +8,9 @@ fn filter_page_with_manual_aux1() -> (NativeRunner, String) {
     runner.skip_startup_splash();
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),
-        press_action: Some(NativeMenuAction::PlatformEffect("recording.stop".into())),
+        press_action: Some(NativeMenuAction::PlatformEffect(
+            PlatformAction::RecordingStop,
+        )),
     });
     runner.menu.state.stack = synth_stack(&runner, "Filter");
     runner.menu.select_label("Cutoff");
@@ -75,7 +78,7 @@ pub(crate) fn aux_priority_decides_a_turn_claimed_by_both_a_manual_binding_and_t
     assert_eq!(click.source, OledHintSource::Manual);
     assert_eq!(
         runner.effective_aux_slot(0).press.unwrap().action,
-        NativeMenuAction::PlatformEffect("recording.stop".into())
+        NativeMenuAction::PlatformEffect(PlatformAction::RecordingStop)
     );
 }
 

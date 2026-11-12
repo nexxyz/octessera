@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_menu::PlatformAction;
 use crate::native_runner::{NativeRunner, NativeRunnerConfig};
 use crate::{
     split_system_patch_documents, CoreRunner, HostMessage, RuntimePlatformEffect,
@@ -27,7 +28,7 @@ fn system_document_matches_the_device_projection_and_leaves_aux_bindings_to_the_
     runner.aux_bindings[0] = Some(crate::native_runner::NativeAuxBinding {
         turn_key: Some("displayBrightness".into()),
         press_action: Some(crate::native_menu::NativeMenuAction::PlatformEffect(
-            "midi.panic".into(),
+            PlatformAction::MidiPanic,
         )),
     });
     let expected =
@@ -70,7 +71,7 @@ fn mark_patch_revision(runner: &mut NativeRunner, revision: u64) {
 fn register_default_save(runner: &mut NativeRunner, request_id: &str) -> u64 {
     let revision = runner.config_revision;
     let effect = runner
-        .platform_effect_for_action("default.save")
+        .platform_effect_for_action(&PlatformAction::DefaultSave)
         .unwrap()
         .unwrap();
     runner.register_platform_request(&RuntimePlatformRequest::new(

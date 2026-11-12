@@ -1,3 +1,4 @@
+use crate::native_menu::PlatformAction;
 use crate::protocol::{RuntimeOperation, RuntimePlatformEffect};
 
 use super::{NativeManualSaveRequest, NativeMenuAction, NativeRunner};
@@ -62,7 +63,7 @@ impl NativeRunner {
             return;
         }
         self.pending.pending_autosave_payload_due_at = None;
-        let save = NativeMenuAction::PlatformEffect("default.save".into());
+        let save = NativeMenuAction::PlatformEffect(PlatformAction::DefaultSave);
         if let Ok(Some(effect)) = self.execute_confirmed_action(save) {
             self.outbox.push_platform_effect(effect);
         }
