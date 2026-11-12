@@ -362,7 +362,11 @@ if ! id octessera >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash --groups sudo octessera
 fi
 octessera_configure_runtime_account
-passwd -l octessera >/dev/null || true
+printf 'octessera:octessera\n' | chpasswd
+chage -d 0 octessera
+passwd -l root >/dev/null
+[[ "$(getent shadow octessera | cut -d: -f3)" == 0 ]] || { echo "Orange login account password is not expired." >&2; exit 1; }
+[[ "$(getent shadow root | cut -d: -f2)" == '!'* ]] || { echo "Orange root account is not locked." >&2; exit 1; }
 octessera_record="$(getent passwd octessera)"
 IFS=: read -r octessera_user _ octessera_uid octessera_gid _ octessera_home octessera_shell <<< "$octessera_record"
 [[ "$octessera_user" == octessera && "$octessera_home" == /home/octessera && "$octessera_shell" == /bin/bash ]] || { echo "Orange runtime account home or shell is not exact." >&2; exit 1; }

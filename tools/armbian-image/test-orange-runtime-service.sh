@@ -78,6 +78,10 @@ octessera_reject_file_match 'Orange storage control must mount and unmount SD2 i
 restore_tmpfiles="$root/userpatches/overlay/etc/tmpfiles.d/octessera-restore.conf"
 [[ "$(cat -- "$restore_tmpfiles")" == $'d /var/lib/octessera/restore 0755 octessera-runtime octessera-runtime -\nf /run/octessera-sd-card.lock 0644 root root -' ]] || { echo 'Orange restore staging tmpfiles rule is not exact.' >&2; exit 1; }
 grep -qFx 'install_overlay_file etc/tmpfiles.d/octessera-restore.conf /etc/tmpfiles.d/octessera-restore.conf 0644' "$root/userpatches/customize-image.sh" || { echo 'Orange image does not install the restore staging tmpfiles rule.' >&2; exit 1; }
+for required_line in "printf 'octessera:octessera\\n' | chpasswd" 'chage -d 0 octessera' 'passwd -l root >/dev/null' 'rm -f /root/.not_logged_in_yet'; do
+  grep -qFx "$required_line" "$root/userpatches/customize-image.sh" || { echo "Orange image account setup is missing: $required_line" >&2; exit 1; }
+done
+octessera_reject_file_match 'Orange image must not lock the login account; it ships an expired initial password.' -Eq '^passwd -l octessera' "$root/userpatches/customize-image.sh"
 octessera_reject_file_match 'Orange storage control has a generic privilege path.' -Eiq 'sudo|systemctl|sh -c|eval' "$storage_control"
 octessera_reject_file_match 'Orange storage helper exposes configurable paths.' -Eq -- '--config|OCTESSERA_SD_[A-Z_]+=' "$storage_helper"
 for required_line in \

@@ -34,6 +34,12 @@ steps.
 | SSH | **Key** (recommended; password login stays off), **password** (uses the local device password), or **none** (SSH stays off). Root login is never allowed. |
 | Hostname | Optional: letters, digits and hyphens, up to 63 characters, not starting or ending with a hyphen. Leave blank to keep the current name; a fresh card uses `octessera-rpi` or `octessera-opi`. |
 
+A fresh card ships with a throwaway first password: `raspberry` for `pi`, or
+`octessera` for `octessera`. It has already expired, so it never gets you in
+over SSH, and a console login makes you pick a new one on the spot. The portal
+replaces it with your local device password. The `root` account is locked; use
+`sudo -i` from the device account instead.
+
 ## What you should see
 
 - The browser may disconnect while the settings apply. Leave the instrument

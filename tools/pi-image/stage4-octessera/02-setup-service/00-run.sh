@@ -304,6 +304,17 @@ if [ "$pi_home" != /home/pi ] || [ "$pi_shell" != /bin/bash ] || [ ! -d "$ROOTFS
     echo "Pi image setup requires pi:/home/pi:/bin/bash with a real home directory." >&2
     exit 2
 fi
+printf 'pi:raspberry\n' | chroot "$ROOTFS_DIR" chpasswd
+chroot "$ROOTFS_DIR" chage -d 0 pi
+chroot "$ROOTFS_DIR" passwd -l root >/dev/null
+if [ "$(awk -F: '$1 == "pi" { print $3 }' "$ROOTFS_DIR/etc/shadow")" != 0 ]; then
+    echo "Pi login account password is not expired." >&2
+    exit 2
+fi
+case "$(awk -F: '$1 == "root" { print $2 }' "$ROOTFS_DIR/etc/shadow")" in
+    '!'*) ;;
+    *) echo "Pi root account is not locked." >&2; exit 2 ;;
+esac
 hushlogin="$ROOTFS_DIR$pi_home/.hushlogin"
 if [ -e "$hushlogin" ] || [ -L "$hushlogin" ]; then
     if [ ! -f "$hushlogin" ] || [ -L "$hushlogin" ] || [ "$(stat -c '%u:%g:%a:%s' "$hushlogin")" != "$pi_uid:$pi_gid:644:0" ] || [ -s "$hushlogin" ]; then

@@ -58,6 +58,8 @@ its `sha256sum`.
 | Image path | pi-gen | Armbian |
 | Runtime account | `pi` | locked `octessera-runtime` |
 | Setup/admin account | `pi` | `octessera` |
+| Initial admin password | `raspberry`, expired | `octessera`, expired |
+| `root` | locked | locked |
 | Presets | `/home/pi/presets` | `/var/lib/octessera/presets` |
 | Samples | `/home/pi/samples` | `/var/lib/octessera/samples` |
 

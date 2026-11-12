@@ -21,6 +21,9 @@ if grep -Eq "ln -s /dev/null \"\$ROOTFS_DIR/etc/systemd/system/ssh\\.(service|so
     echo 'Raspberry setup stage must not mask SSH units.' >&2
     exit 1
 fi
+for required_line in "printf 'pi:raspberry\\n' | chroot \"\$ROOTFS_DIR\" chpasswd" 'chroot "$ROOTFS_DIR" chage -d 0 pi' 'chroot "$ROOTFS_DIR" passwd -l root >/dev/null'; do
+    grep -qFx "$required_line" "$setup_stage"
+done
 grep -qF "rm -f \"\$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/ssh.service\"" "$sanitize_stage"
 grep -qF "rm -f \"\$ROOTFS_DIR/etc/systemd/system/sockets.target.wants/ssh.socket\"" "$sanitize_stage"
 
