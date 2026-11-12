@@ -431,6 +431,7 @@ impl SynthEngine {
     pub fn all_notes_off(&mut self) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
         let event_sample_clock = self.event_block_sample_clock();
+        self.mods = [InstrumentMod::new(); INSTRUMENT_SLOT_COUNT];
         if !self.voice_pools_home() {
             return retired;
         }

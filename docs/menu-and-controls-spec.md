@@ -1087,7 +1087,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   - Pitch is additive across axes (`X Steps + Y Steps`), signed `-16..16`, and uses scale-degree
     stepping, not post-quantize.
   - `Velocity` modulates outgoing `note_on` velocity. `Filter Cutoff` emits CC74 (lowpass cutoff)
-    and `Filter Res` emits CC71 (lowpass resonance).
+    and `Filter Res` emits CC71 (lowpass resonance). An internal instrument keeps the last CC74/CC71
+    value until a patch load, Panic, or a change of its instrument type.
   - Each value lane applies its curve after `Grid Offs`: `linear` maps position `t` directly,
     `curve` uses the quadratic ease-in `t²`. Both clamp `t` to `0..1`, hit `From` and `To` exactly,
     and stay inside the inclusive range between them, including when `From > To`.

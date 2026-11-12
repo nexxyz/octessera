@@ -6,6 +6,7 @@ use crate::synth::{
 use serde_json::json;
 use std::collections::BTreeMap;
 
+mod cc_latch;
 mod note_off_transitions;
 mod pool_stress;
 mod profile_snapshot;

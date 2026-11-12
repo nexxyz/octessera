@@ -93,6 +93,9 @@ impl SynthEngine {
                 self.active_sample_slots[idx] = false;
             }
         }
+        if self.slot_kind[idx] != kind {
+            self.mods[idx] = InstrumentMod::new();
+        }
         self.slot_kind[idx] = kind;
         if kind == InstrumentKind::Drum {
             self.drum_voices[idx] = drum_voices;
