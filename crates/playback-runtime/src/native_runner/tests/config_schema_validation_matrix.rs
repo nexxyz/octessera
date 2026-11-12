@@ -139,6 +139,24 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
         |payload| payload["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"] = json!("unsupported"),
     );
     assert_validation_error(
+        "aux press platform action",
+        "runtimeConfig.auxBindings.aux1.pressAction.action has unknown value `store.refresh`",
+        |payload| {
+            payload["runtimeConfig"]["auxBindings"]["aux1"] = json!({
+                "pressAction": { "kind": "platform_effect", "action": "store.refresh" }
+            })
+        },
+    );
+    assert_validation_error(
+        "aux press platform action without action",
+        "runtimeConfig.shiftAuxBindings.aux2.pressAction.action must be a string",
+        |payload| {
+            payload["runtimeConfig"]["shiftAuxBindings"]["aux2"] = json!({
+                "pressAction": { "kind": "platform_effect" }
+            })
+        },
+    );
+    assert_validation_error(
         "pulse mapping",
         "runtimeConfig.layers[0].link.mapping.activate.action has unknown value `broken`",
         |payload| {

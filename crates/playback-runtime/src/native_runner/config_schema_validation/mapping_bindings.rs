@@ -3,6 +3,7 @@ use super::canonical::{
     string_field, unsigned_field, unsigned_value_range,
 };
 use super::Value;
+use crate::native_menu::PlatformAction;
 use platform_core::{RangeMode, TriggerAction, INSTRUMENT_COUNT, LAYER_COUNT};
 use serde_json::Map;
 
@@ -56,7 +57,15 @@ pub(super) fn validate_press_action(action: &Value, action_path: &str) -> Result
             }
             unsigned_field(action, "layer", action_path, 0, (LAYER_COUNT - 1) as u64)?;
         }
-        "platform_effect" => string_field(action, "action", action_path)?,
+        "platform_effect" => {
+            let wire = action
+                .get("action")
+                .and_then(Value::as_str)
+                .ok_or_else(|| format!("{action_path}.action must be a string"))?;
+            if PlatformAction::parse(wire).is_none() {
+                return Err(format!("{action_path}.action has unknown value `{wire}`"));
+            }
+        }
         "instrument_clone" | "instrument_reset" => unsigned_field(
             action,
             "slot",
