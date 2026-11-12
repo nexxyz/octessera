@@ -79,3 +79,32 @@ fn restore_rejects_invalid_target_stores_without_mutation() {
         );
     }
 }
+
+#[test]
+fn a_damaged_preset_the_pre_restore_archive_skips_is_kept_raw_in_backups() {
+    let fixture = Fixture::new("damaged-preset");
+    let damaged = crate::platform_service::preset_patch_path(&fixture.store, "Broken").unwrap();
+    fs::write(&damaged, b"{ not a patch").unwrap();
+    let current = fs::read(crate::platform_service::current_patch_path(&fixture.store)).unwrap();
+
+    fixture.restore("damaged-preset", false).unwrap();
+
+    let kept = fixture.store.join("backups/pre-restore-damaged-preset");
+    assert_eq!(
+        fs::read(kept.join("patches/Broken.json")).unwrap(),
+        b"{ not a patch"
+    );
+    assert_eq!(fs::read(kept.join("current.json")).unwrap(), current);
+    assert!(!damaged.exists());
+    assert_eq!(
+        fs::read(fixture.store.join("backups/live.json")).unwrap(),
+        b"live backup"
+    );
+
+    fixture.restore("after-damaged-preset", false).unwrap();
+    assert!(kept.join("patches/Broken.json").is_file());
+    assert!(!fixture
+        .store
+        .join("backups/pre-restore-after-damaged-preset")
+        .exists());
+}

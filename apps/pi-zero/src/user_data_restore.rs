@@ -3,12 +3,13 @@ use serde_json::Value;
 use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
-use store_files::write_json_atomically;
 
 mod filesystem;
+mod store_tree;
 mod transaction;
 use filesystem::remove_tree_within;
 pub(crate) use filesystem::{Filesystems, LiveFilesystems};
+use store_tree::{build_store_tree, keep_unarchived_patches};
 #[cfg(test)]
 pub(super) use transaction::{replace_trees_with_faults, FaultInjection};
 
@@ -50,7 +51,7 @@ pub(crate) fn restore(
             backup_path.display()
         ));
     }
-    write_pre_restore_backup(
+    let backup_skipped_patches = write_pre_restore_backup(
         store_dir,
         samples_dir,
         recordings_dir,
@@ -92,6 +93,15 @@ pub(crate) fn restore(
             &staged.bundle,
             &restored,
         )?;
+        if backup_skipped_patches {
+            keep_unarchived_patches(
+                filesystems,
+                store_dir,
+                &new_store
+                    .join("backups")
+                    .join(format!("pre-restore-{session}")),
+            )?;
+        }
         build_samples_tree(
             filesystems,
             samples_dir,
@@ -225,13 +235,14 @@ fn prune_pre_restore_archives(staging: &Path, kept: &Path) {
     }
 }
 
+/// `true` when the archive had to leave out a damaged patch or preset.
 fn write_pre_restore_backup(
     store_dir: &Path,
     samples_dir: &Path,
     recordings_dir: &Path,
     screen_recordings_dir: &Path,
     backup_path: &Path,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     let plan = user_data_archive::build_export_plan(
         store_dir,
         samples_dir,
@@ -260,56 +271,7 @@ fn write_pre_restore_backup(
     if result.is_err() {
         let _ = fs::remove_file(temp);
     }
-    result
-}
-
-fn build_store_tree(
-    filesystems: &dyn Filesystems,
-    old_store: &Path,
-    new_store: &Path,
-    bundle: &playback_runtime::UserDataBundle,
-    restored: &playback_runtime::user_data_bundle::UserDataArchiveReconstruction,
-) -> Result<(), String> {
-    fs::create_dir_all(new_store.join("patches")).map_err(io_error)?;
-    write_json_atomically(&new_store.join("system.json"), &restored.system)?;
-    write_json_atomically(
-        &crate::platform_service::default_patch_path(new_store),
-        &restored.default_patch,
-    )?;
-    write_json_atomically(
-        &crate::platform_service::current_patch_path(new_store),
-        &restored.current_patch,
-    )?;
-    write_json_atomically(
-        &crate::platform_service::recovery_patch_path(new_store),
-        &restored.current_patch,
-    )?;
-    let system = crate::platform_service::load_json(&new_store.join("system.json"))?
-        .ok_or_else(|| "staged System settings are missing".to_string())?;
-    for patch_path in [
-        crate::platform_service::default_patch_path(new_store),
-        crate::platform_service::current_patch_path(new_store),
-        crate::platform_service::recovery_patch_path(new_store),
-    ] {
-        let patch = crate::platform_service::load_json(&patch_path)?
-            .ok_or_else(|| format!("staged patch is missing: {}", patch_path.display()))?;
-        playback_runtime::compose_system_patch_documents(&system, &patch)?;
-    }
-    for preset in &bundle.presets {
-        let path = crate::platform_service::preset_patch_path(new_store, &preset.display_name)?;
-        write_json_atomically(&path, &preset.patch)?;
-    }
-    copy_regular_if_present(
-        &old_store.join("device.json"),
-        &new_store.join("device.json"),
-    )?;
-    copy_tree_if_present(
-        filesystems,
-        old_store,
-        &old_store.join("backups"),
-        &new_store.join("backups"),
-        false,
-    )
+    result.map(|()| !plan.warnings.is_empty())
 }
 
 fn build_samples_tree(

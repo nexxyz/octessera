@@ -108,6 +108,13 @@ data back, cleans up after itself, reports the failure and carries on saving
 as before. Still, keep the source card and the downloaded file until you're
 happy.
 
+Before it swaps anything, the restore saves the board's old data as a
+pre-restore archive. If an old patch or preset is too damaged for that
+archive, the restore still goes ahead, but first it copies the old `patches`
+folder, `current.json` and `recovery-save.json` as they are into
+`backups/pre-restore-<session>` in the board's store folder. Later restores
+keep that folder, so nothing vanishes just because it was a bit broken.
+
 If a restored patch uses a sample that isn't on the new board, that slot stays
 silent and shows `N/A-<name>`, and a popup lists what's missing. Copy the WAVs
 across (or restore a `media=1` export) and the slots come back, or pick
