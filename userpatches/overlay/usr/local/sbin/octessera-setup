@@ -271,8 +271,6 @@ class Coordinator:
             ["/usr/local/bin/wifi-connect", "--portal-ssid", f"Octessera Setup {self.portal_suffix}", "--portal-interface", INTERFACE, "--portal-gateway", setup_http.AP_ADDRESS, "--portal-listening-port", "80", "--ui-directory", "/usr/local/share/octessera-setup-ui"],
             env=dict(os.environ, PORTAL_PASSPHRASE=self.portal_passphrase),
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
 

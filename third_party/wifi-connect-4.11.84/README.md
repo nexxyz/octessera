@@ -38,6 +38,24 @@ The patch therefore changes only `src/network.rs`, `src/errors.rs`, and
 `c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6`; the
 builder refuses any other patch or upstream commit.
 
+## Why the network-manager patch exists
+
+With a portal passphrase, the pinned `network-manager` crate's
+`create_hotspot()` sets only `key-mgmt wpa-psk` and the PSK. NetworkManager
+then hands wpa_supplicant its WPA/WPA2 mixed defaults with TKIP, and the Orange
+Pi Zero 2W's `unisoc_wifi` driver refuses to start that access point
+(`Failed to initialize AP interface`, then NetworkManager's
+`supplicant-timeout`). The failed start can also leave the Wi-Fi client unable
+to pass traffic until the next power cycle.
+`network-manager-hotspot-wpa2.patch` adds the security settings
+`nmcli device wifi hotspot` uses: `proto rsn`, `pairwise ccmp`, `group ccmp`
+and `pmf` disabled, so both boards run the same WPA2-only CCMP hotspot. It
+changes only `src/dbus_nm.rs`; its SHA256 lock is
+`47a9578de0b2701d45ecbe3992414f3e9e8cc1985be9b089185f8b1a42b4f24d`. The builder
+copies the locked `network-manager` checkout, applies the patch, and selects
+the copy with a Cargo `paths` override, which leaves `Cargo.lock` unchanged. It
+then checks that the built binary carries the `pairwise` setting.
+
 ## Reproduce and verify
 
 From the repository root (on Windows, inside WSL with Docker available), use:
@@ -48,7 +66,8 @@ bash tools/wifi-connect/build-patched.sh
 
 The builder clones or verifies the clone origin and exact commit, copies it to
 `target/wifi-connect-patched/source`, applies
-`portal-address-readiness.patch` with `git apply --check`, runs locked native
+`portal-address-readiness.patch` and `network-manager-hotspot-wpa2.patch` with
+`git apply --check`, runs locked native
 tests, builds the locked AArch64 release in the pinned `rust:1.76.0-bookworm`
 image (`sha256:d36f9d8a9a4c76da74c8d983d0d4cb146dd2d19bb9bd60b704cdcf70ef868d3a`),
 strips and checks the ELF, and writes:
@@ -63,7 +82,7 @@ Run the source-only checks without building with:
 python tools/wifi-connect/test-patched-source.py
 ```
 
-The build metadata records the upstream ref and commit, patch SHA256, target,
+The build metadata records the upstream ref and commit, both patch SHA256s, target,
 container/toolchain, and final binary SHA256. Image constructors
 consume the locally staged output and retain the binary, metadata, Cargo
 metadata, license, and third-party notice under the image's local documentation

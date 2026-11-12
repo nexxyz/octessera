@@ -1,0 +1,15 @@
+diff --git a/src/dbus_nm.rs b/src/dbus_nm.rs
+--- a/src/dbus_nm.rs
++++ b/src/dbus_nm.rs
+@@ -321,6 +321,11 @@ impl DBusNetworkManager {
+             let mut security: VariantMap = HashMap::new();
+             add_str(&mut security, "key-mgmt", "wpa-psk");
+             add_str(&mut security, "psk", verify_ascii_password(password)?);
++            // Modified by Octessera: WPA2-only CCMP without PMF, as `nmcli device wifi hotspot` sets it.
++            add_val(&mut security, "proto", vec!["rsn".to_string()]);
++            add_val(&mut security, "pairwise", vec!["ccmp".to_string()]);
++            add_val(&mut security, "group", vec!["ccmp".to_string()]);
++            add_val(&mut security, "pmf", 1_i32);
+ 
+             settings.insert("802-11-wireless-security".to_string(), security);
+         }

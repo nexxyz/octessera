@@ -71,6 +71,7 @@ for index, path in enumerate(COORDINATORS):
     assert passphrase == instance.portal_passphrase
     assert len(passphrase) == 9 and passphrase[4] == "-" and all(character in coordinator.PASSPHRASE_ALPHABET for character in passphrase[:4] + passphrase[5:])
     assert passphrase not in launched[0][0] and "--portal-passphrase" not in launched[0][0]
+    assert "stdout" not in launched[0][1] and "stderr" not in launched[0][1]
     assert coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase=passphrase)["portalPassphrase"] == passphrase
     assert len({coordinator.Coordinator(profile).portal_passphrase for _ in range(32)}) > 1
 
