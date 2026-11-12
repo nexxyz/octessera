@@ -186,12 +186,7 @@ fn concurrent_source_and_owner_drop_races_are_nonblocking() {
 fn persistent_startup_has_two_workers_and_one_combined_reaper() {
     let (_tx, source, owner) = super::persistent_tests::persistent_source(128);
     let lifecycle_probe = owner.lifecycle_probe_for_test();
-    for _ in 0..100_000 {
-        if lifecycle_probe.starts_for_test() == 1 {
-            break;
-        }
-        std::thread::yield_now();
-    }
+    lifecycle_probe.wait_for_start_for_test();
     assert_eq!(lifecycle_probe.starts_for_test(), 1);
     assert_eq!(lifecycle_probe.exits_for_test(), 0);
     let worker = source

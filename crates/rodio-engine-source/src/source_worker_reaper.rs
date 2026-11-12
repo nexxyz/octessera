@@ -30,15 +30,27 @@ const RETIRED_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_mil
 pub(crate) struct ReaperLifecycleProbe {
     starts: Arc<AtomicUsize>,
     exits: Arc<AtomicUsize>,
+    started_tx: Sender<()>,
+    started_rx: Receiver<()>,
 }
 
 #[cfg(all(test, feature = "routing-tree-executor"))]
 impl ReaperLifecycleProbe {
     fn new() -> Self {
+        let (started_tx, started_rx) = crossbeam_channel::unbounded();
         Self {
             starts: Arc::new(AtomicUsize::new(0)),
             exits: Arc::new(AtomicUsize::new(0)),
+            started_tx,
+            started_rx,
         }
+    }
+
+    /// Blocks until the reaper thread has started.
+    pub(crate) fn wait_for_start_for_test(&self) {
+        self.started_rx
+            .recv()
+            .expect("the reaper thread signals its start");
     }
 
     pub(crate) fn starts_for_test(&self) -> usize {
@@ -163,6 +175,8 @@ fn spawn_persistent_reaper_with_options(
         let _exit_guard = ReaperLifecycleExitGuard(reaper_probe.clone());
         #[cfg(test)]
         reaper_probe.starts.fetch_add(1, Ordering::AcqRel);
+        #[cfg(test)]
+        let _ = reaper_probe.started_tx.send(());
         while Arc::strong_count(&thread_state) > 1 {
             thread::yield_now();
         }
