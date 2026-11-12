@@ -16,7 +16,9 @@ controls before you commit to any soldering.
 
 One simulator at a time, please: a second copy started on the same saves
 says Octessera is already running and closes, so the two can't trample each
-other's patches and recordings.
+other's patches and recordings. The guard only watches one save folder, though.
+A copy pointed at a different folder with `OCTESSERA_DESKTOP_STORE_DIR` runs
+happily next to the first one, and each keeps to its own saves.
 
 ## Make a first sound
 

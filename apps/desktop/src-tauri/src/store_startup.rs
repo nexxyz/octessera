@@ -81,14 +81,9 @@ pub(crate) fn ensure_store_dir(
     let dir = resolve_store_root(explicit_store_root(), || {
         app.path().app_data_dir().map_err(|error| error.to_string())
     })?;
-    std::fs::create_dir_all(&dir).map_err(|error| {
-        DesktopStoreStartupError::CreateStoreDirectory {
-            path: dir.clone(),
-            source: error.to_string(),
-        }
-    })?;
+    create_store_root(&dir)?;
     let lock = lock_store_dir(&dir)?;
-    Ok((ensure_store_dir_at(dir)?, lock))
+    Ok((prepare_store_dir(dir)?, lock))
 }
 
 fn lock_store_dir(dir: &Path) -> Result<StoreLock, DesktopStoreStartupError> {
@@ -128,13 +123,20 @@ where
     app_data_dir().map_err(|source| DesktopStoreStartupError::ResolveAppData { source })
 }
 
+#[cfg(any(test, feature = "headless"))]
 pub(crate) fn ensure_store_dir_at(dir: PathBuf) -> Result<PathBuf, DesktopStoreStartupError> {
-    std::fs::create_dir_all(&dir).map_err(|error| {
-        DesktopStoreStartupError::CreateStoreDirectory {
-            path: dir.clone(),
-            source: error.to_string(),
-        }
-    })?;
+    create_store_root(&dir)?;
+    prepare_store_dir(dir)
+}
+
+fn create_store_root(dir: &Path) -> Result<(), DesktopStoreStartupError> {
+    std::fs::create_dir_all(dir).map_err(|error| DesktopStoreStartupError::CreateStoreDirectory {
+        path: dir.to_path_buf(),
+        source: error.to_string(),
+    })
+}
+
+fn prepare_store_dir(dir: PathBuf) -> Result<PathBuf, DesktopStoreStartupError> {
     let presets_dir = dir.join("presets");
     if presets_dir.is_file() {
         std::fs::create_dir_all(&presets_dir).map_err(|error| {
