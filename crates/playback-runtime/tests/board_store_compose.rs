@@ -6,6 +6,9 @@ fn patch_documents(dir: &Path, found: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir).unwrap() {
         let path = entry.unwrap().path();
         if path.is_dir() {
+            if dir.file_name().is_some_and(|name| name == "backups") {
+                continue;
+            }
             patch_documents(&path, found);
         } else if path
             .extension()

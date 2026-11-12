@@ -154,7 +154,9 @@ New-Item -ItemType Directory -Force target/board-stores | Out-Null
 ```
 
 Unpack each archive into `target/board-stores/rpi/` and `target/board-stores/opi/`,
-then compose every patch and backup against its board's `system.json`:
+then compose every patch and rotated `backups/bak-*.json` against its board's
+`system.json`. The test skips the folders under `backups/` (`pre-restore-<session>/`),
+which keep raw copies of patches a restore could not archive:
 
 ```bash
 OCTESSERA_STORE_COPY="$PWD/target/board-stores" cargo test -p playback-runtime --test board_store_compose -- --ignored --nocapture
@@ -188,8 +190,8 @@ $PiTarget = "pi@<PI_HOST>"; $OrangeTarget = "octessera@<ORANGE_HOST>"
 
 Close the desktop app first. The script splits `config/generated/pi/default.json` (both
 boards) and `config/generated/desktop/default.json` (desktop) with `split_default_config`,
-fetches each store with its service stopped, and composes every patch and backup with the
-new `default.patch.json` through `board_store_compose`. If any of the three fails, nothing
+fetches each store with its service stopped, and composes every patch and backup (but not the
+`backups/pre-restore-*` raw copies) with the new `default.patch.json` through `board_store_compose`. If any of the three fails, nothing
 changes. Otherwise it keeps backups (`<store>.pre-factory-default-<stamp>` on each board
 and next to the desktop store, plus the fetched copies under `target/factory-default/`),
 installs `default.patch.json` with each file's owner and mode, checks that all three
