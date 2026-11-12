@@ -164,7 +164,9 @@ The desktop store lives in `%APPDATA%/xyz.nex.octessera/` (or
 `OCTESSERA_DESKTOP_STORE_DIR`); copy its `system.json`, `default.patch.json`,
 and `presets/` into a third folder next to the boards to compose it too. With
 `OCTESSERA_DESKTOP_STORE_DIR` set, user samples live in its `samples/` folder
-too.
+too. A running simulator holds an exclusive lock on the store's
+`octessera.lock`; a second instance on the same store shows a startup error and
+exits before it reads the store or repairs a take.
 
 For every document that fails, rewrite only the offending keys or values to the
 current schema with a throwaway script under `target/`, keep a backup of the

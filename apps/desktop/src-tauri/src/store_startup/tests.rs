@@ -175,3 +175,23 @@ fn app_data_resolution_failure_is_not_replaced_with_executable_relative_path() {
         "desktop startup store initialization failed: unable to resolve app-data directory: app-data unavailable"
     );
 }
+
+#[test]
+fn a_second_instance_on_the_same_store_is_refused_until_the_first_ends() {
+    let root = unique_temp_dir("octessera-store-lock");
+    let first = lock_store_dir(&root).expect("first instance locks the store");
+
+    let error = lock_store_dir(&root).expect_err("second instance must be refused");
+    assert!(matches!(
+        &error,
+        DesktopStoreStartupError::AlreadyRunning { path } if path == &root
+    ));
+    assert!(error
+        .to_string()
+        .starts_with("Octessera is already running"));
+
+    drop(first);
+    let again = lock_store_dir(&root).expect("lock is free once the first instance ends");
+    drop(again);
+    remove_temp_dir(&root);
+}

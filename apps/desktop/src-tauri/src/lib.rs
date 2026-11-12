@@ -63,20 +63,21 @@ pub fn run() {
                 .and_then(|()| {
                     store_startup::ensure_store_dir(app).map_err(|error| error.to_string())
                 })
-                .and_then(|store_dir| {
+                .and_then(|store| {
                     recording::resolve_recordings_dir(app).and_then(|recording_dir| {
                         recording::resolve_screen_recordings_dir(app).map(|screen_recording_dir| {
-                            (store_dir, recording_dir, screen_recording_dir)
+                            (store, recording_dir, screen_recording_dir)
                         })
                     })
                 });
-            let (store_dir, recording_dir, screen_recording_dir) =
+            let ((store_dir, store_lock), recording_dir, screen_recording_dir) =
                 match startup_failure::decide_startup(startup_result, |title, message| {
                     startup_failure::present_native_startup_error(app, title, message);
                 }) {
                     startup_failure::StartupDecision::Continue(paths) => paths,
                     startup_failure::StartupDecision::FailurePresented => return Ok(()),
                 };
+            app.manage(store_lock);
             recording::spawn_partial_take_repair(&screen_recording_dir);
             let recording = recording::DesktopRecording::with_screen_directory(
                 recording_dir,

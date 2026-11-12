@@ -1,5 +1,6 @@
 use std::fmt;
-use std::path::PathBuf;
+use std::fs::{File, OpenOptions, TryLockError};
+use std::path::{Path, PathBuf};
 
 use tauri::Manager;
 
@@ -16,6 +17,8 @@ pub(crate) enum DesktopStoreStartupError {
     ParseBundledDefault { source: String },
     SeedDocument { path: PathBuf, source: String },
     InvalidStore { detail: String },
+    LockStore { path: PathBuf, source: String },
+    AlreadyRunning { path: PathBuf },
 }
 
 impl fmt::Display for DesktopStoreStartupError {
@@ -48,17 +51,64 @@ impl fmt::Display for DesktopStoreStartupError {
                 formatter,
                 "desktop storage can't be opened: {detail}"
             ),
+            Self::LockStore { path, source } => write!(
+                formatter,
+                "desktop startup store initialization failed: unable to lock store directory {}: {source}",
+                path.display()
+            ),
+            Self::AlreadyRunning { path } => write!(
+                formatter,
+                "Octessera is already running with the store in {}. Close the other Octessera window, then start this one again.",
+                path.display()
+            ),
         }
     }
 }
 
 impl std::error::Error for DesktopStoreStartupError {}
 
-pub(crate) fn ensure_store_dir(app: &tauri::App) -> Result<PathBuf, DesktopStoreStartupError> {
+/// Held while the app runs, so a second instance cannot repair this one's live take or race its
+/// saves. The OS releases it when the process ends, however it ends.
+#[derive(Debug)]
+pub(crate) struct StoreLock {
+    _file: File,
+}
+
+/// Takes the store lock before anything reads the store, then prepares the store.
+pub(crate) fn ensure_store_dir(
+    app: &tauri::App,
+) -> Result<(PathBuf, StoreLock), DesktopStoreStartupError> {
     let dir = resolve_store_root(explicit_store_root(), || {
         app.path().app_data_dir().map_err(|error| error.to_string())
     })?;
-    ensure_store_dir_at(dir)
+    std::fs::create_dir_all(&dir).map_err(|error| {
+        DesktopStoreStartupError::CreateStoreDirectory {
+            path: dir.clone(),
+            source: error.to_string(),
+        }
+    })?;
+    let lock = lock_store_dir(&dir)?;
+    Ok((ensure_store_dir_at(dir)?, lock))
+}
+
+fn lock_store_dir(dir: &Path) -> Result<StoreLock, DesktopStoreStartupError> {
+    let lock_error = |source: String| DesktopStoreStartupError::LockStore {
+        path: dir.to_path_buf(),
+        source,
+    };
+    let file = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(dir.join("octessera.lock"))
+        .map_err(|error| lock_error(error.to_string()))?;
+    match file.try_lock() {
+        Ok(()) => Ok(StoreLock { _file: file }),
+        Err(TryLockError::WouldBlock) => Err(DesktopStoreStartupError::AlreadyRunning {
+            path: dir.to_path_buf(),
+        }),
+        Err(TryLockError::Error(error)) => Err(lock_error(error.to_string())),
+    }
 }
 
 pub(crate) fn explicit_store_root() -> Option<PathBuf> {

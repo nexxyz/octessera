@@ -14,6 +14,10 @@ controls before you commit to any soldering.
    `octessera.exe`. Otherwise install it and start Octessera from your usual
    application menu.
 
+One simulator at a time, please: a second copy started on the same saves
+says Octessera is already running and closes, so the two can't trample each
+other's patches and recordings.
+
 ## Make a first sound
 
 The shipped patch already has Layer 1 running `life` into a synth.
