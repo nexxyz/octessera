@@ -29,6 +29,8 @@ WIFI_OFF_FILE = "/var/lib/octessera/show-hold/wifi-off"
 PORTAL_WINDOW_SECONDS = 600
 INTERNAL_APPLY_SECONDS = 60
 RADIO_CHECK_SECONDS = 1.0
+RESCAN_SECONDS = 10
+RESCAN_SETTLE_SECONDS = 5
 
 
 class SetupFailure(Exception):
@@ -262,6 +264,12 @@ class Coordinator:
             pass
         if self.command(["nmcli", "radio", "wifi", "on"]).returncode != 0:
             raise SetupFailure("operation_failed")
+        try:
+            self.command(["nmcli", "device", "wifi", "list", "ifname", INTERFACE, "--rescan", "yes"], timeout=RESCAN_SECONDS)
+        except subprocess.TimeoutExpired:
+            pass
+        # The Orange's radio firmware asserts when the access point starts right after a scan.
+        self.sleeper(RESCAN_SETTLE_SECONDS)
         self.process = self.process_factory(
             ["/usr/local/bin/wifi-connect", "--portal-ssid", f"Octessera Setup {self.portal_suffix}", "--portal-interface", INTERFACE, "--portal-gateway", setup_http.AP_ADDRESS, "--portal-listening-port", "80", "--ui-directory", "/usr/local/share/octessera-setup-ui"],
             stdin=subprocess.DEVNULL,

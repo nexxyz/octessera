@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import importlib.util
+import subprocess
 import sys
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
@@ -54,21 +55,36 @@ for index, path in enumerate(COORDINATORS):
     coordinator, http_module = load(path, f"flow_coordinator_{index}")
     profile = {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "root"}
     flow_events = []
-    command_result = lambda args, timeout=None: flow_events.append(("command", tuple(args))) or SimpleNamespace(returncode=0, stdout="")
-    instance = coordinator.Coordinator(profile, command=command_result, clock=lambda: 0.0, sleeper=lambda _seconds: None)
+    command_result = lambda args, timeout=None: flow_events.append(("command", tuple(args), timeout)) or SimpleNamespace(returncode=0, stdout="")
+    instance = coordinator.Coordinator(profile, command=command_result, clock=lambda: 0.0, sleeper=lambda seconds: flow_events.append(("sleep", seconds)))
     instance.interface_suffix = lambda: "abcd"
     process = Process()
     launched = []
     instance.process_factory = lambda args, **kwargs: flow_events.append(("launch", args)) or launched.append((args, kwargs)) or process
     instance.launch()
-    assert flow_events[0] == ("command", ("nmcli", "radio", "wifi", "on"))
-    assert flow_events[1][0] == "launch"
+    assert flow_events[:3] == [
+        ("command", ("nmcli", "radio", "wifi", "on"), None),
+        ("command", ("nmcli", "device", "wifi", "list", "ifname", "wlan0", "--rescan", "yes"), 10),
+        ("sleep", 5),
+    ]
+    assert flow_events[3][0] == "launch"
     assert len(launched) == 1
     assert launched[0][0][0] == "/usr/local/bin/wifi-connect"
     assert "Octessera Setup abcd" in launched[0][0]
     assert "/usr/local/share/octessera-setup-ui" in launched[0][0]
     assert "stdout" not in launched[0][1] and "stderr" not in launched[0][1]
     assert "env" not in launched[0][1]
+
+    def slow_rescan(args, timeout=None):
+        if "--rescan" in args:
+            raise subprocess.TimeoutExpired(args, timeout)
+        return SimpleNamespace(returncode=0, stdout="")
+
+    slow_launches = []
+    slow_instance = coordinator.Coordinator(profile, command=slow_rescan, process_factory=lambda args, **kwargs: slow_launches.append(args) or process, sleeper=lambda _seconds: None)
+    slow_instance.interface_suffix = lambda: "abcd"
+    slow_instance.launch()
+    assert len(slow_launches) == 1
 
     failure_commands = []
     failure_launches = []

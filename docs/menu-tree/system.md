@@ -356,7 +356,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
   at most 10 minutes (`PORTAL_WINDOW_SECONDS = 600` in `octessera-setup`).
 - The portal's network list shows each scanned SSID once, strongest first, labelled `Strong`
   (strength 67 and up), `Fair` (34 to 66) or `Weak`, from wifi-connect's 0-100 NetworkManager
-  strength.
+  strength. Before starting wifi-connect, the coordinator runs one bounded NetworkManager rescan
+  (10 s at most) and then waits 5 s, because the Orange's radio firmware asserts when the access
+  point starts right after a scan. The list is fixed for the portal session.
 - The browser's Applying page is provisional and an AP disconnect is expected; the OLED result is
   authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a
   default route, DNS, or ICMP.
