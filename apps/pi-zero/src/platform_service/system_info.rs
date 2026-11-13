@@ -8,7 +8,7 @@ struct InterfaceIpv4Candidate {
     interface: String,
     address: Ipv4Addr,
     netmask: Ipv4Addr,
-    interface_up: bool,
+    link_up: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,14 +114,13 @@ fn interface_ipv4_candidates() -> Vec<InterfaceIpv4Candidate> {
                         continue;
                     }
                     let netmask = &*(netmask as *const libc::sockaddr_in);
-                    let flags = interface.ifa_flags as libc::c_uint;
                     candidates.push(InterfaceIpv4Candidate {
                         interface: CStr::from_ptr(interface.ifa_name)
                             .to_string_lossy()
                             .into_owned(),
                         address: Ipv4Addr::from(u32::from_be(sockaddr.sin_addr.s_addr)),
                         netmask: Ipv4Addr::from(u32::from_be(netmask.sin_addr.s_addr)),
-                        interface_up: flags & libc::IFF_UP as libc::c_uint != 0,
+                        link_up: link_up(interface.ifa_flags as libc::c_uint),
                     });
                 }
             }
@@ -138,7 +137,7 @@ fn select_wlan0_ipv4(candidates: &[InterfaceIpv4Candidate]) -> Option<RegularWla
         .iter()
         .find(|candidate| {
             candidate.interface == "wlan0"
-                && candidate.interface_up
+                && candidate.link_up
                 && is_usable_ipv4(candidate.address)
                 && is_contiguous_netmask(candidate.netmask)
                 && is_usable_host_address(candidate.address, candidate.netmask)
@@ -147,6 +146,12 @@ fn select_wlan0_ipv4(candidates: &[InterfaceIpv4Candidate]) -> Option<RegularWla
             address: candidate.address,
             netmask: candidate.netmask,
         })
+}
+
+#[cfg(target_os = "linux")]
+fn link_up(flags: libc::c_uint) -> bool {
+    let up_and_running = (libc::IFF_UP | libc::IFF_RUNNING) as libc::c_uint;
+    flags & up_and_running == up_and_running
 }
 
 #[cfg(any(target_os = "linux", test))]
@@ -212,13 +217,23 @@ mod tests {
     };
     use std::net::Ipv4Addr;
 
-    fn candidate(interface: &str, address: &str, interface_up: bool) -> InterfaceIpv4Candidate {
+    fn candidate(interface: &str, address: &str, link_up: bool) -> InterfaceIpv4Candidate {
         InterfaceIpv4Candidate {
             interface: interface.into(),
             address: address.parse().unwrap(),
             netmask: "255.255.255.0".parse().unwrap(),
-            interface_up,
+            link_up,
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn link_needs_carrier_as_well_as_the_interface_up() {
+        let up = libc::IFF_UP as libc::c_uint;
+        let running = libc::IFF_RUNNING as libc::c_uint;
+        assert!(super::link_up(up | running));
+        assert!(!super::link_up(up));
+        assert!(!super::link_up(running));
     }
 
     #[test]
@@ -250,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn selects_an_up_usable_wlan0_address_over_other_interfaces() {
+    fn selects_a_linked_usable_wlan0_address_over_other_interfaces() {
         let candidates = [
             candidate("eth0", "10.0.0.4", true),
             candidate("wlan0", "192.168.1.20", true),

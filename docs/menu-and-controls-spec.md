@@ -641,7 +641,8 @@ behavior primary red), so a mute never reads as a section color.
 4. Confirmation dialogs.
 5. The setup portal modal, then the Backup / Restore card. A successful setup closes its card and
    opens the Sys. Info popup over the unchanged menu position, so the new address shows.
-6. System info and help.
+6. System info and help. On the boards, Sys. Info shows `IP: unavailable` and `MAC: unavailable`
+   unless `wlan0` is up with a carrier (associated) and holds a usable IPv4 address.
 7. The menu with its footer. Context toasts never change LED overlay priority.
 
 ### Runtime errors
