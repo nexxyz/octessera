@@ -83,20 +83,16 @@ On the instrument, open:
 
 `System > Connections > Wi-Fi > Setup Portal`
 
-and confirm **Open Portal**. The OLED then shows the hotspot name, its
-password, the address to open, and a 10-minute countdown for the portal.
+and confirm **Open Portal**. The OLED then shows the hotspot name, the address
+to open, and a 10-minute countdown for the portal.
 
-> **Heads-up:** Until setup finishes, anyone who can read the OLED can join the
-> setup hotspot and configure the instrument. Open it while you are there and
-> finish promptly.
+> **Heads-up:** Until setup finishes, anyone nearby who joins the setup hotspot
+> can configure the instrument. Open it while you are there, finish promptly,
+> and do not leave it running in a public place.
 
 On a phone or computer:
 
-1. Join the Wi-Fi network `Octessera Setup <suffix>` shown on the OLED, using
-   the password on the line below it. Every portal gets a fresh one, so last
-   time's password won't work. Type it exactly as shown, capitals and dash
-   included. The tiny screen font has a few look-alikes, so the password
-   simply never uses them; no squinting at 0 versus O.
+1. Join the open Wi-Fi network `Octessera Setup <suffix>` shown on the OLED.
 2. Browse to `http://192.168.42.1`.
 3. Enter your two-letter country code, then type the network name under
    **Manual SSID** or pick it from the scanned list below, and enter its

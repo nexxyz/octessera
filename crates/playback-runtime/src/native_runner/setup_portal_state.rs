@@ -91,7 +91,6 @@ impl NativeRunner {
                 phase: RuntimeSetupPortalPhase::Starting,
                 disposition: Some(RuntimeSetupPortalDisposition::Accepted),
                 portal_suffix: None,
-                portal_passphrase: None,
                 reboot_required: false,
                 error_code: None,
             },

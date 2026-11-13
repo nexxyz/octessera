@@ -348,18 +348,12 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - `Open Portal` stops and resets playback, clears note state, and sends MIDI panic/all-notes-off
   cleanup. Playback never auto-resumes. It emits the typed setup portal effect, and opening the
   portal switches the Wi-Fi setting back on and removes the switch file before the radio comes on.
-- The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>`,
-  `Pass: <passphrase>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`,
-  `failed`, `timed_out`, or desktop `unsupported`. The modal ranks after confirmation dialogs and
-  ahead of system info and help.
-- The hotspot is WPA2-protected. Each portal start draws a fresh passphrase of two 4-character
-  groups joined by a dash (`xxxx-xxxx`, 9 characters, the dash included), with characters from the
-  case-sensitive `USER_DATA_TRANSFER_CODE_ALPHABET` that Backup / Restore codes use. The
-  coordinator hands it to wifi-connect through `PORTAL_PASSPHRASE` and publishes it only in the
-  `portal_ready` status (`portalPassphrase`), which later phases replace.
-- Accepted risk: eight random characters, about 45 bits, are a deliberate user decision. The
-  hotspot is open for at most 10 minutes (`PORTAL_WINDOW_SECONDS = 600` in `octessera-setup`), the
-  alphabet leaves out OLED look-alikes, and the dash splits the password into two easy groups.
+- The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>` and
+  `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`, `failed`, `timed_out`, or desktop
+  `unsupported`. The modal ranks after confirmation dialogs and ahead of system info and help.
+- The hotspot is open. A WPA2 access point on the Orange's `unisoc_wifi` radio never completed a
+  client join (Windows, phones and Linux all failed), so both boards run the same open hotspot for
+  at most 10 minutes (`PORTAL_WINDOW_SECONDS = 600` in `octessera-setup`).
 - The browser's Applying page is provisional and an AP disconnect is expected; the OLED result is
   authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a
   default route, DNS, or ICMP.

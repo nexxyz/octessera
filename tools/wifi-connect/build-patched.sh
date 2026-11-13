@@ -6,8 +6,6 @@ container_image=rust:1.76.0-bookworm@sha256:d36f9d8a9a4c76da74c8d983d0d4cb146dd2
 upstream_origin=https://github.com/balena-os/wifi-connect.git
 upstream_commit=5bd4c1bea548fb5714bedb18bbd12f088d5fa407
 patch_sha256=c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6
-network_manager_commit=4da2e6a57de16b6ae911f74321f929d78af8b1ba
-network_manager_patch_sha256=47a9578de0b2701d45ecbe3992414f3e9e8cc1985be9b089185f8b1a42b4f24d
 
 if [[ "${1:-}" != --in-container ]]; then
   repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -45,13 +43,10 @@ output_root=/work/target/wifi-connect-patched
 source_root=/tmp/wifi-connect-patched
 clone_root=/work/.slim/clonedeps/repos/balena-os__wifi-connect
 patch_path=/work/third_party/wifi-connect-4.11.84/portal-address-readiness.patch
-network_manager_patch_path=/work/third_party/wifi-connect-4.11.84/network-manager-hotspot-wpa2.patch
-network_manager_root=/tmp/network-manager-patched
 
-rm -rf "$output_root" "$source_root" "$network_manager_root"
+rm -rf "$output_root" "$source_root"
 mkdir -p "$output_root" "$source_root"
 echo "$patch_sha256  $patch_path" | sha256sum -c -
-echo "$network_manager_patch_sha256  $network_manager_patch_path" | sha256sum -c -
 git config --global --add safe.directory "$clone_root"
 git -C "$clone_root" archive --format=tar HEAD | tar -xf - -C "$source_root"
 cp -a "$clone_root/.git" "$source_root/"
@@ -79,16 +74,6 @@ apt-get install -y --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 
 cargo metadata --locked --format-version 1 --manifest-path "$source_root/Cargo.toml" > "$output_root/cargo-metadata.json"
-network_manager_checkouts=(/usr/local/cargo/git/checkouts/network-manager-*/"${network_manager_commit:0:7}")
-test "${#network_manager_checkouts[@]}" = 1
-test -d "${network_manager_checkouts[0]}"
-cp -a "${network_manager_checkouts[0]}" "$network_manager_root"
-rm -rf "$network_manager_root/.git"
-git -C "$network_manager_root" apply --check "$network_manager_patch_path"
-git -C "$network_manager_root" apply "$network_manager_patch_path"
-mkdir -p "$source_root/.cargo"
-echo "paths = [\"$network_manager_root\"]" > "$source_root/.cargo/config.toml"
-cd "$source_root"
 cargo test --locked --manifest-path "$source_root/Cargo.toml"
 rustup target add "$target"
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
@@ -104,7 +89,6 @@ binary_source="$source_root/target/$target/release/wifi-connect"
 test -f "$binary_source"
 aarch64-linux-gnu-strip "$binary_source"
 cp "$binary_source" "$output_root/wifi-connect"
-grep -aq pairwise "$output_root/wifi-connect"
 file "$output_root/wifi-connect" | grep -Eq 'ELF 64-bit.*ARM aarch64'
 aarch64-linux-gnu-readelf -h "$output_root/wifi-connect" | grep -Eq '^[[:space:]]*Class:[[:space:]]*ELF64[[:space:]]*$'
 aarch64-linux-gnu-readelf -h "$output_root/wifi-connect" | grep -Eq '^[[:space:]]*Machine:[[:space:]]*AArch64[[:space:]]*$'
@@ -113,18 +97,16 @@ rm -rf "$source_root/target"
 mkdir -p "$output_root/source"
 cp -a "$source_root/." "$output_root/source/"
 rm -rf "$output_root/source/.git"
-cp -a "$network_manager_root" "$output_root/source/network-manager"
-echo 'paths = ["network-manager"]' > "$output_root/source/.cargo/config.toml"
 cp "$output_root/cargo-metadata.json" "$output_root/source/cargo-metadata.json"
 
 binary_sha256="$(sha256sum "$output_root/wifi-connect" | cut -d ' ' -f 1)"
 rustc_version="$(rustc --version)"
 cargo_version="$(cargo --version)"
-python3 - "$output_root/wifi-connect.metadata.json" "$patch_sha256" "$network_manager_patch_sha256" "$binary_sha256" "$rustc_version" "$cargo_version" "$target" "$container_image" "$upstream_commit" <<'PY'
+python3 - "$output_root/wifi-connect.metadata.json" "$patch_sha256" "$binary_sha256" "$rustc_version" "$cargo_version" "$target" "$container_image" "$upstream_commit" <<'PY'
 import json
 import sys
 
-path, patch_sha256, network_manager_patch_sha256, binary_sha256, rustc_version, cargo_version, target, container_image, upstream_commit = sys.argv[1:]
+path, patch_sha256, binary_sha256, rustc_version, cargo_version, target, container_image, upstream_commit = sys.argv[1:]
 with open(path, "w", encoding="utf-8") as handle:
     json.dump({
         "artifact": "wifi-connect",
@@ -132,8 +114,6 @@ with open(path, "w", encoding="utf-8") as handle:
         "upstream_ref": "v4.11.84",
         "upstream_commit": upstream_commit,
         "patch_sha256": patch_sha256,
-        "network_manager_patch_sha256": network_manager_patch_sha256,
-        "portal_security": "WPA2-PSK only: proto rsn, pairwise ccmp, group ccmp, pmf disabled",
         "portal_activation_exit_code": 26,
         "portal_activation_requirement": "ConnectionState::Activated before gateway:port readiness wait",
         "portal_address_readiness_timeout_seconds": 10,

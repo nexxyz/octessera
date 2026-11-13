@@ -16,8 +16,6 @@ LICENSE = ROOT / "third_party/wifi-connect-4.11.84/LICENSE"
 BUILD = ROOT / "tools/wifi-connect/build-patched.sh"
 COMMIT = "5bd4c1bea548fb5714bedb18bbd12f088d5fa407"
 PATCH_SHA256 = "c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6"
-NETWORK_MANAGER_PATCH = ROOT / "third_party/wifi-connect-4.11.84/network-manager-hotspot-wpa2.patch"
-NETWORK_MANAGER_PATCH_SHA256 = "47a9578de0b2701d45ecbe3992414f3e9e8cc1985be9b089185f8b1a42b4f24d"
 
 
 def git(*args):
@@ -60,20 +58,6 @@ for required in (
 ):
     assert required in patch_text, required
 assert "UUID" not in patch_text
-
-network_manager_patch_text = NETWORK_MANAGER_PATCH.read_text(encoding="utf-8")
-assert hashlib.sha256(NETWORK_MANAGER_PATCH.read_bytes()).hexdigest() == NETWORK_MANAGER_PATCH_SHA256
-assert set(re.findall(r"^diff --git a/(.+) b/", network_manager_patch_text, re.MULTILINE)) == {"src/dbus_nm.rs"}
-added = [line[1:].strip() for line in network_manager_patch_text.splitlines() if line.startswith("+") and not line.startswith("+++")]
-assert added == [
-    "// Modified by Octessera: WPA2-only CCMP without PMF, as `nmcli device wifi hotspot` sets it.",
-    'add_val(&mut security, "proto", vec!["rsn".to_string()]);',
-    'add_val(&mut security, "pairwise", vec!["ccmp".to_string()]);',
-    'add_val(&mut security, "group", vec!["ccmp".to_string()]);',
-    'add_val(&mut security, "pmf", 1_i32);',
-]
-assert not any(line.startswith("-") and not line.startswith("---") for line in network_manager_patch_text.splitlines())
-assert 'add_str(&mut security, "psk", verify_ascii_password(password)?);' in network_manager_patch_text
 
 for args in (("apply", "--check", str(PATCH)), ("apply", "--check", "--unidiff-zero", str(PATCH))):
     result = subprocess.run(["git", "-C", str(CLONE), *args], capture_output=True, text=True, check=False)
@@ -121,13 +105,6 @@ for required in (
     "network_manager_commit",
     "src/server.rs",
     PATCH_SHA256,
-    NETWORK_MANAGER_PATCH_SHA256,
-    "network-manager-hotspot-wpa2.patch",
-    'git -C "$network_manager_root" apply --check',
-    'echo "paths = [\\"$network_manager_root\\"]" > "$source_root/.cargo/config.toml"',
-    'grep -aq pairwise "$output_root/wifi-connect"',
-    "network_manager_patch_sha256",
-    "portal_security",
 ):
     assert required in build_text, required
 assert '(\n  cd "$source_root"\n  cargo build --locked --release --target "$target"\n)' in build_text
