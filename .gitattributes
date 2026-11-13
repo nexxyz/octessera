@@ -13,6 +13,7 @@
 /packages/device-contracts/src/platformCapabilities.generated.ts text eol=lf
 /third_party/wifi-connect-4.11.84/LICENSE -text whitespace=-trailing-space
 /third_party/wifi-connect-4.11.84/portal-address-readiness.patch -text whitespace=-trailing-space
+/third_party/wifi-connect-4.11.84/network-list-strength.patch -text whitespace=-trailing-space
 /apps/desktop/src/ui/displayPalette.generated.css text eol=lf
 /userdocs/print/displayPalette.generated.css text eol=lf
 /crates/platform-core/src/display_palette.generated.rs text eol=lf

@@ -49,3 +49,36 @@ for (const relativePath of UI_FILES) {
     assert.notEqual(validate('pässw😀rd', 'pässw😀rD'), undefined);
   });
 }
+
+const loadNetworkList = (relativePath) => {
+  const source = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+  const slice = (from, to) => {
+    const start = source.indexOf(from);
+    const end = source.indexOf(to, start);
+    assert.notEqual(start, -1);
+    assert.notEqual(end, -1);
+    return source.slice(start, end);
+  };
+  const context = {};
+  new vm.Script(`${slice('const OPEN_SECURITY =', 'const COUNTRY_INVALID')} ${slice('const networkSecurity =', 'const effectiveSsid')} ${slice('const signalLabel =', 'const renderNetworks')} globalThis.list = (payload) => normalizeNetworks(payload).map((network) => [network.ssid, networkMeta(network)]);`).runInNewContext(context);
+  return context.list;
+};
+
+for (const relativePath of UI_FILES) {
+  test(`network list keeps the strongest-first wifi-connect order and labels strength: ${relativePath}`, () => {
+    const list = loadNetworkList(relativePath);
+    const payload = [
+      { ssid: 'near', security: 'wpa', strength: 82 },
+      { ssid: 'kitchen', security: 'none', strength: 67 },
+      { ssid: 'hall', security: 'wpa', strength: 34 },
+      { ssid: 'garden', security: 'wpa', strength: 33 },
+      { ssid: '', security: 'wpa', strength: 20 },
+    ];
+    assert.deepEqual(JSON.parse(JSON.stringify(list(payload))), [
+      ['near', 'Locked · Strong signal'],
+      ['kitchen', 'Open · Strong signal'],
+      ['hall', 'Locked · Fair signal'],
+      ['garden', 'Locked · Weak signal'],
+    ]);
+  });
+}

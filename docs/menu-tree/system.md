@@ -354,6 +354,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - The hotspot is open. A WPA2 access point on the Orange's `unisoc_wifi` radio never completed a
   client join (Windows, phones and Linux all failed), so both boards run the same open hotspot for
   at most 10 minutes (`PORTAL_WINDOW_SECONDS = 600` in `octessera-setup`).
+- The portal's network list shows each scanned SSID once, strongest first, labelled `Strong`
+  (strength 67 and up), `Fair` (34 to 66) or `Weak`, from wifi-connect's 0-100 NetworkManager
+  strength.
 - The browser's Applying page is provisional and an AP disconnect is expected; the OLED result is
   authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a
   default route, DNS, or ICMP.

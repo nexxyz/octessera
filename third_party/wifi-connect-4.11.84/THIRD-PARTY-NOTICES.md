@@ -9,6 +9,8 @@
   address and listening port, then start dnsmasq and HTTP only after bounded
   transient `AddrNotAvailable` retry. Non-activated final states use the
   truthful `PortalActivation` error with stable exit code 26.
+- Modification purpose: report NetworkManager's 0-100 access point strength
+  with each `/networks` entry.
 
 This project-owned patch is not endorsed by balena or the wifi-connect
 maintainers. The upstream project and its marks remain their respective

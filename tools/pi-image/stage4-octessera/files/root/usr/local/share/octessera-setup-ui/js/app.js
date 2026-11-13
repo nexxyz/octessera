@@ -96,7 +96,7 @@ const networkSecurity = (network) => String(network.security ?? network.sec ?? n
 const normalizeNetwork = (network) => ({
   ssid: network.ssid ?? network.SSID ?? network.name ?? '',
   security: networkSecurity(network),
-  signal: Number(network.signal ?? network.rssi ?? network.strength ?? Number.NEGATIVE_INFINITY),
+  strength: Number(network.strength),
 });
 
 const normalizeNetworks = (payload) => {
@@ -115,19 +115,11 @@ const requiresWifiPassword = () => {
   return !OPEN_SECURITY.includes(selectedNetwork()?.security ?? '');
 };
 
-const signalLabel = (signal) => {
-  if (!Number.isFinite(signal)) {
-    return 'Weak signal';
-  }
-  if (signal < 0) {
-    return `${signal >= -55 ? 'Strong' : signal >= -70 ? 'Fair' : 'Weak'} signal`;
-  }
-  return `${signal >= 67 ? 'Strong' : signal >= 34 ? 'Fair' : 'Weak'} signal`;
-};
+const signalLabel = (strength) => `${strength >= 67 ? 'Strong' : strength >= 34 ? 'Fair' : 'Weak'} signal`;
 
 const networkMeta = (network) => {
   const security = OPEN_SECURITY.includes(network.security) ? 'Open' : 'Locked';
-  return `${security} · ${signalLabel(network.signal)}`;
+  return `${security} · ${signalLabel(network.strength)}`;
 };
 
 const renderNetworks = () => {

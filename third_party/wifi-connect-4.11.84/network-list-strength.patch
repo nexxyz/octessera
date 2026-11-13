@@ -1,0 +1,20 @@
+diff --git a/src/network.rs b/src/network.rs
+--- a/src/network.rs
++++ b/src/network.rs
+@@ -31,6 +31,8 @@ pub enum NetworkCommand {
+ pub struct Network {
+     ssid: String,
+     security: String,
++    // Modified by Octessera: report NetworkManager's 0-100 access point strength.
++    strength: u32,
+ }
+ 
+ pub enum NetworkCommandResponse {
+@@ -411,6 +413,7 @@ fn get_network_info(access_point: &AccessPoint) -> Network {
+     Network {
+         ssid: access_point.ssid().as_str().unwrap().to_string(),
+         security: get_network_security(access_point).to_string(),
++        strength: access_point.strength,
+     }
+ }
+ 

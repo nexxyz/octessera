@@ -16,6 +16,8 @@ LICENSE = ROOT / "third_party/wifi-connect-4.11.84/LICENSE"
 BUILD = ROOT / "tools/wifi-connect/build-patched.sh"
 COMMIT = "5bd4c1bea548fb5714bedb18bbd12f088d5fa407"
 PATCH_SHA256 = "c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6"
+NETWORK_LIST_PATCH = ROOT / "third_party/wifi-connect-4.11.84/network-list-strength.patch"
+NETWORK_LIST_PATCH_SHA256 = "ebfff3dce001860d0b53519be48fccf836e62dc1f9f7a3ce31151e6735947d69"
 
 
 def git(*args):
@@ -59,6 +61,17 @@ for required in (
     assert required in patch_text, required
 assert "UUID" not in patch_text
 
+network_list_patch_text = NETWORK_LIST_PATCH.read_text(encoding="utf-8")
+assert hashlib.sha256(NETWORK_LIST_PATCH.read_bytes()).hexdigest() == NETWORK_LIST_PATCH_SHA256
+assert set(re.findall(r"^diff --git a/(.+) b/", network_list_patch_text, re.MULTILINE)) == {"src/network.rs"}
+added = [line[1:].strip() for line in network_list_patch_text.splitlines() if line.startswith("+") and not line.startswith("+++")]
+assert added == [
+    "// Modified by Octessera: report NetworkManager's 0-100 access point strength.",
+    "strength: u32,",
+    "strength: access_point.strength,",
+]
+assert not any(line.startswith("-") and not line.startswith("---") for line in network_list_patch_text.splitlines())
+
 for args in (("apply", "--check", str(PATCH)), ("apply", "--check", "--unidiff-zero", str(PATCH))):
     result = subprocess.run(["git", "-C", str(CLONE), *args], capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
@@ -72,13 +85,18 @@ with tempfile.TemporaryDirectory(prefix="octessera-wifi-connect-patch-") as temp
             archive_file.extractall(source_root, filter="data")
         else:
             archive_file.extractall(source_root)
-    result = subprocess.run(["git", "-C", str(source_root), "apply", str(PATCH)], capture_output=True, text=True, check=False)
-    assert result.returncode == 0, result.stderr
+    for patch in (PATCH, NETWORK_LIST_PATCH):
+        result = subprocess.run(["git", "-C", str(source_root), "apply", str(patch)], capture_output=True, text=True, check=False)
+        assert result.returncode == 0, result.stderr
     patched_server = (source_root / "src/server.rs").read_text(encoding="utf-8")
     assert patched_server.count("struct NoStoreMiddleware;") == 1
     assert patched_server.count("chain.link_after(NoStoreMiddleware);") == 1
     assert patched_server.count("CacheDirective::NoStore") == 1
     assert "if response.status == Some(status::Ok)" in patched_server
+    patched_network = (source_root / "src/network.rs").read_text(encoding="utf-8")
+    assert "    security: String,\n    // Modified by Octessera: report NetworkManager's 0-100 access point strength.\n    strength: u32,\n}" in patched_network
+    assert "        strength: access_point.strength,\n    }" in patched_network
+    assert patched_network.count("access_points.retain(|ap| inserted.insert(ap.ssid.clone()));") == 1
 
 upstream_license = (CLONE / "LICENSE").read_bytes()
 assert LICENSE.read_bytes() == upstream_license
@@ -105,6 +123,12 @@ for required in (
     "network_manager_commit",
     "src/server.rs",
     PATCH_SHA256,
+    NETWORK_LIST_PATCH_SHA256,
+    "network-list-strength.patch",
+    'git -C "$source_root" apply --check "$network_list_patch_path"',
+    "grep -qF 'access_points.sort_by_key(|ap| ap.strength);' \"${network_manager_checkouts[0]}/src/wifi.rs\"",
+    "network_list_patch_sha256",
+    "portal_network_list",
 ):
     assert required in build_text, required
 assert '(\n  cd "$source_root"\n  cargo build --locked --release --target "$target"\n)' in build_text

@@ -38,6 +38,18 @@ The patch therefore changes only `src/network.rs`, `src/errors.rs`, and
 `c9538ec7428b37c29fdfbe738cb10913a1036247270616c062228d8066f98dc6`; the
 builder refuses any other patch or upstream commit.
 
+## Why the network-list patch exists
+
+Upstream `/networks` returns only `ssid` and `security`, so the setup page
+could not tell a strong network from a weak one. `network-list-strength.patch`
+adds NetworkManager's 0-100 access point `strength` to each entry. The locked
+`network-manager` crate already returns access points strongest first, and
+wifi-connect keeps the first entry for each SSID, so the list arrives sorted
+with the strongest access point per SSID; the builder checks that the locked
+crate still sorts by strength. The patch changes only `src/network.rs`; its
+SHA256 lock is
+`ebfff3dce001860d0b53519be48fccf836e62dc1f9f7a3ce31151e6735947d69`.
+
 ## Why the portal is open
 
 Octessera starts wifi-connect without a portal passphrase. With WPA2, the
@@ -57,7 +69,8 @@ bash tools/wifi-connect/build-patched.sh
 
 The builder clones or verifies the clone origin and exact commit, copies it to
 `target/wifi-connect-patched/source`, applies
-`portal-address-readiness.patch` with `git apply --check`, runs locked native
+`portal-address-readiness.patch` and `network-list-strength.patch` with
+`git apply --check`, runs locked native
 tests, builds the locked AArch64 release in the pinned `rust:1.76.0-bookworm`
 image (`sha256:d36f9d8a9a4c76da74c8d983d0d4cb146dd2d19bb9bd60b704cdcf70ef868d3a`),
 strips and checks the ELF, and writes:
@@ -72,7 +85,7 @@ Run the source-only checks without building with:
 python tools/wifi-connect/test-patched-source.py
 ```
 
-The build metadata records the upstream ref and commit, patch SHA256, target,
+The build metadata records the upstream ref and commit, both patch SHA256s, target,
 container/toolchain, and final binary SHA256. Image constructors
 consume the locally staged output and retain the binary, metadata, Cargo
 metadata, license, and third-party notice under the image's local documentation

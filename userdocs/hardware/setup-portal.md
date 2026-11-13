@@ -50,6 +50,10 @@ password. The `root` account is locked; use
   is needed. Press Main or Back to close it.
 - If the OLED reports a failure or a timeout, close the message and open the
   portal again.
+- The scanned list puts the strongest networks first. If you open the portal
+  while the instrument is still connected to Wi-Fi, the list may be short,
+  sometimes only the current network; type the name under **Manual SSID**
+  instead.
 - If it says **Wi-Fi chip stopped**, restart the instrument before trying again.
   The Orange Pi's Wi-Fi chip sometimes gives up when the hotspot is started a
   second time without a restart in between, and only a restart wakes it.
