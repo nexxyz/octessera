@@ -30,6 +30,9 @@ else
     --property=ProtectSystem=strict --property=ProtectHome=yes --property=PrivateTmp=no
     --property=RuntimeDirectory=octessera --property=RuntimeDirectoryMode=0755
     "--property=ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot"
+    "--property=SupplementaryGroups=audio i2c spi gpio tty video input"
+    --property=AmbientCapabilities=CAP_SYS_TTY_CONFIG --property=CapabilityBoundingSet=CAP_SYS_TTY_CONFIG
+    --property=TTYPath=/dev/tty1
     --setenv=OCTESSERA_EXPECTED_BOARD_PROFILE=orange-pi-zero-2w)
 fi
 hashes() { sudo -n sha256sum "$live_store/system.json" "$live_store/default.patch.json" | awk '{print $1}' | tr '\n' ' '; }
