@@ -91,18 +91,13 @@ const escapeHtml = (value) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-const networkSecurity = (network) => String(network.security ?? network.sec ?? network.auth ?? network.encryption ?? '').toLowerCase();
-
 const normalizeNetwork = (network) => ({
-  ssid: network.ssid ?? network.SSID ?? network.name ?? '',
-  security: networkSecurity(network),
+  ssid: network.ssid ?? '',
+  security: String(network.security ?? '').toLowerCase(),
   strength: Number(network.strength),
 });
 
-const normalizeNetworks = (payload) => {
-  const list = Array.isArray(payload) ? payload : Array.isArray(payload?.networks) ? payload.networks : [];
-  return list.map(normalizeNetwork).filter((network) => network.ssid);
-};
+const normalizeNetworks = (payload) => (Array.isArray(payload) ? payload : []).map(normalizeNetwork).filter((network) => network.ssid);
 
 const effectiveSsid = () => state.manualSsid || state.selectedSsid;
 

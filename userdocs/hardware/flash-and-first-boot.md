@@ -96,8 +96,7 @@ On a phone or computer:
 2. Browse to `http://192.168.42.1`.
 3. Enter your two-letter country code, then type the network name under
    **Manual SSID** or pick it from the scanned list below (strongest signal
-   first), and enter its
-   password (or tick the open-network box).
+   first), and enter its password (or tick the open-network box).
 4. Set the local device password, at least 8 characters. The page tells you
    which account it is for: `pi` on the Raspberry Pi, `octessera` on the Orange
    Pi. You need it even if you switch SSH off.

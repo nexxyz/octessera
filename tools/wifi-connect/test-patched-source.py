@@ -127,6 +127,7 @@ for required in (
     "network-list-strength.patch",
     'git -C "$source_root" apply --check "$network_list_patch_path"',
     "grep -qF 'access_points.sort_by_key(|ap| ap.strength);' \"${network_manager_checkouts[0]}/src/wifi.rs\"",
+    "grep -qF 'access_points.reverse();' \"${network_manager_checkouts[0]}/src/wifi.rs\"",
     "network_list_patch_sha256",
     "portal_network_list",
 ):

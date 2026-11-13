@@ -16,6 +16,9 @@ Static UI for the one-page branded dark Wi-Fi setup portal.
 
 - `GET /networks` and `POST /connect` are served by the pinned patched
   wifi-connect. It owns the setup AP, DHCP, HTTP portal, and network switch.
+  `/networks` returns a JSON array of `{ssid, security, strength}` with
+  strength 0-100, strongest first and one entry per SSID; the page keeps that
+  order.
 - `POST http://192.168.42.1:8080/country` applies the two-letter country code to
   the running radio.
 - `POST http://192.168.42.1:8080/stage` validates the country, local device

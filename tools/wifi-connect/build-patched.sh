@@ -83,6 +83,7 @@ cargo metadata --locked --format-version 1 --manifest-path "$source_root/Cargo.t
 network_manager_checkouts=(/usr/local/cargo/git/checkouts/network-manager-*/"${network_manager_commit:0:7}")
 test "${#network_manager_checkouts[@]}" = 1
 grep -qF 'access_points.sort_by_key(|ap| ap.strength);' "${network_manager_checkouts[0]}/src/wifi.rs"
+grep -qF 'access_points.reverse();' "${network_manager_checkouts[0]}/src/wifi.rs"
 cargo test --locked --manifest-path "$source_root/Cargo.toml"
 rustup target add "$target"
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc

@@ -60,18 +60,19 @@ const loadNetworkList = (relativePath) => {
     return source.slice(start, end);
   };
   const context = {};
-  new vm.Script(`${slice('const OPEN_SECURITY =', 'const COUNTRY_INVALID')} ${slice('const networkSecurity =', 'const effectiveSsid')} ${slice('const signalLabel =', 'const renderNetworks')} globalThis.list = (payload) => normalizeNetworks(payload).map((network) => [network.ssid, networkMeta(network)]);`).runInNewContext(context);
+  new vm.Script(`${slice('const OPEN_SECURITY =', 'const COUNTRY_INVALID')} ${slice('const normalizeNetwork =', 'const effectiveSsid')} ${slice('const signalLabel =', 'const renderNetworks')} globalThis.list = (payload) => normalizeNetworks(payload).map((network) => [network.ssid, networkMeta(network)]);`).runInNewContext(context);
   return context.list;
 };
 
 for (const relativePath of UI_FILES) {
-  test(`network list keeps the strongest-first wifi-connect order and labels strength: ${relativePath}`, () => {
+  test(`network list keeps the wifi-connect order without sorting again and labels strength: ${relativePath}`, () => {
     const list = loadNetworkList(relativePath);
     const payload = [
       { ssid: 'near', security: 'wpa', strength: 82 },
       { ssid: 'kitchen', security: 'none', strength: 67 },
       { ssid: 'hall', security: 'wpa', strength: 34 },
-      { ssid: 'garden', security: 'wpa', strength: 33 },
+      { ssid: 'garden', security: 'wpa', strength: 20 },
+      { ssid: 'shed', security: 'wpa', strength: 33 },
       { ssid: '', security: 'wpa', strength: 20 },
     ];
     assert.deepEqual(JSON.parse(JSON.stringify(list(payload))), [
@@ -79,6 +80,7 @@ for (const relativePath of UI_FILES) {
       ['kitchen', 'Open · Strong signal'],
       ['hall', 'Locked · Fair signal'],
       ['garden', 'Locked · Weak signal'],
+      ['shed', 'Locked · Weak signal'],
     ]);
   });
 }
