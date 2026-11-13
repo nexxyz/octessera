@@ -165,14 +165,19 @@ fn assert_typed_grid(presentation: &NativeHdmiPresentation) {
     assert_eq!(presentation.grid.active.len(), 8 * 8);
 }
 
-fn compose_grid_frame_with_stride(
+#[derive(Clone, Copy)]
+struct GridLayout {
+    tile: usize,
+    x0: usize,
+    y0: usize,
+}
+
+fn grid_layout(
     width: usize,
     height: usize,
     stride: usize,
     bytes_per_pixel: usize,
-    show_gridlines: bool,
-    color_at: impl Fn(usize) -> [u8; 3],
-) -> Option<Vec<u8>> {
+) -> Option<GridLayout> {
     let minimum_stride = width.checked_mul(bytes_per_pixel)?;
     if stride < minimum_stride {
         return None;
@@ -183,8 +188,22 @@ fn compose_grid_frame_with_stride(
         return None;
     }
     let square = tile * 8;
-    let x0 = (width - square) / 2;
-    let y0 = (height - square) / 2;
+    Some(GridLayout {
+        tile,
+        x0: (width - square) / 2,
+        y0: (height - square) / 2,
+    })
+}
+
+fn compose_grid_frame_with_stride(
+    width: usize,
+    height: usize,
+    stride: usize,
+    bytes_per_pixel: usize,
+    show_gridlines: bool,
+    color_at: impl Fn(usize) -> [u8; 3],
+) -> Option<Vec<u8>> {
+    let GridLayout { tile, x0, y0 } = grid_layout(width, height, stride, bytes_per_pixel)?;
     let mut frame = vec![0_u8; stride.checked_mul(height)?];
     for gy in 0..8 {
         for gx in 0..8 {
@@ -207,6 +226,50 @@ fn compose_grid_frame_with_stride(
         }
     }
     Some(frame)
+}
+
+pub(crate) struct TileRows {
+    pub(crate) first_offset: usize,
+    pub(crate) rows: usize,
+    pub(crate) row: Vec<u8>,
+}
+
+/// The tiles whose color differs from `previous_rgb`, ready to write over a frame that already
+/// shows `previous_rgb` with the same gridlines.
+pub(crate) fn changed_tile_rows(
+    previous_rgb: &[u8],
+    presentation: &NativeHdmiPresentation,
+    width: usize,
+    height: usize,
+    stride: usize,
+    bytes_per_pixel: usize,
+) -> Option<Vec<TileRows>> {
+    assert_typed_grid(presentation);
+    let GridLayout { tile, x0, y0 } = grid_layout(width, height, stride, bytes_per_pixel)?;
+    let skip = usize::from(presentation.show_gridlines);
+    let rgb = &presentation.grid.rgb;
+    let changed = (0..64).filter(|index| {
+        let color = index * 3..index * 3 + 3;
+        previous_rgb.get(color.clone()) != rgb.get(color)
+    });
+    Some(
+        changed
+            .map(|index| {
+                let (gx, gy) = (index % 8, index / 8);
+                let color = [rgb[index * 3], rgb[index * 3 + 1], rgb[index * 3 + 2]];
+                let mut row = vec![0_u8; (tile - skip) * bytes_per_pixel];
+                for pixel in row.chunks_exact_mut(bytes_per_pixel) {
+                    write_pixel(pixel, color, bytes_per_pixel);
+                }
+                TileRows {
+                    first_offset: (y0 + gy * tile + skip) * stride
+                        + (x0 + gx * tile + skip) * bytes_per_pixel,
+                    rows: tile - skip,
+                    row,
+                }
+            })
+            .collect(),
+    )
 }
 
 #[cfg(any(test, target_os = "linux"))]
@@ -337,6 +400,39 @@ mod tests {
 
         assert!(compose_frame_with_stride(&hdmi, 16, 8, 63, 4).is_none());
         assert!(compose_frame_with_stride(&hdmi, 16, 8, 64, 3).is_none());
+    }
+
+    #[test]
+    fn changed_tiles_turn_the_shown_frame_into_the_full_new_frame() {
+        for gridlines in [false, true] {
+            let before = typed_hdmi([255, 0, 0].repeat(64), NativeHdmiMode::LiveGrid, gridlines);
+            let mut after =
+                typed_hdmi(before.grid.rgb.clone(), NativeHdmiMode::LiveGrid, gridlines);
+            after.grid.rgb[9 * 3..9 * 3 + 3].copy_from_slice(&[0, 255, 0]);
+            after.grid.rgb[63 * 3..63 * 3 + 3].copy_from_slice(&[0, 0, 255]);
+            let (width, height, stride) = (20, 18, 96);
+            let mut frame = compose_frame_with_stride(&before, width, height, stride, 4).unwrap();
+
+            let tiles =
+                changed_tile_rows(&before.grid.rgb, &after, width, height, stride, 4).unwrap();
+
+            assert_eq!(tiles.len(), 2);
+            for tile in tiles {
+                for row in 0..tile.rows {
+                    let offset = tile.first_offset + row * stride;
+                    frame[offset..offset + tile.row.len()].copy_from_slice(&tile.row);
+                }
+            }
+            assert_eq!(
+                frame,
+                compose_frame_with_stride(&after, width, height, stride, 4).unwrap()
+            );
+            assert!(
+                changed_tile_rows(&after.grid.rgb, &after, width, height, stride, 4)
+                    .unwrap()
+                    .is_empty()
+            );
+        }
     }
 
     #[test]

@@ -107,6 +107,12 @@ impl FramebufferHandle for FakeFramebuffer {
         control.writes.push(frame.to_vec());
         Ok(())
     }
+
+    fn write_rows(&mut self, _: usize, _: usize, _: usize, _: &[u8]) -> io::Result<()> {
+        let mut control = self.control.lock().unwrap();
+        control.event("write_rows");
+        FakeControl::fail(&mut control.fail_write)
+    }
 }
 
 impl Drop for FakeFramebuffer {
@@ -419,4 +425,52 @@ fn signature_is_not_applied_before_a_successful_write() {
     );
     assert!(!outcome.applied);
     assert!(control.lock().unwrap().writes.is_empty());
+}
+
+#[test]
+fn an_existing_lease_rewrites_only_the_changed_tiles() {
+    let (mut device, control) = fake_device();
+    let mut shown = presentation([255, 0, 0], NativeHdmiMode::LiveGrid);
+    let now = Instant::now();
+    assert!(device.render(&shown, now).applied);
+    shown.grid.rgb[9 * 3..9 * 3 + 3].copy_from_slice(&[0, 255, 0]);
+    shown.grid.rgb[63 * 3..63 * 3 + 3].copy_from_slice(&[0, 0, 255]);
+    control.lock().unwrap().events.clear();
+
+    assert!(device.render(&shown, now).applied);
+
+    assert_eq!(events(&control), vec!["write_rows", "write_rows"]);
+    assert_eq!(control.lock().unwrap().writes.len(), 1);
+}
+
+#[test]
+fn unchanged_tiles_write_nothing_and_a_gridline_toggle_redraws_the_frame() {
+    let (mut device, control) = fake_device();
+    let mut shown = presentation([255, 0, 0], NativeHdmiMode::LiveGrid);
+    let now = Instant::now();
+    assert!(device.render(&shown, now).applied);
+    shown.source_behavior_id = "sequencer".into();
+    control.lock().unwrap().events.clear();
+    assert!(device.render(&shown, now).applied);
+    assert!(events(&control).is_empty());
+
+    shown.show_gridlines = true;
+    assert!(device.render(&shown, now).applied);
+    assert_eq!(events(&control), vec!["write"]);
+}
+
+#[test]
+fn a_failed_tile_write_redraws_the_whole_frame_on_the_next_lease() {
+    let (mut device, control) = fake_device();
+    let mut shown = presentation([255, 0, 0], NativeHdmiMode::LiveGrid);
+    let now = Instant::now();
+    assert!(device.render(&shown, now).applied);
+    shown.grid.rgb[0..3].copy_from_slice(&[0, 255, 0]);
+    control.lock().unwrap().fail_write = 1;
+    let retry_at = device.render(&shown, now).retry_at.unwrap();
+
+    assert!(device.render(&shown, retry_at).applied);
+    let control = control.lock().unwrap();
+    assert_eq!(control.writes.len(), 2);
+    assert_eq!(&control.writes[1][0..4], &[0, 255, 0, 0]);
 }

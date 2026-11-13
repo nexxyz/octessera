@@ -4,8 +4,8 @@ use std::convert::TryFrom;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Seek, SeekFrom, Write};
 use std::os::fd::AsRawFd;
-use std::os::unix::fs::OpenOptionsExt;
-use std::time::Instant;
+use std::os::unix::fs::{FileExt, OpenOptionsExt};
+use std::time::{Duration, Instant};
 
 const FBIOGET_VSCREENINFO: libc::c_ulong = 0x4600;
 const FBIOGET_FSCREENINFO: libc::c_ulong = 0x4602;
@@ -16,6 +16,9 @@ const KD_GRAPHICS: libc::c_ulong = 1;
 const FB_BLANK_UNBLANK: libc::c_ulong = 0;
 const VT_ACTIVATE: libc::c_ulong = 0x5606;
 const VT_WAITACTIVE: libc::c_ulong = 0x5607;
+// The render worker shares CPU0 with the runtime; a short sleep after each tile lets a waiting
+// runtime run instead of queueing behind a whole frame of framebuffer writes.
+const TILE_PACING: Duration = Duration::from_micros(50);
 
 #[repr(C)]
 #[derive(Default)]
@@ -151,6 +154,21 @@ impl FramebufferHandle for LinuxFramebuffer {
     fn write_frame(&mut self, frame: &[u8]) -> io::Result<()> {
         self.file.seek(SeekFrom::Start(0))?;
         self.file.write_all(frame)
+    }
+
+    fn write_rows(
+        &mut self,
+        first_offset: usize,
+        stride: usize,
+        rows: usize,
+        row: &[u8],
+    ) -> io::Result<()> {
+        for index in 0..rows {
+            let offset = first_offset + index * stride;
+            self.file.write_all_at(row, offset as u64)?;
+        }
+        std::thread::sleep(TILE_PACING);
+        Ok(())
     }
 }
 

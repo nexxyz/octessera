@@ -63,6 +63,11 @@ impl hdmi::device::FramebufferHandle for CacheHdmiFramebuffer {
         self.control.lock().unwrap().events.push("write");
         Ok(())
     }
+
+    fn write_rows(&mut self, _: usize, _: usize, _: usize, _: &[u8]) -> io::Result<()> {
+        self.control.lock().unwrap().events.push("write_rows");
+        Ok(())
+    }
 }
 
 impl hdmi::device::TtyHandle for CacheHdmiTty {

@@ -1,4 +1,4 @@
-use super::{compose_frame_with_stride, HdmiError};
+use super::{changed_tile_rows, compose_frame_with_stride, HdmiError};
 use playback_runtime::{NativeHdmiMode, NativeHdmiPresentation};
 use std::fmt;
 use std::mem;
@@ -20,6 +20,13 @@ pub(crate) trait FramebufferHandle: Send {
     fn geometry(&self) -> FramebufferGeometry;
     fn unblank(&mut self) -> Result<(), std::io::Error>;
     fn write_frame(&mut self, frame: &[u8]) -> Result<(), std::io::Error>;
+    fn write_rows(
+        &mut self,
+        first_offset: usize,
+        stride: usize,
+        rows: usize,
+        row: &[u8],
+    ) -> Result<(), std::io::Error>;
 }
 
 pub(crate) trait TtyHandle: Send {
@@ -65,6 +72,21 @@ struct GraphicsLease {
     tty: Box<dyn TtyHandle>,
     geometry: FramebufferGeometry,
     needs_restore: bool,
+    drawn: Option<DrawnGrid>,
+}
+
+struct DrawnGrid {
+    rgb: Vec<u8>,
+    show_gridlines: bool,
+}
+
+impl DrawnGrid {
+    fn of(presentation: &NativeHdmiPresentation) -> Self {
+        Self {
+            rgb: presentation.grid.rgb.clone(),
+            show_gridlines: presentation.show_gridlines,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -111,28 +133,7 @@ impl HdmiDevice {
         now: Instant,
     ) -> HdmiRenderOutcome {
         super::assert_typed_grid(presentation);
-        self.render_with_frame(
-            presentation.mode == NativeHdmiMode::Terminal,
-            now,
-            &|geometry| {
-                compose_frame_with_stride(
-                    presentation,
-                    geometry.width,
-                    geometry.height,
-                    geometry.stride,
-                    geometry.bytes_per_pixel,
-                )
-            },
-        )
-    }
-
-    fn render_with_frame<F: Fn(FramebufferGeometry) -> Option<Vec<u8>>>(
-        &mut self,
-        terminal: bool,
-        now: Instant,
-        compose: &F,
-    ) -> HdmiRenderOutcome {
-        if terminal {
+        if presentation.mode == NativeHdmiMode::Terminal {
             return self.restore_terminal(now);
         }
         if let Some(retry_at) = self.retry_at {
@@ -144,15 +145,17 @@ impl HdmiDevice {
         let state = mem::replace(&mut self.state, DeviceState::Terminal);
         match state {
             DeviceState::Graphics(lease) if !lease.needs_restore => {
-                self.render_on_existing_lease(lease, compose, now)
+                self.render_on_existing_lease(lease, presentation, now)
             }
             DeviceState::Graphics(lease) => {
                 if !self.restore_lease(lease, now) {
                     return HdmiRenderOutcome::waiting(self.retry_deadline(now));
                 }
-                self.acquire_and_render(compose, now)
+                self.acquire_and_render(presentation, now)
             }
-            DeviceState::Terminal | DeviceState::Waiting => self.acquire_and_render(compose, now),
+            DeviceState::Terminal | DeviceState::Waiting => {
+                self.acquire_and_render(presentation, now)
+            }
         }
     }
 
@@ -187,9 +190,9 @@ impl HdmiDevice {
         }
     }
 
-    fn acquire_and_render<F: Fn(FramebufferGeometry) -> Option<Vec<u8>>>(
+    fn acquire_and_render(
         &mut self,
-        compose: &F,
+        presentation: &NativeHdmiPresentation,
         now: Instant,
     ) -> HdmiRenderOutcome {
         let framebuffer = match self.io.open_framebuffer(&self.framebuffer_path) {
@@ -197,7 +200,7 @@ impl HdmiDevice {
             Err(error) => return self.wait_for_retry(now, error),
         };
         let geometry = framebuffer.geometry();
-        let Some(frame) = compose(geometry) else {
+        let Some(frame) = compose_frame(presentation, geometry) else {
             drop(framebuffer);
             return self.wait_for_retry(now, "HDMI frame composition produced no frame");
         };
@@ -213,6 +216,7 @@ impl HdmiDevice {
             tty,
             geometry,
             needs_restore: false,
+            drawn: None,
         };
         if let Err(error) = lease.tty.activate(LEASE_VT) {
             drop(lease.framebuffer);
@@ -239,39 +243,44 @@ impl HdmiDevice {
                 io_error("write", &self.framebuffer_path, error),
             );
         }
+        lease.drawn = Some(DrawnGrid::of(presentation));
         self.state = DeviceState::Graphics(lease);
         self.retry_at = None;
         self.mark_active();
         HdmiRenderOutcome::applied()
     }
 
-    fn render_on_existing_lease<F: Fn(FramebufferGeometry) -> Option<Vec<u8>>>(
+    fn render_on_existing_lease(
         &mut self,
         mut lease: GraphicsLease,
-        compose: &F,
+        presentation: &NativeHdmiPresentation,
         now: Instant,
     ) -> HdmiRenderOutcome {
-        let Some(frame) = compose(lease.geometry) else {
-            return self.finish_failed_graphics(
-                now,
-                lease,
-                io_error(
-                    "compose",
-                    &self.framebuffer_path,
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "HDMI frame composition produced no frame",
-                    ),
-                ),
-            );
+        let written = match lease.drawn.take() {
+            Some(drawn) if drawn.show_gridlines == presentation.show_gridlines => {
+                write_changed_tiles(
+                    lease.framebuffer.as_mut(),
+                    lease.geometry,
+                    &drawn.rgb,
+                    presentation,
+                )
+            }
+            _ => match compose_frame(presentation, lease.geometry) {
+                Some(frame) => lease.framebuffer.write_frame(&frame),
+                None => Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "HDMI frame composition produced no frame",
+                )),
+            },
         };
-        if let Err(error) = lease.framebuffer.write_frame(&frame) {
+        if let Err(error) = written {
             return self.finish_failed_graphics(
                 now,
                 lease,
                 io_error("write", &self.framebuffer_path, error),
             );
         }
+        lease.drawn = Some(DrawnGrid::of(presentation));
         self.state = DeviceState::Graphics(lease);
         self.retry_at = None;
         HdmiRenderOutcome::applied()
@@ -360,6 +369,45 @@ impl Drop for HdmiDevice {
         drop(framebuffer);
         drop(tty);
     }
+}
+
+fn compose_frame(
+    presentation: &NativeHdmiPresentation,
+    geometry: FramebufferGeometry,
+) -> Option<Vec<u8>> {
+    compose_frame_with_stride(
+        presentation,
+        geometry.width,
+        geometry.height,
+        geometry.stride,
+        geometry.bytes_per_pixel,
+    )
+}
+
+fn write_changed_tiles(
+    framebuffer: &mut dyn FramebufferHandle,
+    geometry: FramebufferGeometry,
+    previous_rgb: &[u8],
+    presentation: &NativeHdmiPresentation,
+) -> Result<(), std::io::Error> {
+    let tiles = changed_tile_rows(
+        previous_rgb,
+        presentation,
+        geometry.width,
+        geometry.height,
+        geometry.stride,
+        geometry.bytes_per_pixel,
+    )
+    .ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "HDMI tile layout unavailable",
+        )
+    })?;
+    for tile in tiles {
+        framebuffer.write_rows(tile.first_offset, geometry.stride, tile.rows, &tile.row)?;
+    }
+    Ok(())
 }
 
 fn io_error(operation: &'static str, path: &str, source: std::io::Error) -> HdmiError {
