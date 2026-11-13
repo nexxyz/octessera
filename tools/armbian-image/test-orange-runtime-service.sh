@@ -89,6 +89,7 @@ for required_line in \
   'Group=octessera-runtime' \
   'SupplementaryGroups=audio i2c spi gpio tty video input' \
   'LimitRTPRIO=70' \
+  "ExecStopPost=-+/usr/bin/python3 -c 'import fcntl;t=open(\"/dev/tty1\",\"w\");fcntl.ioctl(t,0x4B3A,0);fcntl.ioctl(t,0x5606,2)'" \
   'NoNewPrivileges=yes' \
   'ProtectSystem=strict' \
   'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox' \
@@ -100,7 +101,7 @@ grep -qFx 'AmbientCapabilities=CAP_SYS_TTY_CONFIG' "$service"
 grep -qFx 'CapabilityBoundingSet=CAP_SYS_TTY_CONFIG' "$service"
 [[ "$(grep -E '^(AmbientCapabilities|CapabilityBoundingSet)=' "$service")" == $'AmbientCapabilities=CAP_SYS_TTY_CONFIG\nCapabilityBoundingSet=CAP_SYS_TTY_CONFIG' ]]
 [[ "$(grep -c "^SupplementaryGroups=" "$service")" == 1 ]]
-octessera_reject_file_match 'Orange runtime service contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$service"
+octessera_reject_file_match 'Orange runtime service contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$service"
 octessera_reject_file_match 'Orange runtime service couples failure or shutdown to NetworkManager or SSH.' -Eiq 'NetworkManager|network-manager|(^|[^[:alnum:]])ssh(d)?([^[:alnum:]]|$)' "$service"
 expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="tty1", GROUP="octessera-runtime", MODE="0620"'
 [[ "$(cat -- "$udev_rule")" == "$expected_udev_rule" ]] || { echo 'Orange runtime udev rule content is not exact.' >&2; exit 1; }

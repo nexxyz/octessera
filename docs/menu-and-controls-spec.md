@@ -193,7 +193,8 @@ Grid keys, left to right = grid columns 1..8. Grid rows count from the bottom (w
   OTG/gadget behavior.
 - Both boards capture only in the graphical HDMI modes `live-grid`, `plain-grid`,
   `active-behavior`, and `cycle-behaviors`. `Terminal` disables capture and switches HDMI to the
-  login console on tty2; the graphical modes take back tty1. While Bluetooth is On,
+  login console on tty2; the graphical modes take back tty1. Whenever the runtime service
+  stops (stop, restart, crash), the display falls back to that login on tty2. While Bluetooth is On,
   Bluetooth keyboards are accepted under the same gate.
 - Hotplug and HDMI-mode changes apply live. The first supported keyboard is selected and grabbed
   exclusively, a second keyboard is ignored while one is selected, and a disconnect or gate change

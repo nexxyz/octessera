@@ -29,6 +29,7 @@ ReadWritePaths=/home/pi /run -/var/lib/octessera -/opt/octessera
 PrivateTmp=yes
 ProtectControlGroups=yes
 ExecStart=/usr/local/bin/octessera-pi
+ExecStopPost=-/usr/bin/chvt 2
 Restart=always
 RestartSec=5
 StandardOutput=journal
