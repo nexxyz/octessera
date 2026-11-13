@@ -229,11 +229,15 @@ rm -f "$ROOTFS_DIR/etc/systemd/system/ssh.service" "$ROOTFS_DIR/etc/systemd/syst
 
 rm -f "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/hciuart.service"
 rm -f "$ROOTFS_DIR/etc/systemd/system/getty.target.wants"/serial-getty@*.service
-for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty@serial0.service hciuart.service; do
+# The runtime owns tty1 for HDMI graphics; the console login lives on tty2.
+for unit in serial-getty@ttyAMA0.service serial-getty@ttyS0.service serial-getty@serial0.service hciuart.service getty@tty1.service autovt@tty1.service; do
     rm -f "$ROOTFS_DIR/etc/systemd/system/$unit"
     ln -s /dev/null "$ROOTFS_DIR/etc/systemd/system/$unit"
     test "$(readlink "$ROOTFS_DIR/etc/systemd/system/$unit")" = /dev/null
 done
+install -d "$ROOTFS_DIR/etc/systemd/system/getty.target.wants"
+ln -sf /lib/systemd/system/getty@.service \
+    "$ROOTFS_DIR/etc/systemd/system/getty.target.wants/getty@tty2.service"
 # BlueZ runs, but the controller stays unpowered until System > Bluetooth is On.
 rm -f "$ROOTFS_DIR/etc/systemd/system/bluetooth.service"
 install -d "$ROOTFS_DIR/etc/systemd/system/bluetooth.target.wants"

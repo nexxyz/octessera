@@ -36,8 +36,11 @@ steps.
 
 A fresh card ships with a throwaway first password: `raspberry` for `pi`, or
 `octessera` for `octessera`. It has already expired, so it never gets you in
-over SSH, and a console login makes you pick a new one on the spot. The portal
-replaces it with your local device password. The `root` account is locked; use
+over SSH, and a console login makes you pick a new one on the spot. For a
+console login, plug in an HDMI screen and a USB keyboard and set
+`System > Display > HDMI Video > Mode` to `Terminal`; the login prompt shows up
+on the screen. The portal replaces the first password with your local device
+password. The `root` account is locked; use
 `sudo -i` from the device account instead.
 
 ## What you should see

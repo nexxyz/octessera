@@ -192,6 +192,7 @@ runs:
           "ENABLE_EXTENSIONS=$effective_extensions"
           "COMPRESS_OUTPUTIMAGE=$OCTESSERA_ARMBIAN_COMPRESSION"
           "SHARE_LOG=$OCTESSERA_ARMBIAN_SHARE_LOG"
+          CONSOLE_AUTOLOGIN=no
           EXPERT=yes
         )
         ./compile.sh "${build_args[@]}" 2>&1 \

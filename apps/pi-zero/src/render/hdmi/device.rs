@@ -5,6 +5,8 @@ use std::mem;
 use std::time::{Duration, Instant};
 
 pub(crate) const HDMI_RETRY_INTERVAL: Duration = Duration::from_secs(1);
+const LEASE_VT: u32 = 1;
+const CONSOLE_VT: u32 = 2;
 
 #[derive(Clone, Copy)]
 pub(crate) struct FramebufferGeometry {
@@ -23,6 +25,7 @@ pub(crate) trait FramebufferHandle: Send {
 pub(crate) trait TtyHandle: Send {
     fn set_graphics(&mut self) -> Result<(), std::io::Error>;
     fn set_text(&mut self) -> Result<(), std::io::Error>;
+    fn activate(&mut self, vt: u32) -> Result<(), std::io::Error>;
 }
 
 pub(crate) trait HdmiIo: Send {
@@ -78,6 +81,7 @@ pub(crate) struct HdmiDevice {
     state: DeviceState,
     retry_at: Option<Instant>,
     log_state: LogState,
+    console_active: bool,
 }
 
 impl HdmiDevice {
@@ -93,6 +97,7 @@ impl HdmiDevice {
             state: DeviceState::Terminal,
             retry_at: None,
             log_state: LogState::Quiet,
+            console_active: false,
         }
     }
 
@@ -152,17 +157,33 @@ impl HdmiDevice {
     }
 
     fn restore_terminal(&mut self, now: Instant) -> HdmiRenderOutcome {
-        self.retry_at = None;
         let state = mem::replace(&mut self.state, DeviceState::Terminal);
-        match state {
-            DeviceState::Terminal | DeviceState::Waiting => HdmiRenderOutcome::applied(),
-            DeviceState::Graphics(lease) => {
-                if self.restore_lease(lease, now) {
-                    HdmiRenderOutcome::applied()
-                } else {
-                    HdmiRenderOutcome::waiting(self.retry_deadline(now))
-                }
+        if let DeviceState::Graphics(lease) = state {
+            self.retry_at = None;
+            if !self.restore_lease(lease, now) {
+                return HdmiRenderOutcome::waiting(self.retry_deadline(now));
             }
+        }
+        if self.console_active {
+            self.retry_at = None;
+            return HdmiRenderOutcome::applied();
+        }
+        if let Some(retry_at) = self.retry_at {
+            if now < retry_at {
+                return HdmiRenderOutcome::waiting(retry_at);
+            }
+        }
+        let activated = self.io.open_tty(&self.tty_path).and_then(|mut tty| {
+            tty.activate(CONSOLE_VT)
+                .map_err(|error| io_error("activate console VT from", &self.tty_path, error))
+        });
+        match activated {
+            Ok(()) => {
+                self.console_active = true;
+                self.retry_at = None;
+                HdmiRenderOutcome::applied()
+            }
+            Err(error) => self.wait_for_retry(now, error),
         }
     }
 
@@ -193,6 +214,12 @@ impl HdmiDevice {
             geometry,
             needs_restore: false,
         };
+        if let Err(error) = lease.tty.activate(LEASE_VT) {
+            drop(lease.framebuffer);
+            drop(lease.tty);
+            return self.wait_for_retry(now, io_error("activate", &self.tty_path, error));
+        }
+        self.console_active = false;
         if let Err(error) = lease.tty.set_graphics() {
             drop(lease.framebuffer);
             drop(lease.tty);

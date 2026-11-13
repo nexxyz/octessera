@@ -114,8 +114,11 @@ sheet](../controls-cheat-sheet.md#usb-host-keyboard).
   (see above). On the Orange Pi, use the one-dot port (USB1).
 - **When it works:** only while `System > Display > HDMI Video > Mode` is one of
   the graphical modes: `live-grid`, `plain-grid`, `active-behavior` or
-  `cycle-behaviors`. `Terminal` releases the keyboard; switching back to a
-  graphical mode picks it up again.
+  `cycle-behaviors`. `Terminal` releases the keyboard and puts the Linux
+  login prompt on the HDMI screen, so the keyboard types into the console
+  instead (log in as `pi` on the Raspberry or `octessera` on the Orange).
+  Switching back to a graphical mode picks the keyboard up again and brings
+  the grid back.
 - **One at a time:** the first supported keyboard is captured exclusively. A
   second one waits until the first is unplugged. Plugging and unplugging works
   while the instrument is running.

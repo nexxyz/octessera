@@ -11,6 +11,7 @@ struct FakeControl {
     tty_available: bool,
     fail_graphics: usize,
     fail_text: usize,
+    fail_activate: usize,
     fail_unblank: usize,
     fail_write: usize,
 }
@@ -126,6 +127,12 @@ impl TtyHandle for FakeTty {
         control.event("kd_text");
         FakeControl::fail(&mut control.fail_text)
     }
+
+    fn activate(&mut self, vt: u32) -> io::Result<()> {
+        let mut control = self.control.lock().unwrap();
+        control.event(format!("activate_{vt}"));
+        FakeControl::fail(&mut control.fail_activate)
+    }
 }
 
 impl Drop for FakeTty {
@@ -180,7 +187,13 @@ fn failed_write_retries_and_none_mode_restores_text() {
             .render(&presentation([0, 0, 0], NativeHdmiMode::Terminal), next)
             .applied
     );
-    assert!(events(&control).ends_with(&["close_fb".into(), "close_tty".into()]));
+    assert!(events(&control).ends_with(&[
+        "close_fb".into(),
+        "close_tty".into(),
+        "open_tty".into(),
+        "activate_2".into(),
+        "close_tty".into()
+    ]));
 }
 
 fn events(control: &SharedControl) -> Vec<String> {
@@ -188,14 +201,63 @@ fn events(control: &SharedControl) -> Vec<String> {
 }
 
 #[test]
-fn terminal_startup_does_not_touch_devices() {
+fn terminal_startup_shows_the_console_vt_once() {
     let (mut device, control) = fake_device();
-    let outcome = device.render(
-        &presentation([1, 2, 3], NativeHdmiMode::Terminal),
-        Instant::now(),
+    let terminal = presentation([1, 2, 3], NativeHdmiMode::Terminal);
+    let now = Instant::now();
+    assert!(device.render(&terminal, now).applied);
+    assert_eq!(
+        events(&control),
+        vec!["open_tty", "activate_2", "close_tty"]
     );
-    assert!(outcome.applied);
+    control.lock().unwrap().events.clear();
+    assert!(device.render(&terminal, now).applied);
     assert!(events(&control).is_empty());
+}
+
+#[test]
+fn failed_console_activation_retries_after_the_interval() {
+    let (mut device, control) = fake_device();
+    control.lock().unwrap().fail_activate = 1;
+    let terminal = presentation([1, 2, 3], NativeHdmiMode::Terminal);
+    let start = Instant::now();
+    let first = device.render(&terminal, start);
+    assert!(!first.applied);
+    let retry_at = first.retry_at.unwrap();
+    control.lock().unwrap().events.clear();
+    assert!(
+        !device
+            .render(&terminal, retry_at - Duration::from_millis(1))
+            .applied
+    );
+    assert!(events(&control).is_empty());
+    assert!(device.render(&terminal, retry_at).applied);
+    assert!(!device.has_pending_retry());
+    assert_eq!(
+        events(&control),
+        vec!["open_tty", "activate_2", "close_tty"]
+    );
+}
+
+#[test]
+fn leaving_terminal_takes_back_the_lease_vt() {
+    let (mut device, control) = fake_device();
+    let now = Instant::now();
+    assert!(
+        device
+            .render(&presentation([0, 0, 0], NativeHdmiMode::Terminal), now)
+            .applied
+    );
+    control.lock().unwrap().events.clear();
+    assert!(
+        device
+            .render(&presentation([255, 0, 0], NativeHdmiMode::LiveGrid), now)
+            .applied
+    );
+    let events = events(&control);
+    assert!(events
+        .windows(3)
+        .any(|window| window == ["open_tty", "activate_1", "kd_graphics"]));
 }
 
 #[test]
@@ -214,6 +276,7 @@ fn graphics_to_terminal_restores_without_black_frame() {
             "fb_var",
             "fb_fix",
             "open_tty",
+            "activate_1",
             "kd_graphics",
             "fb_unblank",
             "write"
@@ -227,7 +290,15 @@ fn graphics_to_terminal_restores_without_black_frame() {
     );
     assert_eq!(
         events(&control),
-        vec!["kd_text", "fb_unblank", "close_fb", "close_tty"]
+        vec![
+            "kd_text",
+            "fb_unblank",
+            "close_fb",
+            "close_tty",
+            "open_tty",
+            "activate_2",
+            "close_tty"
+        ]
     );
     assert_eq!(control.lock().unwrap().writes.len(), 1);
 }
@@ -278,6 +349,7 @@ fn post_graphics_failure_restores_text_before_waiting() {
             "fb_var",
             "fb_fix",
             "open_tty",
+            "activate_1",
             "kd_graphics",
             "fb_unblank",
             "kd_text",

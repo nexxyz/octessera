@@ -400,6 +400,13 @@ rm -f \
 rm -f /etc/ssh/ssh_host_*
 systemctl disable --now serial-getty@ttyS0.service >/dev/null 2>&1 || true
 systemctl mask serial-getty@ttyS0.service >/dev/null 2>&1 || true
+for getty_override in /etc/systemd/system/getty@.service.d/override.conf /etc/systemd/system/serial-getty@.service.d/override.conf; do
+  [[ ! -e "$getty_override" && ! -L "$getty_override" ]] || { echo "Armbian console autologin remains: $getty_override" >&2; exit 1; }
+done
+# The runtime owns tty1 for HDMI graphics; the console login lives on tty2.
+systemctl disable getty@tty1.service >/dev/null
+systemctl mask getty@tty1.service autovt@tty1.service >/dev/null
+systemctl enable getty@tty2.service >/dev/null
 octessera_configure_background_maintenance
 octessera_hold_boot_chain_packages
 systemctl enable octessera-setup-request.path >/dev/null

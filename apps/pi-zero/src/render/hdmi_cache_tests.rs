@@ -81,6 +81,11 @@ impl hdmi::device::TtyHandle for CacheHdmiTty {
             Ok(())
         }
     }
+
+    fn activate(&mut self, _vt: u32) -> io::Result<()> {
+        self.control.lock().unwrap().events.push("activate");
+        Ok(())
+    }
 }
 
 fn hdmi_presentation(color: [u8; 3], mode: NativeHdmiMode) -> NativeHdmiPresentation {

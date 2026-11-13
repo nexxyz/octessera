@@ -14,6 +14,8 @@ const KDSETMODE: libc::c_ulong = 0x4B3A;
 const KD_TEXT: libc::c_ulong = 0;
 const KD_GRAPHICS: libc::c_ulong = 1;
 const FB_BLANK_UNBLANK: libc::c_ulong = 0;
+const VT_ACTIVATE: libc::c_ulong = 0x5606;
+const VT_WAITACTIVE: libc::c_ulong = 0x5607;
 
 #[repr(C)]
 #[derive(Default)]
@@ -163,6 +165,11 @@ impl TtyHandle for LinuxTty {
 
     fn set_text(&mut self) -> io::Result<()> {
         ioctl(&self.file, KDSETMODE, KD_TEXT)
+    }
+
+    fn activate(&mut self, vt: u32) -> io::Result<()> {
+        ioctl(&self.file, VT_ACTIVATE, libc::c_ulong::from(vt))?;
+        ioctl(&self.file, VT_WAITACTIVE, libc::c_ulong::from(vt))
     }
 }
 

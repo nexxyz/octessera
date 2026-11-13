@@ -102,7 +102,7 @@ grep -qFx 'CapabilityBoundingSet=CAP_SYS_TTY_CONFIG' "$service"
 [[ "$(grep -c "^SupplementaryGroups=" "$service")" == 1 ]]
 octessera_reject_file_match 'Orange runtime service contains a prohibited tty, device, graphics, or forced-mode directive.' -Eiq '^(StandardInput=tty|TTY(VHangup|VTDisallocate|Force|Fail)=|ExecStopPost=|DevicePolicy=|DeviceAllow=)|(^|[^[:alnum:]_])(Xorg|Wayland|Weston|sway|chvt|xrandr|wlr-randr|modetest|video=)([^[:alnum:]_]|$)' "$service"
 octessera_reject_file_match 'Orange runtime service couples failure or shutdown to NetworkManager or SSH.' -Eiq 'NetworkManager|network-manager|(^|[^[:alnum:]])ssh(d)?([^[:alnum:]]|$)' "$service"
-expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"'
+expected_udev_rule=$'KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"\nKERNEL=="tty1", GROUP="octessera-runtime", MODE="0620"'
 [[ "$(cat -- "$udev_rule")" == "$expected_udev_rule" ]] || { echo 'Orange runtime udev rule content is not exact.' >&2; exit 1; }
 if command -v udevadm >/dev/null 2>&1 && getent group octessera-runtime >/dev/null 2>&1 && udevadm help 2>&1 | grep -qE '(^|[[:space:]])verify([[:space:]]|$)'; then
   udevadm verify "$udev_rule"

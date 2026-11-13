@@ -1,3 +1,4 @@
 KERNEL=="i2c-2", GROUP="octessera-runtime", MODE="0660"
 KERNEL=="spidev1.0", GROUP="octessera-runtime", MODE="0660"
 KERNEL=="gpiochip1", GROUP="octessera-runtime", MODE="0660"
+KERNEL=="tty1", GROUP="octessera-runtime", MODE="0620"
