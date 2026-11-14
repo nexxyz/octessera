@@ -65,7 +65,9 @@ def parse_networks(output):
     return sorted(strongest.values(), key=lambda network: (-network["strength"], network["ssid"]))
 
 
-def hostapd_config(ssid):
+def hostapd_config(ssid, passphrase, management_frame_protection):
+    # The Raspberry's firmware always adds PSK-SHA256 to the RSN element; clients refuse that without required PMF.
+    key_management = ("wpa_key_mgmt=WPA-PSK-SHA256", "ieee80211w=2") if management_frame_protection else ("wpa_key_mgmt=WPA-PSK",)
     return "\n".join((
         f"interface={INTERFACE}",
         "driver=nl80211",
@@ -75,6 +77,10 @@ def hostapd_config(ssid):
         "ieee80211n=1",
         "wmm_enabled=1",
         "auth_algs=1",
+        "wpa=2",
+        *key_management,
+        "rsn_pairwise=CCMP",
+        f"wpa_passphrase={passphrase}",
         "",
     ))
 
@@ -97,8 +103,8 @@ class Hotspot:
     def _start(self, args):
         self.processes.append(self.process_factory(args, stdin=subprocess.DEVNULL, start_new_session=True))
 
-    def start_access_point(self, ssid):
-        setup_config._write_atomic(HOSTAPD_CONFIG, hostapd_config(ssid), 0o600)
+    def start_access_point(self, ssid, passphrase, management_frame_protection):
+        setup_config._write_atomic(HOSTAPD_CONFIG, hostapd_config(ssid, passphrase, management_frame_protection), 0o600)
         self._start(["hostapd", HOSTAPD_CONFIG])
 
     def access_point_up(self):

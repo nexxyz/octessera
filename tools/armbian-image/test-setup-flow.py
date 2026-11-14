@@ -128,6 +128,23 @@ for index, path in enumerate(COORDINATORS):
     assert SCAN not in names[names.index(launches[0]):]
     assert written[-1][0] == "/run/octessera-setup-hostapd.conf" and written[-1][2] == 0o600
     assert "ssid=Octessera Setup abcd\n" in written[-1][1]
+    passphrase = instance.portal_passphrase
+    assert len(passphrase) == 9 and passphrase[4] == "-" and all(character in coordinator.PASSPHRASE_ALPHABET for character in passphrase[:4] + passphrase[5:])
+    assert f"wpa=2\nwpa_key_mgmt=WPA-PSK\nrsn_pairwise=CCMP\nwpa_passphrase={passphrase}\n" in written[-1][1]
+    pmf_board = Board()
+    pmf_instance, _ = coordinator_for(coordinator, dict(profile, hotspot_management_frame_protection=True), pmf_board)
+    pmf_instance.launch()
+    assert "wpa_key_mgmt=WPA-PSK-SHA256\nieee80211w=2\n" in written[-1][1]
+    assert not any(passphrase in " ".join(event[1]) for event in board.events if event[0] in ("command", "launch"))
+    assert coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase=passphrase)["portalPassphrase"] == passphrase
+    for status in (lambda: coordinator._status("portal_ready", portal_suffix="abcd"), lambda: coordinator._status("finalizing", portal_passphrase=passphrase), lambda: coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase="O0l1-abcd")):
+        try:
+            status()
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid portal passphrase status was accepted")
+    assert len({coordinator.Coordinator(profile).portal_passphrase for _ in range(32)}) > 1
     assert instance.networks == [{"ssid": "hermetes4", "security": "wpa", "strength": 80}]
     assert instance.hotspot.running()
 
