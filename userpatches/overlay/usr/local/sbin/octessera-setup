@@ -192,7 +192,6 @@ class Coordinator:
         self.sleeper = sleeper
         self.hotspot = setup_hotspot.Hotspot(self.bounded_command, lambda *args, **kwargs: self.process_factory(*args, **kwargs), lambda: self.clock(), lambda seconds: self.sleeper(seconds))
         self.networks = []
-        self.joining_profile = None
         self.server = None
         self.server_thread = None
         self.staged = None
@@ -205,7 +204,7 @@ class Coordinator:
 
     def check_network(self, value):
         network = next((network for network in self.networks if network["ssid"] == value["ssid"]), None)
-        if network is None or network["security"] not in ("none", "wpa") or (network["security"] == "none") != (value["passphrase"] == ""):
+        if network is None or (network["security"] == "none") != (value["passphrase"] == ""):
             raise ValueError("invalid network")
 
     def stage(self, value):
@@ -335,15 +334,14 @@ class Coordinator:
         self.wait_for_device(lambda state: state >= DISCONNECTED, apply_deadline)
         run = lambda args: self.bounded_command(args, apply_deadline)
         previous = setup_wifi_join.profiles_for_ssid(run, self.staged["ssid"])
-        self.joining_profile = str(uuid.uuid4())
-        if not setup_wifi_join.join(run, self.joining_profile, self.staged["ssid"], self.staged["passphrase"], max(1, int(apply_deadline - self.clock()))):
+        if not setup_wifi_join.join(run, str(uuid.uuid4()), self.staged["ssid"], self.staged["passphrase"], max(1, int(apply_deadline - self.clock()))):
             raise SetupFailure("operation_failed")
         while not self.global_ipv4_ready():
             self.check_radio()
             if self.stop_requested or self.clock() >= apply_deadline:
                 raise SetupFailure("operation_failed")
             self.sleeper(0.1)
-        self.joining_profile = None
+        setup_wifi_join.keep()
         for old in previous:
             run(["nmcli", "connection", "delete", "uuid", old])
         self.publish("finalizing")
@@ -366,12 +364,6 @@ class Coordinator:
             if not self.hotspot.running():
                 raise SetupFailure("operation_failed")
             self.sleeper(0.1)
-
-    def forget_joining_profile(self, deadline=None):
-        if self.joining_profile is None:
-            return
-        setup_wifi_join.forget(lambda args: self.bounded_command(args, deadline), self.joining_profile)
-        self.joining_profile = None
 
     def cleanup_request_marker(self):
         descriptor = -1
@@ -400,7 +392,7 @@ class Coordinator:
                 pass
         self.hotspot.stop(deadline)
         try:
-            self.forget_joining_profile(deadline)
+            setup_wifi_join.forget(lambda args: self.bounded_command(args, deadline))
         except (OSError, subprocess.SubprocessError):
             pass
         self.cleanup_request_marker()
@@ -444,7 +436,7 @@ class Coordinator:
                 if not self.terminal_published:
                     self.publish(outcome[0], error_code=outcome[1], terminal=True)
             finally:
-                self.cleanup(outer_deadline)
+                self.cleanup(max(outer_deadline, self.clock() + 5.0))
             signal.signal(signal.SIGINT, previous[0])
             signal.signal(signal.SIGTERM, previous[1])
         return 0

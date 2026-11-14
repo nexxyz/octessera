@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import importlib.util
+import shutil
 import subprocess
 import sys
+import tempfile
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from types import SimpleNamespace
@@ -107,8 +109,10 @@ def expect_failure(action, code):
 
 for index, path in enumerate(COORDINATORS):
     coordinator = load(path, f"flow_coordinator_{index}")
+    marker = Path(tempfile.mkdtemp()) / "joining"
+    coordinator.setup_wifi_join.JOINING_PATH = str(marker)
     written = []
-    coordinator.setup_config._write_atomic = lambda target, content, mode, *_args: written.append((target, content, mode))
+    coordinator.setup_config._write_atomic = lambda target, content, mode, *_args: written.append((target, content, mode)) or (marker.write_text(content) if target == str(marker) else None)
     profile = {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "root"}
     orange = dict(profile, radio_crash_markers=("WCN Assert", "WCN: marlin power off"), access_point_failure="radio_restart_required")
 
@@ -215,10 +219,10 @@ for index, path in enumerate(COORDINATORS):
     else:
         raise AssertionError("portal timeout was not enforced")
 
-    instance.networks = [{"ssid": "hermetes4", "security": "wpa", "strength": 80}, {"ssid": "Cafe", "security": "none", "strength": 50}, {"ssid": "Office", "security": "enterprise", "strength": 40}]
+    instance.networks = [{"ssid": "hermetes4", "security": "wpa", "strength": 80}, {"ssid": "Cafe", "security": "none", "strength": 50}]
     instance.check_network({"ssid": "hermetes4", "passphrase": "eight888"})
     instance.check_network({"ssid": "Cafe", "passphrase": ""})
-    for value in ({"ssid": "hermetes4", "passphrase": ""}, {"ssid": "Cafe", "passphrase": "eight888"}, {"ssid": "Office", "passphrase": "eight888"}, {"ssid": "Hidden", "passphrase": "eight888"}):
+    for value in ({"ssid": "hermetes4", "passphrase": ""}, {"ssid": "Cafe", "passphrase": "eight888"}, {"ssid": "Hidden", "passphrase": "eight888"}):
         try:
             instance.check_network(value)
         except ValueError:
@@ -253,7 +257,7 @@ for index, path in enumerate(COORDINATORS):
     assert ("nmcli", "connection", "delete", "uuid", "portal") not in commands and ("nmcli", "connection", "delete", "uuid", "other") not in commands
     assert not any("eight888" in " ".join(command) for command in commands)
     assert phases == ["finalizing"] and finalized == [(staged, profile, 61.0)]
-    assert apply_instance.joining_profile is None and all(process.terminated for process in apply_started + apply_instance.hotspot.processes)
+    assert not marker.exists() and all(process.terminated for process in apply_started + apply_instance.hotspot.processes)
     coordinator.setup_config.finalize = original_finalize
 
     for failed_step in (("nmcli", "--wait"), ("nmcli", "connection", "load")):
@@ -266,20 +270,12 @@ for index, path in enumerate(COORDINATORS):
         rejected.publish = lambda phase, **_kwargs: None
         rejected.cleanup_request_marker = lambda: None
         expect_failure(lambda: rejected.wait_for_apply(670.0), "operation_failed")
-        joined = rejected.joining_profile
-        assert joined is not None
-        removed = []
-        original_remove = coordinator.setup_wifi_join.os.remove
-        coordinator.setup_wifi_join.os.remove = lambda target: removed.append(target)
-        try:
-            rejected.cleanup(670.0)
-        finally:
-            coordinator.setup_wifi_join.os.remove = original_remove
+        joined = marker.read_text().strip()
+        rejected.cleanup(670.0)
         commands = [event[1] for event in board.events if event[0] == "command"]
         assert ("nmcli", "connection", "delete", "uuid", joined) in commands
         assert ("nmcli", "connection", "delete", "uuid", "home") not in commands
-        assert removed[-1] == f"/etc/NetworkManager/system-connections/octessera-setup-{joined}.nmconnection"
-        assert rejected.joining_profile is None
+        assert not marker.exists()
 
     late = Board()
     late_instance, _ = coordinator_for(coordinator, profile, late, clock=lambda: 61.0)
@@ -309,6 +305,7 @@ for index, path in enumerate(COORDINATORS):
     board = Board()
     cleanup_instance, _ = coordinator_for(coordinator, profile, board)
     cleanup_instance.cleanup_request_marker = lambda: None
+    marker.unlink(missing_ok=True)
     removed = []
     original_remove = coordinator.setup_hotspot.os.remove
     coordinator.setup_hotspot.os.remove = lambda target: removed.append(target)
@@ -417,5 +414,6 @@ for index, path in enumerate(COORDINATORS):
     unchecked = []
     raspberry = coordinator.Coordinator(profile, command=lambda args, timeout=None: unchecked.append(tuple(args)) or SimpleNamespace(returncode=0, stdout=crash_log))
     assert not raspberry.radio_crashed() and unchecked == []
+    shutil.rmtree(marker.parent, ignore_errors=True)
 
 print("Setup launch order, hotspot failure codes, readiness, portal timeout, network check, apply, profile cleanup, and radio crash tests passed")

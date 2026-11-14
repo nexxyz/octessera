@@ -46,10 +46,8 @@ def _terse_fields(line):
 def _security(value):
     if value in ("", "--"):
         return "none"
-    if "802.1X" in value:
-        return "enterprise"
-    if "WEP" in value:
-        return "wep"
+    if "802.1X" in value or "WEP" in value:
+        return None
     return "wpa"
 
 
@@ -57,7 +55,7 @@ def parse_networks(output):
     strongest = {}
     for line in (output or "").splitlines():
         fields = _terse_fields(line)
-        if len(fields) != 3 or not fields[0] or not fields[2].isdigit():
+        if len(fields) != 3 or not fields[0] or not fields[2].isdigit() or _security(fields[1]) is None:
             continue
         network = {"ssid": fields[0], "security": _security(fields[1]), "strength": min(100, int(fields[2]))}
         if fields[0] not in strongest or network["strength"] > strongest[fields[0]]["strength"]:

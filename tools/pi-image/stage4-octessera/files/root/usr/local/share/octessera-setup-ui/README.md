@@ -19,13 +19,13 @@ the page uses relative paths only. Any other host name gets a redirect to
 `http://192.168.42.1/`.
 
 - `GET /networks` returns a JSON array of `{ssid, security, strength}` with
-  security `none`, `wpa`, `wep` or `enterprise` and strength 0-100, strongest
-  first and one entry per SSID, from the one scan before the hotspot started;
-  the page keeps that order.
+  security `none` or `wpa` and strength 0-100, strongest first and one entry
+  per SSID, from the one scan before the hotspot started; the page keeps that
+  order. WEP and enterprise networks are left out.
 - `POST /country` applies the two-letter country code to the running radio.
 - `POST /stage` validates the country, Wi-Fi network and password, local device
   password, SSH, and hostname fields and passes them to the root coordinator in
-  memory. The network must be an open or WPA network from `/networks`.
+  memory. The network must be one from `/networks`.
 
 ## `/stage` request body
 

@@ -4,7 +4,7 @@ const API = {
   stage: '/stage',
 };
 
-const OPEN_SECURITY = ['open', 'none', 'nopass', 'unsecured'];
+const OPEN_SECURITY = ['none'];
 const COUNTRY_INVALID = 'Enter a two-letter Wi-Fi country code before scanning.';
 const COUNTRY_APPLY_FAILED = 'Could not apply the Wi-Fi country. Check the code and try again.';
 const SCAN_FAILED = 'Could not load nearby Wi-Fi networks. Try again.';

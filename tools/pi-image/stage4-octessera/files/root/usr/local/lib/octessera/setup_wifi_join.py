@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import os
+import re
 
 import setup_config
 
 
 CONNECTIONS_DIR = "/etc/NetworkManager/system-connections"
+JOINING_PATH = "/run/octessera-setup-joining"
 
 
 def _keyfile_string(value):
@@ -63,15 +65,35 @@ def profiles_for_ssid(run, ssid):
     return matches
 
 
+def _remove(path):
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
+
 def join(run, uuid, ssid, passphrase, wait_seconds):
+    setup_config._write_atomic(JOINING_PATH, f"{uuid}\n", 0o600)
     path = profile_path(uuid)
     setup_config._write_atomic(path, keyfile(uuid, ssid, passphrase), 0o600)
     return run(["nmcli", "connection", "load", path]).returncode == 0 and run(["nmcli", "--wait", str(wait_seconds), "connection", "up", "uuid", uuid]).returncode == 0
 
 
-def forget(run, uuid):
-    run(["nmcli", "connection", "delete", "uuid", uuid])
+def keep():
+    _remove(JOINING_PATH)
+
+
+def forget(run):
     try:
-        os.remove(profile_path(uuid))
-    except FileNotFoundError:
-        pass
+        with open(JOINING_PATH, encoding="ascii") as handle:
+            uuid = handle.read().strip()
+    except (OSError, UnicodeError):
+        return
+    try:
+        if re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", uuid):
+            try:
+                run(["nmcli", "connection", "delete", "uuid", uuid])
+            finally:
+                _remove(profile_path(uuid))
+    finally:
+        _remove(JOINING_PATH)

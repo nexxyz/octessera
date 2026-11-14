@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import importlib.util
+import os
+import subprocess
 import sys
+import tempfile
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from types import SimpleNamespace
@@ -42,11 +45,9 @@ for directory in LIBRARIES:
     assert hotspot.parse_networks(SCAN) == [
         {"ssid": "hermetes4", "security": "wpa", "strength": 92},
         {"ssid": "Mesh", "security": "wpa", "strength": 61},
-        {"ssid": "Office", "security": "enterprise", "strength": 61},
         {"ssid": "Kitchen:Guest", "security": "wpa", "strength": 55},
         {"ssid": "Cafe", "security": "none", "strength": 40},
         {"ssid": "back\\slash", "security": "none", "strength": 40},
-        {"ssid": "Old", "security": "wep", "strength": 20},
     ]
     assert hotspot.parse_networks("") == [] and hotspot.parse_networks(None) == []
 
@@ -78,15 +79,46 @@ for directory in LIBRARIES:
     assert join.profiles_for_ssid(run, "Kitchen") == []
     assert join.profiles_for_ssid(lambda _args: SimpleNamespace(returncode=1, stdout=""), "Kitchen:Guest") == []
 
+    marker = Path(tempfile.mkdtemp()) / "joining"
+    join.JOINING_PATH = str(marker)
     written = []
-    join.setup_config._write_atomic = lambda path, content, mode: written.append((path, mode))
+    join.setup_config._write_atomic = lambda path, content, mode: written.append((path, mode)) or (marker.write_text(content) if path == str(marker) else None)
     calls = []
     ok = lambda args: calls.append(tuple(args)) or SimpleNamespace(returncode=0, stdout="")
     assert join.join(ok, "1234", "Home", "eight888", 42)
-    assert written == [(join.profile_path("1234"), 0o600)]
+    assert written == [(str(marker), 0o600), (join.profile_path("1234"), 0o600)]
     assert calls == [("nmcli", "connection", "load", join.profile_path("1234")), ("nmcli", "--wait", "42", "connection", "up", "uuid", "1234")]
     calls.clear()
     assert not join.join(lambda args: calls.append(tuple(args)) or SimpleNamespace(returncode=1, stdout=""), "1234", "Home", "eight888", 42)
     assert calls == [("nmcli", "connection", "load", join.profile_path("1234"))]
+    join.keep()
+    assert not marker.exists()
+    calls.clear()
+    join.forget(ok)
+    assert calls == []
+    uuid = "0f1e2d3c-4b5a-6978-8a9b-acbdcedf0011"
+    removed = []
+    original_remove = os.remove
+    join.os.remove = lambda path: removed.append(path) or (marker.unlink() if path == str(marker) else None)
+
+    def refuse(args):
+        raise subprocess.TimeoutExpired(args, 0)
+
+    marker.write_text(uuid + "\n")
+    try:
+        join.forget(refuse)
+    except subprocess.TimeoutExpired:
+        pass
+    assert removed == [join.profile_path(uuid), str(marker)] and not marker.exists()
+    removed.clear()
+    marker.write_text(uuid + "\n")
+    join.forget(ok)
+    assert calls == [("nmcli", "connection", "delete", "uuid", uuid)] and removed == [join.profile_path(uuid), str(marker)]
+    removed.clear()
+    marker.write_text("../../etc/passwd\n")
+    join.forget(ok)
+    assert removed == [str(marker)] and len(calls) == 1
+    join.os.remove = original_remove
+    marker.parent.rmdir()
 
 print("Setup hotspot scan parsing, hostapd config, Wi-Fi profile keyfile, same-SSID lookup, and join tests passed")
