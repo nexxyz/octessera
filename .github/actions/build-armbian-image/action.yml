@@ -104,21 +104,9 @@ runs:
         bash "$custom_root/tools/armbian-image/stage-canonical-welcome.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay"
         python3 "$custom_root/tools/armbian-image/stage-device-config.py" "$GITHUB_WORKSPACE/build/userpatches/overlay"
         bash "$custom_root/tools/armbian-image/stage-musical-assets.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay/usr/share/octessera"
-        bash "$custom_root/tools/wifi-connect/build-patched.sh"
         sudo python3 "$custom_root/tools/legal/stage_notices.py" \
           --repository-root "$custom_root" \
           --destination-root "$GITHUB_WORKSPACE/build/userpatches/overlay"
-        wifi_connect_artifact_root="$custom_root/target/wifi-connect-patched"
-        wifi_connect_legal_root="$custom_root/third_party/wifi-connect-4.11.84"
-        wifi_connect_stage="$GITHUB_WORKSPACE/build/userpatches/overlay/usr/local/share/octessera/wifi-connect"
-        install -d -m 0755 "$wifi_connect_stage"
-        for wifi_connect_file in wifi-connect.metadata.json cargo-metadata.json; do
-          install -m 0644 "$wifi_connect_artifact_root/$wifi_connect_file" "$wifi_connect_stage/$wifi_connect_file"
-        done
-        install -m 0755 "$wifi_connect_artifact_root/wifi-connect" "$wifi_connect_stage/wifi-connect"
-        for wifi_connect_file in LICENSE THIRD-PARTY-NOTICES.md; do
-          install -m 0644 "$wifi_connect_legal_root/$wifi_connect_file" "$wifi_connect_stage/$wifi_connect_file"
-        done
         mkdir -p build/userpatches/overlay/usr/local/lib/octessera build/userpatches/overlay/usr/local/sbin
         install -m 0755 custom/tools/storage/octessera-sd-card build/userpatches/overlay/usr/local/sbin/octessera-sd-card
         install -m 0644 custom/tools/storage/octessera-sd-card-lib.sh build/userpatches/overlay/usr/local/lib/octessera/octessera-sd-card-lib.sh

@@ -65,12 +65,6 @@ if [[ "$mmc_spi_value" == m ]]; then
   chmod 0644 "$sd_modules_load_file"
 fi
 
-wifi_connect_artifact_dir="$overlay_dir/usr/local/share/octessera/wifi-connect"
-install -D -m 0755 "$wifi_connect_artifact_dir/wifi-connect" /usr/local/bin/wifi-connect
-for wifi_connect_doc in LICENSE THIRD-PARTY-NOTICES.md wifi-connect.metadata.json cargo-metadata.json; do
-  install -D -m 0644 "$wifi_connect_artifact_dir/$wifi_connect_doc" "/usr/local/share/doc/octessera/wifi-connect/$wifi_connect_doc"
-done
-
 install_overlay_file() {
   local src="$1"
   local dest="$2"
@@ -86,7 +80,7 @@ while IFS= read -r -d '' legal_file; do
   install -D -m 0644 -o root -g root "$legal_file" "/usr/share/doc/octessera/$legal_relative"
 done < <(find -P "$overlay_dir/usr/share/doc/octessera" -type f -print0)
 
-if grep -RInE --exclude=wifi-connect '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|g_mass_storage)' "$overlay_dir"; then
+if grep -RInE '(/home/pi|config\.txt|dtoverlay|dwc2|BCM[0-9]|g_mass_storage)' "$overlay_dir"; then
   echo "Refusing Raspberry Pi-specific overlay content." >&2
   exit 1
 fi

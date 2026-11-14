@@ -10,22 +10,6 @@ if [ ! -f "$STAGE_FILES/root/usr/local/sbin/octessera-update" ]; then
     exit 2
 fi
 
-wifi_connect_artifact_root="$LEGAL_REPOSITORY_ROOT/target/wifi-connect-patched"
-wifi_connect_legal_root="$LEGAL_REPOSITORY_ROOT/third_party/wifi-connect-4.11.84"
-install -D -o root -g root -m 0755 \
-    "$wifi_connect_artifact_root/wifi-connect" \
-    "$ROOTFS_DIR/usr/local/bin/wifi-connect"
-for wifi_connect_doc in LICENSE THIRD-PARTY-NOTICES.md; do
-    install -D -o root -g root -m 0644 \
-        "$wifi_connect_legal_root/$wifi_connect_doc" \
-        "$ROOTFS_DIR/usr/local/share/doc/octessera/wifi-connect/$wifi_connect_doc"
-done
-for wifi_connect_doc in wifi-connect.metadata.json cargo-metadata.json; do
-    install -D -o root -g root -m 0644 \
-        "$wifi_connect_artifact_root/$wifi_connect_doc" \
-        "$ROOTFS_DIR/usr/local/share/doc/octessera/wifi-connect/$wifi_connect_doc"
-done
-
 rm -f "$ROOTFS_DIR/etc/sudoers.d/010_pi-nopasswd"
 
 rm -f \

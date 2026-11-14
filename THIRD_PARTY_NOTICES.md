@@ -27,11 +27,6 @@ upstream source references are retained in the project records. Applicable
 source duties require review before any future public image release; this notice
 does not claim legal compliance.
 
-The image setup payload also uses [balenaOS wifi-connect](https://github.com/balena-os/wifi-connect).
-The image-side notice is installed as
-`/usr/local/share/doc/octessera/wifi-connect.NOTICE`; it is not replaced by this
-repository notice.
-
 ## Fonts
 
 The OLED renderer compiles two pixel fonts into the firmware as glyph tables:
