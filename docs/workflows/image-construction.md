@@ -105,12 +105,14 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-ui.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-request.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-http.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-flow.py
+PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-hotspot.py
 PYTHONDONTWRITEBYTECODE=1 python3 tools/armbian-image/test-setup-state.py
 ```
 
-The setup layer installs one coordinator, one config module, one request-path
-unit, one root setup service, one static UI, and the pinned patched
-wifi-connect 4.11.84. The request marker is
+The setup layer installs one coordinator, its config, HTTP, hotspot and Wi-Fi
+join modules, one request-path unit, one root setup service, and one static UI;
+hostapd and dnsmasq come from Debian with their own services disabled. The
+request marker is
 `/run/octessera-setup-request/inbox/start`; status is
 `/run/octessera-setup-status/current.json`.
 

@@ -12,21 +12,25 @@ steps.
    confirm **Open Portal**. If you had switched Wi-Fi off, this turns it back
    on.
 2. On a phone or computer, join `Octessera Setup <suffix>`, exactly as shown on
-   the OLED. It's an open network, so there's no password to type.
-3. Browse to `http://192.168.42.1`.
+   the OLED, with the password on the line below it. Every portal gets a fresh
+   one, so last time's password won't work. Type it exactly as shown, capitals
+   and dash included. The tiny screen font has a few look-alikes, so the
+   password simply never uses them; no squinting at 0 versus O.
+3. The setup page often opens by itself. If it doesn't, browse to
+   `http://192.168.42.1`.
 4. Fill in the country and Wi-Fi network, set the local device password, choose
    the SSH mode, and optionally enter a hostname.
 5. Press **Apply setup**.
 
-> **Heads-up:** The setup hotspot is open to anyone in range until setup
-> finishes. Open it while you are there, finish promptly, and do not leave it
-> running in a public place. The portal closes by itself after 10 minutes.
+> **Heads-up:** Anyone who can read the OLED can join the setup hotspot and
+> configure the instrument until setup finishes. Open it while you are there
+> and finish promptly. The portal closes by itself after 10 minutes.
 
 ## What the portal sets
 
 | Setting | Details |
 |---|---|
-| Wi-Fi | Country code, then a typed (Manual SSID) or scanned network name and its password (or open network). |
+| Wi-Fi | Country code, then a network from the scanned list and its password (open networks need none). |
 | Local device password | For `pi` on the Raspberry Pi or `octessera` on the Orange Pi. At least 8 characters. Required even with SSH off. |
 | SSH | **Key** (recommended; password login stays off), **password** (uses the local device password), or **none** (SSH stays off). Root login is never allowed. |
 | Hostname | Optional: letters, digits and hyphens, up to 63 characters, not starting or ending with a hyphen. Leave blank to keep the current name; a fresh card uses `octessera-rpi` or `octessera-opi`. |
@@ -50,8 +54,12 @@ password. The `root` account is locked; use
   is needed. Press Main or Back to close it.
 - If the OLED reports a failure or a timeout, close the message and open the
   portal again.
-- The scanned list puts the strongest networks first. If yours is missing,
-  type its name under **Manual SSID**.
+- The scanned list puts the strongest networks first. It is scanned once when
+  the portal starts, so if your network is missing, close the portal on the
+  instrument and open it again. Hidden networks can't be picked.
+- A wrong Wi-Fi password ends with a failure on the OLED, and the instrument
+  goes back to the network it was on before. Open the portal again and retype
+  it.
 - If it says **Wi-Fi chip stopped**, restart the instrument before trying again.
   The Orange Pi's Wi-Fi chip sometimes gives up when the hotspot is started a
   second time without a restart in between, and only a restart wakes it.

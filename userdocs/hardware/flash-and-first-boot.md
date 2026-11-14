@@ -83,20 +83,25 @@ On the instrument, open:
 
 `System > Connections > Wi-Fi > Setup Portal`
 
-and confirm **Open Portal**. The OLED then shows the hotspot name, the address
-to open, and a 10-minute countdown for the portal.
+and confirm **Open Portal**. The OLED then shows the hotspot name, its
+password, the address to open, and a 10-minute countdown for the portal.
 
-> **Heads-up:** Until setup finishes, anyone nearby who joins the setup hotspot
-> can configure the instrument. Open it while you are there, finish promptly,
-> and do not leave it running in a public place.
+> **Heads-up:** Until setup finishes, anyone who can read the OLED can join the
+> setup hotspot and configure the instrument. Open it while you are there and
+> finish promptly.
 
 On a phone or computer:
 
-1. Join the open Wi-Fi network `Octessera Setup <suffix>` shown on the OLED.
-2. Browse to `http://192.168.42.1`.
-3. Enter your two-letter country code, then type the network name under
-   **Manual SSID** or pick it from the scanned list below (strongest signal
-   first), and enter its password (or tick the open-network box).
+1. Join the Wi-Fi network `Octessera Setup <suffix>` shown on the OLED, using
+   the password on the line below it. Every portal gets a fresh one, so last
+   time's password won't work. Type it exactly as shown, capitals and dash
+   included. The tiny screen font has a few look-alikes, so the password
+   simply never uses them; no squinting at 0 versus O.
+2. Many phones and laptops pop the setup page up by themselves. If yours
+   doesn't, browse to `http://192.168.42.1`.
+3. Enter your two-letter country code, press **Scan for networks**, pick your
+   network from the list (strongest signal first) and enter its password.
+   Open networks don't need one.
 4. Set the local device password, at least 8 characters. The page tells you
    which account it is for: `pi` on the Raspberry Pi, `octessera` on the Orange
    Pi. You need it even if you switch SSH off.

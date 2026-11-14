@@ -348,17 +348,35 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - `Open Portal` stops and resets playback, clears note state, and sends MIDI panic/all-notes-off
   cleanup. Playback never auto-resumes. It emits the typed setup portal effect, and opening the
   portal switches the Wi-Fi setting back on and removes the switch file before the radio comes on.
-- The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>` and
-  `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`, `failed`, `timed_out`, or desktop
-  `unsupported`. The modal ranks after confirmation dialogs and ahead of system info and help.
-- The hotspot is open. A WPA2 access point on the Orange's `unisoc_wifi` radio never completed a
-  client join (Windows, phones and Linux all failed), so both boards run the same open hotspot for
-  at most 10 minutes (`PORTAL_WINDOW_SECONDS = 600` in `octessera-setup`).
+- The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>`,
+  `Pass: <passphrase>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`,
+  `failed`, `timed_out`, or desktop `unsupported`. The modal ranks after confirmation dialogs and
+  ahead of system info and help.
+- The hotspot is WPA2-protected and runs for at most 10 minutes (`PORTAL_WINDOW_SECONDS = 600` in
+  `octessera-setup`). Each portal start draws a fresh passphrase of two 4-character groups joined
+  by a dash (`xxxx-xxxx`, 9 characters, the dash included), with characters from the
+  case-sensitive `USER_DATA_TRANSFER_CODE_ALPHABET` that Backup / Restore codes use. The
+  coordinator writes it only into the root-only hostapd config and publishes it only in the
+  `portal_ready` status (`portalPassphrase`), which later phases replace.
+- Accepted risk: eight random characters, about 45 bits, are a deliberate user decision. The
+  alphabet leaves out OLED look-alikes, and the dash splits the password into two easy groups.
+- The coordinator runs the hotspot itself: hostapd on 2.4 GHz channel 6 and a dnsmasq that hands
+  out `192.168.42.2`-`.254` and answers every DNS name with `192.168.42.1`. The page server answers
+  any other host name with a redirect to `http://192.168.42.1/`, so phones and computers open the
+  portal on their own. The Orange uses WPA-PSK; the Raspberry's firmware always advertises
+  PSK-SHA256 as well, which clients only accept with management frame protection, so its hotspot
+  requires it (`ieee80211w=2`).
 - The portal's network list shows each scanned SSID once, strongest first, labelled `Strong`
-  (strength 67 and up), `Fair` (34 to 66) or `Weak`, from wifi-connect's 0-100 NetworkManager
-  strength. Before starting wifi-connect, the coordinator runs one bounded NetworkManager rescan
-  (10 s at most) and then waits 5 s, because the Orange's radio firmware asserts when the access
-  point starts right after a scan. The list is fixed for the portal session.
+  (strength 67 and up), `Fair` (34 to 66) or `Weak`, from NetworkManager's 0-100 strength.
+  Before starting the hotspot, the coordinator runs one bounded NetworkManager rescan (10 s at
+  most) and then waits 5 s, because the Orange's radio firmware asserts when the access point
+  starts right after a scan. The list is fixed for the portal session, and the page offers only
+  open and WPA networks from it; there is no manual or hidden SSID.
+- After Apply, the coordinator stops the hotspot, hands `wlan0` back to NetworkManager and joins
+  the chosen network through a new profile. Older profiles for that network are deleted only once
+  the join has an address; a failed join (a wrong password, say) deletes the new profile, so the
+  old network comes back, and setup ends as `failed`. The hotspot is not restarted in the same
+  session; a new `Open Portal` retries.
 - The browser's Applying page is provisional and an AP disconnect is expected; the OLED result is
   authoritative. Success needs only a usable global `wlan0` IPv4 address, not Internet access, a
   default route, DNS, or ICMP.
@@ -372,7 +390,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
   while the portal runs. The Wi-Fi chip's firmware crash (`WCN Assert` / `WCN: marlin power off`)
   can only be cleared by a restart (a driver reload oopses the kernel), so it ends setup as
   `failed` with `radio_restart_required`, shown as `Wi-Fi chip stopped` / `Restart the device`.
-  The radio is down at that point, so the browser cannot show it.
+  The radio is down at that point, so the browser cannot show it. A hotspot that never reaches
+  access-point mode (a second start in one boot often fails that way on Orange) ends the same way
+  on Orange and as `operation_failed` on Raspberry.
 - The portal can change Wi-Fi, hostname, SSH, and the board's admin login (`pi` on Raspberry,
   `octessera` on Orange) without a reboot. It does not start or advertise Backup / Restore.
 
