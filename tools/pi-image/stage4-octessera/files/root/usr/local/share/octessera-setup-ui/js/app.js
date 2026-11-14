@@ -1,17 +1,14 @@
 const API = {
   networks: '/networks',
-  country: 'http://192.168.42.1:8080/country',
-  connect: '/connect',
-  stage: 'http://192.168.42.1:8080/stage',
+  country: '/country',
+  stage: '/stage',
 };
 
 const OPEN_SECURITY = ['open', 'none', 'nopass', 'unsecured'];
 const COUNTRY_INVALID = 'Enter a two-letter Wi-Fi country code before scanning.';
 const COUNTRY_APPLY_FAILED = 'Could not apply the Wi-Fi country. Check the code and try again.';
-const SCAN_FAILED = 'Could not scan nearby Wi-Fi networks. Enter the SSID manually if needed.';
+const SCAN_FAILED = 'Could not load nearby Wi-Fi networks. Try again.';
 const APPLYING_PENDING = 'Setup is being applied. Watch the OLED for the final result.';
-const APPLYING_REJECTED = (status) => `The device rejected the Wi-Fi request (HTTP ${status}).`;
-const DISCONNECT_GUIDANCE = 'The portal connection may have dropped while setup applies. This can be expected. Watch the OLED for the final result. After success, find the address in System > Maintenance > Sys. Info.';
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 128;
 const PASSWORD_WHITESPACE_RANGES = [
@@ -51,10 +48,8 @@ const state = {
   networks: [],
   networkError: '',
   selectedSsid: '',
-  manualSsid: '',
   wifiPassphrase: '',
   wifiCountry: 'US',
-  openNetwork: false,
   accountPassword: '',
   accountPasswordConfirm: '',
   sshMode: 'key',
@@ -68,10 +63,8 @@ const els = {
   refreshNetworks: document.getElementById('refreshNetworks'),
   networkState: document.getElementById('networkState'),
   networkList: document.getElementById('networkList'),
-  manualSsid: document.getElementById('manualSsid'),
   wifiPassphrase: document.getElementById('wifiPassphrase'),
   wifiCountry: document.getElementById('wifiCountry'),
-  openNetwork: document.getElementById('openNetwork'),
   accountPassword: document.getElementById('accountPassword'),
   accountPasswordConfirm: document.getElementById('accountPasswordConfirm'),
   sshKeyFields: document.getElementById('sshKeyFields'),
@@ -99,16 +92,9 @@ const normalizeNetwork = (network) => ({
 
 const normalizeNetworks = (payload) => (Array.isArray(payload) ? payload : []).map(normalizeNetwork).filter((network) => network.ssid);
 
-const effectiveSsid = () => state.manualSsid || state.selectedSsid;
+const selectedNetwork = () => state.networks.find((network) => network.ssid === state.selectedSsid);
 
-const selectedNetwork = () => (state.manualSsid ? undefined : state.networks.find((network) => network.ssid === effectiveSsid()));
-
-const requiresWifiPassword = () => {
-  if (state.openNetwork) {
-    return false;
-  }
-  return !OPEN_SECURITY.includes(selectedNetwork()?.security ?? '');
-};
+const requiresWifiPassword = () => !OPEN_SECURITY.includes(selectedNetwork()?.security ?? '');
 
 const signalLabel = (strength) => `${strength >= 67 ? 'Strong' : strength >= 34 ? 'Fair' : 'Weak'} signal`;
 
@@ -127,7 +113,7 @@ const renderNetworks = () => {
   } else if (state.networks.length) {
     els.networkState.textContent = `${state.networks.length} network${state.networks.length === 1 ? '' : 's'} found.`;
   } else {
-    els.networkState.textContent = 'No networks found. You can still enter the SSID manually.';
+    els.networkState.textContent = 'No networks found. Close the portal on the device and open it again to scan once more.';
   }
   const loading = ['country', 'scan'].includes(state.networkPhase);
   els.networkState.dataset.loading = String(loading);
@@ -137,8 +123,8 @@ const renderNetworks = () => {
   const items = state.networks
     .map(
       (network) => `
-        <label class="network-item${!state.manualSsid && state.selectedSsid === network.ssid ? ' is-selected' : ''}" title="${escapeHtml(network.ssid)}">
-          <input class="network-radio" type="radio" name="ssidChoice" value="${escapeHtml(network.ssid)}" aria-label="Select ${escapeHtml(network.ssid)}" ${!state.manualSsid && state.selectedSsid === network.ssid ? 'checked' : ''} />
+        <label class="network-item${state.selectedSsid === network.ssid ? ' is-selected' : ''}" title="${escapeHtml(network.ssid)}">
+          <input class="network-radio" type="radio" name="ssidChoice" value="${escapeHtml(network.ssid)}" aria-label="Select ${escapeHtml(network.ssid)}" ${state.selectedSsid === network.ssid ? 'checked' : ''} />
           <span class="network-radio-mark" aria-hidden="true"></span>
           <span class="network-copy">
             <strong class="network-ssid" title="${escapeHtml(network.ssid)}">${escapeHtml(network.ssid)}</strong>
@@ -148,9 +134,8 @@ const renderNetworks = () => {
     )
     .join('');
 
-  els.networkList.innerHTML = items || '<div class="muted">No networks were returned. Enter the SSID manually below.</div>';
+  els.networkList.innerHTML = items || '<div class="muted">No networks were returned.</div>';
   els.wifiPassphrase.disabled = !requiresWifiPassword();
-  els.openNetwork.checked = state.openNetwork;
 };
 
 const renderSshChoices = () => {
@@ -165,21 +150,12 @@ const renderSshChoices = () => {
 };
 
 const syncStateFromInputs = () => {
-  state.manualSsid = els.manualSsid.value.trim();
   state.wifiPassphrase = els.wifiPassphrase.value;
   state.wifiCountry = els.wifiCountry.value.trim().toUpperCase();
-  state.openNetwork = els.openNetwork.checked;
   state.accountPassword = els.accountPassword.value;
   state.accountPasswordConfirm = els.accountPasswordConfirm.value;
   state.sshPublicKey = els.sshPublicKey.value.trim();
   state.sshMode = document.querySelector('input[name="sshMode"]:checked')?.value ?? 'none';
-};
-
-const clearScannedSelection = () => {
-  state.selectedSsid = '';
-  els.networkList.querySelectorAll('input[name="ssidChoice"]').forEach((input) => {
-    input.checked = false;
-  });
 };
 
 const focusSelectedNetwork = () => {
@@ -223,8 +199,8 @@ const validationError = () => {
   if (!/^[A-Z]{2}$/.test(state.wifiCountry)) {
     return { field: els.wifiCountry, message: 'Enter a two-letter Wi-Fi country code.' };
   }
-  if (!effectiveSsid()) {
-    return { field: els.manualSsid, message: 'Choose a Wi-Fi network or enter the SSID manually.' };
+  if (!selectedNetwork()) {
+    return { field: els.refreshNetworks, message: 'Choose a Wi-Fi network.' };
   }
   if (requiresWifiPassword() && !state.wifiPassphrase) {
     return { field: els.wifiPassphrase, message: 'This network needs a Wi-Fi password.' };
@@ -241,14 +217,9 @@ const stagePayload = () => ({
   accountPasswordConfirm: state.accountPasswordConfirm,
   hostname: els.hostname.value.trim(),
   wifiCountry: state.wifiCountry,
+  wifiSsid: state.selectedSsid,
+  wifiPassphrase: requiresWifiPassword() ? state.wifiPassphrase : '',
 });
-
-const connectPayload = () =>
-  new URLSearchParams({
-    ssid: effectiveSsid(),
-    identity: '',
-    passphrase: state.openNetwork ? '' : state.wifiPassphrase,
-  });
 
 const stageFailureMessage = async (response) => {
   const statusMessage = `Setup stage failed (HTTP ${response.status}).`;
@@ -330,18 +301,6 @@ const submit = async (event) => {
     els.applyingStatus.hidden = false;
     els.form.hidden = true;
     els.applyingPanel.hidden = false;
-    try {
-      const connectResponse = await fetch(API.connect, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: connectPayload(),
-      });
-      if (!connectResponse.ok) {
-        els.applyingStatus.textContent = APPLYING_REJECTED(connectResponse.status);
-      }
-    } catch (error) {
-      els.applyingStatus.textContent = DISCONNECT_GUIDANCE;
-    }
   } finally {
     els.applyButton.disabled = false;
   }
@@ -358,10 +317,7 @@ const bindEvents = () => {
       return;
     }
     if (target.name === 'ssidChoice') {
-      els.manualSsid.value = '';
-      state.manualSsid = '';
       state.selectedSsid = target.value;
-      state.openNetwork = OPEN_SECURITY.includes(selectedNetwork()?.security ?? '');
       render();
       focusSelectedNetwork();
       return;
@@ -376,10 +332,6 @@ const bindEvents = () => {
     }
     syncStateFromInputs();
     els.errors.textContent = '';
-    if (event.target.id === 'manualSsid' && state.manualSsid) {
-      clearScannedSelection();
-      state.openNetwork = false;
-    }
     render();
   });
   els.form.addEventListener('submit', submit);

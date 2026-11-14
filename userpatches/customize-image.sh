@@ -36,7 +36,7 @@ rm -f /run/octessera/setup-portal.request /run/octessera-setup-request/inbox/sta
 rm -rf /run/octessera-setup /run/octessera-setup-control /run/octessera-setup-status /run/octessera-setup-queue /run/octessera-setup-request
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq wireless-tools iw iproute2 python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc bluez bluez-alsa-utils
+apt-get install -y --no-install-recommends ca-certificates coreutils curl device-tree-compiler tar xz-utils jq gpiod alsa-utils i2c-tools network-manager dnsmasq hostapd wireless-tools iw iproute2 python3-minimal initramfs-tools openssh-server sudo unzip util-linux psmisc bluez bluez-alsa-utils
 sed -i -E 's/^#?[[:space:]]*AutoEnable[[:space:]]*=.*/AutoEnable=false/' /etc/bluetooth/main.conf
 octessera_load_production_runtime "$overlay_dir"
 

@@ -2,17 +2,22 @@
 import http.server
 import ipaddress
 import json
+import os
 import re
 import subprocess
+import urllib.parse
 from typing import cast
 
 import setup_config
+import setup_hotspot
 
 
-AP_ADDRESS = "192.168.42.1"
+AP_ADDRESS = setup_hotspot.AP_ADDRESS
 AP_NETWORK = ipaddress.ip_network("192.168.42.0/24")
 ALLOWED_ORIGINS = frozenset(("http://192.168.42.1", "http://192.168.42.1:80"))
-ALLOWED_HOSTS = frozenset(("192.168.42.1:8080",))
+ALLOWED_HOSTS = frozenset(("192.168.42.1", "192.168.42.1:80"))
+UI_ROOT = "/usr/local/share/octessera-setup-ui"
+CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml"}
 MAX_BODY = 16384
 
 
@@ -28,12 +33,11 @@ class SetupHandler(http.server.BaseHTTPRequestHandler):
         values = self.headers.get_all(name, [])
         return values[0] if len(values) == 1 else None
 
-    def _allowed(self):
+    def _from_portal(self):
         try:
-            address_allowed = ipaddress.ip_address(self.client_address[0]) in AP_NETWORK
+            return ipaddress.ip_address(self.client_address[0]) in AP_NETWORK
         except ValueError:
-            address_allowed = False
-        return address_allowed and self._one_header("Host") in ALLOWED_HOSTS and self._one_header("Origin") in ALLOWED_ORIGINS
+            return False
 
     def _body(self):
         if self.headers.get_all("Transfer-Encoding", []):
@@ -47,34 +51,59 @@ class SetupHandler(http.server.BaseHTTPRequestHandler):
         body = self.rfile.read(length)
         return (body, 200) if len(body) == length else (None, 400)
 
-    def _send(self, code, payload):
-        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    def _send_bytes(self, code, content_type, body):
         self.send_response(code)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", content_type)
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
-        origin = self._one_header("Origin")
-        if origin in ALLOWED_ORIGINS:
-            self.send_header("Access-Control-Allow-Origin", origin)
-            self.send_header("Vary", "Origin")
         self.end_headers()
         self.wfile.write(body)
 
-    def do_OPTIONS(self):
-        if not self._allowed():
-            self._send(403, {"error": "forbidden"})
-            return
-        self.send_response(204)
-        origin = self._one_header("Origin")
-        assert origin is not None
-        self.send_header("Access-Control-Allow-Origin", origin)
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.send_header("Access-Control-Max-Age", "0")
+    def _send(self, code, payload):
+        self._send_bytes(code, "application/json", json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+
+    def _redirect_to_portal(self):
+        self.send_response(302)
+        self.send_header("Location", f"http://{AP_ADDRESS}/")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", "0")
         self.end_headers()
 
+    def _static_file(self, path):
+        relative = "index.html" if path == "/" else path.removeprefix("/")
+        parts = relative.split("/")
+        extension = os.path.splitext(relative)[1]
+        if not path.startswith("/") or extension not in CONTENT_TYPES or any(part in ("", ".", "..") or "\\" in part for part in parts):
+            return None
+        root = os.path.realpath(UI_ROOT)
+        candidate = os.path.realpath(os.path.join(root, *parts))
+        if not candidate.startswith(root + os.sep) or not os.path.isfile(candidate):
+            return None
+        with open(candidate, "rb") as handle:
+            return CONTENT_TYPES[extension], handle.read()
+
+    def do_GET(self):
+        if not self._from_portal():
+            self._send(403, {"error": "forbidden"})
+            return
+        if self._one_header("Host") not in ALLOWED_HOSTS:
+            self._redirect_to_portal()
+            return
+        path = urllib.parse.urlsplit(self.path).path
+        if path == "/networks":
+            self._send(200, cast(SetupHTTPServer, self.server).coordinator.networks)
+            return
+        try:
+            found = self._static_file(path)
+        except OSError:
+            found = None
+        if found is None:
+            self._send(404, {"error": "not_found"})
+            return
+        self._send_bytes(200, *found)
+
     def do_POST(self):
-        if not self._allowed():
+        if not self._from_portal() or self._one_header("Host") not in ALLOWED_HOSTS or self._one_header("Origin") not in ALLOWED_ORIGINS:
             self._send(403, {"error": "forbidden"})
             return
         if self._one_header("Content-Type") != "application/json":
@@ -91,8 +120,10 @@ class SetupHandler(http.server.BaseHTTPRequestHandler):
                 setup_config.apply_country(country)
             elif self.path == "/stage":
                 staged = setup_config.validate_stage(data)
+                coordinator = cast(SetupHTTPServer, self.server).coordinator
+                coordinator.check_network(staged)
                 setup_config.apply_country(staged["country"])
-                cast(SetupHTTPServer, self.server).coordinator.stage(staged)
+                coordinator.stage(staged)
             else:
                 self._send(404, {"error": "not_found"})
                 return
@@ -105,7 +136,7 @@ class SetupHandler(http.server.BaseHTTPRequestHandler):
         self._send(200, {"ok": True})
 
 
-class SetupHTTPServer(http.server.HTTPServer):
+class SetupHTTPServer(http.server.ThreadingHTTPServer):
     allow_reuse_address = True
 
     def __init__(self, address, coordinator):

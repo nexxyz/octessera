@@ -15,7 +15,7 @@ MARKER_PATH = "/var/lib/octessera/setup-complete"
 HOSTNAME_PATH = "/etc/hostname"
 HOSTS_PATH = "/etc/hosts"
 SSH_POLICY_PATH = "/etc/ssh/sshd_config.d/10-octessera-setup.conf"
-ALLOWED_FIELDS = frozenset(("sshMode", "sshPublicKey", "accountPassword", "accountPasswordConfirm", "hostname", "wifiCountry"))
+ALLOWED_FIELDS = frozenset(("sshMode", "sshPublicKey", "accountPassword", "accountPasswordConfirm", "hostname", "wifiCountry", "wifiSsid", "wifiPassphrase"))
 PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
 PASSWORD_WHITESPACE_RANGES = (
@@ -46,7 +46,7 @@ KEY_LINE = re.compile(r"^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)) (
 HOSTNAME_LABEL = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 RASPBERRY_PROFILE = "r" "aspberry-pi-zero-2w"
 PROFILES = {
-    "orange-pi-zero-2w": {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "octessera-runtime", "ssh_units": ("ssh.service", "ssh.socket", "sshd.service", "sshd.socket"), "radio_crash_markers": ("WCN Assert", "WCN: marlin power off")},
+    "orange-pi-zero-2w": {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "octessera-runtime", "ssh_units": ("ssh.service", "ssh.socket", "sshd.service", "sshd.socket"), "radio_crash_markers": ("WCN Assert", "WCN: marlin power off"), "access_point_failure": "radio_restart_required"},
     RASPBERRY_PROFILE: {"user": "pi", "request_owner": "pi", "status_group": "pi", "ssh_units": ("ssh.service", "ssh.socket")},
 }
 
@@ -82,6 +82,14 @@ def valid_public_key(value):
         return False
     type_length = int.from_bytes(decoded[:4], "big")
     return type_length == len(key_type) and decoded[4 : 4 + type_length] == key_type.encode("ascii")
+
+
+def valid_ssid(value):
+    return isinstance(value, str) and 1 <= len(value.encode("utf-8")) <= 32 and not _has_control(value)
+
+
+def valid_wifi_passphrase(value):
+    return isinstance(value, str) and (value == "" or (8 <= len(value) <= 63 and all(" " <= character <= "~" for character in value)) or bool(re.fullmatch(r"[0-9A-Fa-f]{64}", value)))
 
 
 def valid_password(value):
@@ -120,11 +128,11 @@ def validate_stage(data):
     password = data["accountPassword"]
     if mode not in ("none", "key", "password") or _has_control(data["hostname"]):
         raise ValueError("invalid stage")
-    if not valid_hostname(hostname) or not valid_country(country):
+    if not valid_hostname(hostname) or not valid_country(country) or not valid_ssid(data["wifiSsid"]) or not valid_wifi_passphrase(data["wifiPassphrase"]):
         raise ValueError("invalid stage")
     if data["accountPasswordConfirm"] != password or not valid_password(password):
         raise ValueError("invalid stage")
-    result = {"sshMode": mode, "accountPassword": password, "hostname": hostname, "country": country}
+    result = {"sshMode": mode, "accountPassword": password, "hostname": hostname, "country": country, "ssid": data["wifiSsid"], "passphrase": data["wifiPassphrase"]}
     if mode == "key":
         if not valid_public_key(data["sshPublicKey"]):
             raise ValueError("invalid stage")
@@ -321,6 +329,8 @@ def finalize(data, profile, deadline=None, clock=time.monotonic):
         "accountPasswordConfirm": data["accountPassword"],
         "hostname": data["hostname"],
         "wifiCountry": data["country"],
+        "wifiSsid": data["ssid"],
+        "wifiPassphrase": data["passphrase"],
     })
     remove_marker()
     try:

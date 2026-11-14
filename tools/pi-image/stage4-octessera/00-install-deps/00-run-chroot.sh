@@ -18,6 +18,7 @@ apt-get install -y --no-install-recommends \
     spi-tools \
     network-manager \
     dnsmasq \
+    hostapd \
     wireless-tools \
     iw \
     iproute2 \

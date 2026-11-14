@@ -10,13 +10,16 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 
 
 LIBRARY = "/usr/local/lib/octessera"
 if LIBRARY not in sys.path:
     sys.path.insert(0, LIBRARY)
 import setup_config
+import setup_hotspot
 import setup_http
+import setup_wifi_join
 
 
 REQUEST_DIR = "/run/octessera-setup-request"
@@ -29,8 +32,12 @@ WIFI_OFF_FILE = "/var/lib/octessera/show-hold/wifi-off"
 PORTAL_WINDOW_SECONDS = 600
 INTERNAL_APPLY_SECONDS = 60
 RADIO_CHECK_SECONDS = 1.0
-RESCAN_SECONDS = 10
 RESCAN_SETTLE_SECONDS = 5
+DEVICE_STATE_SECONDS = 10
+ACCESS_POINT_SECONDS = 15
+APPLY_REPLY_SECONDS = 1.0
+UNMANAGED = 10
+DISCONNECTED = 30
 
 
 class SetupFailure(Exception):
@@ -169,7 +176,7 @@ def _global_ipv4(output):
 
 
 def _portal_ipv4(output):
-    return _addresses(output, lambda address: address.get("family") == "inet" and address.get("local") == setup_http.AP_ADDRESS and address.get("prefixlen") == 24 and address.get("scope") == "global" and not {str(flag).lower() for flag in address.get("flags", [])}.intersection(("tentative", "dadfailed")))
+    return _addresses(output, lambda address: address.get("family") == "inet" and address.get("local") == setup_hotspot.AP_ADDRESS and address.get("prefixlen") == 24 and address.get("scope") == "global" and not {str(flag).lower() for flag in address.get("flags", [])}.intersection(("tentative", "dadfailed")))
 
 
 class Coordinator:
@@ -179,7 +186,9 @@ class Coordinator:
         self.process_factory = process_factory
         self.clock = clock
         self.sleeper = sleeper
-        self.process = None
+        self.hotspot = setup_hotspot.Hotspot(self.bounded_command, lambda *args, **kwargs: self.process_factory(*args, **kwargs), lambda: self.clock(), lambda seconds: self.sleeper(seconds))
+        self.networks = []
+        self.joining_profile = None
         self.server = None
         self.server_thread = None
         self.staged = None
@@ -188,6 +197,11 @@ class Coordinator:
         self.stop_requested = False
         self.terminal_published = False
         self.radio_checked_at = None
+
+    def check_network(self, value):
+        network = next((network for network in self.networks if network["ssid"] == value["ssid"]), None)
+        if network is None or network["security"] not in ("none", "wpa") or (network["security"] == "none") != (value["passphrase"] == ""):
+            raise ValueError("invalid network")
 
     def stage(self, value):
         if self.staged is not None:
@@ -242,7 +256,7 @@ class Coordinator:
         return result.returncode == 0 and bool(result.stdout.strip())
 
     def http_ready(self):
-        connection = http.client.HTTPConnection(setup_http.AP_ADDRESS, 80, timeout=2)
+        connection = http.client.HTTPConnection(setup_hotspot.AP_ADDRESS, 80, timeout=2)
         try:
             connection.request("GET", "/")
             response = connection.getresponse()
@@ -256,6 +270,17 @@ class Coordinator:
     def portal_ready(self):
         return self.portal_ipv4_ready() and self.http_ready() and self.listener_ready("u", 67)
 
+    def device_state(self, deadline=None):
+        result = self.bounded_command(["nmcli", "-g", "GENERAL.STATE", "device", "show", INTERFACE], deadline)
+        match = re.match(r"\s*([0-9]+)", result.stdout or "")
+        return int(match.group(1)) if result.returncode == 0 and match else -1
+
+    def wait_for_device(self, ready, deadline):
+        while not ready(self.device_state(deadline)):
+            if self.stop_requested or self.clock() >= deadline:
+                raise SetupFailure("operation_failed")
+            self.sleeper(0.1)
+
     def launch(self):
         self.portal_suffix = self.interface_suffix()
         try:
@@ -264,45 +289,20 @@ class Coordinator:
             pass
         if self.command(["nmcli", "radio", "wifi", "on"]).returncode != 0:
             raise SetupFailure("operation_failed")
-        try:
-            self.command(["nmcli", "device", "wifi", "list", "ifname", INTERFACE, "--rescan", "yes"], timeout=RESCAN_SECONDS)
-        except subprocess.TimeoutExpired:
-            pass
+        self.networks = self.hotspot.scan()
         # The Orange's radio firmware asserts when the access point starts right after a scan.
         self.sleeper(RESCAN_SETTLE_SECONDS)
-        self.process = self.process_factory(
-            ["/usr/local/bin/wifi-connect", "--portal-ssid", f"Octessera Setup {self.portal_suffix}", "--portal-interface", INTERFACE, "--portal-gateway", setup_http.AP_ADDRESS, "--portal-listening-port", "80", "--ui-directory", "/usr/local/share/octessera-setup-ui"],
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-
-    def _signal_process_group(self, value):
-        try:
-            os.killpg(os.getpgid(self.process.pid), value)
-        except (AttributeError, OSError):
-            try:
-                if value == getattr(signal, "SIGKILL", None):
-                    self.process.kill()
-                else:
-                    self.process.terminate()
-            except OSError:
-                pass
-
-    def stop_process_group(self, deadline=None):
-        process = self.process
-        if process is None or process.poll() is not None:
-            return
-        self._signal_process_group(signal.SIGTERM)
-        while process.poll() is None:
-            if deadline is not None and self.clock() >= deadline:
-                self._signal_process_group(signal.SIGKILL)
-                break
-            self.sleeper(0.05)
-        try:
-            remaining = None if deadline is None else max(0.0, deadline - self.clock())
-            process.wait(timeout=remaining)
-        except (OSError, subprocess.SubprocessError):
-            pass
+        if self.command(["nmcli", "device", "set", INTERFACE, "managed", "no"]).returncode != 0:
+            raise SetupFailure("operation_failed")
+        self.wait_for_device(lambda state: state == UNMANAGED, self.clock() + DEVICE_STATE_SECONDS)
+        self.hotspot.start_access_point(f"Octessera Setup {self.portal_suffix}")
+        access_point_deadline = self.clock() + ACCESS_POINT_SECONDS
+        while not self.hotspot.access_point_up():
+            if self.stop_requested or not self.hotspot.running() or self.clock() >= access_point_deadline:
+                raise SetupFailure(self.profile.get("access_point_failure", "operation_failed"))
+            self.sleeper(0.1)
+        if not self.hotspot.serve():
+            raise SetupFailure("operation_failed")
 
     def wait_for_portal_readiness(self, outer_deadline):
         while not self.portal_ready():
@@ -311,7 +311,7 @@ class Coordinator:
                 raise SetupFailure("operation_failed")
             if self.clock() >= outer_deadline:
                 raise SetupFailure("operation_failed")
-            if self.process.poll() is not None:
+            if not self.hotspot.running():
                 raise SetupFailure("operation_failed")
             self.sleeper(0.1)
 
@@ -325,23 +325,24 @@ class Coordinator:
 
     def wait_for_apply(self, outer_deadline):
         apply_deadline = min(self.staged_at + INTERNAL_APPLY_SECONDS, outer_deadline)
-        while True:
+        self.sleeper(APPLY_REPLY_SECONDS)
+        self.hotspot.stop(apply_deadline)
+        self.wait_for_device(lambda state: state >= DISCONNECTED, apply_deadline)
+        run = lambda args: self.bounded_command(args, apply_deadline)
+        previous = setup_wifi_join.profiles_for_ssid(run, self.staged["ssid"])
+        self.joining_profile = str(uuid.uuid4())
+        if not setup_wifi_join.join(run, self.joining_profile, self.staged["ssid"], self.staged["passphrase"], max(1, int(apply_deadline - self.clock()))):
+            raise SetupFailure("operation_failed")
+        while not self.global_ipv4_ready():
             self.check_radio()
-            if self.stop_requested:
+            if self.stop_requested or self.clock() >= apply_deadline:
                 raise SetupFailure("operation_failed")
-            now = self.clock()
-            if now >= apply_deadline:
-                self.stop_process_group(apply_deadline)
-                raise SetupFailure("operation_failed")
-            result = self.process.poll()
-            if result is not None:
-                if result != 0:
-                    raise SetupFailure("operation_failed")
-                if self.global_ipv4_ready():
-                    self.publish("finalizing")
-                    setup_config.finalize(self.staged, self.profile, deadline=apply_deadline, clock=self.clock)
-                    return
             self.sleeper(0.1)
+        self.joining_profile = None
+        for old in previous:
+            run(["nmcli", "connection", "delete", "uuid", old])
+        self.publish("finalizing")
+        setup_config.finalize(self.staged, self.profile, deadline=apply_deadline, clock=self.clock)
 
     def portal_window_deadline(self, ready_at, outer_deadline):
         deadline = ready_at + PORTAL_WINDOW_SECONDS
@@ -354,30 +355,18 @@ class Coordinator:
             self.check_radio()
             now = self.clock()
             if now >= portal_deadline:
-                self.stop_process_group(portal_deadline)
                 raise SetupTimeout()
             if self.stop_requested:
                 raise SetupFailure("operation_failed")
-            if self.process.poll() is not None:
+            if not self.hotspot.running():
                 raise SetupFailure("operation_failed")
             self.sleeper(0.1)
 
-    def cleanup_profiles(self, deadline=None):
-        if not self.portal_suffix:
+    def forget_joining_profile(self, deadline=None):
+        if self.joining_profile is None:
             return
-        result = self.bounded_command(["nmcli", "-t", "-f", "UUID,TYPE", "connection", "show"], deadline)
-        if result.returncode != 0:
-            return
-        for line in result.stdout.splitlines():
-            fields = line.split(":", 1)
-            if len(fields) != 2 or fields[1] != "802-11-wireless":
-                continue
-            uuid = fields[0]
-            mode = self.bounded_command(["nmcli", "-g", "802-11-wireless.mode", "connection", "show", "uuid", uuid], deadline)
-            ssid = self.bounded_command(["nmcli", "-g", "802-11-wireless.ssid", "connection", "show", "uuid", uuid], deadline)
-            if mode.returncode == 0 and ssid.returncode == 0 and mode.stdout.strip() == "ap" and ssid.stdout.strip() == f"Octessera Setup {self.portal_suffix}":
-                self.bounded_command(["nmcli", "connection", "down", "uuid", uuid], deadline)
-                self.bounded_command(["nmcli", "connection", "delete", "uuid", uuid], deadline)
+        setup_wifi_join.forget(lambda args: self.bounded_command(args, deadline), self.joining_profile)
+        self.joining_profile = None
 
     def cleanup_request_marker(self):
         descriptor = -1
@@ -398,15 +387,15 @@ class Coordinator:
                 os.close(descriptor)
 
     def cleanup(self, deadline=None):
-        self.stop_process_group(deadline)
         if self.server is not None:
             try:
                 self.server.shutdown()
                 self.server.server_close()
             except OSError:
                 pass
+        self.hotspot.stop(deadline)
         try:
-            self.cleanup_profiles(deadline)
+            self.forget_joining_profile(deadline)
         except (OSError, subprocess.SubprocessError):
             pass
         self.cleanup_request_marker()
@@ -425,7 +414,7 @@ class Coordinator:
         outcome = ("failed", "operation_failed")
         try:
             self.publish("starting", disposition="accepted")
-            self.server = setup_http.SetupHTTPServer(("0.0.0.0", 8080), self)
+            self.server = setup_http.SetupHTTPServer(("0.0.0.0", 80), self)
             self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.server_thread.start()
             self.check_radio()
@@ -475,12 +464,7 @@ def status_is_terminal(profile):
 def cleanup_mode(profile, clock=time.monotonic):
     if not status_is_terminal(profile):
         write_status(_status("failed", error_code="operation_failed"), profile)
-    coordinator = Coordinator(profile)
-    try:
-        coordinator.portal_suffix = coordinator.interface_suffix()
-    except (OSError, SetupFailure):
-        pass
-    coordinator.cleanup(clock() + 10.0)
+    Coordinator(profile).cleanup(clock() + 10.0)
     return 0
 
 

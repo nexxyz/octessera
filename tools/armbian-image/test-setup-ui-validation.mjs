@@ -60,12 +60,12 @@ const loadNetworkList = (relativePath) => {
     return source.slice(start, end);
   };
   const context = {};
-  new vm.Script(`${slice('const OPEN_SECURITY =', 'const COUNTRY_INVALID')} ${slice('const normalizeNetwork =', 'const effectiveSsid')} ${slice('const signalLabel =', 'const renderNetworks')} globalThis.list = (payload) => normalizeNetworks(payload).map((network) => [network.ssid, networkMeta(network)]);`).runInNewContext(context);
+  new vm.Script(`${slice('const OPEN_SECURITY =', 'const COUNTRY_INVALID')} ${slice('const normalizeNetwork =', 'const selectedNetwork')} ${slice('const signalLabel =', 'const renderNetworks')} globalThis.list = (payload) => normalizeNetworks(payload).map((network) => [network.ssid, networkMeta(network)]);`).runInNewContext(context);
   return context.list;
 };
 
 for (const relativePath of UI_FILES) {
-  test(`network list keeps the wifi-connect order without sorting again and labels strength: ${relativePath}`, () => {
+  test(`network list keeps the coordinator's order without sorting again and labels strength: ${relativePath}`, () => {
     const list = loadNetworkList(relativePath);
     const payload = [
       { ssid: 'near', security: 'wpa', strength: 82 },
@@ -82,5 +82,32 @@ for (const relativePath of UI_FILES) {
       ['garden', 'Locked · Weak signal'],
       ['shed', 'Locked · Weak signal'],
     ]);
+  });
+}
+
+const loadStagePayload = (relativePath) => {
+  const source = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+  const slice = (from, to) => {
+    const start = source.indexOf(from);
+    const end = source.indexOf(to, start);
+    assert.notEqual(start, -1);
+    assert.notEqual(end, -1);
+    return source.slice(start, end);
+  };
+  const context = { __state: {}, __els: { hostname: { value: ' box ' } } };
+  new vm.Script(`const state = globalThis.__state; const els = globalThis.__els; ${slice('const OPEN_SECURITY =', 'const COUNTRY_INVALID')} ${slice('const selectedNetwork =', 'const signalLabel')} ${slice('const stagePayload =', 'const stageFailureMessage')} globalThis.payload = (values) => { Object.assign(state, values); return stagePayload(); };`).runInNewContext(context);
+  return { api: source.slice(0, source.indexOf('};') + 2), payload: context.payload };
+};
+
+for (const relativePath of UI_FILES) {
+  test(`setup page stages the chosen scanned network on the portal's own origin: ${relativePath}`, () => {
+    const { api, payload } = loadStagePayload(relativePath);
+    assert.match(api, /country: '\/country'/);
+    assert.match(api, /stage: '\/stage'/);
+    assert.doesNotMatch(api, /8080|connect/);
+    const common = { sshMode: 'none', sshPublicKey: '', accountPassword: 'eight888', accountPasswordConfirm: 'eight888', wifiCountry: 'AT', wifiPassphrase: 'secret88' };
+    const networks = [{ ssid: 'Home', security: 'wpa' }, { ssid: 'Cafe', security: 'none' }];
+    assert.deepEqual(JSON.parse(JSON.stringify(payload({ ...common, networks, selectedSsid: 'Home' }))), { sshMode: 'none', sshPublicKey: '', accountPassword: 'eight888', accountPasswordConfirm: 'eight888', hostname: 'box', wifiCountry: 'AT', wifiSsid: 'Home', wifiPassphrase: 'secret88' });
+    assert.equal(payload({ ...common, networks, selectedSsid: 'Cafe' }).wifiPassphrase, '');
   });
 }

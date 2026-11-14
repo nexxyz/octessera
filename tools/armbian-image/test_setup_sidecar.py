@@ -33,6 +33,8 @@ def payload(mode="none", password="eight888"):
         "accountPasswordConfirm": password,
         "hostname": "octessera-box",
         "wifiCountry": "US",
+        "wifiSsid": "Home",
+        "wifiPassphrase": "wifi-pass",
     }
 
 

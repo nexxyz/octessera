@@ -17,7 +17,8 @@ COORDINATORS = (
     ROOT / "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup",
 )
 PUBLIC_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-PAYLOAD = {"sshMode": "none", "sshPublicKey": "", "accountPassword": "eight888", "accountPasswordConfirm": "eight888", "hostname": "", "wifiCountry": "US"}
+PAYLOAD = {"sshMode": "none", "sshPublicKey": "", "accountPassword": "eight888", "accountPasswordConfirm": "eight888", "hostname": "", "wifiCountry": "US", "wifiSsid": "Home Net", "wifiPassphrase": "wifi pass"}
+NETWORKS = [{"ssid": "Home Net", "security": "wpa", "strength": 80}, {"ssid": "Cafe", "security": "none", "strength": 40}]
 VALID_MODE_PAYLOADS = (
     {**PAYLOAD, "sshMode": "key", "sshPublicKey": PUBLIC_KEY},
     {**PAYLOAD, "sshMode": "password"},
@@ -33,6 +34,16 @@ INVALID_PASSWORD_PAYLOADS = (
     {**PAYLOAD, "accountPasswordConfirm": "different"},
 )
 
+INVALID_WIFI_PAYLOADS = (
+    {key: value for key, value in PAYLOAD.items() if key != "wifiSsid"},
+    {**PAYLOAD, "wifiSsid": "Hidden"},
+    {**PAYLOAD, "wifiPassphrase": ""},
+    {**PAYLOAD, "wifiPassphrase": "short"},
+    {**PAYLOAD, "wifiPassphrase": "x" * 64},
+    {**PAYLOAD, "wifiSsid": "Cafe"},
+    {**PAYLOAD, "wifiSsid": "x" * 33, "wifiPassphrase": "eight888"},
+)
+
 
 def load(path, name):
     config_path = path.parent.parent / "lib/octessera/setup_config.py"
@@ -41,6 +52,11 @@ def load(path, name):
     config = importlib.util.module_from_spec(config_spec)
     sys.modules["setup_config"] = config
     config_spec.loader.exec_module(config)
+    for library in ("setup_hotspot", "setup_wifi_join"):
+        library_spec = importlib.util.spec_from_loader(library, SourceFileLoader(library, str(path.parent.parent / f"lib/octessera/{library}.py")))
+        assert library_spec is not None and library_spec.loader is not None
+        sys.modules[library] = importlib.util.module_from_spec(library_spec)
+        library_spec.loader.exec_module(sys.modules[library])
     http_path = path.parent.parent / "lib/octessera/setup_http.py"
     http_spec = importlib.util.spec_from_loader("setup_http", SourceFileLoader("setup_http", str(http_path)))
     assert http_spec is not None and http_spec.loader is not None
@@ -52,6 +68,18 @@ def load(path, name):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module, http_module
+
+
+def get(port, path, host="127.0.0.1"):
+    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=3)
+    connection.putrequest("GET", path, skip_host=True)
+    if host is not None:
+        connection.putheader("Host", host)
+    connection.endheaders()
+    response = connection.getresponse()
+    body = response.read()
+    connection.close()
+    return response.status, response.getheader("Content-Type"), response.getheader("Location"), body
 
 
 def request(port, payload, headers=None, path="/stage"):
@@ -69,6 +97,7 @@ for index, path in enumerate(COORDINATORS):
     coordinator_module, http_module = load(path, f"http_coordinator_{index}")
     http_module.AP_NETWORK = ipaddress.ip_network("127.0.0.0/8")
     http_module.ALLOWED_HOSTS = frozenset(("127.0.0.1",))
+    http_module.UI_ROOT = str(path.parent.parent / "share/octessera-setup-ui")
     country_calls = []
     coordinator_module.setup_config.apply_country = lambda country: country_calls.append(country)
     clock_value = [10.0]
@@ -76,6 +105,7 @@ for index, path in enumerate(COORDINATORS):
         {"status_group": "root", "request_owner": "root", "user": "pi"},
         clock=lambda: clock_value[0],
     )
+    instance.networks = NETWORKS
     server = http_module.SetupHTTPServer(("127.0.0.1", 0), instance)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -88,6 +118,7 @@ for index, path in enumerate(COORDINATORS):
                 {"status_group": "root", "request_owner": "root", "user": "pi"},
                 clock=lambda: clock_value[0],
             )
+            mode_instance.networks = NETWORKS
             mode_server = http_module.SetupHTTPServer(("127.0.0.1", 0), mode_instance)
             mode_thread = threading.Thread(target=mode_server.serve_forever, daemon=True)
             mode_thread.start()
@@ -103,13 +134,14 @@ for index, path in enumerate(COORDINATORS):
                 mode_server.server_close()
                 mode_thread.join(timeout=3)
         coordinator_module.setup_config.apply_country = lambda country: country_calls.append(country)
-        for invalid in INVALID_PASSWORD_PAYLOADS:
+        for invalid in INVALID_PASSWORD_PAYLOADS + INVALID_WIFI_PAYLOADS:
             status, body = request(port, invalid)
             assert status == 400 and body == b'{"error":"invalid_input"}'
             assert instance.staged is None and country_calls == []
         status, body = request(port, PAYLOAD)
         assert status == 200 and body == b'{"ok":true}'
-        assert set(instance.staged) == {"sshMode", "accountPassword", "hostname", "country"}
+        assert set(instance.staged) == {"sshMode", "accountPassword", "hostname", "country", "ssid", "passphrase"}
+        assert instance.staged["ssid"] == "Home Net" and instance.staged["passphrase"] == "wifi pass"
         assert instance.staged["accountPassword"] == "eight888" and country_calls == ["US"]
         staged = dict(instance.staged)
         staged_at = instance.staged_at
@@ -126,9 +158,27 @@ for index, path in enumerate(COORDINATORS):
         assert status == 400
         status, _ = request(port, {**PAYLOAD, "unexpected": "x"})
         assert status == 400
+        status, body, location, content = get(port, "/")
+        assert status == 200 and body == "text/html; charset=utf-8" and b"<title>Octessera setup</title>" in content and location is None
+        status, body, _, content = get(port, "/js/app.js?v=3")
+        assert status == 200 and body == "text/javascript; charset=utf-8" and b"const API" in content
+        status, body, _, content = get(port, "/networks")
+        assert status == 200 and body == "application/json" and json.loads(content) == NETWORKS
+        for missing in ("/README.md", "/nope.html", "/../setup_http.py", "/js/../index.html", "/js//app.js", "/js\\app.js"):
+            assert get(port, missing)[0] == 404, missing
+        for host in ("www.msftconnecttest.com", "captive.apple.com", "connectivitycheck.gstatic.com", None):
+            status, _, location, content = get(port, "/generate_204", host)
+            assert status == 302 and location == "http://192.168.42.1/" and content == b""
+        assert get(port, "/", "captive.apple.com")[0] == 302
+        http_module.AP_NETWORK = ipaddress.ip_network("10.0.0.0/8")
+        assert get(port, "/")[0] == 403 and get(port, "/networks")[0] == 403
+        assert request(port, PAYLOAD)[0] == 403
+        http_module.AP_NETWORK = ipaddress.ip_network("127.0.0.0/8")
         status, _ = request(port, PAYLOAD, {"Content-Type": "application/json; charset=utf-8"})
         assert status == 403
         status, _ = request(port, PAYLOAD, {"Origin": "http://192.168.42.1:81"})
+        assert status == 403
+        status, _ = request(port, PAYLOAD, {"Origin": "http://192.168.42.1:8080"})
         assert status == 403
         status, _ = request(port, PAYLOAD, {"Host": "127.0.0.2"})
         assert status == 403
@@ -145,4 +195,4 @@ for index, path in enumerate(COORDINATORS):
         server.server_close()
         thread.join(timeout=3)
 
-print("Setup HTTP subnet, host, origin, body, country, duplicate-stage, and secret tests passed")
+print("Setup HTTP static files, networks, captive redirect, subnet, host, origin, body, Wi-Fi fields, country, duplicate-stage, and secret tests passed")

@@ -33,11 +33,6 @@
             <small id="countryHint" class="muted">Use the two-letter country code for the Wi-Fi radio.</small>
           </label>
 
-          <label class="field">
-            <span>Manual SSID</span>
-            <input id="manualSsid" type="text" autocomplete="off" spellcheck="false" placeholder="Network name" />
-          </label>
-
           <div class="field network-field">
             <div class="field-header">
               <span id="networkLabel">Available networks</span>
@@ -50,11 +45,7 @@
           <div class="wifi-access">
             <label class="field">
               <span>Wi-Fi password</span>
-              <input id="wifiPassphrase" type="password" autocomplete="current-password" placeholder="Leave blank for open networks" />
-            </label>
-            <label class="checkbox">
-              <input id="openNetwork" type="checkbox" />
-              <span>This network is open</span>
+              <input id="wifiPassphrase" type="password" autocomplete="current-password" placeholder="Not needed for open networks" />
             </label>
           </div>
 
@@ -128,6 +119,6 @@
       </section>
     </main>
 
-    <script type="module" src="/js/app.js?v=2"></script>
+    <script type="module" src="/js/app.js?v=3"></script>
   </body>
 </html>

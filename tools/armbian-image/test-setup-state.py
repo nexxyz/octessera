@@ -27,6 +27,11 @@ def load(path, name):
     import sys
     sys.modules["setup_config"] = config
     config_spec.loader.exec_module(config)
+    for library in ("setup_hotspot", "setup_wifi_join"):
+        library_spec = importlib.util.spec_from_loader(library, SourceFileLoader(library, str(path.parent.parent / f"lib/octessera/{library}.py")))
+        assert library_spec is not None and library_spec.loader is not None
+        sys.modules[library] = importlib.util.module_from_spec(library_spec)
+        library_spec.loader.exec_module(sys.modules[library])
     http_path = path.parent.parent / "lib/octessera/setup_http.py"
     http_spec = importlib.util.spec_from_loader("setup_http", SourceFileLoader("setup_http", str(http_path)))
     assert http_spec is not None and http_spec.loader is not None

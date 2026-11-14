@@ -87,6 +87,12 @@ install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/usr/local/lib/octessera/setup_http.py" \
     "$ROOTFS_DIR/usr/local/lib/octessera/setup_http.py"
 install -D -o root -g root -m 0644 \
+    "$STAGE_FILES/root/usr/local/lib/octessera/setup_hotspot.py" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/setup_hotspot.py"
+install -D -o root -g root -m 0644 \
+    "$STAGE_FILES/root/usr/local/lib/octessera/setup_wifi_join.py" \
+    "$ROOTFS_DIR/usr/local/lib/octessera/setup_wifi_join.py"
+install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/etc/octessera/setup-profile" \
     "$ROOTFS_DIR/etc/octessera/setup-profile"
 install -D -o root -g root -m 0644 \
