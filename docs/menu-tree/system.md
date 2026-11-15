@@ -363,9 +363,10 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - The coordinator runs the hotspot itself: hostapd on 2.4 GHz channel 6 and a dnsmasq that hands
   out `192.168.42.2`-`.254` and answers every DNS name with `192.168.42.1`. The page server answers
   any other host name with a redirect to `http://192.168.42.1/`, so phones and computers open the
-  portal on their own. The Orange uses WPA-PSK; the Raspberry's firmware always advertises
-  PSK-SHA256 as well, which clients only accept with management frame protection, so its hotspot
-  requires it (`ieee80211w=2`).
+  portal on their own. The Orange uses WPA-PSK. The Raspberry's firmware always advertises both
+  PSK and PSK-SHA256, so its hostapd offers both too (Linux and Android clients drop a handshake
+  whose key list differs from the beacon) and requires management frame protection
+  (`ieee80211w=2`), which Windows insists on once PSK-SHA256 is offered.
 - The portal's network list shows each scanned SSID once, strongest first, labelled `Strong`
   (strength 67 and up), `Fair` (34 to 66) or `Weak`, from NetworkManager's 0-100 strength.
   Before starting the hotspot, the coordinator runs one bounded NetworkManager rescan (10 s at

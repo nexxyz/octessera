@@ -52,7 +52,7 @@ for directory in LIBRARIES:
     assert hotspot.parse_networks("") == [] and hotspot.parse_networks(None) == []
 
     raspberry = hotspot.hostapd_config("Octessera Setup abcd", "k7Mx-9pQa", True).splitlines()
-    assert raspberry[8:12] == ["wpa=2", "wpa_key_mgmt=WPA-PSK-SHA256", "ieee80211w=2", "rsn_pairwise=CCMP"]
+    assert raspberry[8:12] == ["wpa=2", "wpa_key_mgmt=WPA-PSK WPA-PSK-SHA256", "ieee80211w=2", "rsn_pairwise=CCMP"]
     config = hotspot.hostapd_config("Octessera Setup abcd", "k7Mx-9pQa", False)
     assert config.splitlines() == ["interface=wlan0", "driver=nl80211", "ssid=Octessera Setup abcd", "hw_mode=g", "channel=6", "ieee80211n=1", "wmm_enabled=1", "auth_algs=1", "wpa=2", "wpa_key_mgmt=WPA-PSK", "rsn_pairwise=CCMP", "wpa_passphrase=k7Mx-9pQa"]
     assert "country_code" not in config and "ieee80211w" not in config and "wps" not in config

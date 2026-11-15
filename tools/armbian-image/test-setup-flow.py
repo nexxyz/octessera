@@ -138,7 +138,7 @@ for index, path in enumerate(COORDINATORS):
     pmf_board = Board()
     pmf_instance, _ = coordinator_for(coordinator, dict(profile, hotspot_management_frame_protection=True), pmf_board)
     pmf_instance.launch()
-    assert "wpa_key_mgmt=WPA-PSK-SHA256\nieee80211w=2\n" in written[-1][1]
+    assert "wpa_key_mgmt=WPA-PSK WPA-PSK-SHA256\nieee80211w=2\n" in written[-1][1]
     assert not any(passphrase in " ".join(event[1]) for event in board.events if event[0] in ("command", "launch"))
     assert coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase=passphrase)["portalPassphrase"] == passphrase
     for status in (lambda: coordinator._status("portal_ready", portal_suffix="abcd"), lambda: coordinator._status("finalizing", portal_passphrase=passphrase), lambda: coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase="O0l1-abcd")):

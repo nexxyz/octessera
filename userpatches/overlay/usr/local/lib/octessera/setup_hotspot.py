@@ -64,8 +64,8 @@ def parse_networks(output):
 
 
 def hostapd_config(ssid, passphrase, management_frame_protection):
-    # The Raspberry's firmware always adds PSK-SHA256 to the RSN element; clients refuse that without required PMF.
-    key_management = ("wpa_key_mgmt=WPA-PSK-SHA256", "ieee80211w=2") if management_frame_protection else ("wpa_key_mgmt=WPA-PSK",)
+    # The Raspberry's firmware always advertises PSK and PSK-SHA256; hostapd must offer both, with required PMF, to match.
+    key_management = ("wpa_key_mgmt=WPA-PSK WPA-PSK-SHA256", "ieee80211w=2") if management_frame_protection else ("wpa_key_mgmt=WPA-PSK",)
     return "\n".join((
         f"interface={INTERFACE}",
         "driver=nl80211",
