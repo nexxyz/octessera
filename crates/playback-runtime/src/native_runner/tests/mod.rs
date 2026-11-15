@@ -175,6 +175,7 @@ mod send_to_midi;
 mod sequencer_transport_origin;
 mod serde_wire_names;
 mod setup_portal;
+mod setup_portal_stop;
 mod show_hold;
 mod shutdown;
 mod signal_view;

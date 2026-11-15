@@ -40,7 +40,6 @@ DEVICE_STATE_SECONDS = 10
 ACCESS_POINT_SECONDS = 15
 APPLY_REPLY_SECONDS = 1.0
 CLEANUP_SECONDS = 20.0
-UNMANAGED = 10
 DISCONNECTED = 30
 
 
@@ -286,20 +285,11 @@ class Coordinator:
     def portal_ready(self):
         return self.portal_ipv4_ready() and self.http_ready() and self.listener_ready("u", 67)
 
-    def device_state(self, deadline=None):
-        result = self.bounded_command(["nmcli", "-g", "GENERAL.STATE", "device", "show", INTERFACE], deadline)
-        match = re.match(r"\s*([0-9]+)", result.stdout or "")
-        return int(match.group(1)) if result.returncode == 0 and match else -1
-
     def wait_for_device(self, ready, deadline):
-        while not ready(self.device_state(deadline)):
+        while not ready(self.hotspot.device_state(deadline)):
             if self.stopping() or self.clock() >= deadline:
                 raise SetupFailure("operation_failed")
             self.sleeper(0.1)
-
-    def supplicant_released(self, deadline):
-        result = self.bounded_command(["busctl", "--system", "--auto-start=no", "call", "fi.w1.wpa_supplicant1", "/fi/w1/wpa_supplicant1", "fi.w1.wpa_supplicant1", "GetInterface", "s", INTERFACE], deadline)
-        return result.returncode != 0
 
     def launch(self):
         self.portal_suffix = self.interface_suffix()
@@ -314,15 +304,8 @@ class Coordinator:
             self.networks = self.hotspot.scan()
         # The Orange's radio firmware asserts when the access point starts right after a scan.
         self.sleeper(RESCAN_SETTLE_SECONDS)
-        if self.stopping() or self.command(["nmcli", "device", "set", INTERFACE, "managed", "no"]).returncode != 0:
+        if self.stopping() or not self.hotspot.take_interface(self.clock() + DEVICE_STATE_SECONDS, self.stopping):
             raise SetupFailure("operation_failed")
-        released_deadline = self.clock() + DEVICE_STATE_SECONDS
-        self.wait_for_device(lambda state: state == UNMANAGED, released_deadline)
-        # NetworkManager reports unmanaged before wpa_supplicant lets go of wlan0; a hostapd started during that teardown fails.
-        while not self.supplicant_released(released_deadline):
-            if self.stopping() or self.clock() >= released_deadline:
-                raise SetupFailure("operation_failed")
-            self.sleeper(0.1)
         self.hotspot.start_access_point(f"Octessera Setup {self.portal_suffix}", self.portal_passphrase, self.profile.get("hotspot_management_frame_protection", False))
         access_point_deadline = self.clock() + ACCESS_POINT_SECONDS
         while not self.hotspot.access_point_up():

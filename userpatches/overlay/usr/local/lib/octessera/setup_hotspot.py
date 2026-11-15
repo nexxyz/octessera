@@ -11,6 +11,7 @@ AP_ADDRESS = "192.168.42.1"
 INTERFACE = "wlan0"
 HOSTAPD_CONFIG = "/run/octessera-setup-hostapd.conf"
 RESCAN_SECONDS = 10
+UNMANAGED = 10
 DNSMASQ_ARGS = (
     "--keep-in-foreground",
     "--conf-file",
@@ -97,6 +98,25 @@ class Hotspot:
         except subprocess.TimeoutExpired:
             return []
         return parse_networks(result.stdout) if result.returncode == 0 else []
+
+    def device_state(self, deadline=None):
+        result = self.run(["nmcli", "-g", "GENERAL.STATE", "device", "show", INTERFACE], deadline)
+        match = re.match(r"\s*([0-9]+)", result.stdout or "")
+        return int(match.group(1)) if result.returncode == 0 and match else -1
+
+    def supplicant_released(self, deadline):
+        result = self.run(["busctl", "--system", "--auto-start=no", "call", "fi.w1.wpa_supplicant1", "/fi/w1/wpa_supplicant1", "fi.w1.wpa_supplicant1", "GetInterface", "s", INTERFACE], deadline)
+        return result.returncode != 0
+
+    def take_interface(self, deadline, stopping):
+        if self.run(["nmcli", "device", "set", INTERFACE, "managed", "no"]).returncode != 0:
+            return False
+        # NetworkManager reports unmanaged before wpa_supplicant lets go of wlan0; a hostapd started during that teardown fails.
+        while self.device_state(deadline) != UNMANAGED or not self.supplicant_released(deadline):
+            if stopping() or self.clock() >= deadline:
+                return False
+            self.sleeper(0.1)
+        return True
 
     def _start(self, args):
         self.processes.append(self.process_factory(args, stdin=subprocess.DEVNULL, start_new_session=True))

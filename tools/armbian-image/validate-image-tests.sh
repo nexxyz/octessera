@@ -49,6 +49,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test_setup_sidecar.
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-request.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-http.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-flow.py"
+PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-entry.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-hotspot.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-state.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$root/tools/armbian-image/test-setup-readiness.py"
