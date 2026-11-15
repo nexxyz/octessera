@@ -30,6 +30,7 @@ check_common() {
   grep -qFx 'NoNewPrivileges=no' "$setup_unit"
   grep -qFx 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_PACKET' "$setup_unit"
   grep -qFx 'ProtectSystem=yes' "$setup_unit"
+  grep -qFx 'KillMode=mixed' "$setup_unit"
   if grep -q '^ReadWritePaths=' "$setup_unit"; then exit 1; fi
   grep -qE '^ReadWritePaths=(.* )?(/run|/run/octessera-setup-request/inbox)( |$)' "$tree/etc/systemd/system/octessera.service"
   octessera_reject_file_match 'Setup coordinator must not restart NetworkManager or log secrets.' -Eiq 'systemctl.*restart|print\(|logger|systemd\.journal|systemd-cat|wpa_passphrase|psk=' "$coordinator" "$config" "$http"
