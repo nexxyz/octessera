@@ -1,7 +1,9 @@
 mod errors;
 mod protocol;
 
-use crate::setup_portal_files::{create_request_marker, read_status_file, SetupFileError};
+use crate::setup_portal_files::{
+    create_request_marker, create_stop_marker, read_status_file, remove_stop_marker, SetupFileError,
+};
 pub(crate) use errors::SetupPortalFailure;
 use playback_runtime::{
     HostMessage, RuntimePlatformRequest, RuntimeSetupPortalDisposition, RuntimeSetupPortalPhase,
@@ -69,6 +71,10 @@ impl SetupPortalService {
         if state.pending.is_none() {
             return Err(SetupPortalFailure::internal());
         }
+        if let Err(error) = remove_stop_marker(&self.environment.paths.stop_request()) {
+            state.pending = None;
+            return Err(SetupPortalFailure::from_file(error));
+        }
         let (disposition, observed_starting) =
             match create_request_marker(&self.environment.paths.request) {
                 Ok(()) | Err(SetupFileError::Published) => {
@@ -89,6 +95,22 @@ impl SetupPortalService {
         } else {
             Err(SetupPortalFailure::internal())
         }
+    }
+
+    pub(crate) fn close(&self) -> Result<(), SetupPortalFailure> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| SetupPortalFailure::internal())?;
+        if !state
+            .pending
+            .as_ref()
+            .is_some_and(|pending| pending.published)
+        {
+            return Ok(());
+        }
+        create_stop_marker(&self.environment.paths.stop_request())
+            .map_err(SetupPortalFailure::from_file)
     }
 
     #[cfg(test)]

@@ -24,7 +24,8 @@ steps.
 
 > **Heads-up:** Anyone who can read the OLED can join the setup hotspot and
 > configure the instrument until setup finishes. Open it while you are there
-> and finish promptly. The portal closes by itself after 10 minutes.
+> and finish promptly. The portal closes by itself after 10 minutes, or right
+> away when you pick **Stop hotspot** on the OLED.
 
 ## What the portal sets
 

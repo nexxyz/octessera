@@ -67,6 +67,24 @@ fn create_request_marker_with_publisher(
     result
 }
 
+pub(crate) fn create_stop_marker(path: &Path) -> Result<(), SetupFileError> {
+    let Some(parent) = path.parent() else {
+        return Err(SetupFileError::Unsafe);
+    };
+    validate_request_parent(parent)?;
+    match open_new_file(path, 0o600) {
+        Ok(_) | Err(SetupFileError::Exists) => Ok(()),
+        Err(error) => Err(error),
+    }
+}
+
+pub(crate) fn remove_stop_marker(path: &Path) -> Result<(), SetupFileError> {
+    match fs::remove_file(path) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(classify_io(error)),
+        _ => Ok(()),
+    }
+}
+
 fn validate_request_parent(path: &Path) -> Result<(), SetupFileError> {
     #[cfg(unix)]
     {

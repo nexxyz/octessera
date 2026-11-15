@@ -16,4 +16,8 @@ impl SetupPortalPaths {
             public,
         }
     }
+
+    pub(crate) fn stop_request(&self) -> PathBuf {
+        self.request.with_file_name("stop")
+    }
 }

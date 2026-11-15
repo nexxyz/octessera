@@ -7,9 +7,9 @@ use std::path::Path;
 mod request_marker;
 
 pub(crate) use crate::setup_portal_paths::SetupPortalPaths;
-pub(crate) use request_marker::create_request_marker;
 #[cfg(test)]
 pub(crate) use request_marker::create_request_marker_with_publisher_for_test;
+pub(crate) use request_marker::{create_request_marker, create_stop_marker, remove_stop_marker};
 
 pub(crate) const MAX_STATUS_BYTES: u64 = 16 * 1024;
 

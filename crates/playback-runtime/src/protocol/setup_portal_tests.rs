@@ -29,6 +29,13 @@ fn setup_portal_effect_has_typed_operation_and_runtime_error_domain() {
     );
     assert_eq!(effect.operation(), RuntimeOperation::SetupPortal);
     assert_eq!(effect.error_domain(), RuntimeErrorDomain::Runtime);
+    let close = RuntimePlatformEffect::SetupPortalClose;
+    assert_eq!(
+        serde_json::to_value(&close).unwrap(),
+        json!({ "type": "setup_portal_close" })
+    );
+    assert_eq!(close.operation(), RuntimeOperation::SetupPortal);
+    assert_eq!(close.error_domain(), RuntimeErrorDomain::Runtime);
     assert_eq!(
         serde_json::to_value(RuntimeStoreResult::OperationSucceeded {
             operation: RuntimeOperation::SetupPortal,

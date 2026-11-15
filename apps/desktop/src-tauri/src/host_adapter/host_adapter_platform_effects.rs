@@ -131,6 +131,7 @@ impl DesktopPlaybackHostAdapter {
                 }
                 .with_identity(request.request_id.clone(), request.revision),
             }]),
+            RuntimePlatformEffect::SetupPortalClose => Ok(vec![]),
             RuntimePlatformEffect::UserDataTransferOpen => Ok(vec![HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::UserDataTransferStatus {
                     status: RuntimeUserDataTransferStatus {

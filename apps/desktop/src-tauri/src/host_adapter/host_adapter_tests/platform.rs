@@ -85,6 +85,17 @@ fn setup_portal_open_remains_a_separate_identified_unsupported_status() {
 }
 
 #[test]
+fn setup_portal_close_has_nothing_to_stop_on_desktop() {
+    let (mut adapter, _) = test_adapter();
+    let request = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::SetupPortalClose,
+        "setup-portal-close".into(),
+        Some(37),
+    );
+    assert!(adapter.handle_platform_effect(&request).unwrap().is_empty());
+}
+
+#[test]
 fn user_data_transfer_open_reports_identified_unsupported_status() {
     let (mut adapter, _) = test_adapter();
     let request = RuntimePlatformRequest::new(

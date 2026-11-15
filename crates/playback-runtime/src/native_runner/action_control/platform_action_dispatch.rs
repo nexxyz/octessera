@@ -209,6 +209,10 @@ impl NativeRunner {
     }
 
     fn open_setup_portal(&mut self) {
+        if self.setup_portal_closing() {
+            self.show_toast("Wi-Fi Setup is closing");
+            return;
+        }
         self.stop_for_setup_portal();
         if !self.wifi_enabled {
             self.wifi_enabled = true;

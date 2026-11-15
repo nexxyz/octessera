@@ -125,7 +125,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
     for (phase, expected) in [
         (
             RuntimeSetupPortalPhase::Starting,
-            vec!["Starting hotspot...", "Hide"],
+            vec!["Starting hotspot...", "Stop hotspot"],
         ),
         (
             RuntimeSetupPortalPhase::PortalReady,
@@ -135,12 +135,12 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
                 "Pass: MWmw-MWmw",
                 "Open 192.168.42.1",
                 "Portal: 10 minutes",
-                "Hide",
+                "Stop hotspot",
             ],
         ),
         (
             RuntimeSetupPortalPhase::Finalizing,
-            vec!["Applying settings...", "Hide"],
+            vec!["Applying settings...", "Close"],
         ),
         (
             RuntimeSetupPortalPhase::Succeeded,
@@ -245,12 +245,88 @@ pub(crate) fn already_running_is_presented_as_the_same_starting_lifecycle() {
     );
 }
 
+fn has_effect(messages: &[RunnerMessage], wanted: &RuntimePlatformEffect) -> bool {
+    messages.iter().any(|message| {
+        matches!(message, RunnerMessage::PlatformEffects { effects } if effects.contains(wanted))
+    })
+}
+
+fn open_portal_from_menu(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+    assert!(runner.menu.focus_item_key("system.configureWifi"));
+    let _ = send_main(runner, json!({"type":"encoder_press","id":"main"}));
+    runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
+    send_main(runner, json!({"type":"encoder_press","id":"main"}))
+}
+
 #[test]
-pub(crate) fn portal_hide_suppresses_current_phase_but_reopens_for_completion() {
+pub(crate) fn stop_hotspot_closes_the_card_and_stops_the_portal_once() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    assert!(has_effect(
+        &open_portal_from_menu(&mut runner),
+        &RuntimePlatformEffect::SetupPortalOpen
+    ));
+    let ready = runner
+        .send(HostMessage::RuntimeResult {
+            result: identified(RuntimeSetupPortalPhase::PortalReady, 1),
+        })
+        .unwrap();
+    assert_eq!(display_lines(&ready).last().unwrap(), "Stop hotspot");
+
+    let closed = send_main(&mut runner, json!({"type":"encoder_press","id":"main"}));
+    assert!(has_effect(
+        &closed,
+        &RuntimePlatformEffect::SetupPortalClose
+    ));
+    assert_ne!(snapshot_from(&closed)["display"]["title"], "Wi-Fi Setup");
+    assert!(runner.setup_portal_closing());
+
+    let reopened = open_portal_from_menu(&mut runner);
+    assert!(!has_effect(
+        &reopened,
+        &RuntimePlatformEffect::SetupPortalOpen
+    ));
+    assert_eq!(
+        runner
+            .display
+            .toast
+            .as_ref()
+            .map(|toast| toast.message.as_str()),
+        Some("Wi-Fi Setup is closing")
+    );
+
+    let stopped = runner
+        .send(HostMessage::RuntimeResult {
+            result: identified(RuntimeSetupPortalPhase::Failed, 1),
+        })
+        .unwrap();
+    assert_ne!(snapshot_from(&stopped)["display"]["title"], "Wi-Fi Setup");
+    assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
+    assert!(!runner.setup_portal_closing());
+
+    let reopened = open_portal_from_menu(&mut runner);
+    assert!(has_effect(
+        &reopened,
+        &RuntimePlatformEffect::SetupPortalOpen
+    ));
+    assert_eq!(
+        snapshot_from(&reopened)["display"]["lines"][0],
+        "Starting hotspot..."
+    );
+}
+
+#[test]
+pub(crate) fn back_also_stops_and_a_late_success_still_shows_sys_info() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.stop_for_setup_portal();
-    let _ = send_main(&mut runner, json!({"type":"button_a","pressed":true}));
-    assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
+    let closed = send_main(&mut runner, json!({"type":"button_a","pressed":true}));
+    assert!(has_effect(
+        &closed,
+        &RuntimePlatformEffect::SetupPortalClose
+    ));
 
     let hidden = runner
         .send(HostMessage::RuntimeResult {
@@ -261,30 +337,29 @@ pub(crate) fn portal_hide_suppresses_current_phase_but_reopens_for_completion() 
         snapshot_from(&hidden)["display"]["title"],
         runner.active_layer_title()
     );
-
-    let ready = runner
+    let finalizing = runner
         .send(HostMessage::RuntimeResult {
-            result: identified(RuntimeSetupPortalPhase::PortalReady, 1),
+            result: identified(RuntimeSetupPortalPhase::Finalizing, 1),
         })
         .unwrap();
-    assert_eq!(snapshot_from(&ready)["display"]["title"], "Wi-Fi Setup");
+    assert_ne!(
+        snapshot_from(&finalizing)["display"]["title"],
+        "Wi-Fi Setup"
+    );
 
-    let _ = send_main(&mut runner, json!({"type":"button_a","pressed":true}));
     let succeeded = runner
         .send(HostMessage::RuntimeResult {
             result: identified(RuntimeSetupPortalPhase::Succeeded, 1),
         })
         .unwrap();
     assert_eq!(snapshot_from(&succeeded)["display"]["title"], "Sys. Info");
-    assert_eq!(
-        runner.display.setup_portal.as_ref().unwrap().status.phase,
-        RuntimeSetupPortalPhase::Succeeded
-    );
     assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
-    let _ = send_main(&mut runner, json!({"type":"button_a","pressed":true}));
+    let dismissed = send_main(&mut runner, json!({"type":"button_a","pressed":true}));
+    assert!(!has_effect(
+        &dismissed,
+        &RuntimePlatformEffect::SetupPortalClose
+    ));
     assert!(runner.display.system_info_modal.is_none());
-    assert!(runner.display.setup_portal.is_some());
-    assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
 
     let repeated = runner
         .send(HostMessage::RuntimeResult {

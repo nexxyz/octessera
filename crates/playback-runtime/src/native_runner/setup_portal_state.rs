@@ -59,7 +59,9 @@ impl NativeRunner {
             false
         } else {
             prior_visibility
-                .filter(|(_, same_request, same_phase)| *same_request && *same_phase)
+                .filter(|(visible, same_request, same_phase)| {
+                    *same_request && (*same_phase || !*visible)
+                })
                 .map(|(visible, _, _)| visible)
                 .unwrap_or(true)
         };
@@ -112,9 +114,20 @@ impl NativeRunner {
         if close_requested {
             if let Some(setup) = self.display.setup_portal.as_mut() {
                 setup.visible = false;
+                if !is_setup_terminal(&setup.status.phase) {
+                    return self
+                        .messages_with_effects(vec![RuntimePlatformEffect::SetupPortalClose]);
+                }
             }
         }
         self.messages_with_snapshot()
+    }
+
+    pub(super) fn setup_portal_closing(&self) -> bool {
+        self.display
+            .setup_portal
+            .as_ref()
+            .is_some_and(|setup| !setup.visible && !is_setup_terminal(&setup.status.phase))
     }
 }
 

@@ -93,6 +93,13 @@ pub(crate) fn dispatch(
             Ok(status) => vec![status],
             Err(failure) => vec![start_failure_message(request, failure)],
         }),
+        RuntimePlatformEffect::SetupPortalClose => Some(match service.close_setup_portal() {
+            Ok(()) => Vec::new(),
+            Err(failure) => vec![failure_message(
+                request,
+                format!("Setup portal stop failed: {:?}", failure.kind),
+            )],
+        }),
         RuntimePlatformEffect::UserDataTransferOpen => {
             Some(vec![service.open_user_data_transfer(request)])
         }

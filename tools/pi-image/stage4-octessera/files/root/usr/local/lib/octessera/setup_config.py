@@ -47,7 +47,7 @@ HOSTNAME_LABEL = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 RASPBERRY_PROFILE = "r" "aspberry-pi-zero-2w"
 PROFILES = {
     "orange-pi-zero-2w": {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "octessera-runtime", "ssh_units": ("ssh.service", "ssh.socket", "sshd.service", "sshd.socket"), "radio_crash_markers": ("WCN Assert", "WCN: marlin power off"), "access_point_failure": "radio_restart_required"},
-    RASPBERRY_PROFILE: {"user": "pi", "request_owner": "pi", "status_group": "pi", "ssh_units": ("ssh.service", "ssh.socket"), "hotspot_management_frame_protection": True},
+    RASPBERRY_PROFILE: {"user": "pi", "request_owner": "pi", "status_group": "pi", "ssh_units": ("ssh.service", "ssh.socket"), "hotspot_management_frame_protection": True, "rescan_when_empty": True},
 }
 
 

@@ -247,6 +247,33 @@ fn setup_service_publishes_fixed_marker_and_already_running_disposition() {
     ));
 }
 
+#[cfg(any(unix, windows))]
+#[test]
+fn close_requests_a_stop_only_for_a_published_session_and_a_new_start_clears_it() {
+    let directory = TestDirectory::new();
+    directory.prepare();
+    let stop = directory.paths.stop_request();
+    let service = SetupPortalService::test(environment(&directory));
+    service.close().unwrap();
+    assert!(!stop.exists());
+
+    fs::write(&stop, b"").unwrap();
+    service.start(&request("accepted", 1)).unwrap();
+    assert!(!stop.exists());
+    service.close().unwrap();
+    service.close().unwrap();
+    assert!(fs::symlink_metadata(&stop).unwrap().is_file());
+
+    write_status(&directory, RuntimeSetupPortalPhase::Starting);
+    assert!(service.poll_one().is_some());
+    write_status(&directory, RuntimeSetupPortalPhase::Failed);
+    assert!(service.poll_one().is_some());
+    assert!(!service.has_pending());
+    fs::remove_file(&stop).unwrap();
+    service.close().unwrap();
+    assert!(!stop.exists());
+}
+
 #[test]
 fn backend_status_envelope_round_trips_all_image_phases_and_requires_type() {
     for phase in [

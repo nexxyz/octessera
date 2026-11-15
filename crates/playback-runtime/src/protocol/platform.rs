@@ -78,6 +78,7 @@ pub enum RuntimePlatformEffect {
     Rollback,
     SystemInfoRequest,
     SetupPortalOpen,
+    SetupPortalClose,
     UserDataTransferOpen,
     UserDataTransferClose,
     SampleListRequest {
@@ -128,7 +129,7 @@ impl RuntimePlatformEffect {
             | Self::Shutdown
             | Self::RestartApp => RuntimeOperation::RuntimeDispatch,
             Self::SystemInfoRequest => RuntimeOperation::SystemInfo,
-            Self::SetupPortalOpen => RuntimeOperation::SetupPortal,
+            Self::SetupPortalOpen | Self::SetupPortalClose => RuntimeOperation::SetupPortal,
             Self::UserDataTransferOpen | Self::UserDataTransferClose => {
                 RuntimeOperation::UserDataTransfer
             }
@@ -176,7 +177,7 @@ impl RuntimePlatformEffect {
             | Self::StoreSaveBackup { .. }
             | Self::StoreSaveRecovery { .. } => RuntimeErrorDomain::Storage,
             Self::SystemInfoRequest => RuntimeErrorDomain::Runtime,
-            Self::SetupPortalOpen => RuntimeErrorDomain::Runtime,
+            Self::SetupPortalOpen | Self::SetupPortalClose => RuntimeErrorDomain::Runtime,
             Self::UserDataTransferOpen | Self::UserDataTransferClose => RuntimeErrorDomain::Runtime,
             _ => RuntimeErrorDomain::Runtime,
         }

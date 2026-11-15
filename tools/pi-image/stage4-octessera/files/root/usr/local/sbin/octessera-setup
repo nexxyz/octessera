@@ -26,6 +26,7 @@ import setup_wifi_join
 REQUEST_DIR = "/run/octessera-setup-request"
 INBOX_DIR = f"{REQUEST_DIR}/inbox"
 REQUEST_PATH = f"{INBOX_DIR}/start"
+STOP_PATH = f"{INBOX_DIR}/stop"
 STATUS_DIR = "/run/octessera-setup-status"
 STATUS_PATH = f"{STATUS_DIR}/current.json"
 INTERFACE = "wlan0"
@@ -227,6 +228,14 @@ class Coordinator:
     def request_stop(self, _signum, _frame):
         self.stop_requested = True
 
+    def stopping(self):
+        if not self.stop_requested:
+            try:
+                self.stop_requested = stat.S_ISREG(os.lstat(STOP_PATH).st_mode)
+            except OSError:
+                pass
+        return self.stop_requested
+
     def interface_suffix(self):
         with open(f"/sys/class/net/{INTERFACE}/address", "r", encoding="ascii") as handle:
             address = handle.read().strip().lower()
@@ -283,7 +292,7 @@ class Coordinator:
 
     def wait_for_device(self, ready, deadline):
         while not ready(self.device_state(deadline)):
-            if self.stop_requested or self.clock() >= deadline:
+            if self.stopping() or self.clock() >= deadline:
                 raise SetupFailure("operation_failed")
             self.sleeper(0.1)
 
@@ -296,6 +305,8 @@ class Coordinator:
         if self.command(["nmcli", "radio", "wifi", "on"]).returncode != 0:
             raise SetupFailure("operation_failed")
         self.networks = self.hotspot.scan()
+        if not self.networks and self.profile.get("rescan_when_empty", False):
+            self.networks = self.hotspot.scan()
         # The Orange's radio firmware asserts when the access point starts right after a scan.
         self.sleeper(RESCAN_SETTLE_SECONDS)
         if self.command(["nmcli", "device", "set", INTERFACE, "managed", "no"]).returncode != 0:
@@ -304,7 +315,7 @@ class Coordinator:
         self.hotspot.start_access_point(f"Octessera Setup {self.portal_suffix}", self.portal_passphrase, self.profile.get("hotspot_management_frame_protection", False))
         access_point_deadline = self.clock() + ACCESS_POINT_SECONDS
         while not self.hotspot.access_point_up():
-            if self.stop_requested or not self.hotspot.running() or self.clock() >= access_point_deadline:
+            if self.stopping() or not self.hotspot.running() or self.clock() >= access_point_deadline:
                 raise SetupFailure(self.profile.get("access_point_failure", "operation_failed"))
             self.sleeper(0.1)
         if not self.hotspot.serve():
@@ -313,7 +324,7 @@ class Coordinator:
     def wait_for_portal_readiness(self, outer_deadline):
         while not self.portal_ready():
             self.check_radio()
-            if self.stop_requested:
+            if self.stopping():
                 raise SetupFailure("operation_failed")
             if self.clock() >= outer_deadline:
                 raise SetupFailure("operation_failed")
@@ -340,7 +351,7 @@ class Coordinator:
             raise SetupFailure("operation_failed")
         while not self.global_ipv4_ready():
             self.check_radio()
-            if self.stop_requested or self.clock() >= apply_deadline:
+            if self.stopping() or self.clock() >= apply_deadline:
                 raise SetupFailure("operation_failed")
             self.sleeper(0.1)
         setup_wifi_join.keep()
@@ -361,7 +372,7 @@ class Coordinator:
             now = self.clock()
             if now >= portal_deadline:
                 raise SetupTimeout()
-            if self.stop_requested:
+            if self.stopping():
                 raise SetupFailure("operation_failed")
             if not self.hotspot.running():
                 raise SetupFailure("operation_failed")
@@ -398,6 +409,10 @@ class Coordinator:
         except (OSError, subprocess.SubprocessError):
             pass
         self.cleanup_request_marker()
+        try:
+            os.unlink(STOP_PATH)
+        except OSError:
+            pass
         if self.staged is not None:
             self.staged.clear()
         self.staged = None
@@ -433,12 +448,12 @@ class Coordinator:
             outcome = ("failed", "operation_failed")
         finally:
             try:
+                self.cleanup(max(outer_deadline, self.clock() + 5.0))
+            finally:
                 if outcome[0] == "failed" and outcome[1] != "radio_restart_required" and self.radio_crashed():
                     outcome = ("failed", "radio_restart_required")
                 if not self.terminal_published:
                     self.publish(outcome[0], error_code=outcome[1], terminal=True)
-            finally:
-                self.cleanup(max(outer_deadline, self.clock() + 5.0))
             signal.signal(signal.SIGINT, previous[0])
             signal.signal(signal.SIGTERM, previous[1])
         return 0
@@ -461,9 +476,11 @@ def status_is_terminal(profile):
 
 
 def cleanup_mode(profile, clock=time.monotonic):
-    if not status_is_terminal(profile):
-        write_status(_status("failed", error_code="operation_failed"), profile)
+    # A terminal status is published only after the coordinator's own cleanup; a marker present now is a new request.
+    if status_is_terminal(profile):
+        return 0
     Coordinator(profile).cleanup(clock() + 10.0)
+    write_status(_status("failed", error_code="operation_failed"), profile)
     return 0
 
 
@@ -474,7 +491,11 @@ def main():
         return cleanup_mode(profile)
     if len(sys.argv) != 1:
         raise SystemExit(2)
-    consume_request(profile)
+    try:
+        consume_request(profile)
+    except (OSError, ValueError):
+        Coordinator(profile).cleanup_request_marker()
+        raise
     return Coordinator(profile).run(service_started_at)
 
 

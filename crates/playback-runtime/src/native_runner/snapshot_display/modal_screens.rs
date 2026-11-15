@@ -67,7 +67,7 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
         RuntimeSetupPortalPhase::Starting => (
             "Wi-Fi Setup".to_string(),
             vec!["Starting hotspot...".into()],
-            "Hide",
+            "Stop hotspot",
         ),
         RuntimeSetupPortalPhase::PortalReady => (
             "Wi-Fi Setup".to_string(),
@@ -88,12 +88,12 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
             .into_iter()
             .flatten()
             .collect(),
-            "Hide",
+            "Stop hotspot",
         ),
         RuntimeSetupPortalPhase::Finalizing => (
             "Wi-Fi Setup".to_string(),
             vec!["Applying settings...".into()],
-            "Hide",
+            "Close",
         ),
         RuntimeSetupPortalPhase::Succeeded => (
             "Wi-Fi Setup".to_string(),

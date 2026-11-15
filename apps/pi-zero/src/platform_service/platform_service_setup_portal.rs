@@ -20,6 +20,10 @@ impl PiPlatformService {
         Ok(starting_message(request, disposition))
     }
 
+    pub fn close_setup_portal(&self) -> Result<(), SetupPortalFailure> {
+        self.setup_portal.close()
+    }
+
     pub fn drain_results(&self, max_results: usize) -> Vec<HostMessage> {
         let mut messages = Vec::new();
         for result in self.drain_platform_results(max_results) {

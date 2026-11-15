@@ -352,6 +352,12 @@ changed edit saves System like any other System preference, shows `Applying...`,
   `Pass: <passphrase>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`,
   `failed`, `timed_out`, or desktop `unsupported`. The modal ranks after confirmation dialogs and
   ahead of system info and help.
+- While the hotspot starts or runs, the card's action row is `Stop hotspot`; Main or Back closes the
+  card and emits `SetupPortalClose` once, which ends the portal (an unfinished join is abandoned and
+  the old network comes back). The card stays hidden for that session's later statuses. During
+  `Applying settings...` the row is `Close`; the apply still finishes. `Open Portal` while the stop
+  is still running toasts `Wi-Fi Setup is closing` and does nothing; once the terminal status
+  arrives it opens a fresh portal. Desktop has nothing to stop.
 - The hotspot is WPA2-protected and runs for at most 10 minutes (`PORTAL_WINDOW_SECONDS = 600` in
   `octessera-setup`). Each portal start draws a fresh passphrase of two 4-character groups joined
   by a dash (`xxxx-xxxx`, 9 characters, the dash included), with characters from the
@@ -371,7 +377,8 @@ changed edit saves System like any other System preference, shows `Applying...`,
   (strength 67 and up), `Fair` (34 to 66) or `Weak`, from NetworkManager's 0-100 strength.
   Before starting the hotspot, the coordinator runs one bounded NetworkManager rescan (10 s at
   most) and then waits 5 s, because the Orange's radio firmware asserts when the access point
-  starts right after a scan. The list is fixed for the portal session, and the page offers only
+  starts right after a scan. On Raspberry an empty or timed-out scan is retried once (another 10 s
+  at most); the Orange never scans twice. The list is fixed for the portal session, and the page offers only
   open and WPA networks from it. **Other network…** takes a typed SSID (1-32 bytes of UTF-8, no
   control characters) with a WPA password or, ticked open, none; `/stage` gets it with
   `wifiHidden: true`, skips the scanned-list check, and the join profile sets `hidden=true`, so

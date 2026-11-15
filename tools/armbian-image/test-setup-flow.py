@@ -111,6 +111,8 @@ for index, path in enumerate(COORDINATORS):
     coordinator = load(path, f"flow_coordinator_{index}")
     marker = Path(tempfile.mkdtemp()) / "joining"
     coordinator.setup_wifi_join.JOINING_PATH = str(marker)
+    stop_marker = marker.parent / "stop"
+    coordinator.STOP_PATH = str(stop_marker)
     written = []
     coordinator.setup_config._write_atomic = lambda target, content, mode, *_args: written.append((target, content, mode)) or (marker.write_text(content) if target == str(marker) else None)
     profile = {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "root"}
@@ -165,6 +167,24 @@ for index, path in enumerate(COORDINATORS):
     slow_instance.launch()
     assert slow_instance.networks == [] and len(slow_started) == 2
 
+    for scans, expected in (([""], 2), (["hermetes4:WPA2:80\n"], 1)):
+        rescan = Board(scan="")
+        rescan_fallback = rescan.command
+        results = iter(scans + ["hermetes4:WPA2:80\n"])
+
+        def rescan_command(args, timeout=None, fallback=rescan_fallback, results=results):
+            if tuple(args) == SCAN:
+                rescan.events.append(("command", SCAN, timeout))
+                return SimpleNamespace(returncode=0, stdout=next(results))
+            return fallback(args, timeout)
+
+        rescan.command = rescan_command
+        rescan_instance, _ = coordinator_for(coordinator, dict(profile, rescan_when_empty=True), rescan)
+        rescan_instance.launch()
+        commands = [event[1] for event in rescan.events if event[0] == "command"]
+        assert commands.count(SCAN) == expected and rescan_instance.networks == [{"ssid": "hermetes4", "security": "wpa", "strength": 80}]
+        assert commands.index(("nmcli", "device", "set", "wlan0", "managed", "no")) > max(index for index, command in enumerate(commands) if command == SCAN)
+
     for selected, code in ((profile, "operation_failed"), (orange, "radio_restart_required")):
         silent = Board(ap_info="Interface wlan0\n\ttype managed\n")
         ticks = iter(range(0, 1000))
@@ -210,6 +230,15 @@ for index, path in enumerate(COORDINATORS):
     dead_instance.hotspot.processes = [Process(), Process(0)]
     dead_instance.portal_ready = lambda: False
     expect_failure(lambda: dead_instance.wait_for_portal_readiness(10.0), "operation_failed")
+    stopped, _ = coordinator_for(coordinator, profile, Board(), clock=lambda: 1.0)
+    stopped.hotspot.processes = [Process()]
+    assert not stopped.stopping()
+    stop_marker.write_text("")
+    expect_failure(lambda: stopped.wait_for_stage(600.0), "operation_failed")
+    assert stopped.stopping()
+    stopped.cleanup_request_marker = lambda: None
+    stopped.cleanup(10.0)
+    assert not stop_marker.exists()
     instance.staged = None
     instance.clock = lambda: 600.0
     try:
@@ -350,12 +379,12 @@ for index, path in enumerate(COORDINATORS):
     coordinator.status_is_terminal = lambda _profile: False
     coordinator.write_status = lambda status, selected: cleanup_events.append(("status", status, selected))
     coordinator.cleanup_mode(profile, clock=lambda: 40.0)
-    assert cleanup_events[0][0] == "status"
-    assert cleanup_events[1:] == [("construct", profile), ("cleanup", 50.0)]
+    assert cleanup_events[:2] == [("construct", profile), ("cleanup", 50.0)]
+    assert [event[0] for event in cleanup_events[2:]] == ["status"] and cleanup_events[2][1]["phase"] == "failed"
     cleanup_events.clear()
     coordinator.status_is_terminal = lambda _profile: True
     coordinator.cleanup_mode(profile, clock=lambda: 40.0)
-    assert all(event[0] != "status" for event in cleanup_events)
+    assert cleanup_events == []
     coordinator.Coordinator = original_coordinator
     coordinator.status_is_terminal = original_status_is_terminal
     coordinator.write_status = original_write_status
@@ -399,6 +428,35 @@ for index, path in enumerate(COORDINATORS):
         coordinator.Coordinator = original_coordinator
     assert entry_events == [("profile", 100.0), ("request", profile, 140.0), ("construct", profile, 200.0), ("run", 100.0, 760.0, 200.0)]
 
+    rejected_events = []
+
+    def reject_request(_selected):
+        raise ValueError("invalid setup request")
+
+    class RejectCoordinator:
+        def __init__(self, selected):
+            rejected_events.append(("construct", selected))
+
+        def cleanup_request_marker(self):
+            rejected_events.append(("marker",))
+
+    coordinator.setup_config.load_profile = lambda: profile
+    coordinator.consume_request = reject_request
+    coordinator.Coordinator = RejectCoordinator
+    sys.argv = ["octessera-setup"]
+    try:
+        coordinator.main()
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("an invalid request was accepted")
+    finally:
+        sys.argv = original_argv
+        coordinator.setup_config.load_profile = original_load_profile
+        coordinator.consume_request = original_consume_request
+        coordinator.Coordinator = original_coordinator
+    assert rejected_events == [("construct", profile), ("marker",)]
+
     crash_log = "WCN: mdbg_assert_read:WCN Assert in rf_marlin.c line 1016\nWCN: marlin power off!\n"
 
     def kernel_log(text):
@@ -421,6 +479,17 @@ for index, path in enumerate(COORDINATORS):
         coordinator.setup_http.SetupHTTPServer = original_setup_server
     assert dead_launches == []
     assert dead_status[-1] == ("failed", {"error_code": "radio_restart_required", "terminal": True})
+
+    ordered = []
+    coordinator.setup_http.SetupHTTPServer = lambda *_args: fake_server
+    try:
+        ordering, _ = coordinator_for(coordinator, profile, Board(fail={("nmcli", "radio", "wifi", "on")}))
+        ordering.publish = lambda phase, **kwargs: ordered.append(("status", phase, kwargs.get("terminal", False)))
+        ordering.cleanup = lambda _deadline: ordered.append(("cleanup",))
+        assert ordering.run(0.0) == 0
+    finally:
+        coordinator.setup_http.SetupHTTPServer = original_setup_server
+    assert ordered == [("status", "starting", False), ("cleanup",), ("status", "failed", True)]
 
     waiting = coordinator.Coordinator(orange, command=kernel_log(crash_log), clock=lambda: 5.0, sleeper=lambda _seconds: None)
     waiting.hotspot.processes = [Process()]
