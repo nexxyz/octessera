@@ -203,6 +203,8 @@ class Coordinator:
         self.radio_checked_at = None
 
     def check_network(self, value):
+        if value["hidden"]:
+            return
         network = next((network for network in self.networks if network["ssid"] == value["ssid"]), None)
         if network is None or (network["security"] == "none") != (value["passphrase"] == ""):
             raise ValueError("invalid network")
@@ -334,7 +336,7 @@ class Coordinator:
         self.wait_for_device(lambda state: state >= DISCONNECTED, apply_deadline)
         run = lambda args: self.bounded_command(args, apply_deadline)
         previous = setup_wifi_join.profiles_for_ssid(run, self.staged["ssid"])
-        if not setup_wifi_join.join(run, str(uuid.uuid4()), self.staged["ssid"], self.staged["passphrase"], max(1, int(apply_deadline - self.clock()))):
+        if not setup_wifi_join.join(run, str(uuid.uuid4()), self.staged["ssid"], self.staged["passphrase"], self.staged["hidden"], max(1, int(apply_deadline - self.clock()))):
             raise SetupFailure("operation_failed")
         while not self.global_ipv4_ready():
             self.check_radio()

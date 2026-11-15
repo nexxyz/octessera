@@ -35,6 +35,7 @@ def payload(mode="none", password="eight888"):
         "wifiCountry": "US",
         "wifiSsid": "Home",
         "wifiPassphrase": "wifi-pass",
+        "wifiHidden": False,
     }
 
 
@@ -331,6 +332,7 @@ for index, path in enumerate(CONFIGS):
         {**payload(), "accountPasswordConfirm": "different"},
         {**payload(), "sshPassword": "x"},
         {**payload(), "wifiCountry": "USA"},
+        {**payload(), "wifiHidden": "false"},
     ):
         try:
             config.validate_stage(invalid)

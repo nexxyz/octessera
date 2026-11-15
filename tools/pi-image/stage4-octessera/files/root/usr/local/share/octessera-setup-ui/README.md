@@ -5,7 +5,8 @@ Static UI for the one-page branded dark Wi-Fi setup portal.
 ## Page fields
 
 - Country code
-- A network from the scanned list
+- A network from the scanned list, or Other network… with a typed name and an
+  open checkbox for hidden networks
 - Its Wi-Fi password (none for open networks)
 - Local device password and confirmation; it is required even when SSH is disabled
 - SSH key, SSH password, or none
@@ -25,7 +26,8 @@ the page uses relative paths only. Any other host name gets a redirect to
 - `POST /country` applies the two-letter country code to the running radio.
 - `POST /stage` validates the country, Wi-Fi network and password, local device
   password, SSH, and hostname fields and passes them to the root coordinator in
-  memory. The network must be one from `/networks`.
+  memory. Unless `wifiHidden` is true, the network must be one from
+  `/networks`.
 
 ## `/stage` request body
 
@@ -40,7 +42,8 @@ Send JSON to `/stage` with these exact fields:
   "hostname": "",
   "wifiCountry": "US",
   "wifiSsid": "Home",
-  "wifiPassphrase": "Example-wifi-1"
+  "wifiPassphrase": "Example-wifi-1",
+  "wifiHidden": false
 }
 ```
 
@@ -48,7 +51,8 @@ The example password is fictional; do not reuse it.
 
 `sshMode` must be one of `none`, `key`, or `password`. `wifiPassphrase` is
 empty for an open network and 8-63 printable ASCII characters (or 64 hex
-digits) otherwise.
+digits) otherwise. `wifiHidden` is a boolean: `true` joins the typed SSID
+(1-32 bytes of UTF-8, no control characters) as a hidden network.
 
 The local device password is set for the board account even when `sshMode` is
 `none`. Key mode installs the public key and keeps SSH password login disabled.

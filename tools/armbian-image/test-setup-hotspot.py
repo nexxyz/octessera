@@ -57,12 +57,16 @@ for directory in LIBRARIES:
     assert config.splitlines() == ["interface=wlan0", "driver=nl80211", "ssid=Octessera Setup abcd", "hw_mode=g", "channel=6", "ieee80211n=1", "wmm_enabled=1", "auth_algs=1", "wpa=2", "wpa_key_mgmt=WPA-PSK", "rsn_pairwise=CCMP", "wpa_passphrase=k7Mx-9pQa"]
     assert "country_code" not in config and "ieee80211w" not in config and "wps" not in config
 
-    keyfile = join.keyfile("1234", "My Net\\", "pa ss\\word")
+    keyfile = join.keyfile("1234", "My Net\\", "pa ss\\word", False)
     assert "id=My\\sNet\\\\\n" in keyfile and "uuid=1234\n" in keyfile and "interface-name=wlan0\n" in keyfile
     assert "ssid=77;121;32;78;101;116;92;\n" in keyfile
     assert "[wifi-security]\nkey-mgmt=wpa-psk\npsk=pa\\sss\\\\word\n" in keyfile
     assert "[ipv4]\nmethod=auto\n" in keyfile and "[ipv6]\nmethod=auto\n" in keyfile
-    assert "wifi-security" not in join.keyfile("1234", "Cafe", "")
+    assert "wifi-security" not in join.keyfile("1234", "Cafe", "", False)
+    assert "hidden" not in keyfile
+    hidden = join.keyfile("1234", "Attic", "eight888", True)
+    assert "[wifi]\nmode=infrastructure\nssid=65;116;116;105;99;\nhidden=true\n\n[wifi-security]\nkey-mgmt=wpa-psk\npsk=eight888\n" in hidden
+    assert "ssid=65;116;116;105;99;\nhidden=true\n\n[ipv4]" in join.keyfile("1234", "Attic", "", True)
     assert join.profile_path("1234") == "/etc/NetworkManager/system-connections/octessera-setup-1234.nmconnection"
 
     outputs = {
@@ -85,11 +89,11 @@ for directory in LIBRARIES:
     join.setup_config._write_atomic = lambda path, content, mode: written.append((path, mode)) or (marker.write_text(content) if path == str(marker) else None)
     calls = []
     ok = lambda args: calls.append(tuple(args)) or SimpleNamespace(returncode=0, stdout="")
-    assert join.join(ok, "1234", "Home", "eight888", 42)
+    assert join.join(ok, "1234", "Home", "eight888", False, 42)
     assert written == [(str(marker), 0o600), (join.profile_path("1234"), 0o600)]
     assert calls == [("nmcli", "connection", "load", join.profile_path("1234")), ("nmcli", "--wait", "42", "connection", "up", "uuid", "1234")]
     calls.clear()
-    assert not join.join(lambda args: calls.append(tuple(args)) or SimpleNamespace(returncode=1, stdout=""), "1234", "Home", "eight888", 42)
+    assert not join.join(lambda args: calls.append(tuple(args)) or SimpleNamespace(returncode=1, stdout=""), "1234", "Home", "eight888", False, 42)
     assert calls == [("nmcli", "connection", "load", join.profile_path("1234"))]
     join.keep()
     assert not marker.exists()

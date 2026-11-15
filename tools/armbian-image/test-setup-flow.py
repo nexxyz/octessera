@@ -220,9 +220,11 @@ for index, path in enumerate(COORDINATORS):
         raise AssertionError("portal timeout was not enforced")
 
     instance.networks = [{"ssid": "hermetes4", "security": "wpa", "strength": 80}, {"ssid": "Cafe", "security": "none", "strength": 50}]
-    instance.check_network({"ssid": "hermetes4", "passphrase": "eight888"})
-    instance.check_network({"ssid": "Cafe", "passphrase": ""})
-    for value in ({"ssid": "hermetes4", "passphrase": ""}, {"ssid": "Cafe", "passphrase": "eight888"}, {"ssid": "Hidden", "passphrase": "eight888"}):
+    instance.check_network({"ssid": "hermetes4", "passphrase": "eight888", "hidden": False})
+    instance.check_network({"ssid": "Cafe", "passphrase": "", "hidden": False})
+    instance.check_network({"ssid": "Hidden", "passphrase": "eight888", "hidden": True})
+    instance.check_network({"ssid": "Hidden", "passphrase": "", "hidden": True})
+    for value in ({"ssid": "hermetes4", "passphrase": "", "hidden": False}, {"ssid": "Cafe", "passphrase": "eight888", "hidden": False}, {"ssid": "Hidden", "passphrase": "eight888", "hidden": False}):
         try:
             instance.check_network(value)
         except ValueError:
@@ -230,7 +232,7 @@ for index, path in enumerate(COORDINATORS):
         else:
             raise AssertionError(f"accepted {value}")
 
-    staged = {"sshMode": "none", "hostname": "", "country": "", "ssid": "hermetes4", "passphrase": "eight888"}
+    staged = {"sshMode": "none", "hostname": "", "country": "", "ssid": "hermetes4", "passphrase": "eight888", "hidden": False}
     board = Board()
     apply_instance, apply_started = coordinator_for(coordinator, profile, board, clock=lambda: 1.0)
     apply_instance.hotspot.processes = [Process(), Process()]
@@ -249,7 +251,7 @@ for index, path in enumerate(COORDINATORS):
     assert commands.index(("ip", "addr", "del", "192.168.42.1/24", "dev", "wlan0")) < commands.index(("nmcli", "device", "set", "wlan0", "managed", "yes")) < commands.index(STATE)
     profile_file = written[-1]
     joined = profile_file[0].removeprefix("/etc/NetworkManager/system-connections/octessera-setup-").removesuffix(".nmconnection")
-    assert profile_file[2] == 0o600 and f"uuid={joined}\n" in profile_file[1] and "psk=eight888\n" in profile_file[1]
+    assert profile_file[2] == 0o600 and f"uuid={joined}\n" in profile_file[1] and "psk=eight888\n" in profile_file[1] and "hidden" not in profile_file[1]
     load_index = commands.index(("nmcli", "connection", "load", profile_file[0]))
     up = next(command for command in commands if command[-3:] == ("up", "uuid", joined))
     assert up[:3] == ("nmcli", "--wait", "60") and commands.index(up) > load_index
@@ -258,6 +260,21 @@ for index, path in enumerate(COORDINATORS):
     assert not any("eight888" in " ".join(command) for command in commands)
     assert phases == ["finalizing"] and finalized == [(staged, profile, 61.0)]
     assert not marker.exists() and all(process.terminated for process in apply_started + apply_instance.hotspot.processes)
+    board = Board()
+    hidden_instance, _ = coordinator_for(coordinator, profile, board, clock=lambda: 1.0)
+    hidden_instance.hotspot.processes = [Process(), Process()]
+    hidden_instance.staged = {**staged, "hidden": True}
+    hidden_instance.staged_at = 1.0
+    hidden_instance.global_ipv4_ready = lambda: True
+    hidden_instance.publish = lambda phase, **_kwargs: None
+    written.clear()
+    hidden_instance.wait_for_apply(670.0)
+    commands = [event[1] for event in board.events if event[0] == "command"]
+    assert "\nhidden=true\n" in written[-1][1] and "psk=eight888\n" in written[-1][1]
+    joined = written[-1][0].removeprefix("/etc/NetworkManager/system-connections/octessera-setup-").removesuffix(".nmconnection")
+    up = next(command for command in commands if command[-3:] == ("up", "uuid", joined))
+    assert commands.index(("nmcli", "connection", "delete", "uuid", "home")) > commands.index(up)
+    assert finalized[-1] == ({**staged, "hidden": True}, profile, 61.0)
     coordinator.setup_config.finalize = original_finalize
 
     for failed_step in (("nmcli", "--wait"), ("nmcli", "connection", "load")):

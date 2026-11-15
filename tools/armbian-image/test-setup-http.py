@@ -17,12 +17,14 @@ COORDINATORS = (
     ROOT / "tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-setup",
 )
 PUBLIC_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-PAYLOAD = {"sshMode": "none", "sshPublicKey": "", "accountPassword": "eight888", "accountPasswordConfirm": "eight888", "hostname": "", "wifiCountry": "US", "wifiSsid": "Home Net", "wifiPassphrase": "wifi pass"}
+PAYLOAD = {"sshMode": "none", "sshPublicKey": "", "accountPassword": "eight888", "accountPasswordConfirm": "eight888", "hostname": "", "wifiCountry": "US", "wifiSsid": "Home Net", "wifiPassphrase": "wifi pass", "wifiHidden": False}
 NETWORKS = [{"ssid": "Home Net", "security": "wpa", "strength": 80}, {"ssid": "Cafe", "security": "none", "strength": 40}]
 VALID_MODE_PAYLOADS = (
     {**PAYLOAD, "sshMode": "key", "sshPublicKey": PUBLIC_KEY},
     {**PAYLOAD, "sshMode": "password"},
     PAYLOAD,
+    {**PAYLOAD, "wifiSsid": "Attic ☂", "wifiHidden": True},
+    {**PAYLOAD, "wifiSsid": "Attic", "wifiPassphrase": "", "wifiHidden": True},
 )
 INVALID_PASSWORD_PAYLOADS = (
     {key: value for key, value in PAYLOAD.items() if key != "accountPassword"},
@@ -42,6 +44,14 @@ INVALID_WIFI_PAYLOADS = (
     {**PAYLOAD, "wifiPassphrase": "x" * 64},
     {**PAYLOAD, "wifiSsid": "Cafe"},
     {**PAYLOAD, "wifiSsid": "x" * 33, "wifiPassphrase": "eight888"},
+    {key: value for key, value in PAYLOAD.items() if key != "wifiHidden"},
+    {**PAYLOAD, "wifiHidden": "true"},
+    {**PAYLOAD, "wifiHidden": 1},
+    {**PAYLOAD, "wifiSsid": "", "wifiHidden": True},
+    {**PAYLOAD, "wifiSsid": "☂" * 11, "wifiHidden": True},
+    {**PAYLOAD, "wifiSsid": "Attic\x7f", "wifiHidden": True},
+    {**PAYLOAD, "wifiSsid": "Attic", "wifiPassphrase": "short", "wifiHidden": True},
+    {**PAYLOAD, "wifiSsid": "Attic", "wifiPassphrase": "x" * 64, "wifiHidden": True},
 )
 
 
@@ -128,6 +138,7 @@ for index, path in enumerate(COORDINATORS):
                 assert mode_instance.staged["sshMode"] == mode_payload["sshMode"]
                 assert mode_instance.staged["accountPassword"] == "eight888"
                 assert ("sshKey" in mode_instance.staged) == (mode_payload["sshMode"] == "key")
+                assert (mode_instance.staged["ssid"], mode_instance.staged["passphrase"], mode_instance.staged["hidden"]) == (mode_payload["wifiSsid"], mode_payload["wifiPassphrase"], mode_payload["wifiHidden"])
                 assert mode_country_calls == ["US"]
             finally:
                 mode_server.shutdown()
@@ -140,7 +151,7 @@ for index, path in enumerate(COORDINATORS):
             assert instance.staged is None and country_calls == []
         status, body = request(port, PAYLOAD)
         assert status == 200 and body == b'{"ok":true}'
-        assert set(instance.staged) == {"sshMode", "accountPassword", "hostname", "country", "ssid", "passphrase"}
+        assert set(instance.staged) == {"sshMode", "accountPassword", "hostname", "country", "ssid", "passphrase", "hidden"}
         assert instance.staged["ssid"] == "Home Net" and instance.staged["passphrase"] == "wifi pass"
         assert instance.staged["accountPassword"] == "eight888" and country_calls == ["US"]
         staged = dict(instance.staged)
@@ -160,7 +171,7 @@ for index, path in enumerate(COORDINATORS):
         assert status == 400
         status, body, location, content = get(port, "/")
         assert status == 200 and body == "text/html; charset=utf-8" and b"<title>Octessera setup</title>" in content and location is None
-        status, body, _, content = get(port, "/js/app.js?v=3")
+        status, body, _, content = get(port, "/js/app.js?v=4")
         assert status == 200 and body == "text/javascript; charset=utf-8" and b"const API" in content
         status, body, _, content = get(port, "/networks")
         assert status == 200 and body == "application/json" and json.loads(content) == NETWORKS

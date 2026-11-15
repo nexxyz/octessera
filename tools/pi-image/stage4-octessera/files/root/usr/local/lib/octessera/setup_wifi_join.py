@@ -17,7 +17,7 @@ def profile_path(uuid):
     return f"{CONNECTIONS_DIR}/octessera-setup-{uuid}.nmconnection"
 
 
-def keyfile(uuid, ssid, passphrase):
+def keyfile(uuid, ssid, passphrase, hidden):
     lines = [
         "[connection]",
         f"id={_keyfile_string(ssid)}",
@@ -28,8 +28,8 @@ def keyfile(uuid, ssid, passphrase):
         "[wifi]",
         "mode=infrastructure",
         "ssid=" + "".join(f"{byte};" for byte in ssid.encode("utf-8")),
-        "",
     ]
+    lines += ["hidden=true", ""] if hidden else [""]
     if passphrase:
         lines += ["[wifi-security]", "key-mgmt=wpa-psk", f"psk={_keyfile_string(passphrase)}", ""]
     lines += ["[ipv4]", "method=auto", "", "[ipv6]", "method=auto", ""]
@@ -72,10 +72,10 @@ def _remove(path):
         pass
 
 
-def join(run, uuid, ssid, passphrase, wait_seconds):
+def join(run, uuid, ssid, passphrase, hidden, wait_seconds):
     setup_config._write_atomic(JOINING_PATH, f"{uuid}\n", 0o600)
     path = profile_path(uuid)
-    setup_config._write_atomic(path, keyfile(uuid, ssid, passphrase), 0o600)
+    setup_config._write_atomic(path, keyfile(uuid, ssid, passphrase, hidden), 0o600)
     return run(["nmcli", "connection", "load", path]).returncode == 0 and run(["nmcli", "--wait", str(wait_seconds), "connection", "up", "uuid", uuid]).returncode == 0
 
 

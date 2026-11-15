@@ -15,7 +15,7 @@ MARKER_PATH = "/var/lib/octessera/setup-complete"
 HOSTNAME_PATH = "/etc/hostname"
 HOSTS_PATH = "/etc/hosts"
 SSH_POLICY_PATH = "/etc/ssh/sshd_config.d/10-octessera-setup.conf"
-ALLOWED_FIELDS = frozenset(("sshMode", "sshPublicKey", "accountPassword", "accountPasswordConfirm", "hostname", "wifiCountry", "wifiSsid", "wifiPassphrase"))
+ALLOWED_FIELDS = frozenset(("sshMode", "sshPublicKey", "accountPassword", "accountPasswordConfirm", "hostname", "wifiCountry", "wifiSsid", "wifiPassphrase", "wifiHidden"))
 PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
 PASSWORD_WHITESPACE_RANGES = (
@@ -120,7 +120,7 @@ def validate_country_payload(data):
 def validate_stage(data):
     if not isinstance(data, dict) or frozenset(data) != ALLOWED_FIELDS:
         raise ValueError("invalid stage")
-    if any(not isinstance(data[field], str) for field in ALLOWED_FIELDS):
+    if any(not isinstance(data[field], str) for field in ALLOWED_FIELDS - {"wifiHidden"}) or not isinstance(data["wifiHidden"], bool):
         raise ValueError("invalid stage")
     mode = data["sshMode"]
     hostname = data["hostname"].strip()
@@ -132,7 +132,7 @@ def validate_stage(data):
         raise ValueError("invalid stage")
     if data["accountPasswordConfirm"] != password or not valid_password(password):
         raise ValueError("invalid stage")
-    result = {"sshMode": mode, "accountPassword": password, "hostname": hostname, "country": country, "ssid": data["wifiSsid"], "passphrase": data["wifiPassphrase"]}
+    result = {"sshMode": mode, "accountPassword": password, "hostname": hostname, "country": country, "ssid": data["wifiSsid"], "passphrase": data["wifiPassphrase"], "hidden": data["wifiHidden"]}
     if mode == "key":
         if not valid_public_key(data["sshPublicKey"]):
             raise ValueError("invalid stage")
@@ -331,6 +331,7 @@ def finalize(data, profile, deadline=None, clock=time.monotonic):
         "wifiCountry": data["country"],
         "wifiSsid": data["ssid"],
         "wifiPassphrase": data["passphrase"],
+        "wifiHidden": data["hidden"],
     })
     remove_marker()
     try:

@@ -48,6 +48,9 @@ const state = {
   networks: [],
   networkError: '',
   selectedSsid: '',
+  hidden: false,
+  hiddenSsid: '',
+  openNetwork: false,
   wifiPassphrase: '',
   wifiCountry: 'US',
   accountPassword: '',
@@ -63,6 +66,9 @@ const els = {
   refreshNetworks: document.getElementById('refreshNetworks'),
   networkState: document.getElementById('networkState'),
   networkList: document.getElementById('networkList'),
+  hiddenFields: document.getElementById('hiddenFields'),
+  hiddenSsid: document.getElementById('hiddenSsid'),
+  openNetwork: document.getElementById('openNetwork'),
   wifiPassphrase: document.getElementById('wifiPassphrase'),
   wifiCountry: document.getElementById('wifiCountry'),
   accountPassword: document.getElementById('accountPassword'),
@@ -94,7 +100,12 @@ const normalizeNetworks = (payload) => (Array.isArray(payload) ? payload : []).m
 
 const selectedNetwork = () => state.networks.find((network) => network.ssid === state.selectedSsid);
 
-const requiresWifiPassword = () => !OPEN_SECURITY.includes(selectedNetwork()?.security ?? '');
+const requiresWifiPassword = () => (state.hidden ? !state.openNetwork : !OPEN_SECURITY.includes(selectedNetwork()?.security ?? ''));
+
+const validHiddenSsid = (value) => {
+  const length = new TextEncoder().encode(value).length;
+  return length >= 1 && length <= 32 && !Array.from(value).some((character) => character.codePointAt(0) < 0x20 || character.codePointAt(0) === 0x7f);
+};
 
 const signalLabel = (strength) => `${strength >= 67 ? 'Strong' : strength >= 34 ? 'Fair' : 'Weak'} signal`;
 
@@ -134,7 +145,17 @@ const renderNetworks = () => {
     )
     .join('');
 
-  els.networkList.innerHTML = items || '<div class="muted">No networks were returned.</div>';
+  const other = `
+        <label class="network-item${state.hidden ? ' is-selected' : ''}">
+          <input class="network-radio" type="radio" name="ssidChoice" value="" id="hiddenNetwork" aria-label="Select another network" ${state.hidden ? 'checked' : ''} />
+          <span class="network-radio-mark" aria-hidden="true"></span>
+          <span class="network-copy">
+            <strong class="network-ssid">Other network…</strong>
+            <span class="network-meta">Hidden or not in the list</span>
+          </span>
+        </label>`;
+  els.networkList.innerHTML = (items || '<div class="muted">No networks were returned.</div>') + other;
+  els.hiddenFields.hidden = !state.hidden;
   els.wifiPassphrase.disabled = !requiresWifiPassword();
 };
 
@@ -150,6 +171,8 @@ const renderSshChoices = () => {
 };
 
 const syncStateFromInputs = () => {
+  state.hiddenSsid = els.hiddenSsid.value;
+  state.openNetwork = els.openNetwork.checked;
   state.wifiPassphrase = els.wifiPassphrase.value;
   state.wifiCountry = els.wifiCountry.value.trim().toUpperCase();
   state.accountPassword = els.accountPassword.value;
@@ -159,7 +182,7 @@ const syncStateFromInputs = () => {
 };
 
 const focusSelectedNetwork = () => {
-  const radio = Array.from(els.networkList.querySelectorAll('input[name="ssidChoice"]')).find((input) => input.value === state.selectedSsid);
+  const radio = Array.from(els.networkList.querySelectorAll('input[name="ssidChoice"]')).find((input) => (state.hidden ? input.id === 'hiddenNetwork' : input.value === state.selectedSsid));
   if (!radio) {
     return;
   }
@@ -199,7 +222,10 @@ const validationError = () => {
   if (!/^[A-Z]{2}$/.test(state.wifiCountry)) {
     return { field: els.wifiCountry, message: 'Enter a two-letter Wi-Fi country code.' };
   }
-  if (!selectedNetwork()) {
+  if (state.hidden && !validHiddenSsid(state.hiddenSsid)) {
+    return { field: els.hiddenSsid, message: 'Enter the network name (1 to 32 bytes, no control characters).' };
+  }
+  if (!state.hidden && !selectedNetwork()) {
     return { field: els.refreshNetworks, message: 'Choose a Wi-Fi network.' };
   }
   if (requiresWifiPassword() && !state.wifiPassphrase) {
@@ -217,8 +243,9 @@ const stagePayload = () => ({
   accountPasswordConfirm: state.accountPasswordConfirm,
   hostname: els.hostname.value.trim(),
   wifiCountry: state.wifiCountry,
-  wifiSsid: state.selectedSsid,
+  wifiSsid: state.hidden ? state.hiddenSsid : state.selectedSsid,
   wifiPassphrase: requiresWifiPassword() ? state.wifiPassphrase : '',
+  wifiHidden: state.hidden,
 });
 
 const stageFailureMessage = async (response) => {
@@ -317,7 +344,8 @@ const bindEvents = () => {
       return;
     }
     if (target.name === 'ssidChoice') {
-      state.selectedSsid = target.value;
+      state.hidden = target.id === 'hiddenNetwork';
+      state.selectedSsid = state.hidden ? '' : target.value;
       render();
       focusSelectedNetwork();
       return;

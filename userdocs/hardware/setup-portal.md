@@ -30,7 +30,7 @@ steps.
 
 | Setting | Details |
 |---|---|
-| Wi-Fi | Country code, then a network from the scanned list and its password (open networks need none). |
+| Wi-Fi | Country code, then a network from the scanned list and its password (open networks need none). For a hidden network, pick **Other network…** and type its name; tick **This network is open** if it has no password. |
 | Local device password | For `pi` on the Raspberry Pi or `octessera` on the Orange Pi. At least 8 characters. Required even with SSH off. |
 | SSH | **Key** (recommended; password login stays off), **password** (uses the local device password), or **none** (SSH stays off). Root login is never allowed. |
 | Hostname | Optional: letters, digits and hyphens, up to 63 characters, not starting or ending with a hyphen. Leave blank to keep the current name; a fresh card uses `octessera-rpi` or `octessera-opi`. |
@@ -56,7 +56,9 @@ password. The `root` account is locked; use
   portal again.
 - The scanned list puts the strongest networks first. It is scanned once when
   the portal starts, so if your network is missing, close the portal on the
-  instrument and open it again. Hidden networks can't be picked.
+  instrument and open it again. A hidden network never shows up in the list;
+  use **Other network…** and type its name exactly, capitals and spaces
+  included.
 - A wrong Wi-Fi password ends with a failure on the OLED, and the instrument
   goes back to the network it was on before. Open the portal again and retype
   it.

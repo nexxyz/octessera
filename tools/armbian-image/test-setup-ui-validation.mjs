@@ -94,20 +94,31 @@ const loadStagePayload = (relativePath) => {
     assert.notEqual(end, -1);
     return source.slice(start, end);
   };
-  const context = { __state: {}, __els: { hostname: { value: ' box ' } } };
-  new vm.Script(`const state = globalThis.__state; const els = globalThis.__els; ${slice('const OPEN_SECURITY =', 'const COUNTRY_INVALID')} ${slice('const selectedNetwork =', 'const signalLabel')} ${slice('const stagePayload =', 'const stageFailureMessage')} globalThis.payload = (values) => { Object.assign(state, values); return stagePayload(); };`).runInNewContext(context);
-  return { api: source.slice(0, source.indexOf('};') + 2), payload: context.payload };
+  const context = { __state: {}, __els: { hostname: { value: ' box ' } }, TextEncoder };
+  new vm.Script(`const state = globalThis.__state; const els = globalThis.__els; ${slice('const OPEN_SECURITY =', 'const COUNTRY_INVALID')} ${slice('const selectedNetwork =', 'const signalLabel')} ${slice('const stagePayload =', 'const stageFailureMessage')} globalThis.payload = (values) => { Object.assign(state, { hidden: false, openNetwork: false }, values); return stagePayload(); }; globalThis.validHiddenSsid = validHiddenSsid;`).runInNewContext(context);
+  return { api: source.slice(0, source.indexOf('};') + 2), payload: context.payload, validHiddenSsid: context.validHiddenSsid };
 };
 
 for (const relativePath of UI_FILES) {
   test(`setup page stages the chosen scanned network on the portal's own origin: ${relativePath}`, () => {
-    const { api, payload } = loadStagePayload(relativePath);
+    const { api, payload, validHiddenSsid } = loadStagePayload(relativePath);
     assert.match(api, /country: '\/country'/);
     assert.match(api, /stage: '\/stage'/);
     assert.doesNotMatch(api, /8080|connect/);
     const common = { sshMode: 'none', sshPublicKey: '', accountPassword: 'eight888', accountPasswordConfirm: 'eight888', wifiCountry: 'AT', wifiPassphrase: 'secret88' };
     const networks = [{ ssid: 'Home', security: 'wpa' }, { ssid: 'Cafe', security: 'none' }];
-    assert.deepEqual(JSON.parse(JSON.stringify(payload({ ...common, networks, selectedSsid: 'Home' }))), { sshMode: 'none', sshPublicKey: '', accountPassword: 'eight888', accountPasswordConfirm: 'eight888', hostname: 'box', wifiCountry: 'AT', wifiSsid: 'Home', wifiPassphrase: 'secret88' });
+    assert.deepEqual(JSON.parse(JSON.stringify(payload({ ...common, networks, selectedSsid: 'Home' }))), { sshMode: 'none', sshPublicKey: '', accountPassword: 'eight888', accountPasswordConfirm: 'eight888', hostname: 'box', wifiCountry: 'AT', wifiSsid: 'Home', wifiPassphrase: 'secret88', wifiHidden: false });
     assert.equal(payload({ ...common, networks, selectedSsid: 'Cafe' }).wifiPassphrase, '');
+    const hidden = JSON.parse(JSON.stringify(payload({ ...common, networks, selectedSsid: '', hidden: true, hiddenSsid: 'Attic' })));
+    assert.deepEqual([hidden.wifiSsid, hidden.wifiPassphrase, hidden.wifiHidden], ['Attic', 'secret88', true]);
+    assert.equal(payload({ ...common, networks, selectedSsid: '', hidden: true, hiddenSsid: 'Attic', openNetwork: true }).wifiPassphrase, '');
+    assert.equal(validHiddenSsid('Attic'), true);
+    assert.equal(validHiddenSsid('x'.repeat(32)), true);
+    assert.equal(validHiddenSsid('\u2602'.repeat(10)), true);
+    assert.equal(validHiddenSsid(''), false);
+    assert.equal(validHiddenSsid('x'.repeat(33)), false);
+    assert.equal(validHiddenSsid('\u2602'.repeat(11)), false);
+    assert.equal(validHiddenSsid('Attic\u007f'), false);
+    assert.equal(validHiddenSsid('Attic\n'), false);
   });
 }

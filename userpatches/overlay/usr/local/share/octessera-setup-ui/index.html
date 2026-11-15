@@ -40,6 +40,16 @@
             </div>
             <div id="networkState" class="network-state muted" role="status" aria-live="polite" aria-busy="false"></div>
             <div id="networkList" class="network-list" role="radiogroup" aria-labelledby="networkLabel" aria-busy="false"></div>
+            <div id="hiddenFields" class="field-subsection" hidden>
+              <label class="field">
+                <span>Network name (SSID)</span>
+                <input id="hiddenSsid" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Network name" />
+              </label>
+              <label class="checkbox">
+                <input id="openNetwork" type="checkbox" />
+                <span>This network is open</span>
+              </label>
+            </div>
           </div>
 
           <div class="wifi-access">
@@ -119,6 +129,6 @@
       </section>
     </main>
 
-    <script type="module" src="/js/app.js?v=3"></script>
+    <script type="module" src="/js/app.js?v=4"></script>
   </body>
 </html>

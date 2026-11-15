@@ -371,7 +371,10 @@ changed edit saves System like any other System preference, shows `Applying...`,
   Before starting the hotspot, the coordinator runs one bounded NetworkManager rescan (10 s at
   most) and then waits 5 s, because the Orange's radio firmware asserts when the access point
   starts right after a scan. The list is fixed for the portal session, and the page offers only
-  open and WPA networks from it; there is no manual or hidden SSID.
+  open and WPA networks from it. **Other network…** takes a typed SSID (1-32 bytes of UTF-8, no
+  control characters) with a WPA password or, ticked open, none; `/stage` gets it with
+  `wifiHidden: true`, skips the scanned-list check, and the join profile sets `hidden=true`, so
+  NetworkManager probes for the SSID directly.
 - After Apply, the coordinator stops the hotspot, hands `wlan0` back to NetworkManager and joins
   the chosen network through a new profile. Older profiles for that network are deleted only once
   the join has an address; a failed join (a wrong password, say) deletes the new profile, so the
