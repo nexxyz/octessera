@@ -371,6 +371,32 @@ pub(crate) fn back_also_stops_and_a_late_success_still_shows_sys_info() {
 }
 
 #[test]
+pub(crate) fn close_while_applying_only_hides_and_a_failure_still_shows() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.stop_for_setup_portal();
+    let applying = runner
+        .send(HostMessage::RuntimeResult {
+            result: identified(RuntimeSetupPortalPhase::Finalizing, 1),
+        })
+        .unwrap();
+    assert_eq!(display_lines(&applying).last().unwrap(), "Close");
+    let hidden = send_main(&mut runner, json!({"type":"encoder_press","id":"main"}));
+    assert!(!has_effect(
+        &hidden,
+        &RuntimePlatformEffect::SetupPortalClose
+    ));
+    assert_ne!(snapshot_from(&hidden)["display"]["title"], "Wi-Fi Setup");
+
+    let failed = runner
+        .send(HostMessage::RuntimeResult {
+            result: identified(RuntimeSetupPortalPhase::Failed, 1),
+        })
+        .unwrap();
+    assert_eq!(snapshot_from(&failed)["display"]["title"], "Wi-Fi Setup");
+    assert_eq!(display_lines(&failed)[0], "Setup failed");
+}
+
+#[test]
 pub(crate) fn succeeded_status_keeps_an_invisible_terminal_tombstone() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.stop_for_setup_portal();

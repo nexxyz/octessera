@@ -263,6 +263,12 @@ for index, path in enumerate(COORDINATORS):
     stopped.cleanup_request_marker = lambda: None
     stopped.cleanup(10.0)
     assert not stop_marker.exists()
+    stop_marker.write_text("")
+    early_board = Board()
+    early, early_started = coordinator_for(coordinator, profile, early_board)
+    expect_failure(early.launch, "operation_failed")
+    assert early_started == [] and ("nmcli", "device", "set", "wlan0", "managed", "no") not in [event[1] for event in early_board.events if event[0] == "command"]
+    stop_marker.unlink()
     instance.staged = None
     instance.clock = lambda: 600.0
     try:

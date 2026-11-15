@@ -17,7 +17,8 @@ impl NativeRunner {
                 current.visible,
                 (current.request_id.is_none() || current.request_id == request_id)
                     && request_id.is_some(),
-                current.status.phase == status.phase,
+                current.status.phase == status.phase
+                    || (!current.visible && stops_hotspot(&current.status.phase)),
             )
         });
         if let Some(current) = self.display.setup_portal.as_ref() {
@@ -59,9 +60,7 @@ impl NativeRunner {
             false
         } else {
             prior_visibility
-                .filter(|(visible, same_request, same_phase)| {
-                    *same_request && (*same_phase || !*visible)
-                })
+                .filter(|(_, same_request, keeps_visibility)| *same_request && *keeps_visibility)
                 .map(|(visible, _, _)| visible)
                 .unwrap_or(true)
         };
@@ -114,7 +113,7 @@ impl NativeRunner {
         if close_requested {
             if let Some(setup) = self.display.setup_portal.as_mut() {
                 setup.visible = false;
-                if !is_setup_terminal(&setup.status.phase) {
+                if stops_hotspot(&setup.status.phase) {
                     return self
                         .messages_with_effects(vec![RuntimePlatformEffect::SetupPortalClose]);
                 }
@@ -129,6 +128,13 @@ impl NativeRunner {
             .as_ref()
             .is_some_and(|setup| !setup.visible && !is_setup_terminal(&setup.status.phase))
     }
+}
+
+fn stops_hotspot(phase: &RuntimeSetupPortalPhase) -> bool {
+    matches!(
+        phase,
+        RuntimeSetupPortalPhase::Starting | RuntimeSetupPortalPhase::PortalReady
+    )
 }
 
 fn status_rank(phase: &RuntimeSetupPortalPhase) -> u8 {

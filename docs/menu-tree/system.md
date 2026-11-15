@@ -355,9 +355,10 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - While the hotspot starts or runs, the card's action row is `Stop hotspot`; Main or Back closes the
   card and emits `SetupPortalClose` once, which ends the portal (an unfinished join is abandoned and
   the old network comes back). The card stays hidden for that session's later statuses. During
-  `Applying settings...` the row is `Close`; the apply still finishes. `Open Portal` while the stop
-  is still running toasts `Wi-Fi Setup is closing` and does nothing; once the terminal status
-  arrives it opens a fresh portal. Desktop has nothing to stop.
+  `Applying settings...` the row is `Close`: it only hides the card, the apply finishes, and its
+  result shows. `Open Portal` while a hidden session has no result yet toasts `Wi-Fi Setup is
+  closing` and does nothing; once the terminal status arrives it opens a fresh portal. Desktop has
+  nothing to stop.
 - The hotspot is WPA2-protected and runs for at most 10 minutes (`PORTAL_WINDOW_SECONDS = 600` in
   `octessera-setup`). Each portal start draws a fresh passphrase of two 4-character groups joined
   by a dash (`xxxx-xxxx`, 9 characters, the dash included), with characters from the
