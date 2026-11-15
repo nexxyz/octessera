@@ -402,8 +402,12 @@ changed edit saves System like any other System preference, shows `Applying...`,
   can only be cleared by a restart (a driver reload oopses the kernel), so it ends setup as
   `failed` with `radio_restart_required`, shown as `Wi-Fi chip stopped` / `Restart the device`.
   The radio is down at that point, so the browser cannot show it. A hotspot that never reaches
-  access-point mode (a second start in one boot often fails that way on Orange) ends the same way
-  on Orange and as `operation_failed` on Raspberry.
+  access-point mode without such a crash ends as `operation_failed` on both boards.
+- Before hostapd starts, the coordinator waits (within the same 10 s as the unmanaged state) until
+  wpa_supplicant no longer knows `wlan0` over D-Bus. NetworkManager reports `unmanaged` about
+  100 ms before wpa_supplicant's teardown finishes, and a hostapd that started during that
+  teardown failed (`Could not set channel` on Orange, `Failed to set beacon parameters` on
+  Raspberry); that was why repeated starts in one boot failed.
 - The portal can change Wi-Fi, hostname, SSH, and the board's admin login (`pi` on Raspberry,
   `octessera` on Orange) without a reboot. It does not start or advertise Backup / Restore.
 

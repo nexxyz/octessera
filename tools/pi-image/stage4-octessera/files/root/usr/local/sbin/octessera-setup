@@ -296,6 +296,10 @@ class Coordinator:
                 raise SetupFailure("operation_failed")
             self.sleeper(0.1)
 
+    def supplicant_released(self, deadline):
+        result = self.bounded_command(["busctl", "--system", "--auto-start=no", "call", "fi.w1.wpa_supplicant1", "/fi/w1/wpa_supplicant1", "fi.w1.wpa_supplicant1", "GetInterface", "s", INTERFACE], deadline)
+        return result.returncode != 0
+
     def launch(self):
         self.portal_suffix = self.interface_suffix()
         try:
@@ -311,12 +315,18 @@ class Coordinator:
         self.sleeper(RESCAN_SETTLE_SECONDS)
         if self.command(["nmcli", "device", "set", INTERFACE, "managed", "no"]).returncode != 0:
             raise SetupFailure("operation_failed")
-        self.wait_for_device(lambda state: state == UNMANAGED, self.clock() + DEVICE_STATE_SECONDS)
+        released_deadline = self.clock() + DEVICE_STATE_SECONDS
+        self.wait_for_device(lambda state: state == UNMANAGED, released_deadline)
+        # NetworkManager reports unmanaged before wpa_supplicant lets go of wlan0; a hostapd started during that teardown fails.
+        while not self.supplicant_released(released_deadline):
+            if self.stopping() or self.clock() >= released_deadline:
+                raise SetupFailure("operation_failed")
+            self.sleeper(0.1)
         self.hotspot.start_access_point(f"Octessera Setup {self.portal_suffix}", self.portal_passphrase, self.profile.get("hotspot_management_frame_protection", False))
         access_point_deadline = self.clock() + ACCESS_POINT_SECONDS
         while not self.hotspot.access_point_up():
             if self.stopping() or not self.hotspot.running() or self.clock() >= access_point_deadline:
-                raise SetupFailure(self.profile.get("access_point_failure", "operation_failed"))
+                raise SetupFailure("operation_failed")
             self.sleeper(0.1)
         if not self.hotspot.serve():
             raise SetupFailure("operation_failed")

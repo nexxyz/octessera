@@ -16,6 +16,7 @@ COORDINATORS = (
 )
 SCAN = ("nmcli", "-t", "-e", "yes", "-f", "SSID,SECURITY,SIGNAL", "device", "wifi", "list", "ifname", "wlan0", "--rescan", "yes")
 STATE = ("nmcli", "-g", "GENERAL.STATE", "device", "show", "wlan0")
+SUPPLICANT = ("busctl", "--system", "--auto-start=no", "call", "fi.w1.wpa_supplicant1", "/fi/w1/wpa_supplicant1", "fi.w1.wpa_supplicant1", "GetInterface", "s", "wlan0")
 AP_INFO = "Interface wlan0\n\tssid Octessera Setup abcd\n\ttype AP\n"
 
 
@@ -59,6 +60,7 @@ class Board:
         self.ap_info = ap_info
         self.scan = scan
         self.fail = set(fail)
+        self.supplicant_holds = 0
         self.profiles = "home:802-11-wireless\nportal:802-11-wireless\nother:802-11-wireless\n"
 
     def command(self, args, timeout=None):
@@ -66,6 +68,9 @@ class Board:
         self.events.append(("command", args, timeout))
         if args in self.fail or args[:4] in self.fail:
             return SimpleNamespace(returncode=1, stdout="")
+        if args == SUPPLICANT:
+            self.supplicant_holds -= 1
+            return SimpleNamespace(returncode=0 if self.supplicant_holds >= 0 else 1, stdout="")
         if args == ("nmcli", "device", "set", "wlan0", "managed", "no"):
             self.state = "10 (unmanaged)"
         elif args == ("nmcli", "device", "set", "wlan0", "managed", "yes"):
@@ -116,7 +121,7 @@ for index, path in enumerate(COORDINATORS):
     written = []
     coordinator.setup_config._write_atomic = lambda target, content, mode, *_args: written.append((target, content, mode)) or (marker.write_text(content) if target == str(marker) else None)
     profile = {"user": "octessera", "request_owner": "octessera-runtime", "status_group": "root"}
-    orange = dict(profile, radio_crash_markers=("WCN Assert", "WCN: marlin power off"), access_point_failure="radio_restart_required")
+    orange = dict(profile, radio_crash_markers=("WCN Assert", "WCN: marlin power off"))
 
     board = Board()
     instance, started = coordinator_for(coordinator, profile, board)
@@ -130,7 +135,7 @@ for index, path in enumerate(COORDINATORS):
     assert all(event[2] == {"stdin": subprocess.DEVNULL, "start_new_session": True} for event in launches)
     assert "--address=/#/192.168.42.1" in launches[1][1] and "--bind-interfaces" in launches[1][1]
     position = {name: names.index(name) for name in (("nmcli", "device", "set", "wlan0", "managed", "no"), ("iw", "dev", "wlan0", "info"), ("ip", "addr", "add", "192.168.42.1/24", "dev", "wlan0"))}
-    assert position[("nmcli", "device", "set", "wlan0", "managed", "no")] < names.index(launches[0]) < position[("iw", "dev", "wlan0", "info")] < position[("ip", "addr", "add", "192.168.42.1/24", "dev", "wlan0")] < names.index(launches[1])
+    assert position[("nmcli", "device", "set", "wlan0", "managed", "no")] < names.index(SUPPLICANT) < names.index(launches[0]) < position[("iw", "dev", "wlan0", "info")] < position[("ip", "addr", "add", "192.168.42.1/24", "dev", "wlan0")] < names.index(launches[1])
     assert SCAN not in names[names.index(launches[0]):]
     assert written[-1][0] == "/run/octessera-setup-hostapd.conf" and written[-1][2] == 0o600
     assert "ssid=Octessera Setup abcd\n" in written[-1][1]
@@ -185,7 +190,7 @@ for index, path in enumerate(COORDINATORS):
         assert commands.count(SCAN) == expected and rescan_instance.networks == [{"ssid": "hermetes4", "security": "wpa", "strength": 80}]
         assert commands.index(("nmcli", "device", "set", "wlan0", "managed", "no")) > max(index for index, command in enumerate(commands) if command == SCAN)
 
-    for selected, code in ((profile, "operation_failed"), (orange, "radio_restart_required")):
+    for selected, code in ((profile, "operation_failed"), (orange, "operation_failed")):
         silent = Board(ap_info="Interface wlan0\n\ttype managed\n")
         ticks = iter(range(0, 1000))
         silent_instance, silent_started = coordinator_for(coordinator, selected, silent, clock=lambda: float(next(ticks)))
@@ -197,6 +202,25 @@ for index, path in enumerate(COORDINATORS):
         exited_instance, exited_started = coordinator_for(coordinator, selected, exited)
         exited_instance.process_factory = lambda args, **kwargs: Process(1)
         expect_failure(exited_instance.launch, code)
+
+    holding = Board()
+    holding.supplicant_holds = 2
+    holding_instance, holding_started = coordinator_for(coordinator, profile, holding)
+    holding_instance.launch()
+    names = [event[1] if event[0] == "command" else event for event in holding.events]
+    launch_index = next(index for index, name in enumerate(names) if name[0] == "launch")
+    assert names[:launch_index].count(SUPPLICANT) == 3 and len(holding_started) == 2
+    held = Board()
+    held.supplicant_holds = 1000
+    ticks = iter(range(0, 1000))
+    held_instance, held_started = coordinator_for(coordinator, profile, held, clock=lambda: float(next(ticks)))
+    try:
+        held_instance.launch()
+    except (coordinator.SetupFailure, subprocess.TimeoutExpired):
+        pass
+    else:
+        raise AssertionError("hostapd started while wpa_supplicant still held wlan0")
+    assert held_started == []
 
     stuck = Board()
     stuck.command = lambda args, timeout=None: SimpleNamespace(returncode=0, stdout="100 (connected)\n") if tuple(args) == STATE else Board().command(args, timeout)

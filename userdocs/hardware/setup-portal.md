@@ -64,8 +64,8 @@ password. The `root` account is locked; use
   goes back to the network it was on before. Open the portal again and retype
   it.
 - If it says **Wi-Fi chip stopped**, restart the instrument before trying again.
-  The Orange Pi's Wi-Fi chip sometimes gives up when the hotspot is started a
-  second time without a restart in between, and only a restart wakes it.
+  The Orange Pi's Wi-Fi chip occasionally crashes outright, and only a restart
+  wakes it.
 
 For power and cable precautions, see [safety and power](safety-and-power.md).
 For USB data connections, see [USB roles](usb-roles.md).
