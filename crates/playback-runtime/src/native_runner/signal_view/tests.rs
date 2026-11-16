@@ -224,3 +224,53 @@ fn longer_waterfalls_step_less_often_and_the_shortest_adds_two_columns_a_step() 
     assert!(lit(SIGNAL_WIDTH - 1) && lit(SIGNAL_WIDTH - 2));
     assert!(!lit(SIGNAL_WIDTH - 3));
 }
+
+/// Prints the runtime-thread cost of one live step of each picture, tap read included; run with
+/// `cargo test --release -p playback-runtime --lib signal_step_cost -- --ignored --nocapture`.
+#[test]
+#[ignore = "release-mode micro-benchmark"]
+fn signal_step_cost() {
+    let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
+    let reader = SignalTapReader::new(tap);
+    let frames: Vec<f32> = (0..READ)
+        .flat_map(|index| {
+            let sample = (index as f32 * 0.37).sin() * 0.5 + (index as f32 * 0.011).sin() * 0.3;
+            [sample, sample]
+        })
+        .collect();
+    let start = Instant::now();
+    let mut tuning = VisualTuning::DEFAULT;
+    tuning.adjust(VisualKind::Waterfall, -1);
+    for (name, kind, tuning) in [
+        ("scope 11 ms", VisualKind::Scope, VisualTuning::DEFAULT),
+        ("spectrum 62", VisualKind::Spectrum, VisualTuning::DEFAULT),
+        (
+            "waterfall 8 s",
+            VisualKind::Waterfall,
+            VisualTuning::DEFAULT,
+        ),
+        ("waterfall 4 s", VisualKind::Waterfall, tuning),
+    ] {
+        let view = LiveView {
+            kind,
+            tuning,
+            rows: crate::oled_frame::SIGNAL_BODY_HEIGHT,
+            ..MASTER_SCOPE
+        };
+        let _ = reader.visual(Some(view), start);
+        let runs = 2000_u32;
+        let mut elapsed = Duration::ZERO;
+        for step in 1..=runs {
+            tap.publish_master(&frames, 512, 44_100);
+            let at = start + tuning.step(kind) * step;
+            let started = Instant::now();
+            std::hint::black_box(reader.visual(Some(view), at));
+            elapsed += started.elapsed();
+        }
+        println!(
+            "{name} step: {:.1} us",
+            elapsed.as_secs_f64() * 1e6 / f64::from(runs)
+        );
+        let _ = reader.visual(None, start);
+    }
+}

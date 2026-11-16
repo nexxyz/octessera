@@ -3,6 +3,7 @@ use super::snapshot_display::DisplaySnapshot;
 use super::{NativeRunner, RuntimeTransportState};
 use crate::oled_frame::{
     OledSignalArea, OledSignalView, OledSignalVisual, SIGNAL_BAND_HEIGHT, SIGNAL_BODY_HEIGHT,
+    SIGNAL_WIDTH,
 };
 use realtime_engine::synth::{master_signal_tap, SignalSource, SignalTap};
 use spectrum::SpectrumHistory;
@@ -19,10 +20,12 @@ mod tuning;
 pub(super) use full_screen::NativeFullScreenSignal;
 pub(super) use tuning::VisualTuning;
 
-/// The newest tapped samples each live step reads: the whole ring, about 93 ms at 44.1 kHz.
+/// The most tapped samples a live step reads: the whole ring, about 93 ms at 44.1 kHz.
 const READ: usize = 4096;
 /// One FFT block, the newest samples of a read, about 46 ms at 44.1 kHz.
 const WINDOW: usize = 2048;
+/// How far back before its trace a scope looks for a trigger, about 35 ms at 44.1 kHz.
+const TRIGGER_ROOM: usize = 1536;
 /// A live view redraws every second snapshot tick, about 15 times a second; the longer
 /// waterfalls step less often.
 const STEP: Duration = Duration::from_millis(66);
@@ -112,6 +115,15 @@ impl LiveRun {
     }
 }
 
+/// How many of the newest tapped samples one step of `view` reads.
+fn read_length(view: LiveView) -> usize {
+    match view.kind {
+        VisualKind::Scope => (SIGNAL_WIDTH * view.tuning.scope_stride() + TRIGGER_ROOM).min(READ),
+        VisualKind::Waterfall if view.tuning.waterfall_columns() == 2 => READ,
+        VisualKind::Spectrum | VisualKind::Waterfall => WINDOW,
+    }
+}
+
 /// One step's picture of `view` from the newest `samples` the tap took at `rate`.
 fn picture(
     view: LiveView,
@@ -119,16 +131,17 @@ fn picture(
     rate: u32,
     spectrum: &mut SpectrumHistory,
 ) -> OledSignalVisual {
-    let newest = &samples[READ - WINDOW..];
+    let end = samples.len();
+    let newest = || &samples[end - WINDOW..];
     match view.kind {
         VisualKind::Scope => scope::scope_visual(samples, view.tuning.scope_stride()),
-        VisualKind::Spectrum => spectrum.spectrum(newest, rate, view.tuning.spectrum_bands()),
+        VisualKind::Spectrum => spectrum.spectrum(newest(), rate, view.tuning.spectrum_bands()),
         VisualKind::Waterfall if view.tuning.waterfall_columns() == 2 => {
-            let back = (rate as usize * STEP.as_millis() as usize / 2000).min(READ - WINDOW);
-            let older = &samples[READ - WINDOW - back..READ - back];
-            spectrum.waterfall(&[older, newest], rate, view.rows)
+            let back = (rate as usize * STEP.as_millis() as usize / 2000).min(end - WINDOW);
+            let older = &samples[end - WINDOW - back..end - back];
+            spectrum.waterfall(&[older, newest()], rate, view.rows)
         }
-        VisualKind::Waterfall => spectrum.waterfall(&[newest], rate, view.rows),
+        VisualKind::Waterfall => spectrum.waterfall(&[newest()], rate, view.rows),
     }
 }
 
@@ -178,14 +191,15 @@ impl SignalTapReader {
         if fresh || run.shown != step {
             run.shown = step;
             run.announced = run.announced.max(step);
-            self.tap.read_latest(run.written, &mut state.samples);
+            let samples = &mut state.samples[READ - read_length(view)..];
+            self.tap.read_latest(run.written, samples);
             let written = self.tap.written();
             if written == run.last_written {
-                state.samples.fill(0.0);
+                samples.fill(0.0);
             }
             run.last_written = written;
             let rate = self.tap.sample_rate();
-            state.visual = Arc::new(picture(view, &state.samples, rate, &mut state.spectrum));
+            state.visual = Arc::new(picture(view, samples, rate, &mut state.spectrum));
         }
         state.visual.clone()
     }

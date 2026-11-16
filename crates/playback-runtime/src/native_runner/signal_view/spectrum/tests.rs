@@ -25,7 +25,11 @@ fn band_of(hz: f32, count: usize) -> usize {
 fn the_fft_puts_a_bin_centred_sine_into_its_bin_at_a_quarter_of_the_size() {
     let mut fft = Fft::new(SIZE);
     let hz = 64.0 * RATE as f32 / SIZE as f32;
-    let magnitudes = fft.magnitudes(&sine(hz, 1.0)).to_vec();
+    let magnitudes: Vec<f32> = fft
+        .powers(&sine(hz, 1.0))
+        .iter()
+        .map(|power| power.sqrt())
+        .collect();
     assert_eq!(magnitudes.len(), SIZE / 2);
     assert!((magnitudes[64] - SIZE as f32 / 4.0).abs() < 1.0);
     assert!(magnitudes[63] > 100.0 && magnitudes[65] > 100.0);
@@ -37,10 +41,13 @@ fn the_fft_puts_a_bin_centred_sine_into_its_bin_at_a_quarter_of_the_size() {
 
 #[test]
 fn log_bars_light_the_band_of_a_tone_and_sit_near_zero_elsewhere() {
-    let mut fft = Fft::new(SIZE);
-    for hz in [110.0, 1_000.0, 6_000.0] {
-        let mut levels = [0_u8; SPECTRUM_BARS];
-        log_levels(fft.magnitudes(&sine(hz, 1.0)), RATE, SIZE, &mut levels);
+    let mut history = SpectrumHistory::new(SIZE);
+    let mut levels_of = |samples: &[f32]| {
+        history.band_levels(samples, RATE, SPECTRUM_BARS);
+        history.bins[..SPECTRUM_BARS].to_vec()
+    };
+    for hz in [110.0, 1_000.0, 6_000.0, 18_000.0] {
+        let levels = levels_of(&sine(hz, 1.0));
         let band = loudest(&levels);
         assert!(
             band.abs_diff(band_of(hz, SPECTRUM_BARS)) <= 2,
@@ -54,8 +61,7 @@ fn log_bars_light_the_band_of_a_tone_and_sit_near_zero_elsewhere() {
             .all(|(_, level)| *level < 60);
         assert!(far, "{hz} Hz: {levels:?}");
     }
-    let mut quiet = [0_u8; SPECTRUM_BARS];
-    log_levels(fft.magnitudes(&sine(1_000.0, 0.01)), RATE, SIZE, &mut quiet);
+    let quiet = levels_of(&sine(1_000.0, 0.01));
     let band = loudest(&quiet);
     assert!((55..=70).contains(&quiet[band]), "{}", quiet[band]);
 }

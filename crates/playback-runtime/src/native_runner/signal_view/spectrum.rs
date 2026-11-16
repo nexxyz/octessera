@@ -20,6 +20,9 @@ pub(super) struct SpectrumHistory {
     /// Columns, oldest first, each a level per pixel row from the lowest bin up; room for the
     /// tallest view.
     waterfall: Vec<u8>,
+    /// The FFT bin range of each log band, for the rate and band count in `ranges_for`.
+    ranges: Vec<(usize, usize)>,
+    ranges_for: (u32, usize),
 }
 
 impl SpectrumHistory {
@@ -31,6 +34,8 @@ impl SpectrumHistory {
             bars: vec![0; SPECTRUM_BARS],
             peaks: vec![0; SPECTRUM_BARS],
             waterfall: vec![0; SIGNAL_WIDTH * SIGNAL_BODY_HEIGHT],
+            ranges: Vec::new(),
+            ranges_for: (0, 0),
         }
     }
 
@@ -49,8 +54,8 @@ impl SpectrumHistory {
         bands: usize,
     ) -> OledSignalVisual {
         let bands = bands.min(SPECTRUM_BARS);
-        let levels = &mut self.bins[..bands];
-        log_levels(self.fft.magnitudes(samples), rate, self.size, levels);
+        self.band_levels(samples, rate, bands);
+        let levels = &self.bins[..bands];
         let (bars, peaks) = (&mut self.bars[..bands], &mut self.peaks[..bands]);
         for ((bar, peak), level) in bars.iter_mut().zip(peaks.iter_mut()).zip(levels) {
             *bar = (*level).max(bar.saturating_sub(BAR_FALL));
@@ -74,14 +79,14 @@ impl SpectrumHistory {
         rate: u32,
         rows: usize,
     ) -> OledSignalVisual {
-        let history = &mut self.waterfall[..SIGNAL_WIDTH * rows];
         for block in blocks {
-            let column = &mut self.bins[..rows];
-            log_levels(self.fft.magnitudes(block), rate, self.size, column);
+            self.band_levels(block, rate, rows);
+            let history = &mut self.waterfall[..SIGNAL_WIDTH * rows];
             history.rotate_left(rows);
             let newest = history.len() - rows;
-            history[newest..].copy_from_slice(column);
+            history[newest..].copy_from_slice(&self.bins[..rows]);
         }
+        let history = &self.waterfall[..SIGNAL_WIDTH * rows];
         if history.iter().all(|level| *level == 0) {
             return OledSignalVisual::Flat;
         }
@@ -89,33 +94,45 @@ impl SpectrumHistory {
             levels: history.to_vec(),
         }
     }
+
+    /// Fills the first `count` bins with one level per log band of `samples` taken at `rate`:
+    /// the loudest FFT bin in the band.
+    fn band_levels(&mut self, samples: &[f32], rate: u32, count: usize) {
+        if self.ranges_for != (rate, count) {
+            self.ranges_for = (rate, count);
+            self.ranges = band_ranges(rate, count, self.size);
+        }
+        let powers = self.fft.powers(samples);
+        for (level, &(first, end)) in self.bins.iter_mut().zip(&self.ranges) {
+            let loudest = powers[first..end].iter().fold(0.0_f32, |a, b| a.max(*b));
+            *level = level_of(loudest, self.size);
+        }
+    }
 }
 
-/// Fills `out` with one level per log-spaced band from [`LOW_HZ`] to Nyquist: the loudest FFT
-/// bin in the band, or the nearest one where a band is narrower than a bin.
-fn log_levels(magnitudes: &[f32], rate: u32, size: usize, out: &mut [u8]) {
+/// The FFT bins of `count` log-spaced bands from [`LOW_HZ`] to Nyquist, or the nearest bin
+/// where a band is narrower than one; empty ranges before the tap knows its rate.
+fn band_ranges(rate: u32, count: usize, size: usize) -> Vec<(usize, usize)> {
     if rate == 0 {
-        out.fill(0);
-        return;
+        return vec![(0, 0); count];
     }
     let bin_hz = rate as f32 / size as f32;
     let span = (rate as f32 / 2.0 / LOW_HZ).ln();
-    let count = out.len() as f32;
-    let edge = |band: usize| LOW_HZ * (span * band as f32 / count).exp() / bin_hz;
-    let last_bin = magnitudes.len() - 1;
-    for (band, level) in out.iter_mut().enumerate() {
-        let first = (edge(band).round() as usize).clamp(1, last_bin);
-        let end = (edge(band + 1).round() as usize).clamp(first + 1, last_bin + 1);
-        let loudest = magnitudes[first..end]
-            .iter()
-            .fold(0.0_f32, |a, b| a.max(*b));
-        *level = level_of(loudest, size);
-    }
+    let edge = |band: usize| LOW_HZ * (span * band as f32 / count as f32).exp() / bin_hz;
+    let last_bin = size / 2 - 1;
+    (0..count)
+        .map(|band| {
+            let first = (edge(band).round() as usize).clamp(1, last_bin);
+            let end = (edge(band + 1).round() as usize).clamp(first + 1, last_bin + 1);
+            (first, end)
+        })
+        .collect()
 }
 
-fn level_of(magnitude: f32, size: usize) -> u8 {
+/// The level of a bin's power on the [`FLOOR_DB`] scale up to a full-scale sine.
+fn level_of(power: f32, size: usize) -> u8 {
     let full_scale = size as f32 / 4.0;
-    let db = 20.0 * (magnitude / full_scale).max(1.0e-9).log10();
+    let db = 10.0 * (power / (full_scale * full_scale)).max(1.0e-18).log10();
     ((db - FLOOR_DB) / -FLOOR_DB * 255.0)
         .round()
         .clamp(0.0, 255.0) as u8

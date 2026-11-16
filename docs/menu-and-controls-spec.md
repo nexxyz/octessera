@@ -453,7 +453,14 @@ change; only the distance per detent does.
     band holds about 8 s by default; levels climb black, dark teal, blue, magenta, yellow.
   - A `spectrum` or `waterfall` whose bars, peaks or history have all fallen dark draws the flat
     line. Changing the visual, stopping or leaving the page starts the next run empty.
-  - The FFT and history run on the runtime thread once per step. The band steps every 66 ms
+  - The FFT and history run on the runtime thread once per step, and only for a picture on
+    screen while the transport plays. The 2048-point FFT is a real-input transform: a
+    1024-point complex FFT over the sample pairs, split into the real bins, with per-stage
+    twiddle tables and powers instead of magnitudes; the band ranges are computed once per rate
+    and band count. A step reads only the samples its picture needs (the scope its trace plus
+    about 35 ms of trigger room, an FFT picture one block, the 4 s waterfall the whole ring).
+    The 4 s waterfall runs two FFTs a step, the 16 s and 32 s ones one FFT every second or
+    fourth step. The band steps every 66 ms
     (about 15 fps); each step is one new scene generation and one timed display deadline, so the
     boards and the desktop redraw the band at most at that rate.
   - The audio engine copies one selected mono signal into a 4096-sample lock-free ring once per
