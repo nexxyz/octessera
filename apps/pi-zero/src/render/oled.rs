@@ -1,13 +1,10 @@
 mod font;
 
 pub(super) use font::glyph_rows;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use platform_core::palette;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 use super::{dim, rgb565};
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     frame.fill(0);
     let warning = rgb565(if lit {
@@ -27,7 +24,6 @@ pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn fill_rect(
     frame: &mut [u8],
     x: usize,
@@ -45,7 +41,6 @@ pub(super) fn fill_rect(
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn draw_text(frame: &mut [u8], text: &str, x: i32, y: i32, scale: usize, color: u16) {
     let mut cursor_x = x;
     for ch in text.chars() {
@@ -72,7 +67,6 @@ pub(super) fn draw_text(frame: &mut [u8], text: &str, x: i32, y: i32, scale: usi
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn draw_text_clipped(
     frame: &mut [u8],
     text: &str,

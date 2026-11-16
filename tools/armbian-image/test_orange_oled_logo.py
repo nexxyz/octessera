@@ -163,9 +163,6 @@ assert set(panel_pixels) <= {b"\x00\x00", b"\xff\xff"}
 assert b"\x00\x00" in panel_pixels and b"\xff\xff" in panel_pixels
 
 expected_fatal_text = {
-    "trellis_unavailable": ("GRID NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
-    "neokey_unavailable": ("NEOKEY NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
-    "controls_unavailable": ("CONTROLS NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
     "audio_unavailable": ("AUDIO NOT FOUND", "POWER OFF", "CHECK CONNECTION", "RESEAT CONNECTION"),
     "startup_failed": ("STARTUP FAILED", "POWER OFF", "TRY AGAIN", "CHECK SERVICE LOG"),
     "oled_unavailable": ("OLED NOT READY", "POWER OFF", "TRY AGAIN", "CHECK SERVICE LOG"),

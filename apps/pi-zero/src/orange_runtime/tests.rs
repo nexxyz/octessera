@@ -39,18 +39,6 @@ fn orange_runtime_uses_shared_runtime_cadence() {
 #[test]
 fn orange_startup_operations_map_to_typed_fatal_codes() {
     assert_eq!(
-        startup_fatal_code(OrangeStartupOperation::Trellis),
-        crate::boot_oled_handoff::StartupFatalCode::TrellisUnavailable
-    );
-    assert_eq!(
-        startup_fatal_code(OrangeStartupOperation::Neokey),
-        crate::boot_oled_handoff::StartupFatalCode::NeokeyUnavailable
-    );
-    assert_eq!(
-        startup_fatal_code(OrangeStartupOperation::Controls),
-        crate::boot_oled_handoff::StartupFatalCode::ControlsUnavailable
-    );
-    assert_eq!(
         startup_fatal_code(OrangeStartupOperation::Audio),
         crate::boot_oled_handoff::StartupFatalCode::AudioUnavailable
     );

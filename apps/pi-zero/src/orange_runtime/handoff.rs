@@ -1,19 +1,14 @@
 use super::*;
+use crate::hardware_fault::HardwareFault;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum OrangeStartupOperation {
-    Trellis,
-    Neokey,
-    Controls,
     Audio,
     Oled,
 }
 
 pub(crate) fn startup_fatal_code(operation: OrangeStartupOperation) -> StartupFatalCode {
     match operation {
-        OrangeStartupOperation::Trellis => StartupFatalCode::TrellisUnavailable,
-        OrangeStartupOperation::Neokey => StartupFatalCode::NeokeyUnavailable,
-        OrangeStartupOperation::Controls => StartupFatalCode::ControlsUnavailable,
         OrangeStartupOperation::Audio => StartupFatalCode::AudioUnavailable,
         OrangeStartupOperation::Oled => StartupFatalCode::OledUnavailable,
     }
@@ -29,47 +24,36 @@ pub(crate) fn run(
     hdmi: crate::render::hdmi::HdmiFramebuffer,
 ) -> Result<(), String> {
     let devices = ORANGE_PI_ZERO_2W_DEVICES;
-    let trellis = match NeoTrellis::new_at(devices.i2c.path, devices.trellis_addrs) {
-        Ok(trellis) => trellis,
+    let mut fault = HardwareFault::new();
+    let trellis = NeoTrellis::new_at(devices.i2c.path, devices.trellis_addrs)
+        .map_err(|error| fault.push("TRELLIS", error))
+        .ok();
+    let neokey = NeoKey::new_at(devices.i2c.path, devices.neokey_addr)
+        .map_err(|error| fault.push("NEOKEY", error))
+        .ok();
+    let encoders = init_encoders()
+        .map_err(|error| fault.push("ENCODERS", error))
+        .ok();
+    let interrupt = SeesawInterrupt::new()
+        .map_err(|error| fault.push("SEESAW_INT", error))
+        .ok();
+    let (trellis, neokey, (encoder_rx, _encoders), interrupt) =
+        match (trellis, neokey, encoders, interrupt) {
+            (Some(trellis), Some(neokey), Some(encoders), Some(interrupt)) => {
+                (trellis, neokey, encoders, interrupt)
+            }
+            (trellis, neokey, _, _) => {
+                fault.attach_outputs(None, trellis, neokey);
+                enter_hardware_fault_mode(fault);
+            }
+        };
+    let seesaw = match seesaw_io::spawn_interrupt(trellis, neokey, interrupt) {
+        Ok(seesaw) => seesaw,
         Err(error) => {
-            return Err(startup_failure(
-                crate::boot_oled_handoff::HandoffMode::V1,
-                startup_fatal_code(OrangeStartupOperation::Trellis),
-                format!("Orange NeoTrellis startup failed: {error}"),
-            ))
+            fault.push("SEESAW", error);
+            enter_hardware_fault_mode(fault);
         }
     };
-    let neokey = match NeoKey::new_at(devices.i2c.path, devices.neokey_addr) {
-        Ok(neokey) => neokey,
-        Err(error) => {
-            return Err(startup_failure(
-                crate::boot_oled_handoff::HandoffMode::V1,
-                startup_fatal_code(OrangeStartupOperation::Neokey),
-                format!("Orange NeoKey startup failed: {error}"),
-            ))
-        }
-    };
-    let (encoder_rx, _encoders) = init_encoders().map_err(|error| {
-        startup_failure(
-            crate::boot_oled_handoff::HandoffMode::V1,
-            startup_fatal_code(OrangeStartupOperation::Controls),
-            format!("Orange encoder startup failed: {error}"),
-        )
-    })?;
-    let interrupt = SeesawInterrupt::new().map_err(|error| {
-        startup_failure(
-            crate::boot_oled_handoff::HandoffMode::V1,
-            startup_fatal_code(OrangeStartupOperation::Controls),
-            format!("Orange Seesaw INT startup failed: {error}"),
-        )
-    })?;
-    let seesaw = seesaw_io::spawn_interrupt(trellis, neokey, interrupt).map_err(|error| {
-        startup_failure(
-            crate::boot_oled_handoff::HandoffMode::V1,
-            startup_fatal_code(OrangeStartupOperation::Controls),
-            format!("Orange control startup failed: {error}"),
-        )
-    })?;
     let keyboard = crate::keyboard_capture::KeyboardCapture::spawn(seesaw.input_tx.clone(), true);
     let prepared = match prepare_runtime(
         audio.service(),
@@ -176,4 +160,9 @@ pub(crate) fn run(
         .and(seesaw_result);
     drop(audio);
     result
+}
+
+fn enter_hardware_fault_mode(fault: HardwareFault) -> ! {
+    super::signal::restore_default_handlers();
+    crate::hardware_fault::run_hardware_fault_mode(Box::new(fault), true)
 }

@@ -41,7 +41,6 @@ mod dsp_profile;
 #[cfg(feature = "profiling")]
 mod dsp_scenarios;
 mod encoder_queue;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod hardware_fault;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod hardware_init;

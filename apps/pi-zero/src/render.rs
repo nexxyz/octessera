@@ -7,7 +7,6 @@ pub(crate) mod hdmi;
 mod native_leds;
 mod native_publication;
 pub(crate) use native_publication::{prepare_native_scene, LatestPresentation};
-#[cfg(any(test, not(feature = "hardware-orange-pi-zero-2w")))]
 mod oled;
 mod oled_output;
 mod oled_publication;
@@ -25,7 +24,6 @@ pub(crate) type OledRenderOutput = test_oled_output::TestOledOutput;
 #[cfg(not(all(test, not(feature = "hardware-orange-pi-zero-2w"))))]
 pub(crate) type OledRenderOutput = OledSsd1351;
 
-#[cfg(any(test, not(feature = "hardware-orange-pi-zero-2w")))]
 pub(crate) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
 #[cfg(test)]
 use oled::glyph_rows;
@@ -256,7 +254,6 @@ pub fn render_shutdown_splash(oled: &mut OledRenderOutput) {
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn fault_oled_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     oled::fault_frame_into(lines, frame, lit);
 }
@@ -276,13 +273,11 @@ pub(super) fn scale(rgb: [u8; 3], factor: f32) -> [u8; 3] { [
     ((rgb[2] as f32) * factor).round().clamp(0.0, 255.0) as u8,
 ] }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn dim(rgb: [u8; 3], divisor: u8) -> [u8; 3] {
     let divisor = divisor.max(1);
     [rgb[0] / divisor, rgb[1] / divisor, rgb[2] / divisor]
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
     ((u16::from(rgb[0]) & 0xF8) << 8) | ((u16::from(rgb[1]) & 0xFC) << 3) | (u16::from(rgb[2]) >> 3)
 }

@@ -32,7 +32,7 @@ sys.modules["octessera_orange_oled_handoff"] = handoff
 assert 0 < handoff.UTILITY_LOCK_TIMEOUT_SECONDS < handoff.SHUTDOWN_LOCK_TIMEOUT_SECONDS < 5
 assert handoff.FATAL_MODE == 0o600
 assert handoff.MAX_FATAL_BYTES == 256
-for code in ("trellis_unavailable", "neokey_unavailable", "controls_unavailable", "audio_unavailable", "oled_unavailable", "startup_failed"):
+for code in ("audio_unavailable", "oled_unavailable", "startup_failed"):
     value = {"schema": 1, "bootId": "01234567-89ab-cdef-0123-456789abcdef", "code": code}
     assert handoff.parse_fatal(value) == value
 
@@ -109,10 +109,10 @@ if getattr(handoff, "fcntl", None) is not None and hasattr(handoff.fcntl, "flock
         h = handoff.Handoff.open(True)
         h.start()
         assert h._read_status()["phase"] == "animating"
-        h._write("fatal.json", {"schema": 1, "bootId": "fedcba98-7654-3210-fedc-ba9876543210", "code": "trellis_unavailable"}, handoff.FATAL_MODE)
+        h._write("fatal.json", {"schema": 1, "bootId": "fedcba98-7654-3210-fedc-ba9876543210", "code": "audio_unavailable"}, handoff.FATAL_MODE)
         assert h.startup_fatal_code() is None
-        h._write("fatal.json", {"schema": 1, "bootId": h.boot_id, "code": "trellis_unavailable"}, handoff.FATAL_MODE)
-        assert h.startup_fatal_code() == "trellis_unavailable"
+        h._write("fatal.json", {"schema": 1, "bootId": h.boot_id, "code": "audio_unavailable"}, handoff.FATAL_MODE)
+        assert h.startup_fatal_code() == "audio_unavailable"
         assert not h.stop_requested()
         h._write("fatal.json", {"schema": 1, "bootId": h.boot_id, "code": "invalid"}, handoff.FATAL_MODE)
         assert h.startup_fatal_code() == "startup_failed"

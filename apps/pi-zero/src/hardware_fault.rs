@@ -32,6 +32,7 @@ impl HardwareFault {
         }
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn is_empty(&self) -> bool {
         self.failures.is_empty()
     }
@@ -53,7 +54,11 @@ impl HardwareFault {
     }
 
     fn adopt_boot_handoff_oled(&mut self) {
-        let handoff = match crate::boot_oled_handoff::native_attach() {
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        let attached = crate::boot_oled_handoff::native_attach();
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let attached = crate::boot_oled_handoff::native_attach_after_startup_clear();
+        let handoff = match attached {
             Ok(handoff) => handoff,
             Err(error) => {
                 eprintln!("hardware fault OLED handoff attach failed: {error}");
@@ -63,13 +68,18 @@ impl HardwareFault {
         match OledSsd1351::adopt_existing() {
             Ok(oled) => self.oled = Some(oled),
             Err(error) => {
-                handoff.mark_failed();
                 eprintln!("hardware fault OLED adoption failed: {error}");
+                if let Err(error) = handoff.mark_failed_result() {
+                    eprintln!(
+                        "hardware fault OLED handoff failure-state publication failed: {error}"
+                    );
+                }
             }
         }
         self.oled_handoff = Some(handoff);
     }
 
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn summary(&self) -> String {
         self.failures
             .iter()
@@ -155,6 +165,7 @@ fn part_name(name: &str) -> &'static str {
     match name {
         "TRELLIS" => "Grid",
         "NEOKEY" => "Keys",
+        "SEESAW" => "Grid + Keys",
         "SEESAW_INT" => "Key signal",
         "OLED" => "Screen",
         "DAC" => "Audio",
@@ -229,6 +240,16 @@ mod tests {
                 "will not do it.",
             ]
         );
+    }
+
+    #[test]
+    fn a_seesaw_startup_timeout_names_grid_and_keys() {
+        let fault = fault(&[(
+            "SEESAW",
+            "Seesaw startup handshake timed out: timed out waiting on channel",
+        )]);
+        let lines = fault_lines(&fault);
+        assert_eq!(lines[..2], ["Grid + Keys", "not responding"]);
     }
 
     #[test]

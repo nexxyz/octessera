@@ -17,6 +17,18 @@ pub(crate) fn install_signal_handlers() -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(unix)]
+pub(crate) fn restore_default_handlers() {
+    unsafe {
+        for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
+            libc::signal(signal, libc::SIG_DFL);
+        }
+    }
+}
+
+#[cfg(not(unix))]
+pub(crate) fn restore_default_handlers() {}
+
 #[cfg(not(unix))]
 pub(crate) fn install_signal_handlers() -> Result<(), String> {
     Err("Orange foreground candidate requires Unix signal handling".into())

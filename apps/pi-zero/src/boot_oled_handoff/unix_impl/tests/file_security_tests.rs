@@ -10,17 +10,17 @@ fn startup_fatal_replacement_is_atomic_and_leaves_no_temporary_file() {
     let boot_id = directory.identity.boot_id.clone();
     write_fatal(
         &directory,
-        &StartupFatal::new(boot_id.clone(), StartupFatalCode::TrellisUnavailable),
+        &StartupFatal::new(boot_id.clone(), StartupFatalCode::AudioUnavailable),
     )
     .unwrap();
     write_fatal(
         &directory,
-        &StartupFatal::new(boot_id, StartupFatalCode::NeokeyUnavailable),
+        &StartupFatal::new(boot_id, StartupFatalCode::StartupFailed),
     )
     .unwrap();
     assert_eq!(
         read_fatal(&directory).unwrap().unwrap().code,
-        StartupFatalCode::NeokeyUnavailable
+        StartupFatalCode::StartupFailed
     );
     assert_no_temporary_files(&path);
     let _ = fs::remove_dir_all(path);

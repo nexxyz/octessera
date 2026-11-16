@@ -118,16 +118,16 @@ def run_fatal_schedule(fatal_code, stop_at):
 
 
 priority_events = []
-priority_handoff = LifecycleHandoff(stop_at=0, events=priority_events, fatal_code="trellis_unavailable")
+priority_handoff = LifecycleHandoff(stop_at=0, events=priority_events, fatal_code="oled_unavailable")
 run_lifecycle(priority_handoff, LifecycleOled(priority_events), FakeClock(), FakeSignal(), render_frame=fatal_render)
 assert priority_handoff.release_calls == 1 and not any(event[0] == "frame" and event[1].startswith(b"fatal:") for event in priority_events)
 
 
 immediate_fatal_handoff, immediate_fatal_frames, immediate_fatal_clock, immediate_fatal_events = run_fatal_schedule(
-    lambda now: "trellis_unavailable" if 1_000_000_000 <= now < 1_500_000_000 else None,
+    lambda now: "oled_unavailable" if 1_000_000_000 <= now < 1_500_000_000 else None,
     2_000_000_000,
 )
-assert b"fatal:trellis_unavailable" in immediate_fatal_frames
+assert b"fatal:oled_unavailable" in immediate_fatal_frames
 assert immediate_fatal_handoff.release_calls == 1
 assert immediate_fatal_clock.now < 30 * 1_000_000_000
 assert not any(event[0] == "command" for event in immediate_fatal_events)
@@ -147,12 +147,12 @@ assert same_code_handoff.release_calls == 1 and same_code_clock.now == 120_100_0
 assert not any(event[0] == "command" for event in same_code_events)
 
 replacement_handoff, replacement_frames, _, _ = run_fatal_schedule(
-    lambda now: "trellis_unavailable" if now < 30_000_000_000 else "audio_unavailable" if now < 90_050_000_000 else None,
+    lambda now: "oled_unavailable" if now < 30_000_000_000 else "audio_unavailable" if now < 90_050_000_000 else None,
     90_100_000_000,
 )
-assert replacement_frames.count(b"fatal:trellis_unavailable") == 1
+assert replacement_frames.count(b"fatal:oled_unavailable") == 1
 assert replacement_frames.count(b"fatal:audio_unavailable") == 1
-assert replacement_frames.count(b"dimmed:trellis_unavailable") == 0
+assert replacement_frames.count(b"dimmed:oled_unavailable") == 0
 assert replacement_frames.count(b"dimmed:audio_unavailable") == 1
 assert replacement_handoff.release_calls == 1
 
@@ -164,11 +164,11 @@ assert malformed_fatal_frames.count(b"fatal:startup_failed") == 1
 assert malformed_fatal_handoff.release_calls == 1
 
 clear_recovery_handoff, clear_recovery_frames, _, _ = run_fatal_schedule(
-    lambda now: "neokey_unavailable" if now < 10_000_000_000 or 20_000_000_000 <= now < 20_050_000_000 else None,
+    lambda now: "oled_unavailable" if now < 10_000_000_000 or 20_000_000_000 <= now < 20_050_000_000 else None,
     21_000_000_000,
 )
-assert clear_recovery_frames.count(b"fatal:neokey_unavailable") == 2
-assert clear_recovery_frames.count(b"dimmed:neokey_unavailable") == 0
+assert clear_recovery_frames.count(b"fatal:oled_unavailable") == 2
+assert clear_recovery_frames.count(b"dimmed:oled_unavailable") == 0
 assert clear_recovery_handoff.release_calls == 1
 
 
