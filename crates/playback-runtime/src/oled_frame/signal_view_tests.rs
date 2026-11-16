@@ -119,6 +119,25 @@ fn spectrum_bars_rise_from_the_band_floor_under_their_peaks() {
 }
 
 #[test]
+fn fewer_spectrum_bands_draw_wider_bars_centred_on_the_screen() {
+    let floor = BAND_TOP + SIGNAL_BAND_HEIGHT - 1;
+    for (bands, first, width) in [(31, 2, 3), (16, 0, 7), (8, 0, 15)] {
+        let full = vec![255_u8; bands];
+        let input = home(Some(OledSignalVisual::Spectrum {
+            levels: full.clone(),
+            peaks: full,
+        }));
+        let frame = render_oled_frame(&input);
+        let lit: Vec<usize> = (0..128).filter(|x| pixel(&frame, *x, floor) != 0).collect();
+        let pitch = width + 1;
+        let expected: Vec<usize> = (0..bands)
+            .flat_map(|bar| first + bar * pitch..first + bar * pitch + width)
+            .collect();
+        assert_eq!(lit, expected, "{bands} bands");
+    }
+}
+
+#[test]
 fn waterfall_columns_run_oldest_to_newest_with_low_bins_at_the_bottom() {
     let mut levels = vec![0_u8; SIGNAL_WIDTH * SIGNAL_BAND_HEIGHT];
     let newest = SIGNAL_WIDTH - 1;

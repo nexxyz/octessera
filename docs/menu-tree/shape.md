@@ -114,8 +114,9 @@ Shape
     └── Signal (action)                          ← full-screen picture of the master mix
 ```
 
-- `Signal` opens the Shape signal view (see the signal band in the main spec): Main cycles
-  `Scope`, `Spectrum` and `Waterfall`, Back closes it.
+- `Signal` opens the Shape signal view (see the signal band in the main spec): Main press
+  cycles `Scope`, `Spectrum` and `Waterfall`, Main turn adjusts the shown one for the session
+  (scope window, spectrum bands, waterfall history), Back closes it.
 
 - Type `none` keeps Type, Auto Label, and Name and hides everything else without deleting stored
   config.

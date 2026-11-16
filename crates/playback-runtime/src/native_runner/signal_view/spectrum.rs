@@ -40,38 +40,48 @@ impl SpectrumHistory {
         self.waterfall.fill(0);
     }
 
-    /// Log-frequency bars over `samples` taken at `rate`: they jump up and fall gently, and a
-    /// peak dot falls slower above each. Flat once everything has fallen.
-    pub(super) fn spectrum(&mut self, samples: &[f32], rate: u32) -> OledSignalVisual {
-        let levels = &mut self.bins[..SPECTRUM_BARS];
-        log_levels(self.fft.magnitudes(samples), rate, self.size, levels);
-        for ((bar, peak), level) in self.bars.iter_mut().zip(&mut self.peaks).zip(levels) {
-            *bar = (*level).max(bar.saturating_sub(BAR_FALL));
-            *peak = (*bar).max(peak.saturating_sub(PEAK_FALL));
-        }
-        if self.peaks.iter().all(|peak| *peak == 0) {
-            return OledSignalVisual::Flat;
-        }
-        OledSignalVisual::Spectrum {
-            levels: self.bars.clone(),
-            peaks: self.peaks.clone(),
-        }
-    }
-
-    /// Scrolls a waterfall `rows` tall one column left and adds the newest on the same log
-    /// bins, one per pixel row. Flat while the whole history is dark.
-    pub(super) fn waterfall(
+    /// `bands` log-frequency bars over `samples` taken at `rate`: they jump up and fall gently,
+    /// and a peak dot falls slower above each. Flat once everything has fallen.
+    pub(super) fn spectrum(
         &mut self,
         samples: &[f32],
         rate: u32,
+        bands: usize,
+    ) -> OledSignalVisual {
+        let bands = bands.min(SPECTRUM_BARS);
+        let levels = &mut self.bins[..bands];
+        log_levels(self.fft.magnitudes(samples), rate, self.size, levels);
+        let (bars, peaks) = (&mut self.bars[..bands], &mut self.peaks[..bands]);
+        for ((bar, peak), level) in bars.iter_mut().zip(peaks.iter_mut()).zip(levels) {
+            *bar = (*level).max(bar.saturating_sub(BAR_FALL));
+            *peak = (*bar).max(peak.saturating_sub(PEAK_FALL));
+        }
+        if peaks.iter().all(|peak| *peak == 0) {
+            return OledSignalVisual::Flat;
+        }
+        OledSignalVisual::Spectrum {
+            levels: bars.to_vec(),
+            peaks: peaks.to_vec(),
+        }
+    }
+
+    /// Scrolls a waterfall `rows` tall one column left per block, oldest block first, and adds
+    /// each block's column on the same log bins, one per pixel row. Flat while the whole
+    /// history is dark.
+    pub(super) fn waterfall(
+        &mut self,
+        blocks: &[&[f32]],
+        rate: u32,
         rows: usize,
     ) -> OledSignalVisual {
-        let column = &mut self.bins[..rows];
-        log_levels(self.fft.magnitudes(samples), rate, self.size, column);
         let history = &mut self.waterfall[..SIGNAL_WIDTH * rows];
-        history.rotate_left(rows);
-        let newest = history.len() - rows;
-        history[newest..].copy_from_slice(column);
+        for block in blocks {
+            let column = &mut self.bins[..rows];
+            log_levels(self.fft.magnitudes(block), rate, self.size, column);
+            history.rotate_left(rows);
+            let newest = history.len() - rows;
+            history[newest..].copy_from_slice(column);
+        }
         if history.iter().all(|level| *level == 0) {
             return OledSignalVisual::Flat;
         }

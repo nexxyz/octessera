@@ -56,8 +56,16 @@ impl NativeRunner {
             .filter(|view| self.menu.current_key() == Some(view.key.as_str()))
     }
 
-    /// While a signal view shows, plain Main presses cycle its picture, plain Main turns do nothing
-    /// and Back closes it. Modifier chords, popups over it and every other input keep their
+    /// Main turns in a full-screen view adjust `kind` for this session and toast the result.
+    pub(in crate::native_runner) fn adjust_signal_visual(&mut self, kind: VisualKind, delta: i8) {
+        let tuning = &mut self.display.signal_tuning;
+        tuning.adjust(kind, i32::from(delta));
+        let label = tuning.label(kind, self.display.signal.sample_rate());
+        self.show_toast(label);
+    }
+
+    /// While a signal view shows, plain Main presses cycle its picture, plain Main turns adjust
+    /// it and Back closes it. Modifier chords, popups over it and every other input keep their
     /// usual meaning.
     pub(in crate::native_runner) fn handle_full_screen_signal_input(
         &mut self,
@@ -80,7 +88,12 @@ impl NativeRunner {
             DeviceInput::EncoderPress { id } if id.as_deref().unwrap_or("main") == "main" => {
                 view.kind = view.kind.next();
             }
-            DeviceInput::EncoderTurn { id, .. } if id.as_deref().unwrap_or("main") == "main" => {}
+            DeviceInput::EncoderTurn { id, delta } if id.as_deref().unwrap_or("main") == "main" => {
+                let (kind, delta) = (view.kind, *delta);
+                if delta != 0 {
+                    self.adjust_signal_visual(kind, delta);
+                }
+            }
             DeviceInput::ButtonA { pressed } => {
                 if pressed.unwrap_or(true) {
                     self.display.full_screen_signal = None;

@@ -57,19 +57,39 @@ fn a_stopped_signal_view_fills_the_body_with_a_flat_line_under_its_page() {
     assert_eq!(runner.display.signal.next_step_at(), None);
 }
 
+fn turn_main(runner: &mut NativeRunner, delta: i32) {
+    device_input(
+        runner,
+        json!({ "type": "encoder_turn", "delta": delta, "id": "main" }),
+    );
+}
+
+fn toast(runner: &NativeRunner) -> Option<&str> {
+    runner
+        .display
+        .toast
+        .as_ref()
+        .map(|toast| toast.message.as_str())
+}
+
 #[test]
-fn main_cycles_the_picture_turns_do_nothing_and_back_closes() {
+fn main_cycles_the_picture_turns_adjust_it_and_back_closes() {
     let (mut runner, _) = open_signal_view("signal.bus.0");
     let row = runner.menu.snapshot().selected_row;
     for label in ["Spectrum", "Waterfall", "Scope"] {
         press_main(&mut runner);
         assert!(presented(&mut runner).display.title.ends_with(label));
     }
-    device_input(
-        &mut runner,
-        json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
-    );
+    turn_main(&mut runner, 1);
     assert_eq!(runner.menu.snapshot().selected_row, row);
+    assert_eq!(toast(&runner), Some("Window: 22 ms"));
+    press_main(&mut runner);
+    turn_main(&mut runner, 2);
+    assert_eq!(toast(&runner), Some("Bands: 16"));
+    press_main(&mut runner);
+    turn_main(&mut runner, -1);
+    assert_eq!(toast(&runner), Some("History: 4 s"));
+    assert!(presented(&mut runner).display.title.ends_with("Waterfall"));
 
     device_input(&mut runner, json!({ "type": "button_a", "pressed": true }));
     device_input(&mut runner, json!({ "type": "button_a", "pressed": false }));
@@ -101,6 +121,46 @@ fn a_playing_signal_view_taps_its_own_source() {
     device_input(&mut runner, json!({ "type": "button_a", "pressed": true }));
     let _ = presented(&mut runner);
     assert_eq!(tap.selected(), None);
+}
+
+#[test]
+fn a_longer_waterfall_reaches_the_scene_pump_less_often_and_the_band_shares_the_setting() {
+    let start = Instant::now();
+    let (mut runner, tap) = open_signal_view("signal.global");
+    runner.display.transients.set_test_now(start);
+    runner.transport.transport = RuntimeTransportState::Playing;
+    press_main(&mut runner);
+    press_main(&mut runner);
+    turn_main(&mut runner, 2);
+    assert_eq!(toast(&runner), Some("History: 32 s"));
+    (runner.display.toast, runner.display.toast_expires_at) = (None, None);
+    let _ = presented(&mut runner);
+    assert_eq!(tap.selected(), Some(SignalSource::Master));
+    runner.display.transients.acknowledge_snapshot_pending();
+    let step = Duration::from_millis(66 * 4);
+    assert_eq!(
+        runner.next_timed_display_snapshot_deadline_after(Some(start)),
+        Some(start + step)
+    );
+    let at = |offset: Duration| start + offset;
+    runner
+        .display
+        .transients
+        .set_test_now(at(step - Duration::from_millis(1)));
+    assert_eq!(runner.pending_display_scene_generation(), None);
+    runner.display.transients.set_test_now(at(step));
+    assert!(runner.pending_display_scene_generation().is_some());
+
+    device_input(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    let _ = super::device_config_apply::commit_setting(&mut runner, "homeVisual", 2);
+    runner.menu.state.stack.clear();
+    let band = presented(&mut runner).display.signal.unwrap();
+    assert!(matches!(band.area, OledSignalArea::Band { .. }));
+    runner.display.transients.acknowledge_snapshot_pending();
+    assert_eq!(
+        runner.next_timed_display_snapshot_deadline_after(Some(at(step))),
+        Some(at(step) + step)
+    );
 }
 
 #[test]

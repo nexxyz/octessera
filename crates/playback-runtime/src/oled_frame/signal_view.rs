@@ -19,7 +19,7 @@ const BAND_TOP_BELOW_SLOT: usize = (BAND_SPACE - SIGNAL_BAND_HEIGHT) / 2 - (PITC
 /// A Shape signal view's picture fills the body between the header rule and the footer.
 const BODY_TOP: usize = 12;
 pub const SIGNAL_BODY_HEIGHT: usize = 96;
-/// 1 px bars with a 1 px gap.
+/// The most spectrum bars: 1 px wide with a 1 px gap.
 pub const SPECTRUM_BARS: usize = SIGNAL_WIDTH / 2;
 /// Waterfall levels climb through these colours.
 const RAMP: [(u8, [u8; 3]); 5] = [
@@ -93,16 +93,21 @@ fn draw_scope(frame: &mut [u8], rows: Rows, points: &[i8]) {
     }
 }
 
+/// Draws one bar per level with a 1 px gap, `OLED_WIDTH / count` apart, centred on the screen:
+/// 62 bars 1 px wide from `x=2`, 31 bars 3 px wide, 16 bars 7 px wide or 8 bars 15 px wide.
 fn draw_spectrum(frame: &mut [u8], rows: Rows, levels: &[u8], peaks: &[u8]) {
     let bar = rgb565(palette::BLUE);
     let peak = rgb565(palette::WHITE);
-    for (index, (&level, &held)) in levels.iter().zip(peaks).take(SPECTRUM_BARS).enumerate() {
-        let x = LEFT_X + index * 2;
+    let count = levels.len().clamp(1, SPECTRUM_BARS);
+    let pitch = OLED_WIDTH / count;
+    let left = (OLED_WIDTH - (count * pitch - 1)) / 2;
+    for (index, (&level, &held)) in levels.iter().zip(peaks).take(count).enumerate() {
+        let x = left + index * pitch;
         let height = level_rows(level, rows.height);
-        fill_rect(frame, x, rows.bottom() - height, 1, height, bar);
+        fill_rect(frame, x, rows.bottom() - height, pitch - 1, height, bar);
         let held = level_rows(held, rows.height);
         if held > height {
-            fill_rect(frame, x, rows.bottom() - held, 1, 1, peak);
+            fill_rect(frame, x, rows.bottom() - held, pitch - 1, 1, peak);
         }
     }
 }

@@ -438,17 +438,18 @@ change; only the distance per detent does.
   page, under a modal, help, splash or the dark OLED.
   - Stopped, paused or silent (master peak below 0.001): one dim gray line at `y=82`. It is static
     and schedules no frames.
-  - Playing: `scope` draws the master mix in blue, one point per column, four tapped samples
-    apart (about 11 ms across at the 44.1 kHz output rate). The trace starts at the latest rising
+  - Playing: `scope` draws the master mix in blue, one point per column, by default four
+    tapped samples apart (about 11 ms across at the 44.1 kHz output rate; see the visual
+    adjustments below). The trace starts at the latest rising
     zero crossing that follows a dip below 30 % of the peak, so steady tones stand still; signals
     louder than a 0.25 peak fill the band, quieter ones scale linearly.
-  - `spectrum` draws 62 blue bars, 1 px wide with a 1 px gap, on log-spaced bands from 40 Hz to
+  - `spectrum` draws 62 blue bars (by default), 1 px wide with a 1 px gap, on log-spaced bands from 40 Hz to
     the tap's Nyquist (about 22 kHz at 44.1 kHz), each the loudest bin of a 2048-point
     Hann-windowed FFT of the newest tapped samples, on a 54 dB scale up to a full-scale sine. A bar jumps up and
     falls 24 of 255 levels per step; a white peak dot above it falls 6 per step.
   - `waterfall` shares that FFT and log scale, one band per band row (27, low at the bottom).
     Each step scrolls the band one column left and draws the newest column at the right, so the
-    band holds about 8 s; levels climb black, dark teal, blue, magenta, yellow.
+    band holds about 8 s by default; levels climb black, dark teal, blue, magenta, yellow.
   - A `spectrum` or `waterfall` whose bars, peaks or history have all fallen dark draws the flat
     line. Changing the visual, stopping or leaving the page starts the next run empty.
   - The FFT and history run on the runtime thread once per step. The band steps every 66 ms
@@ -467,14 +468,28 @@ change; only the distance per detent does.
   momentary FX and route; the bus chain's output before its momentary FX, pan and volume; or the
   master mix. It draws at `x=2..125`, `y=12..107` with the same scope, spectrum and waterfall
   (96 rows, one band each) as the home band, opens on `Scope`, and the breadcrumb ends with the
-  picture's name (`../I1: synth/Scope`). Main cycles `Scope`, `Spectrum`, `Waterfall`; Back
-  closes it onto the same page and row; Main turns do nothing. Modifier chords (help, Aux
-  peek, single step), popups over it, grid, Aux, keys and transport keep their meaning. Anything
+  picture's name (`../I1: synth/Scope`). Main press cycles `Scope`, `Spectrum`, `Waterfall`;
+  Main turn adjusts the shown picture (see the visual adjustments below); Back closes it onto the
+  same page and row. Modifier chords (help, Aux peek, single step), popups over it, grid, Aux,
+  keys and transport keep their meaning. Anything
   that moves the focus off its Signal row closes it: an input that moves the menu to another
   page, or a row rebuild such as an Aux type change. Stopped it is the flat line; the steps, tap
   and frame costs match the home band.
   Switching the source lets one block the routing-tree workers rendered ahead with the old
   source land first.
+- Visual adjustments: a Main turn in a full-screen signal view steps the shown picture's setting
+  and toasts it; right is wider, coarser or longer, and the ends hold. The settings are
+  session-only (never saved, a restart starts at the defaults) and shared by the home band and
+  every full-screen view. A change starts the picture's next run empty.
+  - `scope`: `Window: 6 ms`, `11 ms` (default), `22 ms`, `45 ms`, `90 ms`, that is 2, 4, 8, 16 or
+    32 tapped samples a column; the toast's milliseconds follow the tap's rate.
+  - `spectrum`: `Bands: 62` (default), `31`, `16`, `8`, on the same 40 Hz to Nyquist log range;
+    each band is the loudest FFT bin in it. Bars are `128 / bands` px apart with a 1 px gap
+    (1, 3, 7 or 15 px wide) and centred on the screen: 62 and 31 bars span `x=2..124`, 16 and 8
+    span `x=0..126`.
+  - `waterfall`: `History: 4 s` (two columns a 66 ms step, the older from the samples half a
+    step back), `8 s` (default, one column a step), `16 s` (one column every 132 ms) or `32 s`
+    (every 264 ms). The longer histories step and redraw less often.
 - Footer (`y=113..127`): Aux hints on the left up to `x=107`, then the recording disc, transport
   icon and event dot, all centred on `y=121`. The toast covers the hint area.
 - Every snapshot `display` object carries the required `bodyLayout`:

@@ -13,12 +13,17 @@ mod fft;
 mod full_screen;
 mod scope;
 mod spectrum;
+mod tuning;
 
 pub(super) use full_screen::NativeFullScreenSignal;
+pub(super) use tuning::VisualTuning;
 
-/// The newest tapped samples each live step reads: one FFT block, about 46 ms at 44.1 kHz.
+/// The newest tapped samples each live step reads: the whole ring, about 93 ms at 44.1 kHz.
+const READ: usize = 4096;
+/// One FFT block, the newest samples of a read, about 46 ms at 44.1 kHz.
 const WINDOW: usize = 2048;
-/// A live view redraws every second snapshot tick, about 15 times a second.
+/// A live view redraws every second snapshot tick, about 15 times a second; the longer
+/// waterfalls step less often.
 const STEP: Duration = Duration::from_millis(66);
 
 /// What a live view draws; `homeVisual` names it for the home band, and `none` shows no band.
@@ -56,11 +61,12 @@ impl VisualKind {
     }
 }
 
-/// A live view: its source, what it draws, and the pixel rows it fills.
+/// A live view: its source, what it draws and how, and the pixel rows it fills.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct LiveView {
     pub(super) source: SignalSource,
     pub(super) kind: VisualKind,
+    pub(super) tuning: VisualTuning,
     pub(super) rows: usize,
 }
 
@@ -95,8 +101,33 @@ struct LiveRun {
 }
 
 impl LiveRun {
+    fn step_length(&self) -> Duration {
+        self.view.tuning.step(self.view.kind)
+    }
+
     fn step(&self, now: Instant) -> u64 {
-        (now.saturating_duration_since(self.started).as_millis() / STEP.as_millis()) as u64
+        let elapsed = now.saturating_duration_since(self.started).as_millis();
+        (elapsed / self.step_length().as_millis()) as u64
+    }
+}
+
+/// One step's picture of `view` from the newest `samples` the tap took at `rate`.
+fn picture(
+    view: LiveView,
+    samples: &[f32],
+    rate: u32,
+    spectrum: &mut SpectrumHistory,
+) -> OledSignalVisual {
+    let newest = &samples[READ - WINDOW..];
+    match view.kind {
+        VisualKind::Scope => scope::scope_visual(samples, view.tuning.scope_stride()),
+        VisualKind::Spectrum => spectrum.spectrum(newest, rate, view.tuning.spectrum_bands()),
+        VisualKind::Waterfall if view.tuning.waterfall_columns() == 2 => {
+            let back = (rate as usize * STEP.as_millis() as usize / 2000).min(READ - WINDOW);
+            let older = &samples[READ - WINDOW - back..READ - back];
+            spectrum.waterfall(&[older, newest], rate, view.rows)
+        }
+        VisualKind::Waterfall => spectrum.waterfall(&[newest], rate, view.rows),
     }
 }
 
@@ -107,7 +138,7 @@ impl SignalTapReader {
             state: RefCell::new(ReaderState {
                 live: None,
                 visual: Arc::new(OledSignalVisual::Flat),
-                samples: vec![0.0; WINDOW],
+                samples: vec![0.0; READ],
                 spectrum: SpectrumHistory::new(WINDOW),
             }),
         }
@@ -152,12 +183,8 @@ impl SignalTapReader {
                 state.samples.fill(0.0);
             }
             run.last_written = written;
-            let (samples, rate) = (&state.samples, self.tap.sample_rate());
-            state.visual = Arc::new(match view.kind {
-                VisualKind::Scope => scope::scope_visual(samples),
-                VisualKind::Spectrum => state.spectrum.spectrum(samples, rate),
-                VisualKind::Waterfall => state.spectrum.waterfall(samples, rate, view.rows),
-            });
+            let rate = self.tap.sample_rate();
+            state.visual = Arc::new(picture(view, &state.samples, rate, &mut state.spectrum));
         }
         state.visual.clone()
     }
@@ -177,7 +204,12 @@ impl SignalTapReader {
     /// When the step after the one the last capture showed begins.
     pub(super) fn next_step_at(&self) -> Option<Instant> {
         let run = self.state.borrow().live?;
-        Some(run.started + STEP * (run.shown as u32 + 1))
+        Some(run.started + run.step_length() * (run.shown as u32 + 1))
+    }
+
+    /// The tapped signal's sample rate, 0 before the first write.
+    pub(super) fn sample_rate(&self) -> u32 {
+        self.tap.sample_rate()
     }
 }
 
@@ -205,6 +237,7 @@ impl NativeRunner {
             let view = LiveView {
                 source: view.source,
                 kind: view.kind,
+                tuning: self.display.signal_tuning,
                 rows: SIGNAL_BODY_HEIGHT,
             };
             Some((OledSignalArea::Body, view))
@@ -230,6 +263,7 @@ impl NativeRunner {
         let view = LiveView {
             source: SignalSource::Master,
             kind,
+            tuning: self.display.signal_tuning,
             rows: SIGNAL_BAND_HEIGHT,
         };
         Some((OledSignalArea::Band { slot }, view))
