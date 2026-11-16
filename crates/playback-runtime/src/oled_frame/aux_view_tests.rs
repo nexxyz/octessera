@@ -1,3 +1,4 @@
+use super::aux_view::shortened_to;
 use super::model::{
     OledAuxCard, OledAuxGauge, OledAuxHint, OledAuxTurn, OledAuxView, OledBarStyle, OledHintLabel,
     OledHintSource,
@@ -156,5 +157,34 @@ fn the_bank_sits_dim_in_the_upper_left_clear_of_the_longest_top_card_name() {
             let left = lit(BLUE).iter().map(|(x, _)| *x).min().unwrap();
             assert!(right + 3 <= left, "{font:?} {bank}: {right} {left}");
         }
+    }
+}
+
+#[test]
+fn long_names_and_clicks_shorten_to_their_card_and_keep_the_click_mark() {
+    let mut aux2 = card("Glider Interval", "2", 0.2, OledBarStyle::Fill);
+    aux2.color = rgb565(palette::GREEN);
+    let mut aux3 = card("Density", "3", 0.5, OledBarStyle::Fill);
+    aux3.click = Some("L5 Reseed Stars".into());
+    let frame = render_oled_frame(&view([OledAuxCard::default(), aux2, aux3]));
+    let lit = |color: u16, ys: std::ops::Range<usize>| -> Vec<usize> {
+        ys.flat_map(|y| (0..128).map(move |x| (x, y)))
+            .filter(|(x, y)| pixel(&frame, *x, *y) == color)
+            .map(|(x, _)| x)
+            .collect()
+    };
+    let green = lit(rgb565(palette::GREEN), 64..72);
+    assert!(green.iter().all(|x| *x < 64), "{green:?}");
+    let click = lit(BLUE, 96..106);
+    assert!(click.iter().all(|x| (66..127).contains(x)), "{click:?}");
+    for font in [OledFont::Octessera, OledFont::Original] {
+        let main = font.main();
+        let short = shortened_to(main, "L5 Reseed Stars", "!", 61);
+        assert!(
+            short.starts_with("L5 Rsd") && short.ends_with('!'),
+            "{short}"
+        );
+        assert!(main.width(&short) <= 61, "{short}");
+        assert_eq!(shortened_to(main, "Release", "!", 61), "Release!");
     }
 }

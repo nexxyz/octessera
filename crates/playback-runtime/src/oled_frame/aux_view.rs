@@ -2,6 +2,7 @@ use platform_core::palette;
 use std::sync::LazyLock;
 
 use super::font::PixelFont;
+use super::footer::shortened_hint;
 use super::model::{OledAuxCard, OledAuxView, OledBarStyle, OledDisplayInput};
 use super::pixels::{fill_rect, rgb565, shade};
 use super::OLED_WIDTH;
@@ -65,8 +66,8 @@ fn draw_card(
     let color = card.color;
     let centered = |font: &PixelFont, text: &str| center.saturating_sub(font.width(text) / 2);
     let head = match (&card.turn, &card.click) {
-        (Some(turn), _) => turn.label.clone(),
-        (None, Some(click)) => format!("{click}!"),
+        (Some(turn), _) => shortened_to(main, &turn.label, "", room),
+        (None, Some(click)) => shortened_to(main, click, "!", room),
         (None, None) => "-".into(),
     };
     let unbound = card.turn.is_none() && card.click.is_none();
@@ -75,17 +76,16 @@ fn draw_card(
     } else {
         color
     };
-    main.draw(frame, &head, centered(main, &head), top, head_color);
+    draw_in_room(frame, main, &head, (center, room), top, head_color);
     if let Some(path) = card.turn.as_ref().and_then(|turn| turn.path.as_deref()) {
-        let width = small.width(path).min(room);
-        let x = center.saturating_sub(width / 2);
-        small.draw_fitted(
+        let path_color = shade(color, PATH_LEVEL);
+        draw_in_room(
             frame,
+            small,
             path,
-            room,
-            x,
+            (center, room),
             top + PATH_BELOW_TOP,
-            shade(color, PATH_LEVEL),
+            path_color,
         );
     }
     let arc_y = top + ARC_BELOW_TOP + drop;
@@ -122,9 +122,31 @@ fn draw_card(
         }
     }
     if let (Some(_), Some(click)) = (&card.turn, &card.click) {
-        let click = format!("{click}!");
-        main.draw(frame, &click, centered(main, &click), arc_y + 2, color);
+        let click = shortened_to(main, click, "!", room);
+        draw_in_room(frame, main, &click, (center, room), arc_y + 2, color);
     }
+}
+
+/// `text` and its `suffix`, with lower-case vowels dropped as in the footer hints, then cut, until
+/// it fits the card's `room`.
+pub(super) fn shortened_to(font: &PixelFont, text: &str, suffix: &str, room: usize) -> String {
+    let text_room = room.saturating_sub(font.advance(suffix));
+    let short = shortened_hint(text, text_room, font).unwrap_or_else(|| text.to_owned());
+    let end = font.fit(&short, text_room, "").end;
+    format!("{}{suffix}", short[..end].trim_end())
+}
+
+/// Centres `text` on the card, clipped with `..` where even the shortened text overflows.
+fn draw_in_room(
+    frame: &mut [u8],
+    font: &PixelFont,
+    text: &str,
+    (center, room): (usize, usize),
+    y: usize,
+    color: u16,
+) {
+    let x = center.saturating_sub(font.width(text).min(room) / 2);
+    font.draw_fitted(frame, text, room, x, y, color);
 }
 
 /// Paints the arc around the corner at (`center`, `corner_y`): each pixel in the colour `paint`
