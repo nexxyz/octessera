@@ -67,7 +67,8 @@ struct RuntimeFixture {
     root: std::path::PathBuf,
 }
 
-fn runtime_fixture(aux_auto_map: bool) -> RuntimeFixture {
+/// The shipped patch; unless `aux1_bound`, Aux 1 has nothing to turn.
+fn runtime_fixture(aux1_bound: bool) -> RuntimeFixture {
     let root = crate::test_temp_dir::unique_temp_path("octessera-orange-autoaux");
     let (audio, control_rx, event_rx, _prep_result_tx) =
         crate::audio::test_service_with_recording_dir(root.join("recording"));
@@ -84,7 +85,10 @@ fn runtime_fixture(aux_auto_map: bool) -> RuntimeFixture {
     ))
     .unwrap();
     let mut payload = payload;
-    payload["runtimeConfig"]["auxAutoMapEnabled"] = serde_json::json!(aux_auto_map);
+    payload["runtimeConfig"]["auxAutoMapEnabled"] = serde_json::json!(aux1_bound);
+    if !aux1_bound {
+        payload["runtimeConfig"]["auxBindings"]["aux1"] = serde_json::Value::Null;
+    }
     let documents = playback_runtime::split_system_patch_documents(&payload).unwrap();
     let store = root.join("store");
     std::fs::create_dir_all(&store).unwrap();
