@@ -32,6 +32,13 @@ pub(crate) fn new_runtime(
         .and_then(|value| value.parse::<u64>().ok())
         .map_or(delay, std::time::Duration::from_micros);
     playback.set_sequenced_output_delay(delay);
+    #[cfg(any(
+        feature = "hardware-orange-pi-zero-2w",
+        feature = "hardware-raspberry-pi-zero-2w"
+    ))]
+    playback_runtime::set_signal_analysis_worker_start(
+        crate::audio_priority::idle_signal_analysis_thread,
+    );
     let runner = NativeRunner::new_with_unbuilt_menu(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         sample_builtin_favourite_dirs: builtin_favourite_dirs(),

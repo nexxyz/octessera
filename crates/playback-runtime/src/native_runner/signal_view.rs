@@ -4,20 +4,21 @@ use super::snapshot_display::DisplaySnapshot;
 use super::{NativeRunner, RuntimeTransportState};
 use crate::oled_frame::{
     OledSignalArea, OledSignalView, OledSignalVisual, SIGNAL_BAND_HEIGHT, SIGNAL_BODY_HEIGHT,
-    SIGNAL_WIDTH,
 };
+use analysis::{AnalysisJob, Analyzer};
 use realtime_engine::synth::{master_signal_tap, SignalSource, SignalTap};
-use spectrum::SpectrumHistory;
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+mod analysis;
 mod fft;
 mod full_screen;
 mod scope;
 mod spectrum;
 mod tuning;
 
+pub use analysis::set_signal_analysis_worker_start;
 pub(super) use full_screen::NativeFullScreenSignal;
 pub(super) use tuning::VisualTuning;
 
@@ -86,9 +87,10 @@ pub(super) struct SignalTapReader {
 #[derive(Clone)]
 struct ReaderState {
     live: Option<LiveRun>,
+    /// Counts live runs, so a picture finished after its run ended is never shown.
+    run: u64,
     visual: Arc<OledSignalVisual>,
-    samples: Vec<f32>,
-    spectrum: SpectrumHistory,
+    analyzer: Analyzer,
 }
 
 /// One stretch of captures that showed the same view live.
@@ -98,11 +100,11 @@ struct LiveRun {
     started: Instant,
     /// The tap's sample count at the start; older samples are not this run's.
     written: u64,
-    /// The tap's count at the last read: a source that stopped writing reads as silence.
-    last_written: u64,
     /// The step the last capture showed, and the newest step announced as a new picture.
     shown: u64,
     announced: u64,
+    /// The step the last analysis started at.
+    analysed: Option<u64>,
 }
 
 impl LiveRun {
@@ -116,57 +118,36 @@ impl LiveRun {
     }
 }
 
-/// How many of the newest tapped samples one step of `view` reads.
-fn read_length(view: LiveView) -> usize {
-    match view.kind {
-        VisualKind::Scope => (SIGNAL_WIDTH * view.tuning.scope_stride() + TRIGGER_ROOM).min(READ),
-        VisualKind::Waterfall if view.tuning.waterfall_columns() == 2 => READ,
-        VisualKind::Spectrum | VisualKind::Waterfall => WINDOW,
-    }
-}
-
-/// One step's picture of `view` from the newest `samples` the tap took at `rate`.
-fn picture(
-    view: LiveView,
-    samples: &[f32],
-    rate: u32,
-    spectrum: &mut SpectrumHistory,
-) -> OledSignalVisual {
-    let end = samples.len();
-    let newest = || &samples[end - WINDOW..];
-    match view.kind {
-        VisualKind::Scope => scope::scope_visual(samples, view.tuning.scope_stride()),
-        VisualKind::Spectrum => spectrum.spectrum(newest(), rate, view.tuning.spectrum_bands()),
-        VisualKind::Waterfall if view.tuning.waterfall_columns() == 2 => {
-            let back = (rate as usize * STEP.as_millis() as usize / 2000).min(end - WINDOW);
-            let older = &samples[end - WINDOW - back..end - back];
-            spectrum.waterfall(&[older, newest()], rate, view.rows)
-        }
-        VisualKind::Waterfall => spectrum.waterfall(&[newest()], rate, view.rows),
-    }
-}
-
 impl SignalTapReader {
+    /// A reader that analyses each step on the capturing thread, so each picture is ready in the
+    /// capture that starts its step.
+    #[cfg(test)]
     pub(super) fn new(tap: &'static SignalTap) -> Self {
+        Self::with_analyzer(tap, Analyzer::inline(tap))
+    }
+
+    fn with_analyzer(tap: &'static SignalTap, analyzer: Analyzer) -> Self {
         Self {
             tap,
             state: RefCell::new(ReaderState {
                 live: None,
+                run: 0,
                 visual: Arc::new(OledSignalVisual::Flat),
-                samples: vec![0.0; READ],
-                spectrum: SpectrumHistory::new(WINDOW),
+                analyzer,
             }),
         }
     }
 
-    /// The picture for a capture at `now`: the current step of `live`, or the flat line when
-    /// nothing shows live. The tap writes only while a view is live.
+    /// The picture for a capture at `now`: the newest finished analysis of `live`, or the flat
+    /// line when nothing shows live. The tap writes only while a view is live. A step starts the
+    /// next analysis, on the newest samples, once the previous one has finished.
     pub(super) fn visual(&self, live: Option<LiveView>, now: Instant) -> Arc<OledSignalVisual> {
         let mut state = self.state.borrow_mut();
         let state = &mut *state;
         let Some(view) = live else {
             if state.live.take().is_some() {
                 self.tap.select(None);
+                state.run += 1;
             }
             if *state.visual != OledSignalVisual::Flat {
                 state.visual = Arc::new(OledSignalVisual::Flat);
@@ -176,31 +157,33 @@ impl SignalTapReader {
         let fresh = state.live.is_none_or(|run| run.view != view);
         if fresh {
             self.tap.select(Some(view.source));
-            let written = self.tap.written();
+            state.run += 1;
             state.live = Some(LiveRun {
                 view,
                 started: now,
-                written,
-                last_written: written,
+                written: self.tap.written(),
                 shown: 0,
                 announced: 0,
+                analysed: None,
             });
-            state.spectrum.clear();
+            state.visual = Arc::new(OledSignalVisual::Flat);
         }
         let run = state.live.as_mut().expect("a live run");
         let step = run.step(now);
-        if fresh || run.shown != step {
-            run.shown = step;
-            run.announced = run.announced.max(step);
-            let samples = &mut state.samples[READ - read_length(view)..];
-            self.tap.read_latest(run.written, samples);
-            let written = self.tap.written();
-            if written == run.last_written {
-                samples.fill(0.0);
-            }
-            run.last_written = written;
-            let rate = self.tap.sample_rate();
-            state.visual = Arc::new(picture(view, samples, rate, &mut state.spectrum));
+        run.shown = step;
+        run.announced = run.announced.max(step);
+        let job = AnalysisJob {
+            run: state.run,
+            view,
+            written: run.written,
+            first: run.analysed.is_none(),
+            steps: run.analysed.map_or(1, |last| (step - last) as usize),
+        };
+        if run.analysed != Some(step) && state.analyzer.try_submit(job) {
+            run.analysed = Some(step);
+        }
+        if let Some(visual) = state.analyzer.take(state.run) {
+            state.visual = visual;
         }
         state.visual.clone()
     }
@@ -308,8 +291,10 @@ impl NativeRunner {
 }
 
 impl Default for SignalTapReader {
+    /// The master tap, analysed on the worker thread.
     fn default() -> Self {
-        Self::new(master_signal_tap())
+        let tap = master_signal_tap();
+        Self::with_analyzer(tap, Analyzer::worker(tap))
     }
 }
 

@@ -78,3 +78,22 @@ pub(crate) fn pin_midi_thread(_role: &str) {
         }
     }
 }
+
+// The signal analysis worker shares CPU0 with the runtime and the render worker. SCHED_IDLE lets
+// either preempt it the moment they wake, so a slow picture only lowers its update rate.
+#[cfg(any(
+    feature = "hardware-orange-pi-zero-2w",
+    feature = "hardware-raspberry-pi-zero-2w"
+))]
+pub(crate) fn idle_signal_analysis_thread() {
+    #[cfg(all(not(test), target_os = "linux"))]
+    {
+        let param = libc::sched_param { sched_priority: 0 };
+        if unsafe { libc::sched_setscheduler(0, libc::SCHED_IDLE, &param) } != 0 {
+            eprintln!(
+                "signal analysis worker SCHED_IDLE failed: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+    }
+}

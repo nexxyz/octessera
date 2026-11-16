@@ -291,6 +291,7 @@ pub(crate) use midi_settings::MidiSendInstruments;
 pub use persistence_intent::NativePersistenceIntent;
 pub(crate) use retired_config_keys::without_retired_keys;
 pub use runner_config::NativeRunnerConfig;
+pub use signal_view::set_signal_analysis_worker_start;
 pub use snapshot_scene::{
     NativeControlButtonPresentation, NativeGridPresentation, NativeHardwarePresentation,
     NativeHdmiMode, NativeHdmiPresentation, NativeLedPresentation, PresentationScene,

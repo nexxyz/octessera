@@ -225,7 +225,66 @@ fn longer_waterfalls_step_less_often_and_the_shortest_adds_two_columns_a_step() 
     assert!(!lit(SIGNAL_WIDTH - 3));
 }
 
-/// Prints the runtime-thread cost of one live step of each picture, tap read included; run with
+#[test]
+fn a_late_analysis_repeats_its_column_for_every_step_it_missed() {
+    let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
+    let reader = SignalTapReader::new(tap);
+    let view = LiveView {
+        kind: VisualKind::Waterfall,
+        ..MASTER_SCOPE
+    };
+    let block: Vec<f32> = tone(0, 0.5).iter().flat_map(|s| [*s, *s]).collect();
+    let start = Instant::now();
+    let _ = reader.visual(Some(view), start);
+    tap.publish_master(&block, block.len() / 2, 48_000);
+    let shown = reader.visual(Some(view), start + STEP * 3);
+    let OledSignalVisual::Waterfall { levels } = &*shown else {
+        panic!("a tone lights the waterfall");
+    };
+    let column = |index: usize| {
+        &levels[(SIGNAL_WIDTH - 1 - index) * SIGNAL_BAND_HEIGHT..][..SIGNAL_BAND_HEIGHT]
+    };
+    assert!(column(0).iter().any(|level| *level > 0));
+    assert_eq!(column(1), column(0));
+    assert_eq!(column(2), column(0));
+    assert!(column(3).iter().all(|level| *level == 0));
+}
+
+#[test]
+fn the_worker_finishes_pictures_off_the_capture_and_starts_each_on_the_newest_samples() {
+    let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
+    let reader = SignalTapReader::with_analyzer(tap, Analyzer::worker(tap));
+    let block: Vec<f32> = tone(0, 0.5).iter().flat_map(|s| [*s, *s]).collect();
+    let start = Instant::now();
+    let _ = reader.visual(Some(MASTER_SCOPE), start);
+    tap.publish_master(&block, block.len() / 2, 48_000);
+    let mut step = 1;
+    let shown = loop {
+        let shown = reader.visual(Some(MASTER_SCOPE), start + STEP * step);
+        if matches!(*shown, OledSignalVisual::Scope { .. }) {
+            break shown;
+        }
+        assert!(step < 200, "the worker never finished a picture");
+        std::thread::sleep(Duration::from_millis(5));
+        step += 1;
+    };
+    let silent = loop {
+        step += 1;
+        let next = reader.visual(Some(MASTER_SCOPE), start + STEP * step);
+        if !Arc::ptr_eq(&next, &shown) {
+            break next;
+        }
+        assert!(step < 400, "the worker stopped analysing");
+        std::thread::sleep(Duration::from_millis(5));
+    };
+    assert_eq!(*silent, OledSignalVisual::Flat);
+    assert_eq!(
+        *reader.visual(None, start + STEP * step),
+        OledSignalVisual::Flat
+    );
+}
+
+/// Prints the analysis cost of one live step of each picture, tap read included; run with
 /// `cargo test --release -p playback-runtime --lib signal_step_cost -- --ignored --nocapture`.
 #[test]
 #[ignore = "release-mode micro-benchmark"]

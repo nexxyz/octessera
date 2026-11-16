@@ -458,9 +458,18 @@ change; only the distance per detent does.
     band holds about 8 s by default; levels climb black, dark teal, blue, magenta, yellow.
   - A `spectrum` or `waterfall` whose bars, peaks or history have all fallen dark draws the flat
     line. Changing the visual, stopping or leaving the page starts the next run empty.
-  - The FFT and history run on the runtime thread once per step, and only for a picture on
-    screen while the transport plays. The 2048-point FFT is a real-input transform: a
-    1024-point complex FFT over the sample pairs, split into the real bins, with per-stage
+  - The tap read, the scope trace, the FFT and the history run as one analysis on a worker
+    thread, and only for a picture on screen while the transport plays. The capture that starts a
+    step hands the worker that step's analysis, on the newest tapped samples, if the previous one
+    has finished, and shows the newest finished picture, so a picture usually shows one step
+    late. The runtime never waits for it: an analysis that runs long finishes later, the steps
+    meanwhile keep the last picture, and the next analysis starts on the newest samples, so only
+    the update rate drops. The history keeps its length in time: bars and peaks fall for every
+    step since the previous analysis, and a waterfall repeats the newest column once for every
+    column it missed. On the boards the worker runs at `SCHED_IDLE` next to the runtime on CPU 0,
+    so the runtime and the render worker preempt it as soon as they wake. The 2048-point FFT
+    is a real-input transform: a 1024-point complex FFT over the sample pairs, split into the
+    real bins, with per-stage
     twiddle tables and powers instead of magnitudes; the band ranges are computed once per rate
     and band count. A step reads only the samples its picture needs (the scope its trace plus
     about 35 ms of trigger room, an FFT picture one block, the 4 s waterfall the whole ring).
@@ -470,8 +479,8 @@ change; only the distance per detent does.
     boards and the desktop redraw the band at most at that rate.
   - The audio engine copies one selected mono signal into a 4096-sample lock-free ring once per
     block at the full output rate (the master as the mean of left and right; 93 ms at 44.1 kHz),
-    and only while a live view is on screen; otherwise it costs a few relaxed atomic loads per block. The runtime reads
-    the ring when it captures a step; nothing is drawn or analysed on the audio thread. A source
+    and only while a live view is on screen; otherwise it costs a few relaxed atomic loads per block. The analysis
+    worker reads the ring; nothing is drawn or analysed on the audio thread. A source
     that stopped writing (an idle routing-tree worker) reads as silence.
   - The boards write only the rows that changed since the last frame, as one SSD1351 column
     window (the panel is turned clockwise); a band-only step sends 27 of 128 rows.

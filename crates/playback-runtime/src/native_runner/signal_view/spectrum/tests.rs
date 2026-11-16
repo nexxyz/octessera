@@ -70,7 +70,8 @@ fn log_bars_light_the_band_of_a_tone_and_sit_near_zero_elsewhere() {
 fn bars_jump_up_then_fall_gently_under_slower_peaks_until_flat() {
     let mut history = SpectrumHistory::new(SIZE);
     let tone = sine(1_000.0, 1.0);
-    let OledSignalVisual::Spectrum { levels, peaks } = history.spectrum(&tone, RATE, SPECTRUM_BARS)
+    let OledSignalVisual::Spectrum { levels, peaks } =
+        history.spectrum(&tone, RATE, SPECTRUM_BARS, 1)
     else {
         panic!("a tone shows bars");
     };
@@ -81,15 +82,25 @@ fn bars_jump_up_then_fall_gently_under_slower_peaks_until_flat() {
     let OledSignalVisual::Spectrum {
         levels: fallen,
         peaks: held,
-    } = history.spectrum(&silence, RATE, SPECTRUM_BARS)
+    } = history.spectrum(&silence, RATE, SPECTRUM_BARS, 1)
     else {
         panic!("falling bars still show");
     };
     assert_eq!(fallen[band], levels[band] - BAR_FALL);
     assert_eq!(held[band], levels[band] - PEAK_FALL);
+    let mut late = SpectrumHistory::new(SIZE);
+    let _ = late.spectrum(&tone, RATE, SPECTRUM_BARS, 1);
+    let OledSignalVisual::Spectrum { levels: late, .. } =
+        late.spectrum(&silence, RATE, SPECTRUM_BARS, 3)
+    else {
+        panic!("falling bars still show");
+    };
+    assert_eq!(late[band], levels[band] - 3 * BAR_FALL);
 
     let steps = (0..60)
-        .take_while(|_| history.spectrum(&silence, RATE, SPECTRUM_BARS) != OledSignalVisual::Flat)
+        .take_while(|_| {
+            history.spectrum(&silence, RATE, SPECTRUM_BARS, 1) != OledSignalVisual::Flat
+        })
         .count();
     assert!((30..45).contains(&steps), "{steps}");
 }
@@ -99,11 +110,11 @@ fn the_waterfall_adds_the_newest_column_at_the_right_and_scrolls_left() {
     let mut history = SpectrumHistory::new(SIZE);
     let silence = vec![0.0; SIZE];
     assert_eq!(
-        history.waterfall(&[&silence], RATE, SIGNAL_BAND_HEIGHT),
+        history.waterfall(&[&silence], RATE, SIGNAL_BAND_HEIGHT, 0),
         OledSignalVisual::Flat
     );
     let OledSignalVisual::Waterfall { levels } =
-        history.waterfall(&[&sine(1_000.0, 1.0)], RATE, SIGNAL_BAND_HEIGHT)
+        history.waterfall(&[&sine(1_000.0, 1.0)], RATE, SIGNAL_BAND_HEIGHT, 0)
     else {
         panic!("a tone lights the waterfall");
     };
@@ -115,7 +126,7 @@ fn the_waterfall_adds_the_newest_column_at_the_right_and_scrolls_left() {
         .all(|level| *level == 0));
 
     let OledSignalVisual::Waterfall { levels: scrolled } =
-        history.waterfall(&[&silence], RATE, SIGNAL_BAND_HEIGHT)
+        history.waterfall(&[&silence], RATE, SIGNAL_BAND_HEIGHT, 0)
     else {
         panic!("the tone column is still on screen");
     };
@@ -132,7 +143,7 @@ fn fewer_bands_cover_the_same_log_range_up_to_the_full_nyquist() {
     for bands in [31, 16, 8] {
         history.clear();
         let OledSignalVisual::Spectrum { levels, peaks } =
-            history.spectrum(&sine(1_000.0, 1.0), RATE, bands)
+            history.spectrum(&sine(1_000.0, 1.0), RATE, bands, 1)
         else {
             panic!("a tone shows bars");
         };
@@ -145,7 +156,8 @@ fn fewer_bands_cover_the_same_log_range_up_to_the_full_nyquist() {
         assert!(levels[band] > 240);
     }
     history.clear();
-    let OledSignalVisual::Spectrum { levels, .. } = history.spectrum(&sine(18_000.0, 1.0), RATE, 8)
+    let OledSignalVisual::Spectrum { levels, .. } =
+        history.spectrum(&sine(18_000.0, 1.0), RATE, 8, 1)
     else {
         panic!("a high tone shows bars");
     };
