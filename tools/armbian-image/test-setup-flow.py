@@ -446,7 +446,7 @@ for index, path in enumerate(COORDINATORS):
     assert [phase for phase, _ in stop_status] == ["starting", "portal_ready", "failed"]
     assert stop_status[-1] == ("failed", {"error_code": "radio_restart_required", "terminal": True})
 
-    for states, crash_after_state, code, timeout_end in ((["20 (unavailable)", "30 (disconnected)"], True, "radio_restart_required", False), (["30 (disconnected)"], True, "radio_restart_required", True), (["30 (disconnected)"], False, "operation_failed", False), (["70 (connecting)", "100 (connected)"], False, "operation_failed", False)):
+    for states, crash_after_state, code, timeout_end in ((["20 (unavailable)", "30 (disconnected)"], True, "radio_restart_required", False), (["30 (disconnected)"], True, "radio_restart_required", True), (["30 (disconnected)"], False, None, False), (["70 (connecting)", "100 (connected)"], False, None, False)):
         late_crash = {"log": "", "states": list(states), "queried": []}
 
         def late_command(args, timeout=None, late=late_crash, crash_after_state=crash_after_state):
@@ -477,7 +477,7 @@ for index, path in enumerate(COORDINATORS):
         finally:
             coordinator.setup_http.SetupHTTPServer = original_setup_server
             stop_marker.unlink(missing_ok=True)
-        assert late_status[-1] == ("failed", {"error_code": code, "terminal": True}), late_status
+        assert late_status[-1] == (("failed" if code else "stopped"), {"error_code": code, "terminal": True}), late_status
         assert 1 <= len(late_crash["queried"]) <= coordinator.RADIO_SETTLE_SECONDS and all(timeout is not None for timeout in late_crash["queried"])
 
     waiting = coordinator.Coordinator(orange, command=kernel_log(crash_log), clock=lambda: 5.0, sleeper=lambda _seconds: None)

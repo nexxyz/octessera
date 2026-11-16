@@ -104,6 +104,11 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
             ],
             "Close",
         ),
+        RuntimeSetupPortalPhase::Stopped => (
+            "Wi-Fi Setup".to_string(),
+            vec!["Hotspot stopped".into()],
+            "Close",
+        ),
         RuntimeSetupPortalPhase::Failed
             if state.status.error_code
                 == Some(RuntimeSetupPortalErrorCode::RadioRestartRequired) =>

@@ -288,6 +288,7 @@ fn status_rank(phase: &RuntimeSetupPortalPhase) -> u8 {
         RuntimeSetupPortalPhase::PortalReady => 1,
         RuntimeSetupPortalPhase::Finalizing => 2,
         RuntimeSetupPortalPhase::Succeeded
+        | RuntimeSetupPortalPhase::Stopped
         | RuntimeSetupPortalPhase::Failed
         | RuntimeSetupPortalPhase::TimedOut
         | RuntimeSetupPortalPhase::Unsupported => 3,
@@ -298,6 +299,7 @@ fn is_terminal(phase: &RuntimeSetupPortalPhase) -> bool {
     matches!(
         phase,
         RuntimeSetupPortalPhase::Succeeded
+            | RuntimeSetupPortalPhase::Stopped
             | RuntimeSetupPortalPhase::Failed
             | RuntimeSetupPortalPhase::TimedOut
             | RuntimeSetupPortalPhase::Unsupported

@@ -88,6 +88,7 @@ fn setup_portal_status_serializes_and_round_trips_every_phase() {
         ),
         setup_status(RuntimeSetupPortalPhase::Finalizing, None, None, false, None),
         setup_status(RuntimeSetupPortalPhase::Succeeded, None, None, false, None),
+        setup_status(RuntimeSetupPortalPhase::Stopped, None, None, false, None),
         setup_status(
             RuntimeSetupPortalPhase::Failed,
             None,
@@ -158,6 +159,11 @@ fn setup_portal_status_serializes_and_round_trips_every_phase() {
         json!({
             "type": "setup_portal_status",
             "phase": "succeeded",
+            "rebootRequired": false
+        }),
+        json!({
+            "type": "setup_portal_status",
+            "phase": "stopped",
             "rebootRequired": false
         }),
         json!({
@@ -252,6 +258,7 @@ fn setup_portal_status_errors_are_classified_exhaustively() {
         RuntimeSetupPortalPhase::PortalReady,
         RuntimeSetupPortalPhase::Finalizing,
         RuntimeSetupPortalPhase::Succeeded,
+        RuntimeSetupPortalPhase::Stopped,
     ] {
         assert!(setup_status(phase, None, None, false, None)
             .error_facts()
@@ -391,6 +398,18 @@ fn setup_portal_status_rejects_unknown_or_malformed_values() {
             "type": "setup_portal_status",
             "phase": "timed_out",
             "errorCode": "operation_failed",
+            "rebootRequired": false
+        }),
+        json!({
+            "type": "setup_portal_status",
+            "phase": "stopped",
+            "errorCode": "operation_failed",
+            "rebootRequired": false
+        }),
+        json!({
+            "type": "setup_portal_status",
+            "phase": "stopped",
+            "portalSuffix": "abcd",
             "rebootRequired": false
         }),
         json!({

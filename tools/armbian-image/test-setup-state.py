@@ -66,6 +66,7 @@ for index, path in enumerate(COORDINATORS):
         coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase="k7Mx-9pQa"),
         coordinator._status("finalizing"),
         coordinator._status("succeeded"),
+        coordinator._status("stopped"),
         coordinator._status("failed", error_code="operation_failed"),
         coordinator._status("timed_out", error_code="unavailable"),
     )
@@ -74,6 +75,7 @@ for index, path in enumerate(COORDINATORS):
         {"type": "setup_portal_status", "phase": "portal_ready", "portalSuffix": "abcd", "portalPassphrase": "k7Mx-9pQa", "rebootRequired": False},
         {"type": "setup_portal_status", "phase": "finalizing", "rebootRequired": False},
         {"type": "setup_portal_status", "phase": "succeeded", "rebootRequired": False},
+        {"type": "setup_portal_status", "phase": "stopped", "rebootRequired": False},
         {"type": "setup_portal_status", "phase": "failed", "rebootRequired": False, "errorCode": "operation_failed"},
         {"type": "setup_portal_status", "phase": "timed_out", "rebootRequired": False, "errorCode": "unavailable"},
     )
@@ -98,6 +100,7 @@ for index, path in enumerate(COORDINATORS):
         ("finalizing", None, None, None, "k7Mx-9pQa"),
         ("failed", None, None, "unavailable"),
         ("timed_out", None, None, "operation_failed"),
+        ("stopped", None, None, "operation_failed"),
         ("unsupported", None, None, "unsupported"),
     ):
         try:

@@ -14,6 +14,7 @@ pub enum RuntimeSetupPortalPhase {
     PortalReady,
     Finalizing,
     Succeeded,
+    Stopped,
     Failed,
     TimedOut,
     Unsupported,
@@ -116,7 +117,7 @@ impl RuntimeSetupPortalStatus {
                     return Err("finalizing setup portal status contains an invalid field".into());
                 }
             }
-            RuntimeSetupPortalPhase::Succeeded => {
+            RuntimeSetupPortalPhase::Succeeded | RuntimeSetupPortalPhase::Stopped => {
                 if self.disposition.is_some()
                     || self.portal_suffix.is_some()
                     || self.error_code.is_some()

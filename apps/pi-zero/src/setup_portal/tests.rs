@@ -106,7 +106,9 @@ fn setup_status(phase: RuntimeSetupPortalPhase) -> Value {
         RuntimeSetupPortalPhase::Unsupported => {
             status["errorCode"] = json!("unsupported");
         }
-        RuntimeSetupPortalPhase::Finalizing | RuntimeSetupPortalPhase::Succeeded => {}
+        RuntimeSetupPortalPhase::Finalizing
+        | RuntimeSetupPortalPhase::Succeeded
+        | RuntimeSetupPortalPhase::Stopped => {}
     }
     status
 }
@@ -281,6 +283,7 @@ fn backend_status_envelope_round_trips_all_image_phases_and_requires_type() {
         RuntimeSetupPortalPhase::PortalReady,
         RuntimeSetupPortalPhase::Finalizing,
         RuntimeSetupPortalPhase::Succeeded,
+        RuntimeSetupPortalPhase::Stopped,
         RuntimeSetupPortalPhase::Failed,
         RuntimeSetupPortalPhase::TimedOut,
     ] {

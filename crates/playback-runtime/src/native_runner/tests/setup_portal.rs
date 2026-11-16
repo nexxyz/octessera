@@ -7,9 +7,9 @@ fn portal_status(phase: RuntimeSetupPortalPhase) -> RuntimeStoreResult {
             (Some(RuntimeSetupPortalDisposition::Accepted), None, None)
         }
         RuntimeSetupPortalPhase::PortalReady => (None, Some("1a2f".into()), None),
-        RuntimeSetupPortalPhase::Finalizing | RuntimeSetupPortalPhase::Succeeded => {
-            (None, None, None)
-        }
+        RuntimeSetupPortalPhase::Finalizing
+        | RuntimeSetupPortalPhase::Succeeded
+        | RuntimeSetupPortalPhase::Stopped => (None, None, None),
         RuntimeSetupPortalPhase::Failed => (
             None,
             None,
@@ -156,6 +156,10 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             vec!["Setup failed", "Check the device status", "Close"],
         ),
         (
+            RuntimeSetupPortalPhase::Stopped,
+            vec!["Hotspot stopped", "Close"],
+        ),
+        (
             RuntimeSetupPortalPhase::TimedOut,
             vec!["Setup timed out", "Portal closed", "Close"],
         ),
@@ -178,7 +182,10 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
             assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
             continue;
         }
-        if phase == RuntimeSetupPortalPhase::TimedOut {
+        if matches!(
+            phase,
+            RuntimeSetupPortalPhase::Stopped | RuntimeSetupPortalPhase::TimedOut
+        ) {
             assert_eq!(snapshot["display"]["title"], runner.active_layer_title());
             assert!(!runner.display.setup_portal.as_ref().unwrap().visible);
             continue;

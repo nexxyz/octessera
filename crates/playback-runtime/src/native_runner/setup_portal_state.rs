@@ -55,7 +55,9 @@ impl NativeRunner {
         let newly_succeeded = phase_changed && status.phase == RuntimeSetupPortalPhase::Succeeded;
         let visible = if matches!(
             status.phase,
-            RuntimeSetupPortalPhase::Succeeded | RuntimeSetupPortalPhase::TimedOut
+            RuntimeSetupPortalPhase::Succeeded
+                | RuntimeSetupPortalPhase::Stopped
+                | RuntimeSetupPortalPhase::TimedOut
         ) {
             false
         } else if status.error_code == Some(RuntimeSetupPortalErrorCode::RadioRestartRequired) {
@@ -145,6 +147,7 @@ fn status_rank(phase: &RuntimeSetupPortalPhase) -> u8 {
         RuntimeSetupPortalPhase::PortalReady => 1,
         RuntimeSetupPortalPhase::Finalizing => 2,
         RuntimeSetupPortalPhase::Succeeded
+        | RuntimeSetupPortalPhase::Stopped
         | RuntimeSetupPortalPhase::Failed
         | RuntimeSetupPortalPhase::TimedOut
         | RuntimeSetupPortalPhase::Unsupported => 3,
@@ -155,6 +158,7 @@ fn is_setup_terminal(phase: &RuntimeSetupPortalPhase) -> bool {
     matches!(
         phase,
         RuntimeSetupPortalPhase::Succeeded
+            | RuntimeSetupPortalPhase::Stopped
             | RuntimeSetupPortalPhase::Failed
             | RuntimeSetupPortalPhase::TimedOut
             | RuntimeSetupPortalPhase::Unsupported

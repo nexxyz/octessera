@@ -94,7 +94,7 @@ def _status(phase, disposition=None, portal_suffix=None, error_code=None, portal
     elif phase == "portal_ready":
         if disposition is not None or error_code is not None or not isinstance(portal_suffix, str) or len(portal_suffix) != 4 or any(character not in "0123456789abcdef" for character in portal_suffix) or not isinstance(portal_passphrase, str) or len(portal_passphrase) != 9 or portal_passphrase[4] != "-" or any(character not in PASSPHRASE_ALPHABET for character in portal_passphrase[:4] + portal_passphrase[5:]):
             raise ValueError("invalid portal status")
-    elif phase in ("finalizing", "succeeded"):
+    elif phase in ("finalizing", "succeeded", "stopped"):
         if disposition is not None or portal_suffix is not None or portal_passphrase is not None or error_code is not None:
             raise ValueError("invalid terminal status")
     elif phase == "failed":
@@ -442,6 +442,8 @@ class Coordinator:
         except (OSError, subprocess.SubprocessError, ValueError, json.JSONDecodeError):
             outcome = ("failed", "operation_failed")
         finally:
+            if outcome == ("failed", "operation_failed") and self.stop_requested:
+                outcome = ("stopped", None)
             try:
                 self.cleanup(self.clock() + CLEANUP_SECONDS)
             finally:
@@ -465,7 +467,7 @@ def status_is_terminal(profile):
         with open(STATUS_PATH, "r", encoding="utf-8") as handle:
             payload = json.load(handle)
         status = payload["status"]
-        return payload.get("schema") == 1 and status.get("type") == "setup_portal_status" and status.get("phase") in {"succeeded", "failed", "timed_out"}
+        return payload.get("schema") == 1 and status.get("type") == "setup_portal_status" and status.get("phase") in {"succeeded", "stopped", "failed", "timed_out"}
     except (AttributeError, KeyError, OSError, TypeError, UnicodeDecodeError, ValueError, json.JSONDecodeError):
         return False
 

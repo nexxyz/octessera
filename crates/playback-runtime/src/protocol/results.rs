@@ -288,7 +288,8 @@ impl RuntimeStoreResult {
                     RuntimeSetupPortalPhase::Starting
                     | RuntimeSetupPortalPhase::PortalReady
                     | RuntimeSetupPortalPhase::Finalizing
-                    | RuntimeSetupPortalPhase::Succeeded => return None,
+                    | RuntimeSetupPortalPhase::Succeeded
+                    | RuntimeSetupPortalPhase::Stopped => return None,
                 };
                 return Some(RuntimeErrorFacts::new(
                     RuntimeErrorDomain::Runtime,

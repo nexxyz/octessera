@@ -56,7 +56,7 @@ pub(crate) fn stop_hotspot_closes_the_card_and_stops_the_portal_once() {
 
     let stopped = runner
         .send(HostMessage::RuntimeResult {
-            result: identified(RuntimeSetupPortalPhase::Failed, 1),
+            result: identified(RuntimeSetupPortalPhase::Stopped, 1),
         })
         .unwrap();
     assert_ne!(snapshot_from(&stopped)["display"]["title"], "Wi-Fi Setup");
