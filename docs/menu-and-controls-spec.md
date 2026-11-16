@@ -61,7 +61,12 @@ Data sources the spec relies on:
     Fade Chance and Step Rate on y6..y2.
   - XY: X B1 Delay Feedback 10..60, Y I1 Res 0..40, Glide 300 ms, Release `center`.
   - MIDI CC In: CC 74 to I1 Cutoff, CC 1 to I4 FM Index, CC 71 to I1 Res, any channel; CC4-CC8
-    free. No Aux bindings, so Auto Map has the encoders.
+    free.
+  - Aux bindings (patch, Aux Prio. `manual`): Aux 1 turn I1 Synth Cutoff (`I1/Filter`), Shift I2
+    Sampler Cutoff (`I2/Filter`); Aux 2 turn B3 Delay Mix (`B3/Delay`), Shift B3 Delay Feedback;
+    Aux 3 turn L5 Density (`L5/twinkle`) with click L5 Reseed Stars, Shift I5 FM Index (`I5/Tone`)
+    with click L5 Clear Stars. Aux 1 and Aux 2 have no click bindings: nothing bindable fits a
+    filter or delay, and L1's Spawn stays off the encoders because it would knock the colony over.
   - Play FX: one 2x2 block per type, top-left tile the plainest stamp, all on `master`. The
     bottom two rows and x6-x7 of y3-y2 are free:
 

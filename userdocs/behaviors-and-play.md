@@ -25,6 +25,12 @@ Layer 4 another `sequencer` into the Swell Bass FM voice, and Layer 5 a
 *Shift* + *Fn* and its left-column tile wakes it. The Faders page is set up to play with it, and
 the other pages all have something on them to press.
 
+The Aux encoders come bound, too. *Aux 1* opens and closes the synth's filter
+(hold *Shift* for the Sampler's), *Aux 2* turns the synth's delay up and down
+(*Shift*: how long it keeps echoing), and *Aux 3* sets how busy Layer 5's sky
+is, with a click to reseed the stars (*Shift*: FM Glass's metallic edge, and a
+click that clears the sky).
+
 Layer 6 is the quiet one. `raindrops` falls into the Default drum kit, but only
 the bottom row has drums stamped on it, so you hear a drop when it lands and
 not on the way down. Trigger probability skips about half of those landings,

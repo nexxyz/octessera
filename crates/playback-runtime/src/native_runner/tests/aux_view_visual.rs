@@ -128,7 +128,7 @@ fn main_turns_pick_a_strict_bank_that_holds_only_while_the_aux_visual_shows() {
         [
             "Cutoff 151 - I1/Filter",
             "Mix 20% - B1/Reverb",
-            "Pan Pos R3 - I6/Mixer"
+            "Pan Pos R3 L5 Reseed Stars I6/Mixer"
         ]
     );
     let before = runner.active_layer().behavior_config["randomCellsPerTick"].clone();
@@ -156,7 +156,7 @@ fn main_turns_pick_a_strict_bank_that_holds_only_while_the_aux_visual_shows() {
     assert!(runner.aux_view_bank().is_none());
     assert_eq!(
         runner.effective_aux_slot(2).press.map(|press| press.label),
-        Some("Spawn".into())
+        Some("L5 Reseed Stars".into())
     );
     for _ in 0..4 {
         device_input(
@@ -222,7 +222,7 @@ fn an_aux_turn_updates_its_card_and_lights_it_instead_of_a_toast() {
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux2", "delta": 1 }),
     );
-    assert!(toast(&runner).is_some_and(|toast| toast.starts_with("Trn-2: Count: ")));
+    assert!(toast(&runner).is_some_and(|toast| toast.starts_with("Trn-2: Mix: ")));
 }
 
 fn cards_of(runner: &mut NativeRunner) -> [OledAuxCard; 3] {
@@ -252,26 +252,42 @@ fn bind_manual_targets(runner: &mut NativeRunner) {
 #[test]
 fn manual_bindings_show_their_owner_and_page_in_the_manual_bank() {
     let (mut runner, _) = aux_runner(Instant::now());
-    bind_manual_targets(&mut runner);
     turn_main(&mut runner, 1);
-    let cards = cards(&mut runner);
     assert_eq!(
-        summary(&cards),
+        summary(&cards(&mut runner)),
         [
             "Cutoff 151 - I1/Filter",
-            "Mix 20% - B1/Reverb",
-            "Pan Pos R3 - I6/Mixer"
+            "Mix 35% - B3/Delay",
+            "Density 3 L5 Reseed Stars L5/twinkle"
         ]
     );
-    let pan = cards[2].turn.as_ref().unwrap().gauge.as_ref().unwrap();
-    assert_eq!(pan.style, OledBarStyle::Marker);
+    device_input(
+        &mut runner,
+        json!({ "type": "button_shift", "pressed": true }),
+    );
+    assert_eq!(
+        summary(&cards(&mut runner)),
+        [
+            "Cutoff 255 - I2/Filter",
+            "Feedback 35 - B3/Delay",
+            "Index 30 L5 Clear Stars I5/Tone"
+        ]
+    );
+    device_input(
+        &mut runner,
+        json!({ "type": "button_shift", "pressed": false }),
+    );
     let shown = presented(&mut runner);
     assert!(shown
         .aux_hints
         .normal
         .iter()
-        .any(|hint| hint.turn.is_some()));
+        .all(|hint| hint.turn.is_some()));
     assert!(shown.display.aux_view.is_some());
+
+    bind_manual_targets(&mut runner);
+    let pan = cards(&mut runner)[2].turn.clone().unwrap().gauge.unwrap();
+    assert_eq!(pan.style, OledBarStyle::Marker);
 }
 
 #[test]

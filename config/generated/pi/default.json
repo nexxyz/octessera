@@ -58,9 +58,22 @@
     "auxAutoMapEnabled": true,
     "auxPriority": "manual",
     "auxBindings": {
-      "aux1": null,
-      "aux2": null,
-      "aux3": null
+      "aux1": {
+        "pressAction": null,
+        "turnKey": "instruments.0.synth.filter.cutoffHz"
+      },
+      "aux2": {
+        "pressAction": null,
+        "turnKey": "mixer.buses.2.slot1.params.mixPct"
+      },
+      "aux3": {
+        "pressAction": {
+          "actionType": "reseedStars",
+          "kind": "behavior_action",
+          "layer": 4
+        },
+        "turnKey": "layers.4.build.behaviorConfig.density"
+      }
     },
     "bluetooth": {
       "audio": false,
@@ -4508,9 +4521,22 @@
     "sampleFavouriteDirs": [],
     "screenSleepSeconds": 60,
     "shiftAuxBindings": {
-      "aux1": null,
-      "aux2": null,
-      "aux3": null
+      "aux1": {
+        "pressAction": null,
+        "turnKey": "instruments.1.sample.filter.cutoffHz"
+      },
+      "aux2": {
+        "pressAction": null,
+        "turnKey": "mixer.buses.2.slot1.params.feedback"
+      },
+      "aux3": {
+        "pressAction": {
+          "actionType": "clearStars",
+          "kind": "behavior_action",
+          "layer": 4
+        },
+        "turnKey": "instruments.4.fm.index"
+      }
     },
     "sound": {
       "noteLengthMs": 120,

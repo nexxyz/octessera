@@ -202,7 +202,11 @@ fn fn_right_column_in_the_view_activates_the_page_without_moving_the_menu() {
 #[test]
 fn aux_turns_in_the_view_follow_the_layer_or_play_fx_layout() {
     let (mut runner, _) = view_runner();
-    assert!(runner.effective_aux_slot(1).turn.is_none());
+    assert_eq!(
+        runner.effective_aux_slot(1).turn.map(|turn| turn.key),
+        Some("mixer.buses.2.slot1.params.mixPct".into())
+    );
+    runner.aux_priority = AuxPriority::Auto;
     back(&mut runner);
     let count = "layers.0.build.behaviorConfig.randomCellsPerTick";
     let turn_key =
@@ -225,7 +229,10 @@ fn aux_turns_in_the_view_follow_the_layer_or_play_fx_layout() {
     assert!(turn_key(&runner, 0).is_some_and(|key| key.starts_with("play.fx.params.")));
 
     runner.aux_auto_map_enabled = false;
-    assert_eq!(turn_key(&runner, 0), None);
+    assert_eq!(
+        turn_key(&runner, 0).as_deref(),
+        Some("instruments.0.synth.filter.cutoffHz")
+    );
 }
 
 #[test]
