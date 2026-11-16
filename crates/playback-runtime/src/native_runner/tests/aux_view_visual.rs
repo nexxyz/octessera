@@ -74,7 +74,7 @@ fn the_aux_visual_mirrors_the_layer_auto_map_and_schedules_nothing() {
     assert!(runner.shows_aux_view());
     let shown = presented(&mut runner);
     assert!(shown.display.signal.is_none());
-    assert_eq!(shown.display.title_right, "Auto 120");
+    assert_eq!(shown.display.title_right, "A 120");
     let cards = shown.display.aux_view.unwrap().cards;
     assert_eq!(
         summary(&cards),
@@ -119,7 +119,7 @@ fn main_turns_pick_a_strict_bank_that_holds_only_while_the_aux_visual_shows() {
     bind_manual_targets(&mut runner);
     turn_main(&mut runner, 1);
     assert_eq!(toast(&runner), Some("Aux: Manual"));
-    assert_eq!(presented(&mut runner).display.title_right, "Manual 120");
+    assert_eq!(presented(&mut runner).display.title_right, "M 120");
     assert_eq!(
         summary(&cards(&mut runner)),
         [
@@ -161,7 +161,7 @@ fn main_turns_pick_a_strict_bank_that_holds_only_while_the_aux_visual_shows() {
             json!({ "type": "encoder_press", "id": "main" }),
         );
     }
-    assert_eq!(presented(&mut runner).display.title_right, "Manual 120");
+    assert_eq!(presented(&mut runner).display.title_right, "M 120");
     runner.aux_auto_map_enabled = false;
     turn_main(&mut runner, -1);
     assert_eq!(
@@ -353,6 +353,9 @@ fn layer_and_page_select_keep_the_bank_and_only_the_auto_bank_follows_them() {
     );
     assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Fx));
     assert_eq!(runner.aux_view_bank(), Some(AuxPriority::Auto));
+    let header = presented(&mut runner).display;
+    assert_eq!(header.title, "L6: raindrops  FX");
+    assert_eq!(header.title_right, "A 120");
     let fx = cards(&mut runner);
     assert_eq!(fx[0].click.as_deref(), Some("Map"));
     assert_ne!(summary(&fx), raindrops_cards);

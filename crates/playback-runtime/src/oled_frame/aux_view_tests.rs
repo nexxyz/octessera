@@ -5,7 +5,7 @@ use super::model::{
 use super::pixels::{rgb565, shade};
 use super::render::render_oled_frame;
 use super::tests::{base, pixel};
-use super::OledPresentationInput;
+use super::{OledFont, OledPresentationInput};
 use platform_core::palette;
 
 const BLUE: u16 = 0x2D7F;
@@ -124,4 +124,44 @@ fn a_turning_card_lights_its_arc_white_and_boxes_its_value() {
         .filter(|(x, y)| pixel(&frame, *x, *y) == BLUE)
         .count();
     assert!(boxed > 40, "{boxed}");
+}
+
+#[test]
+fn the_bank_letter_keeps_the_page_name_whole_and_moves_nothing_when_the_bank_switches() {
+    let header = |input: &OledPresentationInput, columns: std::ops::Range<usize>| -> Vec<u16> {
+        let frame = render_oled_frame(input);
+        columns
+            .flat_map(|x| (0..8).map(move |y| (x, y)))
+            .map(|(x, y)| pixel(&frame, x, y))
+            .collect()
+    };
+    for font in [OledFont::Octessera, OledFont::Original] {
+        let small = font.small();
+        let mut input = base();
+        input.display.small_font = font;
+        input.display.title = "L6: raindrops  FX".into();
+        let whole_title = input.clone();
+        input.display.title_right = "120".into();
+        let tempo_only = input.clone();
+        let tempo = 88 - small.advance(" ") - small.advance("120");
+        let letter = tempo - small.advance("A ");
+        input.display.title_right = "A 120".into();
+        let auto = input.clone();
+        input.display.title_right = "M 120".into();
+        let manual = input;
+
+        assert_eq!(
+            header(&auto, tempo..128),
+            header(&tempo_only, tempo..128),
+            "{font:?}"
+        );
+        assert_eq!(header(&auto, tempo..128), header(&manual, tempo..128));
+        assert_eq!(header(&auto, 0..letter), header(&manual, 0..letter));
+        assert_eq!(
+            header(&auto, 0..letter),
+            header(&whole_title, 0..letter),
+            "{font:?}"
+        );
+        assert_ne!(header(&auto, letter..tempo), header(&manual, letter..tempo));
+    }
 }

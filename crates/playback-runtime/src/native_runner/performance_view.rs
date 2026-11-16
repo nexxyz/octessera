@@ -5,7 +5,7 @@
 use super::play_pages::{play_mode_label, ActivePlayMode};
 use super::signal_view::VisualKind;
 use super::snapshot_display::DisplaySnapshot;
-use super::{DeviceInput, NativeRunner};
+use super::{AuxPriority, DeviceInput, NativeRunner};
 use crate::native_menu::{NativeMenuHelpTarget, PlatformAction};
 use crate::oled_frame::OledDisplayLayout;
 use crate::protocol::RunnerMessage;
@@ -139,7 +139,8 @@ impl NativeRunner {
         }
         let tempo = self.transport.bpm.round();
         match self.aux_view_bank() {
-            Some(bank) => format!("{} {tempo}", super::aux_view::bank_label(bank)),
+            Some(AuxPriority::Auto) => format!("A {tempo}"),
+            Some(AuxPriority::Manual) => format!("M {tempo}"),
             None => format!("{tempo}"),
         }
     }

@@ -16,7 +16,7 @@ mod compact_path;
 
 const AUX_COUNT: usize = platform_core::AUX_ENCODER_COUNT;
 
-pub(super) fn bank_label(bank: AuxPriority) -> &'static str {
+fn bank_label(bank: AuxPriority) -> &'static str {
     match bank {
         AuxPriority::Manual => "Manual",
         AuxPriority::Auto => "Auto",
