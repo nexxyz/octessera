@@ -18,10 +18,11 @@ impl NativeRunner {
             && !self.menu.state.editing
     }
 
-    /// Plain Back on the root menu opens the view.
+    /// Plain Back on the root menu opens the view while `View on Back` is on.
     pub(super) fn open_performance_view_on_back(&mut self) -> bool {
         let ui = &self.display.ui;
-        let open = self.menu.state.stack.is_empty()
+        let open = ui.perf_view_on_back
+            && self.menu.state.stack.is_empty()
             && !self.menu.state.editing
             && !ui.fn_held
             && !ui.combined_modifier_held;

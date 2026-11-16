@@ -63,6 +63,10 @@ pub struct RuntimeConfigDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) home_visual: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) perf_view_on_back: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) perf_view_at_boot: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) dim_timer_seconds: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) screen_sleep_seconds: Option<u16>,
@@ -390,6 +394,8 @@ impl RuntimeConfigDto {
             "mainFont",
             "smallFont",
             "homeVisual",
+            "perfViewOnBack",
+            "perfViewAtBoot",
             "dimTimerSeconds",
             "screenSleepSeconds",
             "displayBrightness",

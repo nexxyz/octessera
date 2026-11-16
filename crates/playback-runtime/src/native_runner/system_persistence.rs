@@ -209,6 +209,8 @@ impl SystemPersistenceState {
             "mainFont": runner.display.ui.main_font,
             "smallFont": runner.display.ui.small_font,
             "homeVisual": runner.display.ui.home_visual,
+            "perfViewOnBack": runner.display.ui.perf_view_on_back,
+            "perfViewAtBoot": runner.display.ui.perf_view_at_boot,
             "dimTimerSeconds": runner.display.ui.dim_timer_seconds,
             "screenSleepSeconds": runner.display.ui.screen_sleep_seconds,
             "displayBrightness": runner.display.ui.display_brightness,

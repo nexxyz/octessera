@@ -30,6 +30,8 @@ const FULL_FIELDS: &[&str] = &[
     "mainFont",
     "smallFont",
     "homeVisual",
+    "perfViewOnBack",
+    "perfViewAtBoot",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
@@ -81,6 +83,8 @@ const PREFERENCE_FIELDS: &[&str] = &[
     "mainFont",
     "smallFont",
     "homeVisual",
+    "perfViewOnBack",
+    "perfViewAtBoot",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
@@ -109,6 +113,8 @@ const PREFERENCE_DELTA_FIELDS: &[&str] = &[
     "mainFont",
     "smallFont",
     "homeVisual",
+    "perfViewOnBack",
+    "perfViewAtBoot",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
@@ -157,6 +163,8 @@ const DEVICE_PROJECTION_FIELDS: &[&str] = &[
     "mainFont",
     "smallFont",
     "homeVisual",
+    "perfViewOnBack",
+    "perfViewAtBoot",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",
@@ -268,6 +276,8 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         alternate_enum(&canonical_runtime["smallFont"], "octessera", "original");
     source_runtime["homeVisual"] =
         alternate_enum(&canonical_runtime["homeVisual"], "scope", "none");
+    source_runtime["perfViewOnBack"] = alternate_bool(&canonical_runtime["perfViewOnBack"]);
+    source_runtime["perfViewAtBoot"] = alternate_bool(&canonical_runtime["perfViewAtBoot"]);
     for field in [
         "dimTimerSeconds",
         "screenSleepSeconds",

@@ -13,6 +13,8 @@ const SCALARS: &[&str] = &[
     "mainFont",
     "smallFont",
     "homeVisual",
+    "perfViewOnBack",
+    "perfViewAtBoot",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",

@@ -313,3 +313,59 @@ fn help_and_assignment_modes_sit_over_the_view_and_close_back_onto_it() {
     back(&mut runner);
     assert!(!runner.shows_performance_view());
 }
+
+#[test]
+fn view_on_back_off_keeps_back_on_root_a_plain_page_leave() {
+    let (mut runner, _) = view_runner();
+    let _ = commit_setting(&mut runner, "perfViewOnBack", -1);
+    assert_eq!(
+        runner.menu.value_for_key("perfViewOnBack").unwrap(),
+        "false"
+    );
+    assert!(!runner.display.ui.perf_view_on_back);
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["perfViewOnBack"],
+        false
+    );
+    runner.menu.state.stack.clear();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Mix);
+    for _ in 0..3 {
+        back(&mut runner);
+        assert!(!runner.shows_performance_view());
+    }
+    assert_eq!(runner.active_play_mode, ActivePlayMode::None);
+}
+
+#[test]
+fn view_at_boot_ends_the_startup_splash_in_the_stopped_view() {
+    let (runner, _) = view_runner();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["perfViewAtBoot"] = true.into();
+    let mut booted = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    booted.apply_config_payload(payload).unwrap();
+    assert!(booted.display.ui.perf_view_at_boot);
+    assert_eq!(booted.menu.value_for_key("perfViewAtBoot").unwrap(), "true");
+    booted.display.oled_splash_until = Some(Instant::now() + Duration::from_secs(1));
+    let messages = booted.messages_with_snapshot().unwrap();
+    assert_eq!(snapshot_from(&messages)["display"]["splash"], "startup");
+    assert!(!booted.shows_performance_view());
+
+    booted.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    let display = snapshot_from(&booted.messages_with_snapshot().unwrap())["display"].clone();
+    assert_eq!(display["splash"], "");
+    assert_eq!(display["toast"], "Help: Sh+Fn+Main");
+    assert!(booted.shows_performance_view());
+    let shown = presented(&mut booted);
+    assert_eq!(shown.display.title_right, "120");
+    assert_eq!(
+        *shown.display.signal.unwrap().visual,
+        OledSignalVisual::Flat
+    );
+
+    let (mut plain, _) = view_runner();
+    plain.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    plain.display.oled_mode = NativeOledMode::Splash;
+    plain.display.oled_splash_text = OLED_STARTUP_SPLASH_KEY.into();
+    let _ = plain.messages_with_snapshot().unwrap();
+    assert!(!plain.shows_performance_view());
+}

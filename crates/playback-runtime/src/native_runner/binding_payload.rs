@@ -288,6 +288,8 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
                     | "mainFont"
                     | "smallFont"
                     | "homeVisual"
+                    | "perfViewOnBack"
+                    | "perfViewAtBoot"
                     | "dimTimerSeconds"
                     | "screenSleepSeconds"
             ))

@@ -3823,6 +3823,8 @@
     "mainFont": "octessera",
     "smallFont": "octessera",
     "homeVisual": "scope",
+    "perfViewOnBack": true,
+    "perfViewAtBoot": false,
     "recording": {
       "maxMinutes": 10
     },

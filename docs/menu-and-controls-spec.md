@@ -101,7 +101,7 @@ Data sources the spec relies on:
 | Fn or combined modifier + other tile, Play page active | Nothing | The navigation overlay hides the page, so the press neither edits the page nor reaches the behavior. Without a Play page, Fn + tile still goes to the behavior. |
 | Sample/Drum/MIDI Drum assign + Shift + tile | Row stamp | Stamps the current selection on the whole world-space row. |
 | Sample/Drum/MIDI Drum assign + combined modifier + tile | Column stamp | Stamps the current selection on the whole column. |
-| Back on the root menu | Performance view | With no popup, help or assignment mode open, opens the full-screen [performance view](#performance-view). Back closes it onto the same root row. |
+| Back on the root menu | Performance view | With `View on Back` on and no popup, help or assignment mode open, opens the full-screen [performance view](#performance-view). Back closes it onto the same root row. |
 | Fn + Aux press | Alternate aux binding | Binds the focused bindable value as that aux Turn target, or the focused action as its `!` press target. |
 
 ## Control Mapping
@@ -512,8 +512,13 @@ change; only the distance per detent does.
 ### Performance view
 
 - Entry: plain Back on the root menu, with no popup, help or assignment mode open, opens a
-  full-screen view of the master mix. The menu stays at root underneath on the row it left;
-  the view never appears unasked.
+  full-screen view of the master mix while `System > Display > View on Back` is on (the
+  default). The menu stays at root underneath on the row it left; the view never appears
+  unasked. With `View on Back` off, Back on root only leaves an active Play page, as before.
+- `View at Boot` (off by default): the startup splash ends in the view, stopped, with the usual
+  `Help: Sh+Fn+Main` toast.
+- Both are stored as `perfViewOnBack` and `perfViewAtBoot` in the system preferences;
+  presentation only, through the key fast path.
 - Header `y=0..8`: one Tom Thumb line in the root gray: the active layer as the root breadcrumb
   names it (`L6: raindrops`), two spaces and the active Play page's name while one is active
   (`L6: raindrops  FX`), and the tempo. The `CLIP` slot (`x=88..103`) stays reserved: the tempo

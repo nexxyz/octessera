@@ -26,6 +26,8 @@ const REQUIRED_RUNTIME_KEYS: &[&str] = &[
     "mainFont",
     "smallFont",
     "homeVisual",
+    "perfViewOnBack",
+    "perfViewAtBoot",
     "dimTimerSeconds",
     "screenSleepSeconds",
     "displayBrightness",

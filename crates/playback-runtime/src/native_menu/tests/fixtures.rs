@@ -176,6 +176,8 @@ pub(crate) fn config() -> NativeMenuConfig {
         main_font: "octessera".into(),
         small_font: "octessera".into(),
         home_visual: "scope".into(),
+        perf_view_on_back: true,
+        perf_view_at_boot: false,
         screen_sleep_seconds: 60,
         dim_timer_seconds: 60,
         grid_brightness: 25,

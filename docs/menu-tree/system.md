@@ -85,6 +85,8 @@ System
 │   ├── Main Font: [Octessera | Original]   default Octessera; menu rows and toast (m5x7)
 │   ├── Small Font: [Octessera | Original]  default Octessera; breadcrumb and footer hints (Tom Thumb)
 │   ├── Home Visual: [none | scope | spectrum | waterfall]  default scope; the home page's signal band
+│   ├── View on Back: [on | off]         default on; Back on the home page opens the performance view
+│   ├── View at Boot: [on | off]         default off; startup ends in the performance view
 │   ├── Dim Timer: [0..600] step 10 s
 │   ├── OLED Sleep: [0..600] step 10 s
 │   ├── OLED Bright: [1..16] step 1      default 12 (desktop 16); one SSD1351 contrast step each
@@ -454,7 +456,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
   [Auto-map](../menu-and-controls-spec.md#auto-map), `Auto Hints` and `Manual Hints` under
   [Footer hints](../menu-and-controls-spec.md#footer-hints), `Ghost Tiles` under
   [Overlays and priority](../menu-and-controls-spec.md#overlays-and-priority), `Num Style`, `Main Font`,
-  `Small Font` and `Home Visual` under [Body rows](../menu-and-controls-spec.md#body-rows), and the
+  `Small Font` and `Home Visual` under [Body rows](../menu-and-controls-spec.md#body-rows),
+  `View on Back` and `View at Boot` under
+  [Performance view](../menu-and-controls-spec.md#performance-view), and the
   brightness rows under [Brightness](../menu-and-controls-spec.md#brightness).
 - `HDMI Video > Mode` persists `runtimeConfig.hdmi.mode`
   (`terminal|live-grid|plain-grid|active-behavior|cycle-behaviors`, default `live-grid`). Terminal releases and disables Octessera framebuffer output so the Linux terminal can
@@ -527,7 +531,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   playback with the usual MIDI panic/note-safety path, loads an empty `none`-behavior patch,
   regenerates the preset draft name, marks the patch dirty for autosave, and keeps device/user
   preferences: every `Display` row (ghost tiles, Auto Map, Aux Prio., Auto/Manual Hints, Num Style,
-  fonts, Home Visual, timers, brightness, HDMI Video), master volume, Auto Save/Backups, MIDI
+  fonts, Home Visual, View on Back/at Boot, timers, brightness, HDMI Video), master volume, Auto Save/Backups, MIDI
   setup/status/sync, sync source, audio output buffer frames, sample favorites, Paused Events, and
   the preset name list. `Notes` (Note Length 120 ms, Vel Scale 100, Vel Curve linear) and
   `Polyphony` (`auto-balanced`) return to their defaults. Aux bindings belong to the patch, so

@@ -24,7 +24,7 @@ the OLED. It always shows what the controls are acting on.
 |---|---|
 | Turn *Main* | Move through the menu. While editing a number, plain turns are coarse and *Fn* turns are fine; *Shift* and *Shift* + *Fn* turns stay coarse. |
 | Click *Main* | Select a row, enter a group, start or finish an edit, or run an action. |
-| *Back* | Finish the current edit, leave the current overlay, or go up one menu level. On the main menu it opens the performance view, and the next *Back* closes it. |
+| *Back* | Finish the current edit, leave the current overlay, or go up one menu level. On the main menu it opens the performance view, and the next *Back* closes it (`System > Display > View on Back` turns that off). |
 | *Play* | Play or pause. In the sample browser it previews the highlighted sample instead. |
 | *Shift* + *Play* | Stop and return to the start. Under external MIDI sync it instead arms a one-off resync at the next bar; playback carries on, then the transport snaps back to its origin. |
 | *Fn* + *Play* | Stop and return to the start, always, even in the sample browser or under external sync. |

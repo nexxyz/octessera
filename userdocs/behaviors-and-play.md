@@ -147,7 +147,8 @@ column as usual; the view just shows the page name and stays put. The Aux
 encoders follow along: on Play FX they drive the effect, everywhere else the
 layer's own knobs (Life's step rate and spawns, say). Click *Main* to swap the
 picture (scope, spectrum, waterfall or nothing at all) and turn it to zoom.
-*Back* takes you home to the menu, right where you left it.
+*Back* takes you home to the menu, right where you left it. If you'd like to
+start every session there, switch on `System > Display > View at Boot`.
 
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
 it, so the patch keeps its saved mode. Hold *Fn* to check which layers are

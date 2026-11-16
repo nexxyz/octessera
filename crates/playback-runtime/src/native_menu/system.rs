@@ -138,6 +138,8 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
             HOME_VISUALS.to_vec(),
             selected_index(HOME_VISUALS, &config.home_visual),
         ),
+        bool_item("View on Back", "perfViewOnBack", config.perf_view_on_back),
+        bool_item("View at Boot", "perfViewAtBoot", config.perf_view_at_boot),
         number_item(
             "Dim Timer",
             "dimTimerSeconds",

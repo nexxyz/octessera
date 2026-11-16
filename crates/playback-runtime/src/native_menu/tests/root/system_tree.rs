@@ -70,6 +70,8 @@ fn desktop_system_tree_has_exact_order() {
             "Main Font",
             "Small Font",
             "Home Visual",
+            "View on Back",
+            "View at Boot",
             "Dim Timer",
             "OLED Sleep",
             "OLED Bright",

@@ -218,6 +218,12 @@ impl NativeRunner {
                 self.set_home_visual(value.into());
             }
         }
+        if let Some(value) = runtime.get("perfViewOnBack").and_then(Value::as_bool) {
+            self.display.ui.perf_view_on_back = value;
+        }
+        if let Some(value) = runtime.get("perfViewAtBoot").and_then(Value::as_bool) {
+            self.display.ui.perf_view_at_boot = value;
+        }
     }
 
     pub(super) fn apply_runtime_input_payload(&mut self, runtime: &Value) {

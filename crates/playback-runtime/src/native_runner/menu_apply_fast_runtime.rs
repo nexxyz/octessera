@@ -102,6 +102,12 @@ impl NativeRunner {
                 value_changed(&mut runner.display.ui.small_font, value.to_lowercase())
             })),
             "homeVisual" => Some(self.fast_string_menu_key(key, NativeRunner::set_home_visual)),
+            "perfViewOnBack" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                bool_changed(&mut runner.display.ui.perf_view_on_back, value)
+            })),
+            "perfViewAtBoot" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                bool_changed(&mut runner.display.ui.perf_view_at_boot, value)
+            })),
             "screenSleepSeconds" => Some(self.fast_number_menu_key(key, |runner, value| {
                 let value = value.clamp(0, 600) as u16;
                 value_changed(&mut runner.display.ui.screen_sleep_seconds, value)

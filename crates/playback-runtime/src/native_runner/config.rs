@@ -172,6 +172,8 @@ impl NativeRunner {
             main_font: self.display.ui.main_font.clone(),
             small_font: self.display.ui.small_font.clone(),
             home_visual: self.display.ui.home_visual.clone(),
+            perf_view_on_back: self.display.ui.perf_view_on_back,
+            perf_view_at_boot: self.display.ui.perf_view_at_boot,
             screen_sleep_seconds: self.display.ui.screen_sleep_seconds,
             dim_timer_seconds: self.display.ui.dim_timer_seconds,
             grid_brightness: self.display.ui.grid_brightness,
