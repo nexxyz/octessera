@@ -1,6 +1,6 @@
 use crate::protocol::{
-    RunnerMessage, RuntimePlatformEffect, RuntimeSetupPortalDisposition, RuntimeSetupPortalPhase,
-    RuntimeSetupPortalStatus,
+    RunnerMessage, RuntimePlatformEffect, RuntimeSetupPortalDisposition,
+    RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase, RuntimeSetupPortalStatus,
 };
 
 use super::{DeviceInput, NativeRunner, NativeSetupPortalState, RuntimeTransportState};
@@ -58,6 +58,8 @@ impl NativeRunner {
             RuntimeSetupPortalPhase::Succeeded | RuntimeSetupPortalPhase::TimedOut
         ) {
             false
+        } else if status.error_code == Some(RuntimeSetupPortalErrorCode::RadioRestartRequired) {
+            true
         } else {
             prior_visibility
                 .filter(|(_, same_request, keeps_visibility)| *same_request && *keeps_visibility)

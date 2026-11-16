@@ -151,3 +151,55 @@ pub(crate) fn close_while_applying_only_hides_and_a_failure_still_shows() {
     assert_eq!(snapshot_from(&failed)["display"]["title"], "Wi-Fi Setup");
     assert_eq!(display_lines(&failed)[0], "Setup failed");
 }
+
+#[test]
+pub(crate) fn a_wifi_chip_crash_during_stop_hotspot_keeps_the_card_visible() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        jack_audio_required: true,
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    assert!(has_effect(
+        &open_portal_from_menu(&mut runner),
+        &RuntimePlatformEffect::SetupPortalOpen
+    ));
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: identified(RuntimeSetupPortalPhase::PortalReady, 1),
+        })
+        .unwrap();
+    let closed = send_main(&mut runner, json!({"type":"encoder_press","id":"main"}));
+    assert!(has_effect(
+        &closed,
+        &RuntimePlatformEffect::SetupPortalClose
+    ));
+    assert_ne!(snapshot_from(&closed)["display"]["title"], "Wi-Fi Setup");
+
+    let crashed = runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SetupPortalStatus {
+                status: RuntimeSetupPortalStatus {
+                    phase: RuntimeSetupPortalPhase::Failed,
+                    disposition: None,
+                    portal_suffix: None,
+                    portal_passphrase: None,
+                    reboot_required: false,
+                    error_code: Some(crate::RuntimeSetupPortalErrorCode::RadioRestartRequired),
+                },
+            }
+            .with_identity("setup-1".into(), Some(1)),
+        })
+        .unwrap();
+    assert_eq!(snapshot_from(&crashed)["display"]["title"], "Wi-Fi Setup");
+    assert_eq!(
+        display_lines(&crashed),
+        vec!["Wi-Fi chip stopped", "Restart the device", "Close"]
+    );
+
+    let dismissed = send_main(&mut runner, json!({"type":"encoder_press","id":"main"}));
+    assert!(!has_effect(
+        &dismissed,
+        &RuntimePlatformEffect::SetupPortalClose
+    ));
+    assert_ne!(snapshot_from(&dismissed)["display"]["title"], "Wi-Fi Setup");
+}

@@ -427,6 +427,25 @@ for index, path in enumerate(COORDINATORS):
         coordinator.setup_http.SetupHTTPServer = original_setup_server
     assert ordered == [("status", "starting", False), ("cleanup",), ("status", "failed", True)]
 
+    radio = {"log": ""}
+    stop_status = []
+    stop_marker.write_text("")
+    coordinator.setup_http.SetupHTTPServer = lambda *_args: fake_server
+    try:
+        stopping = coordinator.Coordinator(orange, command=lambda args, timeout=None: SimpleNamespace(returncode=0, stdout=radio["log"]) if args[0] == "journalctl" else Board().command(args, timeout), clock=lambda: 5.0, sleeper=lambda _seconds: None)
+        stopping.interface_suffix = lambda: "abcd"
+        stopping.launch = lambda: None
+        stopping.wait_for_portal_readiness = lambda _deadline: None
+        stopping.hotspot.processes = [Process()]
+        stopping.publish = lambda phase, **kwargs: stop_status.append((phase, kwargs))
+        stopping.cleanup = lambda _deadline: radio.update(log=crash_log)
+        assert stopping.run(0.0) == 0
+    finally:
+        coordinator.setup_http.SetupHTTPServer = original_setup_server
+        stop_marker.unlink()
+    assert [phase for phase, _ in stop_status] == ["starting", "portal_ready", "failed"]
+    assert stop_status[-1] == ("failed", {"error_code": "radio_restart_required", "terminal": True})
+
     waiting = coordinator.Coordinator(orange, command=kernel_log(crash_log), clock=lambda: 5.0, sleeper=lambda _seconds: None)
     waiting.hotspot.processes = [Process()]
     expect_failure(lambda: waiting.wait_for_stage(600.0), "radio_restart_required")

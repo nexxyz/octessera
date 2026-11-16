@@ -354,7 +354,8 @@ changed edit saves System like any other System preference, shows `Applying...`,
   ahead of system info and help.
 - While the hotspot starts or runs, the card's action row is `Stop hotspot`; Main or Back closes the
   card and emits `SetupPortalClose` once, which ends the portal (an unfinished join is abandoned and
-  the old network comes back). The card stays hidden for that session's later statuses. During
+  the old network comes back). The card stays hidden for that session's later statuses, except
+  `Wi-Fi chip stopped` / `Restart the device` when the Orange's radio crashed. During
   `Applying settings...` the row is `Close`: it only hides the card, the apply finishes, and its
   result shows. `Open Portal` while a hidden session has no result yet toasts `Wi-Fi Setup is
   closing` and does nothing; once the terminal status arrives it opens a fresh portal. Desktop has
