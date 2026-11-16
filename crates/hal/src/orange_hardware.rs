@@ -34,23 +34,7 @@ pub struct OrangeHardware {
 
 #[cfg(target_os = "linux")]
 impl OrangeHardware {
-    pub fn open() -> Result<Self, String> {
-        Self::open_until_mode(timing::operation_deadline(), false)
-    }
-
-    pub fn open_preserve_existing() -> Result<Self, String> {
-        Self::open_until_mode(timing::operation_deadline(), true)
-    }
-
     pub fn open_until(deadline: std::time::Instant) -> Result<Self, String> {
-        Self::open_until_mode(deadline, false)
-    }
-
-    fn open_until_mode(
-        deadline: std::time::Instant,
-        preserve_existing: bool,
-    ) -> Result<Self, String> {
-        let startup_plan = crate::oled_startup_plan::OledStartupPlan::new(preserve_existing);
         let devices = ORANGE_PI_ZERO_2W_DEVICES;
         check_deadline(deadline)?;
         verify_device_identity(devices.i2c, "/sys/class/i2c-dev")?;
@@ -60,21 +44,12 @@ impl OrangeHardware {
             .open(devices.i2c.path)
             .map_err(|error| format!("I2C open failed for {}: {error}", devices.i2c.path))?;
         check_deadline(deadline)?;
-        let oled = OrangeOledTransport::open_until(
-            devices.spi,
-            devices.gpio,
-            deadline,
-            startup_plan.operations().is_empty(),
-        )?;
+        let oled = OrangeOledTransport::open_until(devices.spi, devices.gpio, deadline, false)?;
         Ok(Self { _i2c: i2c, oled })
     }
 
     pub fn oled_mut(&mut self) -> &mut OrangeOledTransport {
         &mut self.oled
-    }
-
-    pub fn into_oled(self) -> OrangeOledTransport {
-        self.oled
     }
 }
 
@@ -105,6 +80,17 @@ fn should_run_cleanup(shutdown_complete: bool) -> bool {
 
 #[cfg(target_os = "linux")]
 impl OrangeOledTransport {
+    /// Opens the OLED alone, so it can show a fault of the I2C parts or their bus.
+    pub fn open(preserve_existing: bool) -> Result<Self, String> {
+        let devices = ORANGE_PI_ZERO_2W_DEVICES;
+        Self::open_until(
+            devices.spi,
+            devices.gpio,
+            timing::operation_deadline(),
+            preserve_existing,
+        )
+    }
+
     fn open_until(
         spi_device: DeviceDescriptor,
         gpio_plan: OrangeGpioDescriptor,

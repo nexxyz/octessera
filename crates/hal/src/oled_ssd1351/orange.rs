@@ -17,13 +17,11 @@ impl OledSsd1351 {
 
     fn open(preserve_existing: bool) -> Result<Self, String> {
         let startup_plan = crate::oled_startup_plan::OledStartupPlan::new(preserve_existing);
-        let hardware = if startup_plan.operations().is_empty() {
-            crate::orange_hardware::OrangeHardware::open_preserve_existing()?
-        } else {
-            crate::orange_hardware::OrangeHardware::open()?
-        };
+        let transport = crate::orange_hardware::OrangeOledTransport::open(
+            startup_plan.operations().is_empty(),
+        )?;
         Ok(Self {
-            transport: Some(hardware.into_oled()),
+            transport: Some(transport),
             window: Vec::with_capacity(FRAME_BYTES),
         })
     }
@@ -75,8 +73,7 @@ impl OledSsd1351 {
         if self.transport.is_some() {
             return Err("Orange OLED hardware is already attached".into());
         }
-        let hardware = crate::orange_hardware::OrangeHardware::open_preserve_existing()?;
-        self.transport = Some(hardware.into_oled());
+        self.transport = Some(crate::orange_hardware::OrangeOledTransport::open(true)?);
         Ok(())
     }
 }
