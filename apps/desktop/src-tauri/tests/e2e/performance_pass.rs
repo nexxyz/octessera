@@ -6,7 +6,7 @@ use crate::support::{
     keep_audio, led, reload_differences, rms_frames_db, seed_scenario_store, session_root, BEAT,
 };
 use octessera_desktop_lib::headless::{HeadlessSession, PlayedScenario};
-use playback_runtime::scenario::{back, button, grid, turn, ScenarioBuilder, BAR};
+use playback_runtime::scenario::{button, grid, ScenarioBuilder, BAR};
 use std::time::Duration;
 
 const SAMPLER: u8 = 1;
@@ -159,16 +159,13 @@ fn performance(bar: impl Fn(u64) -> u64) -> ScenarioBuilder {
     take
 }
 
-/// Pause, then System > Saves > Default > Save Patch from wherever the pass left the menu.
+/// Back home from wherever the pass left the menu, pause, then System > Saves > Default > Save
+/// Patch.
 fn save_default(session: &mut HeadlessSession) {
+    crate::device_menu::to_root(session);
     let mut take = builder();
     take.input(button("button_s", true));
     take.input(button("button_s", false));
-    for _ in 0..8 {
-        take.input(back());
-        take.input(button("button_a", false));
-    }
-    take.input(turn(-20));
     take.open(&["System", "Saves", "Default", "Save Patch"]);
     take.confirm();
     take.back_to_root();

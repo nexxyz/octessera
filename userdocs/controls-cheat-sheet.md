@@ -24,7 +24,7 @@ the OLED. It always shows what the controls are acting on.
 |---|---|
 | Turn *Main* | Move through the menu. While editing a number, plain turns are coarse and *Fn* turns are fine; *Shift* and *Shift* + *Fn* turns stay coarse. |
 | Click *Main* | Select a row, enter a group, start or finish an edit, or run an action. |
-| *Back* | Finish the current edit, leave the current overlay, or go up one menu level. |
+| *Back* | Finish the current edit, leave the current overlay, or go up one menu level. On the main menu it opens the performance view, and the next *Back* closes it. |
 | *Play* | Play or pause. In the sample browser it previews the highlighted sample instead. |
 | *Shift* + *Play* | Stop and return to the start. Under external MIDI sync it instead arms a one-off resync at the next bar; playback carries on, then the transport snaps back to its origin. |
 | *Fn* + *Play* | Stop and return to the start, always, even in the sample browser or under external sync. |
@@ -212,6 +212,7 @@ little `▸` pointing at the file you have loaded.
 | Bars instead of numbers | `System > Display > Num Style` is on `bar`. Switch it to `numbers` if you'd rather read digits. |
 | Letters look different | `System > Display > Main Font` and `Small Font` pick my redrawn glyphs (`Octessera`) or the original fonts (`Original`). Flip them if you want the old look back. |
 | Watching one sound | `Signal` on an instrument, an FX bus or `Global FX` fills the screen with that sound, drawn live while the transport plays. Click Main to flip between the waveform, the frequency bars and the waterfall, and turn it to zoom: a longer waveform, chunkier bars or a longer waterfall. The zoom lasts until you switch Octessera off. Back drops you on the page you came from. |
+| The performance view | *Back* on the main menu hands the whole screen to the master output, with the layer, the Play page and the tempo up top and the Aux hints below. Click *Main* to pick scope, spectrum, waterfall or nothing, turn it to zoom, and *Back* to get your menu back. *Fn* + a grid edge still picks layers and Play pages, and the menu doesn't budge. |
 | A wiggly line on the home page | That's the master output, drawn live while the transport plays. When it's quiet it lies flat and dim. `System > Display > Home Visual` swaps it for frequency bars (`spectrum`) or a scrolling `waterfall`, or turns it off if you'd rather have the old calm home page. |
 | Bottom left | What Aux 1-3 do on this page: the turn, and a click with a `!`. Hold *Shift* to peek at the Shift layer. |
 | Bottom right, red disc | A recording is running. It breathes once a second so you don't forget it's on. |

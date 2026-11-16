@@ -138,6 +138,17 @@ column, leaves the page.
 | Rate | One row per layer, bottom row is Layer 1; the columns are step rates from 1/32 to 1/2, straight green and triplets blue. Hold *Shift* for each scanning layer's Scan Unit (straight in white). | Speeding a layer up or slowing it down mid-groove. Press a layer's lit tile to pull it back onto the bar at the next bar line. |
 | XY | A two-axis touch surface. | Steering whatever you assign under `Play > XY > X Axis` and `Y Axis`. *Shift* + tile parks it there after you let go, even when **Release** springs back to the center; a plain press un-parks it. |
 
+### Playing from the performance view
+
+Once a patch is going, press *Back* on the main menu. The screen turns into a
+big picture of the master output, with the layer you're on, its Play page and
+the tempo along the top. Pick pages with *Fn* or *Shift* + *Fn* and the right
+column as usual; the view just shows the page name and stays put. The Aux
+encoders follow along: on Play FX they drive the effect, everywhere else the
+layer's own knobs (Life's step rate and spawns, say). Click *Main* to swap the
+picture (scope, spectrum, waterfall or nothing at all) and turn it to zoom.
+*Back* takes you home to the menu, right where you left it.
+
 Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
 it, so the patch keeps its saved mode. Hold *Fn* to check which layers are
 blocked: they're magenta in the left column.

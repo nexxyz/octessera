@@ -1,3 +1,4 @@
+use super::menu_apply_fast::value_changed;
 use super::snapshot_display::DisplaySnapshot;
 use super::{NativeRunner, RuntimeTransportState};
 use crate::oled_frame::{
@@ -222,16 +223,7 @@ impl NativeRunner {
         menu_frame: bool,
         now: Instant,
     ) -> Option<OledSignalView> {
-        let unobstructed = menu_frame
-            && self.is_unobstructed_presentation()
-            && self.display.user_data_restore.is_none()
-            && self
-                .display
-                .user_data_transfer
-                .as_ref()
-                .is_none_or(|transfer| !transfer.visible)
-            && self.bluetooth.pairing().is_none();
-        let shown = if !unobstructed {
+        let shown = if !menu_frame || !self.presents_full_screen() {
             None
         } else if let Some(view) = self.shown_full_screen_signal() {
             let view = LiveView {
@@ -241,6 +233,14 @@ impl NativeRunner {
                 rows: SIGNAL_BODY_HEIGHT,
             };
             Some((OledSignalArea::Body, view))
+        } else if self.shows_performance_view() {
+            let view = self.display.session_visual.map(|kind| LiveView {
+                source: SignalSource::Master,
+                kind,
+                tuning: self.display.signal_tuning,
+                rows: SIGNAL_BODY_HEIGHT,
+            });
+            view.map(|view| (OledSignalArea::Body, view))
         } else {
             self.home_band(display)
         };
@@ -251,8 +251,15 @@ impl NativeRunner {
         shown.map(|(area, _)| OledSignalView { area, visual })
     }
 
+    /// Sets the stored Home Visual and this session's visual with it; whether the stored value
+    /// changed.
+    pub(super) fn set_home_visual(&mut self, value: String) -> bool {
+        self.display.session_visual = VisualKind::from_setting(&value);
+        value_changed(&mut self.display.ui.home_visual, value)
+    }
+
     fn home_band(&self, display: &DisplaySnapshot) -> Option<(OledSignalArea, LiveView)> {
-        let kind = VisualKind::from_setting(&self.display.ui.home_visual)?;
+        let kind = self.display.session_visual?;
         if !self.menu.state.stack.is_empty() {
             return None;
         }

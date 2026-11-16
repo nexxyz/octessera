@@ -36,6 +36,8 @@ struct DisplayInputDto {
     toast: String,
     #[serde(default)]
     signal: Option<OledSignalView>,
+    #[serde(default)]
+    title_right: String,
 }
 
 #[derive(Deserialize)]
@@ -143,6 +145,7 @@ pub(crate) fn presentation_input_from_snapshot(
             main_font: OledFont::from_setting(&settings.main_font),
             small_font: OledFont::from_setting(&settings.small_font),
             signal: display.signal,
+            title_right: display.title_right,
         },
         selected_row,
         transport: OledTransportInput {

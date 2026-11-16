@@ -4,6 +4,7 @@ use super::aux_auto_map_instrument_layouts::{
     instrument_filter_auto_map, instrument_fm_tone_auto_map, instrument_mixer_auto_map,
     instrument_oscillator_auto_map, instrument_pluck_string_auto_map, instrument_sample_auto_map,
 };
+use super::play_pages::{ActivePlayMode, PlayMode};
 use super::*;
 use crate::native_menu::section_labels::{LINK_LABEL, PLAY_LABEL};
 use crate::native_menu::PlatformAction;
@@ -61,6 +62,18 @@ impl NativeRunner {
         }
 
         AuxAutoMap::default()
+    }
+
+    /// The performance view's auto map: the active Play page's layout where it has one (Play
+    /// FX), otherwise the active layer's behavior layout.
+    pub(super) fn performance_view_auto_aux_map(&self) -> AuxAutoMap {
+        if !self.aux_auto_map_enabled || self.grid_assign.is_some() {
+            AuxAutoMap::default()
+        } else if self.active_play_mode == ActivePlayMode::Page(PlayMode::Fx) {
+            self.play_fx_auto_map()
+        } else {
+            self.behavior_auto_map()
+        }
     }
 
     fn is_behavior_auto_map_key(&self, key: &str) -> bool {

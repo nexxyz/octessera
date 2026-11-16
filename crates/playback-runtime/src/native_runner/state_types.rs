@@ -87,6 +87,9 @@ pub(super) struct NativeDisplayState {
     pub(super) signal: super::signal_view::SignalTapReader,
     pub(super) full_screen_signal: Option<super::signal_view::NativeFullScreenSignal>,
     pub(super) signal_tuning: super::signal_view::VisualTuning,
+    /// The home band's and performance view's visual this session; `None` shows none.
+    pub(super) session_visual: Option<super::signal_view::VisualKind>,
+    pub(super) performance_view: bool,
     pub(super) auto_save_flash_serial: u64,
     pub(super) auto_save_flash_until: Option<Instant>,
     pub(super) toast: Option<NativeToast>,
@@ -101,6 +104,8 @@ pub(super) struct NativeDisplayState {
 impl NativeDisplayState {
     pub(super) fn new(ui: NativeUiState, now: Instant, hdmi: NativeHdmiConfig) -> Self {
         Self {
+            session_visual: super::signal_view::VisualKind::from_setting(&ui.home_visual),
+            performance_view: false,
             ui,
             hdmi,
             oled_mode: NativeOledMode::Splash,

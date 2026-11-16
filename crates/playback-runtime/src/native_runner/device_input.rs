@@ -135,6 +135,9 @@ impl NativeRunner {
         if let Some(result) = self.handle_full_screen_signal_input(&input) {
             return result;
         }
+        if let Some(result) = self.handle_performance_view_input(&input) {
+            return result;
+        }
         if self.display.aux_mapping_peek_visible
             && matches!(
                 &input,

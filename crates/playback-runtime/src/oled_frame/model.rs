@@ -102,6 +102,9 @@ pub struct OledDisplayInput {
     pub small_font: OledFont,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signal: Option<OledSignalView>,
+    /// Text the header right-aligns before its icons: the performance view's tempo.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub title_right: String,
 }
 
 /// A picture of a tapped signal and where the body shows it. The picture is shared, so captures,

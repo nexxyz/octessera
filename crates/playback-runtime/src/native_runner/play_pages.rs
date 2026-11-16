@@ -98,13 +98,15 @@ impl NativeRunner {
         };
         self.play_mode = next_mode;
         self.active_play_mode = ActivePlayMode::Page(next_mode);
-        self.menu
-            .focus_item_key(&format!("play.page.{}", next_mode.wire_name()));
+        if !self.shows_performance_view() {
+            self.menu
+                .focus_item_key(&format!("play.page.{}", next_mode.wire_name()));
+        }
         self.show_toast(play_mode_label(next_mode));
     }
 }
 
-fn play_mode_label(mode: PlayMode) -> &'static str {
+pub(super) fn play_mode_label(mode: PlayMode) -> &'static str {
     PLAY_PAGES
         .iter()
         .find(|page| page.mode == mode)

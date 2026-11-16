@@ -1,7 +1,7 @@
 //! Behavior actions bound to an Aux click or a Faders action tile: each keeps the layer it was
 //! bound on and runs there whichever layer is active.
 use super::*;
-use crate::native_menu::NativeMenuValue;
+use crate::native_menu::{NativeMenuValue, PlatformAction};
 use crate::protocol::RunnerMessage;
 
 impl NativeRunner {
@@ -50,6 +50,15 @@ impl NativeRunner {
     ) -> Result<Vec<RunnerMessage>, String> {
         if !self.bound_action_active(&action) {
             self.show_toast(format!("{head}: {label} not active"));
+            return self.messages_with_snapshot();
+        }
+        if self.shows_performance_view()
+            && matches!(
+                action,
+                NativeMenuAction::PlatformEffect(PlatformAction::Signal(_))
+            )
+        {
+            self.show_toast(format!("{head}: Not in view"));
             return self.messages_with_snapshot();
         }
         let toast = format!("{head}: {label}");

@@ -23,7 +23,12 @@ impl NativeRunner {
     }
 
     pub(super) fn open_contextual_help(&mut self) {
-        let Some(target) = self.menu.current_help_target() else {
+        let target = if self.shows_performance_view() {
+            Some(Self::performance_view_help_target())
+        } else {
+            self.menu.current_help_target()
+        };
+        let Some(target) = target else {
             self.show_toast("Missing help target");
             return;
         };

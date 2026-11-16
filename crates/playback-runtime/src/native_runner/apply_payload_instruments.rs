@@ -214,8 +214,8 @@ impl NativeRunner {
             }
         }
         if let Some(value) = runtime.get("homeVisual").and_then(Value::as_str) {
-            if HOME_VISUALS.contains(&value) {
-                self.display.ui.home_visual = value.into();
+            if HOME_VISUALS.contains(&value) && value != self.display.ui.home_visual {
+                self.set_home_visual(value.into());
             }
         }
     }

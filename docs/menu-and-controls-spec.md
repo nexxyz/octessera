@@ -95,12 +95,13 @@ Data sources the spec relies on:
 | Fn + leftmost grid column | Select layer (1..8) | Makes that layer active and leaves any Play overlay. The menu position does not change. |
 | Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Only this disable transition releases held Synth, FM, Plucked, and Sampler notes owned by that layer, plus its external MIDI notes; an already-ringing one-shot Drum hit finishes its decay. Ordinary Play Trigger Gate edits to `0%` only suppress future admissions; triggers mapped to `note off` still pass unless the layer's `Link > Trigger Prob. > Prob Note Off` is on. Other layers are unaffected, and re-enabling does not resurrect released notes. |
 | Fn held | Navigation LEDs | Left column: blue = active layer (or, while a Play page is active, every configured layer), green = configured layer, dim gray = `none` layer. A layer whose trigger mode is `0%` shows magenta instead of blue and dim magenta instead of green. See [Grid overlays](#overlays-and-priority). |
-| Fn + rightmost grid column | Select technical Play page | Selects and activates the technical-bank page on that row and moves the menu to it ([banks](menu-tree/play.md#pages-and-navigation)). Free rows do nothing. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
+| Fn + rightmost grid column | Select technical Play page | Selects and activates the technical-bank page on that row and moves the menu to it ([banks](menu-tree/play.md#pages-and-navigation)); in the performance view the menu stays at root. Free rows do nothing. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
 | Combined modifier + rightmost grid column | Select musical Play page | The same for the musical bank. |
 | Combined modifier held | Musical navigation LEDs | Shows the layer column, with the same colors as Fn held, and the musical page column. |
 | Fn or combined modifier + other tile, Play page active | Nothing | The navigation overlay hides the page, so the press neither edits the page nor reaches the behavior. Without a Play page, Fn + tile still goes to the behavior. |
 | Sample/Drum/MIDI Drum assign + Shift + tile | Row stamp | Stamps the current selection on the whole world-space row. |
 | Sample/Drum/MIDI Drum assign + combined modifier + tile | Column stamp | Stamps the current selection on the whole column. |
+| Back on the root menu | Performance view | With no popup, help or assignment mode open, opens the full-screen [performance view](#performance-view). Back closes it onto the same root row. |
 | Fn + Aux press | Alternate aux binding | Binds the focused bindable value as that aux Turn target, or the focused action as its `!` press target. |
 
 ## Control Mapping
@@ -490,6 +491,7 @@ change; only the distance per detent does.
   - `waterfall`: `History: 4 s` (two columns a 66 ms step, the older from the samples half a
     step back), `8 s` (default, one column a step), `16 s` (one column every 132 ms) or `32 s`
     (every 264 ms). The longer histories step and redraw less often.
+- Performance view: see [Performance view](#performance-view).
 - Footer (`y=113..127`): Aux hints on the left up to `x=107`, then the recording disc, transport
   icon and event dot, all centred on `y=121`. The toast covers the hint area.
 - Every snapshot `display` object carries the required `bodyLayout`:
@@ -506,6 +508,40 @@ change; only the distance per detent does.
 - Splash graphics use the shared static `SPLASH_SLEEP_SHUTDOWN` logo and wordmark for sleep and
   shutdown with the existing toast geometry. The sleep toast is exactly `Going to sleep`. Startup
   and wake keep the regular logo.
+
+### Performance view
+
+- Entry: plain Back on the root menu, with no popup, help or assignment mode open, opens a
+  full-screen view of the master mix. The menu stays at root underneath on the row it left;
+  the view never appears unasked.
+- Header `y=0..8`: one Tom Thumb line in the root gray: the active layer as the root breadcrumb
+  names it (`L6: raindrops`), two spaces and the active Play page's name while one is active
+  (`L6: raindrops  FX`), and the tempo. The `CLIP` slot (`x=88..103`) stays reserved: the tempo
+  is right-aligned one space advance of the header font before it, as if the line read
+  `120 CLIP`, whether `CLIP` shows or not, and the breadcrumb ends a space advance before the
+  tempo and clips with `..`. Nothing in the header moves when `CLIP` appears; the icons and the
+  rule at `y=8` stay as on every page.
+- Body `x=2..125`, `y=12..107`: the session visual of the master mix, drawn like the Shape signal
+  view (96 rows) and following the [visual adjustments](#frames-and-layout). Stopped, paused or
+  silent it is the dim flat line; `none` leaves the body black. It schedules no frames while
+  stopped, and steps like the home band while playing.
+- Footer: unchanged, with the view's Aux hints.
+- Main press cycles the session visual `scope`, `spectrum`, `waterfall`, `none` and toasts it
+  (`Spectrum`, `No Visual`); Main turn adjusts the shown visual; `none` ignores turns. Back closes
+  the view. Modifier chords keep their meaning: Shift+Fn+Main opens the view's help, Fn+Main the
+  Aux mappings modal, Fn+Main turn right single steps. Popups, help, confirm dialogs and toasts
+  show over the view and close back onto it.
+- The session visual is never saved. It starts as the stored `Home Visual`, and the home band
+  shows it too; changing `System > Display > Home Visual` sets the stored and the session value.
+- Fn + left column selects the layer as everywhere (the header follows, the Play overlay
+  leaves). Fn/Shift+Fn + right column activates that Play page and toasts its name; the menu
+  stays at root and the header shows the page.
+- Assignment modes keep priority: the first Back leaves the mode, the next closes the view.
+- Bound clicks run from the view: behavior actions, Play FX `Map to Grid`, Sample, Drum and MIDI
+  Drum Assign, trigger-probability Assign, Faders Tile Map, recording, preset load, MIDI panic
+  and the modals. A sample browser click (open, enter, up) or a Bluetooth scan closes the view
+  and opens its page. `Signal` stays blocked with `Clk-1: Not in view`.
+- Grid, keys, Aux and transport keep their meaning. The OLED dims and sleeps as on any page.
 
 ### Palette
 
@@ -635,6 +671,8 @@ behavior primary red), so a mute never reads as a section color.
   Play and System: `scope` (the default), `spectrum`, `waterfall` or `none`. See the signal band
   under the body layout.
   Stored as `homeVisual` in the system preferences; presentation only, through the key fast path.
+  The band shows the session visual, which a Main press in the performance view cycles without
+  saving; setting `Home Visual` sets both.
 - Bar fractions follow encoder-turn space (see [Numeric steps](#numeric-steps)), so a bar moves
   evenly per detent: time rows use the share of coarse detents from the minimum, frequency and Q
   rows `log(v/min) / log(max/min)`, reverb `Decay` and delay `Feedback` the log of the distance to
@@ -660,7 +698,8 @@ behavior primary red), so a mute never reads as a section color.
    opens the Sys. Info popup over the unchanged menu position, so the new address shows.
 6. System info and help. On the boards, Sys. Info shows `IP: unavailable` and `MAC: unavailable`
    unless `wlan0` is up with a carrier (associated) and holds a usable IPv4 address.
-7. The menu with its footer. Context toasts never change LED overlay priority.
+7. A Shape signal view or the performance view, then the menu, with the footer. Context toasts
+   never change LED overlay priority.
 
 ### Runtime errors
 
@@ -1009,6 +1048,10 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   reinitializing the whole slot.
 - No auto-map applies inside Link. In Play, Play FX params and `Map to Grid` use the Play FX layout
   (also listed in [`Play > FX > Aux Map`](menu-tree/play.md)).
+- In the performance view the context is the active Play page's layout where it has one (Play
+  FX), otherwise the active layer's behavior layout, also on Play pages without a layout (Mix,
+  Pan, Route, Tempo, LFO, Faders, XY, Transpose, Rate, Trigger Gate). Layer and page select
+  re-map the encoders and the footer hints follow. Manual bindings merge under `Aux Prio.`.
 - No auto-map applies while an assignment mode is active (Sample, Drum, MIDI Drum and trigger-probability
   Assign, Play FX and Faders Tile Map `Map to Grid`): no auto caps, no auto hints, and Aux input skips the auto
   layout. Manual bindings keep working, and the layout returns when Back leaves the mode.

@@ -36,8 +36,16 @@ pub fn press_back(session: &mut HeadlessSession) {
     tap(session, button("button_a", false));
 }
 
+/// Backs out of any page. At root a Back toggles the performance view, whose header shows the
+/// tempo, so a last Back closes it when the presses ran out on it.
 pub fn to_root(session: &mut HeadlessSession) {
     for _ in 0..8 {
+        press_back(session);
+    }
+    if display(session)["titleRight"]
+        .as_str()
+        .is_some_and(|tempo| !tempo.is_empty())
+    {
         press_back(session);
     }
     tap(session, turn(-40));

@@ -209,6 +209,9 @@ impl NativeRunner {
         }
     }
     pub(super) fn current_auto_aux_map(&self) -> AuxAutoMap {
+        if self.shows_performance_view() {
+            return self.performance_view_auto_aux_map();
+        }
         let (selected_key, selected_action) = self.menu.current_binding_target();
         let selected_key = selected_key.or_else(|| {
             self.menu

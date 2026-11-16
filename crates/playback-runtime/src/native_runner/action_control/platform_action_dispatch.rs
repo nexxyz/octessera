@@ -12,6 +12,12 @@ impl NativeRunner {
         &mut self,
         action: PlatformAction,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
+        if let Some(page) = self.performance_view_page_for(&action) {
+            self.display.performance_view = false;
+            let effect = self.execute_platform_action(action)?;
+            self.display.performance_view = !self.menu.open_item_key(&page);
+            return Ok(effect);
+        }
         match action {
             PlatformAction::RestartSaveChoice | PlatformAction::RestartSaving => Ok(None),
             PlatformAction::RestartApp => self.restart_app_after_save(),

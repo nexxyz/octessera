@@ -32,11 +32,21 @@ pub(super) fn draw_header(frame: &mut [u8], input: &OledPresentationInput) {
     let title = title_text_for_oled(&input.display.title);
     let small = input.display.small_font.small();
     let clipping = input.metrics.output_clipping;
-    let title_width = if clipping {
+    let mut title_width = if clipping {
         CLIP_X - 1
     } else {
         BREADCRUMB_RIGHT + 1
     };
+    let right = &input.display.title_right;
+    if !right.is_empty() {
+        // The right-aligned text keeps the CLIP slot free whether or not it shows, a space
+        // advance before it, so nothing moves when CLIP appears; the breadcrumb ends a space
+        // before the text.
+        let space = small.advance(" ");
+        let x = CLIP_X.saturating_sub(space + small.advance(right));
+        small.draw(frame, right, x, ICON_Y, area);
+        title_width = x.saturating_sub(space);
+    }
     small.draw_fitted(frame, &title, title_width, 0, ICON_Y, area);
     if clipping {
         let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);

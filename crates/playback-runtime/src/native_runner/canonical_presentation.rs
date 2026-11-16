@@ -2,13 +2,29 @@ use super::{NativeOledMode, NativeRunner};
 
 impl NativeRunner {
     pub fn is_canonical_menu_presentation(&self) -> bool {
-        self.shown_full_screen_signal().is_none() && self.is_unobstructed_presentation()
+        self.shown_full_screen_signal().is_none()
+            && !self.shows_performance_view()
+            && self.is_unobstructed_presentation()
     }
 
     /// The first board frame: the canonical menu, which a help popup may already cover because
     /// the audio prep lane can report a patch's missing samples before that frame.
     pub fn is_startup_menu_presentation(&self) -> bool {
-        self.shown_full_screen_signal().is_none() && self.is_unobstructed_but_for_help()
+        self.shown_full_screen_signal().is_none()
+            && !self.shows_performance_view()
+            && self.is_unobstructed_but_for_help()
+    }
+
+    /// Nothing covers a full-screen picture: no modal, overlay, transfer card or pairing.
+    pub(super) fn presents_full_screen(&self) -> bool {
+        self.is_unobstructed_presentation()
+            && self.display.user_data_restore.is_none()
+            && self
+                .display
+                .user_data_transfer
+                .as_ref()
+                .is_none_or(|transfer| !transfer.visible)
+            && self.bluetooth.pairing().is_none()
     }
 
     /// No splash, dark screen, modal, overlay or runtime error covers the menu or an open

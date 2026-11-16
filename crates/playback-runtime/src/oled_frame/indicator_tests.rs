@@ -1,10 +1,11 @@
-use super::font::TOM_THUMB;
+use super::font::{TOM_THUMB, TOM_THUMB_ORIGINAL};
 use super::footer::shortened_hint;
 use super::header::cpu_meter_bars;
 use super::model::*;
 use super::pixels::{dim, rgb565, scale, shade};
 use super::render::render_oled_frame;
 use super::tests::{base, hint, pixel, AREA};
+use super::OledFont;
 use platform_core::palette;
 
 fn faded(rgb: [u8; 3], level: u8) -> u16 {
@@ -324,5 +325,55 @@ fn cpu_meter_lights_three_equal_bars_by_peak_load_against_the_cpu_warn_setting()
             assert_eq!(pixel(&frame, x, 5), 0);
         }
         assert!((0..5).all(|y| pixel(&frame, 122, y) == 0 && pixel(&frame, 125, y) == 0));
+    }
+}
+
+#[test]
+fn the_header_tempo_keeps_a_space_before_the_clip_slot_and_nothing_moves_when_clip_shows() {
+    let header = |frame: &[u8], color: u16| -> Vec<(usize, usize)> {
+        (0..128)
+            .flat_map(|x| (0..8).map(move |y| (x, y)))
+            .filter(|(x, y)| pixel(frame, *x, *y) == color)
+            .collect()
+    };
+    let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);
+    for (font, glyphs) in [
+        (OledFont::Octessera, &TOM_THUMB),
+        (OledFont::Original, &TOM_THUMB_ORIGINAL),
+    ] {
+        let mut input = base();
+        input.display.small_font = font;
+        input.display.title = "L6: raindrops  FX".into();
+        input.display.title_right = "120".into();
+        let plain = render_oled_frame(&input);
+        input.metrics.output_clipping = true;
+        let clipping = render_oled_frame(&input);
+
+        let lit = header(&plain, AREA);
+        assert_eq!(lit, header(&clipping, AREA), "{font:?}");
+        let space = glyphs.advance(" ");
+        let start = 88 - space - glyphs.advance("120");
+        let last = lit.iter().map(|(x, _)| *x).max().unwrap();
+        assert_eq!(last, start + glyphs.width("120") - 1, "{font:?}");
+        assert!(lit.iter().any(|(x, _)| *x == start));
+        assert!(lit
+            .iter()
+            .filter(|(x, _)| *x < start)
+            .all(|(x, _)| x + space < start));
+        let reds = header(&clipping, red);
+        assert_eq!(
+            reds.iter().map(|(x, _)| *x).max(),
+            Some(start + glyphs.width("120 CLIP") - 1),
+            "{font:?}"
+        );
+        assert!(reds.iter().all(|(x, _)| *x >= 88));
+        assert!(header(&plain, red).is_empty());
+        let icons = |frame: &[u8]| -> Vec<u16> {
+            (104..128)
+                .flat_map(|x| (0..8).map(move |y| (x, y)))
+                .map(|(x, y)| pixel(frame, x, y))
+                .collect()
+        };
+        assert_eq!(icons(&plain), icons(&clipping));
     }
 }

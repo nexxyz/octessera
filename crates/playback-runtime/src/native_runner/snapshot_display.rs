@@ -77,6 +77,8 @@ impl NativeRunner {
             help_popup_display(help)
         } else if let Some(view) = self.shown_full_screen_signal() {
             view.display(&self.menu)
+        } else if self.shows_performance_view() {
+            self.performance_view_display()
         } else {
             menu_display(self, menu)
         };

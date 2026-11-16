@@ -82,8 +82,11 @@ impl NativeRunner {
             .collect()
     }
 
+    /// The plain root menu shows: no page, edit or performance view.
     pub fn test_menu_at_root(&self) -> bool {
-        self.menu.state.stack.is_empty() && !self.menu.state.editing
+        self.menu.state.stack.is_empty()
+            && !self.menu.state.editing
+            && !self.shows_performance_view()
     }
 
     pub fn test_menu_value(&self, key: &str) -> Option<String> {

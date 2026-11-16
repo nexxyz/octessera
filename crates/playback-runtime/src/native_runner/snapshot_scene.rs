@@ -92,6 +92,7 @@ pub struct PresentationScene {
     aux_hints: OledAuxHints,
     animation: OledAnimationInput,
     signal: Option<OledSignalView>,
+    title_right: String,
     audio: Option<AudioScene>,
 }
 
@@ -253,6 +254,7 @@ impl NativeRunner {
             aux_hints: self.aux_hints(),
             animation,
             signal,
+            title_right: self.performance_view_tempo(),
             audio,
         })
     }
@@ -286,6 +288,7 @@ impl PresentationScene {
                 },
                 toast: self.toast.clone(),
                 signal: self.signal.clone(),
+                title_right: self.title_right.clone(),
                 ..oled_body_input(
                     display,
                     self.title_color,

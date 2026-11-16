@@ -171,7 +171,7 @@ impl NativeRunner {
             } else {
                 self.rebuild_engine(self.active_behavior())?;
             }
-        } else {
+        } else if !self.open_performance_view_on_back() {
             if self.active_play_mode != ActivePlayMode::None {
                 self.active_play_mode = ActivePlayMode::None;
             }

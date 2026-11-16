@@ -10,8 +10,13 @@ const CC_TARGET: &[&str] = &["Link", "MIDI CC In", "CC1", "Target"];
 const LFO_TARGET: &[&str] = &["Link", "LFOs", "LFO1", "Target"];
 const SYNTH_ROWS: [&str; 3] = ["Note Mode", "Synth", "Mixer"];
 
+/// Backs out of any page; once at root a Back toggles the performance view, which shows the
+/// tempo in its header, so a last Back closes it.
 fn open_from_root(device: &mut DeviceDriver, path: &[&str]) {
     for _ in 0..10 {
+        device.press_button("back");
+    }
+    if device.snapshot()["display"]["titleRight"].as_str() != Some("") {
         device.press_button("back");
     }
     let mut menu = VisibleMenuDriver::new(device);
