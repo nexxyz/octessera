@@ -83,6 +83,26 @@ impl Analyzer {
         }
     }
 
+    /// Waits until no submitted job waits or runs, so a test sees each picture without timing.
+    #[cfg(test)]
+    pub(super) fn wait_idle(&self) {
+        let Self::Worker {
+            worker: Some(worker),
+            ..
+        } = self
+        else {
+            return;
+        };
+        loop {
+            let slot = worker.shared.lock();
+            if slot.job.is_none() && !slot.busy {
+                return;
+            }
+            drop(slot);
+            std::thread::yield_now();
+        }
+    }
+
     /// The newest finished picture of `run`, once; pictures of earlier runs are dropped.
     pub(super) fn take(&mut self, run: u64) -> Option<Arc<OledSignalVisual>> {
         let finished = match self {
