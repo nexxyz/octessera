@@ -73,6 +73,11 @@ impl NativeRunner {
             .map(|turn| turn.index);
         let layer = usize::from(shifted) * AUX_COUNT;
         Some(OledAuxView {
+            bank: match self.aux_view_bank() {
+                Some(AuxPriority::Manual) => "Man",
+                _ => "Auto",
+            }
+            .into(),
             cards: std::array::from_fn(|index| {
                 self.aux_card(&slots[layer + index], turned == Some(index))
             }),

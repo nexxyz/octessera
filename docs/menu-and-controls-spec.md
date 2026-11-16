@@ -573,9 +573,9 @@ change; only the distance per detent does.
   colour for 1.2 s, the Aux toast hold, through one state deadline. The visual has no live
   steps: it is redrawn only when a capture changes it.
 - Bank (only while `aux` shows): Main turn right picks `Manual`, left picks `Auto`, and toasts
-  `Aux: Manual` / `Aux: Auto`. While `aux` shows, on every page, the header shows the bank as one
-  letter before the tempo (`L6: raindrops  FX  A 120`, `M` for Manual); `A` and `M` take the same
-  width, so the tempo, the CLIP slot and the page name stay put when the bank switches. The
+  `Aux: Manual` / `Aux: Auto`. The visual names the bank in its upper-left corner (`x=2`, `y=12`)
+  in the header font, in gray at half level: `Auto` or `Man`, short enough to stay clear of the
+  longest top-card name (`Spawn Interval`) in both fonts. The header stays as in every visual. The
   encoders and the cards follow the bank strictly: in `Manual` only manual bindings apply and
   other sides show `-` and do nothing; in `Auto` only the auto map applies (the active Play
   page's layout, else the active layer's), so with Auto Map off every side shows `-`. Layer and

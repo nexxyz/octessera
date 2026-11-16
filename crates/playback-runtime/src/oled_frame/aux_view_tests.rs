@@ -36,7 +36,10 @@ fn view(cards: [OledAuxCard; 3]) -> OledPresentationInput {
     input.display.bars = Vec::new();
     input.display.scroll = None;
     input.selected_row = None;
-    input.display.aux_view = Some(OledAuxView { cards });
+    input.display.aux_view = Some(OledAuxView {
+        bank: "Auto".into(),
+        cards,
+    });
     let hint = OledHintLabel {
         text: "Count".into(),
         color: BLUE,
@@ -127,41 +130,31 @@ fn a_turning_card_lights_its_arc_white_and_boxes_its_value() {
 }
 
 #[test]
-fn the_bank_letter_keeps_the_page_name_whole_and_moves_nothing_when_the_bank_switches() {
-    let header = |input: &OledPresentationInput, columns: std::ops::Range<usize>| -> Vec<u16> {
-        let frame = render_oled_frame(input);
-        columns
-            .flat_map(|x| (0..8).map(move |y| (x, y)))
-            .map(|(x, y)| pixel(&frame, x, y))
-            .collect()
-    };
+fn the_bank_sits_dim_in_the_upper_left_clear_of_the_longest_top_card_name() {
+    let gray = shade(rgb565(palette::GRAY), 0.5);
     for font in [OledFont::Octessera, OledFont::Original] {
-        let small = font.small();
-        let mut input = base();
-        input.display.small_font = font;
-        input.display.title = "L6: raindrops  FX".into();
-        let whole_title = input.clone();
-        input.display.title_right = "120".into();
-        let tempo_only = input.clone();
-        let tempo = 88 - small.advance(" ") - small.advance("120");
-        let letter = tempo - small.advance("A ");
-        input.display.title_right = "A 120".into();
-        let auto = input.clone();
-        input.display.title_right = "M 120".into();
-        let manual = input;
-
-        assert_eq!(
-            header(&auto, tempo..128),
-            header(&tempo_only, tempo..128),
-            "{font:?}"
-        );
-        assert_eq!(header(&auto, tempo..128), header(&manual, tempo..128));
-        assert_eq!(header(&auto, 0..letter), header(&manual, 0..letter));
-        assert_eq!(
-            header(&auto, 0..letter),
-            header(&whole_title, 0..letter),
-            "{font:?}"
-        );
-        assert_ne!(header(&auto, letter..tempo), header(&manual, letter..tempo));
+        for bank in ["Auto", "Man"] {
+            let mut input = view([
+                card("Spawn Interval", "4", 0.3, OledBarStyle::Fill),
+                OledAuxCard::default(),
+                OledAuxCard::default(),
+            ]);
+            input.display.main_font = font;
+            input.display.small_font = font;
+            input.display.aux_view.as_mut().unwrap().bank = bank.into();
+            let frame = render_oled_frame(&input);
+            let lit = |color: u16| -> Vec<(usize, usize)> {
+                (9..30)
+                    .flat_map(|y| (0..128).map(move |x| (x, y)))
+                    .filter(|(x, y)| pixel(&frame, *x, *y) == color)
+                    .collect()
+            };
+            let corner = lit(gray);
+            let right = corner.iter().map(|(x, _)| *x).max().unwrap();
+            assert_eq!(corner.iter().map(|(x, _)| *x).min(), Some(2), "{font:?}");
+            assert!(corner.iter().all(|(_, y)| (12..18).contains(y)), "{font:?}");
+            let left = lit(BLUE).iter().map(|(x, _)| *x).min().unwrap();
+            assert!(right + 3 <= left, "{font:?} {bank}: {right} {left}");
+        }
     }
 }

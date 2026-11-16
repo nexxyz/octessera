@@ -5,7 +5,7 @@
 use super::play_pages::{play_mode_label, ActivePlayMode};
 use super::signal_view::VisualKind;
 use super::snapshot_display::DisplaySnapshot;
-use super::{AuxPriority, DeviceInput, NativeRunner};
+use super::{DeviceInput, NativeRunner};
 use crate::native_menu::{NativeMenuHelpTarget, PlatformAction};
 use crate::oled_frame::OledDisplayLayout;
 use crate::protocol::RunnerMessage;
@@ -137,12 +137,7 @@ impl NativeRunner {
         if !self.shows_performance_view() || !self.presents_full_screen() {
             return String::new();
         }
-        let tempo = self.transport.bpm.round();
-        match self.aux_view_bank() {
-            Some(AuxPriority::Auto) => format!("A {tempo}"),
-            Some(AuxPriority::Manual) => format!("M {tempo}"),
-            None => format!("{tempo}"),
-        }
+        self.transport.bpm.round().to_string()
     }
 
     /// The menu page a bound action needs to show what it does: from the view it closes the view

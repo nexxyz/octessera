@@ -19,6 +19,8 @@ const ARC_OUTER: f32 = 19.5;
 const MARKER_HALF_DEGREES: f32 = 10.0;
 const TRACK_LEVEL: f32 = 0.28;
 const PATH_LEVEL: f32 = 0.7;
+const BANK_X: usize = 2;
+const BANK_LEVEL: f32 = 0.5;
 
 /// The pixels of a 2 px semicircle around a pixel corner, as offsets from that corner and the
 /// angle from 12 o'clock in degrees, negative to the left.
@@ -36,12 +38,20 @@ static ARC: LazyLock<Vec<(i32, i32, f32)>> = LazyLock::new(|| {
 });
 
 pub(super) fn draw_aux_view(frame: &mut [u8], display: &OledDisplayInput, view: &OledAuxView) {
-    let fonts = (display.main_font.main(), display.small_font.small());
+    let (main, small) = (display.main_font.main(), display.small_font.small());
+    let bank_color = shade(rgb565(palette::GRAY), BANK_LEVEL);
+    small.draw(frame, &view.bank, BANK_X, CARDS[0].1, bank_color);
     let has_path = |card: &OledAuxCard| card.turn.as_ref().is_some_and(|turn| turn.path.is_some());
     let bottom_drop = has_path(&view.cards[1]) || has_path(&view.cards[2]);
     let drops = [has_path(&view.cards[0]), bottom_drop, bottom_drop];
     for ((card, spot), drop) in view.cards.iter().zip(CARDS).zip(drops) {
-        draw_card(frame, fonts, card, spot, if drop { PATH_DROP } else { 0 });
+        draw_card(
+            frame,
+            (main, small),
+            card,
+            spot,
+            if drop { PATH_DROP } else { 0 },
+        );
     }
 }
 

@@ -115,6 +115,8 @@ pub struct OledDisplayInput {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OledAuxView {
+    /// The bank the upper-left corner names: `Auto` or `Man`.
+    pub bank: String,
     pub cards: [OledAuxCard; 3],
 }
 
