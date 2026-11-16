@@ -108,19 +108,22 @@ fn draw_spectrum(frame: &mut [u8], rows: Rows, levels: &[u8], peaks: &[u8]) {
 }
 
 fn draw_waterfall(frame: &mut [u8], rows: Rows, levels: &[u8]) {
-    static COLORS: LazyLock<[u16; 256]> =
-        LazyLock::new(|| std::array::from_fn(|level| ramp(level as u8)));
+    static COLORS: LazyLock<[[u8; 2]; 256]> =
+        LazyLock::new(|| std::array::from_fn(|level| ramp(level as u8).to_be_bytes()));
     let colors = &*COLORS;
-    for (column, bins) in levels
-        .chunks_exact(rows.height)
-        .take(SIGNAL_WIDTH)
-        .enumerate()
-    {
-        for (bin, &level) in bins.iter().enumerate() {
+    let columns = (levels.len() / rows.height).min(SIGNAL_WIDTH);
+    if columns == 0 {
+        return;
+    }
+    for bin in 0..rows.height {
+        let start = ((rows.bottom() - 1 - bin) * OLED_WIDTH + LEFT_X) * 2;
+        let (line, _) = frame[start..start + columns * 2].as_chunks_mut::<2>();
+        for (pixel, &level) in line
+            .iter_mut()
+            .zip(levels[bin..].iter().step_by(rows.height))
+        {
             if level != 0 {
-                let y = rows.bottom() - 1 - bin;
-                let index = (y * OLED_WIDTH + LEFT_X + column) * 2;
-                frame[index..index + 2].copy_from_slice(&colors[usize::from(level)].to_be_bytes());
+                *pixel = colors[usize::from(level)];
             }
         }
     }
