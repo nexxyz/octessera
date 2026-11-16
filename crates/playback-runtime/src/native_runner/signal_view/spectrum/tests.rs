@@ -1,8 +1,8 @@
 use super::*;
 use crate::oled_frame::SIGNAL_BAND_HEIGHT;
 
-const SIZE: usize = 1024;
-const RATE: u32 = 24_000;
+const SIZE: usize = 2048;
+const RATE: u32 = 48_000;
 
 fn sine(hz: f32, amplitude: f32) -> Vec<f32> {
     (0..SIZE)

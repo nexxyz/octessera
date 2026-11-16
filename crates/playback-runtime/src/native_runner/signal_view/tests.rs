@@ -37,7 +37,7 @@ fn a_steady_tone_starts_at_a_rising_crossing_whatever_its_phase() {
     let first = points(scope_visual(&tone(0, 0.8)));
     assert_eq!(first.len(), SIGNAL_WIDTH);
     assert!((1..=10).contains(&first[0]), "{}", first[0]);
-    assert!(first[1] > 0 && first[PERIOD / 4 / 2] > 100);
+    assert!(first[1] > 0 && first[PERIOD / 4 / 4] > 100);
     for phase in [5, 17, 31, 47] {
         assert_eq!(points(scope_visual(&tone(phase, 0.8))), first);
     }

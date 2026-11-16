@@ -1,7 +1,7 @@
 use crate::oled_frame::{OledSignalVisual, SIGNAL_WIDTH};
 
-/// Tapped samples per band column: 124 columns show about 10 ms.
-const STRIDE: usize = 2;
+/// Tapped samples per band column: 124 columns show about 11 ms at 44.1 kHz.
+const STRIDE: usize = 4;
 const SPAN: usize = SIGNAL_WIDTH * STRIDE;
 /// Quieter than this reads as silence and draws the flat line.
 const SILENCE: f32 = 1.0e-3;

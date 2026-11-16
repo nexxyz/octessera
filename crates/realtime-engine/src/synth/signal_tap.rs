@@ -4,12 +4,7 @@
 use super::types::{BUS_COUNT, INSTRUMENT_SLOT_COUNT};
 use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering};
 
-const SIGNAL_TAP_CAPACITY: usize = 2048;
-/// Each tapped sample is the mono average of this many output frames.
-const SIGNAL_TAP_DECIMATION: usize = 2;
-/// The interleaved samples one tapped master sample averages.
-const GROUP: usize = 2 * SIGNAL_TAP_DECIMATION;
-const MONO_SCALE: f32 = 1.0 / GROUP as f32;
+const SIGNAL_TAP_CAPACITY: usize = 4096;
 const OFF: u8 = 0;
 const MASTER: u8 = 1;
 const FIRST_INSTRUMENT: u8 = 2;
@@ -90,25 +85,25 @@ impl SignalTap {
         SignalSource::from_code(self.source.load(Ordering::Relaxed))
     }
 
-    /// Writes one rendered block of the master mix while the master is selected.
+    /// Writes one rendered block of the master mix, each frame as its mono average, while the
+    /// master is selected.
     pub fn publish_master(&self, interleaved: &[f32], frames: usize, sample_rate: u32) {
         if self.selected() != Some(SignalSource::Master) {
             return;
         }
         let frames = frames.min(interleaved.len() / 2);
         let mono = interleaved[..frames * 2]
-            .as_chunks::<GROUP>()
+            .as_chunks::<2>()
             .0
             .iter()
-            .map(|group| group.iter().sum::<f32>() * MONO_SCALE);
+            .map(|[left, right]| (left + right) * 0.5);
         self.write(mono, sample_rate);
     }
 
-    /// Writes one rendered mono block of the selected instrument or bus, frame pairs averaged.
+    /// Writes one rendered mono block of the selected instrument or bus.
     /// The caller has checked [`Self::selected`] for that block.
-    pub fn publish_mono(&self, mut block: impl Iterator<Item = f32>, sample_rate: u32) {
-        let pairs = std::iter::from_fn(|| Some((block.next()? + block.next()?) * 0.5));
-        self.write(pairs, sample_rate);
+    pub fn publish_mono(&self, block: impl Iterator<Item = f32>, sample_rate: u32) {
+        self.write(block, sample_rate);
     }
 
     fn write(&self, samples: impl Iterator<Item = f32>, sample_rate: u32) {
@@ -118,10 +113,7 @@ impl SignalTap {
             self.samples[slot].store(sample.to_bits(), Ordering::Relaxed);
             position += 1;
         }
-        self.sample_rate.store(
-            sample_rate / SIGNAL_TAP_DECIMATION as u32,
-            Ordering::Relaxed,
-        );
+        self.sample_rate.store(sample_rate, Ordering::Relaxed);
         self.written.store(position, Ordering::Release);
     }
 

@@ -16,8 +16,8 @@ mod spectrum;
 
 pub(super) use full_screen::NativeFullScreenSignal;
 
-/// The newest tapped samples each live step reads.
-const WINDOW: usize = 1024;
+/// The newest tapped samples each live step reads: one FFT block, about 46 ms at 44.1 kHz.
+const WINDOW: usize = 2048;
 /// A live view redraws every second snapshot tick, about 15 times a second.
 const STEP: Duration = Duration::from_millis(66);
 

@@ -438,13 +438,13 @@ change; only the distance per detent does.
   page, under a modal, help, splash or the dark OLED.
   - Stopped, paused or silent (master peak below 0.001): one dim gray line at `y=82`. It is static
     and schedules no frames.
-  - Playing: `scope` draws the master mix in blue, one point per column, two tapped samples
+  - Playing: `scope` draws the master mix in blue, one point per column, four tapped samples
     apart (about 11 ms across at the 44.1 kHz output rate). The trace starts at the latest rising
     zero crossing that follows a dip below 30 % of the peak, so steady tones stand still; signals
     louder than a 0.25 peak fill the band, quieter ones scale linearly.
   - `spectrum` draws 62 blue bars, 1 px wide with a 1 px gap, on log-spaced bands from 40 Hz to
-    the tap's Nyquist (11 kHz at 44.1 kHz), each the loudest bin of a 1024-point Hann-windowed
-    FFT of the newest tapped samples, on a 54 dB scale up to a full-scale sine. A bar jumps up and
+    the tap's Nyquist (about 22 kHz at 44.1 kHz), each the loudest bin of a 2048-point
+    Hann-windowed FFT of the newest tapped samples, on a 54 dB scale up to a full-scale sine. A bar jumps up and
     falls 24 of 255 levels per step; a white peak dot above it falls 6 per step.
   - `waterfall` shares that FFT and log scale, one band per band row (27, low at the bottom).
     Each step scrolls the band one column left and draws the newest column at the right, so the
@@ -454,9 +454,9 @@ change; only the distance per detent does.
   - The FFT and history run on the runtime thread once per step. The band steps every 66 ms
     (about 15 fps); each step is one new scene generation and one timed display deadline, so the
     boards and the desktop redraw the band at most at that rate.
-  - The audio engine copies one selected mono signal into a 2048-sample lock-free ring once per
-    block, averaging frame pairs (22.05 kHz at the 44.1 kHz output rate), and only while a live
-    view is on screen; otherwise it costs a few relaxed atomic loads per block. The runtime reads
+  - The audio engine copies one selected mono signal into a 4096-sample lock-free ring once per
+    block at the full output rate (the master as the mean of left and right; 93 ms at 44.1 kHz),
+    and only while a live view is on screen; otherwise it costs a few relaxed atomic loads per block. The runtime reads
     the ring when it captures a step; nothing is drawn or analysed on the audio thread. A source
     that stopped writing (an idle routing-tree worker) reads as silence.
   - The boards write only the rows that changed since the last frame, as one SSD1351 column

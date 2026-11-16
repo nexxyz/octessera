@@ -21,21 +21,21 @@ fn sounding_source(tap: &'static SignalTap) -> EngineSource {
 }
 
 #[test]
-fn a_selected_tap_receives_the_mono_average_of_the_final_blocks() {
+fn a_selected_tap_receives_the_mono_average_of_each_final_frame() {
     let tap: &'static SignalTap = Box::leak(Box::new(SignalTap::new()));
     tap.select(Some(SignalSource::Master));
     let mut source = sounding_source(tap);
 
     let jack: Vec<f32> = (0..128).map(|_| source.next().unwrap()).collect();
-    assert_eq!(tap.written(), 32);
-    assert_eq!(tap.sample_rate(), 24_000);
-    let mut tapped = [0.0_f32; 32];
-    assert_eq!(tap.read_latest(0, &mut tapped), 32);
+    assert_eq!(tap.written(), 64);
+    assert_eq!(tap.sample_rate(), 48_000);
+    let mut tapped = [0.0_f32; 64];
+    assert_eq!(tap.read_latest(0, &mut tapped), 64);
     let expected: Vec<f32> = jack
-        .as_chunks::<4>()
+        .as_chunks::<2>()
         .0
         .iter()
-        .map(|pair| pair.iter().sum::<f32>() * 0.25)
+        .map(|[left, right]| (left + right) * 0.5)
         .collect();
     assert_eq!(tapped.to_vec(), expected);
     assert!(tapped.iter().any(|sample| *sample != 0.0));
@@ -105,7 +105,7 @@ fn tapped(source: &mut EngineSource, tap: &SignalTap, signal: SignalSource) -> V
     for _ in 0..128 * 2 * 8 {
         source.next();
     }
-    let mut samples = vec![0.0_f32; 512];
+    let mut samples = vec![0.0_f32; 1024];
     let count = tap.read_latest(since, &mut samples);
     samples.split_off(samples.len() - count)
 }
@@ -119,8 +119,8 @@ fn assert_instrument_and_bus_taps(source: &mut EngineSource) {
     assert!(bus.iter().any(|sample| sample.abs() > 1.0e-4));
     let silent = tapped(source, tap, SignalSource::Instrument(1));
     assert!(silent.iter().all(|sample| *sample == 0.0));
-    assert_eq!(tapped(source, tap, SignalSource::Master).len(), 512);
-    assert_eq!(tap.sample_rate(), 24_000);
+    assert_eq!(tapped(source, tap, SignalSource::Master).len(), 1024);
+    assert_eq!(tap.sample_rate(), 48_000);
 }
 
 #[test]
