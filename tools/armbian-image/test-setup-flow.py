@@ -446,6 +446,40 @@ for index, path in enumerate(COORDINATORS):
     assert [phase for phase, _ in stop_status] == ["starting", "portal_ready", "failed"]
     assert stop_status[-1] == ("failed", {"error_code": "radio_restart_required", "terminal": True})
 
+    for states, crash_after_state, code, timeout_end in ((["20 (unavailable)", "30 (disconnected)"], True, "radio_restart_required", False), (["30 (disconnected)"], True, "radio_restart_required", True), (["30 (disconnected)"], False, "operation_failed", False), (["70 (connecting)", "100 (connected)"], False, "operation_failed", False)):
+        late_crash = {"log": "", "states": list(states), "queried": []}
+
+        def late_command(args, timeout=None, late=late_crash, crash_after_state=crash_after_state):
+            if args[0] == "journalctl":
+                return SimpleNamespace(returncode=0, stdout=late["log"])
+            if tuple(args) == STATE:
+                late["queried"].append(timeout)
+                late.update(log=crash_log if crash_after_state else "")
+                return SimpleNamespace(returncode=0, stdout=(late["states"].pop(0) if len(late["states"]) > 1 else late["states"][0]) + "\n")
+            return Board().command(args, timeout)
+
+        late_status = []
+        ticks = iter(range(0, 1000))
+        stop_marker.write_text("")
+        coordinator.setup_http.SetupHTTPServer = lambda *_args: fake_server
+        try:
+            settling = coordinator.Coordinator(orange, command=late_command, clock=lambda: float(next(ticks)), sleeper=lambda _seconds: None)
+            settling.launch = lambda: None
+            settling.wait_for_portal_readiness = lambda _deadline: None
+            if timeout_end:
+                stop_marker.unlink()
+                settling.wait_for_stage = lambda _deadline: (_ for _ in ()).throw(coordinator.SetupTimeout())
+            settling.interface_suffix = lambda: "abcd"
+            settling.hotspot.processes = [Process()]
+            settling.publish = lambda phase, **kwargs: late_status.append((phase, kwargs))
+            settling.cleanup = lambda _deadline: None
+            assert settling.run(0.0) == 0
+        finally:
+            coordinator.setup_http.SetupHTTPServer = original_setup_server
+            stop_marker.unlink(missing_ok=True)
+        assert late_status[-1] == ("failed", {"error_code": code, "terminal": True}), late_status
+        assert 1 <= len(late_crash["queried"]) <= coordinator.RADIO_SETTLE_SECONDS and all(timeout is not None for timeout in late_crash["queried"])
+
     waiting = coordinator.Coordinator(orange, command=kernel_log(crash_log), clock=lambda: 5.0, sleeper=lambda _seconds: None)
     waiting.hotspot.processes = [Process()]
     expect_failure(lambda: waiting.wait_for_stage(600.0), "radio_restart_required")

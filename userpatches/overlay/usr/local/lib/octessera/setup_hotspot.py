@@ -12,6 +12,7 @@ INTERFACE = "wlan0"
 HOSTAPD_CONFIG = "/run/octessera-setup-hostapd.conf"
 RESCAN_SECONDS = 10
 UNMANAGED = 10
+ACTIVATED = 100
 DNSMASQ_ARGS = (
     "--keep-in-foreground",
     "--conf-file",
@@ -116,6 +117,17 @@ class Hotspot:
             if stopping() or self.clock() >= deadline:
                 return False
             self.sleeper(0.1)
+        return True
+
+    def crashed_on_return(self, deadline, crashed):
+        # The Orange radio firmware can assert seconds after wlan0 returns to NetworkManager; a reconnected wlan0 has come through.
+        while not crashed():
+            try:
+                if self.clock() >= deadline or self.device_state(deadline) == ACTIVATED:
+                    return crashed()
+            except subprocess.SubprocessError:
+                return crashed()
+            self.sleeper(0.5)
         return True
 
     def _start(self, args):

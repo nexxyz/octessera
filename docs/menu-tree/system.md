@@ -403,8 +403,11 @@ changed edit saves System like any other System preference, shows `Applying...`,
   while the portal runs. The Wi-Fi chip's firmware crash (`WCN Assert` / `WCN: marlin power off`)
   can only be cleared by a restart (a driver reload oopses the kernel), so it ends setup as
   `failed` with `radio_restart_required`, shown as `Wi-Fi chip stopped` / `Restart the device`.
-  The radio is down at that point, so the browser cannot show it. A hotspot that never reaches
-  access-point mode without such a crash ends as `operation_failed` on both boards.
+  The radio is down at that point, so the browser cannot show it. Because the firmware can assert
+  seconds after the hotspot hands `wlan0` back, a stop, failure or timeout on Orange publishes its
+  result only once `wlan0` is connected again, the crash marker appears, or 10 s have passed. A
+  hotspot that never reaches access-point mode without such a crash ends as `operation_failed` on
+  both boards.
 - Before hostapd starts, the coordinator waits (within the same 10 s as the unmanaged state) until
   wpa_supplicant no longer knows `wlan0` over D-Bus. NetworkManager reports `unmanaged` about
   100 ms before wpa_supplicant's teardown finishes, and a hostapd that started during that

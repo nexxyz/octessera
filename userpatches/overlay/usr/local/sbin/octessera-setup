@@ -40,6 +40,7 @@ DEVICE_STATE_SECONDS = 10
 ACCESS_POINT_SECONDS = 15
 APPLY_REPLY_SECONDS = 1.0
 CLEANUP_SECONDS = 20.0
+RADIO_SETTLE_SECONDS = 10.0
 DISCONNECTED = 30
 
 
@@ -444,7 +445,7 @@ class Coordinator:
             try:
                 self.cleanup(self.clock() + CLEANUP_SECONDS)
             finally:
-                if outcome[0] == "failed" and outcome[1] != "radio_restart_required" and self.radio_crashed():
+                if outcome[0] != "succeeded" and outcome[1] != "radio_restart_required" and self.profile.get("radio_crash_markers") and self.hotspot.crashed_on_return(self.clock() + RADIO_SETTLE_SECONDS, self.radio_crashed):
                     outcome = ("failed", "radio_restart_required")
                 if not self.terminal_published:
                     self.publish(outcome[0], error_code=outcome[1], terminal=True)
