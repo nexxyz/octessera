@@ -33,7 +33,8 @@ on the enclosure and break.
 
 | Symptom | First action | More |
 |---|---|---|
-| The OLED says `HARDWARE FAULT` | Unplug the power, count to five, plug it back in. A reboot isn't enough: the grid and key boards only reset when the power really goes away. Usually nothing is damaged; the boards just stopped answering. If the message comes back, power down and check the cable to the part the screen names. | [Assembly manual](hardware/assembly-manual.md) |
+| The OLED says `HARDWARE FAULT` | Unplug the power, count to five, plug it back in. A reboot isn't enough: the grid and key boards only reset when the power really goes away. Usually nothing is damaged; the boards just stopped answering. If it says `not found`, power down and do the check it names: the grid's five-wire cable at both ends, or the NeoKey firmly in its socket. | [Assembly manual](hardware/assembly-manual.md) |
+| The OLED says `AUDIO NOT READY` | Restart the device. If it comes back, power down and check that the DAC sits firmly in its socket. If it does, the audio setup on the card is the likely culprit: reflash the image (back up your patches first). | [Flash and first boot](hardware/flash-and-first-boot.md), [backup and restore](data-backup-restore.md) |
 | OLED is blank, flickering or unstable | Power down and check the display connections. | [Flash and first boot](hardware/flash-and-first-boot.md), [assembly manual](hardware/assembly-manual.md) |
 | Brownout, reboot, heat or power instability | Power down and check the regulated supply, input, cables and ventilation. | [Safety and power](hardware/safety-and-power.md) |
 | The case doesn't fit or a port is blocked | Don't force it. Remove the microSD cards, then check the fit and cable routing. | [Assembly manual](hardware/assembly-manual.md), [enclosure notes](hardware/enclosure.md) |

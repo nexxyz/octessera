@@ -254,8 +254,8 @@ pub fn render_shutdown_splash(oled: &mut OledRenderOutput) {
     }
 }
 
-pub(crate) fn fault_oled_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
-    oled::fault_frame_into(lines, frame, lit);
+pub(crate) fn fault_oled_frame_into(header: &str, lines: &[String], frame: &mut [u8], lit: bool) {
+    oled::fault_frame_into(header, lines, frame, lit);
 }
 
 fn sleep_dim_brightness(brightness: f32) -> f32 {

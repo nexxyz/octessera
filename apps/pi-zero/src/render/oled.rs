@@ -5,7 +5,7 @@ use platform_core::palette;
 
 use super::{dim, rgb565};
 
-pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
+pub(super) fn fault_frame_into(header: &str, lines: &[String], frame: &mut [u8], lit: bool) {
     frame.fill(0);
     let warning = rgb565(if lit {
         palette::MAGENTA
@@ -17,10 +17,11 @@ pub(super) fn fault_frame_into(lines: &[String], frame: &mut [u8], lit: bool) {
     fill_rect(frame, 0, 0, 128, 128, dim_warning);
     fill_rect(frame, 4, 4, 120, 120, rgb565(palette::BLACK));
     fill_rect(frame, 8, 8, 112, 18, warning);
-    draw_text_clipped(frame, "HARDWARE FAULT", 22, 14, 14, rgb565(palette::BLACK));
+    let header_x = (129 - header.chars().count().min(15) as i32 * 6) / 2;
+    draw_text_clipped(frame, header, header_x, 14, 15, rgb565(palette::BLACK));
     for (index, line) in lines.iter().take(7).enumerate() {
         let y = 34 + index * 12;
-        draw_text_clipped(frame, line, 10, y as i32, 18, text);
+        draw_text_clipped(frame, line, 8, y as i32, 19, text);
     }
 }
 

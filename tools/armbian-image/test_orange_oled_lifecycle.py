@@ -133,27 +133,27 @@ assert immediate_fatal_clock.now < 30 * 1_000_000_000
 assert not any(event[0] == "command" for event in immediate_fatal_events)
 
 before_dim_handoff, before_dim_frames, before_dim_clock, _ = run_fatal_schedule(
-    lambda now: "audio_unavailable" if now < 59_999_000_000 else None,
+    lambda now: "startup_failed" if now < 59_999_000_000 else None,
     60_000_000_000,
 )
-assert before_dim_frames.count(b"dimmed:audio_unavailable") == 0 and before_dim_handoff.release_calls == 1 and before_dim_clock.now == 60_000_000_000
+assert before_dim_frames.count(b"dimmed:startup_failed") == 0 and before_dim_handoff.release_calls == 1 and before_dim_clock.now == 60_000_000_000
 
 same_code_handoff, same_code_frames, same_code_clock, same_code_events = run_fatal_schedule(
-    lambda now: "audio_unavailable" if now < 120_050_000_000 else None,
+    lambda now: "startup_failed" if now < 120_050_000_000 else None,
     120_100_000_000,
 )
-assert same_code_frames.count(b"fatal:audio_unavailable") == 1 and same_code_frames.count(b"dimmed:audio_unavailable") == 1
+assert same_code_frames.count(b"fatal:startup_failed") == 1 and same_code_frames.count(b"dimmed:startup_failed") == 1
 assert same_code_handoff.release_calls == 1 and same_code_clock.now == 120_100_000_000
 assert not any(event[0] == "command" for event in same_code_events)
 
 replacement_handoff, replacement_frames, _, _ = run_fatal_schedule(
-    lambda now: "oled_unavailable" if now < 30_000_000_000 else "audio_unavailable" if now < 90_050_000_000 else None,
+    lambda now: "oled_unavailable" if now < 30_000_000_000 else "startup_failed" if now < 90_050_000_000 else None,
     90_100_000_000,
 )
 assert replacement_frames.count(b"fatal:oled_unavailable") == 1
-assert replacement_frames.count(b"fatal:audio_unavailable") == 1
+assert replacement_frames.count(b"fatal:startup_failed") == 1
 assert replacement_frames.count(b"dimmed:oled_unavailable") == 0
-assert replacement_frames.count(b"dimmed:audio_unavailable") == 1
+assert replacement_frames.count(b"dimmed:startup_failed") == 1
 assert replacement_handoff.release_calls == 1
 
 malformed_fatal_handoff, malformed_fatal_frames, _, _ = run_fatal_schedule(

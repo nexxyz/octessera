@@ -266,8 +266,10 @@ fn main() -> std::process::ExitCode {
     let audio = match init_audio(audio_optimization, usb_config.audio_outputs) {
         Ok(audio) => audio,
         Err(error) => {
-            eprintln!("Audio init failed: {error}");
-            std::process::exit(2);
+            let mut fault = hardware_fault::HardwareFault::new();
+            fault.push("AUDIO", format!("Audio init failed: {error}"));
+            fault.attach_outputs(oled, None, None);
+            hardware_fault::run_hardware_fault_mode(Box::new(fault), boot_handoff);
         }
     };
     #[cfg(feature = "hardware-raspberry-pi-zero-2w")]

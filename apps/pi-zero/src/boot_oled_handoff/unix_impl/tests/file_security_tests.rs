@@ -10,7 +10,7 @@ fn startup_fatal_replacement_is_atomic_and_leaves_no_temporary_file() {
     let boot_id = directory.identity.boot_id.clone();
     write_fatal(
         &directory,
-        &StartupFatal::new(boot_id.clone(), StartupFatalCode::AudioUnavailable),
+        &StartupFatal::new(boot_id.clone(), StartupFatalCode::OledUnavailable),
     )
     .unwrap();
     write_fatal(

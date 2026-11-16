@@ -95,11 +95,11 @@ pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handof
         fault.adopt_boot_handoff_oled();
     }
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
-    let lines = fault_lines(&fault);
+    let (header, lines) = fault_screen(&fault);
     let mut lit = true;
     loop {
         if let Some(oled) = fault.oled.as_mut() {
-            fault_oled_frame_into(&lines, &mut frame, lit);
+            fault_oled_frame_into(header, &lines, &mut frame, lit);
             let _ = oled.write_frame(&frame);
         }
         if let Some(trellis) = fault.trellis.as_mut() {
@@ -120,57 +120,90 @@ pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handof
     }
 }
 
-const FAULT_LINE_CHARS: usize = 18;
+const FAULT_LINE_CHARS: usize = 19;
+const MAX_FAULT_LINES: usize = 7;
 
-fn fault_lines(fault: &HardwareFault) -> Vec<String> {
+fn fault_screen(fault: &HardwareFault) -> (&'static str, Vec<String>) {
     let mut parts: Vec<&str> = Vec::new();
     for failure in &fault.failures {
-        let part = part_name(failure.name);
-        if !parts.contains(&part) {
-            parts.push(part);
+        if let Some(part) = part_name(failure.name) {
+            if !parts.contains(&part) {
+                parts.push(part);
+            }
         }
     }
-    let mut parts = parts.join(" + ");
-    if parts.chars().count() > FAULT_LINE_CHARS {
-        parts = "Several parts".to_string();
+    if parts.is_empty() {
+        return (
+            "AUDIO NOT READY",
+            [
+                "Restart the device.",
+                "If it stays, see",
+                "Troubleshooting.",
+            ]
+            .map(str::to_string)
+            .to_vec(),
+        );
+    }
+    let mut lines = vec![parts.join(" + ")];
+    if lines[0].chars().count() > FAULT_LINE_CHARS {
+        lines[0] = "Several parts".to_string();
     }
     let timed_out = fault
         .failures
         .iter()
         .any(|failure| is_i2c_timeout(&failure.message));
-    let lines: &[&str] = if timed_out {
-        &[
-            "not responding",
-            "",
-            "Unplug power, then",
-            "plug it back in.",
-            "A reboot alone",
-            "will not do it.",
-        ]
+    let mut checks: Vec<&str> = Vec::new();
+    if !timed_out {
+        for part in &parts {
+            for check in connection_checks(part) {
+                if !checks.contains(check) {
+                    checks.push(check);
+                }
+            }
+        }
+    }
+    lines.push(
+        if timed_out {
+            "not responding"
+        } else {
+            "not found"
+        }
+        .to_string(),
+    );
+    lines.push(String::new());
+    if checks.is_empty() {
+        lines.push("Unplug power and".to_string());
     } else {
-        &[
-            "not found",
-            "",
-            "Unplug power,",
-            "check the cables,",
-            "plug it back in.",
-        ]
-    };
-    std::iter::once(parts)
-        .chain(lines.iter().map(|line| line.to_string()))
-        .collect()
+        lines.push("Unplug power,".to_string());
+        lines.extend(checks.iter().map(|check| check.to_string()));
+    }
+    lines.push("plug it back in.".to_string());
+    if lines.len() > MAX_FAULT_LINES {
+        lines.remove(2);
+    }
+    ("HARDWARE FAULT", lines)
 }
 
-fn part_name(name: &str) -> &'static str {
-    match name {
+fn part_name(name: &str) -> Option<&'static str> {
+    Some(match name {
         "TRELLIS" => "Grid",
         "NEOKEY" => "Keys",
         "SEESAW" => "Grid + Keys",
         "SEESAW_INT" => "Key signal",
         "OLED" => "Screen",
-        "DAC" => "Audio",
         "I2C" => "I2C bus",
+        "AUDIO" | "DAC" => return None,
         _ => "Encoders",
+    })
+}
+
+fn connection_checks(part: &str) -> &'static [&'static str] {
+    match part {
+        "Grid" | "Key signal" => &["check grid cable,"],
+        "Keys" => &["reseat the NeoKey,"],
+        "Grid + Keys" => &["check grid cable,", "reseat the NeoKey,"],
+        "Screen" => &["reseat the screen,"],
+        _ => &[],
     }
 }
 
@@ -216,81 +249,134 @@ mod tests {
         fault
     }
 
+    fn screen(failures: &[(&'static str, &str)]) -> (&'static str, Vec<String>) {
+        fault_screen(&fault(failures))
+    }
+
+    const TIMED_OUT: &str = "HW ID read failed: Connection timed out (os error 110)";
+    const MISSING: &str = "reset failed: Input/output error (os error 5)";
+
     #[test]
     fn timed_out_grid_and_keys_ask_for_a_power_cycle() {
-        let fault = fault(&[
-            (
-                "TRELLIS",
-                "NeoTrellis reset failed: Connection timed out (os error 110)",
-            ),
-            (
-                "NEOKEY",
-                "NeoKey HW ID read failed: Connection timed out (os error 110)",
-            ),
-        ]);
         assert_eq!(
-            fault_lines(&fault),
-            [
-                "Grid + Keys",
-                "not responding",
-                "",
-                "Unplug power, then",
-                "plug it back in.",
-                "A reboot alone",
-                "will not do it.",
-            ]
+            screen(&[("TRELLIS", TIMED_OUT), ("NEOKEY", TIMED_OUT)]),
+            (
+                "HARDWARE FAULT",
+                [
+                    "Grid + Keys",
+                    "not responding",
+                    "",
+                    "Unplug power and",
+                    "plug it back in.",
+                ]
+                .map(str::to_string)
+                .to_vec()
+            )
         );
     }
 
     #[test]
     fn a_seesaw_startup_timeout_names_grid_and_keys() {
-        let fault = fault(&[(
+        let (_, lines) = screen(&[(
             "SEESAW",
             "Seesaw startup handshake timed out: timed out waiting on channel",
         )]);
-        let lines = fault_lines(&fault);
         assert_eq!(lines[..2], ["Grid + Keys", "not responding"]);
     }
 
     #[test]
-    fn missing_keys_ask_to_check_the_cables() {
-        let fault = fault(&[(
-            "NEOKEY",
-            "NeoKey reset failed: Input/output error (os error 5)",
-        )]);
+    fn missing_parts_name_only_their_real_connections() {
         assert_eq!(
-            fault_lines(&fault),
+            screen(&[("NEOKEY", MISSING)]).1,
             [
                 "Keys",
                 "not found",
                 "",
                 "Unplug power,",
-                "check the cables,",
+                "reseat the NeoKey,",
+                "plug it back in."
+            ]
+        );
+        assert_eq!(
+            screen(&[("TRELLIS", MISSING)]).1,
+            [
+                "Grid",
+                "not found",
+                "",
+                "Unplug power,",
+                "check grid cable,",
+                "plug it back in."
+            ]
+        );
+        assert_eq!(
+            screen(&[("encoder_main", "busy"), ("encoder_aux_1", "busy")]).1,
+            [
+                "Encoders",
+                "not found",
+                "",
+                "Unplug power and",
+                "plug it back in."
+            ]
+        );
+    }
+
+    #[test]
+    fn long_part_lists_collapse_and_still_fit() {
+        let (_, lines) = screen(&[
+            ("TRELLIS", MISSING),
+            ("NEOKEY", MISSING),
+            ("SEESAW_INT", MISSING),
+            ("OLED", MISSING),
+        ]);
+        assert_eq!(
+            lines,
+            [
+                "Several parts",
+                "not found",
+                "Unplug power,",
+                "check grid cable,",
+                "reseat the NeoKey,",
+                "reseat the screen,",
                 "plug it back in.",
             ]
         );
     }
 
     #[test]
-    fn encoders_share_one_name_and_long_part_lists_collapse() {
-        let encoders = fault(&[("encoder_main", "busy"), ("encoder_aux_1", "busy")]);
-        assert_eq!(fault_lines(&encoders)[0], "Encoders");
-        let many = fault(&[
-            ("TRELLIS", "gone"),
-            ("NEOKEY", "gone"),
-            ("SEESAW_INT", "gone"),
-        ]);
-        assert_eq!(fault_lines(&many)[0], "Several parts");
+    fn audio_failures_show_the_audio_screen_without_cable_advice() {
+        let expected = (
+            "AUDIO NOT READY",
+            [
+                "Restart the device.",
+                "If it stays, see",
+                "Troubleshooting.",
+            ]
+            .map(str::to_string)
+            .to_vec(),
+        );
+        assert_eq!(screen(&[("AUDIO", "no ALSA device")]), expected);
+        assert_eq!(screen(&[("DAC", "no ALSA device")]), expected);
+        let (header, lines) = screen(&[("DAC", MISSING), ("NEOKEY", MISSING)]);
+        assert_eq!(header, "HARDWARE FAULT");
+        assert_eq!(lines[0], "Keys");
     }
 
     #[test]
-    fn every_fault_line_fits_the_oled() {
-        for message in ["Connection timed out (os error 110)", "No such file"] {
-            let fault = fault(&[("I2C", message), ("DAC", message)]);
-            let lines = fault_lines(&fault);
-            assert!(lines.len() <= 7);
-            for line in lines {
-                assert!(line.chars().count() <= FAULT_LINE_CHARS, "{line}");
+    fn every_fault_screen_fits_the_oled() {
+        for message in [TIMED_OUT, MISSING] {
+            for names in [
+                &["TRELLIS", "NEOKEY", "SEESAW_INT", "OLED", "I2C"][..],
+                &["SEESAW"],
+                &["AUDIO"],
+                &["encoder_main"],
+            ] {
+                let failures: Vec<_> = names.iter().map(|name| (*name, message)).collect();
+                let (header, lines) = screen(&failures);
+                assert!(header.chars().count() <= 15);
+                assert!(lines.len() <= MAX_FAULT_LINES);
+                for line in lines {
+                    assert!(line.chars().count() <= FAULT_LINE_CHARS, "{line}");
+                }
             }
         }
     }

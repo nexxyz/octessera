@@ -41,7 +41,6 @@ fn startup_fatal_contract_is_exact_and_allowlisted() {
     let directory = HandoffDirectory::open_existing_at(&path).unwrap();
     let boot_id = directory.identity.boot_id.clone();
     for code in [
-        StartupFatalCode::AudioUnavailable,
         StartupFatalCode::OledUnavailable,
         StartupFatalCode::StartupFailed,
     ] {

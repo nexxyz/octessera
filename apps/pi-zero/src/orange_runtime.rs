@@ -2,6 +2,7 @@ use crate::audio::{AudioManager, AudioService};
 use crate::audio_stream_health::AudioStreamStatus as OrangeDacStatus;
 use crate::boot_oled_handoff::{HandoffMode, StartupFatalCode};
 use crate::candidate_readiness::CandidateReadiness;
+use crate::hardware_fault::HardwareFault;
 use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
 use crate::host_adapter::PiHostAdapter;
 use crate::input::{midi_input_message, MidiMessage};
@@ -41,6 +42,11 @@ fn startup_failure(mode: HandoffMode, code: StartupFatalCode, error: impl Into<S
     error
 }
 
+fn enter_hardware_fault_mode(fault: HardwareFault) -> ! {
+    signal::restore_default_handlers();
+    crate::hardware_fault::run_hardware_fault_mode(Box::new(fault), true)
+}
+
 struct OrangeRuntimeServices {
     midi_rx: Receiver<MidiMessage>,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
@@ -73,14 +79,18 @@ pub fn run() -> Result<(), String> {
             let _ = midi_tx.send(message);
         }
     });
-    let mut audio =
-        AudioManager::new_orange(profile, usb_config.audio_outputs).map_err(|error| {
-            startup_failure(
-                handoff_mode,
-                handoff::startup_fatal_code(handoff::OrangeStartupOperation::Audio),
-                format!("Orange audio startup failed: {error}"),
-            )
-        })?;
+    let mut audio = match AudioManager::new_orange(profile, usb_config.audio_outputs) {
+        Ok(audio) => audio,
+        Err(error) => {
+            let error = format!("Orange audio startup failed: {error}");
+            if handoff_mode != HandoffMode::V1 {
+                return Err(error);
+            }
+            let mut fault = HardwareFault::new();
+            fault.push("AUDIO", error);
+            enter_hardware_fault_mode(fault);
+        }
+    };
     let hdmi = crate::render::hdmi::HdmiFramebuffer::new();
     if handoff_mode == crate::boot_oled_handoff::HandoffMode::V1 {
         return handoff::run(

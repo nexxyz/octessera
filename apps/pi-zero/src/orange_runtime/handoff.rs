@@ -1,18 +1,4 @@
 use super::*;
-use crate::hardware_fault::HardwareFault;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum OrangeStartupOperation {
-    Audio,
-    Oled,
-}
-
-pub(crate) fn startup_fatal_code(operation: OrangeStartupOperation) -> StartupFatalCode {
-    match operation {
-        OrangeStartupOperation::Audio => StartupFatalCode::AudioUnavailable,
-        OrangeStartupOperation::Oled => StartupFatalCode::OledUnavailable,
-    }
-}
 
 pub(crate) fn run(
     mut audio: AudioManager,
@@ -87,8 +73,8 @@ pub(crate) fn run(
     let oled = match OledSsd1351::adopt_existing() {
         Ok(oled) => oled,
         Err(error) => {
-            let handoff_result = handoff
-                .mark_unavailable_and_failed(startup_fatal_code(OrangeStartupOperation::Oled));
+            let handoff_result =
+                handoff.mark_unavailable_and_failed(StartupFatalCode::OledUnavailable);
             let _ = seesaw.shutdown();
             let error = match handoff_result {
                 Ok(()) => format!("Orange OLED adoption failed: {error}"),
@@ -160,9 +146,4 @@ pub(crate) fn run(
         .and(seesaw_result);
     drop(audio);
     result
-}
-
-fn enter_hardware_fault_mode(fault: HardwareFault) -> ! {
-    super::signal::restore_default_handlers();
-    crate::hardware_fault::run_hardware_fault_mode(Box::new(fault), true)
 }

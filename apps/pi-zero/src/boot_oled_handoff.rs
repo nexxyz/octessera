@@ -38,7 +38,6 @@ const FATAL_MODE: u32 = 0o600;
 #[cfg_attr(not(unix), allow(dead_code))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum StartupFatalCode {
-    AudioUnavailable,
     OledUnavailable,
     StartupFailed,
 }
@@ -47,7 +46,6 @@ pub(crate) enum StartupFatalCode {
 impl StartupFatalCode {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
-            Self::AudioUnavailable => "audio_unavailable",
             Self::OledUnavailable => "oled_unavailable",
             Self::StartupFailed => "startup_failed",
         }
@@ -58,7 +56,6 @@ impl StartupFatalCode {
 impl StartupFatalCode {
     pub(crate) fn parse(value: &str) -> Option<Self> {
         Some(match value {
-            "audio_unavailable" => Self::AudioUnavailable,
             "oled_unavailable" => Self::OledUnavailable,
             "startup_failed" => Self::StartupFailed,
             _ => return None,
