@@ -243,15 +243,16 @@ fn main() -> std::process::ExitCode {
             std::process::exit(2);
         }
     };
-    let hardware = match init_hardware(handoff_mode == boot_oled_handoff::HandoffMode::Direct) {
+    let boot_handoff = handoff_mode == boot_oled_handoff::HandoffMode::V1;
+    let hardware = match init_hardware(!boot_handoff) {
         Ok(devices) => devices,
-        Err(fault) => hardware_fault::run_hardware_fault_mode(fault),
+        Err(fault) => hardware_fault::run_hardware_fault_mode(fault, boot_handoff),
     };
     let (event_rx, _encoders) = match init_encoders() {
         Ok(encoders) => encoders,
         Err(mut fault) => {
             fault.attach_outputs(hardware.oled, Some(hardware.trellis), Some(hardware.neokey));
-            hardware_fault::run_hardware_fault_mode(fault);
+            hardware_fault::run_hardware_fault_mode(fault, boot_handoff);
         }
     };
     let HardwareDevices {

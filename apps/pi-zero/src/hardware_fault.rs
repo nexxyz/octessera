@@ -3,6 +3,7 @@ use platform_core::palette;
 use std::thread;
 use std::time::Duration;
 
+use crate::boot_oled_handoff::NativeOledGuard;
 use crate::render::{fault_oled_frame_into, OLED_FRAME_BYTES};
 
 const FAULT_FLASH_MS: u64 = 500;
@@ -10,6 +11,7 @@ const FAULT_FLASH_MS: u64 = 500;
 pub(crate) struct HardwareFault {
     failures: Vec<HardwareFailure>,
     oled: Option<OledSsd1351>,
+    oled_handoff: Option<NativeOledGuard>,
     trellis: Option<NeoTrellis>,
     neokey: Option<NeoKey>,
 }
@@ -24,6 +26,7 @@ impl HardwareFault {
         Self {
             failures: Vec::new(),
             oled: None,
+            oled_handoff: None,
             trellis: None,
             neokey: None,
         }
@@ -49,6 +52,24 @@ impl HardwareFault {
         self.neokey = neokey;
     }
 
+    fn adopt_boot_handoff_oled(&mut self) {
+        let handoff = match crate::boot_oled_handoff::native_attach() {
+            Ok(handoff) => handoff,
+            Err(error) => {
+                eprintln!("hardware fault OLED handoff attach failed: {error}");
+                return;
+            }
+        };
+        match OledSsd1351::adopt_existing() {
+            Ok(oled) => self.oled = Some(oled),
+            Err(error) => {
+                handoff.mark_failed();
+                eprintln!("hardware fault OLED adoption failed: {error}");
+            }
+        }
+        self.oled_handoff = Some(handoff);
+    }
+
     pub(crate) fn summary(&self) -> String {
         self.failures
             .iter()
@@ -58,8 +79,11 @@ impl HardwareFault {
     }
 }
 
-pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>) -> ! {
+pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handoff: bool) -> ! {
     eprintln!("entering hardware fault mode; service will stay alive until reboot");
+    if boot_handoff && fault.oled.is_none() {
+        fault.adopt_boot_handoff_oled();
+    }
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
     let lines = fault_lines(&fault);
     let mut lit = true;
@@ -86,59 +110,57 @@ pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>) -> ! {
     }
 }
 
+const FAULT_LINE_CHARS: usize = 18;
+
 fn fault_lines(fault: &HardwareFault) -> Vec<String> {
-    let hint = if fault
+    let mut parts: Vec<&str> = Vec::new();
+    for failure in &fault.failures {
+        let part = part_name(failure.name);
+        if !parts.contains(&part) {
+            parts.push(part);
+        }
+    }
+    let mut parts = parts.join(" + ");
+    if parts.chars().count() > FAULT_LINE_CHARS {
+        parts = "Several parts".to_string();
+    }
+    let timed_out = fault
         .failures
         .iter()
-        .any(|failure| is_i2c_timeout(&failure.message))
-    {
-        "POWER CYCLE"
+        .any(|failure| is_i2c_timeout(&failure.message));
+    let lines: &[&str] = if timed_out {
+        &[
+            "not responding",
+            "",
+            "Unplug power, then",
+            "plug it back in.",
+            "A reboot alone",
+            "will not do it.",
+        ]
     } else {
-        "CHECK WIRING"
+        &[
+            "not found",
+            "",
+            "Unplug power,",
+            "check the cables,",
+            "plug it back in.",
+        ]
     };
-    let mut lines = vec![hint.to_string()];
-    for failure in fault.failures.iter().take(3) {
-        lines.push(short_name(failure.name).to_string());
-        lines.push(concise_error(&failure.message));
-    }
-    lines
-}
-
-fn short_name(name: &str) -> &str {
-    match name {
-        "SEESAW_INT" => "SEESAW INT",
-        other => other,
-    }
-}
-
-fn concise_error(message: &str) -> String {
-    if is_i2c_timeout(message) {
-        return "I2C TIMEOUT".to_string();
-    }
-    let lower = message.to_ascii_lowercase();
-    if lower.contains("input/output")
-        || lower.contains("remote i/o")
-        || lower.contains("os error 5")
-    {
-        return "I2C ERROR".to_string();
-    }
-    if lower.contains("no such file") || lower.contains("not found") {
-        return "NOT FOUND".to_string();
-    }
-    if lower.contains("invalid") {
-        return "BAD HW ID".to_string();
-    }
-    if lower.contains("permission") {
-        return "PERMISSION".to_string();
-    }
-    message
-        .split(':')
-        .next_back()
-        .unwrap_or(message)
-        .trim()
-        .chars()
-        .take(14)
+    std::iter::once(parts)
+        .chain(lines.iter().map(|line| line.to_string()))
         .collect()
+}
+
+fn part_name(name: &str) -> &'static str {
+    match name {
+        "TRELLIS" => "Grid",
+        "NEOKEY" => "Keys",
+        "SEESAW_INT" => "Key signal",
+        "OLED" => "Screen",
+        "DAC" => "Audio",
+        "I2C" => "I2C bus",
+        _ => "Encoders",
+    }
 }
 
 fn is_i2c_timeout(message: &str) -> bool {
@@ -173,21 +195,82 @@ fn trellis_fault_frame(lit: bool) -> [[u8; 3]; 64] {
 
 #[cfg(test)]
 mod tests {
-    use super::concise_error;
+    use super::*;
+
+    fn fault(failures: &[(&'static str, &str)]) -> HardwareFault {
+        let mut fault = HardwareFault::new();
+        for (name, message) in failures {
+            fault.push(name, (*message).to_string());
+        }
+        fault
+    }
 
     #[test]
-    fn concise_error_names_i2c_timeouts() {
+    fn timed_out_grid_and_keys_ask_for_a_power_cycle() {
+        let fault = fault(&[
+            (
+                "TRELLIS",
+                "NeoTrellis reset failed: Connection timed out (os error 110)",
+            ),
+            (
+                "NEOKEY",
+                "NeoKey HW ID read failed: Connection timed out (os error 110)",
+            ),
+        ]);
         assert_eq!(
-            concise_error("NeoKey HW ID read failed: Connection timed out (os error 110)"),
-            "I2C TIMEOUT"
+            fault_lines(&fault),
+            [
+                "Grid + Keys",
+                "not responding",
+                "",
+                "Unplug power, then",
+                "plug it back in.",
+                "A reboot alone",
+                "will not do it.",
+            ]
         );
     }
 
     #[test]
-    fn concise_error_names_i2c_io_errors() {
+    fn missing_keys_ask_to_check_the_cables() {
+        let fault = fault(&[(
+            "NEOKEY",
+            "NeoKey reset failed: Input/output error (os error 5)",
+        )]);
         assert_eq!(
-            concise_error("NeoKey reset failed: Input/output error (os error 5)"),
-            "I2C ERROR"
+            fault_lines(&fault),
+            [
+                "Keys",
+                "not found",
+                "",
+                "Unplug power,",
+                "check the cables,",
+                "plug it back in.",
+            ]
         );
+    }
+
+    #[test]
+    fn encoders_share_one_name_and_long_part_lists_collapse() {
+        let encoders = fault(&[("encoder_main", "busy"), ("encoder_aux_1", "busy")]);
+        assert_eq!(fault_lines(&encoders)[0], "Encoders");
+        let many = fault(&[
+            ("TRELLIS", "gone"),
+            ("NEOKEY", "gone"),
+            ("SEESAW_INT", "gone"),
+        ]);
+        assert_eq!(fault_lines(&many)[0], "Several parts");
+    }
+
+    #[test]
+    fn every_fault_line_fits_the_oled() {
+        for message in ["Connection timed out (os error 110)", "No such file"] {
+            let fault = fault(&[("I2C", message), ("DAC", message)]);
+            let lines = fault_lines(&fault);
+            assert!(lines.len() <= 7);
+            for line in lines {
+                assert!(line.chars().count() <= FAULT_LINE_CHARS, "{line}");
+            }
+        }
     }
 }
