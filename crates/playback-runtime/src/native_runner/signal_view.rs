@@ -1,4 +1,5 @@
 use super::menu_apply_fast::value_changed;
+use super::performance_view::ViewVisual;
 use super::snapshot_display::DisplaySnapshot;
 use super::{NativeRunner, RuntimeTransportState};
 use crate::oled_frame::{
@@ -248,13 +249,16 @@ impl NativeRunner {
             };
             Some((OledSignalArea::Body, view))
         } else if self.shows_performance_view() {
-            let view = self.display.session_visual.map(|kind| LiveView {
+            let Some(ViewVisual::Signal(kind)) = self.display.session_visual else {
+                return None;
+            };
+            let view = LiveView {
                 source: SignalSource::Master,
                 kind,
                 tuning: self.display.signal_tuning,
                 rows: SIGNAL_BODY_HEIGHT,
-            });
-            view.map(|view| (OledSignalArea::Body, view))
+            };
+            Some((OledSignalArea::Body, view))
         } else {
             self.home_band(display)
         };
@@ -268,12 +272,15 @@ impl NativeRunner {
     /// Sets the stored Home Visual and this session's visual with it; whether the stored value
     /// changed.
     pub(super) fn set_home_visual(&mut self, value: String) -> bool {
-        self.display.session_visual = VisualKind::from_setting(&value);
+        self.display.session_visual = ViewVisual::from_setting(&value);
         value_changed(&mut self.display.ui.home_visual, value)
     }
 
     fn home_band(&self, display: &DisplaySnapshot) -> Option<(OledSignalArea, LiveView)> {
-        let kind = self.display.session_visual?;
+        let kind = match self.display.session_visual? {
+            ViewVisual::Signal(kind) => kind,
+            ViewVisual::Aux => VisualKind::from_setting(&self.display.ui.home_visual)?,
+        };
         if !self.menu.state.stack.is_empty() {
             return None;
         }

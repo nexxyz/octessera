@@ -1,5 +1,5 @@
 use super::{
-    OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput,
+    OledAnimationInput, OledAuxHints, OledAuxView, OledBarInput, OledBarStyle, OledDisplayInput,
     OledDisplayLayout, OledFont, OledMenuRowInput, OledPresentationInput, OledPresentationMetrics,
     OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSignalView, OledSplash,
     OledTransportFlash, OledTransportIcon, OledTransportInput,
@@ -38,6 +38,8 @@ struct DisplayInputDto {
     signal: Option<OledSignalView>,
     #[serde(default)]
     title_right: String,
+    #[serde(default)]
+    aux_view: Option<OledAuxView>,
 }
 
 #[derive(Deserialize)]
@@ -146,6 +148,7 @@ pub(crate) fn presentation_input_from_snapshot(
             small_font: OledFont::from_setting(&settings.small_font),
             signal: display.signal,
             title_right: display.title_right,
+            aux_view: display.aux_view,
         },
         selected_row,
         transport: OledTransportInput {

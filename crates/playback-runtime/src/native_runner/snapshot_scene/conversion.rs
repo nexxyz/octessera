@@ -44,7 +44,8 @@ impl PresentationScene {
                 "splash": self.splash,
                 "editing": self.editing,
                 "signal": self.signal,
-                "titleRight": self.title_right
+                "titleRight": self.title_right,
+                "auxView": self.aux_view
             },
             "leds": {"width": GRID_WIDTH, "height": GRID_HEIGHT, "rgb": self.led_rgb, "active": self.active_tiles},
             "hdmi": hdmi,

@@ -10,6 +10,38 @@ use crate::native_menu::{NativeMenuHelpTarget, PlatformAction};
 use crate::oled_frame::OledDisplayLayout;
 use crate::protocol::RunnerMessage;
 
+/// What the performance view's body shows this session; the home band shows the same signal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ViewVisual {
+    Signal(VisualKind),
+    /// The Aux encoders' targets and values; the home band keeps the stored Home Visual.
+    Aux,
+}
+
+impl ViewVisual {
+    pub(super) fn from_setting(value: &str) -> Option<Self> {
+        VisualKind::from_setting(value).map(Self::Signal)
+    }
+
+    /// The visual a Main press shows after `visual`: scope, spectrum, waterfall, aux, none.
+    fn after(visual: Option<Self>) -> Option<Self> {
+        match visual {
+            None => Some(Self::Signal(VisualKind::Scope)),
+            Some(Self::Signal(VisualKind::Waterfall)) => Some(Self::Aux),
+            Some(Self::Signal(kind)) => Some(Self::Signal(kind.next())),
+            Some(Self::Aux) => None,
+        }
+    }
+
+    fn label(visual: Option<Self>) -> &'static str {
+        match visual {
+            Some(Self::Signal(kind)) => kind.label(),
+            Some(Self::Aux) => "Aux",
+            None => "No Visual",
+        }
+    }
+}
+
 impl NativeRunner {
     /// Whether the performance view is open over the plain root menu.
     pub(super) fn shows_performance_view(&self) -> bool {
@@ -56,17 +88,17 @@ impl NativeRunner {
         let main = |id: &Option<String>| id.as_deref().unwrap_or("main") == "main";
         match input {
             DeviceInput::EncoderPress { id } if main(id) => {
-                let next = match self.display.session_visual {
-                    Some(VisualKind::Waterfall) => None,
-                    Some(kind) => Some(kind.next()),
-                    None => Some(VisualKind::Scope),
-                };
+                let next = ViewVisual::after(self.display.session_visual);
                 self.display.session_visual = next;
-                self.show_toast(next.map_or("No Visual", VisualKind::label));
+                self.show_toast(ViewVisual::label(next));
             }
             DeviceInput::EncoderTurn { id, delta } if main(id) => {
-                if let Some(kind) = self.display.session_visual.filter(|_| *delta != 0) {
-                    self.adjust_signal_visual(kind, *delta);
+                match (self.display.session_visual, *delta) {
+                    (_, 0) | (None, _) => {}
+                    (Some(ViewVisual::Signal(kind)), delta) => {
+                        self.adjust_signal_visual(kind, delta);
+                    }
+                    (Some(ViewVisual::Aux), delta) => self.turn_aux_view_bank(delta),
                 }
             }
             DeviceInput::ButtonA {
@@ -105,7 +137,11 @@ impl NativeRunner {
         if !self.shows_performance_view() || !self.presents_full_screen() {
             return String::new();
         }
-        format!("{}", self.transport.bpm.round())
+        let tempo = self.transport.bpm.round();
+        match self.aux_view_bank() {
+            Some(bank) => format!("{} {tempo}", super::aux_view::bank_label(bank)),
+            None => format!("{tempo}"),
+        }
     }
 
     /// The menu page a bound action needs to show what it does: from the view it closes the view

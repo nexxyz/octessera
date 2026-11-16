@@ -65,6 +65,7 @@ mod types_config;
 mod voice;
 
 pub(crate) use bindings::XY_GLIDE_MAX_MS;
+pub(crate) use format::item_gauge;
 pub(crate) use numeric_edit::curved_edit_value;
 #[cfg(test)]
 pub(crate) use numeric_edit::numeric_edit_value;

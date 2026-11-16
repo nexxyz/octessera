@@ -105,6 +105,48 @@ pub struct OledDisplayInput {
     /// Text the header right-aligns before its icons: the performance view's tempo.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub title_right: String,
+    /// The performance view's Aux cards fill the body and hide the footer hints.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aux_view: Option<OledAuxView>,
+}
+
+/// One card per Aux encoder, Aux 1 at the top and Aux 2 and 3 below it as on the panel, for the
+/// layer Shift selects.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledAuxView {
+    pub cards: [OledAuxCard; 3],
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledAuxCard {
+    pub turn: Option<OledAuxTurn>,
+    /// The click action's name, without its `!`.
+    pub click: Option<String>,
+    /// RGB565 colour of the section that owns the turn target, else the click's.
+    pub color: u16,
+    /// The card's encoder was just turned.
+    pub turning: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledAuxTurn {
+    pub label: String,
+    /// A manual binding's `owner/page`; auto-map sides have none.
+    pub path: Option<String>,
+    /// The value and its place on the arc; `None` while the target is not active.
+    pub gauge: Option<OledAuxGauge>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OledAuxGauge {
+    /// The value as its menu row shows it.
+    pub value: String,
+    pub fraction: f32,
+    pub style: OledBarStyle,
 }
 
 /// A picture of a tapped signal and where the body shows it. The picture is shared, so captures,

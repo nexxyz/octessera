@@ -57,6 +57,7 @@ mod audio_restart_follow_up;
 mod audio_restart_persistence;
 mod aux_auto_map;
 mod aux_patch_persistence;
+mod aux_view_visual;
 mod basics;
 mod behavior_menu_defaults;
 mod behavior_palette;

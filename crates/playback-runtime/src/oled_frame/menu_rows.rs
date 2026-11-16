@@ -238,6 +238,9 @@ fn draw_menu_body(
     if let Some(view) = &display.signal {
         draw_signal_view(frame, view, body_top_offset(display));
     }
+    if let Some(view) = &display.aux_view {
+        super::aux_view::draw_aux_view(frame, display, view);
+    }
     if let Some(scroll) = scroll {
         let area = display.title_color;
         draw_scrollbar(frame, scroll, scroll.offset * PITCH, area);

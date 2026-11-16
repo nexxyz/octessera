@@ -12,10 +12,10 @@ use crate::native_runner::display_animations::AnimationFrame;
 use crate::native_runner::snapshot_display::{DisplayScrollMetadata, DisplaySnapshot};
 use crate::native_runner::AuxPriority;
 use crate::oled_frame::{
-    OledAnimationInput, OledAuxHints, OledBarInput, OledBarStyle, OledDisplayInput, OledFont,
-    OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash,
-    OledScrollInput, OledSignalView, OledSplash, OledTransportFlash, OledTransportIcon,
-    OledTransportInput,
+    OledAnimationInput, OledAuxHints, OledAuxView, OledBarInput, OledBarStyle, OledDisplayInput,
+    OledFont, OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata,
+    OledSaveFlash, OledScrollInput, OledSignalView, OledSplash, OledTransportFlash,
+    OledTransportIcon, OledTransportInput,
 };
 use crate::protocol::MidiPort;
 use platform_core::{BehaviorRenderModel, GlobalSoundConfig};
@@ -93,6 +93,7 @@ pub struct PresentationScene {
     animation: OledAnimationInput,
     signal: Option<OledSignalView>,
     title_right: String,
+    aux_view: Option<OledAuxView>,
     audio: Option<AudioScene>,
 }
 
@@ -177,7 +178,8 @@ impl NativeRunner {
             String::new()
         };
         let editing = self.menu.state.editing && self.display.help_popup.is_none();
-        let signal = self.signal_presentation(&display, !off && splash.is_empty(), now);
+        let menu_frame = !off && splash.is_empty();
+        let signal = self.signal_presentation(&display, menu_frame, now);
         let animation = self.display.transients.observe_animations(
             &AnimationFrame {
                 display: &display,
@@ -191,7 +193,7 @@ impl NativeRunner {
                 menu_stack: self
                     .is_canonical_menu_presentation()
                     .then_some(self.menu.state.stack.as_slice()),
-                menu_frame: !off && splash.is_empty(),
+                menu_frame,
                 signal: signal.as_ref(),
             },
             now,
@@ -255,6 +257,7 @@ impl NativeRunner {
             animation,
             signal,
             title_right: self.performance_view_tempo(),
+            aux_view: self.aux_view_presentation(menu_frame, now),
             audio,
         })
     }
@@ -289,6 +292,7 @@ impl PresentationScene {
                 toast: self.toast.clone(),
                 signal: self.signal.clone(),
                 title_right: self.title_right.clone(),
+                aux_view: self.aux_view.clone(),
                 ..oled_body_input(
                     display,
                     self.title_color,

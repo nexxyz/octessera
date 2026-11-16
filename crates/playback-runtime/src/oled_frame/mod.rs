@@ -1,4 +1,5 @@
 mod aux_cap;
+mod aux_view;
 mod body_animation;
 mod body_wrap;
 mod error_layout;
@@ -40,12 +41,12 @@ pub(crate) use menu_row_layout::{
 };
 pub(crate) use menu_rows::rows_show_aux_caps;
 pub use model::{
-    OledAnimationInput, OledAuxCap, OledAuxHint, OledAuxHints, OledBarInput, OledBarStyle,
-    OledBodyAnimation, OledBodyFrom, OledDisplayInput, OledHintLabel, OledHintSource,
-    OledMenuRowInput, OledMenuRowKind, OledPresentationInput, OledPresentationMetrics,
-    OledRuntimeErrorMetadata, OledSaveFlash, OledScrollInput, OledSignalArea, OledSignalView,
-    OledSignalVisual, OledSplash, OledToastSlide, OledTransportFlash, OledTransportIcon,
-    OledTransportInput, INDICATOR_FADE_LEVELS,
+    OledAnimationInput, OledAuxCap, OledAuxCard, OledAuxGauge, OledAuxHint, OledAuxHints,
+    OledAuxTurn, OledAuxView, OledBarInput, OledBarStyle, OledBodyAnimation, OledBodyFrom,
+    OledDisplayInput, OledHintLabel, OledHintSource, OledMenuRowInput, OledMenuRowKind,
+    OledPresentationInput, OledPresentationMetrics, OledRuntimeErrorMetadata, OledSaveFlash,
+    OledScrollInput, OledSignalArea, OledSignalView, OledSignalVisual, OledSplash, OledToastSlide,
+    OledTransportFlash, OledTransportIcon, OledTransportInput, INDICATOR_FADE_LEVELS,
 };
 pub(crate) use presentation_input::presentation_input_from_snapshot;
 pub use render::{render_oled_frame, render_oled_frame_into};
@@ -56,6 +57,9 @@ pub use text_layout::{
     FONT_GLYPH_HEIGHT, FONT_GLYPH_WIDTH, MENU_BODY_RECT, RUNTIME_ERROR_BODY_RECT,
     SPLASH_TOAST_RECT, TOAST_RECT,
 };
+
+#[cfg(test)]
+mod aux_view_tests;
 
 #[cfg(test)]
 mod body_animation_tests;

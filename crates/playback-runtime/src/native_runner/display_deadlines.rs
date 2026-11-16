@@ -75,6 +75,9 @@ impl NativeRunner {
         if let Some(aux_toast_deadline) = self.aux_toast_deadline() {
             deadline = earliest_deadline(deadline, aux_toast_deadline, last_snapshot_at);
         }
+        if let Some(turn) = self.display.aux_view_turn.filter(|_| self.shows_aux_view()) {
+            deadline = earliest_deadline(deadline, turn.until, last_snapshot_at);
+        }
         if let Some(step) = self.next_toast_scroll_step_after(last_snapshot_at) {
             deadline = earliest_deadline(deadline, step, last_snapshot_at);
         }

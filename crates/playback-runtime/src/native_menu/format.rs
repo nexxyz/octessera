@@ -248,6 +248,37 @@ pub(super) fn format_item_bar_value(
     })
 }
 
+/// A row's raw value, its place in its range (edit-turn space for numbers, the option index for
+/// enums) and whether it reads as a marker rather than a fill; `None` for rows without a value.
+pub(crate) fn item_gauge(item: &NativeMenuItem) -> Option<(String, f32, bool)> {
+    let marker = item.key.as_deref().is_some_and(is_marker_bar_key);
+    match &item.value {
+        NativeMenuValue::Number {
+            value,
+            min,
+            max,
+            curve,
+            ..
+        } => Some((
+            value.to_string(),
+            curve_fraction(*value, (*min, *max), *curve),
+            marker,
+        )),
+        NativeMenuValue::Enum { options, selected } => {
+            let last = options.len().saturating_sub(1).max(1);
+            Some((
+                options.get(*selected)?.clone(),
+                *selected as f32 / last as f32,
+                marker,
+            ))
+        }
+        NativeMenuValue::Bool { value } => {
+            Some((value.to_string(), if *value { 1.0 } else { 0.0 }, marker))
+        }
+        _ => None,
+    }
+}
+
 fn should_use_number_bar(key: &str) -> bool {
     let key_lower = key.to_ascii_lowercase();
     if key_lower.ends_with("channel")

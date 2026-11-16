@@ -284,6 +284,11 @@ impl NativeMenuModel {
         Some(item)
     }
 
+    /// The rows from the top level down to the row with `key`, for naming where it lives.
+    pub fn item_chain_for_key(&self, key: &str) -> Option<Vec<&super::NativeMenuItem>> {
+        self.key_paths.chain(&self.root, key)
+    }
+
     pub fn value_for_key(&self, key: &str) -> Option<String> {
         if self.current_key() == Some(key) {
             return value_from_item(self.current_item());

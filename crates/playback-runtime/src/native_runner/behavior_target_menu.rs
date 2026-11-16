@@ -305,7 +305,7 @@ fn behavior_state_enum_default(
     }
 }
 
-fn parse_generated_behavior_target_layer_index(key: &str) -> Option<usize> {
+pub(super) fn parse_generated_behavior_target_layer_index(key: &str) -> Option<usize> {
     let rest = key.strip_prefix("layers.")?;
     let (index, _) = rest.split_once('.')?;
     index.parse().ok()

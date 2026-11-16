@@ -109,22 +109,18 @@ fn back_on_root_opens_the_view_and_back_returns_to_the_row_it_left() {
 fn main_press_cycles_the_session_visual_through_none_and_the_home_band_follows() {
     let (mut runner, _) = view_runner();
     back(&mut runner);
-    for (label, visual) in [
-        ("Spectrum", Some("spectrum")),
-        ("Waterfall", Some("waterfall")),
-        ("No Visual", None),
+    for (label, signal, aux) in [
+        ("Spectrum", true, false),
+        ("Waterfall", true, false),
+        ("Aux", false, true),
+        ("No Visual", false, false),
     ] {
         press_main(&mut runner);
         assert_eq!(toast(&runner), Some(label));
-        assert_eq!(
-            runner
-                .display
-                .session_visual
-                .map(|kind| kind.label().to_lowercase()),
-            visual.map(String::from)
-        );
+        let shown = presented(&mut runner);
+        assert_eq!(shown.display.signal.is_some(), signal, "{label}");
+        assert_eq!(shown.display.aux_view.is_some(), aux, "{label}");
     }
-    assert!(presented(&mut runner).display.signal.is_none());
     turn(&mut runner, "main", 1);
     assert_eq!(runner.display.signal_tuning, Default::default());
 

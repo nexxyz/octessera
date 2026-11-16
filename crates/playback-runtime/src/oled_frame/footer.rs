@@ -44,12 +44,14 @@ pub(super) fn draw_footer(frame: &mut [u8], input: &OledPresentationInput) {
     } else {
         &input.aux_hints.normal
     };
-    draw_hints(
-        frame,
-        input.display.small_font.small(),
-        hints,
-        input.aux_shift_layer,
-    );
+    if input.display.aux_view.is_none() {
+        draw_hints(
+            frame,
+            input.display.small_font.small(),
+            hints,
+            input.aux_shift_layer,
+        );
+    }
     if input.recording_active {
         let level = if input.recording_pulse_dim { 0.5 } else { 1.0 };
         let red = rgb565(scale(palette::BEHAVIOR_PRIMARY_RED, level));

@@ -1,7 +1,7 @@
 use super::toast_text::toast_lifetime;
 use super::*;
 
-const AUX_TURN_TOAST_HOLD: Duration = Duration::from_millis(1200);
+pub(super) const AUX_TURN_TOAST_HOLD: Duration = Duration::from_millis(1200);
 
 impl NativeRunner {
     pub fn flush_deferred_menu_apply(

@@ -51,20 +51,13 @@ impl NativeRunner {
             return self.effective_shift_aux_slot(index);
         }
         let custom = self.resolve_custom_aux_slot(index);
-        merge_aux_slots(
-            custom,
-            self.current_auto_aux_slot(index),
-            self.aux_auto_first(),
-        )
+        self.merge_aux_side(custom, self.current_auto_aux_slot(index))
     }
 
     pub(super) fn effective_shift_aux_slot(&self, index: usize) -> ResolvedAuxSlot {
         let custom = self.resolve_custom_aux_slot_from(&self.shift_aux_bindings, index);
-        merge_aux_slots(
-            custom,
-            self.current_auto_aux_slot(index + platform_core::AUX_ENCODER_COUNT),
-            self.aux_auto_first(),
-        )
+        let auto = self.current_auto_aux_slot(index + platform_core::AUX_ENCODER_COUNT);
+        self.merge_aux_side(custom, auto)
     }
 
     /// What all six Aux sides do with `manual` and `auto` merged under Aux Priority, for the
@@ -75,17 +68,26 @@ impl NativeRunner {
         auto: AuxAutoMap,
     ) -> [ResolvedAuxSlot; AUX_AUTO_MAP_SLOTS] {
         let count = platform_core::AUX_ENCODER_COUNT;
-        let auto_first = self.aux_auto_first();
         let mut auto = auto.into_iter();
         std::array::from_fn(|index| {
             let custom = manual[index / count][index % count].clone();
-            merge_aux_slots(custom, auto.next().flatten(), auto_first)
+            self.merge_aux_side(custom, auto.next().flatten())
         })
     }
 
-    /// Aux Priority Auto: the page's auto map wins a side it fills; Manual: your bindings win.
-    fn aux_auto_first(&self) -> bool {
-        self.aux_priority == AuxPriority::Auto
+    /// One side's manual and auto slots merged under Aux Priority: Auto lets the page's auto
+    /// map win a side it fills, Manual lets your bindings win. While the performance view shows
+    /// its Aux visual, the bank picked there applies strictly instead.
+    fn merge_aux_side(
+        &self,
+        custom: Option<ResolvedAuxSlot>,
+        auto: Option<ResolvedAuxSlot>,
+    ) -> ResolvedAuxSlot {
+        match self.aux_view_bank() {
+            Some(AuxPriority::Manual) => merge_aux_slots(custom, None, false),
+            Some(AuxPriority::Auto) => merge_aux_slots(None, auto, true),
+            None => merge_aux_slots(custom, auto, self.aux_priority == AuxPriority::Auto),
+        }
     }
 
     fn current_auto_aux_slot(&self, index: usize) -> Option<ResolvedAuxSlot> {

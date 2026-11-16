@@ -17,6 +17,7 @@ impl NativeRunner {
         };
         let coarse = !(self.display.ui.fn_held || self.display.ui.combined_modifier_held);
         match self.turn_bound_key(&turn.key, &turn.label, delta, coarse) {
+            Ok(Some(_)) if self.shows_aux_view() => self.mark_aux_view_turn(index, shifted),
             Ok(Some((label, value))) => {
                 self.show_or_queue_aux_turn_toast(format!("{head}: {label}: "), value);
             }

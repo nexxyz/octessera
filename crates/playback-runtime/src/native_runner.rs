@@ -180,6 +180,7 @@ mod system_document_tests;
 mod system_store_result_tests;
 mod tile_stamp;
 pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
+mod aux_view;
 mod error_presentation_results;
 mod hardware_test;
 mod link_config;

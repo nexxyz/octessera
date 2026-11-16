@@ -42,6 +42,22 @@ impl MenuKeyPaths {
             .try_fold(root, |item, index| item.children.get_mut(*index))
     }
 
+    /// The rows from the top level down to the row with `key`.
+    pub(super) fn chain<'a>(
+        &self,
+        root: &'a NativeMenuItem,
+        key: &str,
+    ) -> Option<Vec<&'a NativeMenuItem>> {
+        let path = self.path_for(root, key)?;
+        let mut item = root;
+        let mut chain = Vec::with_capacity(path.len());
+        for index in path {
+            item = item.children.get(index)?;
+            chain.push(item);
+        }
+        Some(chain)
+    }
+
     #[cfg(test)]
     pub(crate) fn tree_searches(&self) -> usize {
         self.tree_searches.get()

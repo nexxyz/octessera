@@ -146,7 +146,11 @@ the tempo along the top. Pick pages with *Fn* or *Shift* + *Fn* and the right
 column as usual; the view just shows the page name and stays put. The Aux
 encoders follow along: on Play FX they drive the effect, everywhere else the
 layer's own knobs (Life's step rate and spawns, say). Click *Main* to swap the
-picture (scope, spectrum, waterfall or nothing at all) and turn it to zoom.
+picture (scope, spectrum, waterfall, aux or nothing at all) and turn it to zoom.
+The aux picture is a little control panel: three knobs where the Aux encoders
+sit, each with its name, its value on an arc and its click. Turn *Main* left for
+the automatic mapping or right for the bindings you set up yourself; the knobs
+then do exactly what the screen says, and nothing else.
 *Back* takes you home to the menu, right where you left it. If you'd like to
 start every session there, switch on `System > Display > View at Boot`.
 

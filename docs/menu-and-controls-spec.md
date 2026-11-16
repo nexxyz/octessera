@@ -538,13 +538,49 @@ change; only the distance per detent does.
   silent it is the dim flat line; `none` leaves the body black. It schedules no frames while
   stopped, and steps like the home band while playing.
 - Footer: unchanged, with the view's Aux hints.
-- Main press cycles the session visual `scope`, `spectrum`, `waterfall`, `none` and toasts it
-  (`Spectrum`, `No Visual`); Main turn adjusts the shown visual; `none` ignores turns. Back closes
-  the view. Modifier chords keep their meaning: Shift+Fn+Main opens the view's help, Fn+Main the
+- Main press cycles the session visual `scope`, `spectrum`, `waterfall`, `aux`, `none` and
+  toasts it (`Spectrum`, `Aux`, `No Visual`); Main turn adjusts the shown signal visual, picks the
+  bank in `aux` (below), and does nothing in `none`. Back closes the view. Modifier chords keep their meaning: Shift+Fn+Main opens the view's help, Fn+Main the
   Aux mappings modal, Fn+Main turn right single steps. Popups, help, confirm dialogs and toasts
   show over the view and close back onto it.
 - The session visual is never saved. It starts as the stored `Home Visual`, and the home band
-  shows it too; changing `System > Display > Home Visual` sets the stored and the session value.
+  shows it too, except `aux`: then the band keeps the stored `Home Visual`. Changing
+  `System > Display > Home Visual` sets the stored and the session value.
+- `aux` (performance view only, not the Shape signal view): the body (`y=12..116`) mirrors the
+  Aux encoders as on the panel, Aux 1 top centre, Aux 2 lower left, Aux 3 lower right. The footer
+  hints are hidden; the transport icon, event dot and recording disc stay. `Auto Hints` and
+  `Manual Hints` do not apply. Each card shows:
+  - the turn target's name in the main font, centred (a click-only side shows its click with
+    `!`; a side with nothing shows a dim `-`);
+  - for a manual binding only, its compact `owner/page` path in Tom Thumb at 70 % of the
+    target's section colour, cut from the right with `..` to the card (120 px top, 61 px below).
+    The owner is `I<n>`, `B<n>`, `Master`, `L<n>`, `LFO<n>`, `CC<n>`, `Play`, `SYS` (or the
+    section for rows straight under it); the page is the group that holds the row by its short
+    label, none when the owner holds it directly. A slot page is named by what it holds
+    (`B1/Reverb`), with the slot number when two slots of the owner hold the same effect
+    (`B3/Delay 1`); Build targets take the layer's behavior (`L1/life`); a Link axis keeps its
+    axis (`L1/X Filter Cutoff`). A row of cards drops its arcs 6 px while any of them shows a
+    path;
+  - a 2 px semicircle arc (radius 17.5..19.5 around a pixel corner, flat ends on the centre
+    line). Fill style lights it from the left up to the value over a track at 28 % of the
+    colour; marker style lights a 20° segment at the position. The fraction is the row's bar
+    fraction for numbers, the option index for enums. A target that is not active, and a side
+    with nothing to turn, show the arc as dim gray dots;
+  - the value in white inside the arc, as its menu row shows it (`1/16`, `151`, `R3`);
+  - the click action with `!` under the arc when the side also turns.
+  While Shift is held the cards show the Shift layer of the bank instead, in the same layout.
+  An Aux turn shows no toast here: its card lights its arc white and boxes its value in the card
+  colour for 1.2 s, the Aux toast hold, through one state deadline. The visual has no live
+  steps: it is redrawn only when a capture changes it.
+- Bank (only while `aux` shows): Main turn right picks `Manual`, left picks `Auto`, and toasts
+  `Aux: Manual` / `Aux: Auto`; the header shows the bank before the tempo (`Auto 120`). The
+  encoders and the cards follow the bank strictly: in `Manual` only manual bindings apply and
+  other sides show `-` and do nothing; in `Auto` only the auto map applies (the active Play
+  page's layout, else the active layer's), so with Auto Map off every side shows `-`. Layer and
+  Play page select keep the bank: the Manual cards stay on the patch-wide manual bindings, the
+  Auto cards re-map. The bank starts at `Auto`, is remembered for the session and never saved.
+  Whenever another visual shows, or outside the view, the Aux encoders resolve by `Aux Prio.`
+  as usual, and the stored `Aux Prio.` never changes.
 - Fn + left column selects the layer as everywhere (the header follows, the Play overlay
   leaves). Fn/Shift+Fn + right column activates that Play page and toasts its name; the menu
   stays at root and the header shows the page.
@@ -1063,7 +1099,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - In the performance view the context is the active Play page's layout where it has one (Play
   FX), otherwise the active layer's behavior layout, also on Play pages without a layout (Mix,
   Pan, Route, Tempo, LFO, Faders, XY, Transpose, Rate, Trigger Gate). Layer and page select
-  re-map the encoders and the footer hints follow. Manual bindings merge under `Aux Prio.`.
+  re-map the encoders and the footer hints follow. Manual bindings merge under `Aux Prio.`,
+  except while the view shows its `aux` visual, where the picked bank applies strictly (see
+  [Performance view](#performance-view)).
 - No auto-map applies while an assignment mode is active (Sample, Drum, MIDI Drum and trigger-probability
   Assign, Play FX and Faders Tile Map `Map to Grid`): no auto caps, no auto hints, and Aux input skips the auto
   layout. Manual bindings keep working, and the layout returns when Back leaves the mode.
