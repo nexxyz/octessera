@@ -1,6 +1,7 @@
 use super::model::{OledMenuRowKind, OledSignalArea, OledSignalView, OledSignalVisual};
 use super::pixels::{dim, rgb565};
 use super::render::render_oled_frame;
+use super::signal_view::ramp;
 use super::tests::{base, menu_row, pixel, AREA};
 use super::{
     OledPresentationInput, SIGNAL_BAND_HEIGHT, SIGNAL_BODY_HEIGHT, SIGNAL_WIDTH, SPECTRUM_BARS,
@@ -134,6 +135,26 @@ fn waterfall_columns_run_oldest_to_newest_with_low_bins_at_the_bottom() {
     );
 }
 
+#[test]
+fn every_waterfall_level_draws_its_ramp_colour() {
+    let levels: Vec<u8> = (0..SIGNAL_WIDTH * SIGNAL_BODY_HEIGHT)
+        .map(|index| (index % 256) as u8)
+        .collect();
+    let frame = render_oled_frame(&full_screen(OledSignalVisual::Waterfall {
+        levels: levels.clone(),
+    }));
+    let bottom = 12 + SIGNAL_BODY_HEIGHT - 1;
+    for (index, &level) in levels.iter().enumerate() {
+        let (column, bin) = (index / SIGNAL_BODY_HEIGHT, index % SIGNAL_BODY_HEIGHT);
+        let expected = if level == 0 { 0 } else { ramp(level) };
+        assert_eq!(
+            pixel(&frame, BAND_X + column, bottom - bin),
+            expected,
+            "level {level}"
+        );
+    }
+}
+
 fn full_screen(visual: OledSignalVisual) -> OledPresentationInput {
     let mut input = base();
     input.display.title = "/S/Instruments/I1: synth/Scope".into();
@@ -175,4 +196,38 @@ fn a_full_screen_view_fills_the_body_between_the_header_and_the_footer() {
     );
     assert_eq!(pixel(&waterfall, BAND_X, 12), rgb565(palette::YELLOW));
     assert_eq!(pixel(&waterfall, BAND_X - 1, 12), 0);
+}
+
+/// Prints the raster cost of full-screen signal views; run with
+/// `cargo test --release -p playback-runtime --lib signal_view_raster_cost -- --ignored --nocapture`.
+#[test]
+#[ignore = "release-mode micro-benchmark"]
+fn signal_view_raster_cost() {
+    let levels: Vec<u8> = (0..SIGNAL_WIDTH * SIGNAL_BODY_HEIGHT)
+        .map(|index| (index * 37 % 256) as u8)
+        .collect();
+    let bars: Vec<u8> = (0..SPECTRUM_BARS).map(|index| (index * 4) as u8).collect();
+    let mut frame = vec![0_u8; super::OLED_FRAME_BYTES];
+    for (name, input) in [
+        (
+            "spectrum",
+            full_screen(OledSignalVisual::Spectrum {
+                levels: bars.clone(),
+                peaks: bars,
+            }),
+        ),
+        (
+            "waterfall",
+            full_screen(OledSignalVisual::Waterfall { levels }),
+        ),
+    ] {
+        let runs = 2000;
+        let started = std::time::Instant::now();
+        for _ in 0..runs {
+            super::render::render_oled_frame_into(std::hint::black_box(&input), &mut frame);
+        }
+        let per_frame = started.elapsed().as_secs_f64() * 1e6 / f64::from(runs);
+        println!("{name} OLED frame raster: {per_frame:.1} us/frame");
+    }
+    std::hint::black_box(&frame);
 }

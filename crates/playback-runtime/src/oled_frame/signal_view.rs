@@ -1,8 +1,10 @@
 use platform_core::palette;
+use std::sync::LazyLock;
 
 use super::menu_rows::{slot_top, BAR_HEIGHT, PITCH};
 use super::model::{OledSignalArea, OledSignalView, OledSignalVisual};
 use super::pixels::{dim, fill_rect, rgb565};
+use super::OLED_WIDTH;
 
 /// How far the rows after the home band drop below their slots: less than two row pitches.
 pub(super) const SIGNAL_BAND_DROP: usize = 18;
@@ -106,6 +108,9 @@ fn draw_spectrum(frame: &mut [u8], rows: Rows, levels: &[u8], peaks: &[u8]) {
 }
 
 fn draw_waterfall(frame: &mut [u8], rows: Rows, levels: &[u8]) {
+    static COLORS: LazyLock<[u16; 256]> =
+        LazyLock::new(|| std::array::from_fn(|level| ramp(level as u8)));
+    let colors = &*COLORS;
     for (column, bins) in levels
         .chunks_exact(rows.height)
         .take(SIGNAL_WIDTH)
@@ -114,7 +119,8 @@ fn draw_waterfall(frame: &mut [u8], rows: Rows, levels: &[u8]) {
         for (bin, &level) in bins.iter().enumerate() {
             if level != 0 {
                 let y = rows.bottom() - 1 - bin;
-                fill_rect(frame, LEFT_X + column, y, 1, 1, ramp(level));
+                let index = (y * OLED_WIDTH + LEFT_X + column) * 2;
+                frame[index..index + 2].copy_from_slice(&colors[usize::from(level)].to_be_bytes());
             }
         }
     }
@@ -124,7 +130,7 @@ fn level_rows(level: u8, rows: usize) -> usize {
     (usize::from(level) * rows + 127) / 255
 }
 
-fn ramp(level: u8) -> u16 {
+pub(super) fn ramp(level: u8) -> u16 {
     let upper = RAMP
         .iter()
         .position(|(stop, _)| level <= *stop)
