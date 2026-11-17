@@ -105,6 +105,26 @@ fn snapshot_playback() -> (PlaybackRuntime, NativeRunner, TestHost) {
 }
 
 #[test]
+fn first_playing_tick_counts_from_the_playback_start() {
+    let before_start = Instant::now();
+    let (playback, _runner, _host) = playing_playback();
+    let origin = playback
+        .clock_origin()
+        .expect("start should anchor the clock");
+    let mut scheduler =
+        HardwareRuntimeScheduler::new(before_start, playback.last_snapshot_revision());
+
+    assert!(scheduler
+        .next_runtime_advance(origin + Duration::from_millis(5), &playback, None)
+        .is_none());
+    let advance = scheduler
+        .next_runtime_advance(origin + PLAYBACK_TICK, &playback, None)
+        .expect("the first tick should be due one tick after the start");
+
+    assert_eq!(advance.elapsed, PLAYBACK_TICK);
+}
+
+#[test]
 fn stopped_runtime_uses_fifty_millisecond_maintenance() {
     let now = Instant::now();
     let mut scheduler = HardwareRuntimeScheduler::new(now, 0);

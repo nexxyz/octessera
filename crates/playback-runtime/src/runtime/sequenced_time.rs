@@ -17,6 +17,11 @@ impl PlaybackRuntime {
         self.sequenced_delay = delay;
     }
 
+    /// The host instant the current internal playback started at.
+    pub fn clock_origin(&self) -> Option<Instant> {
+        self.clock_anchor.map(|(origin, _)| origin)
+    }
+
     /// Time from the last advance until the next internal pulse is due.
     pub fn time_until_next_pulse(&self) -> Option<Duration> {
         let playing = self.config.sync_source == SyncSource::Internal

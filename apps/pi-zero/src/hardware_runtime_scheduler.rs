@@ -65,7 +65,14 @@ impl HardwareRuntimeScheduler {
         let realtime_active = runtime_tick_needed(playback, xy_glide_deadline);
         if realtime_active != self.realtime_active {
             self.realtime_active = realtime_active;
-            self.last_tick_at = now;
+            self.last_tick_at = playback
+                .clock_origin()
+                .filter(|origin| {
+                    realtime_active
+                        && (self.last_tick_at..=now).contains(origin)
+                        && now.duration_since(*origin) <= PLAYBACK_TICK
+                })
+                .unwrap_or(now);
             return None;
         }
 
