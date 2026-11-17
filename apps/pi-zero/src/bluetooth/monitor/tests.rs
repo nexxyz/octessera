@@ -34,3 +34,18 @@ fn the_monitor_tap_lives_exactly_as_long_as_the_monitor() {
     drop(monitor);
     assert!(taps.read().unwrap().monitor.is_none());
 }
+
+#[test]
+fn a_player_that_keeps_failing_backs_off_to_once_a_minute() {
+    let mut delay = RESTART_DELAY;
+    let mut delays = Vec::new();
+    for _ in 0..6 {
+        delay = next_restart_delay(delay, Duration::from_millis(50));
+        delays.push(delay.as_secs());
+    }
+    assert_eq!(delays, [4, 8, 16, 32, 60, 60]);
+    assert_eq!(
+        next_restart_delay(MAX_RESTART_DELAY, Duration::from_secs(300)),
+        RESTART_DELAY
+    );
+}

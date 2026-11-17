@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 
 const CHUNK_WAIT: Duration = Duration::from_millis(200);
 const RESTART_DELAY: Duration = Duration::from_secs(2);
+const MAX_RESTART_DELAY: Duration = Duration::from_secs(60);
 const PLAYER_BUFFER_MICROS: u32 = 200_000;
 
 pub(crate) struct BluetoothAudioMonitor {
@@ -83,7 +84,9 @@ impl Feeder {
     fn run(self) {
         lower_priority();
         let mut start_failure_reported = false;
+        let mut delay = RESTART_DELAY;
         while !self.stopped() {
+            let started = Instant::now();
             match self.spawn_player() {
                 Ok(()) => {
                     if self.pump() == Pump::Disconnected {
@@ -97,7 +100,8 @@ impl Feeder {
                 Err(_) => {}
             }
             self.stop_player();
-            if !self.discard_until(Instant::now() + RESTART_DELAY) {
+            delay = next_restart_delay(delay, started.elapsed());
+            if !self.discard_until(Instant::now() + delay) {
                 break;
             }
         }
@@ -195,6 +199,16 @@ impl Feeder {
 enum Pump {
     PlayerGone,
     Disconnected,
+}
+
+/// A player that keeps failing fast, such as on a speaker without A2DP,
+/// backs off to one attempt a minute; one that played for a while retries soon.
+fn next_restart_delay(previous: Duration, played: Duration) -> Duration {
+    if played >= MAX_RESTART_DELAY {
+        RESTART_DELAY
+    } else {
+        (previous * 2).min(MAX_RESTART_DELAY)
+    }
 }
 
 fn player_args(address: &str, sample_rate: u32) -> Vec<String> {
