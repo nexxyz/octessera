@@ -535,7 +535,8 @@ change; only the distance per detent does.
 - Entry: plain Back on the root menu, with no popup, help or assignment mode open, opens a
   full-screen view of the master mix while `System > Display > View on Back` is on (the
   default). The menu stays at root underneath on the row it left; the view never appears
-  unasked. With `View on Back` off, Back on root only leaves an active Play page, as before.
+  unasked. Any input that moves the menu off root closes it, so a later return to root, by
+  input or not, shows the menu until the next Back. With `View on Back` off, Back on root only leaves an active Play page, as before.
 - `View at Boot` (off by default): the startup splash ends in the view, stopped, with the usual
   `Help: Sh+Fn+Main` toast.
 - Both are stored as `perfViewOnBack` and `perfViewAtBoot` in the system preferences;

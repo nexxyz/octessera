@@ -290,6 +290,29 @@ fn bound_clicks_run_in_the_view_except_signal_and_page_actions_leave_it() {
 }
 
 #[test]
+fn a_view_left_by_input_stays_closed_when_the_menu_returns_to_root_without_input() {
+    let (mut runner, _) = view_runner();
+    back(&mut runner);
+    device_input(
+        &mut runner,
+        json!({ "type": "button_shift", "pressed": true }),
+    );
+    press_main(&mut runner);
+    assert!(!runner.menu.state.stack.is_empty());
+
+    runner.menu.back();
+    assert!(runner.menu.state.stack.is_empty());
+    assert!(!runner.shows_performance_view());
+    device_input(
+        &mut runner,
+        json!({ "type": "button_shift", "pressed": false }),
+    );
+    assert!(!runner.shows_performance_view());
+    back(&mut runner);
+    assert!(runner.shows_performance_view());
+}
+
+#[test]
 fn help_and_assignment_modes_sit_over_the_view_and_close_back_onto_it() {
     let (mut runner, _) = view_runner();
     back(&mut runner);

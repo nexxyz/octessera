@@ -64,7 +64,9 @@ impl NativeRunner {
         &mut self,
         input: DeviceInput,
     ) -> Result<Vec<RunnerMessage>, String> {
-        self.handle_device_input_with_error_mode(input, false)
+        let messages = self.handle_device_input_with_error_mode(input, false);
+        self.display.performance_view &= self.shows_performance_view();
+        messages
     }
 
     pub(super) fn handle_presented_runtime_error_input(
