@@ -69,3 +69,79 @@ fn system_info_does_not_wait_for_store_lock() {
         "SystemInfo must return typed data with the store lock poisoned"
     );
 }
+
+struct HeldUpdate {
+    release: Mutex<std::sync::mpsc::Receiver<()>>,
+}
+
+impl device_update::UpdateExecutor for HeldUpdate {
+    fn output(
+        &self,
+        _command: &mut std::process::Command,
+    ) -> std::io::Result<std::process::Output> {
+        let _ = self
+            .release
+            .lock()
+            .unwrap()
+            .recv_timeout(std::time::Duration::from_secs(10));
+        Err(std::io::Error::other("held update released"))
+    }
+}
+
+#[test]
+fn a_running_update_does_not_hold_back_store_jobs() {
+    let root = crate::test_temp_dir::unique_temp_path("octessera-platform-update-lane");
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let service = PiPlatformService::new_with_update_executor(
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(HeldUpdate {
+            release: Mutex::new(release_rx),
+        }),
+    );
+    let request = |effect, id: &str| RuntimePlatformRequest::new(effect, id.into(), None);
+    service
+        .enqueue(PlatformJob::new(
+            request(
+                playback_runtime::RuntimePlatformEffect::UpdateCheck,
+                "held-update",
+            ),
+            PlatformJobKind::UpdateCheck,
+        ))
+        .unwrap();
+    let (completed_tx, completed_rx) = std::sync::mpsc::sync_channel(1);
+    service
+        .enqueue(PlatformJob::new(
+            request(
+                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                "after-update",
+            ),
+            PlatformJobKind::TestBarrier {
+                completed: completed_tx,
+            },
+        ))
+        .unwrap();
+    completed_rx
+        .recv_timeout(std::time::Duration::from_secs(3))
+        .expect("store job waited behind the update");
+
+    release_tx.send(()).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    let mut found = false;
+    while !found && std::time::Instant::now() < deadline {
+        found = service.drain_results(4).into_iter().any(|message| {
+            matches!(
+                message,
+                HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::Identified { request_id, result, .. }
+                } if request_id == "held-update"
+                    && matches!(result.as_ref(), RuntimeStoreResult::DeviceUpdateStatus { ok: false, .. })
+            )
+        });
+        if !found {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+    let _ = std::fs::remove_dir_all(root);
+    assert!(found, "the update result must still arrive");
+}
