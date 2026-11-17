@@ -134,20 +134,11 @@ impl NativeRunner {
         if parent_dir(&path) != dir {
             return entries;
         }
-        let unavailable = self
-            .sample_availability
-            .get(instrument_slot)
-            .and_then(|slots| slots.get(sample_slot))
-            == Some(&NativeSampleAvailability::Unavailable);
-        if let Some(entry) = entries
-            .iter_mut()
-            .find(|entry| !entry.is_dir && same_sample_path(&entry.path, &path))
+        if entries
+            .iter()
+            .any(|entry| !entry.is_dir && same_sample_path(&entry.path, &path))
         {
-            if unavailable {
-                entry.name = sample_display_name(&path, NativeSampleAvailability::Unavailable);
-            } else {
-                self.mark_sample_available(instrument_slot, sample_slot);
-            }
+            self.mark_sample_available(instrument_slot, sample_slot);
         } else {
             self.mark_sample_unavailable(instrument_slot, sample_slot);
             entries.push(SampleEntry {

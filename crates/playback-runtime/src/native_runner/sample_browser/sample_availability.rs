@@ -11,9 +11,7 @@ impl NativeRunner {
         else {
             return;
         };
-        if *availability != NativeSampleAvailability::Unavailable {
-            *availability = NativeSampleAvailability::Available;
-        }
+        *availability = NativeSampleAvailability::Available;
     }
 
     pub(in crate::native_runner) fn mark_sample_unavailable(
@@ -37,7 +35,11 @@ impl NativeRunner {
         if error.domain != crate::RuntimeErrorDomain::Sample {
             return Vec::new();
         }
-        let Some(message) = error.message.as_deref() else {
+        let Some(failed_path) = error
+            .message
+            .as_deref()
+            .and_then(crate::SampleLoadError::path_in_message)
+        else {
             return Vec::new();
         };
         let mut changed = Vec::new();
@@ -49,7 +51,7 @@ impl NativeRunner {
                     instrument.sample_paths.iter().enumerate().filter_map(
                         move |(sample_slot, path)| {
                             path.as_deref()
-                                .filter(|path| message.contains(path))
+                                .filter(|path| same_sample_path(path, failed_path))
                                 .map(|_| (instrument_slot, sample_slot))
                         },
                     )

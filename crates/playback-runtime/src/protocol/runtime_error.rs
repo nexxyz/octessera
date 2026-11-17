@@ -25,6 +25,9 @@ pub enum RuntimeErrorCode {
     AudioThreadFailed,
 }
 
+const SAMPLE_NOT_FOUND: &str = "sample not found: ";
+const SAMPLE_DECODE_FAILED: &str = "sample decode failed: ";
+
 /// A sample a host could not load: its path did not resolve, or the file would not decode.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SampleLoadError {
@@ -42,9 +45,15 @@ impl SampleLoadError {
 
     pub fn message(&self) -> String {
         match self {
-            Self::Unresolved(path) => format!("sample not found: {path}"),
-            Self::Undecodable(path) => format!("sample decode failed: {path}"),
+            Self::Unresolved(path) => format!("{SAMPLE_NOT_FOUND}{path}"),
+            Self::Undecodable(path) => format!("{SAMPLE_DECODE_FAILED}{path}"),
         }
+    }
+
+    pub fn path_in_message(message: &str) -> Option<&str> {
+        message
+            .strip_prefix(SAMPLE_NOT_FOUND)
+            .or_else(|| message.strip_prefix(SAMPLE_DECODE_FAILED))
     }
 }
 

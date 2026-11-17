@@ -281,3 +281,51 @@ pub(crate) fn repicking_a_missing_sample_from_the_browser_drops_its_na_prefix() 
         Some("S1: missing.wav".into())
     );
 }
+
+#[test]
+pub(crate) fn another_files_failure_leaves_a_slot_available() {
+    let mut runner = sampler_with_path("Drums/kick.wav");
+
+    runner
+        .apply_store_result(sample_failure("Old/Drums/kick.wav"))
+        .unwrap();
+
+    assert_eq!(
+        runner.sample_availability[0][0],
+        NativeSampleAvailability::Unknown
+    );
+}
+
+#[test]
+pub(crate) fn a_rescan_that_finds_the_file_clears_its_na_mark() {
+    let path = "Drums/kick.wav";
+    let mut runner = sampler_with_path(path);
+    runner.apply_store_result(sample_failure(path)).unwrap();
+    runner.sample_browser = Some(open_browser("Drums"));
+
+    runner
+        .apply_store_result(RuntimeStoreResult::SampleListResult {
+            instrument_slot: 0,
+            sample_slot: 0,
+            dir: "Drums".into(),
+            entries: vec![SampleEntry {
+                name: "kick.wav".into(),
+                path: path.into(),
+                is_dir: false,
+            }],
+        })
+        .unwrap();
+
+    assert_eq!(
+        runner.sample_availability[0][0],
+        NativeSampleAvailability::Available
+    );
+    assert_eq!(
+        runner.sample_browser.as_ref().unwrap().entries[0].name,
+        "kick.wav"
+    );
+    assert_eq!(
+        item_label(&runner.menu.root, &format!("sample.loaded:0:0:{path}")),
+        Some("S1: kick.wav".into())
+    );
+}
