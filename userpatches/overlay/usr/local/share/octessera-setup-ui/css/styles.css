@@ -2,7 +2,6 @@
   color-scheme: dark;
   --bg: #050505;
   --panel: #0c0c0c;
-  --panel-strong: #141414;
   --text: #f5f5f2;
   --muted: #b4b4b4;
   --line: #2a2a2a;
@@ -75,13 +74,6 @@ h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 0.6rem; font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1.02; max-width: 12ch; }
 h2 { margin-bottom: 0.65rem; }
 .lede { max-width: 60ch; font-size: 1.06rem; color: var(--muted); }
-.notice {
-  border-left: 4px solid var(--accent);
-  background: var(--panel-strong);
-  padding: 0.9rem 1rem;
-  border-radius: 14px;
-  max-width: 66ch;
-}
 
 .form-card { padding: 1rem; }
 .errors { min-height: 1.4rem; margin-bottom: 0.6rem; }
