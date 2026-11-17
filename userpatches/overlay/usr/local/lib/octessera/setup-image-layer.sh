@@ -31,24 +31,6 @@ install_required etc/octessera/setup-profile /etc/octessera/setup-profile 0644
 install_required etc/tmpfiles.d/octessera-setup-request.conf /etc/tmpfiles.d/octessera-setup-request.conf 0644
 install_required etc/systemd/system/octessera-setup.service /etc/systemd/system/octessera-setup.service 0644
 install_required etc/systemd/system/octessera-setup-request.path /etc/systemd/system/octessera-setup-request.path 0644
-for obsolete in \
-  /usr/local/sbin/octessera-wifi-connect \
-  /usr/local/sbin/octessera-setup-sidecar \
-  /usr/local/sbin/octessera-setup-request \
-  /usr/local/sbin/octessera-setup-request-cleanup \
-  /usr/local/sbin/octessera-setup-start \
-  /usr/local/sbin/octessera-setup-cleanup \
-  /usr/local/lib/octessera/setup-status.py \
-  /usr/local/lib/octessera/setup-status-cli.py \
-  /usr/local/lib/octessera/setup-call.py \
-  /etc/tmpfiles.d/octessera-setup-queue.conf \
-  /etc/systemd/system/octessera-setup-request.service \
-  /etc/systemd/system/multi-user.target.wants/octessera-setup-request.service; do
-  rm -f -- "$obsolete"
-done
-for stale_ui_file in app.js styles.css octessera-mark.svg octessera-wordmark.svg; do
-  rm -f "/usr/local/share/octessera-setup-ui/$stale_ui_file"
-done
 setup_service_link=/etc/systemd/system/multi-user.target.wants/octessera-setup.service
 if [[ -L "$setup_service_link" ]]; then
   [[ "$(readlink "$setup_service_link")" == "/etc/systemd/system/octessera-setup.service" ]] || { echo "Unexpected setup service enablement link." >&2; exit 1; }

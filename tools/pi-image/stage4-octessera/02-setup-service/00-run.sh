@@ -91,24 +91,6 @@ install -D -o root -g root -m 0644 \
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-setup-request.path" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-setup-request.path"
-rm -f \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-wifi-connect" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-sidecar" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-request" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-request-cleanup" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-start" \
-    "$ROOTFS_DIR/usr/local/sbin/octessera-setup-cleanup" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/setup-status.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/setup-status-cli.py" \
-    "$ROOTFS_DIR/usr/local/lib/octessera/setup-call.py" \
-    "$ROOTFS_DIR/etc/tmpfiles.d/octessera-setup-queue.conf" \
-    "$ROOTFS_DIR/etc/systemd/system/octessera-setup-request.service" \
-    "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-setup-request.service"
-rm -f \
-    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/app.js" \
-    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/styles.css" \
-    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/octessera-mark.svg" \
-    "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/octessera-wordmark.svg"
 install -D -o root -g root -m 0644 \
     "$STAGE_FILES/root/usr/local/share/octessera-setup-ui/index.html" \
     "$ROOTFS_DIR/usr/local/share/octessera-setup-ui/index.html"
