@@ -203,7 +203,7 @@ fn retries_audio(fault: &HardwareFault) -> bool {
         .all(|failure| part_name(failure.name).is_none())
 }
 
-fn part_name(name: &str) -> Option<&'static str> {
+fn part_name(name: &'static str) -> Option<&'static str> {
     Some(match name {
         "TRELLIS" => "Grid",
         "NEOKEY" => "Keys",
@@ -211,8 +211,11 @@ fn part_name(name: &str) -> Option<&'static str> {
         "SEESAW_INT" => "Key signal",
         "OLED" => "Screen",
         "I2C" => "I2C bus",
+        "ENCODERS" | "encoder_main" | "encoder_aux_1" | "encoder_aux_2" | "encoder_aux_3" => {
+            "Encoders"
+        }
         "AUDIO" | "DAC" => return None,
-        _ => "Encoders",
+        _ => name,
     })
 }
 
@@ -337,6 +340,11 @@ mod tests {
                 "plug it back in."
             ]
         );
+    }
+
+    #[test]
+    fn unknown_parts_keep_their_own_name() {
+        assert_eq!(screen(&[("RTC", MISSING)]).1[0], "RTC");
     }
 
     #[test]
