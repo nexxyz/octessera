@@ -232,8 +232,9 @@ for index, path in enumerate(COORDINATORS):
     failing = Board(fail={("nmcli", "radio", "wifi", "on")})
     failure_status = []
     fake_server = SimpleNamespace(serve_forever=lambda: None, shutdown=lambda: None, server_close=lambda: None)
+    bound = []
     original_setup_server = coordinator.setup_http.SetupHTTPServer
-    coordinator.setup_http.SetupHTTPServer = lambda *_args: fake_server
+    coordinator.setup_http.SetupHTTPServer = lambda address, _handler: (bound.append(address), fake_server)[1]
     try:
         failure_instance, failure_started = coordinator_for(coordinator, profile, failing)
         failure_instance.publish = lambda phase, **kwargs: failure_status.append((phase, kwargs))
@@ -241,7 +242,7 @@ for index, path in enumerate(COORDINATORS):
         assert failure_instance.run(0.0) == 0
     finally:
         coordinator.setup_http.SetupHTTPServer = original_setup_server
-    assert [event[1] for event in failing.events] == [("nmcli", "radio", "wifi", "on")] and failure_started == []
+    assert [event[1] for event in failing.events] == [("nmcli", "radio", "wifi", "on")] and failure_started == [] and bound == []
     assert failure_status[-1] == ("failed", {"error_code": "operation_failed", "terminal": True})
 
     instance.portal_ready = lambda: True
@@ -430,7 +431,7 @@ for index, path in enumerate(COORDINATORS):
     radio = {"log": ""}
     stop_status = []
     stop_marker.write_text("")
-    coordinator.setup_http.SetupHTTPServer = lambda *_args: fake_server
+    coordinator.setup_http.SetupHTTPServer = lambda address, _handler: (bound.append(address), fake_server)[1]
     try:
         stopping = coordinator.Coordinator(orange, command=lambda args, timeout=None: SimpleNamespace(returncode=0, stdout=radio["log"]) if args[0] == "journalctl" else Board().command(args, timeout), clock=lambda: 5.0, sleeper=lambda _seconds: None)
         stopping.interface_suffix = lambda: "abcd"
@@ -444,6 +445,7 @@ for index, path in enumerate(COORDINATORS):
         coordinator.setup_http.SetupHTTPServer = original_setup_server
         stop_marker.unlink()
     assert [phase for phase, _ in stop_status] == ["starting", "portal_ready", "failed"]
+    assert bound == [(coordinator.setup_hotspot.AP_ADDRESS, 80)]
     assert stop_status[-1] == ("failed", {"error_code": "radio_restart_required", "terminal": True})
 
     for states, crash_after_state, code, timeout_end in ((["20 (unavailable)", "30 (disconnected)"], True, "radio_restart_required", False), (["30 (disconnected)"], True, "radio_restart_required", True), (["30 (disconnected)"], False, None, False), (["70 (connecting)", "100 (connected)"], False, None, False)):
