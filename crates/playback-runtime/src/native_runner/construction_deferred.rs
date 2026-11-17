@@ -53,8 +53,14 @@ impl NativeRunner {
             self.fast_autosave_marks = self.fast_autosave_marks.saturating_add(1);
         }
         self.mark_config_dirty();
-        self.pending.pending_autosave_payload_due_at =
-            Some(Instant::now() + Duration::from_millis(150));
+        let now = Instant::now();
+        if self
+            .pending
+            .pending_autosave_payload_due_at
+            .is_none_or(|due_at| due_at <= now)
+        {
+            self.pending.pending_autosave_payload_due_at = Some(now + Duration::from_millis(150));
+        }
         self.pending.autosave_payload_notified_at = None;
     }
 

@@ -214,6 +214,27 @@ fn intent_reports_backup_and_combined_eligibility_without_changing_legacy_rules(
 }
 
 #[test]
+fn repeated_marks_keep_an_unexpired_debounce_deadline() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let pending_due = Instant::now() + Duration::from_secs(60);
+    let revision = dirty_at(&mut runner, pending_due);
+    runner.mark_fast_autosave_dirty();
+    assert_eq!(
+        runner.pending.pending_autosave_payload_due_at,
+        Some(pending_due)
+    );
+    assert_ne!(runner.dirty_revision, Some(revision));
+
+    let expired = Instant::now();
+    dirty_at(&mut runner, expired);
+    runner.mark_fast_autosave_dirty();
+    assert!(runner
+        .pending
+        .pending_autosave_payload_due_at
+        .is_some_and(|due_at| due_at > expired));
+}
+
+#[test]
 fn native_backup_issuance_advances_only_backup_eligibility() {
     let now = Instant::now();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

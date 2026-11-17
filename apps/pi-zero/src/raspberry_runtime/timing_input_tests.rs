@@ -165,7 +165,6 @@ fn native_worker_save_result_produces_the_receipt() {
     }
     let (request_id, elapsed) = timing.sequence.save_completion.clone().unwrap();
     assert!(!request_id.is_empty());
-    assert!(elapsed >= Duration::from_secs(2));
     assert!(elapsed < crate::autoaux_sequence::SAVE_COMPLETION_TIMEOUT);
     assert!(timing.sequence.final_revision.is_some());
     assert!(root.join("store/default.patch.json").is_file());

@@ -117,7 +117,7 @@ fn apply_autosave_at(
 }
 
 #[test]
-fn aux_revisions_coalesce_and_worker_persists_the_latest_default_and_backup() {
+fn aux_revisions_keep_the_first_deadline_and_worker_persists_the_latest_default_and_backup() {
     let (service, root) = service_and_root("latest-revision");
     let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
     let mut runner = runner_with_aux_mapping(true, true);
@@ -128,7 +128,7 @@ fn aux_revisions_coalesce_and_worker_persists_the_latest_default_and_backup() {
     assert!(first_revision.is_none());
     std::thread::sleep(Duration::from_millis(160));
     let first_poll = Instant::now();
-    runner.mark_native_backup_issued_at(first_poll - Duration::from_secs(297));
+    runner.mark_native_backup_issued_at(first_poll - Duration::from_secs(298));
     let first = runner.persistence_intent_at(first_poll).unwrap();
     let first_due = first_poll + Duration::from_secs(2);
     assert!(apply_autosave_at(
@@ -168,40 +168,15 @@ fn aux_revisions_coalesce_and_worker_persists_the_latest_default_and_backup() {
     let latest_eligible_at = Instant::now();
     let latest = runner.persistence_intent_at(latest_eligible_at).unwrap();
     assert_ne!(latest.revision(), first.revision());
-    let latest_due = latest_eligible_at + Duration::from_secs(2);
-    apply_autosave_at(
-        &mut pending,
-        &service,
-        &mut playback,
-        &mut runner,
-        latest_eligible_at,
-    );
-    apply_autosave_at(
-        &mut pending,
-        &service,
-        &mut playback,
-        &mut runner,
-        first_due,
-    );
-    assert!(pending
-        .due_native(latest_due - Duration::from_millis(1))
-        .is_none());
-    assert_eq!(pending.snapshot_captures(), 0);
-    assert!(service.native_default_write().is_none());
-    assert!(!root.join("store/default.patch.json").exists());
+    let saved_at = latest_eligible_at.max(first_due);
 
     let expected = runner
         .capture_config_snapshot()
         .into_local_patch_payload()
         .unwrap();
-    assert!(apply_autosave_at(
-        &mut pending,
-        &service,
-        &mut playback,
-        &mut runner,
-        latest_due,
-    )
-    .is_empty());
+    assert!(
+        apply_autosave_at(&mut pending, &service, &mut playback, &mut runner, saved_at,).is_empty()
+    );
     assert_eq!(
         service.native_default_write().unwrap().revision(),
         latest.revision()
@@ -233,7 +208,7 @@ fn aux_revisions_coalesce_and_worker_persists_the_latest_default_and_backup() {
         .collect::<Vec<_>>();
     assert_eq!(backups, vec![expected]);
     assert!(service.native_default_write().is_none());
-    assert!(runner.persistence_intent_at(latest_due).is_none());
+    assert!(runner.persistence_intent_at(saved_at).is_none());
     let _ = std::fs::remove_dir_all(root);
 }
 

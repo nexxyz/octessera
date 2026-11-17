@@ -1044,9 +1044,10 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   turns clamp without wrapping; bool turns go `-1 => Off`, `+1 => On`.
 - `activeBehavior` and `behaviorConfig.*` updates re-initialize behavior state, except on a
   sequencer, whose settings (pages, view, advance) keep the drawn pattern.
-- Aux value changes become autosave-eligible after the native 150 ms edit debounce. Pi autosaves
-  coalesce the latest eligible revision for two seconds, whether transport is playing or stopped; a
-  newer eligible revision restarts that deadline.
+- Aux value changes become autosave-eligible after the native 150 ms edit debounce, counted from
+  the first unsettled edit. Pi autosaves write the latest eligible revision two seconds after the
+  first unsaved one, whether transport is playing or stopped; newer revisions do not move that
+  deadline, so continuous edits or modulation still save every few seconds.
 - The menu lives under [`Link > Aux Mappings`](menu-tree/link.md#aux-mappings).
 
 ### Auto-map

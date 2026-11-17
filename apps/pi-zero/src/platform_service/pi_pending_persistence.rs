@@ -63,7 +63,9 @@ impl PendingPiPersistence {
             NativePiSave {
                 revision: intent.revision(),
                 generation,
-                default_due_at: None,
+                default_due_at: existing
+                    .filter(|native| native.default_eligible)
+                    .and_then(|native| native.default_due_at),
                 default_eligible: false,
                 backup_eligible: false,
             }

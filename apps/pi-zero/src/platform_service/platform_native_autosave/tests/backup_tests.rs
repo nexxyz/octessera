@@ -42,7 +42,7 @@ fn backup_only_remains_due_while_default_write_is_pending_without_acknowledging_
 }
 
 #[test]
-fn backup_due_during_continuous_edits_does_not_wait_for_default_coalescing() {
+fn continuous_edits_save_the_default_at_each_first_deadline_and_the_backup_when_due() {
     let (service, root) = service_and_root("continuous-backup");
     let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
     let mut runner = runner_with_aux_mapping(true, true);
@@ -56,31 +56,38 @@ fn backup_due_during_continuous_edits_does_not_wait_for_default_coalescing() {
     assert!(!initial_intent.backup_eligible());
     apply_autosave_at(&mut pending, &service, &mut playback, &mut runner, now);
 
-    let mut backup_due = false;
+    let mut default_saves = 0;
+    let mut backup_saved = false;
     for turn in 0..1_501 {
         aux_turn(&mut runner, if turn % 2 == 0 { -1 } else { 1 });
         now += Duration::from_millis(200);
         let intent = runner.persistence_intent_at(now).unwrap();
         assert!(intent.default_eligible());
-        backup_due = intent.backup_eligible();
-        let results = apply_autosave_at(&mut pending, &service, &mut playback, &mut runner, now);
-        if backup_due {
-            assert!(results.is_empty());
-            assert!(service.native_default_write().is_none());
-            assert_eq!(pending.snapshot_captures(), 1);
+        let backup_due = intent.backup_eligible();
+        assert!(
+            apply_autosave_at(&mut pending, &service, &mut playback, &mut runner, now).is_empty()
+        );
+        let expected =
+            usize::from(service.native_default_write().is_some()) + usize::from(backup_due);
+        if expected == 0 {
+            continue;
+        }
+        for result in collect_results(&service, &mut runner, expected) {
+            match result.operation() {
+                RuntimeOperation::StoreSaveDefault => default_saves += 1,
+                RuntimeOperation::StoreSaveBackup => backup_saved = true,
+                operation => panic!("unexpected {operation:?}"),
+            }
+        }
+        if backup_saved {
+            assert!(turn >= 1_490);
             break;
         }
-        assert!(results.is_empty());
-        assert!(service.native_default_write().is_none());
-        assert_eq!(pending.snapshot_captures(), 0);
+        assert_eq!(default_saves, turn / 11 + 1, "turn {turn}");
     }
-    assert!(backup_due);
-    let result = collect_results(&service, &mut runner, 1);
-    assert!(matches!(
-        result[0].operation(),
-        RuntimeOperation::StoreSaveBackup
-    ));
-    assert!(!root.join("store/default.patch.json").exists());
+    assert!(backup_saved);
+    assert!(default_saves > 100);
+    assert!(root.join("store/default.patch.json").exists());
     assert_eq!(
         std::fs::read_dir(root.join("store/backups"))
             .unwrap()
