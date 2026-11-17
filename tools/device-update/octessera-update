@@ -26,6 +26,7 @@ DEV_DROP_IN = Path(os.environ.get("OCTESSERA_UPDATE_DEV_DROP_IN", "/etc/systemd/
 SYSTEMCTL = os.environ.get("OCTESSERA_UPDATE_SYSTEMCTL", "systemctl")
 READY_SECONDS = float(os.environ.get("OCTESSERA_UPDATE_READY_SECONDS", "60"))
 SETTLE_SECONDS = float(os.environ.get("OCTESSERA_UPDATE_SETTLE_SECONDS", "5"))
+SYSTEMCTL_SECONDS = float(os.environ.get("OCTESSERA_UPDATE_SYSTEMCTL_SECONDS", "10"))
 SERVICE = "octessera.service"
 PROFILES = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
 BINARY = "octessera-pi"
@@ -175,7 +176,7 @@ def stage(profile: str, version: str) -> None:
 
 def systemctl(*arguments: str) -> int:
     try:
-        return subprocess.run([SYSTEMCTL, *arguments], timeout=60, capture_output=True).returncode
+        return subprocess.run([SYSTEMCTL, *arguments], timeout=SYSTEMCTL_SECONDS, capture_output=True).returncode
     except (OSError, subprocess.TimeoutExpired) as error:
         raise UpdateError(f"systemctl {arguments[0]} failed") from error
 
@@ -203,7 +204,7 @@ def set_links(current: str, previous: str | None) -> None:
 
 def restart_and_wait() -> bool:
     MARKER.unlink(missing_ok=True)
-    systemctl("restart", SERVICE)
+    systemctl("restart", "--no-block", SERVICE)
     deadline = time.monotonic() + READY_SECONDS
     while time.monotonic() < deadline:
         if MARKER.exists() and systemctl("is-active", "--quiet", SERVICE) == 0:
@@ -285,11 +286,15 @@ def switch(version: str) -> str:
         if old_version == version:
             raise UpdateError(f"v{version} is already current")
         set_links(str(target), old_current)
-        if restart_and_wait():
+        try:
+            healthy = restart_and_wait()
+        except UpdateError:
+            healthy = False
+        if healthy:
             prune({version, old_version})
             return f"Now running v{version}"
         set_links(old_current, old_previous)
-        systemctl("restart", SERVICE)
+        systemctl("restart", "--no-block", SERVICE)
         raise UpdateError(f"v{version} did not start; went back to v{old_version}")
 
 

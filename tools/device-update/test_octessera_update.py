@@ -21,7 +21,8 @@ ORANGE = "orange-pi-zero-2w"
 FAKE_SYSTEMCTL = """#!/bin/sh
 echo "$*" >> "$FAKE_LOG"
 case "$1" in
-  restart) if grep -q healthy "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then echo ready > "$OCTESSERA_CANDIDATE_HEALTH_PATH"; fi ;;
+  restart) if grep -q hangs "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then sleep 5; fi
+    if grep -q healthy "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then echo ready > "$OCTESSERA_CANDIDATE_HEALTH_PATH"; fi ;;
   is-active) [ -f "$OCTESSERA_CANDIDATE_HEALTH_PATH" ] || exit 3 ;;
 esac
 exit 0
@@ -55,6 +56,7 @@ class UpdaterTests(unittest.TestCase):
             "OCTESSERA_CANDIDATE_HEALTH_PATH": str(self.work / "candidate-ready.json"),
             "OCTESSERA_UPDATE_READY_SECONDS": "2",
             "OCTESSERA_UPDATE_SETTLE_SECONDS": "0.1",
+            "OCTESSERA_UPDATE_SYSTEMCTL_SECONDS": "2",
             "FAKE_LOG": str(self.log),
         }
 
@@ -141,7 +143,7 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.link("current"), self.link("previous")), ("1.1.0", "1.0.0"))
         self.assertEqual(sorted(path.name for path in (self.root / "releases").iterdir()), ["1.0.0", "1.1.0"])
-        self.assertIn("restart octessera.service", self.calls())
+        self.assertIn("restart --no-block octessera.service", self.calls())
 
     def test_switch_goes_back_when_the_release_does_not_start(self):
         self.install_release("1.1.0", b"broken 1.1.0")
@@ -150,7 +152,16 @@ class UpdaterTests(unittest.TestCase):
         self.assertIn(b"did not start; went back to v1.0.0", result.stderr)
         self.assertEqual(self.link("current"), "1.0.0")
         self.assertFalse((self.root / "previous").is_symlink())
-        self.assertEqual(self.calls().count("restart octessera.service"), 2)
+        self.assertEqual(self.calls().count("restart --no-block octessera.service"), 2)
+
+    def test_switch_goes_back_when_the_restart_times_out(self):
+        self.install_release("1.1.0", b"hangs 1.1.0")
+        result = self.invoke("switch", "1.1.0")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(b"did not start; went back to v1.0.0", result.stderr)
+        self.assertEqual(self.link("current"), "1.0.0")
+        self.assertFalse((self.root / "previous").is_symlink())
+        self.assertEqual(self.calls().count("restart --no-block octessera.service"), 2)
 
     def test_rollback_needs_a_previous_release_and_uses_the_switch(self):
         result = self.invoke("rollback")
