@@ -7,9 +7,12 @@ use super::spectrum::SpectrumHistory;
 use super::{LiveView, VisualKind, READ, STEP, TRIGGER_ROOM, WINDOW};
 use crate::oled_frame::{OledSignalVisual, SIGNAL_WIDTH};
 use realtime_engine::synth::SignalTap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, TryLockError};
+use std::time::Duration;
 
 static WORKER_START: OnceLock<fn()> = OnceLock::new();
+const STOP_CHECK: Duration = Duration::from_secs(1);
 
 /// Sets what the signal analysis worker runs first on its own thread, such as lowering its
 /// scheduling priority.
@@ -195,6 +198,7 @@ pub(super) struct WorkerHandle {
 struct Shared {
     slot: Mutex<Slot>,
     wake: Condvar,
+    stopped: AtomicBool,
 }
 
 #[derive(Default)]
@@ -204,7 +208,6 @@ struct Slot {
     /// The worker waits for a job and holds no lock.
     parked: bool,
     finished: Option<Finished>,
-    stopped: bool,
 }
 
 impl Shared {
@@ -228,6 +231,7 @@ impl WorkerHandle {
         let shared = Arc::new(Shared {
             slot: Mutex::new(Slot::default()),
             wake: Condvar::new(),
+            stopped: AtomicBool::new(false),
         });
         let thread_shared = Arc::clone(&shared);
         let spawned = std::thread::Builder::new()
@@ -235,15 +239,17 @@ impl WorkerHandle {
             .spawn(move || work(&thread_shared, Analysis::new(tap)));
         if let Err(error) = spawned {
             eprintln!("signal analysis worker failed to start: {error}");
-            shared.lock().stopped = true;
+            shared.stopped.store(true, Ordering::Release);
         }
         Arc::new(Self { shared })
     }
 }
 
+/// Never waits for the idle-priority worker's lock; the worker sees the stop within a second
+/// even when it misses the wake.
 impl Drop for WorkerHandle {
     fn drop(&mut self) {
-        self.shared.lock().stopped = true;
+        self.shared.stopped.store(true, Ordering::Release);
         self.shared.wake.notify_one();
     }
 }
@@ -254,15 +260,15 @@ fn work(shared: &Shared, mut analysis: Analysis) {
     }
     let mut slot = shared.lock();
     loop {
-        if slot.stopped {
+        if shared.stopped.load(Ordering::Acquire) {
             return;
         }
         let Some(job) = slot.job.take() else {
             slot.parked = true;
             slot = shared
                 .wake
-                .wait(slot)
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .wait_timeout(slot, STOP_CHECK)
+                .map_or_else(|poisoned| poisoned.into_inner().0, |(slot, _)| slot);
             slot.parked = false;
             continue;
         };
@@ -277,3 +283,6 @@ fn work(shared: &Shared, mut analysis: Analysis) {
         slot = shared.lock();
     }
 }
+
+#[cfg(test)]
+mod tests;

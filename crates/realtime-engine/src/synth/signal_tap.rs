@@ -4,7 +4,7 @@
 use super::types::{BUS_COUNT, INSTRUMENT_SLOT_COUNT};
 use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering};
 
-const SIGNAL_TAP_CAPACITY: usize = 4096;
+const SIGNAL_TAP_CAPACITY: usize = 8192;
 const OFF: u8 = 0;
 const MASTER: u8 = 1;
 const FIRST_INSTRUMENT: u8 = 2;
