@@ -6,7 +6,7 @@ import setup_config
 
 
 CONNECTIONS_DIR = "/etc/NetworkManager/system-connections"
-JOINING_PATH = "/run/octessera-setup-joining"
+JOINING_PATH = "/var/lib/octessera/setup-joining"
 
 
 def _keyfile_string(value):

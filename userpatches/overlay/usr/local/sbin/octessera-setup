@@ -217,6 +217,7 @@ class Coordinator:
             self.sleeper(0.1)
 
     def launch(self):
+        setup_wifi_join.forget(self.command)
         self.portal_suffix = self.interface_suffix()
         try:
             os.remove(WIFI_OFF_FILE)

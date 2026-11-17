@@ -142,6 +142,11 @@ for index, path in enumerate(COORDINATORS):
     passphrase = instance.portal_passphrase
     assert len(passphrase) == 9 and passphrase[4] == "-" and all(character in coordinator.setup_status.PASSPHRASE_ALPHABET for character in passphrase[:4] + passphrase[5:])
     assert f"wpa=2\nwpa_key_mgmt=WPA-PSK\nrsn_pairwise=CCMP\nwpa_passphrase={passphrase}\n" in written[-1][1]
+    leftover = "0123abcd-0123-0123-0123-0123456789ab"
+    marker.write_text(f"{leftover}\n")
+    leftover_board = Board()
+    coordinator_for(coordinator, profile, leftover_board)[0].launch()
+    assert [event[1] for event in leftover_board.events][0] == ("nmcli", "connection", "delete", "uuid", leftover) and not marker.exists()
     pmf_board = Board()
     pmf_instance, _ = coordinator_for(coordinator, dict(profile, hotspot_management_frame_protection=True), pmf_board)
     pmf_instance.launch()
