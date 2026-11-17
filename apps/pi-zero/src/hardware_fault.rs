@@ -1,12 +1,13 @@
 use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351};
 use platform_core::palette;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::boot_oled_handoff::NativeOledGuard;
 use crate::render::{fault_oled_frame_into, OLED_FRAME_BYTES};
 
 const FAULT_FLASH_MS: u64 = 500;
+const AUDIO_RETRY_AFTER: Duration = Duration::from_secs(30);
 
 pub(crate) struct HardwareFault {
     failures: Vec<HardwareFailure>,
@@ -90,13 +91,19 @@ impl HardwareFault {
 }
 
 pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handoff: bool) -> ! {
-    eprintln!("entering hardware fault mode; service will stay alive until reboot");
+    let retry_audio = retries_audio(&fault);
+    if retry_audio {
+        eprintln!("entering audio fault mode; restarting to retry in {AUDIO_RETRY_AFTER:?}");
+    } else {
+        eprintln!("entering hardware fault mode; service will stay alive until reboot");
+    }
     if boot_handoff && fault.oled.is_none() {
         fault.adopt_boot_handoff_oled();
     }
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
     let (header, lines) = fault_screen(&fault);
     let mut lit = true;
+    let started = Instant::now();
     loop {
         if let Some(oled) = fault.oled.as_mut() {
             fault_oled_frame_into(header, &lines, &mut frame, lit);
@@ -114,6 +121,9 @@ pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handof
                 };
                 let _ = neokey.set_led(index, color[0], color[1], color[2]);
             }
+        }
+        if retry_audio && lit && started.elapsed() >= AUDIO_RETRY_AFTER {
+            std::process::exit(1);
         }
         lit = !lit;
         thread::sleep(Duration::from_millis(FAULT_FLASH_MS));
@@ -136,9 +146,11 @@ fn fault_screen(fault: &HardwareFault) -> (&'static str, Vec<String>) {
         return (
             "AUDIO NOT READY",
             [
-                "Restart the device.",
-                "If it stays, see",
-                "Troubleshooting.",
+                "Retrying...",
+                "",
+                "If this stays for a",
+                "few minutes, power-",
+                "cycle the device.",
             ]
             .map(str::to_string)
             .to_vec(),
@@ -182,6 +194,13 @@ fn fault_screen(fault: &HardwareFault) -> (&'static str, Vec<String>) {
         lines.remove(2);
     }
     ("HARDWARE FAULT", lines)
+}
+
+fn retries_audio(fault: &HardwareFault) -> bool {
+    fault
+        .failures
+        .iter()
+        .all(|failure| part_name(failure.name).is_none())
 }
 
 fn part_name(name: &str) -> Option<&'static str> {
@@ -347,9 +366,11 @@ mod tests {
         let expected = (
             "AUDIO NOT READY",
             [
-                "Restart the device.",
-                "If it stays, see",
-                "Troubleshooting.",
+                "Retrying...",
+                "",
+                "If this stays for a",
+                "few minutes, power-",
+                "cycle the device.",
             ]
             .map(str::to_string)
             .to_vec(),
@@ -359,6 +380,18 @@ mod tests {
         let (header, lines) = screen(&[("DAC", MISSING), ("NEOKEY", MISSING)]);
         assert_eq!(header, "HARDWARE FAULT");
         assert_eq!(lines[0], "Keys");
+    }
+
+    #[test]
+    fn only_audio_faults_restart_to_retry() {
+        assert!(retries_audio(&fault(&[("AUDIO", "no ALSA device")])));
+        assert!(retries_audio(&fault(&[("DAC", "no ALSA device")])));
+        assert!(!retries_audio(&fault(&[
+            ("DAC", MISSING),
+            ("NEOKEY", MISSING)
+        ])));
+        assert!(!retries_audio(&fault(&[("I2C", MISSING)])));
+        assert!(!retries_audio(&fault(&[("TRELLIS", TIMED_OUT)])));
     }
 
     #[test]
