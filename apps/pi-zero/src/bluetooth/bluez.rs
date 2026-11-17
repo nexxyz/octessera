@@ -34,21 +34,59 @@ impl SystemBluez {
             .object_server()
             .at(AGENT_PATH, Agent::new(agent.clone()))
             .map_err(error)?;
-        let manager = Proxy::new(&connection, BLUEZ, "/org/bluez", "org.bluez.AgentManager1")
-            .map_err(error)?;
-        let path = ObjectPath::try_from(AGENT_PATH).map_err(error)?;
-        manager
-            .call_method("RegisterAgent", &(&path, "KeyboardDisplay"))
-            .map_err(error)?;
-        manager
-            .call_method("RequestDefaultAgent", &(&path,))
-            .map_err(error)?;
+        register_agent(&connection)?;
+        register_again_on_restart(&connection)?;
         Ok(Self { connection, agent })
     }
 
     fn adapter(&self) -> Result<Proxy<'static>, String> {
         Proxy::new(&self.connection, BLUEZ, ADAPTER_PATH, ADAPTER_IFACE).map_err(error)
     }
+}
+
+fn register_agent(connection: &Connection) -> Result<(), String> {
+    let manager =
+        Proxy::new(connection, BLUEZ, "/org/bluez", "org.bluez.AgentManager1").map_err(error)?;
+    let path = ObjectPath::try_from(AGENT_PATH).map_err(error)?;
+    manager
+        .call_method("RegisterAgent", &(&path, "KeyboardDisplay"))
+        .map_err(error)?;
+    manager
+        .call_method("RequestDefaultAgent", &(&path,))
+        .map_err(error)?;
+    Ok(())
+}
+
+/// A restarted bluetoothd forgets the agent, so pairing would fail without it.
+fn register_again_on_restart(connection: &Connection) -> Result<(), String> {
+    let rule = MatchRule::builder()
+        .msg_type(MessageType::Signal)
+        .sender("org.freedesktop.DBus")
+        .map_err(error)?
+        .member("NameOwnerChanged")
+        .map_err(error)?
+        .arg(0, BLUEZ)
+        .map_err(error)?
+        .build();
+    let owners = MessageIterator::for_match_rule(rule, connection, None).map_err(error)?;
+    let connection = connection.clone();
+    std::thread::Builder::new()
+        .name("octessera-bt-agent".into())
+        .spawn(move || {
+            for message in owners.flatten() {
+                let Ok((_, _, owner)) = message.body().deserialize::<(String, String, String)>()
+                else {
+                    continue;
+                };
+                if !owner.is_empty() {
+                    if let Err(failure) = register_agent(&connection) {
+                        eprintln!("Bluetooth agent registration failed: {failure}");
+                    }
+                }
+            }
+        })
+        .map(|_| ())
+        .map_err(error)
 }
 
 /// Wakes the worker on every BlueZ signal, so an idle radio costs no D-Bus polling.
