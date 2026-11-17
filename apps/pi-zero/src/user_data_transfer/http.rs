@@ -1,5 +1,5 @@
 use super::http_protocol::{copy_request_body, read_request, respond, response_header};
-use super::restore_space::validate_free_space;
+use super::restore_space::{validate_free_space, TRANSFER_TEMP_PREFIX};
 use super::*;
 use crate::user_data_archive::{self, ExportPlan};
 use serde_json::json;
@@ -255,8 +255,12 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             return;
         }
     };
-    let upload_path = inner.store_dir.join(format!(".user-data-upload-{session}"));
-    let stage_root = inner.store_dir.join(format!(".user-data-stage-{session}"));
+    let upload_path = inner
+        .store_dir
+        .join(format!("{TRANSFER_TEMP_PREFIX}upload-{session}"));
+    let stage_root = inner
+        .store_dir
+        .join(format!("{TRANSFER_TEMP_PREFIX}stage-{session}"));
     let result = (|| {
         fs::create_dir_all(&inner.store_dir).map_err(io_error)?;
         let mut file = OpenOptions::new()
@@ -270,16 +274,7 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             .store_lock
             .lock()
             .map_err(|_| "pi store is unavailable".to_string())?;
-        let staged = user_data_archive::stage_archive(&upload_path, &stage_root)?;
-        validate_free_space(
-            &crate::user_data_restore::LiveFilesystems,
-            &inner.store_dir,
-            &inner.samples_dir,
-            &inner.recordings_dir,
-            &inner.screen_recordings_dir,
-            length,
-        )?;
-        Ok::<_, String>(staged)
+        user_data_archive::stage_archive(&upload_path, &stage_root)
     })();
     let _ = fs::remove_file(&upload_path);
     let staged = match result {
@@ -295,6 +290,25 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             return;
         }
     };
+    if validate_free_space(
+        &crate::user_data_restore::LiveFilesystems,
+        &inner.store_dir,
+        &inner.samples_dir,
+        &inner.recordings_dir,
+        &inner.screen_recordings_dir,
+        length,
+    )
+    .is_err()
+    {
+        super::remove_stage(&staged);
+        respond(
+            stream,
+            507,
+            "application/json",
+            br#"{"error":"insufficient_space"}"#,
+        );
+        return;
+    }
     let response = {
         let Ok(mut state) = inner.state.lock() else {
             super::remove_stage(&staged);

@@ -117,6 +117,7 @@ pub(super) fn response_header(
         411 => "Length Required",
         413 => "Payload Too Large",
         503 => "Service Unavailable",
+        507 => "Insufficient Storage",
         _ => "Error",
     };
     let disposition = filename

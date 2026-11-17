@@ -2,6 +2,8 @@ use crate::user_data_restore::Filesystems;
 use std::fs;
 use std::path::Path;
 
+pub(super) const TRANSFER_TEMP_PREFIX: &str = ".user-data-";
+
 pub(super) fn validate_free_space(
     filesystems: &dyn Filesystems,
     store_dir: &Path,
@@ -45,6 +47,12 @@ fn directory_size(filesystems: &dyn Filesystems, root: &Path, path: &Path) -> u6
         .ok()
         .into_iter()
         .flat_map(|entries| entries.filter_map(Result::ok))
+        .filter(|entry| {
+            !entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(TRANSFER_TEMP_PREFIX)
+        })
         .map(|entry| entry.path())
         .filter(|entry| matches!(filesystems.is_other_filesystem(root, entry), Ok(false)))
         .map(|entry| directory_size(filesystems, root, &entry))
@@ -102,5 +110,27 @@ mod tests {
 
         assert_eq!(size, 5);
         let _ = fs::remove_dir_all(samples);
+    }
+
+    #[test]
+    fn directory_size_leaves_out_the_upload_and_its_stage() {
+        let store = std::env::temp_dir().join(format!(
+            "octessera-restore-space-store-{}",
+            std::process::id()
+        ));
+        let stage = store.join(format!("{TRANSFER_TEMP_PREFIX}stage-session"));
+        fs::create_dir_all(&stage).unwrap();
+        fs::write(store.join("system.json"), [0; 7]).unwrap();
+        fs::write(
+            store.join(format!("{TRANSFER_TEMP_PREFIX}upload-session")),
+            [0; 100],
+        )
+        .unwrap();
+        fs::write(stage.join("bundle.json"), [0; 1000]).unwrap();
+
+        let size = directory_size(&MountedAt(store.join("none")), &store, &store);
+
+        assert_eq!(size, 7);
+        let _ = fs::remove_dir_all(store);
     }
 }
