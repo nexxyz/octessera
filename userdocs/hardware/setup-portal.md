@@ -45,6 +45,11 @@ on the screen. The portal replaces the first password with your local device
 password. The `root` account is locked; use
 `sudo -i` from the device account instead.
 
+That first password is printed right here, so until setup has run, anyone with
+the instrument, a screen and a keyboard can log in on the console, pick their
+own password, and have full admin rights. Run the portal soon after the first
+boot, and don't leave a fresh card lying around at a party.
+
 ## What you should see
 
 - The browser may disconnect while the settings apply. Leave the instrument
