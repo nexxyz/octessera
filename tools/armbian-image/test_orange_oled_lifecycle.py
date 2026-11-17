@@ -188,9 +188,14 @@ busy_events = []
 busy_status = {"phase": "native_owned", "bootId": "01234567-89ab-cdef-0123-456789abcdef", "requestId": request_id, "pid": 4242}
 busy_handoff = LifecycleHandoff(stop_at=1, events=busy_events, observer_status=busy_status, reacquire_status=[None, matching_terminal])
 busy_oled = LifecycleOled(busy_events)
-run_lifecycle(busy_handoff, busy_oled, FakeClock(), FakeSignal())
+busy_clock = FakeClock()
+busy_clock_sleep = busy_clock.sleep
+busy_clock.sleep = lambda seconds: (busy_events.append(("sleep", seconds)), busy_clock_sleep(seconds))
+run_lifecycle(busy_handoff, busy_oled, busy_clock, FakeSignal())
 busy_unlock_index = busy_events.index(("unlock",))
 assert busy_handoff.reacquire_calls == 2 and not any(event[0] in {"initialize", "begin-frame-stream", "frame", "command"} for event in busy_events[busy_unlock_index + 1:])
+busy_first_reacquire = busy_events.index(("reacquire",))
+assert ("sleep", 0.05) in busy_events[busy_first_reacquire:busy_events.index(("reacquire",), busy_first_reacquire + 1)]
 
 
 retry_events = []

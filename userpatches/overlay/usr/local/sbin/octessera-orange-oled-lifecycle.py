@@ -305,6 +305,7 @@ def run_loop(logo):
                 return "terminate"
             status = handoff.reacquire_nonblocking(request_id)
             if status is None:
+                logo["_sleep_until"](logo["time"].monotonic_ns() + logo["BOOT_SWEEP_REST_CHECK_NS"])
                 continue
             if _status_is_first_menu(status, handoff, request_id):
                 handoff.unlock_preserving()
