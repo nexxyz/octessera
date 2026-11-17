@@ -26,6 +26,7 @@ install_required usr/local/sbin/octessera-setup /usr/local/sbin/octessera-setup 
 install_required usr/local/lib/octessera/setup_config.py /usr/local/lib/octessera/setup_config.py 0644
 install_required usr/local/lib/octessera/setup_http.py /usr/local/lib/octessera/setup_http.py 0644
 install_required usr/local/lib/octessera/setup_hotspot.py /usr/local/lib/octessera/setup_hotspot.py 0644
+install_required usr/local/lib/octessera/setup_status.py /usr/local/lib/octessera/setup_status.py 0644
 install_required usr/local/lib/octessera/setup_wifi_join.py /usr/local/lib/octessera/setup_wifi_join.py 0644
 install_required etc/octessera/setup-profile /etc/octessera/setup-profile 0644
 install_required etc/tmpfiles.d/octessera-setup-request.conf /etc/tmpfiles.d/octessera-setup-request.conf 0644

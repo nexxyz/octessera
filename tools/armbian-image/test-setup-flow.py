@@ -21,7 +21,7 @@ AP_INFO = "Interface wlan0\n\tssid Octessera Setup abcd\n\ttype AP\n"
 
 
 def load(path, name):
-    for library in ("setup_config", "setup_hotspot", "setup_wifi_join", "setup_http"):
+    for library in ("setup_config", "setup_hotspot", "setup_status", "setup_wifi_join", "setup_http"):
         library_spec = importlib.util.spec_from_loader(library, SourceFileLoader(library, str(path.parent.parent / f"lib/octessera/{library}.py")))
         assert library_spec is not None and library_spec.loader is not None
         sys.modules[library] = importlib.util.module_from_spec(library_spec)
@@ -140,15 +140,15 @@ for index, path in enumerate(COORDINATORS):
     assert written[-1][0] == "/run/octessera-setup-hostapd.conf" and written[-1][2] == 0o600
     assert "ssid=Octessera Setup abcd\n" in written[-1][1]
     passphrase = instance.portal_passphrase
-    assert len(passphrase) == 9 and passphrase[4] == "-" and all(character in coordinator.PASSPHRASE_ALPHABET for character in passphrase[:4] + passphrase[5:])
+    assert len(passphrase) == 9 and passphrase[4] == "-" and all(character in coordinator.setup_status.PASSPHRASE_ALPHABET for character in passphrase[:4] + passphrase[5:])
     assert f"wpa=2\nwpa_key_mgmt=WPA-PSK\nrsn_pairwise=CCMP\nwpa_passphrase={passphrase}\n" in written[-1][1]
     pmf_board = Board()
     pmf_instance, _ = coordinator_for(coordinator, dict(profile, hotspot_management_frame_protection=True), pmf_board)
     pmf_instance.launch()
     assert "wpa_key_mgmt=WPA-PSK WPA-PSK-SHA256\nieee80211w=2\n" in written[-1][1]
     assert not any(passphrase in " ".join(event[1]) for event in board.events if event[0] in ("command", "launch"))
-    assert coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase=passphrase)["portalPassphrase"] == passphrase
-    for status in (lambda: coordinator._status("portal_ready", portal_suffix="abcd"), lambda: coordinator._status("finalizing", portal_passphrase=passphrase), lambda: coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase="O0l1-abcd")):
+    assert coordinator.setup_status.portal_status("portal_ready", portal_suffix="abcd", portal_passphrase=passphrase)["portalPassphrase"] == passphrase
+    for status in (lambda: coordinator.setup_status.portal_status("portal_ready", portal_suffix="abcd"), lambda: coordinator.setup_status.portal_status("finalizing", portal_passphrase=passphrase), lambda: coordinator.setup_status.portal_status("portal_ready", portal_suffix="abcd", portal_passphrase="O0l1-abcd")):
         try:
             status()
         except ValueError:

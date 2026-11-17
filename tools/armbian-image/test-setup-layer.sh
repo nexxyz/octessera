@@ -13,11 +13,12 @@ check_common() {
   local config="$tree/usr/local/lib/octessera/setup_config.py"
   local http="$tree/usr/local/lib/octessera/setup_http.py"
   local hotspot="$tree/usr/local/lib/octessera/setup_hotspot.py"
+  local status="$tree/usr/local/lib/octessera/setup_status.py"
   local join="$tree/usr/local/lib/octessera/setup_wifi_join.py"
   local tmpfiles="$tree/etc/tmpfiles.d/octessera-setup-request.conf"
   local setup_unit="$tree/etc/systemd/system/octessera-setup.service"
   local path_unit="$tree/etc/systemd/system/octessera-setup-request.path"
-  for required in "$coordinator" "$config" "$http" "$hotspot" "$join" "$tmpfiles" "$setup_unit" "$path_unit" "$tree/etc/octessera/setup-profile" "$tree/usr/local/share/octessera-setup-ui/index.html" "$tree/usr/local/share/octessera-setup-ui/js/app.js" "$tree/usr/local/share/octessera-setup-ui/css/styles.css"; do
+  for required in "$coordinator" "$config" "$http" "$hotspot" "$status" "$join" "$tmpfiles" "$setup_unit" "$path_unit" "$tree/etc/octessera/setup-profile" "$tree/usr/local/share/octessera-setup-ui/index.html" "$tree/usr/local/share/octessera-setup-ui/js/app.js" "$tree/usr/local/share/octessera-setup-ui/css/styles.css"; do
     [[ -f "$required" && ! -L "$required" ]] || { echo "Missing setup source: $required" >&2; exit 1; }
   done
   grep -qxF "$profile" "$tree/etc/octessera/setup-profile"
@@ -33,12 +34,13 @@ check_common() {
   grep -qFx 'KillMode=mixed' "$setup_unit"
   if grep -q '^ReadWritePaths=' "$setup_unit"; then exit 1; fi
   grep -qE '^ReadWritePaths=(.* )?(/run|/run/octessera-setup-request/inbox)( |$)' "$tree/etc/systemd/system/octessera.service"
-  octessera_reject_file_match 'Setup coordinator must not restart NetworkManager or log secrets.' -Eiq 'systemctl.*restart|print\(|logger|systemd\.journal|systemd-cat|wpa_passphrase|psk=' "$coordinator" "$config" "$http"
+  octessera_reject_file_match 'Setup coordinator must not restart NetworkManager or log secrets.' -Eiq 'systemctl.*restart|print\(|logger|systemd\.journal|systemd-cat|wpa_passphrase|psk=' "$coordinator" "$config" "$http" "$status"
   octessera_reject_file_match 'Setup hotspot and Wi-Fi join must not restart NetworkManager or log secrets.' -Eiq 'systemctl.*restart|print\(|logger|systemd\.journal|systemd-cat' "$hotspot" "$join"
   cmp "$orange/usr/local/sbin/octessera-setup" "$raspberry/usr/local/sbin/octessera-setup"
   cmp "$orange/usr/local/lib/octessera/setup_config.py" "$raspberry/usr/local/lib/octessera/setup_config.py"
   cmp "$orange/usr/local/lib/octessera/setup_http.py" "$raspberry/usr/local/lib/octessera/setup_http.py"
   cmp "$orange/usr/local/lib/octessera/setup_hotspot.py" "$raspberry/usr/local/lib/octessera/setup_hotspot.py"
+  cmp "$orange/usr/local/lib/octessera/setup_status.py" "$raspberry/usr/local/lib/octessera/setup_status.py"
   cmp "$orange/usr/local/lib/octessera/setup_wifi_join.py" "$raspberry/usr/local/lib/octessera/setup_wifi_join.py"
 }
 
@@ -50,11 +52,13 @@ python3 -m py_compile \
   "$orange/usr/local/lib/octessera/setup_config.py" \
   "$orange/usr/local/lib/octessera/setup_http.py" \
   "$orange/usr/local/lib/octessera/setup_hotspot.py" \
+  "$orange/usr/local/lib/octessera/setup_status.py" \
   "$orange/usr/local/lib/octessera/setup_wifi_join.py" \
   "$raspberry/usr/local/sbin/octessera-setup" \
   "$raspberry/usr/local/lib/octessera/setup_config.py" \
   "$raspberry/usr/local/lib/octessera/setup_http.py" \
   "$raspberry/usr/local/lib/octessera/setup_hotspot.py" \
+  "$raspberry/usr/local/lib/octessera/setup_status.py" \
   "$raspberry/usr/local/lib/octessera/setup_wifi_join.py"
 
 echo "Setup layer units, runtime directories, secret logging, and mirror tests passed."

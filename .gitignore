@@ -67,6 +67,7 @@ tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/*
 !tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_config.py
 !tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_http.py
 !tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_hotspot.py
+!tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_status.py
 !tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/setup_wifi_join.py
 !tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py
 !tools/pi-image/stage4-octessera/files/root/usr/local/share/

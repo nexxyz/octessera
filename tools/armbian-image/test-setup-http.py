@@ -62,7 +62,7 @@ def load(path, name):
     config = importlib.util.module_from_spec(config_spec)
     sys.modules["setup_config"] = config
     config_spec.loader.exec_module(config)
-    for library in ("setup_hotspot", "setup_wifi_join"):
+    for library in ("setup_hotspot", "setup_status", "setup_wifi_join"):
         library_spec = importlib.util.spec_from_loader(library, SourceFileLoader(library, str(path.parent.parent / f"lib/octessera/{library}.py")))
         assert library_spec is not None and library_spec.loader is not None
         sys.modules[library] = importlib.util.module_from_spec(library_spec)

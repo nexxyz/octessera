@@ -58,7 +58,8 @@ grep -qF 'class SetupHTTPServer' "$root/userpatches/overlay/usr/local/lib/octess
 if grep -RIE 'setup-status\.py|setup-status-cli\.py|setup-call\.py|setup-sidecar|active\.json|sequence|receipt|attemptId|requestToken' \
   "$root/userpatches/overlay/usr/local/sbin/octessera-setup" \
   "$root/userpatches/overlay/usr/local/lib/octessera/setup_config.py" \
-  "$root/userpatches/overlay/usr/local/lib/octessera/setup_http.py"; then
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_http.py" \
+  "$root/userpatches/overlay/usr/local/lib/octessera/setup_status.py"; then
   echo 'Setup sources retain removed orchestration state.' >&2
   exit 1
 fi

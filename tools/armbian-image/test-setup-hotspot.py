@@ -32,7 +32,7 @@ SCAN = "\n".join((
 
 def load(directory):
     modules = {}
-    for library in ("setup_config", "setup_hotspot", "setup_wifi_join"):
+    for library in ("setup_config", "setup_hotspot", "setup_status", "setup_wifi_join"):
         spec = importlib.util.spec_from_loader(library, SourceFileLoader(library, str(directory / f"{library}.py")))
         assert spec is not None and spec.loader is not None
         sys.modules[library] = modules[library] = importlib.util.module_from_spec(spec)

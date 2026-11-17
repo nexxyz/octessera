@@ -28,7 +28,7 @@ def load(path, name):
     import sys
     sys.modules["setup_config"] = config
     config_spec.loader.exec_module(config)
-    for library in ("setup_hotspot", "setup_wifi_join"):
+    for library in ("setup_hotspot", "setup_status", "setup_wifi_join"):
         library_spec = importlib.util.spec_from_loader(library, SourceFileLoader(library, str(path.parent.parent / f"lib/octessera/{library}.py")))
         assert library_spec is not None and library_spec.loader is not None
         sys.modules[library] = importlib.util.module_from_spec(library_spec)
@@ -54,7 +54,7 @@ TRANSFER_CODE_ALPHABET = re.search(
 
 for index, path in enumerate(COORDINATORS):
     coordinator, _http_module = load(path, f"status_coordinator_{index}")
-    assert coordinator.PASSPHRASE_ALPHABET == TRANSFER_CODE_ALPHABET
+    assert coordinator.setup_status.PASSPHRASE_ALPHABET == TRANSFER_CODE_ALPHABET
     expected_status = (
         "d /run/octessera-setup-status 0750 root octessera-runtime -"
         if index == 0
@@ -62,13 +62,13 @@ for index, path in enumerate(COORDINATORS):
     )
     assert expected_status in TMPFILES[index].read_text(encoding="utf-8").splitlines()
     valid = (
-        coordinator._status("starting", disposition="accepted"),
-        coordinator._status("portal_ready", portal_suffix="abcd", portal_passphrase="k7Mx-9pQa"),
-        coordinator._status("finalizing"),
-        coordinator._status("succeeded"),
-        coordinator._status("stopped"),
-        coordinator._status("failed", error_code="operation_failed"),
-        coordinator._status("timed_out", error_code="unavailable"),
+        coordinator.setup_status.portal_status("starting", disposition="accepted"),
+        coordinator.setup_status.portal_status("portal_ready", portal_suffix="abcd", portal_passphrase="k7Mx-9pQa"),
+        coordinator.setup_status.portal_status("finalizing"),
+        coordinator.setup_status.portal_status("succeeded"),
+        coordinator.setup_status.portal_status("stopped"),
+        coordinator.setup_status.portal_status("failed", error_code="operation_failed"),
+        coordinator.setup_status.portal_status("timed_out", error_code="unavailable"),
     )
     expected = (
         {"type": "setup_portal_status", "phase": "starting", "disposition": "accepted", "rebootRequired": False},
@@ -104,7 +104,7 @@ for index, path in enumerate(COORDINATORS):
         ("unsupported", None, None, "unsupported"),
     ):
         try:
-            coordinator._status(*args)
+            coordinator.setup_status.portal_status(*args)
         except ValueError:
             pass
         else:
@@ -112,16 +112,16 @@ for index, path in enumerate(COORDINATORS):
 
     if getattr(os, "geteuid", lambda: -1)() == 0:
         with tempfile.TemporaryDirectory() as directory:
-            coordinator.STATUS_DIR = str(Path(directory) / "status")
-            coordinator.STATUS_PATH = str(Path(coordinator.STATUS_DIR) / "current.json")
+            coordinator.setup_status.STATUS_DIR = str(Path(directory) / "status")
+            coordinator.setup_status.STATUS_PATH = str(Path(coordinator.setup_status.STATUS_DIR) / "current.json")
             profile = {"status_group": "root"}
-            coordinator.write_status(valid[0], profile)
-            coordinator.write_status(valid[-1], profile)
-            payload = json.loads(Path(coordinator.STATUS_PATH).read_text(encoding="utf-8"))
+            coordinator.setup_status.write_status(valid[0], profile)
+            coordinator.setup_status.write_status(valid[-1], profile)
+            payload = json.loads(Path(coordinator.setup_status.STATUS_PATH).read_text(encoding="utf-8"))
             assert set(payload) == {"schema", "status"}
             assert payload["schema"] == 1 and payload["status"] == expected[-1]
-            metadata = os.stat(coordinator.STATUS_PATH)
+            metadata = os.stat(coordinator.setup_status.STATUS_PATH)
             assert metadata.st_uid == 0 and metadata.st_nlink == 1 and stat.S_IMODE(metadata.st_mode) == 0o640
-            assert not list(Path(coordinator.STATUS_DIR).glob("*.tmp"))
+            assert not list(Path(coordinator.setup_status.STATUS_DIR).glob("*.tmp"))
 
 print("Setup status envelope, phase combinations, atomic mode, and terminal-current tests passed")

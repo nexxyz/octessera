@@ -478,6 +478,7 @@ jobs:
             usr/local/lib/octessera/setup_config.py \
             usr/local/lib/octessera/setup_hotspot.py \
             usr/local/lib/octessera/setup_http.py \
+            usr/local/lib/octessera/setup_status.py \
             usr/local/lib/octessera/setup_wifi_join.py \
             usr/local/sbin/octessera-setup \
             usr/local/share/octessera-setup-ui/README.md \

@@ -13,7 +13,7 @@ COORDINATORS = (
 
 
 def load(path, name):
-    for library in ("setup_config", "setup_hotspot", "setup_wifi_join", "setup_http"):
+    for library in ("setup_config", "setup_hotspot", "setup_status", "setup_wifi_join", "setup_http"):
         library_spec = importlib.util.spec_from_loader(library, SourceFileLoader(library, str(path.parent.parent / f"lib/octessera/{library}.py")))
         assert library_spec is not None and library_spec.loader is not None
         sys.modules[library] = importlib.util.module_from_spec(library_spec)
@@ -31,8 +31,8 @@ for index, path in enumerate(COORDINATORS):
 
     cleanup_events = []
     original_coordinator = coordinator.Coordinator
-    original_status_is_terminal = coordinator.status_is_terminal
-    original_write_status = coordinator.write_status
+    original_status_is_terminal = coordinator.setup_status.status_is_terminal
+    original_write_status = coordinator.setup_status.write_status
 
     class CleanupCoordinator:
         def __init__(self, selected):
@@ -42,18 +42,18 @@ for index, path in enumerate(COORDINATORS):
             cleanup_events.append(("cleanup", deadline))
 
     coordinator.Coordinator = CleanupCoordinator
-    coordinator.status_is_terminal = lambda _profile: False
-    coordinator.write_status = lambda status, selected: cleanup_events.append(("status", status, selected))
+    coordinator.setup_status.status_is_terminal = lambda _profile: False
+    coordinator.setup_status.write_status = lambda status, selected: cleanup_events.append(("status", status, selected))
     coordinator.cleanup_mode(profile, clock=lambda: 40.0)
     assert cleanup_events[:2] == [("construct", profile), ("cleanup", 50.0)]
     assert [event[0] for event in cleanup_events[2:]] == ["status"] and cleanup_events[2][1]["phase"] == "failed"
     cleanup_events.clear()
-    coordinator.status_is_terminal = lambda _profile: True
+    coordinator.setup_status.status_is_terminal = lambda _profile: True
     coordinator.cleanup_mode(profile, clock=lambda: 40.0)
     assert cleanup_events == []
     coordinator.Coordinator = original_coordinator
-    coordinator.status_is_terminal = original_status_is_terminal
-    coordinator.write_status = original_write_status
+    coordinator.setup_status.status_is_terminal = original_status_is_terminal
+    coordinator.setup_status.write_status = original_write_status
 
     entry_events = []
     clock_value = [100.0]
