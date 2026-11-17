@@ -257,30 +257,19 @@ fn the_worker_finishes_pictures_off_the_capture_and_starts_each_on_the_newest_sa
     let block: Vec<f32> = tone(0, 0.5).iter().flat_map(|s| [*s, *s]).collect();
     let start = Instant::now();
     let _ = reader.visual(Some(MASTER_SCOPE), start);
+    reader.state.borrow().analyzer.wait_idle();
     tap.publish_master(&block, block.len() / 2, 48_000);
-    let wait_idle = || reader.state.borrow().analyzer.wait_idle();
-    let mut step = 1;
-    let shown = loop {
-        wait_idle();
-        let shown = reader.visual(Some(MASTER_SCOPE), start + STEP * step);
-        if matches!(*shown, OledSignalVisual::Scope { .. }) {
-            break shown;
-        }
-        assert!(step < 50, "the worker never finished a picture");
-        step += 1;
+    // A capture at `step` starts its analysis; a second capture of the same step, once the worker
+    // sleeps again, takes the finished picture.
+    let next_picture = |step: u32| {
+        let _ = reader.visual(Some(MASTER_SCOPE), start + STEP * step);
+        reader.state.borrow().analyzer.wait_idle();
+        reader.visual(Some(MASTER_SCOPE), start + STEP * step)
     };
-    let silent = loop {
-        step += 1;
-        wait_idle();
-        let next = reader.visual(Some(MASTER_SCOPE), start + STEP * step);
-        if !Arc::ptr_eq(&next, &shown) {
-            break next;
-        }
-        assert!(step < 100, "the worker stopped analysing");
-    };
-    assert_eq!(*silent, OledSignalVisual::Flat);
+    assert!(matches!(*next_picture(1), OledSignalVisual::Scope { .. }));
+    assert_eq!(*next_picture(2), OledSignalVisual::Flat);
     assert_eq!(
-        *reader.visual(None, start + STEP * step),
+        *reader.visual(None, start + STEP * 2),
         OledSignalVisual::Flat
     );
 }

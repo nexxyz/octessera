@@ -83,7 +83,7 @@ impl Analyzer {
         }
     }
 
-    /// Waits until no submitted job waits or runs, so a test sees each picture without timing.
+    /// Waits until the worker sleeps with no job, so a test sees each picture without timing.
     #[cfg(test)]
     pub(super) fn wait_idle(&self) {
         let Self::Worker {
@@ -95,7 +95,7 @@ impl Analyzer {
         };
         loop {
             let slot = worker.shared.lock();
-            if slot.job.is_none() && !slot.busy {
+            if slot.parked && slot.job.is_none() {
                 return;
             }
             drop(slot);
@@ -201,6 +201,8 @@ struct Shared {
 struct Slot {
     job: Option<AnalysisJob>,
     busy: bool,
+    /// The worker waits for a job and holds no lock.
+    parked: bool,
     finished: Option<Finished>,
     stopped: bool,
 }
@@ -256,10 +258,12 @@ fn work(shared: &Shared, mut analysis: Analysis) {
             return;
         }
         let Some(job) = slot.job.take() else {
+            slot.parked = true;
             slot = shared
                 .wake
                 .wait(slot)
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
+            slot.parked = false;
             continue;
         };
         slot.busy = true;
