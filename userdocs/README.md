@@ -211,7 +211,8 @@ only change when you flash a new image.
 
 The bundled library is about 300 WAV files from the attribution-free
 [stargate-sample-pack](https://github.com/stargatedaw/stargate-sample-pack).
-To add your own WAVs:
+To add your own WAVs (up to about two minutes of 44.1 kHz stereo, or twice
+that in mono, so the little board doesn't run out of memory):
 
 | Where | Folder |
 |---|---|

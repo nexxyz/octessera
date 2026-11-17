@@ -12,6 +12,7 @@ mod queue;
 mod queue_types;
 mod retired_audio_backlog;
 mod sample_decode;
+mod sample_decode_cache;
 mod source_factory;
 mod source_shutdown;
 mod source_state;
@@ -44,6 +45,7 @@ use realtime_engine::synth::{
 };
 use retired_audio_backlog::RetiredAudioBacklog;
 pub use sample_decode::decode_sample_file;
+pub use sample_decode_cache::{SampleDecodeCache, SampleDecodeCacheError};
 use source_state::{
     drop_retired_item, EngineSlot, SourceOwned, SourceOwnedDropState, SourceRetirementChannels,
 };

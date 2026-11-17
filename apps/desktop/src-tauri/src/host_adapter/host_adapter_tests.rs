@@ -3,8 +3,8 @@ use crate::audio_prep_service::{
     spawn_desktop_audio_control, AudioGenerationState, DesktopAudioPrepState,
 };
 use crate::recording::DesktopRecording;
-use crate::sample_decode_cache::SampleDecodeCache;
 use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest};
+use rodio_engine_source::SampleDecodeCache;
 use rodio_engine_source::{event_queue, EngineEvent, EngineEventReceiver};
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Mutex};

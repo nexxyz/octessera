@@ -16,7 +16,7 @@ on the enclosure and break.
 | Harsh distortion on loud parts, red `CLIP` in the header | The mix is louder than full scale and the output clamps it. Lower `System > Audio > Master Vol`, or the instruments and buses on the Mix page, until `CLIP` stays away. Stacked drive, resonance and gain add up faster than you'd think. | [Status on the OLED](controls-cheat-sheet.md#status-on-the-oled), [Sound and Link](sound-and-link.md) |
 | Controls or grid respond oddly | Look at the OLED for a Play page or assignment mode, then press **Back** or jump away with **Fn**. | [Controls cheat sheet](controls-cheat-sheet.md) |
 | A keyboard does nothing | Set `System > Display > HDMI Video > Mode` to a graphical mode (`Terminal` ignores keyboards). On the Raspberry, a wired keyboard also needs USB Role Host. | [Controls cheat sheet](controls-cheat-sheet.md#usb-host-keyboard), [Bluetooth](bluetooth.md) |
-| A sample slot shows `N/A-<name>` | That WAV isn't on this device. Copy it into the samples folder or pick a replacement. | [Samples](README.md#samples), [backup and restore](data-backup-restore.md) |
+| A sample slot shows `N/A-<name>` | That WAV isn't on this device, won't decode, or is too long (about two minutes of stereo at most). Copy it into the samples folder, trim it, or pick a replacement. | [Samples](README.md#samples), [backup and restore](data-backup-restore.md) |
 | The SD2 card doesn't show up | It must be FAT32 or exFAT and named exactly `OCTESSERA`. Give it a couple of seconds after inserting. | [Samples](README.md#samples) |
 | Desktop simulator is silent | Check the computer's audio output, then press **Space** with the shipped patch loaded. | [Desktop simulator](desktop-simulator.md#make-a-first-sound) |
 

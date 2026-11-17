@@ -5,7 +5,7 @@ use realtime_engine::synth::{
     NormalizedInstrumentSlot, SampleBankConfig, SampleBuffer, SampleSlotConfig,
     INSTRUMENT_SLOT_COUNT, SAMPLE_SLOTS_PER_INSTRUMENT,
 };
-use rodio_engine_source::{decode_sample_file, EngineEvent};
+use rodio_engine_source::EngineEvent;
 use std::path::{Component, Path, PathBuf};
 
 #[cfg(test)]
@@ -135,22 +135,10 @@ fn cached_sample_buffer(
     path: &Path,
     display_path: &str,
 ) -> Result<SampleBuffer, SampleLoadError> {
-    let key = path.to_string_lossy().to_string();
-    if let Ok(cache) = audio.sample_cache.lock() {
-        if let Some(buffer) = cache.get(&key) {
-            return Ok(buffer.clone());
-        }
-    } else {
-        return Err(SampleLoadError::Undecodable(display_path.into()));
+    match audio.sample_cache.load(path) {
+        Ok(Some(buffer)) => Ok(buffer),
+        Ok(None) | Err(_) => Err(SampleLoadError::Undecodable(display_path.into())),
     }
-    let buffer = decode_sample_file(path)
-        .ok_or_else(|| SampleLoadError::Undecodable(display_path.into()))?;
-    if let Ok(mut cache) = audio.sample_cache.lock() {
-        cache.insert(key, buffer.clone());
-    } else {
-        return Err(SampleLoadError::Undecodable(display_path.into()));
-    }
-    Ok(buffer)
 }
 
 fn pi_relative_sample_path(path: &str) -> &str {

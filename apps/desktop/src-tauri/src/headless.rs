@@ -13,7 +13,6 @@ use crate::audio_prep_service::{
 use crate::desktop_platform_service::spawn_desktop_platform_service;
 use crate::host_adapter::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
 use crate::recording::{DesktopRecording, RecordingEngineSource, RecordingTapState};
-use crate::sample_decode_cache::SampleDecodeCache;
 use crate::store_startup::ensure_store_dir_at;
 use logging_adapter::LoggingAdapter;
 pub use midi::PlayedMidi;
@@ -22,6 +21,7 @@ use playback_runtime::{
     RuntimeOperation, RuntimePlatformEffect,
 };
 use realtime_engine::synth::{DEFAULT_AUDIO_SAMPLE_RATE, INSTRUMENT_SLOT_COUNT};
+use rodio_engine_source::SampleDecodeCache;
 use rodio_engine_source::{event_queue, EngineSource};
 pub use scenario_player::PlayedScenario;
 use serde_json::Value;

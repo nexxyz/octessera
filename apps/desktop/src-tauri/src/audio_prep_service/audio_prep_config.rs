@@ -2,7 +2,6 @@ use crate::audio_config::{
     normalize_config, parse_instrument_slot_config, sample_bank_for_slot_config,
     sample_bank_signature, sample_banks, synth_payload, synth_slots,
 };
-use crate::sample_decode_cache::SampleDecodeCacheError;
 use crate::samples::resolve_sample_file;
 use playback_runtime::SampleLoadError;
 use realtime_engine::synth::{
@@ -10,6 +9,7 @@ use realtime_engine::synth::{
     prepare_instrument_slot_config, DEFAULT_AUDIO_SAMPLE_RATE, INSTRUMENT_SLOT_COUNT,
 };
 use rodio_engine_source::EngineEvent;
+use rodio_engine_source::SampleDecodeCacheError;
 use serde_json::Value;
 use std::sync::atomic::Ordering;
 

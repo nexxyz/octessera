@@ -2,11 +2,11 @@ mod audio_prep_config;
 mod audio_prep_results;
 mod audio_prep_worker;
 
-use crate::sample_decode_cache::SampleDecodeCache;
 use audio_prep_worker::audio_control_loop;
 use playback_runtime::HostMessage;
 use realtime_engine::synth::INSTRUMENT_SLOT_COUNT;
 use rodio_engine_source::EngineEventSender;
+use rodio_engine_source::SampleDecodeCache;
 use serde_json::Value;
 #[cfg(test)]
 use std::collections::VecDeque;

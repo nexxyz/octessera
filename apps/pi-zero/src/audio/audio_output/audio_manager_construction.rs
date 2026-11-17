@@ -71,7 +71,7 @@ impl AudioManager {
             engine: engine.clone(),
             control_tx,
             config_revision: Arc::new(AtomicU64::new(0)),
-            sample_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            sample_cache: rodio_engine_source::SampleDecodeCache::new(),
             sample_bank_signature: Arc::new(Mutex::new(String::new())),
             preview_generation: Arc::new(AtomicU64::new(0)),
             momentary_fx_types: Arc::new(Mutex::new(std::collections::BTreeMap::new())),

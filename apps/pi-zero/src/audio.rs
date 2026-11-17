@@ -62,8 +62,7 @@ pub struct AudioService {
     engine: AudioEngineOwner,
     pub control_tx: SyncSender<AudioControlRequest>,
     pub config_revision: Arc<AtomicU64>,
-    pub sample_cache:
-        Arc<Mutex<std::collections::HashMap<String, realtime_engine::synth::SampleBuffer>>>,
+    pub sample_cache: rodio_engine_source::SampleDecodeCache,
     pub sample_bank_signature: Arc<Mutex<String>>,
     pub preview_generation: Arc<AtomicU64>,
     pub momentary_fx_types: Arc<Mutex<std::collections::BTreeMap<String, (u64, String)>>>,

@@ -3,8 +3,14 @@ use std::io::Read;
 use std::path::Path;
 
 const WAVE_FORMAT_EXTENSIBLE: [u8; 2] = 0xfffe_u16.to_le_bytes();
+/// The largest decoded sample, about 2.4 minutes of 44.1 kHz stereo: decoding briefly holds
+/// the file and two copies of its samples, so a much longer file could exhaust a 512 MB board.
+pub(crate) const MAX_DECODED_SAMPLE_BYTES: u64 = 48 * 1024 * 1024;
 
 pub fn decode_sample_file(path: impl AsRef<Path>) -> Option<SampleBuffer> {
+    if std::fs::metadata(path.as_ref()).ok()?.len() > MAX_DECODED_SAMPLE_BYTES {
+        return None;
+    }
     let bytes = std::fs::read(path.as_ref()).ok()?;
     if let Ok(reader) = hound::WavReader::new(bytes.as_slice()) {
         return decode_wav(reader);
@@ -18,6 +24,9 @@ fn decode_wav<R: Read>(mut reader: hound::WavReader<R>) -> Option<SampleBuffer> 
     let spec = reader.spec();
     let channels = spec.channels;
     let sample_rate = spec.sample_rate;
+    if u64::from(reader.len()) * std::mem::size_of::<f32>() as u64 > MAX_DECODED_SAMPLE_BYTES {
+        return None;
+    }
     let samples = match spec.sample_format {
         hound::SampleFormat::Float => reader
             .samples::<f32>()
