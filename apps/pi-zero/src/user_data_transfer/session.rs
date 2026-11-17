@@ -39,7 +39,7 @@ impl UserDataTransferService {
 
     pub(crate) fn close(&self, request: &RuntimePlatformRequest) -> HostMessage {
         let _open_guard = self.inner.open_lock.lock().ok();
-        self.stop();
+        self.end_session();
         identified_transfer_status(transfer_closed_status(), request)
     }
 
@@ -110,13 +110,17 @@ impl UserDataTransferService {
     }
 
     pub(crate) fn stop(&self) {
+        self.end_session();
+        self.join_server();
+    }
+
+    fn end_session(&self) {
         self.inner.stop.store(true, Ordering::Release);
         let pending = clear_session(&self.inner);
         if let Some(pending) = pending {
             super::remove_stage(&pending.staged);
         }
         self.join_restore_worker();
-        self.join_server();
     }
 
     pub(crate) fn set_restore_preflight(&self, preflight: RestorePreflight) {
@@ -233,7 +237,6 @@ impl UserDataTransferService {
         if let Some(pending) = pending {
             super::remove_stage(&pending.staged);
         }
-        self.join_server();
     }
 
     fn active_status(

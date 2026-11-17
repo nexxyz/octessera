@@ -2,6 +2,7 @@ use super::MAX_HEADER_BYTES;
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::net::TcpStream;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub(super) struct HttpRequest {
     pub(super) method: String,
@@ -78,9 +79,13 @@ pub(super) fn copy_request_body(
     stream: &mut TcpStream,
     file: &mut File,
     mut length: u64,
+    stop: &AtomicBool,
 ) -> Result<(), String> {
     let mut buffer = [0; 16 * 1024];
     while length > 0 {
+        if stop.load(Ordering::Acquire) {
+            return Err("user-data transfer closed".into());
+        }
         let amount = (length as usize).min(buffer.len());
         stream.read_exact(&mut buffer[..amount]).map_err(io_error)?;
         file.write_all(&buffer[..amount]).map_err(io_error)?;

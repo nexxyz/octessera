@@ -395,3 +395,49 @@ fn repeated_bad_codes_revoke_the_transfer_session() {
     service.stop();
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn close_during_an_upload_returns_without_the_store_lock_and_stops_at_the_next_chunk() {
+    let (service, root) = service("close-upload");
+    service.start().unwrap();
+    let endpoint = service.test_endpoint().unwrap();
+    let code = service.test_code().unwrap();
+    let mut stream = TcpStream::connect(endpoint).unwrap();
+    write!(
+        stream,
+        "POST /restore HTTP/1.1\r\nHost: {endpoint}\r\nX-Octessera-Transfer-Code: {code}\r\nContent-Length: 1000000\r\n\r\n"
+    )
+    .unwrap();
+    stream.write_all(&[0; 1024]).unwrap();
+    let store = root.join("store");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !fs::read_dir(&store).unwrap().any(|entry| {
+        entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".user-data-upload-")
+    }) {
+        assert!(Instant::now() < deadline, "upload did not start");
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert!(service.store_lock().try_lock().is_ok());
+
+    let close = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::UserDataTransferClose,
+        "close-upload".into(),
+        Some(1),
+    );
+    let started = Instant::now();
+    let _ = service.close(&close);
+    assert!(started.elapsed() < Duration::from_secs(2));
+    stream
+        .set_read_timeout(Some(Duration::from_secs(3)))
+        .unwrap();
+    stream.write_all(&[0; 15 * 1024]).unwrap();
+    let mut response = Vec::new();
+    stream.read_to_end(&mut response).unwrap();
+    assert!(response.starts_with(b"HTTP/1.1 400"));
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}

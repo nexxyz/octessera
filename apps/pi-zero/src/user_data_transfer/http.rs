@@ -6,7 +6,7 @@ use serde_json::json;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream};
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 
@@ -105,25 +105,27 @@ fn handle_export(inner: &Arc<TransferInner>, stream: &mut TcpStream, query: Opti
             return;
         }
     };
-    let Ok(_store_guard) = inner.store_lock.lock() else {
-        respond(
-            stream,
-            503,
-            "application/json",
-            br#"{"error":"export_unavailable"}"#,
-        );
-        return;
-    };
-    let plan = match user_export_plan(inner, include_media) {
-        Ok(plan) => plan,
-        Err(_) => {
+    let plan = {
+        let Ok(_store_guard) = inner.store_lock.lock() else {
             respond(
                 stream,
-                409,
+                503,
                 "application/json",
                 br#"{"error":"export_unavailable"}"#,
             );
             return;
+        };
+        match user_export_plan(inner, include_media) {
+            Ok(plan) => plan,
+            Err(_) => {
+                respond(
+                    stream,
+                    409,
+                    "application/json",
+                    br#"{"error":"export_unavailable"}"#,
+                );
+                return;
+            }
         }
     };
     let length = match user_data_archive::archive_len(&plan) {
@@ -163,7 +165,31 @@ fn handle_export(inner: &Arc<TransferInner>, stream: &mut TcpStream, query: Opti
     if stream.write_all(&header).is_err() {
         return;
     }
-    let _ = user_data_archive::write_archive(&plan, stream);
+    let _ = user_data_archive::write_archive(
+        &plan,
+        &mut StoppableStream {
+            stream,
+            stop: &inner.stop,
+        },
+    );
+}
+
+struct StoppableStream<'a> {
+    stream: &'a mut TcpStream,
+    stop: &'a AtomicBool,
+}
+
+impl Write for StoppableStream<'_> {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        if self.stop.load(Ordering::Acquire) {
+            return Err(io::Error::other("user-data transfer closed"));
+        }
+        self.stream.write(buffer)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.stream.flush()
+    }
 }
 
 fn handle_restore_status(inner: &Arc<TransferInner>, stream: &mut TcpStream) {
@@ -229,15 +255,6 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             return;
         }
     };
-    let Ok(_store_guard) = inner.store_lock.lock() else {
-        respond(
-            stream,
-            503,
-            "application/json",
-            br#"{"error":"restore_unavailable"}"#,
-        );
-        return;
-    };
     let upload_path = inner.store_dir.join(format!(".user-data-upload-{session}"));
     let stage_root = inner.store_dir.join(format!(".user-data-stage-{session}"));
     let result = (|| {
@@ -247,8 +264,12 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             .create_new(true)
             .open(&upload_path)
             .map_err(io_error)?;
-        copy_request_body(stream, &mut file, length)?;
+        copy_request_body(stream, &mut file, length, &inner.stop)?;
         file.sync_all().map_err(io_error)?;
+        let _store_guard = inner
+            .store_lock
+            .lock()
+            .map_err(|_| "pi store is unavailable".to_string())?;
         let staged = user_data_archive::stage_archive(&upload_path, &stage_root)?;
         validate_free_space(
             &crate::user_data_restore::LiveFilesystems,
