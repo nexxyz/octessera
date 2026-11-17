@@ -1,10 +1,12 @@
-use super::{changed_tile_rows, compose_frame_with_stride, HdmiError};
+use super::{changed_tile_rows, compose_frame_with_stride, HdmiError, TileRows};
 use playback_runtime::{NativeHdmiMode, NativeHdmiPresentation};
 use std::fmt;
 use std::mem;
 use std::time::{Duration, Instant};
 
 pub(crate) const HDMI_RETRY_INTERVAL: Duration = Duration::from_secs(1);
+const FULL_FRAME_TILES: usize = 16;
+const FULL_FRAME_HEAL_INTERVAL: Duration = Duration::from_secs(5);
 const LEASE_VT: u32 = 1;
 const CONSOLE_VT: u32 = 2;
 
@@ -73,6 +75,7 @@ struct GraphicsLease {
     geometry: FramebufferGeometry,
     needs_restore: bool,
     drawn: Option<DrawnGrid>,
+    full_frame_at: Instant,
 }
 
 struct DrawnGrid {
@@ -217,6 +220,7 @@ impl HdmiDevice {
             geometry,
             needs_restore: false,
             drawn: None,
+            full_frame_at: now,
         };
         if let Err(error) = lease.tty.activate(LEASE_VT) {
             drop(lease.framebuffer);
@@ -256,17 +260,23 @@ impl HdmiDevice {
         presentation: &NativeHdmiPresentation,
         now: Instant,
     ) -> HdmiRenderOutcome {
-        let written = match lease.drawn.take() {
-            Some(drawn) if drawn.show_gridlines == presentation.show_gridlines => {
-                write_changed_tiles(
-                    lease.framebuffer.as_mut(),
-                    lease.geometry,
-                    &drawn.rgb,
-                    presentation,
-                )
+        let heal_due = now.duration_since(lease.full_frame_at) >= FULL_FRAME_HEAL_INTERVAL;
+        let tiles = match lease.drawn.take() {
+            Some(drawn) if !heal_due && drawn.show_gridlines == presentation.show_gridlines => {
+                Some(changed_tiles(lease.geometry, &drawn.rgb, presentation))
             }
+            _ => None,
+        };
+        let written = match tiles {
+            Some(Ok(tiles)) if tiles.len() <= FULL_FRAME_TILES => {
+                write_tiles(lease.framebuffer.as_mut(), lease.geometry, tiles)
+            }
+            Some(Err(error)) => Err(error),
             _ => match compose_frame(presentation, lease.geometry) {
-                Some(frame) => lease.framebuffer.write_frame(&frame),
+                Some(frame) => {
+                    lease.full_frame_at = now;
+                    lease.framebuffer.write_frame(&frame)
+                }
                 None => Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
                     "HDMI frame composition produced no frame",
@@ -384,13 +394,12 @@ fn compose_frame(
     )
 }
 
-fn write_changed_tiles(
-    framebuffer: &mut dyn FramebufferHandle,
+fn changed_tiles(
     geometry: FramebufferGeometry,
     previous_rgb: &[u8],
     presentation: &NativeHdmiPresentation,
-) -> Result<(), std::io::Error> {
-    let tiles = changed_tile_rows(
+) -> Result<Vec<TileRows>, std::io::Error> {
+    changed_tile_rows(
         previous_rgb,
         presentation,
         geometry.width,
@@ -403,7 +412,14 @@ fn write_changed_tiles(
             std::io::ErrorKind::InvalidData,
             "HDMI tile layout unavailable",
         )
-    })?;
+    })
+}
+
+fn write_tiles(
+    framebuffer: &mut dyn FramebufferHandle,
+    geometry: FramebufferGeometry,
+    tiles: Vec<TileRows>,
+) -> Result<(), std::io::Error> {
     for tile in tiles {
         framebuffer.write_rows(tile.first_offset, geometry.stride, tile.rows, &tile.row)?;
     }

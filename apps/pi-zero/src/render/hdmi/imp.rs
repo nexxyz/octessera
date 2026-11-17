@@ -2,7 +2,7 @@ use super::*;
 use device::{FramebufferGeometry, FramebufferHandle, HdmiDevice, HdmiIo, TtyHandle};
 use std::convert::TryFrom;
 use std::fs::{File, OpenOptions};
-use std::io::{self, Seek, SeekFrom, Write};
+use std::io;
 use std::os::fd::AsRawFd;
 use std::os::unix::fs::{FileExt, OpenOptionsExt};
 use std::time::{Duration, Instant};
@@ -16,9 +16,10 @@ const KD_GRAPHICS: libc::c_ulong = 1;
 const FB_BLANK_UNBLANK: libc::c_ulong = 0;
 const VT_ACTIVATE: libc::c_ulong = 0x5606;
 const VT_WAITACTIVE: libc::c_ulong = 0x5607;
-// The render worker shares CPU0 with the runtime; a short sleep after each tile lets a waiting
-// runtime run instead of queueing behind a whole frame of framebuffer writes.
+// The render worker shares CPU0 with the runtime; a short sleep after each tile or frame band lets
+// a waiting runtime run instead of queueing behind a whole frame of framebuffer writes.
 const TILE_PACING: Duration = Duration::from_micros(50);
+const FRAME_BANDS: usize = 32;
 
 #[repr(C)]
 #[derive(Default)]
@@ -152,8 +153,12 @@ impl FramebufferHandle for LinuxFramebuffer {
     }
 
     fn write_frame(&mut self, frame: &[u8]) -> io::Result<()> {
-        self.file.seek(SeekFrom::Start(0))?;
-        self.file.write_all(frame)
+        let band = frame.len().div_ceil(FRAME_BANDS).max(1);
+        for (index, chunk) in frame.chunks(band).enumerate() {
+            self.file.write_all_at(chunk, (index * band) as u64)?;
+            std::thread::sleep(TILE_PACING);
+        }
+        Ok(())
     }
 
     fn write_rows(
