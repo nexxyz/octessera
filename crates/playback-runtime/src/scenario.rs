@@ -277,18 +277,6 @@ impl ScenarioBuilder {
         self.at(pulse + RELEASE_AFTER, false, grid(x, y, false));
     }
 
-    /// Menu moves during the performance, two pulses apart; Back is a press and release.
-    pub fn nav_at(&mut self, start: u64, inputs: &[Value]) {
-        let mut pulse = start;
-        for input in inputs {
-            self.at(pulse, true, input.clone());
-            if input["type"] == "button_a" {
-                self.at(pulse, true, button("button_a", false));
-            }
-            pulse += 2;
-        }
-    }
-
     pub fn build(mut self) -> Scenario {
         self.perf.sort_by_key(|timed| (timed.pulse, !timed.before));
         Scenario {

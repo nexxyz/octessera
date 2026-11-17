@@ -54,15 +54,6 @@ impl QueueSendError {
         matches!(self, Self::Full { .. })
     }
 
-    pub fn is_musical_full(&self) -> bool {
-        matches!(
-            self,
-            Self::Full {
-                queue: QueueKind::Musical
-            }
-        )
-    }
-
     pub fn is_structural_full(&self) -> bool {
         matches!(
             self,

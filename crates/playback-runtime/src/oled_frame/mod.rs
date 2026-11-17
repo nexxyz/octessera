@@ -95,11 +95,3 @@ mod tests;
 
 #[cfg(test)]
 mod text_layout_tests;
-
-#[cfg(feature = "test-support")]
-pub mod test_support {
-    pub const BOOT_SPLASH_RGB565: &[u8] =
-        include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
-    pub const SLEEP_SHUTDOWN_SPLASH_RGB565: &[u8] =
-        include_bytes!(concat!(env!("OUT_DIR"), "/splash_sleep_shutdown.rgb565"));
-}

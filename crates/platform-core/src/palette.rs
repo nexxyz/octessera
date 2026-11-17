@@ -4,7 +4,6 @@ pub const DEFAULT_BEHAVIOR_ACTIVE: [u8; 3] = YELLOW;
 pub const DEFAULT_BEHAVIOR_INACTIVE: [u8; 3] = BLACK;
 pub const DEFAULT_BEHAVIOR_STABLE: [u8; 3] = GREEN;
 
-pub const BEHAVIOR_PRIMARY_BLUE: [u8; 3] = [0, 0, 255];
 pub const BEHAVIOR_PRIMARY_GREEN: [u8; 3] = [0, 255, 0];
 pub const BEHAVIOR_PRIMARY_MAGENTA: [u8; 3] = [255, 0, 255];
 pub const BEHAVIOR_PRIMARY_YELLOW: [u8; 3] = [255, 255, 0];
