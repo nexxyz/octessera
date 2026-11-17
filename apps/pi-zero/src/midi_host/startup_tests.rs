@@ -103,6 +103,32 @@ fn a_remembered_host_port_connects_when_it_is_plugged_in() {
 }
 
 #[test]
+fn another_device_coming_or_going_keeps_connected_host_ports() {
+    let (events, sent) = mpsc::channel();
+    let mut host = MidiConnections::new(events, Arc::new(|_| {}), false);
+    host.set_test_backend(backend(["Keyboard".to_string()], [], [Ok(())]));
+    assert_eq!(host.select_output(Some("name:Keyboard".into())), Ok(()));
+    let _ = sent.try_iter().count();
+
+    host.set_test_backend(backend(
+        ["Keyboard".to_string(), "Pads".to_string()],
+        [],
+        [],
+    ));
+    host.port_watch.assume_known(vec![("midiC9D0".into(), 1)]);
+    host.reconnect_if_ports_changed(Instant::now());
+
+    assert!(host.midi_output_connected);
+    assert_eq!(sent.try_iter().count(), 0);
+
+    host.set_test_backend(backend(["Pads".to_string()], [], []));
+    host.port_watch.assume_known(vec![("midiC9D0".into(), 1)]);
+    host.reconnect_if_ports_changed(Instant::now());
+
+    assert!(!host.midi_output_connected);
+}
+
+#[test]
 fn a_missing_remembered_host_port_reports_not_connected_until_it_is_plugged_in() {
     let (events, received) = mpsc::channel();
     let mut host = MidiConnections::new(events, Arc::new(|_| {}), false);

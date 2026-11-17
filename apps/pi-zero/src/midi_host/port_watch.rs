@@ -6,6 +6,14 @@ const CHECK_INTERVAL: Duration = Duration::from_secs(1);
 /// gets the same name back, but a new node.
 type DeviceNode = (String, u64);
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum NodeChange {
+    Unchanged,
+    AddedOrRemoved,
+    /// A node came back under its old name between two listings, so its device was replaced.
+    Recreated,
+}
+
 /// Notices MIDI devices being plugged in or unplugged by listing the ALSA MIDI
 /// device nodes once a second.
 #[derive(Default)]
@@ -15,8 +23,8 @@ pub(super) struct PortWatch {
 }
 
 impl PortWatch {
-    /// Lists the nodes when a check is due and tells whether they changed.
-    pub(super) fn check(&mut self, now: Instant) -> Option<bool> {
+    /// Lists the nodes when a check is due and tells how they changed.
+    pub(super) fn check(&mut self, now: Instant) -> Option<NodeChange> {
         if self
             .checked_at
             .is_some_and(|at| now.duration_since(at) < CHECK_INTERVAL)
@@ -33,10 +41,23 @@ impl PortWatch {
         self.checked_at = None;
     }
 
-    fn observe(&mut self, nodes: Vec<DeviceNode>) -> bool {
-        let changed = self.nodes.as_ref().is_some_and(|known| *known != nodes);
+    fn observe(&mut self, nodes: Vec<DeviceNode>) -> NodeChange {
+        let change = match &self.nodes {
+            Some(known) if *known != nodes => {
+                if known.iter().any(|(name, inode)| {
+                    nodes
+                        .iter()
+                        .any(|(other, other_inode)| other == name && other_inode != inode)
+                }) {
+                    NodeChange::Recreated
+                } else {
+                    NodeChange::AddedOrRemoved
+                }
+            }
+            _ => NodeChange::Unchanged,
+        };
         self.nodes = Some(nodes);
-        changed
+        change
     }
 }
 
@@ -72,11 +93,16 @@ mod tests {
     #[test]
     fn the_first_listing_is_the_baseline_and_later_differences_are_changes() {
         let mut watch = PortWatch::default();
-        assert!(!watch.observe(vec![("midiC1D0".into(), 7)]));
-        assert!(!watch.observe(vec![("midiC1D0".into(), 7)]));
-        assert!(watch.observe(Vec::new()));
-        assert!(watch.observe(vec![("midiC1D0".into(), 7)]));
-        assert!(watch.observe(vec![("midiC1D0".into(), 8)]));
+        let one = |inode| vec![("midiC1D0".to_string(), inode)];
+        assert_eq!(watch.observe(one(7)), NodeChange::Unchanged);
+        assert_eq!(watch.observe(one(7)), NodeChange::Unchanged);
+        assert_eq!(watch.observe(Vec::new()), NodeChange::AddedOrRemoved);
+        assert_eq!(watch.observe(one(7)), NodeChange::AddedOrRemoved);
+        assert_eq!(
+            watch.observe(vec![("midiC1D0".into(), 7), ("midiC2D0".into(), 9)]),
+            NodeChange::AddedOrRemoved
+        );
+        assert_eq!(watch.observe(one(8)), NodeChange::Recreated);
     }
 
     #[test]

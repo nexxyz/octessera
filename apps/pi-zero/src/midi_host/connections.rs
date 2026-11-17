@@ -17,6 +17,8 @@ use super::port_watch::PortWatch;
 #[cfg(test)]
 use super::test_backend::TestMidiBackend;
 
+mod port_reconnect;
+
 /// Port checks (one a second) that a just-enabled or rebuilt USB MIDI gadget
 /// gets to appear before its absence is logged.
 pub(super) const GADGET_APPEAR_CHECKS: u8 = 10;
@@ -158,21 +160,29 @@ impl MidiConnections {
     }
 
     pub(super) fn list_outputs(&self) -> Result<Vec<MidiPort>, String> {
-        #[cfg(test)]
-        if let Some(backend) = &self.test_backend {
-            return Ok(midi_ports_from_names(&backend.output_names));
-        }
-        let (out, ports) = midi_outputs()?;
-        Ok(midi_ports_from_names(&port_names(&out, &ports)))
+        Ok(midi_ports_from_names(&self.output_port_names()?))
     }
 
     pub(super) fn list_inputs(&self) -> Result<Vec<MidiPort>, String> {
+        Ok(midi_ports_from_names(&self.input_port_names()?))
+    }
+
+    fn output_port_names(&self) -> Result<Vec<String>, String> {
         #[cfg(test)]
         if let Some(backend) = &self.test_backend {
-            return Ok(midi_ports_from_names(&backend.input_names));
+            return Ok(backend.output_names.clone());
+        }
+        let (out, ports) = midi_outputs()?;
+        Ok(port_names(&out, &ports))
+    }
+
+    fn input_port_names(&self) -> Result<Vec<String>, String> {
+        #[cfg(test)]
+        if let Some(backend) = &self.test_backend {
+            return Ok(backend.input_names.clone());
         }
         let (input, ports) = midi_inputs()?;
-        Ok(midi_ports_from_names(&port_names(&input, &ports)))
+        Ok(port_names(&input, &ports))
     }
 
     pub(super) fn select_output(&mut self, requested: Option<String>) -> Result<(), String> {
@@ -222,77 +232,6 @@ impl MidiConnections {
             self.midi_input_error = Some(error.clone());
         }
         result.map(|_| ())
-    }
-
-    /// Reconnects the remembered MIDI Host ports, or the USB MIDI gadget port,
-    /// after the ALSA MIDI devices change: a device was plugged in or unplugged,
-    /// or the gadget was rebuilt. A missing gadget direction is retried on the
-    /// next checks, because the gadget is torn down before it is rebuilt; a
-    /// retry keeps the connected direction, since replacing the output sink
-    /// flushes its pending note-offs.
-    pub(super) fn reconnect_if_ports_changed(&mut self, now: Instant) {
-        match self.port_watch.check(now) {
-            Some(true) => {
-                self.gadget_appear_checks = GADGET_APPEAR_CHECKS;
-                self.reconnect(true, true);
-            }
-            Some(false) if self.gadget_appear_checks > 0 => {
-                self.gadget_appear_checks -= 1;
-                self.reconnect(!self.midi_output_connected, !self.midi_input_connected);
-            }
-            _ => {}
-        }
-    }
-
-    /// Switches between the USB MIDI gadget port and the remembered MIDI Host ports.
-    pub(super) fn set_usb_midi_out_enabled(&mut self, enabled: bool) {
-        if self.usb_midi_out_enabled != enabled {
-            self.usb_midi_out_enabled = enabled;
-            self.gadget_appear_checks = GADGET_APPEAR_CHECKS;
-            self.reconnect(true, true);
-        }
-    }
-
-    fn reconnect(&mut self, output: bool, input: bool) {
-        let output = if output {
-            self.select_output(self.host_midi_output_id.clone())
-        } else {
-            Ok(())
-        };
-        let input = if input {
-            self.select_input(self.host_midi_input_id.clone())
-        } else {
-            Ok(())
-        };
-        if !self.usb_midi_out_enabled {
-            self.gadget_appear_checks = 0;
-            match (output, input) {
-                (Ok(()), Ok(())) => {
-                    if let Some(status) = self.status_result(Ok(())) {
-                        self.emit(MidiConnectEvent::Result(status));
-                    }
-                }
-                (output, input) => {
-                    if let Err(error) = output {
-                        eprintln!("MIDI output reconnect failed: {error}");
-                    }
-                    if let Err(error) = input {
-                        eprintln!("MIDI input reconnect failed: {error}");
-                    }
-                }
-            }
-            return;
-        }
-        match output.and(input) {
-            Ok(()) => {
-                self.gadget_appear_checks = 0;
-                eprintln!("USB MIDI gadget connected");
-            }
-            Err(error) if self.gadget_appear_checks == 0 => {
-                eprintln!("USB MIDI gadget not connected: {error}");
-            }
-            Err(_) => {}
-        }
     }
 
     /// A remembered MIDI Host port that is not plugged in, so it stays selected but unconnected.
