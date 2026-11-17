@@ -38,6 +38,18 @@ if [ "$ping_ok" -eq 1 ] && [ "$nm_active" = active ]; then
     exit 0
 fi
 
+skip_reason=
+if systemctl is-active --quiet octessera-setup.service; then
+    skip_reason=setup_portal
+elif ! nmcli -t -f TYPE,AUTOCONNECT connection show 2>/dev/null | grep -qx '802-11-wireless:yes'; then
+    skip_reason=no_wifi_profile
+fi
+if [ -n "$skip_reason" ]; then
+    printf '%s recovery=skipped reason=%s\n' "$timestamp" "$skip_reason" >> "$LOG_FILE"
+    printf '0\n' > "$FAIL_FILE"
+    exit 0
+fi
+
 fail_count=0
 if [ -f "$FAIL_FILE" ]; then
     fail_count=$(cat "$FAIL_FILE" 2>/dev/null || printf '0')
