@@ -449,8 +449,7 @@ for index, path in enumerate(COORDINATORS):
     finally:
         coordinator.setup_http.SetupHTTPServer = original_setup_server
         stop_marker.unlink()
-    assert [phase for phase, _ in stop_status] == ["starting", "portal_ready", "failed"]
-    assert bound == [(coordinator.setup_hotspot.AP_ADDRESS, 80)]
+    assert [phase for phase, _ in stop_status] == ["starting", "portal_ready", "failed"] and bound == [(coordinator.setup_hotspot.AP_ADDRESS, 80)]
     assert stop_status[-1] == ("failed", {"error_code": "radio_restart_required", "terminal": True})
 
     for states, crash_after_state, code, timeout_end in ((["20 (unavailable)", "30 (disconnected)"], True, "radio_restart_required", False), (["30 (disconnected)"], True, "radio_restart_required", True), (["30 (disconnected)"], False, None, False), (["70 (connecting)", "100 (connected)"], False, None, False)):

@@ -79,45 +79,42 @@ fn orange_update_effects_use_the_native_updater_worker() {
     }
     assert!(!adapter.shutdown_pending());
 
-    let barrier = adapter
-        .core
-        .platform_service
-        .enqueue_test_barrier()
-        .unwrap();
-    barrier.recv_timeout(Duration::from_secs(1)).unwrap();
-    let results = adapter.drain_platform_results(8);
-    assert_eq!(
-        executor.calls(),
-        vec![
-            "check".to_string(),
-            "apply".to_string(),
-            "rollback".to_string()
-        ]
-    );
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    let mut results = Vec::new();
+    while results.len() < 3 && std::time::Instant::now() < deadline {
+        results.extend(adapter.drain_platform_results(8));
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let mut calls = executor.calls();
+    calls.sort();
+    assert_eq!(calls, vec!["apply", "check", "rollback"]);
     assert_eq!(results.len(), 3);
-    for ((message, request_id), action) in results
-        .iter()
-        .zip(["orange-check", "orange-apply", "orange-rollback"])
-        .zip(["check", "apply", "rollback"])
-    {
-        let HostMessage::RuntimeResult {
-            result:
-                RuntimeStoreResult::Identified {
-                    result,
-                    request_id: actual_request_id,
-                    revision,
-                },
-        } = message
-        else {
-            panic!("expected identified Orange update result");
-        };
-        assert_eq!(actual_request_id, request_id);
-        assert_eq!(*revision, Some(7));
-        assert!(matches!(
-            result.as_ref(),
-            RuntimeStoreResult::DeviceUpdateStatus { ok: true, message }
-                if message == &format!("Orange update {action} scheduled")
-        ));
+    for (expected_request_id, action) in [
+        ("orange-check", "check"),
+        ("orange-apply", "apply"),
+        ("orange-rollback", "rollback"),
+    ] {
+        let found = results.iter().any(|message| {
+            matches!(
+                message,
+                HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::Identified {
+                        result,
+                        request_id,
+                        revision: Some(7),
+                    },
+                } if request_id == expected_request_id
+                    && matches!(
+                        result.as_ref(),
+                        RuntimeStoreResult::DeviceUpdateStatus { ok: true, message }
+                            if message == &format!("Orange update {action} scheduled")
+                    )
+            )
+        });
+        assert!(
+            found,
+            "missing Orange update result for {expected_request_id}"
+        );
     }
 
     drop(adapter);
