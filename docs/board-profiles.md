@@ -189,12 +189,32 @@ power cycle (seen three times on 0.8.10 under 4 ms polling; a soft reboot does
 not clear it). Interrupt-driven scanning cut idle traffic about tenfold
 (1,100 to 110 transactions/s). An LED frame writes and latches only the NeoTrellis boards whose pixels
 changed (all four after a restart or a failed write), then leaves the bus idle
-for 1 ms while they refresh. The sleep twinkle keeps at most two grid tiles lit,
-so each of its frames touches at most two boards. The
-bit-banged `i2c-gpio` overlay was measured as the alternative and rejected: the
-Seesaw worker went from 1.2% to 16% of a core at idle, and a 10-minute timing
-smoke rose from 137 to 190 µs average runtime lateness (worst case 1.4 to
-2.6 ms).
+for 1 ms while they refresh. The sleep twinkle keeps at most three grid tiles lit,
+so each of its frames touches at most three boards; in sleep this cut the bus
+from 246 to 160 transfers/s and from about 2,400 to 800 written bytes/s.
+
+The same lockup happened once more on 2026-11-18, overnight in sleep, after
+weeks of uptime on 0.8.15 candidates; the OLED was asleep and nothing was
+touched. It stays a rare, Raspberry-only case: the hardware fault screen asks
+for a power cycle, and `i2c-fault-lines.log` beside the store records the SDA
+and SCL levels at the fault. Measured that day:
+
+- Rate: a 20-round no-touch noise check is clean at 300 and 400 kHz, shows noise
+  within tolerance at 150 and 200 kHz and NeoKey ghost presses at 100 kHz.
+  Reading the Seesaw hardware ID 5,000 times per chip returns 0x55 read as 0xd5
+  (bit 7) for 0.2 to 0.6% of reads at 100 kHz and never at 300 or 400 kHz.
+  400 kHz stays: lower rates only add flips, and it is the Seesaw's top tested rate.
+- Reads alone do not lock the bus: one hour of continuous ID reads at 400 kHz
+  (4.7 million) and one at 300 kHz (4.5 million) had no error.
+- The bit-banged `i2c-gpio` overlay on the same pins (`bus=1`) handles clock
+  stretching correctly (no flips even at about 100 kHz) and costs no voices in
+  the load ramp, but the runtime process, Seesaw worker included, runs on CPU 0,
+  so the busy-wait competes with the runtime loop: while the default patch's
+  Life oscillator rewrites all four boards (about 2,000 bytes/s) it costs about
+  a fifth of that core, and 600 s smokes reached 4.3 to 4.6 ms worst-case runtime
+  lateness (0.2 ms on the hardware controller), up to 6 ms with CPU 0 loaded.
+  Rejected again for that reason (first measured in October: Seesaw worker 1.2%
+  to 16% of a core at idle, average lateness 137 to 190 µs).
 
 The HAL descriptors record `/dev/i2c-2` at `5002400.i2c`, `/dev/spidev1.0` at
 `5011000.spi`, and encoder offsets on `300b000.pinctrl`. The OLED runs at

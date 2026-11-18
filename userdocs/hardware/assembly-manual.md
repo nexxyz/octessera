@@ -31,7 +31,9 @@ it. If you're buying one, I'd get the Orange Pi Zero 2W. Both are fully
 supported, but the Orange is easier to find and, at the time of writing,
 cheaper. The Raspberry also has a few silicon bugs and known quirks, such as
 how its I2C controller handles the button and LED boards. Octessera works
-around most of them, but not every last one. So if I had to pick one board to
+around most of them, but not every last one: very rarely, after days or weeks
+of running without a break, the grid and keys stop answering until you unplug
+the power. So if I had to pick one board to
 recommend, it's the Orange.
 
 Everything else is shared, except two things: each board needs **its own
