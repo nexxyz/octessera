@@ -240,7 +240,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
 - At startup each board and the desktop list the `.partial.avi` takes in the Audio+Video folder, then a
   background thread rebuilds their sizes and `idx1` index from the whole chunks present
   (dropping a torn tail) and saves them as `.incomplete.avi`. A file the recorder did not write,
-  or one whose final name is taken, stays as it is; each result is logged.
+  or one whose final name is taken, stays as it is; each result is logged. The desktop also
+  leaves a take that another running instance still has open.
 
 ## Notes
 
