@@ -70,6 +70,20 @@ fn a_stopped_band_is_one_dim_line_across_the_band() {
 }
 
 #[test]
+fn an_unavailable_band_shows_a_centered_note_and_no_picture() {
+    let frame = render_oled_frame(&home(Some(OledSignalVisual::Unavailable)));
+    let pixels = band_pixels(&frame);
+    let gray = rgb565(palette::GRAY);
+    assert!(!pixels.is_empty());
+    assert!(pixels.iter().all(|(_, _, color)| *color == gray));
+    let left = pixels.iter().map(|(x, _, _)| *x).min().unwrap();
+    let right = pixels.iter().map(|(x, _, _)| *x).max().unwrap();
+    assert_eq!(BAND_X + SIGNAL_WIDTH - 1 - right, left - BAND_X + 1);
+    let mid = BAND_TOP + (SIGNAL_BAND_HEIGHT - 1) / 2;
+    assert!(pixels.iter().all(|(_, y, _)| y.abs_diff(mid) <= 3));
+}
+
+#[test]
 fn scope_points_span_the_band_and_join_column_to_column() {
     let mut points = vec![0_i8; SIGNAL_WIDTH];
     points[10] = 127;

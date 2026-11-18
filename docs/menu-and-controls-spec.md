@@ -458,6 +458,8 @@ change; only the distance per detent does.
     band holds about 8 s by default; levels climb black, dark teal, blue, magenta, yellow.
   - A `spectrum` or `waterfall` whose bars, peaks or history have all fallen dark draws the flat
     line. Changing the visual, stopping or leaving the page starts the next run empty.
+  - If the analysis worker below cannot start, a playing band or Shape signal view shows a gray
+    centered `unavailable` instead of a picture; stopped, it keeps the flat line.
   - The tap read, the scope trace, the FFT and the history run as one analysis on a worker
     thread, and only for a picture on screen while the transport plays. The capture that starts a
     step hands the worker that step's analysis, on the newest tapped samples, if the previous one

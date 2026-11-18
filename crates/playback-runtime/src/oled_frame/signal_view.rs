@@ -4,12 +4,15 @@ use std::sync::LazyLock;
 use super::menu_rows::{slot_top, BAR_HEIGHT, PITCH};
 use super::model::{OledSignalArea, OledSignalView, OledSignalVisual};
 use super::pixels::{dim, fill_rect, rgb565};
+use super::text::draw_text;
+use super::text_layout::{FONT_ADVANCE_X, FONT_GLYPH_HEIGHT};
 use super::OLED_WIDTH;
 
 /// How far the rows after the home band drop below their slots: less than two row pitches.
 pub(super) const SIGNAL_BAND_DROP: usize = 18;
 const LEFT_X: usize = 2;
 pub const SIGNAL_WIDTH: usize = 124;
+const UNAVAILABLE: &str = "unavailable";
 /// Odd, so a stopped band's flat line has a middle row.
 pub const SIGNAL_BAND_HEIGHT: usize = 27;
 /// The free rows from below the bar above the band slot to the bar of the dropped row after it.
@@ -66,6 +69,14 @@ pub(super) fn draw_signal_view(frame: &mut [u8], view: &OledSignalView, body_top
             SIGNAL_WIDTH,
             1,
             rgb565(dim(palette::GRAY, 5)),
+        ),
+        OledSignalVisual::Unavailable => draw_text(
+            frame,
+            UNAVAILABLE,
+            (LEFT_X + (SIGNAL_WIDTH - UNAVAILABLE.len() * FONT_ADVANCE_X) / 2) as i32,
+            (rows.mid() - FONT_GLYPH_HEIGHT / 2) as i32,
+            1,
+            rgb565(palette::GRAY),
         ),
         OledSignalVisual::Scope { points } => draw_scope(frame, rows, points),
         OledSignalVisual::Spectrum { levels, peaks } => draw_spectrum(frame, rows, levels, peaks),

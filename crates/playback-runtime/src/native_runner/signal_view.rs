@@ -185,6 +185,9 @@ impl SignalTapReader {
         if let Some(visual) = state.analyzer.take(state.run) {
             state.visual = visual;
         }
+        if state.analyzer.failed() && *state.visual != OledSignalVisual::Unavailable {
+            state.visual = Arc::new(OledSignalVisual::Unavailable);
+        }
         state.visual.clone()
     }
 

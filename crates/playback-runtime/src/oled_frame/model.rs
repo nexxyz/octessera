@@ -182,6 +182,8 @@ pub enum OledSignalArea {
 pub enum OledSignalVisual {
     /// Stopped or silent: a dim flat line.
     Flat,
+    /// The analysis worker could not start: a short note instead of a frozen picture.
+    Unavailable,
     /// One trace value per column, -127 at the bottom to 127 at the top.
     Scope { points: Vec<i8> },
     /// One level and one falling peak per bar, 0..=255.

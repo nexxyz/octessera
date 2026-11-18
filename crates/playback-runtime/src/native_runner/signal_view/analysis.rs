@@ -106,6 +106,17 @@ impl Analyzer {
         }
     }
 
+    /// Whether the worker could not start, so no picture will come.
+    pub(super) fn failed(&self) -> bool {
+        match self {
+            #[cfg(test)]
+            Self::Inline { .. } => false,
+            Self::Worker { worker, .. } => worker
+                .as_ref()
+                .is_some_and(|worker| worker.shared.stopped.load(Ordering::Acquire)),
+        }
+    }
+
     /// The newest finished picture of `run`, once; pictures of earlier runs are dropped.
     pub(super) fn take(&mut self, run: u64) -> Option<Arc<OledSignalVisual>> {
         let finished = match self {
