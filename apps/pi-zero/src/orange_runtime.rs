@@ -186,7 +186,7 @@ fn ensure_required_audio_health(status: OrangeDacStatus) -> Result<(), String> {
         Ok(())
     }
 }
-fn init_encoders() -> Result<(Receiver<HardwareEvent>, Vec<OrangeEncoderGpio>), String> {
+pub(crate) fn init_encoders() -> Result<(Receiver<HardwareEvent>, Vec<OrangeEncoderGpio>), String> {
     let (event_tx, event_rx) = mpsc::channel();
     let mut encoders = Vec::new();
     for (index, pins) in ORANGE_PI_ZERO_2W_DEVICES.encoders.iter().enumerate() {

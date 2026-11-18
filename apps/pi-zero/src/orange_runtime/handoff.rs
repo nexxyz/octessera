@@ -28,8 +28,11 @@ pub(crate) fn run(
             (Some(trellis), Some(neokey), Some(encoders), Some(interrupt)) => {
                 (trellis, neokey, encoders, interrupt)
             }
-            (trellis, neokey, _, _) => {
+            (trellis, neokey, encoders, _) => {
                 fault.attach_outputs(None, trellis, neokey);
+                if let Some((events, encoders)) = encoders {
+                    fault.attach_wake_encoders(events, encoders);
+                }
                 enter_hardware_fault_mode(fault);
             }
         };
@@ -37,6 +40,7 @@ pub(crate) fn run(
         Ok(seesaw) => seesaw,
         Err(error) => {
             fault.push("SEESAW", error);
+            fault.attach_wake_encoders(encoder_rx, _encoders);
             enter_hardware_fault_mode(fault);
         }
     };

@@ -1,5 +1,8 @@
+use octessera_hal::encoder_gpio::HardwareEvent;
 use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351};
 use platform_core::palette;
+use std::any::Any;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -8,6 +11,8 @@ use crate::render::{fault_oled_frame_into, OLED_FRAME_BYTES};
 
 const FAULT_FLASH_MS: u64 = 500;
 const AUDIO_RETRY_AFTER: Duration = Duration::from_secs(30);
+const FAULT_SCREEN_AWAKE: Duration = Duration::from_secs(10);
+const FAULT_SCREEN_CONTRAST: u8 = 0x0F;
 
 pub(crate) struct HardwareFault {
     failures: Vec<HardwareFailure>,
@@ -15,6 +20,12 @@ pub(crate) struct HardwareFault {
     oled_handoff: Option<NativeOledGuard>,
     trellis: Option<NeoTrellis>,
     neokey: Option<NeoKey>,
+    wake: Option<WakeInput>,
+}
+
+struct WakeInput {
+    events: Receiver<HardwareEvent>,
+    _encoders: Box<dyn Any>,
 }
 
 struct HardwareFailure {
@@ -30,6 +41,7 @@ impl HardwareFault {
             oled_handoff: None,
             trellis: None,
             neokey: None,
+            wake: None,
         }
     }
 
@@ -52,6 +64,30 @@ impl HardwareFault {
         self.oled = oled;
         self.trellis = trellis;
         self.neokey = neokey;
+    }
+
+    pub(crate) fn attach_wake_encoders<E: 'static>(
+        &mut self,
+        events: Receiver<HardwareEvent>,
+        encoders: E,
+    ) {
+        self.wake = Some(WakeInput {
+            events,
+            _encoders: Box::new(encoders),
+        });
+    }
+
+    fn open_wake_encoders(&mut self) {
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        let opened = crate::hardware_init::init_encoders().map_err(|fault| fault.summary());
+        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        let opened = crate::orange_runtime::init_encoders();
+        match opened {
+            Ok((events, encoders)) => self.attach_wake_encoders(events, encoders),
+            Err(error) => {
+                eprintln!("hardware fault encoders unavailable; screen stays on: {error}")
+            }
+        }
     }
 
     fn adopt_boot_handoff_oled(&mut self) {
@@ -100,14 +136,31 @@ pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handof
     if boot_handoff && fault.oled.is_none() {
         fault.adopt_boot_handoff_oled();
     }
+    if fault.wake.is_none() {
+        fault.open_wake_encoders();
+    }
     let mut frame = vec![0_u8; OLED_FRAME_BYTES];
     let (header, lines) = fault_screen(&fault);
     let mut lit = true;
     let started = Instant::now();
+    let mut awake_until = started + FAULT_SCREEN_AWAKE;
+    let mut screen_shown = None;
     loop {
+        let screen_on = fault.wake.is_none() || Instant::now() < awake_until;
         if let Some(oled) = fault.oled.as_mut() {
-            fault_oled_frame_into(header, &lines, &mut frame, lit);
-            let _ = oled.write_frame(&frame);
+            if screen_shown != Some(screen_on) {
+                let _ = if screen_on {
+                    oled.set_master_contrast(FAULT_SCREEN_CONTRAST)
+                        .and_then(|()| oled.display_on())
+                } else {
+                    oled.display_off()
+                };
+                screen_shown = Some(screen_on);
+            }
+            if screen_on {
+                fault_oled_frame_into(header, &lines, &mut frame, lit);
+                let _ = oled.write_frame(&frame);
+            }
         }
         if let Some(trellis) = fault.trellis.as_mut() {
             let _ = trellis.write_led_frame(&trellis_fault_frame(lit));
@@ -126,7 +179,38 @@ pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handof
             std::process::exit(1);
         }
         lit = !lit;
-        thread::sleep(Duration::from_millis(FAULT_FLASH_MS));
+        let flash_until = Instant::now() + Duration::from_millis(FAULT_FLASH_MS);
+        match fault
+            .wake
+            .as_ref()
+            .map(|wake| wait_for_wake(&wake.events, flash_until))
+        {
+            Some(Wake::Input) => awake_until = Instant::now() + FAULT_SCREEN_AWAKE,
+            Some(Wake::Lost) => fault.wake = None,
+            Some(Wake::Quiet) => {}
+            None => thread::sleep(Duration::from_millis(FAULT_FLASH_MS)),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum Wake {
+    Quiet,
+    Input,
+    Lost,
+}
+
+fn wait_for_wake(events: &Receiver<HardwareEvent>, until: Instant) -> Wake {
+    match events.recv_timeout(until.saturating_duration_since(Instant::now())) {
+        Ok(_) => {
+            while events.try_recv().is_ok() {}
+            Wake::Input
+        }
+        Err(RecvTimeoutError::Timeout) => Wake::Quiet,
+        Err(RecvTimeoutError::Disconnected) => {
+            thread::sleep(until.saturating_duration_since(Instant::now()));
+            Wake::Lost
+        }
     }
 }
 
@@ -260,165 +344,4 @@ fn trellis_fault_frame(lit: bool) -> [[u8; 3]; 64] {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn fault(failures: &[(&'static str, &str)]) -> HardwareFault {
-        let mut fault = HardwareFault::new();
-        for (name, message) in failures {
-            fault.push(name, (*message).to_string());
-        }
-        fault
-    }
-
-    fn screen(failures: &[(&'static str, &str)]) -> (&'static str, Vec<String>) {
-        fault_screen(&fault(failures))
-    }
-
-    const TIMED_OUT: &str = "HW ID read failed: Connection timed out (os error 110)";
-    const MISSING: &str = "reset failed: Input/output error (os error 5)";
-
-    #[test]
-    fn timed_out_grid_and_keys_ask_for_a_power_cycle() {
-        assert_eq!(
-            screen(&[("TRELLIS", TIMED_OUT), ("NEOKEY", TIMED_OUT)]),
-            (
-                "HARDWARE FAULT",
-                [
-                    "Grid + Keys",
-                    "not responding",
-                    "",
-                    "Unplug power and",
-                    "plug it back in.",
-                ]
-                .map(str::to_string)
-                .to_vec()
-            )
-        );
-    }
-
-    #[test]
-    fn a_seesaw_startup_timeout_names_grid_and_keys() {
-        let (_, lines) = screen(&[(
-            "SEESAW",
-            "Seesaw startup handshake timed out: timed out waiting on channel",
-        )]);
-        assert_eq!(lines[..2], ["Grid + Keys", "not responding"]);
-    }
-
-    #[test]
-    fn missing_parts_name_only_their_real_connections() {
-        assert_eq!(
-            screen(&[("NEOKEY", MISSING)]).1,
-            [
-                "Keys",
-                "not found",
-                "",
-                "Unplug power,",
-                "reseat the NeoKey,",
-                "plug it back in."
-            ]
-        );
-        assert_eq!(
-            screen(&[("TRELLIS", MISSING)]).1,
-            [
-                "Grid",
-                "not found",
-                "",
-                "Unplug power,",
-                "check grid cable,",
-                "plug it back in."
-            ]
-        );
-        assert_eq!(
-            screen(&[("encoder_main", "busy"), ("encoder_aux_1", "busy")]).1,
-            [
-                "Encoders",
-                "not found",
-                "",
-                "Unplug power and",
-                "plug it back in."
-            ]
-        );
-    }
-
-    #[test]
-    fn unknown_parts_keep_their_own_name() {
-        assert_eq!(screen(&[("RTC", MISSING)]).1[0], "RTC");
-    }
-
-    #[test]
-    fn long_part_lists_collapse_and_still_fit() {
-        let (_, lines) = screen(&[
-            ("TRELLIS", MISSING),
-            ("NEOKEY", MISSING),
-            ("SEESAW_INT", MISSING),
-            ("OLED", MISSING),
-        ]);
-        assert_eq!(
-            lines,
-            [
-                "Several parts",
-                "not found",
-                "Unplug power,",
-                "check grid cable,",
-                "reseat the NeoKey,",
-                "reseat the screen,",
-                "plug it back in.",
-            ]
-        );
-    }
-
-    #[test]
-    fn audio_failures_show_the_audio_screen_without_cable_advice() {
-        let expected = (
-            "AUDIO NOT READY",
-            [
-                "Retrying...",
-                "",
-                "If this stays for a",
-                "few minutes, power-",
-                "cycle the device.",
-            ]
-            .map(str::to_string)
-            .to_vec(),
-        );
-        assert_eq!(screen(&[("AUDIO", "no ALSA device")]), expected);
-        assert_eq!(screen(&[("DAC", "no ALSA device")]), expected);
-        let (header, lines) = screen(&[("DAC", MISSING), ("NEOKEY", MISSING)]);
-        assert_eq!(header, "HARDWARE FAULT");
-        assert_eq!(lines[0], "Keys");
-    }
-
-    #[test]
-    fn only_audio_faults_restart_to_retry() {
-        assert!(retries_audio(&fault(&[("AUDIO", "no ALSA device")])));
-        assert!(retries_audio(&fault(&[("DAC", "no ALSA device")])));
-        assert!(!retries_audio(&fault(&[
-            ("DAC", MISSING),
-            ("NEOKEY", MISSING)
-        ])));
-        assert!(!retries_audio(&fault(&[("I2C", MISSING)])));
-        assert!(!retries_audio(&fault(&[("TRELLIS", TIMED_OUT)])));
-    }
-
-    #[test]
-    fn every_fault_screen_fits_the_oled() {
-        for message in [TIMED_OUT, MISSING] {
-            for names in [
-                &["TRELLIS", "NEOKEY", "SEESAW_INT", "OLED", "I2C"][..],
-                &["SEESAW"],
-                &["AUDIO"],
-                &["encoder_main"],
-            ] {
-                let failures: Vec<_> = names.iter().map(|name| (*name, message)).collect();
-                let (header, lines) = screen(&failures);
-                assert!(header.chars().count() <= 15);
-                assert!(lines.len() <= MAX_FAULT_LINES);
-                for line in lines {
-                    assert!(line.chars().count() <= FAULT_LINE_CHARS, "{line}");
-                }
-            }
-        }
-    }
-}
+mod tests;

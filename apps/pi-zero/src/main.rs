@@ -269,6 +269,7 @@ fn main() -> std::process::ExitCode {
             let mut fault = hardware_fault::HardwareFault::new();
             fault.push("AUDIO", format!("Audio init failed: {error}"));
             fault.attach_outputs(oled, None, None);
+            fault.attach_wake_encoders(event_rx, _encoders);
             hardware_fault::run_hardware_fault_mode(Box::new(fault), boot_handoff);
         }
     };
