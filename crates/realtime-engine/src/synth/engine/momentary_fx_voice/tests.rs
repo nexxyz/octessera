@@ -401,4 +401,5 @@ fn crush_quantizes_to_its_bit_depth_and_holds_samples() {
     );
 }
 
+mod retarget_tests;
 mod tail_tests;

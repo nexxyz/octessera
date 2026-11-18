@@ -1,3 +1,4 @@
+use super::super::super::scalar_param::ScalarMutation;
 use super::{ms_param_len, pct_param};
 use crate::synth::runtime_state::BiquadState;
 use crate::synth::types::FilterType;
@@ -35,13 +36,16 @@ impl HpRiserParams {
 }
 
 /// filter_sweep's highpass counterpart: from fully open it rises to the target cutoff over
-/// Sweep In, evenly in octaves, with the resonance following; release sweeps back open.
+/// Sweep In, evenly in octaves, with the resonance following; release sweeps back open. A new
+/// target glides there from the current one over Sweep In, also in octaves.
 #[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct HpRiserVoice {
     pub(super) params: HpRiserParams,
     sweep_pos: f32,
     filt_l: BiquadState,
     filt_r: BiquadState,
+    glide_from: (f32, f32),
+    glide_pos: f32,
     releasing: bool,
     sample_rate: u32,
 }
@@ -53,14 +57,41 @@ impl HpRiserVoice {
             sweep_pos: 0.0,
             filt_l: BiquadState::new(),
             filt_r: BiquadState::new(),
+            glide_from: (params.target_octaves, params.q),
+            glide_pos: 1.0,
             releasing: false,
             sample_rate,
         }
     }
 
     pub(super) fn revive(&mut self, params: HpRiserParams) {
-        self.params = params;
+        let _ = self.update(params);
         self.releasing = false;
+    }
+
+    pub(super) fn update(&mut self, next: HpRiserParams) -> ScalarMutation {
+        if self.params == next {
+            return ScalarMutation::Unchanged;
+        }
+        if next.target_octaves != self.params.target_octaves || next.q != self.params.q {
+            self.glide_from = self.glided_target();
+            self.glide_pos = 0.0;
+        }
+        self.params = next;
+        ScalarMutation::Changed
+    }
+
+    /// The target octaves and resonance on the way from the previous target to the current one.
+    fn glided_target(&self) -> (f32, f32) {
+        let (from_octaves, from_q) = self.glide_from;
+        (
+            from_octaves + (self.params.target_octaves - from_octaves) * self.glide_pos,
+            from_q + (self.params.q - from_q) * self.glide_pos,
+        )
+    }
+
+    pub(super) fn cutoff(&self) -> f32 {
+        OPEN_HZ * (self.glided_target().0 * self.sweep_pos).exp2()
     }
 
     pub(super) fn release(&mut self) {
@@ -77,10 +108,12 @@ impl HpRiserVoice {
         } else {
             (self.sweep_pos + self.params.sweep_in_step).min(1.0)
         };
-        let cutoff = OPEN_HZ * (self.params.target_octaves * self.sweep_pos).exp2();
-        let q = FRAC_1_SQRT_2 + (self.params.q - FRAC_1_SQRT_2) * self.sweep_pos;
+        if self.glide_pos < 1.0 {
+            self.glide_pos = (self.glide_pos + self.params.sweep_in_step).min(1.0);
+        }
+        let q = FRAC_1_SQRT_2 + (self.glided_target().1 - FRAC_1_SQRT_2) * self.sweep_pos;
         self.filt_l
-            .prepare(FilterType::Highpass, cutoff, q, self.sample_rate);
+            .prepare(FilterType::Highpass, self.cutoff(), q, self.sample_rate);
         self.filt_r.prepare_like(&self.filt_l);
         let wet_l = self.filt_l.process_prepared(left);
         let wet_r = self.filt_r.process_prepared(right);

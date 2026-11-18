@@ -49,15 +49,12 @@ impl MomentaryFxVoice {
                     sweep_out_step,
                     ..
                 },
-            ) => replace(
-                &mut voice.params,
-                FilterSweepParams {
-                    target_cutoff,
-                    q,
-                    sweep_in_step,
-                    sweep_out_step,
-                },
-            ),
+            ) => voice.update(FilterSweepParams {
+                target_cutoff,
+                q,
+                sweep_in_step,
+                sweep_out_step,
+            }),
             (
                 Self::PitchShift(voice),
                 PreparedMomentaryFxUpdate::PitchShift {
@@ -150,15 +147,12 @@ impl MomentaryFxVoice {
                     sweep_out_step,
                     ..
                 },
-            ) => replace(
-                &mut voice.params,
-                HpRiserParams {
-                    target_octaves,
-                    q,
-                    sweep_in_step,
-                    sweep_out_step,
-                },
-            ),
+            ) => voice.update(HpRiserParams {
+                target_octaves,
+                q,
+                sweep_in_step,
+                sweep_out_step,
+            }),
             (
                 Self::Crush(voice),
                 PreparedMomentaryFxUpdate::Crush {
