@@ -22,9 +22,20 @@ fn release(runner: &mut NativeRunner, x: usize) -> Vec<String> {
     ))
 }
 
-/// The momentary FX commands as `start x` / `stop x` for the tiles on row 0.
+/// The momentary FX commands as `start x`, `move x` and `stop x` for the voices of the tiles on
+/// row 0, with the interval or cutoff and the slide or sweep in time they carry.
 fn audio(messages: &[RunnerMessage]) -> Vec<String> {
     let tile = |id: &str| id.trim_start_matches("momentary-fx:").replace(":0", "");
+    let settings = |params: &BTreeMap<String, Value>| {
+        let amount = ["semitones", "cutoffPct"]
+            .iter()
+            .find_map(|key| params.get(*key))
+            .map_or("-".to_string(), Value::to_string);
+        ["slideInMs", "sweepInMs"]
+            .iter()
+            .find_map(|key| params.get(*key))
+            .map_or(amount.clone(), |time| format!("{amount} {time}"))
+    };
     messages
         .iter()
         .filter_map(|message| match message {
@@ -37,36 +48,25 @@ fn audio(messages: &[RunnerMessage]) -> Vec<String> {
             _ => None,
         })
         .filter_map(|command| match command {
-            RuntimeAudioCommand::MomentaryFxStart { id, params, .. } => Some(format!(
-                "start {} {}",
-                tile(id),
-                params.get("semitones").map_or(json!("-"), Clone::clone)
-            )),
+            RuntimeAudioCommand::MomentaryFxStart { id, params, .. } => {
+                Some(format!("start {} {}", tile(id), settings(params)))
+            }
+            RuntimeAudioCommand::MomentaryFxUpdate { id, params, .. } => {
+                Some(format!("move {} {}", tile(id), settings(params)))
+            }
             RuntimeAudioCommand::MomentaryFxStop { id, .. } => Some(format!("stop {}", tile(id))),
             _ => None,
         })
         .collect()
 }
 
-fn fx_page_runner() -> NativeRunner {
+/// A runner on the Play FX page with each `(x, config)` mapped to a tile on row 0.
+fn mapped_runner(tiles: Vec<(usize, Value)>) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    for (x, semitones) in PITCH {
-        runner.play_fx_assignments.push(NativePlayFxAssignment {
-            x,
-            y: 0,
-            config: json!({
-                "fxType": "pitch_shift",
-                "targetKey": "master",
-                "params": { "semitones": semitones }
-            }),
-        });
-    }
-    for (x, fx_type) in [(STUTTER_X, "stutter"), (FREEZE_X, "freeze")] {
-        runner.play_fx_assignments.push(NativePlayFxAssignment {
-            x,
-            y: 0,
-            config: json!({ "fxType": fx_type, "targetKey": "master", "params": {} }),
-        });
+    for (x, config) in tiles {
+        runner
+            .play_fx_assignments
+            .push(NativePlayFxAssignment { x, y: 0, config });
     }
     button(&mut runner, "button_shift", true);
     button(&mut runner, "button_fn", true);
@@ -75,6 +75,22 @@ fn fx_page_runner() -> NativeRunner {
     button(&mut runner, "button_shift", false);
     assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Fx));
     runner
+}
+
+fn fx_page_runner() -> NativeRunner {
+    let pitch = PITCH.map(|(x, semitones)| {
+        let config = json!({
+            "fxType": "pitch_shift",
+            "targetKey": "master",
+            "params": { "semitones": semitones }
+        });
+        (x, config)
+    });
+    let others = [(STUTTER_X, "stutter"), (FREEZE_X, "freeze")].map(|(x, fx_type)| {
+        let config = json!({ "fxType": fx_type, "targetKey": "master", "params": {} });
+        (x, config)
+    });
+    mapped_runner(pitch.into_iter().chain(others).collect())
 }
 
 /// The pitch tiles shown brighter than their idle magenta.
@@ -107,11 +123,11 @@ fn a_newer_press_of_the_same_type_takes_over_and_release_falls_back() {
     assert_eq!(press(&mut runner, 0), ["start 0 12"]);
     assert_eq!(lit_pitch_tiles(&runner), [0]);
 
-    assert_eq!(press(&mut runner, 1), ["stop 0", "start 1 7"]);
+    assert_eq!(press(&mut runner, 1), ["move 0 7"]);
     assert_eq!(lit_pitch_tiles(&runner), [1]);
     assert_eq!(runner.active_play_fx.len(), 1);
 
-    assert_eq!(release(&mut runner, 1), ["stop 1", "start 0 12"]);
+    assert_eq!(release(&mut runner, 1), ["move 0 12"]);
     assert_eq!(lit_pitch_tiles(&runner), [0]);
 
     assert_eq!(release(&mut runner, 0), ["stop 0"]);
@@ -124,12 +140,12 @@ fn a_three_deep_stack_pops_back_to_the_newest_tile_still_held() {
     let mut runner = fx_page_runner();
     let _ = press(&mut runner, 0);
     let _ = press(&mut runner, 1);
-    assert_eq!(press(&mut runner, 2), ["stop 1", "start 2 5"]);
+    assert_eq!(press(&mut runner, 2), ["move 0 5"]);
     assert_eq!(lit_pitch_tiles(&runner), [2]);
 
-    assert_eq!(release(&mut runner, 2), ["stop 2", "start 1 7"]);
+    assert_eq!(release(&mut runner, 2), ["move 0 7"]);
     assert_eq!(lit_pitch_tiles(&runner), [1]);
-    assert_eq!(release(&mut runner, 1), ["stop 1", "start 0 12"]);
+    assert_eq!(release(&mut runner, 1), ["move 0 12"]);
     assert_eq!(lit_pitch_tiles(&runner), [0]);
     assert_eq!(release(&mut runner, 0), ["stop 0"]);
     assert_no_holds(&runner);
@@ -144,19 +160,104 @@ fn releasing_a_tile_held_underneath_only_drops_it() {
 
     assert!(release(&mut runner, 1).is_empty());
     assert_eq!(lit_pitch_tiles(&runner), [2]);
-    assert_eq!(release(&mut runner, 2), ["stop 2", "start 0 12"]);
+    assert_eq!(release(&mut runner, 2), ["move 0 12"]);
     assert!(release(&mut runner, 1).is_empty());
     assert_eq!(release(&mut runner, 0), ["stop 0"]);
     assert_no_holds(&runner);
 }
 
 #[test]
+fn the_moved_voice_outlives_the_tile_that_started_it() {
+    let mut runner = fx_page_runner();
+    let _ = press(&mut runner, 0);
+    let _ = press(&mut runner, 1);
+
+    assert!(release(&mut runner, 0).is_empty());
+    assert_eq!(lit_pitch_tiles(&runner), [1]);
+    assert_eq!(press(&mut runner, 2), ["move 0 5"]);
+    assert_eq!(release(&mut runner, 2), ["move 0 7"]);
+    assert_eq!(release(&mut runner, 1), ["stop 0"]);
+    assert_no_holds(&runner);
+}
+
+#[test]
+fn every_sweep_type_moves_its_running_voice_to_the_tile_on_top() {
+    for (fx_type, amount, time) in [
+        ("pitch_shift", "semitones", "slideInMs"),
+        ("filter_sweep", "cutoffPct", "sweepInMs"),
+        ("hp_riser", "cutoffPct", "sweepInMs"),
+    ] {
+        let tile = |value: i64, ms: i64| {
+            json!({
+                "fxType": fx_type,
+                "targetKey": "fx_bus_2",
+                "params": { (amount): value, (time): ms }
+            })
+        };
+        let mut runner = mapped_runner(vec![(0, tile(5, 100)), (1, tile(12, 300))]);
+
+        assert_eq!(press(&mut runner, 0), ["start 0 5 100"], "{fx_type}");
+        assert_eq!(press(&mut runner, 1), ["move 0 12 300"], "{fx_type}");
+        assert_eq!(release(&mut runner, 1), ["move 0 5 100"], "{fx_type}");
+        assert_eq!(press(&mut runner, 1), ["move 0 12 300"], "{fx_type}");
+        assert!(release(&mut runner, 0).is_empty(), "{fx_type}");
+        assert_eq!(release(&mut runner, 1), ["stop 0"], "{fx_type}");
+        assert_no_holds(&runner);
+    }
+}
+
+#[test]
+fn a_sweep_type_on_another_target_restarts_on_that_target() {
+    for fx_type in ["pitch_shift", "filter_sweep", "hp_riser"] {
+        let tile = |target: &str| json!({ "fxType": fx_type, "targetKey": target, "params": {} });
+        let mut runner = mapped_runner(vec![(0, tile("master")), (1, tile("instrument_1"))]);
+
+        let _ = press(&mut runner, 0);
+        assert_eq!(press(&mut runner, 1), ["stop 0", "start 1 -"], "{fx_type}");
+        assert_eq!(
+            release(&mut runner, 1),
+            ["stop 1", "start 0 -"],
+            "{fx_type}"
+        );
+        assert_eq!(release(&mut runner, 0), ["stop 0"], "{fx_type}");
+        assert_no_holds(&runner);
+    }
+}
+
+#[test]
+fn other_types_restart_on_a_takeover() {
+    for fx_type in [
+        "stutter",
+        "freeze",
+        "tape_stop",
+        "reverse",
+        "trance_gate",
+        "dub_throw",
+        "wash",
+        "crush",
+    ] {
+        let tile = json!({ "fxType": fx_type, "targetKey": "master", "params": {} });
+        let mut runner = mapped_runner(vec![(0, tile.clone()), (1, tile)]);
+
+        let _ = press(&mut runner, 0);
+        assert_eq!(press(&mut runner, 1), ["stop 0", "start 1 -"], "{fx_type}");
+        assert_eq!(
+            release(&mut runner, 1),
+            ["stop 1", "start 0 -"],
+            "{fx_type}"
+        );
+        assert_eq!(release(&mut runner, 0), ["stop 0"], "{fx_type}");
+        assert_no_holds(&runner);
+    }
+}
+
+#[test]
 fn a_takeover_does_not_count_against_the_two_type_limit() {
     let mut runner = fx_page_runner();
     let _ = press(&mut runner, 0);
-    assert_eq!(press(&mut runner, STUTTER_X), ["start 3 \"-\""]);
+    assert_eq!(press(&mut runner, STUTTER_X), ["start 3 -"]);
 
-    assert_eq!(press(&mut runner, 1), ["stop 0", "start 1 7"]);
+    assert_eq!(press(&mut runner, 1), ["move 0 7"]);
     assert_eq!(runner.active_play_fx.len(), 2);
     let tiles = led_tiles(&runner.snapshot().unwrap());
     assert_eq!(
@@ -181,14 +282,14 @@ fn leaving_the_page_keeps_the_stack_until_each_tile_is_released() {
     assert_ne!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Fx));
 
     assert!(release(&mut runner, 1).is_empty());
-    assert_eq!(release(&mut runner, 2), ["stop 2", "start 0 12"]);
+    assert_eq!(release(&mut runner, 2), ["move 0 12"]);
     assert_eq!(release(&mut runner, STUTTER_X), ["stop 3"]);
     assert_eq!(release(&mut runner, 0), ["stop 0"]);
     assert_no_holds(&runner);
 }
 
 #[test]
-fn clear_all_drops_the_tiles_held_underneath() {
+fn clear_all_stops_the_running_voice_and_drops_the_tiles_held_underneath() {
     let mut runner = fx_page_runner();
     let _ = press(&mut runner, 0);
     let _ = press(&mut runner, 1);
@@ -206,5 +307,5 @@ fn clear_all_drops_the_tiles_held_underneath() {
             _ => None,
         })
         .collect::<Vec<_>>();
-    assert_eq!(stops, ["momentary-fx:1:0"]);
+    assert_eq!(stops, ["momentary-fx:0:0"]);
 }

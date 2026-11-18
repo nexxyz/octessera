@@ -221,6 +221,10 @@ including an external MIDI clock when you sync to one.
   takes over; let go of `+7` while still holding `+12`, and `+12` comes back.
   Stack as many tiles of one type as you have fingers: the newest press wins,
   and letting go falls back to the newest one you are still holding.
+- `pitch`, `filter sweep` and `HP riser` do not restart when they hand over
+  on the same Target: the running effect glides from where it is to the new
+  tile's pitch or cutoff, over that tile's Slide In or Sweep In. Hold `+5`,
+  add `+12`, and it slides up; let go of `+12` and it slides back down.
 
 ## A useful patch recipe
 

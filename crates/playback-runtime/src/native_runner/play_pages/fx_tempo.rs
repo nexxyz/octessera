@@ -96,16 +96,17 @@ impl NativeRunner {
             .iter()
             .filter_map(|assignment| {
                 let id = play_fx_tile_id(assignment.x, assignment.y);
-                self.active_play_fx
+                let active = self
+                    .active_play_fx
                     .iter()
-                    .any(|(active_id, _)| *active_id == id)
-                    .then(|| play_fx_synced_audio_params(&assignment.config, bpm))
-                    .flatten()
-                    .map(|params| RuntimeAudioCommand::MomentaryFxUpdate {
-                        id,
+                    .find(|active| active.tile_id == id)?;
+                play_fx_synced_audio_params(&assignment.config, bpm).map(|params| {
+                    RuntimeAudioCommand::MomentaryFxUpdate {
+                        id: active.voice_id.clone(),
                         epoch: 0,
                         params,
-                    })
+                    }
+                })
             })
             .collect::<Vec<_>>();
         for update in updates {

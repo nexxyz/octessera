@@ -97,12 +97,12 @@ impl NativeRunner {
             let active = self
                 .active_play_fx
                 .iter()
-                .any(|(active_id, _)| active_id == &id);
+                .any(|active| active.tile_id == id);
             let fx_type = play_fx_type(&assignment.config);
             let same_type_active = self
                 .active_play_fx
                 .iter()
-                .any(|(_, active_type)| active_type == fx_type);
+                .any(|active| active.fx_type == fx_type);
             let limited =
                 !active && !same_type_active && self.active_play_fx.len() >= PLAY_FX_MAX_CONCURRENT;
             let color = play_fx_color(fx_type);

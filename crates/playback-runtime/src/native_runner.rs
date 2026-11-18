@@ -402,7 +402,7 @@ pub struct NativeRunner {
     play_fx_selected: Value,
     grid_assign: Option<GridAssign>,
     play_fx_assignments: Vec<NativePlayFxAssignment>,
-    active_play_fx: Vec<(String, String)>,
+    active_play_fx: Vec<NativeActivePlayFx>,
     /// Play FX tiles still held under a newer press of their type, oldest first.
     displaced_play_fx: Vec<(String, String)>,
     xy: NativeXyState,

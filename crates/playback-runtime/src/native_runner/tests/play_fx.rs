@@ -128,10 +128,15 @@ pub(crate) fn play_fx_overlay_marks_active_and_limited_tiles() {
         y: 0,
         config: json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
     });
-    runner.active_play_fx = vec![
-        ("momentary-fx:0:0".into(), "stutter".into()),
-        ("momentary-fx:2:0".into(), "freeze".into()),
-    ];
+    runner.active_play_fx = ["0:0", "2:0"]
+        .into_iter()
+        .zip(["stutter", "freeze"])
+        .map(|(tile, fx_type)| NativeActivePlayFx {
+            tile_id: format!("momentary-fx:{tile}"),
+            fx_type: fx_type.into(),
+            voice_id: format!("momentary-fx:{tile}"),
+        })
+        .collect();
 
     let snapshot = runner.snapshot().unwrap();
     let tiles = led_tiles(&snapshot);

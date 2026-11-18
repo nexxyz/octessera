@@ -339,6 +339,15 @@ pub(super) struct NativePlayFxAssignment {
     pub(super) config: Value,
 }
 
+/// A sounding Play FX type: the lit tile and the engine voice it drives, which a same-type sweep
+/// takeover keeps from the tile that started it.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct NativeActivePlayFx {
+    pub(super) tile_id: String,
+    pub(super) fx_type: String,
+    pub(super) voice_id: String,
+}
+
 impl NativeFxBus {
     /// The 0-based slot of the 1-based slot number in bus keys (`slot2` is `2`).
     pub(super) fn slot_index(number: &str) -> Option<usize> {

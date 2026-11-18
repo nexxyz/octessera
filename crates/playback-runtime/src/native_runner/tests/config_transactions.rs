@@ -173,7 +173,11 @@ pub(crate) fn rejected_candidate_leaves_runtime_state_and_revisions_unchanged() 
     runner.menu.select_label("Layer Label");
     runner.xy.touch.active = true;
     runner.xy.touch.x = 0.23;
-    runner.active_play_fx = vec![("mixer.volume".into(), "instruments.0".into())];
+    runner.active_play_fx = vec![NativeActivePlayFx {
+        tile_id: "momentary-fx:0:0".into(),
+        fx_type: "stutter".into(),
+        voice_id: "momentary-fx:0:0".into(),
+    }];
     runner.grid_assign = Some(GridAssign::Sample {
         slot: 1,
         sample_slot: 2,
