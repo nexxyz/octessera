@@ -18,6 +18,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tauri::Emitter;
 
+const MAX_CATCH_UP: Duration = Duration::from_millis(100);
+
 #[derive(Clone, Serialize)]
 struct AudioLoadPayload {
     ratio: f32,
@@ -148,8 +150,20 @@ fn render_without_output(
         if source.by_ref().take(block_samples).count() < block_samples {
             return;
         }
-        next_block_at += block_time;
-        thread::sleep(next_block_at.saturating_duration_since(Instant::now()));
+        let now = Instant::now();
+        next_block_at = next_block_deadline(next_block_at, block_time, now);
+        thread::sleep(next_block_at.saturating_duration_since(now));
+    }
+}
+
+/// The next block's deadline; after a stall of more than [`MAX_CATCH_UP`] it starts again from
+/// `now` instead of rendering the backlog back to back.
+fn next_block_deadline(previous: Instant, block_time: Duration, now: Instant) -> Instant {
+    let next = previous + block_time;
+    if now.saturating_duration_since(next) > MAX_CATCH_UP {
+        now
+    } else {
+        next
     }
 }
 
