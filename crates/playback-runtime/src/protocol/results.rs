@@ -144,6 +144,9 @@ pub enum RuntimeStoreResult {
         #[serde(flatten)]
         status: RuntimeUserDataTransferStatus,
     },
+    UserDataExportStatus {
+        message: String,
+    },
     UsbSdTransferStatus {
         active: bool,
         message: String,
@@ -216,7 +219,9 @@ impl RuntimeStoreResult {
             }
             Self::SetupPortalStatus { .. } => RuntimeOperation::SetupPortal,
             Self::UserDataRestoreStatus { .. } => RuntimeOperation::Persistence,
-            Self::UserDataTransferStatus { .. } => RuntimeOperation::UserDataTransfer,
+            Self::UserDataTransferStatus { .. } | Self::UserDataExportStatus { .. } => {
+                RuntimeOperation::UserDataTransfer
+            }
             Self::UsbSdTransferStatus { .. }
             | Self::BluetoothStatus { .. }
             | Self::DeviceConfigStatus { .. } => RuntimeOperation::RuntimeDispatch,

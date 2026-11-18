@@ -162,6 +162,18 @@ fn handle_export(inner: &Arc<TransferInner>, stream: &mut TcpStream, query: Opti
         let line = format!("X-Octessera-Export-Warning: {printable}\r\n");
         header.splice(blank_line..blank_line, line.into_bytes());
     }
+    let skipped = plan.warnings.len();
+    if skipped > 0 {
+        if let Ok(mut state) = inner.state.lock() {
+            let noun = if skipped == 1 { "item" } else { "items" };
+            queue_runtime_status(
+                &mut state,
+                RuntimeStoreResult::UserDataExportStatus {
+                    message: format!("Export: {skipped} {noun} skipped"),
+                },
+            );
+        }
+    }
     if stream.write_all(&header).is_err() {
         return;
     }

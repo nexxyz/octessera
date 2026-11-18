@@ -47,7 +47,8 @@ impl NativeRunner {
                 }
                 self.show_toast(message);
             }
-            RuntimeStoreResult::DeviceConfigStatus { message, .. } => {
+            RuntimeStoreResult::DeviceConfigStatus { message, .. }
+            | RuntimeStoreResult::UserDataExportStatus { message } => {
                 self.show_toast(message);
             }
             RuntimeStoreResult::DeviceUpdateStatus { message, .. } => {

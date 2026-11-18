@@ -382,6 +382,43 @@ fn auth_and_exact_origin_are_required_without_cors() {
 }
 
 #[test]
+fn export_that_skips_a_damaged_preset_queues_one_device_toast() {
+    let (service, root) = service("export-skipped");
+    service
+        .start_session(Some(&transfer_request("export-open", 3)))
+        .unwrap();
+    let code = service.test_code().unwrap();
+    assert_eq!(request(&service, "GET", "/export", &code, &[], "").0, 200);
+    assert!(service.take_runtime_status().is_none());
+
+    let patches = root.join("store").join("patches");
+    fs::create_dir_all(&patches).unwrap();
+    fs::write(patches.join("Broken.json"), b"{").unwrap();
+    assert_eq!(request(&service, "GET", "/export", &code, &[], "").0, 200);
+    let Some(HostMessage::RuntimeResult {
+        result:
+            RuntimeStoreResult::Identified {
+                result,
+                request_id,
+                revision,
+            },
+    }) = service.take_runtime_status()
+    else {
+        panic!("expected an identified export status");
+    };
+    assert_eq!(
+        *result,
+        RuntimeStoreResult::UserDataExportStatus {
+            message: "Export: 1 item skipped".into(),
+        }
+    );
+    assert_eq!((request_id.as_str(), revision), ("export-open", Some(3)));
+    assert!(service.take_runtime_status().is_none());
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn repeated_bad_codes_revoke_the_transfer_session() {
     let (service, root) = service("auth-limit");
     service.start().unwrap();

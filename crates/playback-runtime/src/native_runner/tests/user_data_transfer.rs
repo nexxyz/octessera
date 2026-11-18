@@ -158,3 +158,26 @@ pub(crate) fn restore_progress_and_runtime_error_keep_priority_over_transfer_car
     assert_eq!(snapshot["display"]["title"], "Runtime error");
     assert_eq!(snapshot["display"]["bodyLayout"], "rows");
 }
+
+#[test]
+fn export_status_toasts_over_the_open_transfer_card() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_store_result(ready_result()).unwrap();
+    runner
+        .apply_store_result(
+            RuntimeStoreResult::UserDataExportStatus {
+                message: "Export: 2 items skipped".into(),
+            }
+            .with_identity("transfer-1".into(), Some(1)),
+        )
+        .unwrap();
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Export: 2 items skipped"
+    );
+    assert!(runner
+        .display
+        .user_data_transfer
+        .as_ref()
+        .is_some_and(|transfer| transfer.visible));
+}
