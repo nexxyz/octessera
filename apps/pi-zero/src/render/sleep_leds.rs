@@ -4,13 +4,13 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const GRID_LED_COUNT: usize = 64;
 const KEY_LED_COUNT: usize = 4;
-const MAX_GRID_PULSES: usize = 4;
+const MAX_GRID_PULSES: usize = 2;
 const MAX_KEY_PULSES: usize = 1;
 const ANIMATION_TICK: Duration = Duration::from_millis(100);
 const PULSE_MIN: Duration = Duration::from_millis(2_400);
 const PULSE_MAX: Duration = Duration::from_millis(4_800);
-const GRID_SPAWN_MIN: Duration = Duration::from_millis(350);
-const GRID_SPAWN_MAX: Duration = Duration::from_millis(1_400);
+const GRID_SPAWN_MIN: Duration = Duration::from_millis(700);
+const GRID_SPAWN_MAX: Duration = Duration::from_millis(2_800);
 const KEY_SPAWN_MIN: Duration = Duration::from_millis(700);
 const KEY_SPAWN_MAX: Duration = Duration::from_millis(2_200);
 

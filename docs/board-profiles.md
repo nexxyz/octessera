@@ -187,8 +187,10 @@ On the Raspberry the Seesaw bus is the hardware I2C controller at 400 kHz. Its
 clock-stretching defect can hang a Seesaw so that SDA and SCL stay low until a
 power cycle (seen three times on 0.8.10 under 4 ms polling; a soft reboot does
 not clear it). Interrupt-driven scanning cut idle traffic about tenfold
-(1,100 to 110 transactions/s). An LED frame writes all four NeoTrellis buffers,
-latches all four, then leaves the bus idle for 1 ms while they refresh. The
+(1,100 to 110 transactions/s). An LED frame writes and latches only the NeoTrellis boards whose pixels
+changed (all four after a restart or a failed write), then leaves the bus idle
+for 1 ms while they refresh. The sleep twinkle keeps at most two grid tiles lit,
+so each of its frames touches at most two boards. The
 bit-banged `i2c-gpio` overlay was measured as the alternative and rejected: the
 Seesaw worker went from 1.2% to 16% of a core at idle, and a 10-minute timing
 smoke rose from 137 to 190 µs average runtime lateness (worst case 1.4 to

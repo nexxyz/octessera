@@ -21,6 +21,8 @@ pub struct NeoTrellis {
     led_refresh: bool,
     /// Each board's GRB pixel buffer as last written, for the setup refresh to send again.
     pixels: [[u8; TRELLIS_PIXEL_BYTES_PER_DEVICE]; 4],
+    /// Whether the board's LEDs show `pixels`; until then a frame rewrites it even if unchanged.
+    shown: [bool; 4],
 }
 
 #[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
@@ -99,6 +101,7 @@ impl NeoTrellis {
                         needs_setup: [false; 4],
                         led_refresh: false,
                         pixels: [[0; TRELLIS_PIXEL_BYTES_PER_DEVICE]; 4],
+                        shown: [false; 4],
                     });
                 }
                 Err(error) => {
@@ -137,6 +140,7 @@ impl NeoTrellis {
                         needs_setup: [false; 4],
                         led_refresh: false,
                         pixels: [[0; TRELLIS_PIXEL_BYTES_PER_DEVICE]; 4],
+                        shown: [false; 4],
                     });
                 }
                 Err(error) => {
@@ -213,6 +217,7 @@ impl NeoTrellis {
         let address = self.devices[dev_idx].0;
         configure_device(address, &mut *self.transports[dev_idx])?;
         self.needs_setup[dev_idx] = false;
+        self.shown[dev_idx] = false;
         self.led_refresh = true;
         eprintln!(
             "NeoTrellis {address:#04x} answered again after an I2C failure; setup re-applied"
@@ -241,30 +246,47 @@ impl NeoTrellis {
         Ok(part < setup_parts + TRELLIS_LED_CHUNKS)
     }
 
-    /// Write an 8x8 RGB frame to the four NeoPixel buffers, then latch all four.
+    /// Write an 8x8 RGB frame to the NeoPixel buffers of the boards whose pixels changed, then
+    /// latch those. Every latch makes a board stretch the clock, so unchanged boards are left alone.
     pub fn write_led_frame(&mut self, frame: &[[u8; 3]; 64]) -> Result<(), String> {
-        for dev_idx in 0..self.devices.len() {
-            let base_x = (dev_idx % 2) * 4;
-            let base_y = (dev_idx / 2) * 4;
-            let mut data = Vec::with_capacity(TRELLIS_PIXEL_BYTES_PER_DEVICE);
-            for y in base_y..(base_y + 4) {
-                for x in base_x..(base_x + 4) {
-                    data.extend_from_slice(&grb_color(frame[y * 8 + x]));
-                }
+        let mut changed = [false; 4];
+        for (dev_idx, changed) in changed.iter_mut().enumerate() {
+            let data = board_pixels(frame, dev_idx);
+            if self.shown[dev_idx] && !self.needs_setup[dev_idx] && self.pixels[dev_idx] == data {
+                continue;
             }
+            self.shown[dev_idx] = false;
             (0..TRELLIS_LED_CHUNKS)
                 .try_for_each(|chunk| {
                     write_led_buffer_chunk(&mut *self.transports[dev_idx], &data, chunk)
                 })
                 .inspect_err(|_| self.needs_setup[dev_idx] = true)?;
-            self.pixels[dev_idx].copy_from_slice(&data);
+            self.pixels[dev_idx] = data;
+            *changed = true;
         }
         for (dev_idx, transport) in self.transports.iter_mut().enumerate() {
-            write_led_show(&mut **transport).inspect_err(|_| self.needs_setup[dev_idx] = true)?;
+            if changed[dev_idx] {
+                write_led_show(&mut **transport)
+                    .inspect_err(|_| self.needs_setup[dev_idx] = true)?;
+                self.shown[dev_idx] = true;
+            }
         }
-        self.delay.sleep(TRELLIS_SHOW_SETTLE);
+        if changed.contains(&true) {
+            self.delay.sleep(TRELLIS_SHOW_SETTLE);
+        }
         Ok(())
     }
+}
+
+#[cfg(any(feature = "raspberry-pi-zero-2w", feature = "orange-pi-zero-2w", test))]
+fn board_pixels(frame: &[[u8; 3]; 64], dev_idx: usize) -> [u8; TRELLIS_PIXEL_BYTES_PER_DEVICE] {
+    let base_x = (dev_idx % 2) * 4;
+    let base_y = (dev_idx / 2) * 4;
+    let mut data = [0_u8; TRELLIS_PIXEL_BYTES_PER_DEVICE];
+    for (index, pixel) in data.as_chunks_mut::<3>().0.iter_mut().enumerate() {
+        *pixel = grb_color(frame[(base_y + index / 4) * 8 + base_x + index % 4]);
+    }
+    data
 }
 
 /// A Seesaw refreshing its 16 NeoPixels (about 30 µs each plus the latch gap) answers I2C late and

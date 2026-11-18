@@ -421,3 +421,4 @@ fn every_quadrant_buffer_is_written_before_any_board_latches() {
 
 mod i2c_failure_tests;
 mod setup_refresh_tests;
+mod unchanged_board_tests;
