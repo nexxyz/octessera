@@ -10,6 +10,24 @@ use std::os::unix::io::AsRawFd;
 #[cfg(not(feature = "raspberry-pi-zero-2w"))]
 use std::fmt;
 
+/// SDA and SCL levels (`true` = high) of the Seesaw bus on GPIO 2 and 3. Reads the level register
+/// only, so the pins stay with the I2C controller.
+#[cfg(feature = "raspberry-pi-zero-2w")]
+pub fn seesaw_bus_line_levels() -> Result<(bool, bool), String> {
+    let gpio = rppal::gpio::Gpio::new().map_err(|e| format!("GPIO open failed: {e}"))?;
+    let level = |pin: u8| {
+        gpio.get(pin)
+            .map(|pin| pin.read() == rppal::gpio::Level::High)
+            .map_err(|e| format!("GPIO {pin} read failed: {e}"))
+    };
+    Ok((level(2)?, level(3)?))
+}
+
+#[cfg(not(feature = "raspberry-pi-zero-2w"))]
+pub fn seesaw_bus_line_levels() -> Result<(bool, bool), String> {
+    Err("Seesaw bus lines are only readable on the Raspberry".into())
+}
+
 /// I2C bus wrapper for Pi Zero 2W
 #[cfg(feature = "raspberry-pi-zero-2w")]
 pub struct I2CBus {

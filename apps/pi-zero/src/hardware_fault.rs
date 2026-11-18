@@ -117,6 +117,15 @@ impl HardwareFault {
     }
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    fn failure_names(&self) -> String {
+        self.failures
+            .iter()
+            .map(|failure| failure.name)
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+
+    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     pub(crate) fn summary(&self) -> String {
         self.failures
             .iter()
@@ -132,6 +141,8 @@ pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handof
         eprintln!("entering audio fault mode; restarting to retry in {AUDIO_RETRY_AFTER:?}");
     } else {
         eprintln!("entering hardware fault mode; service will stay alive until reboot");
+        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        bus_lines::record(&fault.failure_names());
     }
     if boot_handoff && fault.oled.is_none() {
         fault.adopt_boot_handoff_oled();
@@ -343,5 +354,7 @@ fn trellis_fault_frame(lit: bool) -> [[u8; 3]; 64] {
     frame
 }
 
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod bus_lines;
 #[cfg(test)]
 mod tests;
