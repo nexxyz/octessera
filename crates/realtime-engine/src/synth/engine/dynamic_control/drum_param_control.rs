@@ -10,11 +10,7 @@ impl SynthEngine {
         id: DrumParamId,
         value: f32,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
         if instrument_slot >= INSTRUMENT_SLOT_COUNT

@@ -29,12 +29,8 @@ impl SynthEngine {
 
     pub fn set_sample_banks(&mut self, banks: Vec<SampleBankConfig>) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
+        if self.routing_tree_rejects_control_mutation() {
             retired.sample_banks = Some(banks);
-            self.reject_routing_tree_mutation_for_control();
             return retired;
         }
         if !self.sample_voice_pool.has_home() {
@@ -56,12 +52,8 @@ impl SynthEngine {
         bank: SampleBankConfig,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
+        if self.routing_tree_rejects_control_mutation() {
             retired.sample_bank = Some(bank);
-            self.reject_routing_tree_mutation_for_control();
             return retired;
         }
         if !self.sample_voice_pool.has_home() {
@@ -82,12 +74,8 @@ impl SynthEngine {
     /// with none of the slot's sampler settings, mixer, bus FX or route.
     pub fn preview_sample(&mut self, buffer: SampleBuffer) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
+        if self.routing_tree_rejects_control_mutation() {
             store_retired_preview_buffer(&mut retired.preview_sample_buffers, buffer);
-            self.reject_routing_tree_mutation_for_control();
             return retired;
         }
         if buffer.samples.is_empty() || buffer.channels == 0 || buffer.sample_rate == 0 {

@@ -108,12 +108,8 @@ impl SynthEngine {
         prepared: PreparedMomentaryFxStart,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
+        if self.routing_tree_rejects_control_mutation() {
             store_retired_momentary(&mut retired.displaced_momentary_fx, prepared.state);
-            self.reject_routing_tree_mutation_for_control();
             return retired;
         }
         let mut state = prepared.state;
@@ -183,11 +179,7 @@ impl SynthEngine {
         &mut self,
         update: PreparedMomentaryFxUpdate,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
         let Some(fx) = self

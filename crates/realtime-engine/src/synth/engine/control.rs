@@ -20,11 +20,7 @@ struct CompiledBusMixerState {
 impl SynthEngine {
     pub fn momentary_fx_stop_by_epoch(&mut self, epoch: u64) -> RetiredAudioState {
         let retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return retired;
         }
         let Some(pos) = self.momentary_fx.iter().position(|fx| fx.epoch == epoch) else {
@@ -76,11 +72,7 @@ impl SynthEngine {
     }
 
     pub fn set_instruments(&mut self, cfg: InstrumentsConfig) {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return;
         }
         let mut next_render_plan = RenderPlan::from_config(&cfg);
@@ -171,11 +163,7 @@ impl SynthEngine {
     }
 
     pub fn set_instrument_slot(&mut self, index: usize, slot: InstrumentSlotConfig) {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return;
         }
         if index >= INSTRUMENT_SLOT_COUNT {

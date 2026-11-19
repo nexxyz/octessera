@@ -217,12 +217,8 @@ impl SynthEngine {
         bank: SampleBankConfig,
     ) -> RetiredAudioState {
         let mut retired = RetiredAudioState::default();
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
+        if self.routing_tree_rejects_control_mutation() {
             retired.sample_bank = Some(bank);
-            self.reject_routing_tree_mutation_for_control();
             return retired;
         }
         let Some(current) = self.sample_banks.get_mut(index) else {

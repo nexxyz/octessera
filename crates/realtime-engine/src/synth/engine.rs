@@ -318,6 +318,18 @@ impl SynthEngine {
         true
     }
 
+    #[inline]
+    fn routing_tree_rejects_control_mutation(&mut self) -> bool {
+        #[cfg(feature = "routing-tree-executor")]
+        if self.routing_tree_assignment.is_some()
+            && self.routing_tree_source_event_sample_clock.is_none()
+        {
+            self.reject_routing_tree_mutation_for_control();
+            return true;
+        }
+        false
+    }
+
     pub(in crate::synth::engine) fn record_voice_steal(&mut self) {
         #[cfg(any(test, feature = "profiling"))]
         {

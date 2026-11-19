@@ -20,11 +20,7 @@ impl SynthEngine {
     }
 
     pub fn set_master_volume(&mut self, volume_pct: f32) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
         let mut target = self.master_volume_target();
@@ -41,11 +37,7 @@ impl SynthEngine {
         volume_pct: Option<f32>,
         pan_pos: Option<usize>,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
@@ -75,11 +67,7 @@ impl SynthEngine {
         pan_pos: Option<usize>,
         volume_pct: Option<f32>,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
         if bus_index >= self.bus_pan_pos.len() {
@@ -111,11 +99,7 @@ impl SynthEngine {
         id: SynthParamId,
         value: f32,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
@@ -219,11 +203,7 @@ impl SynthEngine {
         id: SampleBankParamId,
         value: f32,
     ) -> ScalarMutation {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
@@ -364,11 +344,7 @@ impl SynthEngine {
         id: FxParamId,
         value: f32,
     ) -> FxParamMutation {
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some()
-            && self.routing_tree_source_event_sample_clock.is_none()
-        {
-            self.reject_routing_tree_mutation_for_control();
+        if self.routing_tree_rejects_control_mutation() {
             return FxParamMutation::Rejected;
         }
         let Some(params) = self.master_slot_params.get_mut(slot_index) else {
