@@ -8,7 +8,6 @@ import shutil
 import stat
 import subprocess
 import sys
-import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -251,15 +250,11 @@ def snapshot_store(store: Path, version: str) -> None:
     fsync_directory(snapshot)
 
 
-def restore_store(store: Path, version: str, backup: Path, restored: list[str]) -> None:
+def restore_store(store: Path, version: str) -> None:
     snapshot = ROOT / "releases" / version / "store-snapshot"
     for name in STORE_FILES:
-        if not (snapshot / name).is_file():
-            continue
-        if (store / name).is_file():
-            copy_file(store / name, backup / name)
-        restored.append(name)
-        copy_file(snapshot / name, store / name)
+        if (snapshot / name).is_file():
+            copy_file(snapshot / name, store / name)
     fsync_directory(store)
 
 
@@ -285,10 +280,11 @@ def mark_restored(store: Path) -> None:
     fsync_directory(ROOT)
 
 
-def put_back_store(store: Path, restored: list[str], backup: Path) -> None:
-    for name in restored:
-        if (backup / name).is_file():
-            copy_file(backup / name, store / name)
+def put_back_store(store: Path, version: str) -> None:
+    snapshot = ROOT / "releases" / version / "store-snapshot"
+    for name in STORE_FILES:
+        if (snapshot / name).is_file():
+            copy_file(snapshot / name, store / name)
         else:
             (store / name).unlink(missing_ok=True)
     fsync_directory(store)
@@ -337,7 +333,8 @@ def apply() -> str:
         available = newest_release(profile)
         if available is None or not is_newer(available, current):
             return f"Up to date (v{current})"
-        stage(profile, available)
+        if not (ROOT / "releases" / available / BINARY).is_file():
+            stage(profile, available)
         start_switch(available)
     return f"Installing v{available}; Octessera restarts in a moment"
 
@@ -366,25 +363,33 @@ def switch(version: str) -> str:
         if old_version == version:
             raise UpdateError(f"v{version} is already current")
         store = store_dir()
-        snapshot_store(store, old_version)
-        with tempfile.TemporaryDirectory(prefix=".store-backup-", dir=ROOT) as backup:
-            restored: list[str] = []
-            try:
-                going_back = is_newer(old_version, version)
-                if going_back or unchanged_since_rollback(store):
-                    restore_store(store, version, Path(backup), restored)
-                set_links(str(target), old_current)
-                healthy = restart_and_wait()
-            except (UpdateError, OSError):
-                healthy = False
-            if healthy:
-                if going_back:
-                    mark_restored(store)
-                else:
-                    RESTORED_MARK.unlink(missing_ok=True)
-                prune({version, old_version})
-                return f"Now running v{version}"
-            put_back_store(store, restored, Path(backup))
+        try:
+            if systemctl("stop", SERVICE) != 0:
+                raise UpdateError("Could not stop Octessera")
+            snapshot_store(store, old_version)
+        except (UpdateError, OSError) as error:
+            systemctl("restart", "--no-block", SERVICE)
+            raise UpdateError(f"Could not save the settings; staying on v{old_version}") from error
+        try:
+            going_back = is_newer(old_version, version)
+            if going_back or unchanged_since_rollback(store):
+                restore_store(store, version)
+            set_links(str(target), old_current)
+            healthy = restart_and_wait()
+        except (UpdateError, OSError):
+            healthy = False
+        if healthy:
+            if going_back:
+                mark_restored(store)
+            else:
+                RESTORED_MARK.unlink(missing_ok=True)
+            prune({version, old_version})
+            return f"Now running v{version}"
+        systemctl("stop", SERVICE)
+        try:
+            put_back_store(store, old_version)
+        except OSError as error:
+            print(f"could not put the v{old_version} settings back: {error}", file=sys.stderr)
         set_links(old_current, old_previous)
         systemctl("restart", "--no-block", SERVICE)
         raise UpdateError(f"v{version} did not start; went back to v{old_version}")

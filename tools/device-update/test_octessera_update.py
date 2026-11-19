@@ -22,6 +22,7 @@ FAKE_SYSTEMCTL = """#!/bin/sh
 echo "$*" >> "$FAKE_LOG"
 case "$1" in
   restart) if grep -q hangs "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then sleep 5; fi
+    if grep -q scribbles "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then echo scribbled > "$FAKE_STORE/system.json"; fi
     if grep -q healthy "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then echo ready > "$OCTESSERA_CANDIDATE_HEALTH_PATH"; fi ;;
   is-active) [ -f "$OCTESSERA_CANDIDATE_HEALTH_PATH" ] || exit 3 ;;
   show) echo "OCTESSERA_EXPECTED_BOARD_PROFILE=fixture OCTESSERA_PI_STORE_DIR=$FAKE_STORE" ;;
@@ -228,7 +229,6 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.stored()["default.patch.json"], "default.patch.json 1.0.0 settings")
         self.assertEqual(self.stored(self.root / "releases/1.1.0/store-snapshot")["system.json"], "system.json 1.1.0 settings")
-        self.assertEqual([path.name for path in self.root.iterdir() if path.name.startswith(".store-backup-")], [])
 
     def test_failed_going_back_puts_the_newer_store_back(self):
         self.install_release("1.1.0", b"healthy 1.1.0")
@@ -240,6 +240,36 @@ class UpdaterTests(unittest.TestCase):
         self.assertIn(b"did not start; went back to v1.1.0", result.stderr)
         self.assertEqual(self.link("current"), "1.1.0")
         self.assertEqual(set(self.stored().values()), {"system.json 1.1.0 settings", "default.patch.json 1.1.0 settings"})
+
+    def test_menu_update_rollback_and_forward_keep_each_versions_settings(self):
+        self.publish("1.1.0")
+        self.assertEqual(self.invoke("apply").returncode, 0)
+        self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
+        self.write_store("1.1.0 settings")
+        self.assertEqual(self.invoke("rollback").returncode, 0)
+        self.assertEqual(self.invoke("switch", "1.0.0").returncode, 0)
+        self.assertEqual(self.stored()["system.json"], "system.json 1.0.0 settings")
+        shutil.rmtree(self.downloads)
+        result = self.invoke("apply")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.calls()[-1], "start --no-block octessera-update-switch@1.1.0.service")
+        self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
+        self.assertEqual(self.stored()["system.json"], "system.json 1.1.0 settings")
+
+    def test_the_runtime_is_stopped_before_its_settings_are_copied(self):
+        self.install_release("1.1.0", b"healthy 1.1.0")
+        self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
+        calls = self.calls()
+        stop = calls.index("stop octessera.service")
+        self.assertLess(stop, calls.index("restart --no-block octessera.service"))
+
+    def test_failed_update_undoes_what_the_new_version_wrote(self):
+        self.install_release("1.1.0", b"scribbles 1.1.0")
+        before = self.stored()
+        result = self.invoke("switch", "1.1.0")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(self.link("current"), "1.0.0")
+        self.assertEqual(self.stored(), before)
 
     def test_concurrent_update_is_refused(self):
         self.publish("1.1.0")
