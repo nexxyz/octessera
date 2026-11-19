@@ -99,8 +99,10 @@ On a phone or computer:
    simply never uses them; no squinting at 0 versus O.
 2. Many phones and laptops pop the setup page up by themselves. If yours
    doesn't, browse to `http://192.168.42.1`.
-3. Enter your two-letter country code, press **Scan for networks**, pick your
-   network from the list (strongest signal first) and enter its password.
+3. Enter your two-letter country code and press **Scan for networks**. Despite
+   the name, it loads the list the instrument scanned when the portal started
+   (strongest signal first); if your network is missing, close the portal on
+   the instrument and open it again. Pick your network and enter its password.
    Open networks don't need one. Hidden network? Pick **Other network…** and
    type its name.
 4. Set the local device password, at least 8 characters. The page tells you
