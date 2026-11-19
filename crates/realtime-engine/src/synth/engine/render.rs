@@ -124,6 +124,7 @@ impl SynthEngine {
             right_out[..frames].fill(0.0);
             return;
         }
+        self.advance_instrument_param_glides(frames);
         {
             let scratch = &mut self.block_slot_scratch;
             let executor = scratch

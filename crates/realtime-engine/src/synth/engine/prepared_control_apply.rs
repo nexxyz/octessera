@@ -138,6 +138,7 @@ impl SynthEngine {
         self.refresh_routed_bus_slot_count();
         retired.master_slot_params =
             std::mem::replace(&mut self.master_slot_params, prepared.master_slot_params);
+        self.master_param_glides = FxSlotGlides::SETTLED;
         retired.master_slot_state = previous_master_slot_state;
         self.master_slot_state = prepared.master_slot_state;
         retired.master_active_slot_indices = std::mem::replace(
@@ -221,15 +222,12 @@ impl SynthEngine {
             retired.sample_bank = Some(bank);
             return retired;
         }
-        let Some(current) = self.sample_banks.get_mut(index) else {
-            retired.sample_bank = Some(bank);
-            return retired;
-        };
-        if !self.sample_voice_pool.has_home() {
+        if index >= self.sample_banks.len() || !self.sample_voice_pool.has_home() {
             retired.sample_bank = Some(bank);
             return retired;
         }
-        retired.sample_bank = Some(std::mem::replace(current, bank));
+        self.finish_instrument_param_glides(index);
+        retired.sample_bank = Some(std::mem::replace(&mut self.sample_banks[index], bank));
         if let Some(voices) = self.sample_voice_pool.clear_slot(index) {
             retired.sample_voices = voices;
         }
@@ -325,6 +323,7 @@ impl SynthEngine {
             prepared.displaced_states.push(old_state);
         }
         self.master_slot_params[slot_index] = prepared.params;
+        self.master_param_glides.settle(slot_index);
         self.master_slot_state[slot_index] = prepared.state;
         self.render_plan
             .install_master_fx_slot(slot_index, prepared.render_plan);

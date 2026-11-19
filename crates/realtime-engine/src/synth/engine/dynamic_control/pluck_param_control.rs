@@ -1,5 +1,6 @@
 use super::super::*;
 use super::set_clamped_f32;
+use crate::synth::engine::instrument_param_glide::InstrumentGlideParam as Glide;
 use crate::synth::scalar_param::{PluckParamId, ScalarMutation};
 
 impl SynthEngine {
@@ -23,10 +24,10 @@ impl SynthEngine {
         };
         let mutation = match id {
             PluckParamId::DecayMs => {
-                set_clamped_f32(&mut settings.decay_ms, value.round(), 100.0, 5_000.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::PluckDecay, value)
             }
             PluckParamId::BrightnessPct => {
-                set_clamped_f32(&mut settings.brightness_pct, value.round(), 0.0, 100.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::PluckBrightness, value)
             }
             PluckParamId::PickPositionPct => set_clamped_f32(
                 &mut settings.pick_position_pct,
@@ -56,15 +57,11 @@ impl SynthEngine {
                 1.0,
             ),
             PluckParamId::AmpGainPct => {
-                set_clamped_f32(&mut synth.amp.gain_pct, value, 0.0, 100.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::AmpGain, value)
             }
-            PluckParamId::AmpVelocitySensitivityPct => set_clamped_f32(
-                &mut synth.amp.velocity_sensitivity_pct,
-                value,
-                0.0,
-                100.0,
-                1.0,
-            ),
+            PluckParamId::AmpVelocitySensitivityPct => {
+                return self.glide_instrument_param(slot, Glide::AmpVelocitySensitivity, value)
+            }
             PluckParamId::AmpEnvAttackMs => {
                 set_clamped_f32(&mut synth.amp_env.attack_ms, value, 0.0, 5000.0, 1.0)
             }
@@ -78,16 +75,16 @@ impl SynthEngine {
                 set_clamped_f32(&mut synth.amp_env.release_ms, value, 0.0, 10000.0, 1.0)
             }
             PluckParamId::FilterCutoffHz => {
-                set_clamped_f32(&mut synth.filter.cutoff_hz, value, 20.0, 20_000.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FilterCutoff, value)
             }
             PluckParamId::FilterResonance => {
-                set_clamped_f32(&mut synth.filter.resonance, value, 0.0, 255.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FilterResonance, value)
             }
             PluckParamId::FilterEnvAmountPct => {
-                set_clamped_f32(&mut synth.filter.env_amount_pct, value, -100.0, 100.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FilterEnvAmount, value)
             }
             PluckParamId::FilterKeyTrackingPct => {
-                set_clamped_f32(&mut synth.filter.key_tracking_pct, value, 0.0, 100.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FilterKeyTracking, value)
             }
             PluckParamId::FilterEnvAttackMs => {
                 set_clamped_f32(&mut synth.filter_env.attack_ms, value, 0.0, 5000.0, 1.0)
@@ -103,12 +100,7 @@ impl SynthEngine {
             }
         };
         if mutation == ScalarMutation::Changed {
-            let source = *source;
-            let mut render = SynthVoiceRenderConfig::from_config(*synth);
-            render.source = source;
-            render.source_generation = self.synth_render_configs[slot].source_generation;
-            self.synth_render_configs[slot] = render;
-            self.synth_render_revisions[slot] = self.synth_render_revisions[slot].wrapping_add(1);
+            self.refresh_synth_render_config(slot);
         }
         mutation
     }

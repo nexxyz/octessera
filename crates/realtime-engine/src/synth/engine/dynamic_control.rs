@@ -1,7 +1,9 @@
 use super::super::dsp_config::DspRuntimeConfig;
-use super::super::fx_param::{apply_fx_param, FxParamId, FxParamMutation};
+use super::super::fx_param::{FxParamId, FxParamMutation};
+use super::super::fx_param_glide::fx_param_glide_frames;
 use super::super::scalar_param::{SampleBankParamId, ScalarMutation, SynthParamId};
 use super::bus_chain_owner::fx_kind_cost;
+use super::instrument_param_glide::InstrumentGlideParam as Glide;
 use super::*;
 use crate::synth::engine::render_plan::render_plan_fx_slot;
 
@@ -110,33 +112,29 @@ impl SynthEngine {
             let synth = &mut self.instruments[slot];
             match id {
                 SynthParamId::Osc1LevelPct => {
-                    set_clamped_f32(&mut synth.osc1.level_pct, value, 0.0, 100.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::Osc1Level, value)
                 }
                 SynthParamId::Osc1DetuneCents => {
-                    set_clamped_f32(&mut synth.osc1.detune_cents, value, -50.0, 50.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::Osc1Detune, value)
                 }
                 SynthParamId::Osc1PulseWidthPct => {
-                    set_clamped_f32(&mut synth.osc1.pulse_width_pct, value, 5.0, 95.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::Osc1PulseWidth, value)
                 }
                 SynthParamId::Osc2LevelPct => {
-                    set_clamped_f32(&mut synth.osc2.level_pct, value, 0.0, 100.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::Osc2Level, value)
                 }
                 SynthParamId::Osc2DetuneCents => {
-                    set_clamped_f32(&mut synth.osc2.detune_cents, value, -50.0, 50.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::Osc2Detune, value)
                 }
                 SynthParamId::Osc2PulseWidthPct => {
-                    set_clamped_f32(&mut synth.osc2.pulse_width_pct, value, 5.0, 95.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::Osc2PulseWidth, value)
                 }
                 SynthParamId::AmpGainPct => {
-                    set_clamped_f32(&mut synth.amp.gain_pct, value, 0.0, 100.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::AmpGain, value)
                 }
-                SynthParamId::AmpVelocitySensitivityPct => set_clamped_f32(
-                    &mut synth.amp.velocity_sensitivity_pct,
-                    value,
-                    0.0,
-                    100.0,
-                    1.0,
-                ),
+                SynthParamId::AmpVelocitySensitivityPct => {
+                    return self.glide_instrument_param(slot, Glide::AmpVelocitySensitivity, value)
+                }
                 SynthParamId::AmpEnvAttackMs => {
                     set_clamped_f32(&mut synth.amp_env.attack_ms, value, 0.0, 5000.0, 1.0)
                 }
@@ -150,16 +148,16 @@ impl SynthEngine {
                     set_clamped_f32(&mut synth.amp_env.release_ms, value, 0.0, 10000.0, 1.0)
                 }
                 SynthParamId::FilterCutoffHz => {
-                    set_clamped_f32(&mut synth.filter.cutoff_hz, value, 20.0, 20_000.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::FilterCutoff, value)
                 }
                 SynthParamId::FilterResonance => {
-                    set_clamped_f32(&mut synth.filter.resonance, value, 0.0, 255.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::FilterResonance, value)
                 }
                 SynthParamId::FilterEnvAmountPct => {
-                    set_clamped_f32(&mut synth.filter.env_amount_pct, value, -100.0, 100.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::FilterEnvAmount, value)
                 }
                 SynthParamId::FilterKeyTrackingPct => {
-                    set_clamped_f32(&mut synth.filter.key_tracking_pct, value, 0.0, 100.0, 1.0)
+                    return self.glide_instrument_param(slot, Glide::FilterKeyTracking, value)
                 }
                 SynthParamId::FilterEnvAttackMs => {
                     set_clamped_f32(&mut synth.filter_env.attack_ms, value, 0.0, 5000.0, 1.0)
@@ -176,11 +174,7 @@ impl SynthEngine {
             }
         };
         if mutation == ScalarMutation::Changed {
-            let source_generation = self.synth_render_configs[slot].source_generation;
-            let mut render = SynthVoiceRenderConfig::from_config(self.instruments[slot]);
-            render.source_generation = source_generation;
-            self.synth_render_configs[slot] = render;
-            self.synth_render_revisions[slot] = self.synth_render_revisions[slot].wrapping_add(1);
+            self.refresh_synth_render_config(slot);
         }
         mutation
     }
@@ -210,11 +204,11 @@ impl SynthEngine {
         if !self.sample_voice_pool.has_home() {
             return ScalarMutation::Rejected;
         }
-        let (mutation, cutoff_hz, resonance) = {
+        {
             let Some(bank) = self.sample_banks.get_mut(slot) else {
                 return ScalarMutation::Rejected;
             };
-            let mutation = match id {
+            match id {
                 SampleBankParamId::TuneSemis => {
                     set_clamped_f32(&mut bank.tune_semis, value, -24.0, 24.0, 1.0)
                 }
@@ -225,25 +219,13 @@ impl SynthEngine {
                     set_clamped_f32(&mut bank.velocity_sensitivity_pct, value, 0.0, 100.0, 1.0)
                 }
                 SampleBankParamId::FilterCutoffHz => {
-                    set_clamped_f32(&mut bank.filter_cutoff_hz, value, 20.0, 20_000.0, 1.0)
+                    self.glide_instrument_param(slot, Glide::SampleCutoff, value)
                 }
                 SampleBankParamId::FilterResonance => {
-                    set_clamped_f32(&mut bank.filter_resonance, value, 0.0, 255.0, 1.0)
+                    self.glide_instrument_param(slot, Glide::SampleResonance, value)
                 }
-            };
-            (mutation, bank.filter_cutoff_hz, bank.filter_resonance)
-        };
-        if mutation == ScalarMutation::Changed
-            && matches!(
-                id,
-                SampleBankParamId::FilterCutoffHz | SampleBankParamId::FilterResonance
-            )
-        {
-            let _ = self
-                .sample_voice_pool
-                .update_filter_for_slot(slot, cutoff_hz, resonance);
+            }
         }
-        mutation
     }
 
     pub fn set_sample_bank_param(
@@ -313,6 +295,7 @@ impl SynthEngine {
             self.master_slot_state[slot_index] = master_fx_state_from_params(&next_params);
         }
         self.master_slot_params[slot_index] = next_params;
+        self.master_param_glides.settle(slot_index);
         self.render_plan
             .install_master_fx_slot(slot_index, render_plan);
         self.refresh_master_active_slot_indices();
@@ -335,7 +318,8 @@ impl SynthEngine {
         let Some(chain) = self.bus_chains.get_mut(bus_index) else {
             return FxParamMutation::Rejected;
         };
-        chain.set_slot_param(slot_index, id, value)
+        let glide_frames = fx_param_glide_frames(self.sample_rate);
+        chain.set_slot_param(slot_index, id, value, glide_frames)
     }
 
     pub fn set_global_fx_param(
@@ -350,7 +334,9 @@ impl SynthEngine {
         let Some(params) = self.master_slot_params.get_mut(slot_index) else {
             return FxParamMutation::Rejected;
         };
-        apply_fx_param(params, id, value)
+        let glide_frames = fx_param_glide_frames(self.sample_rate);
+        self.master_param_glides
+            .set(slot_index, params, id, value, glide_frames)
     }
 }
 

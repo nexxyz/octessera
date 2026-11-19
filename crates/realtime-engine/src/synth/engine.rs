@@ -3,6 +3,7 @@ use super::fx::{
     fx_bus_state_from_params, master_fx_state_from_params, master_fx_state_matches_params,
     process_master_fx_slot, FxBusState, MasterFxState,
 };
+use super::fx_param_glide::FxSlotGlides;
 use super::fx_params::{compile_fx_bus_params, FxBusParams};
 use super::runtime_state::*;
 use super::signal_tap::{master_signal_tap, SignalSource, SignalTap};
@@ -33,9 +34,14 @@ mod dynamic_control_tests;
 #[cfg(test)]
 mod event_offset_tests;
 mod fm_render;
+#[cfg(test)]
+mod fx_param_glide_tests;
 mod inline_source_executor;
+mod instrument_param_glide;
 #[cfg(test)]
 mod lifecycle_tests;
+#[cfg(test)]
+mod live_param_glide_cost_tests;
 mod live_pitch_shift;
 #[cfg(test)]
 mod master_chain_tests;
@@ -264,12 +270,14 @@ pub struct SynthEngine {
     active_bus_activity_count: usize,
     routed_bus_slot_count: usize,
     master_slot_params: Vec<FxBusParams>,
+    master_param_glides: FxSlotGlides<GLOBAL_FX_SLOT_COUNT>,
     master_slot_state: Vec<MasterFxState>,
     master_active_slot_indices: Vec<usize>,
     master_activity_frames: u32,
     pan_positions: usize,
     master_volume: f32,
     mixer_gain_ramps: MixerGainRamps,
+    instrument_param_glides: instrument_param_glide::InstrumentParamGlides,
     voice_stealing_mode: VoiceStealingMode,
     smoothed_load_ratio: f32,
     #[cfg(any(test, feature = "profiling"))]

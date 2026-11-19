@@ -1,5 +1,6 @@
 use super::super::*;
 use super::set_clamped_f32;
+use crate::synth::engine::instrument_param_glide::InstrumentGlideParam as Glide;
 use crate::synth::scalar_param::{DrumParamId, ScalarMutation};
 
 impl SynthEngine {
@@ -64,39 +65,15 @@ impl SynthEngine {
                 _ => ScalarMutation::Rejected,
             };
         }
-        let cfg = &mut self.instruments[slot];
-        let mutation = match id {
-            DrumParamId::AmpGainPct => {
-                set_clamped_f32(&mut cfg.amp.gain_pct, value, 0.0, 100.0, 1.0)
-            }
-            DrumParamId::AmpVelocitySensitivityPct => set_clamped_f32(
-                &mut cfg.amp.velocity_sensitivity_pct,
-                value,
-                0.0,
-                100.0,
-                1.0,
-            ),
-            DrumParamId::FilterCutoffHz => {
-                set_clamped_f32(&mut cfg.filter.cutoff_hz, value, 20.0, 20_000.0, 1.0)
-            }
-            DrumParamId::FilterResonance => {
-                set_clamped_f32(&mut cfg.filter.resonance, value, 0.0, 255.0, 1.0)
-            }
-            DrumParamId::FilterEnvAmountPct => {
-                set_clamped_f32(&mut cfg.filter.env_amount_pct, value, -100.0, 100.0, 1.0)
-            }
-            DrumParamId::FilterKeyTrackingPct => {
-                set_clamped_f32(&mut cfg.filter.key_tracking_pct, value, 0.0, 100.0, 1.0)
-            }
-            _ => ScalarMutation::Rejected,
+        let param = match id {
+            DrumParamId::AmpGainPct => Glide::AmpGain,
+            DrumParamId::AmpVelocitySensitivityPct => Glide::AmpVelocitySensitivity,
+            DrumParamId::FilterCutoffHz => Glide::FilterCutoff,
+            DrumParamId::FilterResonance => Glide::FilterResonance,
+            DrumParamId::FilterEnvAmountPct => Glide::FilterEnvAmount,
+            DrumParamId::FilterKeyTrackingPct => Glide::FilterKeyTracking,
+            _ => return ScalarMutation::Rejected,
         };
-        if mutation == ScalarMutation::Changed {
-            let mut render = SynthVoiceRenderConfig::from_config(*cfg);
-            render.source = render_voice::VoiceSource::Drum;
-            render.source_generation = self.synth_render_configs[slot].source_generation;
-            self.synth_render_configs[slot] = render;
-            self.synth_render_revisions[slot] = self.synth_render_revisions[slot].wrapping_add(1);
-        }
-        mutation
+        self.glide_instrument_param(slot, param, value)
     }
 }

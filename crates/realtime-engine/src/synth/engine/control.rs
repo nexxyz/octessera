@@ -142,6 +142,7 @@ impl SynthEngine {
             .filter(|chain| chain.is_active())
             .count();
         self.master_slot_params = next_master_slot_params;
+        self.master_param_glides = FxSlotGlides::SETTLED;
         self.master_slot_state = next_master_slot_state;
         self.refresh_master_active_slot_indices();
         self.master_activity_frames = 0;

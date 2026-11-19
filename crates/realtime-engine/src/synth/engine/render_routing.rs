@@ -260,6 +260,10 @@ impl SynthEngine {
     }
 
     pub(super) fn apply_master_fx_slots(&mut self, mut left: f32, mut right: f32) -> (f32, f32) {
+        if self.master_param_glides.is_active() {
+            self.master_param_glides
+                .advance(&mut self.master_slot_params);
+        }
         for slot_idx in self.master_active_slot_indices.iter().copied() {
             let params = self.master_slot_params[slot_idx];
             if let Some(state) = self.master_slot_state.get_mut(slot_idx) {

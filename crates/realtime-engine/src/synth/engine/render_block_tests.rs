@@ -144,6 +144,7 @@ fn inline_source_kernels_match_serial_with_dynamic_voice_state_at_supported_quan
             engine.set_synth_param(1, "synth.filter.cutoffHz", 2_300.0);
             engine.cc(1, 74, 91);
             engine.cc(1, 71, 83);
+            engine.land_live_param_glides();
         }
         assert_eq!(
             block.synth_render_revisions,

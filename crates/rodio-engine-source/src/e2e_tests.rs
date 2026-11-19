@@ -135,6 +135,11 @@ fn prepared_config_note_and_dynamic_control_cross_source_blocks() {
         value: 0.0,
     })
     .unwrap();
+    let gliding = block(&mut source);
+    assert!(energy(&gliding) > 0.0);
+    for _ in 0..(RATE as usize / 100).div_ceil(FRAMES) {
+        let _ = block(&mut source);
+    }
     let after = block(&mut source);
     assert!(energy(&after) < energy(&before) * 0.1);
 }

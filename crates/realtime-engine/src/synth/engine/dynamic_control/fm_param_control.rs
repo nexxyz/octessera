@@ -1,5 +1,6 @@
 use super::super::*;
 use super::set_clamped_f32;
+use crate::synth::engine::instrument_param_glide::InstrumentGlideParam as Glide;
 use crate::synth::scalar_param::{FmParamId, ScalarMutation};
 
 impl SynthEngine {
@@ -21,11 +22,8 @@ impl SynthEngine {
             base_ratio,
             effective_ratio,
             ratio_fine_cents,
-            index,
-            velocity_to_index,
-            mod_shape,
-            mod_mix,
             index_env,
+            ..
         } = source
         else {
             return ScalarMutation::Rejected;
@@ -46,15 +44,21 @@ impl SynthEngine {
                 mutation
             }
             FmParamId::Index => {
-                set_clamped_f32(index, value.round().clamp(0.0, 100.0) * 0.04, 0.0, 4.0, 1.0)
+                return self.glide_instrument_param(
+                    slot,
+                    Glide::FmIndex,
+                    value.clamp(0.0, 100.0) * 0.04,
+                )
             }
             FmParamId::VelocityToIndexPct => {
-                set_clamped_f32(velocity_to_index, value.round() * 0.01, 0.0, 1.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FmVelocityToIndex, value * 0.01)
             }
             FmParamId::ModShapePct => {
-                set_clamped_f32(mod_shape, value.round() * 0.01, 0.0, 1.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FmModShape, value * 0.01)
             }
-            FmParamId::ModMixPct => set_clamped_f32(mod_mix, value.round() * 0.01, 0.0, 1.0, 1.0),
+            FmParamId::ModMixPct => {
+                return self.glide_instrument_param(slot, Glide::FmModMix, value * 0.01)
+            }
             FmParamId::IndexEnvAttackMs => {
                 set_clamped_f32(&mut index_env.attack_ms, value, 0.0, 5000.0, 1.0)
             }
@@ -68,15 +72,11 @@ impl SynthEngine {
                 set_clamped_f32(&mut index_env.release_ms, value, 0.0, 10000.0, 1.0)
             }
             FmParamId::AmpGainPct => {
-                set_clamped_f32(&mut synth.amp.gain_pct, value, 0.0, 100.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::AmpGain, value)
             }
-            FmParamId::AmpVelocitySensitivityPct => set_clamped_f32(
-                &mut synth.amp.velocity_sensitivity_pct,
-                value,
-                0.0,
-                100.0,
-                1.0,
-            ),
+            FmParamId::AmpVelocitySensitivityPct => {
+                return self.glide_instrument_param(slot, Glide::AmpVelocitySensitivity, value)
+            }
             FmParamId::AmpEnvAttackMs => {
                 set_clamped_f32(&mut synth.amp_env.attack_ms, value, 0.0, 5000.0, 1.0)
             }
@@ -90,16 +90,16 @@ impl SynthEngine {
                 set_clamped_f32(&mut synth.amp_env.release_ms, value, 0.0, 10000.0, 1.0)
             }
             FmParamId::FilterCutoffHz => {
-                set_clamped_f32(&mut synth.filter.cutoff_hz, value, 20.0, 20_000.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FilterCutoff, value)
             }
             FmParamId::FilterResonance => {
-                set_clamped_f32(&mut synth.filter.resonance, value, 0.0, 255.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FilterResonance, value)
             }
             FmParamId::FilterEnvAmountPct => {
-                set_clamped_f32(&mut synth.filter.env_amount_pct, value, -100.0, 100.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FilterEnvAmount, value)
             }
             FmParamId::FilterKeyTrackingPct => {
-                set_clamped_f32(&mut synth.filter.key_tracking_pct, value, 0.0, 100.0, 1.0)
+                return self.glide_instrument_param(slot, Glide::FilterKeyTracking, value)
             }
             FmParamId::FilterEnvAttackMs => {
                 set_clamped_f32(&mut synth.filter_env.attack_ms, value, 0.0, 5000.0, 1.0)
@@ -115,12 +115,7 @@ impl SynthEngine {
             }
         };
         if mutation == ScalarMutation::Changed {
-            let source = *source;
-            let mut render = SynthVoiceRenderConfig::from_config(*synth);
-            render.source = source;
-            render.source_generation = self.synth_render_configs[slot].source_generation;
-            self.synth_render_configs[slot] = render;
-            self.synth_render_revisions[slot] = self.synth_render_revisions[slot].wrapping_add(1);
+            self.refresh_synth_render_config(slot);
         }
         mutation
     }

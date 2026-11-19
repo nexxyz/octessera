@@ -80,6 +80,7 @@ impl SourceWorkerRuntime {
                 return SourceWorkerRenderDisposition::Fatal;
             };
         }
+        engine.advance_instrument_param_glides(frames);
         if !self.routing_output_ready {
             if !self.dispatch_routing_tree(engine, frames, dispatch_sample_clock) {
                 return self.routing_tree_failure_disposition();

@@ -108,6 +108,7 @@ fn typed_scalar_updates_preserve_all_existing_clamps() {
             ScalarMutation::Changed
         );
     }
+    engine.land_live_param_glides();
     let synth = engine.instruments[0];
     assert_eq!((synth.osc1.level_pct, synth.osc2.level_pct), (100.0, 0.0));
     assert_eq!(
@@ -139,6 +140,7 @@ fn typed_scalar_updates_preserve_all_existing_clamps() {
             ScalarMutation::Changed
         );
     }
+    engine.land_live_param_glides();
     assert_eq!(
         sample_scalar_values(&engine, 0),
         [-24.0, 0.0, 0.0, 20.0, 255.0]

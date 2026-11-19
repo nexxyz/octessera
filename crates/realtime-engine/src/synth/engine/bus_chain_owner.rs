@@ -1,6 +1,7 @@
 use super::super::dsp_config::BusIdleThreshold;
 use super::super::fx::{fx_bus_state_can_preserve, process_fx_bus_slot, FxBusState};
-use super::super::fx_param::{apply_fx_param, FxParamId, FxParamMutation};
+use super::super::fx_param::{FxParamId, FxParamMutation};
+use super::super::fx_param_glide::FxSlotGlides;
 use super::super::fx_params::{FxBusParams, FxKind};
 use super::super::types::BUS_SLOTS_PER_BUS;
 #[cfg(feature = "routing-tree-executor")]
@@ -142,6 +143,7 @@ pub(super) struct BusChainOwner {
     pub(super) slot_params: [FxBusParams; BUS_SLOTS_PER_BUS],
     pub(super) slot_state: [FxBusState; BUS_SLOTS_PER_BUS],
     pub(super) slot_costs: [u16; BUS_SLOTS_PER_BUS],
+    param_glides: FxSlotGlides<BUS_SLOTS_PER_BUS>,
     pub(super) active_slot_indices: [usize; BUS_SLOTS_PER_BUS],
     pub(super) active_slot_count: usize,
     pub(super) render_hold_frames: u32,
@@ -162,6 +164,7 @@ impl BusChainOwner {
             slot_params,
             slot_state,
             slot_costs,
+            param_glides: FxSlotGlides::SETTLED,
             active_slot_indices,
             active_slot_count,
             render_hold_frames: 0,
@@ -191,6 +194,9 @@ impl BusChainOwner {
         resolved_duck: &[f32; BUS_SLOTS_PER_BUS],
         sample_rate: u32,
     ) -> BusChainFrameOutput {
+        if self.param_glides.is_active() {
+            self.param_glides.advance(&mut self.slot_params);
+        }
         let mut processed = input;
         let mut auto_pan_pos = None;
         let mut spread = 0.0_f32;
@@ -255,6 +261,9 @@ impl BusChainOwner {
             }
             scratch.executed = true;
             scratch.chain_ran[frame] = true;
+            if self.param_glides.is_active() {
+                self.param_glides.advance(&mut self.slot_params);
+            }
             let mut processed = input;
             let mut auto_pan_pos = None;
             for slot_index in self
@@ -325,6 +334,7 @@ impl BusChainOwner {
         };
         self.slot_params[slot_index] = params;
         self.slot_costs[slot_index] = cost;
+        self.param_glides.settle(slot_index);
         self.refresh_active_slots();
         if previous_params != params {
             self.reset_quiet();
@@ -370,16 +380,24 @@ impl BusChainOwner {
         self.slot_costs.iter().copied().sum()
     }
 
+    /// Sets a live parameter; a level or gain glides over `glide_frames` of processed frames.
     pub(super) fn set_slot_param(
         &mut self,
         slot_index: usize,
         id: FxParamId,
         value: f32,
+        glide_frames: u32,
     ) -> FxParamMutation {
         let Some(params) = self.slot_params.get_mut(slot_index) else {
             return FxParamMutation::Rejected;
         };
-        apply_fx_param(params, id, value)
+        self.param_glides
+            .set(slot_index, params, id, value, glide_frames)
+    }
+
+    #[cfg(test)]
+    pub(super) fn land_param_glides(&mut self) {
+        self.param_glides.land(&mut self.slot_params);
     }
 
     pub(super) fn observe(

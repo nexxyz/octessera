@@ -54,6 +54,8 @@ fn synth_oscillator_scalar_edits_keep_held_voice_and_change_audio() {
             scalar.set_synth_param_typed(0, id, value),
             ScalarMutation::Changed
         );
+        changed.land_live_param_glides();
+        scalar.land_live_param_glides();
         let held = changed.synth_voice_pool.lane(0).unwrap();
         assert_eq!(held.started_sample, before.started_sample);
         assert_eq!(
@@ -189,6 +191,7 @@ fn synth_block_matches_scalar_across_config_and_mod_changes_and_release() {
         engine.set_synth_param(0, "synth.filter.resonance", 61.0);
         engine.set_synth_param(0, "synth.filter.envAmountPct", -35.0);
         engine.cc(0, 71, 83);
+        engine.land_live_param_glides();
     }
     render_pair(&mut block, &mut scalar, 64);
 

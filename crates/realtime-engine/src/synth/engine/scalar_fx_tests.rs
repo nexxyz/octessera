@@ -77,6 +77,7 @@ fn scalar_mutation_preserves_render_and_state_identity_without_allocation() {
             }
         });
     assert_eq!((allocations, deallocations), (0, 0));
+    engine.land_live_param_glides();
     assert_eq!(engine.render_plan, plan);
     assert_eq!(
         (
@@ -152,14 +153,17 @@ fn routing_tree_scalar_control_returns_the_same_owner_pair() {
     assert!(!engine.take_routing_tree_rejection());
     assert!(runtime.collect_wait_for_test(&mut engine));
     assert_eq!(runtime.home_owner_identities_for_test(), initial);
-    let owners = runtime.take_home_owners_for_test().expect("owner pair");
+    let mut owners = runtime.take_home_owners_for_test().expect("owner pair");
     let feedback = owners
-        .iter()
-        .filter_map(|owner| owner.bus_carriers[0].as_ref())
-        .filter_map(|carrier| carrier.owner.as_ref())
-        .find_map(|owner| match owner.slot_params[0] {
-            FxBusParams::Delay { feedback, .. } => Some(feedback),
-            _ => None,
+        .iter_mut()
+        .filter_map(|owner| owner.bus_carriers[0].as_mut())
+        .filter_map(|carrier| carrier.owner.as_mut())
+        .find_map(|owner| {
+            owner.land_param_glides();
+            match owner.slot_params[0] {
+                FxBusParams::Delay { feedback, .. } => Some(feedback),
+                _ => None,
+            }
         });
     assert_eq!(feedback, Some(0.7));
     runtime.return_home_owners_for_test(owners);

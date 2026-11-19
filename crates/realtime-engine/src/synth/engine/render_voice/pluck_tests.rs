@@ -100,6 +100,7 @@ fn pluck_held_live_coefficients_and_next_pick_do_not_restart_ring() {
             ScalarMutation::Changed
         );
     }
+    engine.land_live_param_glides();
     let before = engine.synth_voice_pool.lane(0).unwrap();
     assert_eq!(before.pluck.write, held.pluck.write);
     assert_eq!(before.pluck.emitted, held.pluck.emitted);
@@ -268,6 +269,7 @@ fn pluck_prepared_and_live_controls_match_with_held_ring_continuity() {
             live.set_pluck_param_typed(0, param, value),
             ScalarMutation::Changed
         );
+        live.land_live_param_glides();
         for engine in [&prepared, &live] {
             let held = engine.synth_voice_pool.lane(0).unwrap();
             assert_eq!(held.pluck.write, before.pluck.write);

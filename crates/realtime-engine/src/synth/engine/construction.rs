@@ -39,12 +39,16 @@ impl SynthEngine {
             active_bus_activity_count: 0,
             routed_bus_slot_count: 0,
             master_slot_params: Vec::new(),
+            master_param_glides: FxSlotGlides::SETTLED,
             master_slot_state: Vec::new(),
             master_active_slot_indices: Vec::new(),
             master_activity_frames: 0,
             pan_positions: DEFAULT_PAN_POSITIONS,
             master_volume: 1.0,
             mixer_gain_ramps: MixerGainRamps::new(sample_rate),
+            instrument_param_glides: super::instrument_param_glide::InstrumentParamGlides::new(
+                sample_rate,
+            ),
             voice_stealing_mode: VoiceStealingMode::AutoBalanced,
             smoothed_load_ratio: 0.0,
             #[cfg(any(test, feature = "profiling"))]

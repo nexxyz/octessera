@@ -5,6 +5,7 @@ mod dsp_config;
 mod engine;
 mod fx;
 mod fx_param;
+mod fx_param_glide;
 mod fx_params;
 mod param_path_validation;
 mod pluck_config;

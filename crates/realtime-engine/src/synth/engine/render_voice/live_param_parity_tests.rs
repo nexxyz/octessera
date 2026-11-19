@@ -92,6 +92,7 @@ fn assert_live_controls_match_patches<Id: Copy + PartialEq + std::fmt::Debug>(
             if set_live(&mut live, id, value as f32) != ScalarMutation::Changed {
                 return false;
             }
+            live.land_live_param_glides();
             let Some(patch) = slot(kind, Some(&with_leaf(&base, &path, value))) else {
                 return false;
             };

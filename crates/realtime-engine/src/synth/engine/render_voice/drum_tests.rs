@@ -338,6 +338,7 @@ fn drum_uses_common_filter_and_bus_and_live_slot_gain() {
         direct.set_drum_param_typed(0, 0, DrumParamId::AmpGainPct, 0.0),
         ScalarMutation::Changed
     );
+    direct.land_live_param_glides();
     assert!(direct.synth_voice_pool.lane(0).unwrap().active);
     assert_eq!(direct.next_sample(), 0.0);
 }

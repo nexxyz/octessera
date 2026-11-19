@@ -20,6 +20,7 @@ fn ten_thousand_typed_updates_are_allocation_free_and_final_values_are_exact() {
             }
         });
     assert_eq!((allocations, deallocations), (0, 0));
+    engine.land_live_param_glides();
     assert_eq!(
         synth_scalar_values(&engine, 0)[0].to_bits(),
         99.0_f32.to_bits()
@@ -105,6 +106,7 @@ fn sample_filter_updates_only_changed_active_voice_parameters() {
         engine.set_sample_bank_param_typed(0, SampleBankParamId::FilterCutoffHz, 1_200.0),
         ScalarMutation::Changed
     );
+    engine.land_live_param_glides();
     let voice = engine.sample_voice_pool.lane(lane).expect("sample voice");
     assert_eq!(voice.filter_cutoff_hz, 1_200.0);
     assert_eq!(
@@ -119,6 +121,7 @@ fn sample_filter_updates_only_changed_active_voice_parameters() {
         engine.set_sample_bank_param_typed(0, SampleBankParamId::FilterResonance, 42.0),
         ScalarMutation::Changed
     );
+    engine.land_live_param_glides();
     let voice = engine.sample_voice_pool.lane(lane).expect("sample voice");
     assert_eq!(voice.filter_cutoff_hz, 1_200.0);
     assert_eq!(voice.filter_resonance, 42.0);

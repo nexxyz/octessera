@@ -63,6 +63,7 @@ fn held_fm_index_scalar_matches_prepared_patch_depth_and_audio() {
                 ScalarMutation::Changed
             }
         );
+        live.land_live_param_glides();
         let VoiceSource::Fm {
             index: live_depth, ..
         } = live.synth_render_configs[0].source

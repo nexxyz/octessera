@@ -37,6 +37,9 @@ impl SynthEngine {
             retired.sample_banks = Some(banks);
             return retired;
         }
+        for slot in 0..INSTRUMENT_SLOT_COUNT {
+            self.finish_instrument_param_glides(slot);
+        }
         retired.sample_banks = Some(std::mem::replace(&mut self.sample_banks, banks));
         self.sample_banks
             .resize(INSTRUMENT_SLOT_COUNT, SampleBankConfig::default());
@@ -61,6 +64,7 @@ impl SynthEngine {
             return retired;
         }
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
+        self.finish_instrument_param_glides(slot);
         self.sample_banks
             .resize(INSTRUMENT_SLOT_COUNT, SampleBankConfig::default());
         retired.sample_bank = Some(std::mem::replace(&mut self.sample_banks[slot], bank));

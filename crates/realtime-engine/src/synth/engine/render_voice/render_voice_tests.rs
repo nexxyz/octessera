@@ -128,6 +128,7 @@ fn held_synth_and_fm_tracking_edits_refresh_before_static_block_filter() {
                 )
             };
             assert_eq!(mutation, crate::synth::ScalarMutation::Changed);
+            engine.land_live_param_glides();
         }
         reset_prepare_count_for_test();
         block.render_interleaved_block(128, &mut left, &mut right, &mut out);

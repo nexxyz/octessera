@@ -64,6 +64,7 @@ impl SynthEngine {
         drum_voices: [DrumVoiceConfig; 8],
         mixer: Option<NormalizedInstrumentMixer>,
     ) {
+        self.finish_instrument_param_glides(idx);
         let source_generation = self.synth_render_configs[idx]
             .source_generation
             .wrapping_add(u32::from(self.slot_kind[idx] != kind));

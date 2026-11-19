@@ -25,6 +25,19 @@ impl SynthEngine {
             .unwrap_or(0)
     }
 
+    /// Lands every running live-parameter glide, so a test can compare a live edit with the same
+    /// value loaded from a patch or rendered by the per-frame reference.
+    #[cfg(test)]
+    pub(in crate::synth) fn land_live_param_glides(&mut self) {
+        for slot in 0..INSTRUMENT_SLOT_COUNT {
+            self.finish_instrument_param_glides(slot);
+        }
+        for chain in &mut self.bus_chains {
+            chain.land_param_glides();
+        }
+        self.master_param_glides.land(&mut self.master_slot_params);
+    }
+
     /// Renders long enough for every voice a steal is fading out to finish and free its lane.
     #[cfg(test)]
     pub(in crate::synth) fn render_through_steal_fades(&mut self) {
