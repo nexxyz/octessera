@@ -2,8 +2,8 @@ use super::{
     IngressState, RecordingChunk, RecordingError, RecordingOutcome, RecordingStatus,
     BITS_PER_SAMPLE, CHANNELS, SAMPLE_RATE,
 };
-use std::fs::{self, File};
-use std::io::{Seek, SeekFrom, Write};
+use std::fs::{self, File, OpenOptions};
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver};
@@ -12,6 +12,9 @@ use std::time::Duration;
 
 const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
 const WRITE_BUFFER_BYTES: usize = 4_096;
+pub(crate) const PARTIAL_WAV_SUFFIX: &str = ".partial.wav";
+const HEADER_BYTES: u64 = 44;
+const FRAME_BYTES: u64 = CHANNELS as u64 * BITS_PER_SAMPLE as u64 / 8;
 
 pub(crate) fn write_recording(
     file: File,
@@ -188,7 +191,58 @@ fn recording_error(partial_path: &Path, error: impl std::fmt::Display) -> Record
     }
 }
 
-fn write_header(file: &mut File, frames: u64) -> std::io::Result<()> {
+/// Saves an audio take a power cut left with an empty header as `.incomplete.wav`: the sizes
+/// come from the file length, and a torn trailing frame is dropped. A file this recorder did
+/// not write is left untouched.
+pub(crate) fn repair_partial_wav(partial_path: &Path) -> Result<RecordingOutcome, String> {
+    let failed = |error: std::io::Error| format!("{}: {error}", partial_path.display());
+    let name = partial_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| name.strip_suffix(PARTIAL_WAV_SUFFIX))
+        .ok_or_else(|| format!("{} is not a partial WAV take", partial_path.display()))?;
+    let final_path = partial_path.with_file_name(format!("{name}.incomplete.wav"));
+    if final_path.exists() {
+        return Err(format!("{} already exists", final_path.display()));
+    }
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(partial_path)
+        .map_err(failed)?;
+    let mut header = [0_u8; HEADER_BYTES as usize];
+    let mut expected = Cursor::new(Vec::new());
+    write_header(&mut expected, 0).map_err(failed)?;
+    let ours = file.read_exact(&mut header).is_ok()
+        && header[..4] == expected.get_ref()[..4]
+        && header[8..40] == expected.get_ref()[8..40];
+    if !ours {
+        return Err(format!(
+            "{} is not a WAV take this recorder wrote",
+            partial_path.display()
+        ));
+    }
+    let length = file.metadata().map_err(failed)?.len();
+    let frames = (length - HEADER_BYTES) / FRAME_BYTES;
+    file.set_len(HEADER_BYTES + frames * FRAME_BYTES)
+        .map_err(failed)?;
+    write_header(&mut file, frames).map_err(failed)?;
+    file.sync_all().map_err(failed)?;
+    fs::rename(partial_path, &final_path).map_err(failed)?;
+    Ok(RecordingOutcome {
+        path: final_path,
+        frames_written: frames,
+        status: RecordingStatus::Incomplete {
+            gap_count: 0,
+            gap_frames: 0,
+            overflow_count: 0,
+            overflow_frames: 0,
+        },
+        size_limited: false,
+    })
+}
+
+fn write_header(file: &mut (impl Write + Seek), frames: u64) -> std::io::Result<()> {
     let data_bytes = frames
         .checked_mul(u64::from(CHANNELS) * u64::from(BITS_PER_SAMPLE / 8))
         .ok_or_else(|| std::io::Error::other("WAV data size overflow"))?;

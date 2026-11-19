@@ -77,7 +77,7 @@ pub fn run() {
                     startup_failure::StartupDecision::FailurePresented => return Ok(()),
                 };
             app.manage(store_lock);
-            recording::spawn_partial_take_repair(&screen_recording_dir);
+            recording::spawn_partial_take_repair([&recording_dir, &screen_recording_dir]);
             let recording = recording::DesktopRecording::with_screen_directory(
                 recording_dir,
                 screen_recording_dir,

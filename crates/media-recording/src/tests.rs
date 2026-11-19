@@ -302,6 +302,74 @@ fn path_reservation_skips_existing_partial_and_final_takes() {
     remove_temp_dir(dir);
 }
 
+fn empty_header_wav() -> Vec<u8> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"RIFF");
+    bytes.extend_from_slice(&36_u32.to_le_bytes());
+    bytes.extend_from_slice(b"WAVEfmt ");
+    bytes.extend_from_slice(&16_u32.to_le_bytes());
+    bytes.extend_from_slice(&1_u16.to_le_bytes());
+    bytes.extend_from_slice(&2_u16.to_le_bytes());
+    bytes.extend_from_slice(&44_100_u32.to_le_bytes());
+    bytes.extend_from_slice(&176_400_u32.to_le_bytes());
+    bytes.extend_from_slice(&4_u16.to_le_bytes());
+    bytes.extend_from_slice(&16_u16.to_le_bytes());
+    bytes.extend_from_slice(b"data");
+    bytes.extend_from_slice(&0_u32.to_le_bytes());
+    bytes
+}
+
+#[test]
+fn a_wav_take_cut_by_power_loss_is_saved_with_its_whole_frames() {
+    let dir = temp_dir("wav-repair");
+    let partial = dir.join("take.partial.wav");
+    let mut bytes = empty_header_wav();
+    for sample in [1_i16, -1, 2, -2, 3, -3] {
+        bytes.extend_from_slice(&sample.to_le_bytes());
+    }
+    bytes.push(0x7f);
+    fs::write(&partial, &bytes).unwrap();
+    assert_eq!(partial_take_paths(&dir), vec![partial.clone()]);
+
+    let outcome = repair_partial_take(&partial).unwrap();
+
+    assert_eq!(outcome.path, dir.join("take.incomplete.wav"));
+    assert_eq!(outcome.frames_written, 3);
+    assert!(matches!(outcome.status, RecordingStatus::Incomplete { .. }));
+    assert!(!partial.exists());
+    let repaired = fs::read(&outcome.path).unwrap();
+    assert_eq!(repaired.len(), 56);
+    assert_eq!(u32::from_le_bytes(repaired[4..8].try_into().unwrap()), 48);
+    assert_eq!(u32::from_le_bytes(repaired[40..44].try_into().unwrap()), 12);
+    assert_eq!(
+        repaired[..44],
+        {
+            let mut header = empty_header_wav();
+            header[4..8].copy_from_slice(&48_u32.to_le_bytes());
+            header[40..44].copy_from_slice(&12_u32.to_le_bytes());
+            header
+        }[..]
+    );
+    assert_eq!(repaired[44..], bytes[44..56]);
+    remove_temp_dir(dir);
+}
+
+#[test]
+fn a_partial_wav_this_recorder_did_not_write_is_left_alone() {
+    let dir = temp_dir("wav-repair-foreign");
+    let partial = dir.join("other.partial.wav");
+    let mut bytes = empty_header_wav();
+    bytes[22..24].copy_from_slice(&1_u16.to_le_bytes());
+    bytes.extend_from_slice(&[0; 8]);
+    fs::write(&partial, &bytes).unwrap();
+
+    assert!(repair_partial_take(&partial).is_err());
+
+    assert_eq!(fs::read(&partial).unwrap(), bytes);
+    assert!(!dir.join("other.incomplete.wav").exists());
+    remove_temp_dir(dir);
+}
+
 fn test_paths(dir: &Path, name: &str) -> (PathBuf, PathBuf, File) {
     super::service::reserve_paths_for_test(dir, name).unwrap()
 }

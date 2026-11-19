@@ -66,7 +66,7 @@ fn a_power_cut_take_gets_its_sizes_and_index_back_up_to_the_last_whole_chunk() {
     torn.write_all(&500_u32.to_le_bytes()).unwrap();
     torn.write_all(&[7; 120]).unwrap();
     drop(torn);
-    assert_eq!(partial_avi_paths(&dir), vec![partial.clone()]);
+    assert_eq!(crate::partial_take_paths(&dir), vec![partial.clone()]);
 
     let outcome = repair_partial_avi(&partial).unwrap();
 
@@ -75,7 +75,7 @@ fn a_power_cut_take_gets_its_sizes_and_index_back_up_to_the_last_whole_chunk() {
     assert!(matches!(outcome.status, RecordingStatus::Incomplete { .. }));
     assert!(!partial.exists());
     assert_eq!(fs::read(&outcome.path).unwrap(), reference);
-    assert!(partial_avi_paths(&dir).is_empty());
+    assert!(crate::partial_take_paths(&dir).is_empty());
     let _ = fs::remove_dir_all(dir);
 }
 
@@ -158,20 +158,5 @@ fn a_file_without_our_header_is_left_alone() {
 
     assert_eq!(fs::read(&partial).unwrap(), b"RIFF");
     assert!(!dir.join("octessera-3.incomplete.avi").exists());
-    let _ = fs::remove_dir_all(dir);
-}
-
-#[test]
-fn only_partial_avi_takes_are_listed() {
-    let dir = temp_dir("listing");
-    for name in ["b.partial.avi", "a.partial.avi", "c.avi", "d.partial.wav"] {
-        File::create(dir.join(name)).unwrap();
-    }
-
-    assert_eq!(
-        partial_avi_paths(&dir),
-        vec![dir.join("a.partial.avi"), dir.join("b.partial.avi")]
-    );
-    assert!(partial_avi_paths(&dir.join("missing")).is_empty());
     let _ = fs::remove_dir_all(dir);
 }

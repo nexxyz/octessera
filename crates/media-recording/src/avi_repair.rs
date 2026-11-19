@@ -1,34 +1,15 @@
 use super::avi_writer::{AviWriter, FinishStats};
 use super::RecordingOutcome;
-use std::fs::{self, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-const PARTIAL_AVI_SUFFIX: &str = ".partial.avi";
-
-/// The `.partial.avi` takes in `dir`; list them before any new take can start in it.
-pub fn partial_avi_paths(dir: &Path) -> Vec<PathBuf> {
-    let mut paths = fs::read_dir(dir)
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.is_file()
-                && path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .is_some_and(|name| name.ends_with(PARTIAL_AVI_SUFFIX))
-        })
-        .collect::<Vec<_>>();
-    paths.sort();
-    paths
-}
+pub(crate) const PARTIAL_AVI_SUFFIX: &str = ".partial.avi";
 
 /// Finalizes a take a power cut left without sizes or index: keeps every whole movi chunk,
 /// drops a torn tail, and saves it as `.incomplete.avi`, also when the cut came while `finish`
 /// was patching the sizes. A file this recorder did not write is left untouched.
-pub fn repair_partial_avi(partial_path: &Path) -> Result<RecordingOutcome, String> {
+pub(crate) fn repair_partial_avi(partial_path: &Path) -> Result<RecordingOutcome, String> {
     let name = partial_path
         .file_name()
         .and_then(|name| name.to_str())

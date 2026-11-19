@@ -76,8 +76,9 @@ Existing takes are never overwritten.
   example because the power went.
 - An `.incomplete.wav` or `.incomplete.avi` file finished, but Octessera
   noticed dropped audio while recording it.
-- After a power cut, the next start rescues a `.partial.avi`: it keeps
-  everything that reached the card and saves it as `.incomplete.avi`, even
+- After a power cut, the next start rescues a `.partial.wav` or `.partial.avi`:
+  it keeps everything that reached the card and saves it as `.incomplete.wav`
+  or `.incomplete.avi`, even
   when the power went in the last instant, after you pressed Stop and the
   take was all written. This runs in the background, so a long take can take
   a minute to turn up.

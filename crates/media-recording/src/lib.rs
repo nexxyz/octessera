@@ -8,14 +8,15 @@ mod avi_repair;
 mod avi_writer;
 mod led_frame;
 mod oled_ingress;
+mod partial_takes;
 mod service;
 mod video_frame;
 mod wav;
 
-pub use avi_repair::{partial_avi_paths, repair_partial_avi};
 pub use led_frame::{LedColors, LedFrame, GRID_LED_COUNT, NEOKEY_COUNT};
 use oled_ingress::OledIngressState;
 pub use oled_ingress::{OledFrame, OledFrameError, OledIngress, OledSubmission};
+pub use partial_takes::{partial_take_paths, repair_partial_take};
 pub use service::RecorderService;
 
 pub const SAMPLE_RATE: u32 = 44_100;

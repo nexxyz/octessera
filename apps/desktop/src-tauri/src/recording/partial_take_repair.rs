@@ -1,9 +1,13 @@
 use std::path::{Path, PathBuf};
 
-/// Saves Audio+Video takes an abrupt exit left as `.partial.avi`, as the boards do at startup.
-/// They are listed before any take can start; the repair itself runs on its own thread.
-pub(crate) fn spawn_partial_take_repair(dir: &Path) {
-    let partials = media_recording::partial_avi_paths(dir);
+/// Saves Audio and Audio+Video takes an abrupt exit left as `.partial.wav` or `.partial.avi`, as
+/// the boards do at startup. They are listed before any take can start; the repair itself runs
+/// on its own thread.
+pub(crate) fn spawn_partial_take_repair(dirs: [&Path; 2]) {
+    let partials = dirs
+        .into_iter()
+        .flat_map(media_recording::partial_take_paths)
+        .collect::<Vec<_>>();
     if partials.is_empty() {
         return;
     }
@@ -24,7 +28,7 @@ fn repair_partial_takes(partials: Vec<PathBuf>) {
             );
             continue;
         }
-        match media_recording::repair_partial_avi(&partial) {
+        match media_recording::repair_partial_take(&partial) {
             Ok(outcome) => eprintln!(
                 "interrupted recording saved: path={} frames={}",
                 outcome.path.display(),
@@ -73,12 +77,12 @@ mod tests {
         std::thread::sleep(Duration::from_millis(50));
         let crashed = root.join("crashed");
         fs::create_dir_all(&crashed).unwrap();
-        let active = media_recording::partial_avi_paths(&screen);
+        let active = media_recording::partial_take_paths(&screen);
         assert_eq!(active.len(), 1);
         fs::copy(&active[0], crashed.join("interrupted.partial.avi")).unwrap();
         recording.stop_audio().unwrap();
 
-        repair_partial_takes(media_recording::partial_avi_paths(&crashed));
+        repair_partial_takes(media_recording::partial_take_paths(&crashed));
 
         let names = fs::read_dir(&crashed)
             .unwrap()
@@ -98,13 +102,13 @@ mod tests {
         let screen = root.join("screen-recordings");
         let recording = DesktopRecording::with_screen_directory(root.join("audio"), screen.clone());
         recording.start_audio_oled(1).unwrap();
-        let live = media_recording::partial_avi_paths(&screen);
+        let live = media_recording::partial_take_paths(&screen);
         assert_eq!(live.len(), 1);
 
         repair_partial_takes(live.clone());
 
         assert!(live[0].is_file());
-        assert_eq!(media_recording::partial_avi_paths(&screen), live);
+        assert_eq!(media_recording::partial_take_paths(&screen), live);
         recording.stop_audio().unwrap();
         let names = fs::read_dir(&screen)
             .unwrap()
