@@ -93,12 +93,11 @@ fn check_category(category_id: &str) {
         .iter()
         .find(|category| category.id == category_id)
         .unwrap();
-    for id in category.behavior_ids {
-        let entry = platform_core::behavior_catalog()
-            .iter()
-            .find(|entry| entry.id == *id)
-            .unwrap();
-        check_behavior(category.label, id, entry.label);
+    for entry in platform_core::behavior_catalog()
+        .iter()
+        .filter(|entry| entry.category_id == category.id)
+    {
+        check_behavior(category.label, entry.id, entry.label);
     }
 }
 
@@ -149,9 +148,13 @@ fn games_behaviors_follow_their_cadence() {
 
 #[test]
 fn every_behavior_sits_in_one_build_category() {
-    let listed: usize = platform_core::behavior_categories()
+    let listed = platform_core::behavior_catalog()
         .iter()
-        .map(|category| category.behavior_ids.len())
-        .sum();
+        .filter(|entry| {
+            platform_core::behavior_categories()
+                .iter()
+                .any(|category| category.id == entry.category_id)
+        })
+        .count();
     assert_eq!(listed, CADENCE.len());
 }

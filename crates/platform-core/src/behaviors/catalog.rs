@@ -1,7 +1,9 @@
+use super::NativeBehavior;
+
+/// A Build menu section; the catalog entries with its id are its behaviors.
 pub struct BehaviorCategory {
     pub id: &'static str,
     pub label: &'static str,
-    pub behavior_ids: &'static [&'static str],
 }
 
 pub struct BehaviorCatalogEntry {
@@ -10,346 +12,122 @@ pub struct BehaviorCatalogEntry {
     pub category_id: &'static str,
 }
 
+const fn entry(
+    behavior: NativeBehavior,
+    label: &'static str,
+    category_id: &'static str,
+) -> BehaviorCatalogEntry {
+    BehaviorCatalogEntry {
+        id: behavior.id(),
+        label,
+        category_id,
+    }
+}
+
 pub fn behavior_categories() -> &'static [BehaviorCategory] {
     &[
         BehaviorCategory {
             id: "play",
             label: "Human",
-            behavior_ids: &["keys", "looper", "none", "sequencer", "weave"],
         },
         BehaviorCategory {
             id: "rhythm",
             label: "Rhythm",
-            behavior_ids: &["polyrhythm", "breaks", "fills", "clave", "groove", "euclid"],
         },
         BehaviorCategory {
             id: "musical",
             label: "Musical",
-            behavior_ids: &[
-                "ostinato", "motif", "canon", "chords", "contour", "cadence", "phrase",
-            ],
         },
         BehaviorCategory {
             id: "cellular",
             label: "Cellular",
-            behavior_ids: &[
-                "ant",
-                "brain",
-                "cyclic",
-                "forest_fire",
-                "life",
-                "predator_prey",
-                "twinkle",
-            ],
         },
         BehaviorCategory {
             id: "fields",
             label: "Fields",
-            behavior_ids: &[
-                "ink",
-                "ising",
-                "kuramoto",
-                "lightning",
-                "raindrops",
-                "reaction_diffusion",
-                "rivers",
-                "wave",
-            ],
         },
         BehaviorCategory {
             id: "geometry",
             label: "Geometry",
-            behavior_ids: &["fractal_explorer", "maze_growth", "shapes"],
         },
         BehaviorCategory {
             id: "growth",
             label: "Growth",
-            behavior_ids: &[
-                "coral",
-                "cracks",
-                "crystal_growth",
-                "dla",
-                "physarum",
-                "vines",
-            ],
         },
         BehaviorCategory {
             id: "motion",
             label: "Motion",
-            behavior_ids: &[
-                "bounce",
-                "bubbles",
-                "gravity",
-                "boids",
-                "lava_lamp",
-                "orbit",
-                "sand_ripples",
-            ],
         },
         BehaviorCategory {
             id: "games",
             label: "Games",
-            behavior_ids: &["blockout", "pong"],
         },
     ]
 }
 
+/// Every behavior, grouped by category in Build menu order.
 pub fn behavior_catalog() -> &'static [BehaviorCatalogEntry] {
-    &[
-        BehaviorCatalogEntry {
-            id: "none",
-            label: "none",
-            category_id: "play",
-        },
-        BehaviorCatalogEntry {
-            id: "keys",
-            label: "keys",
-            category_id: "play",
-        },
-        BehaviorCatalogEntry {
-            id: "sequencer",
-            label: "sequencer",
-            category_id: "play",
-        },
-        BehaviorCatalogEntry {
-            id: "looper",
-            label: "looper",
-            category_id: "play",
-        },
-        BehaviorCatalogEntry {
-            id: "weave",
-            label: "weave",
-            category_id: "play",
-        },
-        BehaviorCatalogEntry {
-            id: "polyrhythm",
-            label: "polyrhythm",
-            category_id: "rhythm",
-        },
-        BehaviorCatalogEntry {
-            id: "breaks",
-            label: "breaks",
-            category_id: "rhythm",
-        },
-        BehaviorCatalogEntry {
-            id: "fills",
-            label: "fills",
-            category_id: "rhythm",
-        },
-        BehaviorCatalogEntry {
-            id: "clave",
-            label: "clave",
-            category_id: "rhythm",
-        },
-        BehaviorCatalogEntry {
-            id: "groove",
-            label: "groove",
-            category_id: "rhythm",
-        },
-        BehaviorCatalogEntry {
-            id: "euclid",
-            label: "euclid",
-            category_id: "rhythm",
-        },
-        BehaviorCatalogEntry {
-            id: "ostinato",
-            label: "ostinato",
-            category_id: "musical",
-        },
-        BehaviorCatalogEntry {
-            id: "motif",
-            label: "motif",
-            category_id: "musical",
-        },
-        BehaviorCatalogEntry {
-            id: "canon",
-            label: "canon",
-            category_id: "musical",
-        },
-        BehaviorCatalogEntry {
-            id: "chords",
-            label: "chords",
-            category_id: "musical",
-        },
-        BehaviorCatalogEntry {
-            id: "contour",
-            label: "contour",
-            category_id: "musical",
-        },
-        BehaviorCatalogEntry {
-            id: "cadence",
-            label: "cadence",
-            category_id: "musical",
-        },
-        BehaviorCatalogEntry {
-            id: "phrase",
-            label: "phrase",
-            category_id: "musical",
-        },
-        BehaviorCatalogEntry {
-            id: "life",
-            label: "life",
-            category_id: "cellular",
-        },
-        BehaviorCatalogEntry {
-            id: "brain",
-            label: "brain",
-            category_id: "cellular",
-        },
-        BehaviorCatalogEntry {
-            id: "cyclic",
-            label: "cyclic",
-            category_id: "cellular",
-        },
-        BehaviorCatalogEntry {
-            id: "forest_fire",
-            label: "forest fire",
-            category_id: "cellular",
-        },
-        BehaviorCatalogEntry {
-            id: "predator_prey",
-            label: "predator prey",
-            category_id: "cellular",
-        },
-        BehaviorCatalogEntry {
-            id: "twinkle",
-            label: "twinkle",
-            category_id: "cellular",
-        },
-        BehaviorCatalogEntry {
-            id: "ant",
-            label: "ant",
-            category_id: "cellular",
-        },
-        BehaviorCatalogEntry {
-            id: "boids",
-            label: "boids",
-            category_id: "motion",
-        },
-        BehaviorCatalogEntry {
-            id: "physarum",
-            label: "physarum",
-            category_id: "growth",
-        },
-        BehaviorCatalogEntry {
-            id: "bounce",
-            label: "bounce",
-            category_id: "motion",
-        },
-        BehaviorCatalogEntry {
-            id: "bubbles",
-            label: "bubbles",
-            category_id: "motion",
-        },
-        BehaviorCatalogEntry {
-            id: "coral",
-            label: "coral",
-            category_id: "growth",
-        },
-        BehaviorCatalogEntry {
-            id: "cracks",
-            label: "cracks",
-            category_id: "growth",
-        },
-        BehaviorCatalogEntry {
-            id: "crystal_growth",
-            label: "crystal growth",
-            category_id: "growth",
-        },
-        BehaviorCatalogEntry {
-            id: "dla",
-            label: "dla",
-            category_id: "growth",
-        },
-        BehaviorCatalogEntry {
-            id: "ink",
-            label: "ink",
-            category_id: "fields",
-        },
-        BehaviorCatalogEntry {
-            id: "ising",
-            label: "ising",
-            category_id: "fields",
-        },
-        BehaviorCatalogEntry {
-            id: "kuramoto",
-            label: "kuramoto",
-            category_id: "fields",
-        },
-        BehaviorCatalogEntry {
-            id: "lightning",
-            label: "lightning",
-            category_id: "fields",
-        },
-        BehaviorCatalogEntry {
-            id: "wave",
-            label: "wave",
-            category_id: "fields",
-        },
-        BehaviorCatalogEntry {
-            id: "raindrops",
-            label: "raindrops",
-            category_id: "fields",
-        },
-        BehaviorCatalogEntry {
-            id: "reaction_diffusion",
-            label: "reaction diffusion",
-            category_id: "fields",
-        },
-        BehaviorCatalogEntry {
-            id: "rivers",
-            label: "rivers",
-            category_id: "fields",
-        },
-        BehaviorCatalogEntry {
-            id: "gravity",
-            label: "gravity",
-            category_id: "motion",
-        },
-        BehaviorCatalogEntry {
-            id: "orbit",
-            label: "orbit",
-            category_id: "motion",
-        },
-        BehaviorCatalogEntry {
-            id: "lava_lamp",
-            label: "lava lamp",
-            category_id: "motion",
-        },
-        BehaviorCatalogEntry {
-            id: "sand_ripples",
-            label: "sand ripples",
-            category_id: "motion",
-        },
-        BehaviorCatalogEntry {
-            id: "fractal_explorer",
-            label: "fractal explorer",
-            category_id: "geometry",
-        },
-        BehaviorCatalogEntry {
-            id: "maze_growth",
-            label: "maze growth",
-            category_id: "geometry",
-        },
-        BehaviorCatalogEntry {
-            id: "shapes",
-            label: "shapes",
-            category_id: "geometry",
-        },
-        BehaviorCatalogEntry {
-            id: "vines",
-            label: "vines",
-            category_id: "growth",
-        },
-        BehaviorCatalogEntry {
-            id: "pong",
-            label: "pong",
-            category_id: "games",
-        },
-        BehaviorCatalogEntry {
-            id: "blockout",
-            label: "blockout",
-            category_id: "games",
-        },
-    ]
+    BEHAVIOR_CATALOG
 }
+
+const BEHAVIOR_CATALOG: &[BehaviorCatalogEntry] = &[
+    entry(NativeBehavior::Keys, "keys", "play"),
+    entry(NativeBehavior::Looper, "looper", "play"),
+    entry(NativeBehavior::None, "none", "play"),
+    entry(NativeBehavior::Sequencer, "sequencer", "play"),
+    entry(NativeBehavior::Weave, "weave", "play"),
+    entry(NativeBehavior::Polyrhythm, "polyrhythm", "rhythm"),
+    entry(NativeBehavior::Breaks, "breaks", "rhythm"),
+    entry(NativeBehavior::Fills, "fills", "rhythm"),
+    entry(NativeBehavior::Clave, "clave", "rhythm"),
+    entry(NativeBehavior::Groove, "groove", "rhythm"),
+    entry(NativeBehavior::Euclid, "euclid", "rhythm"),
+    entry(NativeBehavior::Ostinato, "ostinato", "musical"),
+    entry(NativeBehavior::Motif, "motif", "musical"),
+    entry(NativeBehavior::Canon, "canon", "musical"),
+    entry(NativeBehavior::Chords, "chords", "musical"),
+    entry(NativeBehavior::Contour, "contour", "musical"),
+    entry(NativeBehavior::Cadence, "cadence", "musical"),
+    entry(NativeBehavior::Phrase, "phrase", "musical"),
+    entry(NativeBehavior::Ant, "ant", "cellular"),
+    entry(NativeBehavior::Brain, "brain", "cellular"),
+    entry(NativeBehavior::Cyclic, "cyclic", "cellular"),
+    entry(NativeBehavior::ForestFire, "forest fire", "cellular"),
+    entry(NativeBehavior::Life, "life", "cellular"),
+    entry(NativeBehavior::PredatorPrey, "predator prey", "cellular"),
+    entry(NativeBehavior::Twinkle, "twinkle", "cellular"),
+    entry(NativeBehavior::Ink, "ink", "fields"),
+    entry(NativeBehavior::Ising, "ising", "fields"),
+    entry(NativeBehavior::Kuramoto, "kuramoto", "fields"),
+    entry(NativeBehavior::Lightning, "lightning", "fields"),
+    entry(NativeBehavior::Raindrops, "raindrops", "fields"),
+    entry(
+        NativeBehavior::ReactionDiffusion,
+        "reaction diffusion",
+        "fields",
+    ),
+    entry(NativeBehavior::Rivers, "rivers", "fields"),
+    entry(NativeBehavior::Wave, "wave", "fields"),
+    entry(
+        NativeBehavior::FractalExplorer,
+        "fractal explorer",
+        "geometry",
+    ),
+    entry(NativeBehavior::MazeGrowth, "maze growth", "geometry"),
+    entry(NativeBehavior::Shapes, "shapes", "geometry"),
+    entry(NativeBehavior::Coral, "coral", "growth"),
+    entry(NativeBehavior::Cracks, "cracks", "growth"),
+    entry(NativeBehavior::CrystalGrowth, "crystal growth", "growth"),
+    entry(NativeBehavior::Dla, "dla", "growth"),
+    entry(NativeBehavior::Physarum, "physarum", "growth"),
+    entry(NativeBehavior::Vines, "vines", "growth"),
+    entry(NativeBehavior::Bounce, "bounce", "motion"),
+    entry(NativeBehavior::Bubbles, "bubbles", "motion"),
+    entry(NativeBehavior::Gravity, "gravity", "motion"),
+    entry(NativeBehavior::Boids, "boids", "motion"),
+    entry(NativeBehavior::LavaLamp, "lava lamp", "motion"),
+    entry(NativeBehavior::Orbit, "orbit", "motion"),
+    entry(NativeBehavior::SandRipples, "sand ripples", "motion"),
+    entry(NativeBehavior::Blockout, "blockout", "games"),
+    entry(NativeBehavior::Pong, "pong", "games"),
+];

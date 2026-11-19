@@ -202,9 +202,11 @@ impl NativeRunner {
                     children: vec![],
                     pick: crate::native_menu::NativeMenuPick::None,
                 })
-                .chain(category.behavior_ids.iter().filter_map(|id| {
-                    catalog.iter().find(|entry| entry.id == *id).map(|entry| {
-                        crate::native_menu::NativeMenuItem {
+                .chain(
+                    catalog
+                        .iter()
+                        .filter(|entry| entry.category_id == category.id)
+                        .map(|entry| crate::native_menu::NativeMenuItem {
                             label: entry.label.into(),
                             breadcrumb: None,
                             key: None,
@@ -220,11 +222,14 @@ impl NativeRunner {
                             ),
                             children: vec![],
                             pick: active(entry.id == behavior_id),
-                        }
-                    })
-                }))
+                        }),
+                )
                 .collect(),
-                pick: active(category.behavior_ids.contains(&behavior_id)),
+                pick: active(
+                    catalog
+                        .iter()
+                        .any(|entry| entry.category_id == category.id && entry.id == behavior_id),
+                ),
             })
             .collect();
         crate::native_menu::NativeMenuItem {

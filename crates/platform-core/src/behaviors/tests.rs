@@ -289,13 +289,11 @@ fn behavior_catalog_matches_registry() {
             category_ids.contains(category.id),
             "category id disappeared from category set"
         );
-        assert!(!category.behavior_ids.is_empty(), "empty category");
         assert!(
-            category
-                .behavior_ids
+            behavior_catalog()
                 .iter()
-                .all(|behavior_id| catalog_ids.contains(behavior_id)),
-            "category includes unknown behavior id"
+                .any(|entry| entry.category_id == category.id),
+            "empty category"
         );
     }
 }
