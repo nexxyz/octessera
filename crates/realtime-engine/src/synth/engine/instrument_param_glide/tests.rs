@@ -232,6 +232,66 @@ fn routing_tree_blocks_carry_the_glide_to_the_workers_block_by_block() {
     assert_eq!(shutdown.joined_workers, 2);
 }
 
+#[cfg(feature = "routing-tree-executor")]
+#[test]
+fn routing_tree_blocks_carry_a_sample_filter_glide_to_the_sounding_voice() {
+    use crate::synth::types::SampleBuffer;
+    use crate::synth::SampleBankParamId;
+    let mut engine = engine_from("sampler", default_synth_config());
+    let mut bank = SampleBankConfig::default();
+    bank.slots[0].buffer = Some(SampleBuffer {
+        samples: vec![0.5; SAMPLE_RATE as usize].into(),
+        channels: 1,
+        sample_rate: SAMPLE_RATE,
+    });
+    bank.filter_cutoff_hz = 8_000.0;
+    engine.set_sample_banks(vec![bank]);
+    engine.note_on(0, 36, 127, 10_000);
+    let lane = engine
+        .sample_voice_pool
+        .first_stealable_lane_for_slot(0)
+        .expect("sounding sample voice");
+    let (lifecycle, mut runtime) =
+        SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)
+            .expect("routing-tree runtime");
+    runtime.set_deadline_for_test(std::time::Duration::from_secs(1));
+    let (mut left, mut right, mut out) = (vec![0.0; 128], vec![0.0; 128], vec![0.0; 256]);
+    for block in 0..6 {
+        let disposition = engine.render_interleaved_block_with_source_runtime_ready_with_controls(
+            &mut runtime,
+            128,
+            &mut left,
+            &mut right,
+            &mut out,
+            |engine| {
+                if block == 0 {
+                    engine.set_sample_bank_param_typed(
+                        0,
+                        SampleBankParamId::FilterCutoffHz,
+                        1_200.0,
+                    );
+                }
+                Ok(())
+            },
+        );
+        assert_eq!(disposition, SourceWorkerRenderDisposition::Fresh);
+    }
+    assert!(runtime.collect_wait_for_test(&mut engine));
+    let cutoff = runtime
+        .with_recovered_owners(&mut engine, |engine| {
+            engine
+                .sample_voice_pool
+                .lane(lane)
+                .filter(|voice| voice.instrument_slot == 0)
+                .expect("sounding sample voice")
+                .filter_cutoff_hz
+        })
+        .expect("owners at home");
+    assert_eq!(cutoff, 1_200.0);
+    let shutdown = lifecycle.shutdown(runtime.retire());
+    assert_eq!(shutdown.joined_workers, 2);
+}
+
 fn block(engine: &mut SynthEngine) -> Vec<f32> {
     let (mut left, mut right, mut out) = (Vec::new(), Vec::new(), Vec::new());
     engine.render_interleaved_block(128, &mut left, &mut right, &mut out);

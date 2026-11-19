@@ -169,7 +169,7 @@ impl LevelRamp {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct InstrumentParamGlides {
     len: u32,
-    active: bool,
+    pub(super) active: bool,
     slots: [[ParamGlide; PARAM_COUNT]; INSTRUMENT_SLOT_COUNT],
     pub(super) level_ramps: [Option<LevelRamp>; INSTRUMENT_SLOT_COUNT],
 }
@@ -333,11 +333,12 @@ impl SynthEngine {
             self.rebuild_synth_render_config(slot);
         }
         if let Some(bank) = self.sample_banks.get(slot).filter(|_| sample_moved) {
-            let _ = self.sample_voice_pool.update_filter_for_slot(
+            let updated = self.sample_voice_pool.update_filter_for_slot(
                 slot,
                 bank.filter_cutoff_hz,
                 bank.filter_resonance,
             );
+            debug_assert!(updated, "sample filter glide ran with the voices away");
         }
         active
     }
