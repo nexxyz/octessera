@@ -6,10 +6,14 @@ const SAMPLE_RATE: u32 = 48_000;
 const GLIDE_FRAMES: usize = 480;
 
 fn engine_with(kind: &str) -> SynthEngine {
-    let mut engine = SynthEngine::new(SAMPLE_RATE);
     let mut synth = default_synth_config();
     synth.filter.cutoff_hz = 1_000.0;
     synth.osc1.level_pct = 80.0;
+    engine_from(kind, synth)
+}
+
+fn engine_from(kind: &str, synth: SynthConfig) -> SynthEngine {
+    let mut engine = SynthEngine::new(SAMPLE_RATE);
     engine.set_instruments(InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
             fm: None,
@@ -79,6 +83,79 @@ fn live_level_glides_linearly_and_a_retarget_starts_from_the_running_value() {
     assert!(close(engine.instruments[0].osc1.level_pct, 75.0));
     render(&mut engine, GLIDE_FRAMES / 2);
     assert_eq!(engine.instruments[0].osc1.level_pct, 100.0);
+}
+
+fn level_engine(osc1_level_pct: f32, gain_pct: f32) -> SynthEngine {
+    let mut synth = default_synth_config();
+    synth.filter.cutoff_hz = 20_000.0;
+    synth.osc1.level_pct = osc1_level_pct;
+    synth.osc2.level_pct = 0.0;
+    synth.amp.gain_pct = gain_pct;
+    engine_from("synth", synth)
+}
+
+/// Renders `blocks` blocks of 120 frames, so four of them span the 480-frame glide exactly.
+fn left_output(engine: &mut SynthEngine, blocks: usize) -> Vec<f32> {
+    let (mut left, mut right, mut out) = (Vec::new(), Vec::new(), Vec::new());
+    let mut rendered = Vec::new();
+    for _ in 0..blocks {
+        engine.render_interleaved_block(120, &mut left, &mut right, &mut out);
+        rendered.extend_from_slice(&left);
+    }
+    rendered
+}
+
+/// The output of a gliding engine over that of a held one, at the frames loud enough to divide.
+fn gain_ratios(glided: &[f32], held: &[f32]) -> Vec<(usize, f32)> {
+    glided
+        .iter()
+        .zip(held)
+        .enumerate()
+        .filter(|(_, (_, held))| held.abs() > 1.0e-3)
+        .map(|(frame, (glided, held))| (frame, glided / held))
+        .collect()
+}
+
+#[test]
+fn live_amp_gain_moves_every_sample_along_a_straight_line_then_holds_the_target() {
+    let mut held = level_engine(80.0, 50.0);
+    let mut glided = level_engine(80.0, 50.0);
+    let mut direct = level_engine(80.0, 100.0);
+    glided.set_synth_param_typed(0, SynthParamId::AmpGainPct, 100.0);
+
+    let (held, glided, direct) = (
+        left_output(&mut held, 6),
+        left_output(&mut glided, 6),
+        left_output(&mut direct, 6),
+    );
+    let ratios = gain_ratios(&glided[..GLIDE_FRAMES], &held[..GLIDE_FRAMES]);
+    assert!(ratios.len() > GLIDE_FRAMES / 2);
+    for (frame, ratio) in ratios {
+        let expected = 1.0 + (frame + 1) as f32 / GLIDE_FRAMES as f32;
+        assert!(
+            close(ratio, expected),
+            "frame {frame}: {ratio} vs {expected}"
+        );
+    }
+    assert_eq!(glided[GLIDE_FRAMES..], direct[GLIDE_FRAMES..]);
+}
+
+#[test]
+fn live_osc_level_moves_every_sample_along_a_straight_line() {
+    let mut held = level_engine(40.0, 80.0);
+    let mut glided = level_engine(40.0, 80.0);
+    glided.set_synth_param_typed(0, SynthParamId::Osc1LevelPct, 80.0);
+
+    let (held, glided) = (left_output(&mut held, 4), left_output(&mut glided, 4));
+    let ratios = gain_ratios(&glided, &held);
+    assert!(ratios.len() > GLIDE_FRAMES / 2);
+    for (frame, ratio) in ratios {
+        let expected = 1.0 + (frame + 1) as f32 / GLIDE_FRAMES as f32;
+        assert!(
+            (ratio - expected).abs() < 0.01,
+            "frame {frame}: {ratio} vs {expected}"
+        );
+    }
 }
 
 #[test]

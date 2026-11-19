@@ -190,6 +190,28 @@ fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
 }
 
 #[test]
+fn level_glides_render_the_same_on_the_routing_tree_workers() {
+    let mut routed = SynthEngine::new(RATE);
+    let mut inline = SynthEngine::new(RATE);
+    for engine in [&mut routed, &mut inline] {
+        engine.set_instruments(one_instrument_config("synth", "direct"));
+        engine.note_on(0, 60, 100, 2_000);
+    }
+    assert_worker_render_matches_inline(
+        &mut routed,
+        &mut inline,
+        12,
+        "level glides",
+        |engine, block, routed| {
+            if block + usize::from(routed) == 2 {
+                engine.set_synth_param_typed(0, crate::synth::SynthParamId::AmpGainPct, 30.0);
+                engine.set_synth_param_typed(0, crate::synth::SynthParamId::Osc1LevelPct, 20.0);
+            }
+        },
+    );
+}
+
+#[test]
 fn mixer_gain_ramps_render_the_same_on_the_routing_tree_workers() {
     for route in ["direct", "fx_bus_1"] {
         let mut routed = SynthEngine::new(RATE);

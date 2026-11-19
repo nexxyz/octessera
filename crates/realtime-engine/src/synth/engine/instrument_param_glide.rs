@@ -128,6 +128,42 @@ impl ParamGlide {
     }
 }
 
+/// How a slot's Osc 1, Osc 2 and amp levels move across one block while a level glide runs:
+/// voices read a straight line from the previous block's levels to this block's, per sample.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct LevelRamp {
+    start: [f32; 3],
+    step: [f32; 3],
+}
+
+impl LevelRamp {
+    fn between(before: [f32; 3], after: [f32; 3], frames: usize) -> Option<Self> {
+        (before != after).then(|| {
+            let frames = frames.max(1) as f32;
+            Self {
+                start: before,
+                step: std::array::from_fn(|level| (after[level] - before[level]) / frames),
+            }
+        })
+    }
+
+    /// The ramp for a voice that starts `frames` into the block.
+    pub(super) fn skipped(self, frames: usize) -> Self {
+        Self {
+            start: std::array::from_fn(|level| {
+                self.start[level] + self.step[level] * frames as f32
+            }),
+            step: self.step,
+        }
+    }
+
+    /// Level `level` (0 Osc 1, 1 Osc 2, 2 amp) at `frame` of the block.
+    #[inline(always)]
+    pub(super) fn at(&self, level: usize, frame: usize) -> f32 {
+        self.start[level] + self.step[level] * (frame + 1) as f32
+    }
+}
+
 /// The running glides of every instrument slot. Instruments advance them once per rendered
 /// block, before the voices read the slot's values, so a settled engine pays one flag check.
 #[derive(Clone, Copy, Debug)]
@@ -135,6 +171,7 @@ pub(super) struct InstrumentParamGlides {
     len: u32,
     active: bool,
     slots: [[ParamGlide; PARAM_COUNT]; INSTRUMENT_SLOT_COUNT],
+    pub(super) level_ramps: [Option<LevelRamp>; INSTRUMENT_SLOT_COUNT],
 }
 
 impl InstrumentParamGlides {
@@ -145,6 +182,7 @@ impl InstrumentParamGlides {
                 .max(1.0) as u32,
             active: false,
             slots: [[ParamGlide::SETTLED; PARAM_COUNT]; INSTRUMENT_SLOT_COUNT],
+            level_ramps: [None; INSTRUMENT_SLOT_COUNT],
         }
     }
 }
@@ -235,11 +273,16 @@ impl SynthEngine {
     }
 
     /// Kept out of line so the settled block render compiles exactly as it did without glides.
+    /// A block whose levels moved stays active once more, so the next block clears its ramp.
     #[inline(never)]
     fn advance_running_instrument_param_glides(&mut self, frames: usize) {
         let mut active = false;
         for slot in 0..INSTRUMENT_SLOT_COUNT {
+            let before = self.synth_render_configs[slot].levels();
             active |= self.advance_slot_param_glides(slot, frames as u32);
+            let ramp = LevelRamp::between(before, self.synth_render_configs[slot].levels(), frames);
+            self.instrument_param_glides.level_ramps[slot] = ramp;
+            active |= ramp.is_some();
         }
         self.instrument_param_glides.active = active;
     }

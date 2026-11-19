@@ -87,6 +87,7 @@ pub(super) fn sum_synth_voice(
             render_config: context.render_configs[slot],
             revision: context.revisions[slot],
             mods: context.mods[slot],
+            level_ramp: context.level_ramps[slot],
         },
         voice_block,
     );

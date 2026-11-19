@@ -112,6 +112,16 @@ impl SynthVoiceRenderConfig {
         self
     }
 
+    pub(super) fn levels(&self) -> [f32; 3] {
+        [self.osc1.level, self.osc2.level, self.amp_gain]
+    }
+
+    #[inline(always)]
+    pub(super) fn set_osc_levels(&mut self, osc1: f32, osc2: f32) {
+        self.osc1.level = osc1;
+        self.osc2.level = osc2;
+    }
+
     pub(super) fn osc_increments(self, base_freq: f32, sample_rate: u32) -> (f32, f32) {
         (
             self.osc1.increment(base_freq, sample_rate),
@@ -299,6 +309,7 @@ pub(super) fn shape_synth_voice_block_sample(
     amp_env: f32,
     filt_env: f32,
     block: SynthVoiceBlockRenderState,
+    amp_gain: f32,
 ) -> f32 {
     let cfg = &context.render_config;
     let filtered = if block.static_cutoff.is_some() {
@@ -317,7 +328,7 @@ pub(super) fn shape_synth_voice_block_sample(
             dry,
         )
     };
-    filtered * amp_env * block.velocity_gain * cfg.amp_gain * 0.35
+    filtered * amp_env * block.velocity_gain * amp_gain * 0.35
 }
 
 /// Single-frame dispatch; block rendering picks one of these per voice instead (see

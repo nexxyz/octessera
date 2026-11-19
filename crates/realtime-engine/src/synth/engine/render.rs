@@ -13,6 +13,7 @@ impl SynthEngine {
             render_configs: self.synth_render_configs,
             revisions: self.synth_render_revisions,
             mods: self.mods,
+            level_ramps: self.instrument_param_glides.level_ramps,
         }
     }
 
@@ -160,6 +161,7 @@ impl SynthEngine {
                 render_configs: self.synth_render_configs,
                 revisions: self.synth_render_revisions,
                 mods: self.mods,
+                level_ramps: self.instrument_param_glides.level_ramps,
             },
             SourceRenderOutput {
                 slot_out: &mut scratch.synth_slot_out,

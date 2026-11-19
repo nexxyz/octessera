@@ -6,6 +6,7 @@ use super::{
     shape_synth_voice_block_sample, synth_source_sample, SynthVoiceBlockRenderState,
     SynthVoiceRenderConfig, VoiceSource,
 };
+use crate::synth::engine::instrument_param_glide::LevelRamp;
 use crate::synth::pluck_string::PluckRing;
 
 #[derive(Clone, Copy)]
@@ -15,6 +16,7 @@ pub(in crate::synth::engine) struct SynthSourceContext {
     pub(in crate::synth::engine) render_configs: [SynthVoiceRenderConfig; INSTRUMENT_SLOT_COUNT],
     pub(in crate::synth::engine) revisions: [u32; INSTRUMENT_SLOT_COUNT],
     pub(in crate::synth::engine) mods: [InstrumentMod; INSTRUMENT_SLOT_COUNT],
+    pub(in crate::synth::engine) level_ramps: [Option<LevelRamp>; INSTRUMENT_SLOT_COUNT],
 }
 
 #[derive(Clone, Copy)]
@@ -24,6 +26,7 @@ pub(in crate::synth::engine) struct SynthVoiceFrameContext {
     pub(in crate::synth::engine) render_config: SynthVoiceRenderConfig,
     pub(in crate::synth::engine) revision: u32,
     pub(in crate::synth::engine) mods: InstrumentMod,
+    pub(in crate::synth::engine) level_ramp: Option<LevelRamp>,
 }
 
 pub(in crate::synth::engine) fn render_synth_voice_frame(
@@ -149,6 +152,8 @@ fn render_source_block(
     if lead > 0 {
         let lead = lead.min(frames as u64) as usize;
         samples[..lead].fill(0.0);
+        let mut context = context;
+        context.level_ramp = context.level_ramp.map(|ramp| ramp.skipped(lead));
         return lead
             + render_started_source_block(
                 voice,
@@ -237,20 +242,98 @@ fn render_voice_frames(
         context,
         block,
     };
+    if let Some(ramp) = context.level_ramp {
+        return render_level_ramp_frames(&frames, voice, ring, samples, ramp);
+    }
+    let gain = context.render_config.amp_gain;
     match context.render_config.source {
         VoiceSource::Synth => {
             let cfg = context.render_config;
-            frames.render(voice, ring, samples, None, |v, _| {
-                synth_source_sample(&cfg, v)
-            })
+            frames.render(
+                voice,
+                ring,
+                samples,
+                None,
+                |v, _, _| synth_source_sample(&cfg, v),
+                |_| gain,
+            )
         }
         VoiceSource::Fm {
             index, index_env, ..
-        } => frames.render(voice, ring, samples, Some(index_env), |v, _| {
-            fm_source_sample(index, v)
-        }),
-        VoiceSource::Pluck { .. } => frames.render(voice, ring, samples, None, pluck_source_sample),
-        VoiceSource::Drum => frames.render(voice, ring, samples, None, |v, _| v.drum.next()),
+        } => frames.render(
+            voice,
+            ring,
+            samples,
+            Some(index_env),
+            |v, _, _| fm_source_sample(index, v),
+            |_| gain,
+        ),
+        VoiceSource::Pluck { .. } => frames.render(
+            voice,
+            ring,
+            samples,
+            None,
+            |v, r, _| pluck_source_sample(v, r),
+            |_| gain,
+        ),
+        VoiceSource::Drum => frames.render(
+            voice,
+            ring,
+            samples,
+            None,
+            |v, _, _| v.drum.next(),
+            |_| gain,
+        ),
+        VoiceSource::Disabled => 0,
+    }
+}
+
+/// The same loops while a level glide runs, reading each level per sample along the ramp.
+#[inline(never)]
+fn render_level_ramp_frames(
+    frames: &SourceFrames<'_>,
+    voice: &mut Voice,
+    ring: &mut PluckRing,
+    samples: &mut [f32],
+    ramp: LevelRamp,
+) -> usize {
+    let gain = |frame| ramp.at(2, frame);
+    match frames.context.render_config.source {
+        VoiceSource::Synth => {
+            let mut cfg = frames.context.render_config;
+            frames.render(
+                voice,
+                ring,
+                samples,
+                None,
+                |v, _, frame| {
+                    cfg.set_osc_levels(ramp.at(0, frame), ramp.at(1, frame));
+                    synth_source_sample(&cfg, v)
+                },
+                gain,
+            )
+        }
+        VoiceSource::Fm {
+            index, index_env, ..
+        } => frames.render(
+            voice,
+            ring,
+            samples,
+            Some(index_env),
+            |v, _, _| fm_source_sample(index, v),
+            gain,
+        ),
+        VoiceSource::Pluck { .. } => frames.render(
+            voice,
+            ring,
+            samples,
+            None,
+            |v, r, _| pluck_source_sample(v, r),
+            gain,
+        ),
+        VoiceSource::Drum => {
+            frames.render(voice, ring, samples, None, |v, _, _| v.drum.next(), gain)
+        }
         VoiceSource::Disabled => 0,
     }
 }
@@ -270,7 +353,8 @@ impl SourceFrames<'_> {
         ring: &mut PluckRing,
         samples: &mut [f32],
         index_env: Option<EnvConfig>,
-        mut source: impl FnMut(&mut Voice, &mut PluckRing) -> f32,
+        mut source: impl FnMut(&mut Voice, &mut PluckRing, usize) -> f32,
+        amp_gain: impl Fn(usize) -> f32,
     ) -> usize {
         let context = self.context;
         let mut rendered_frames = 0;
@@ -294,9 +378,16 @@ impl SourceFrames<'_> {
                 voice.active = false;
                 break;
             }
-            let dry = source(voice, ring);
-            *sample =
-                shape_synth_voice_block_sample(context, voice, dry, amp_env, filt_env, self.block);
+            let dry = source(voice, ring, frame);
+            *sample = shape_synth_voice_block_sample(
+                context,
+                voice,
+                dry,
+                amp_env,
+                filt_env,
+                self.block,
+                amp_gain(frame),
+            );
             rendered_frames += 1;
         }
         rendered_frames

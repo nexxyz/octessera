@@ -42,6 +42,7 @@ impl SynthEngine {
             render_config: self.synth_render_configs[slot_idx],
             revision: self.synth_render_revisions[slot_idx],
             mods: self.mods[slot_idx],
+            level_ramp: None,
         };
         let mut sample = 0.0;
         let mut active = false;
