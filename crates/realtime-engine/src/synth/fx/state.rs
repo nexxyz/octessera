@@ -181,7 +181,9 @@ pub(in crate::synth) fn fx_bus_state_from_params(
             channel: EqChannelState::new(),
         },
         FxBusParams::Vinyl { .. } => FxBusState::Vinyl(VinylState::new()),
-        _ => FxBusState::None,
+        FxBusParams::None | FxBusParams::Saturator { .. } | FxBusParams::Distortion { .. } => {
+            FxBusState::None
+        }
     }
 }
 
