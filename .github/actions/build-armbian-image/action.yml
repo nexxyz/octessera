@@ -100,7 +100,7 @@ runs:
         rsync -a custom/userpatches/ build/userpatches/
         custom_root="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"
         mkdir -p "$custom_root/target/save-documents"
-        (cd "$custom_root" && cargo run -p playback-runtime --bin split_default_config -- config/generated/pi/default.json target/save-documents/pi)
+        (cd "$custom_root" && cargo run --locked -p playback-runtime --bin split_default_config -- config/generated/pi/default.json target/save-documents/pi)
         bash "$custom_root/tools/armbian-image/stage-canonical-welcome.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay"
         python3 "$custom_root/tools/armbian-image/stage-device-config.py" "$GITHUB_WORKSPACE/build/userpatches/overlay"
         bash "$custom_root/tools/armbian-image/stage-musical-assets.sh" "$GITHUB_WORKSPACE/build/userpatches/overlay/usr/share/octessera"
