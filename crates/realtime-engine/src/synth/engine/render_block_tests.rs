@@ -150,7 +150,7 @@ fn inline_source_kernels_match_serial_with_dynamic_voice_state_at_supported_quan
             block.synth_render_revisions,
             reference.synth_render_revisions
         );
-        assert_eq!(block.synth_render_revisions[1], 2);
+        assert_eq!(block.synth_render_revisions[1], 1);
         assert_block_matches_reference(&mut block, &mut reference, frames);
 
         block.note_off(0, 36);

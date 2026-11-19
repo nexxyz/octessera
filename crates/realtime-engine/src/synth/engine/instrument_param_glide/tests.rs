@@ -154,3 +154,42 @@ fn routing_tree_blocks_carry_the_glide_to_the_workers_block_by_block() {
     let shutdown = lifecycle.shutdown(runtime.retire());
     assert_eq!(shutdown.joined_workers, 2);
 }
+
+fn block(engine: &mut SynthEngine) -> Vec<f32> {
+    let (mut left, mut right, mut out) = (Vec::new(), Vec::new(), Vec::new());
+    engine.render_interleaved_block(128, &mut left, &mut right, &mut out);
+    out
+}
+
+#[test]
+fn a_gliding_value_voices_read_live_reaches_the_sound_without_refreshing_voice_caches() {
+    let targets = |engine: &mut SynthEngine| {
+        engine.set_synth_param_typed(0, SynthParamId::Osc2PulseWidthPct, 20.0);
+        engine.set_synth_param_typed(0, SynthParamId::Osc1LevelPct, 20.0);
+        engine.set_synth_param_typed(0, SynthParamId::FilterCutoffHz, 3_000.0);
+    };
+    let mut gliding = engine_with("synth");
+    targets(&mut gliding);
+    let revision = gliding.synth_render_revisions[0];
+    render(&mut gliding, GLIDE_FRAMES * 2);
+    assert_eq!(gliding.synth_render_revisions[0], revision);
+
+    let mut snapped = engine_with("synth");
+    targets(&mut snapped);
+    snapped.land_live_param_glides();
+    render(&mut snapped, GLIDE_FRAMES * 2);
+    let (gliding, snapped) = (block(&mut gliding), block(&mut snapped));
+    assert!(gliding
+        .iter()
+        .zip(&snapped)
+        .all(|(a, b)| (a - b).abs() < 1.0e-6));
+}
+
+#[test]
+fn a_gliding_value_voices_cache_at_note_on_refreshes_them_while_it_moves() {
+    let mut engine = engine_with("synth");
+    engine.set_synth_param_typed(0, SynthParamId::Osc1DetuneCents, 50.0);
+    let revision = engine.synth_render_revisions[0];
+    render(&mut engine, GLIDE_FRAMES / 2);
+    assert_ne!(engine.synth_render_revisions[0], revision);
+}

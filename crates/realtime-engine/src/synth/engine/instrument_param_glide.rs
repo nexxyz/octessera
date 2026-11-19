@@ -60,6 +60,23 @@ impl InstrumentGlideParam {
         Self::SampleResonance,
     ];
 
+    /// Whether voices cache a value derived from this parameter at note-on, which a change
+    /// has to refresh (`refresh_synth_voice_render_cache`); the others are read live.
+    const fn is_in_voice_cache(self) -> bool {
+        matches!(
+            self,
+            Self::Osc1Detune
+                | Self::Osc2Detune
+                | Self::FilterKeyTracking
+                | Self::FmIndex
+                | Self::FmVelocityToIndex
+                | Self::FmModShape
+                | Self::FmModMix
+                | Self::PluckDecay
+                | Self::PluckBrightness
+        )
+    }
+
     fn range(self) -> (f32, f32) {
         match self {
             Self::Osc1Detune | Self::Osc2Detune => (-50.0, 50.0),
@@ -236,6 +253,7 @@ impl SynthEngine {
 
     fn advance_slot_param_glides(&mut self, slot: usize, frames: u32) -> bool {
         let (mut synth_moved, mut sample_moved, mut active) = (false, false, false);
+        let mut voice_cache_moved = false;
         for param in InstrumentGlideParam::ALL {
             let mut glide = self.instrument_param_glides.slots[slot][param as usize];
             if glide.remaining == 0 {
@@ -263,10 +281,13 @@ impl SynthEngine {
                 sample_moved = true;
             } else {
                 synth_moved = true;
+                voice_cache_moved |= param.is_in_voice_cache();
             }
         }
-        if synth_moved {
+        if voice_cache_moved {
             self.refresh_synth_render_config(slot);
+        } else if synth_moved {
+            self.rebuild_synth_render_config(slot);
         }
         if let Some(bank) = self.sample_banks.get(slot).filter(|_| sample_moved) {
             let _ = self.sample_voice_pool.update_filter_for_slot(
@@ -278,14 +299,21 @@ impl SynthEngine {
         active
     }
 
-    /// Rebuilds the render config the voices read from the slot's values, keeping its source.
+    /// Rebuilds the render config the voices read from the slot's values, keeping its source,
+    /// and has every voice of the slot refresh its cached per-note values.
     pub(super) fn refresh_synth_render_config(&mut self, slot: usize) {
+        self.rebuild_synth_render_config(slot);
+        self.synth_render_revisions[slot] = self.synth_render_revisions[slot].wrapping_add(1);
+    }
+
+    /// Rebuilds the render config only: for a glide step of a value the voices read from it live
+    /// (level, pulse width, gain, filter), so no voice re-derives its cache every block.
+    fn rebuild_synth_render_config(&mut self, slot: usize) {
         let previous = self.synth_render_configs[slot];
         let mut render = SynthVoiceRenderConfig::from_config(self.instruments[slot]);
         render.source = previous.source;
         render.source_generation = previous.source_generation;
         self.synth_render_configs[slot] = render;
-        self.synth_render_revisions[slot] = self.synth_render_revisions[slot].wrapping_add(1);
     }
 }
 
