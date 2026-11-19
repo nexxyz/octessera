@@ -9,7 +9,6 @@ pub(super) struct SampleSourceContext {
 }
 
 /// The frame path, which picks the voice's cursor every frame; the block paths pick it once.
-#[cfg(test)]
 pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u32) -> Option<f32> {
     match voice.cursor {
         SampleVoiceLoop::Once(cursor) => render_sample_voice_frame_once(voice, cursor, sample_rate),
@@ -22,7 +21,6 @@ pub(super) fn render_sample_voice_frame(voice: &mut SampleVoice, sample_rate: u3
     }
 }
 
-#[cfg(test)]
 fn render_sample_voice_frame_once(
     voice: &mut SampleVoice,
     mut cursor: impl SampleCursor,

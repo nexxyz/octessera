@@ -95,7 +95,6 @@ impl SampleVoiceShape {
     }
 
     /// Advances a pending release by one frame, beginning it when its frame arrives.
-    #[cfg(test)]
     pub(super) fn tick_pending_release(&mut self, sample_rate: u32) {
         match self.pending_release.as_mut() {
             Some(pending) if pending.frames > 0 => pending.frames -= 1,

@@ -73,7 +73,6 @@ impl StealDeclick {
     }
 
     /// The frame path's `finish_block`: `None` once a steal fade has ended the voice.
-    #[cfg(test)]
     pub(super) fn finish_frame(
         &mut self,
         last_output: &mut f32,
