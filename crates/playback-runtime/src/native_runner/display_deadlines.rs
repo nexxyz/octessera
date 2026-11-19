@@ -34,11 +34,15 @@ impl NativeRunner {
         last_snapshot_at: Option<Instant>,
     ) -> Option<Instant> {
         let mut deadline = None;
+        let held_until = self.display.held_inputs.counts_until();
+        let idle_after = |seconds: u16| {
+            let idle = self.display.last_interaction_at + Duration::from_secs(u64::from(seconds));
+            held_until.map_or(idle, |held_until| idle.max(held_until))
+        };
         if self.display.ui.dim_timer_seconds != 0 {
             deadline = earliest_deadline(
                 deadline,
-                self.display.last_interaction_at
-                    + Duration::from_secs(u64::from(self.display.ui.dim_timer_seconds)),
+                idle_after(self.display.ui.dim_timer_seconds),
                 last_snapshot_at,
             );
         }
@@ -47,8 +51,7 @@ impl NativeRunner {
         {
             deadline = earliest_deadline(
                 deadline,
-                self.display.last_interaction_at
-                    + Duration::from_secs(u64::from(self.display.ui.screen_sleep_seconds)),
+                idle_after(self.display.ui.screen_sleep_seconds),
                 None,
             );
         }

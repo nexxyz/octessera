@@ -147,6 +147,7 @@ impl NativeRunner {
             return;
         }
         if self.display.oled_mode == NativeOledMode::Normal
+            && !self.display.held_inputs.any_at(now)
             && now.duration_since(self.display.last_interaction_at)
                 >= Duration::from_secs(u64::from(self.display.ui.screen_sleep_seconds))
         {
@@ -159,8 +160,10 @@ impl NativeRunner {
     }
 
     pub(super) fn leds_dimmed(&self) -> bool {
+        let now = self.display.transients.now();
         self.display.ui.dim_timer_seconds != 0
-            && Instant::now().duration_since(self.display.last_interaction_at)
+            && !self.display.held_inputs.any_at(now)
+            && now.duration_since(self.display.last_interaction_at)
                 >= Duration::from_secs(u64::from(self.display.ui.dim_timer_seconds))
     }
 }

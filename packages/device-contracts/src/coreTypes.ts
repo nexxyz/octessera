@@ -10,6 +10,7 @@ import type { RuntimeErrorMetadata } from "./runtimeErrors";
 export type DeviceInput =
   | { type: "encoder_turn"; delta: number; id?: "main" | `aux${number}` }
   | { type: "encoder_press"; id?: "main" | `aux${number}` }
+  | { type: "encoder_release"; id?: "main" | `aux${number}` }
   | { type: "button_a"; pressed?: boolean }
   | { type: "button_s"; pressed?: boolean }
   | { type: "button_shift"; pressed?: boolean }

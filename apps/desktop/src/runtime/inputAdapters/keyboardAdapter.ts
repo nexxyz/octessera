@@ -44,7 +44,7 @@ type Edge = { press: DeviceInput; release: DeviceInput | null };
 
 const MAIN_PRESS: Edge = {
   press: { type: 'encoder_press', id: 'main' },
-  release: null,
+  release: { type: 'encoder_release', id: 'main' },
 };
 
 const EDGE_KEYS = new Map<string, Edge>([
@@ -152,7 +152,10 @@ function turnAction(code: string): DeviceInput | null {
 function auxClick(code: string): Edge | null {
   const aux = auxKey(code);
   if (aux?.slot !== 1) return null;
-  return { press: { type: 'encoder_press', id: aux.id }, release: null };
+  return {
+    press: { type: 'encoder_press', id: aux.id },
+    release: { type: 'encoder_release', id: aux.id },
+  };
 }
 
 function auxKey(code: string): { id: `aux${number}`; slot: number } | null {

@@ -11,6 +11,9 @@ fn input_of(input: KeyboardInput) -> Value {
         KeyboardInput::EncoderPress { id } => {
             json!({ "type": "encoder_press", "id": encoder_input_id(id) })
         }
+        KeyboardInput::EncoderRelease { id } => {
+            json!({ "type": "encoder_release", "id": encoder_input_id(id) })
+        }
         KeyboardInput::ButtonA(pressed) => json!({ "type": "button_a", "pressed": pressed }),
         KeyboardInput::ButtonS(pressed) => json!({ "type": "button_s", "pressed": pressed }),
         KeyboardInput::ButtonShift(pressed) => {
@@ -354,7 +357,7 @@ fn aux_clicks_emit_once_until_release_and_clear_on_cleanup() {
         state.commit(pressed);
         assert!(state.prepare(key, 2).is_none());
         let released = state.prepare(key, 0).unwrap();
-        assert_eq!(released.input, None);
+        assert_eq!(released.input, Some(KeyboardInput::EncoderRelease { id }));
         state.commit(released);
         assert_eq!(state.prepare(key, 0), None);
         assert_eq!(
@@ -366,6 +369,10 @@ fn aux_clicks_emit_once_until_release_and_clear_on_cleanup() {
         state.commit(state.prepare(key, 1).unwrap());
         assert!(release_held_inputs(&mut state, &input_tx));
         assert!(release_held_inputs(&mut state, &input_tx));
+        let HostMessage::DeviceInput { input, .. } = input_rx.try_recv().unwrap() else {
+            panic!("cleanup should release the held encoder key");
+        };
+        assert_eq!(input["type"], "encoder_release");
         assert!(input_rx.try_recv().is_err());
         assert_eq!(
             state.prepare(key, 1).unwrap().input,
@@ -414,6 +421,15 @@ fn held_release_order_is_stable_and_clears_once() {
                 x: 0,
                 y: 7,
                 pressed: false
+            },
+            KeyboardInput::EncoderRelease {
+                id: "encoder_aux_1"
+            },
+            KeyboardInput::EncoderRelease {
+                id: "encoder_aux_2"
+            },
+            KeyboardInput::EncoderRelease {
+                id: "encoder_aux_3"
             },
             KeyboardInput::ButtonA(false),
             KeyboardInput::ButtonS(false),

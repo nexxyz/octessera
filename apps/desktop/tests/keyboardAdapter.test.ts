@@ -182,7 +182,9 @@ test('modifier combos and releases keep their meaning', () => {
     { type: 'button_a', pressed: false },
   ]);
   mapper.keydown(keyEvent('Enter'));
-  assert.deepEqual(mapper.keyup(keyEvent('Enter')), []);
+  assert.deepEqual(mapper.keyup(keyEvent('Enter')), [
+    { type: 'encoder_release', id: 'main' },
+  ]);
 });
 
 test('focus loss releases every held tile, button and modifier once', () => {
@@ -196,6 +198,7 @@ test('focus loss releases every held tile, button and modifier once', () => {
     tile('grid_release', 0, 0),
     { type: 'button_a', pressed: false },
     { type: 'button_fn', pressed: false },
+    { type: 'encoder_release', id: 'aux2' },
     tile('grid_release', 7, 4),
   ]);
   assert.deepEqual(mapper.releaseAll(), []);

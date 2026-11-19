@@ -240,6 +240,10 @@ fn worker_drives_enable_events_disable_and_ordered_releases() {
     worker.disable();
     assert_eq!(
         worker.recv_input(),
+        serde_json::json!({ "type": "encoder_release", "id": "aux1" })
+    );
+    assert_eq!(
+        worker.recv_input(),
         json_input(KeyboardInput::ButtonA(false))
     );
     assert_eq!(
@@ -305,6 +309,10 @@ fn worker_releases_and_drops_after_read_failure() {
         serde_json::json!({ "type": "encoder_press", "id": "aux1" })
     );
     wait_until(|| worker.dropped() == vec![2]);
+    assert_eq!(
+        worker.recv_input(),
+        serde_json::json!({ "type": "encoder_release", "id": "aux1" })
+    );
     assert!(worker.input_rx.as_ref().unwrap().try_recv().is_err());
     worker.stop();
 }
@@ -324,6 +332,10 @@ fn worker_aux_click_repeat_and_disable_do_not_emit_another_click() {
     assert_eq!(
         worker.recv_input(),
         serde_json::json!({ "type": "encoder_press", "id": "aux1" })
+    );
+    assert_eq!(
+        worker.recv_input(),
+        serde_json::json!({ "type": "encoder_release", "id": "aux1" })
     );
     thread::sleep(Duration::from_millis(10));
     worker.disable();
@@ -345,6 +357,12 @@ fn worker_shutdown_clears_held_aux_click_and_drops() {
         serde_json::json!({ "type": "encoder_press", "id": "aux1" })
     );
     worker.stop();
+    let released = worker.input_rx.as_ref().unwrap().try_recv().ok();
+    assert!(
+        matches!(released, Some(HostMessage::DeviceInput { ref input, .. })
+            if input["type"] == "encoder_release" && input["id"] == "aux1"),
+        "{released:?}"
+    );
     assert!(worker.input_rx.as_ref().unwrap().try_recv().is_err());
     assert_eq!(worker.dropped(), vec![3]);
 }
@@ -459,6 +477,7 @@ fn json_input(input: KeyboardInput) -> Value {
         KeyboardInput::ButtonFn(pressed) => ("button_fn", pressed),
         KeyboardInput::EncoderTurn { .. }
         | KeyboardInput::EncoderPress { .. }
+        | KeyboardInput::EncoderRelease { .. }
         | KeyboardInput::Grid { .. } => {
             panic!("test only expects button input")
         }

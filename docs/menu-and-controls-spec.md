@@ -1335,8 +1335,14 @@ Save/Load, Panic, reboot, recording, and setup are actions, not saved fields.
 - Device input and each setup-portal phase change wake the OLED, clear the dim, and restart both
   timers. A repeated status with the same phase does not. Other runtime and transport messages
   never wake it.
+- While any tile, NeoKey button or encoder button is held, neither OLED Sleep nor the Dim Timer
+  runs: the player is evidently still playing. Encoder releases reach the runtime as
+  `encoder_release` (both boards, and the simulator's Enter, aux-click keys and dial button) only
+  for this. The release restarts both timers like any input. A hold that nothing changes for ten
+  minutes stops counting, so a release lost on the bus can't keep the OLED lit for good.
 - A press or turn that wakes the OLED is consumed as wake input. A grid tile or button release
-  that wakes it is still handled, so a Play FX, fader or XY tile held through sleep stops on release.
+  that wakes it (only possible after that ten-minute limit) is still handled, so a Play FX,
+  fader or XY tile stops on release.
 - Once `OLED Sleep` turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 10 Hz
   sparse dim-star animation of independently pulsing stars. It ignores `ledsDimmed`, stays within
   the sleep dim scale, and keeps a zero-brightness blackout dark.

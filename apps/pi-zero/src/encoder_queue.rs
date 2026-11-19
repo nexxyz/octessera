@@ -66,7 +66,10 @@ where
                 flush_pending_encoder_turns(pending, &mut dispatch)?;
                 dispatch(crate::input::encoder_press_message(id))?;
             }
-            HardwareEvent::EncoderRelease { .. } => {}
+            HardwareEvent::EncoderRelease { id } => {
+                flush_pending_encoder_turns(pending, &mut dispatch)?;
+                dispatch(crate::input::encoder_release_message(id))?;
+            }
         }
     }
     flush_pending_encoder_turns(pending, &mut dispatch)?;

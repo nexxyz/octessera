@@ -50,6 +50,17 @@ pub fn encoder_turn_message(id: &str, delta: i8) -> HostMessage {
     }
 }
 
+pub fn encoder_release_message(id: &str) -> HostMessage {
+    let index = encoder_index(id);
+    HostMessage::DeviceInput {
+        input: json!({
+            "type": "encoder_release",
+            "id": encoder_input_id(index)
+        }),
+        request_snapshot: None,
+    }
+}
+
 pub fn encoder_press_message(id: &str) -> HostMessage {
     let index = encoder_index(id);
     HostMessage::DeviceInput {

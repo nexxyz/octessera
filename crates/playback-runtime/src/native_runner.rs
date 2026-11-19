@@ -106,6 +106,7 @@ mod fx_param_codec;
 mod fx_targets;
 mod grid_assign;
 mod grid_coords;
+mod held_inputs;
 mod help_text;
 mod instrument_audio_payload;
 mod instrument_collections;

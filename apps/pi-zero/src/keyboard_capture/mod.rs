@@ -238,6 +238,7 @@ fn host_message(input: KeyboardInput) -> HostMessage {
             Some(crate::input::encoder_turn_message(id, delta))
         }
         KeyboardInput::EncoderPress { id } => Some(crate::input::encoder_press_message(id)),
+        KeyboardInput::EncoderRelease { id } => Some(crate::input::encoder_release_message(id)),
         KeyboardInput::ButtonA(pressed) => crate::input::neokey_message(0, pressed),
         KeyboardInput::ButtonS(pressed) => crate::input::neokey_message(1, pressed),
         KeyboardInput::ButtonShift(pressed) => crate::input::neokey_message(2, pressed),

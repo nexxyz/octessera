@@ -170,7 +170,10 @@ function Dial({
       <button
         type="button"
         className="encoder-center"
-        onClick={() => dispatch({ type: 'encoder_press', id })}
+        onClick={() => {
+          dispatch({ type: 'encoder_press', id });
+          dispatch({ type: 'encoder_release', id });
+        }}
       >
         Push
       </button>

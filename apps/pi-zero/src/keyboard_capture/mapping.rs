@@ -28,6 +28,7 @@ pub(crate) const GRID_KEY_ROWS: u8 = 4;
 pub(crate) enum KeyboardInput {
     EncoderTurn { id: &'static str, delta: i8 },
     EncoderPress { id: &'static str },
+    EncoderRelease { id: &'static str },
     ButtonA(bool),
     ButtonS(bool),
     ButtonShift(bool),
@@ -74,6 +75,12 @@ impl KeyboardState {
             Some(KeyboardInput::EncoderPress { id }) => {
                 (self.held.keys & bit == 0).then_some(KeyboardInput::EncoderPress { id })
             }
+            None if value == 0 && self.held.keys & bit != 0 => match map_key_event(key, 1) {
+                Some(KeyboardInput::EncoderPress { id }) => {
+                    Some(KeyboardInput::EncoderRelease { id })
+                }
+                _ => None,
+            },
             Some(action @ KeyboardInput::EncoderTurn { .. }) => Some(action),
             Some(action @ KeyboardInput::ButtonA(pressed))
             | Some(action @ KeyboardInput::ButtonS(pressed))
@@ -84,7 +91,7 @@ impl KeyboardState {
                 let remains_held = keys & button != 0;
                 (pressed && !was_held || !pressed && was_held && !remains_held).then_some(action)
             }
-            Some(KeyboardInput::Grid { .. }) | None => None,
+            Some(KeyboardInput::Grid { .. } | KeyboardInput::EncoderRelease { .. }) | None => None,
         };
         (input, Held { keys, ..self.held })
     }
@@ -129,6 +136,16 @@ impl KeyboardState {
                 }
             }
         }
+        releases.extend(
+            [
+                (KeyboardKey::Enter, "encoder_main"),
+                (KeyboardKey::KeypadEnter, "encoder_main"),
+            ]
+            .into_iter()
+            .chain((1..=3).map(|encoder| (KeyboardKey::Aux { encoder, slot: 1 }, aux_id(encoder))))
+            .filter(|(key, _)| self.held.keys & key_bit(*key) != 0)
+            .map(|(_, id)| KeyboardInput::EncoderRelease { id }),
+        );
         releases.extend(
             [
                 KeyboardInput::ButtonA(false),
@@ -242,6 +259,8 @@ const fn key_bit(key: KeyboardKey) -> u16 {
         KeyboardKey::RightControl => 1 << 6,
         KeyboardKey::Aux { encoder, slot: 1 } => 1 << (6 + encoder),
         KeyboardKey::LeftAlt => 1 << 10,
+        KeyboardKey::Enter => 1 << 11,
+        KeyboardKey::KeypadEnter => 1 << 12,
         _ => 0,
     }
 }

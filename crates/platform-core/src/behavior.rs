@@ -30,6 +30,10 @@ pub enum DeviceInput {
         #[serde(default)]
         id: Option<String>,
     },
+    EncoderRelease {
+        #[serde(default)]
+        id: Option<String>,
+    },
     ButtonA {
         #[serde(default)]
         pressed: Option<bool>,

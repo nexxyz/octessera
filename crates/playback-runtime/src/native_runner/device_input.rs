@@ -93,6 +93,12 @@ impl NativeRunner {
         input: DeviceInput,
         force_error_presentation: bool,
     ) -> Result<Vec<RunnerMessage>, String> {
+        let now = self.display.transients.now();
+        self.display.held_inputs.track(&input, now);
+        if matches!(input, DeviceInput::EncoderRelease { .. }) {
+            self.record_display_interaction();
+            return self.messages_without_presentation();
+        }
         let is_modifier_input = self.reconcile_modifier_input(&input);
         if self.display.oled_mode == super::NativeOledMode::Splash
             && self.display.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
@@ -175,6 +181,7 @@ impl NativeRunner {
             DeviceInput::ButtonShift { .. }
             | DeviceInput::ButtonFn { .. }
             | DeviceInput::ButtonCombinedModifier { .. } => self.messages_with_snapshot(),
+            DeviceInput::EncoderRelease { .. } => self.messages_without_presentation(),
             DeviceInput::EncoderTurn { delta, id } => {
                 if id.as_deref().unwrap_or("main") == "main"
                     && self.display.aux_mapping_peek_visible

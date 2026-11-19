@@ -321,8 +321,7 @@ pub(crate) fn setup_success_wakes_into_sys_info_popup_without_moving_the_menu() 
     );
 }
 
-#[test]
-pub(crate) fn release_that_wakes_the_sleeping_display_still_stops_the_held_fx() {
+fn held_fx_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
@@ -331,27 +330,71 @@ pub(crate) fn release_that_wakes_the_sleeping_display_still_stops_the_held_fx() 
         y: 3,
         config: json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
     });
-    let grid = |kind: &str| HostMessage::DeviceInput {
+    runner
+}
+
+fn grid(kind: &str) -> HostMessage {
+    HostMessage::DeviceInput {
         input: json!({ "type": kind, "x": 2, "y": 3 }),
         request_snapshot: Some(false),
-    };
+    }
+}
+
+fn stops_the_held_fx(messages: &[RunnerMessage]) -> bool {
+    messages.iter().any(|message| {
+        matches!(
+            message,
+            RunnerMessage::PlatformEffects { effects }
+                if effects == &vec![RuntimePlatformEffect::AudioCommand {
+                    command: RuntimeAudioCommand::MomentaryFxStop {
+                        id: "momentary-fx:2:3".into(),
+                        epoch: 1,
+                    },
+                }]
+        )
+    })
+}
+
+#[test]
+pub(crate) fn a_held_tile_keeps_the_display_awake_and_its_release_restarts_the_timer() {
+    let mut runner = held_fx_runner();
     runner.send(grid("grid_press")).unwrap();
+    runner.display.ui.dim_timer_seconds = 1;
     runner.display.ui.screen_sleep_seconds = 2;
     runner.display.last_interaction_at = Instant::now() - Duration::from_secs(3);
+
+    let held = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(held["display"]["splash"], "");
+    assert_eq!(held["settings"]["ledsDimmed"], false);
+
+    let release = runner.send(grid("grid_release")).unwrap();
+    assert!(stops_the_held_fx(&release));
+    assert!(runner.display.last_interaction_at.elapsed() < Duration::from_secs(1));
+    let after = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(after["display"]["splash"], "");
+
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(3);
+    let idle = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(idle["display"]["splash"], "sleep");
+}
+
+#[test]
+pub(crate) fn a_hold_untouched_for_ten_minutes_lets_the_display_sleep_and_its_release_still_counts()
+{
+    let mut runner = held_fx_runner();
+    runner.send(grid("grid_press")).unwrap();
+    let long_ago = Instant::now() - Duration::from_secs(11 * 60);
+    runner
+        .display
+        .held_inputs
+        .track(&DeviceInput::GridPress { x: 2, y: 3 }, long_ago);
+    runner.display.ui.screen_sleep_seconds = 2;
+    runner.display.last_interaction_at = long_ago;
     let asleep = snapshot_from(&runner.messages_with_snapshot().unwrap());
     assert_eq!(asleep["display"]["splash"], "sleep");
 
     let release = runner.send(grid("grid_release")).unwrap();
 
-    assert!(release.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects == &vec![RuntimePlatformEffect::AudioCommand {
-                command: RuntimeAudioCommand::MomentaryFxStop {
-                    id: "momentary-fx:2:3".into(),
-                    epoch: 1,
-                },
-            }]
-    )));
+    assert!(stops_the_held_fx(&release));
     assert_eq!(snapshot_from(&release)["display"]["splash"], "");
 }
