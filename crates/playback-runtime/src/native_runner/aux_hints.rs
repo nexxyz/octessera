@@ -9,7 +9,9 @@ use crate::oled_frame::{OledAuxHint, OledAuxHints, OledHintLabel, OledHintSource
 const AUX_COUNT: usize = platform_core::AUX_ENCODER_COUNT;
 
 /// Manual Aux slots with their labels, kept for the bindings they were resolved from: the
-/// labels need menu lookups that are too slow for every display capture. A binding whose
+/// labels need menu lookups that are too slow for every display capture. Nothing is kept
+/// while the menu is still unbuilt (the boards load the stores before building it), since
+/// every turn label would resolve empty and stay that way. A binding whose
 /// target no longer exists keeps its side with an empty label, so it shows no hint and still
 /// hides the auto hint it overrides.
 #[derive(Clone)]
@@ -99,7 +101,9 @@ impl NativeRunner {
             }),
         };
         let slots = resolved.slots.clone();
-        *self.display.manual_aux_hints.borrow_mut() = Some(resolved);
+        if self.menu.is_built() {
+            *self.display.manual_aux_hints.borrow_mut() = Some(resolved);
+        }
         slots
     }
 
@@ -144,6 +148,37 @@ mod tests {
         runner.fx_buses[0].slot1_params = serde_json::json!({ "timeMs": 250, "feedback": 0.35 });
         runner.menu.rebuild(runner.menu_config());
         runner
+    }
+
+    #[test]
+    fn hints_asked_for_while_the_board_still_loads_name_every_turn_once_the_menu_is_built() {
+        let payload: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../config/generated/pi/default.json"))
+                .unwrap();
+        let mut runner =
+            NativeRunner::new_with_unbuilt_menu(NativeRunnerConfig::default()).unwrap();
+        runner.apply_config_payload(payload).unwrap();
+        let _ = runner.aux_hints();
+        runner.finish_startup_load();
+        runner.skip_startup_splash();
+
+        let hints = runner.aux_hints();
+        let turn = |index: usize| {
+            hints.normal[index]
+                .turn
+                .as_ref()
+                .map(|turn| turn.text.as_str())
+        };
+        assert_eq!(turn(0), Some("Cutoff"));
+        assert_eq!(turn(1), Some("Mix"));
+        assert_eq!(turn(2), Some("Density"));
+        assert_eq!(
+            hints.normal[2]
+                .click
+                .as_ref()
+                .map(|click| click.text.as_str()),
+            Some("L5 Reseed Stars")
+        );
     }
 
     #[test]
