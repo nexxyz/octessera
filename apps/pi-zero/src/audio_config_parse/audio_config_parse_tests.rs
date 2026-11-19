@@ -74,6 +74,28 @@ fn pi_sample_failures_use_shared_typed_facts() {
 }
 
 #[test]
+fn a_sample_past_the_decode_limit_is_reported_as_too_long() {
+    let root = temp_dir("sample-too-long");
+    let mut bytes = wav_bytes();
+    let declared_data_bytes = 26_u32 * 1024 * 1024;
+    bytes[40..44].copy_from_slice(&declared_data_bytes.to_le_bytes());
+    std::fs::write(root.join("long.wav"), bytes).unwrap();
+    let audio = crate::audio::test_service_for_sample_prep();
+
+    let Err(error) = prepare_sample_preview(&audio, 0, "samples/long.wav", 100, &root, 1) else {
+        panic!("a sample past the decode limit must not load");
+    };
+
+    assert_eq!(error, SampleLoadError::TooLong("samples/long.wav".into()));
+    assert_eq!(error.message(), "sample too long: samples/long.wav");
+    assert_eq!(
+        SampleLoadError::path_in_message(&error.message()),
+        Some("samples/long.wav")
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn initial_sample_preparation_loads_a_valid_wav() {
     let root = temp_dir("sample-prep-success");
     std::fs::write(root.join("kick.wav"), wav_bytes()).unwrap();

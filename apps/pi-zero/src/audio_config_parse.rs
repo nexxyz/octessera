@@ -137,6 +137,9 @@ fn cached_sample_buffer(
 ) -> Result<SampleBuffer, SampleLoadError> {
     match audio.sample_cache.load(path) {
         Ok(Some(buffer)) => Ok(buffer),
+        Ok(None) if rodio_engine_source::sample_too_long(path) => {
+            Err(SampleLoadError::TooLong(display_path.into()))
+        }
         Ok(None) | Err(_) => Err(SampleLoadError::Undecodable(display_path.into())),
     }
 }

@@ -4,7 +4,7 @@ use crate::oled_frame::{wrap_text, MENU_BODY_RECT};
 
 const MISSING_SAMPLES_TITLE: &str = "Samples missing";
 const MISSING_SAMPLES_INTRO: &str =
-    "Not found, so these slots stay silent. Pick a replacement sample:";
+    "Missing, damaged or too long, so these slots stay silent. Pick a replacement sample:";
 
 impl NativeRunner {
     pub(super) fn apply_missing_samples(&mut self, paths: &[String]) {

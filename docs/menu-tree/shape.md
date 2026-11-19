@@ -240,7 +240,7 @@ Shape
   Amount and Key Tracking at 0 the filter stays fixed.
 - The loaded-sample row reads `S<n>: <filename> >` and opens `S<n> Browse` in the file's folder with
   the cursor and pointer on the file.
-- A loaded sample that cannot be found or decoded shows `N/A-<filename>` (the saved path's
+- A loaded sample that cannot be found, will not decode or is too long shows `N/A-<filename>` (the saved path's
   basename) on the loaded-sample row and the matching browser row. The saved path stays the
   replacement action's source and is unchanged in patch/config payloads. Only that slot goes
   silent; the rest of the instrument loads. The host reports affected paths once per audio

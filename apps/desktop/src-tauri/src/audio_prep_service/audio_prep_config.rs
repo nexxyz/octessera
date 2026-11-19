@@ -177,6 +177,11 @@ pub(super) fn prepare_sample_preview(
         .ok_or_else(|| AudioPrepError::Sample(SampleLoadError::Unresolved(path.into())))?;
     let buffer = match state.sample_decode_cache.load(&full_path) {
         Ok(Some(buffer)) => buffer,
+        Ok(None) if rodio_engine_source::sample_too_long(&full_path) => {
+            return Err(AudioPrepError::Sample(SampleLoadError::TooLong(
+                path.into(),
+            )))
+        }
         Ok(None) => {
             return Err(AudioPrepError::Sample(SampleLoadError::Undecodable(
                 path.into(),

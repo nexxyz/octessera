@@ -48,7 +48,7 @@ use retired_audio_backlog::RetiredAudioBacklog;
 pub use runtime_audio_command::{
     apply_runtime_audio_command, MomentaryFxTypes, RuntimeAudioCommandHost,
 };
-pub use sample_decode::decode_sample_file;
+pub use sample_decode::{decode_sample_file, sample_too_long};
 pub use sample_decode_cache::{SampleDecodeCache, SampleDecodeCacheError};
 use source_state::{
     drop_retired_item, EngineSlot, SourceOwned, SourceOwnedDropState, SourceRetirementChannels,

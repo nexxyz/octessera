@@ -20,11 +20,22 @@ pub fn decode_sample_file(path: impl AsRef<Path>) -> Option<SampleBuffer> {
     decode_wav(hound::WavReader::new(normalized.as_slice()).ok()?)
 }
 
+/// Whether the decoder refuses this file for its length alone, so hosts can say it is too long.
+pub fn sample_too_long(path: impl AsRef<Path>) -> bool {
+    let path = path.as_ref();
+    std::fs::metadata(path).is_ok_and(|metadata| metadata.len() > MAX_DECODED_SAMPLE_BYTES)
+        || hound::WavReader::open(path).is_ok_and(|reader| decoded_too_large(reader.len()))
+}
+
+fn decoded_too_large(sample_count: u32) -> bool {
+    u64::from(sample_count) * std::mem::size_of::<f32>() as u64 > MAX_DECODED_SAMPLE_BYTES
+}
+
 fn decode_wav<R: Read>(mut reader: hound::WavReader<R>) -> Option<SampleBuffer> {
     let spec = reader.spec();
     let channels = spec.channels;
     let sample_rate = spec.sample_rate;
-    if u64::from(reader.len()) * std::mem::size_of::<f32>() as u64 > MAX_DECODED_SAMPLE_BYTES {
+    if decoded_too_large(reader.len()) {
         return None;
     }
     let samples = match spec.sample_format {

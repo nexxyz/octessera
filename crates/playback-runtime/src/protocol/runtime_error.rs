@@ -27,12 +27,15 @@ pub enum RuntimeErrorCode {
 
 const SAMPLE_NOT_FOUND: &str = "sample not found: ";
 const SAMPLE_DECODE_FAILED: &str = "sample decode failed: ";
+const SAMPLE_TOO_LONG: &str = "sample too long: ";
 
-/// A sample a host could not load: its path did not resolve, or the file would not decode.
+/// A sample a host could not load: its path did not resolve, the file would not decode, or it
+/// is longer than the decoder takes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SampleLoadError {
     Unresolved(String),
     Undecodable(String),
+    TooLong(String),
 }
 
 impl SampleLoadError {
@@ -40,6 +43,7 @@ impl SampleLoadError {
         match self {
             Self::Unresolved(_) => RuntimeErrorCode::NotFound,
             Self::Undecodable(_) => RuntimeErrorCode::OperationFailed,
+            Self::TooLong(_) => RuntimeErrorCode::Unsupported,
         }
     }
 
@@ -47,6 +51,7 @@ impl SampleLoadError {
         match self {
             Self::Unresolved(path) => format!("{SAMPLE_NOT_FOUND}{path}"),
             Self::Undecodable(path) => format!("{SAMPLE_DECODE_FAILED}{path}"),
+            Self::TooLong(path) => format!("{SAMPLE_TOO_LONG}{path}"),
         }
     }
 
@@ -54,6 +59,7 @@ impl SampleLoadError {
         message
             .strip_prefix(SAMPLE_NOT_FOUND)
             .or_else(|| message.strip_prefix(SAMPLE_DECODE_FAILED))
+            .or_else(|| message.strip_prefix(SAMPLE_TOO_LONG))
     }
 }
 
