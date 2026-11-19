@@ -1,4 +1,5 @@
 use super::*;
+use crate::synth::fx::fx_bus_state_from_params;
 
 const SAMPLE_RATE: u32 = 48_000;
 
@@ -88,4 +89,21 @@ fn duck_cuts_by_the_amount_as_the_source_rises_past_the_threshold() {
             0.5 * expected_gain
         );
     }
+}
+
+#[test]
+fn reverb_without_its_state_passes_the_input_through_without_allocating() {
+    let params = FxBusParams::Reverb {
+        mix: 1.0,
+        decay: 0.8,
+        damp: 0.2,
+    };
+    let mut state = FxBusState::None;
+    let (output, allocations, _) =
+        crate::synth::test_allocator::count_allocations_and_deallocations(|| {
+            process_fx_bus_slot(&params, &mut state, 0.5, 0.0, SAMPLE_RATE)
+        });
+    assert_eq!(output, 0.5);
+    assert_eq!(allocations, 0);
+    assert!(matches!(state, FxBusState::None));
 }

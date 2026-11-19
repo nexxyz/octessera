@@ -1,5 +1,5 @@
 use super::algorithms::*;
-use super::{fx_bus_state_from_params, FxBusParams, FxBusState, PI};
+use super::{FxBusParams, FxBusState, PI};
 
 pub(in crate::synth) fn process_fx_bus_slot(
     params: &FxBusParams,
@@ -69,7 +69,6 @@ pub(in crate::synth) fn process_fx_bus_slot(
                 input_gain,
             } = state
             else {
-                *state = fx_bus_state_from_params(params, sample_rate);
                 return input;
             };
             let comb_input = input * input_gain.for_decay(decay);
