@@ -1,6 +1,7 @@
 [Unit]
 Description=octessera Orange CPU Clock Floor
 Before=octessera.service
+After=armbian-hardware-optimize.service
 
 [Service]
 Type=oneshot
