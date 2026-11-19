@@ -255,6 +255,8 @@ fn a_gliding_value_voices_read_live_reaches_the_sound_without_refreshing_voice_c
     targets(&mut snapped);
     snapped.land_live_param_glides();
     render(&mut snapped, GLIDE_FRAMES * 2);
+    // A level glide's per-sample ramp ends one block after its block value does.
+    let _ = (block(&mut gliding), block(&mut snapped));
     let (gliding, snapped) = (block(&mut gliding), block(&mut snapped));
     assert!(gliding
         .iter()
