@@ -1,3 +1,9 @@
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use super::orange_worker::{
+    seesaw_startup_status, SeesawStartupStatus, SEESAW_SHUTDOWN_TIMEOUT, SEESAW_STARTUP_TIMEOUT,
+};
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+use super::raspberry_worker::{seesaw_worker_has_stalled, SEESAW_STALL_TIMEOUT};
 use super::*;
 
 struct FakeLedOutput {

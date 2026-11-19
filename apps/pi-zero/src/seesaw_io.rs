@@ -3,44 +3,21 @@ use octessera_hal::{NeoKey, NeoTrellis, SeesawInterrupt};
 use playback_runtime::HostMessage;
 use scan_schedule::ScanSchedule;
 use setup_refresh::{SeesawBoard, SetupRefresh};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::Arc;
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+pub(crate) use orange_worker::spawn_interrupt;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+pub(crate) use raspberry_worker::spawn_interrupt;
+
 /// After a failed Seesaw transaction, leave the bus alone instead of retrying into a busy device.
 const I2C_ERROR_BACKOFF: Duration = Duration::from_millis(50);
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-const SEESAW_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(750);
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-const SEESAW_STARTUP_TIMEOUT: Duration = Duration::from_millis(750);
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const SEESAW_HEALTH_CHECK_INTERVAL: Duration = Duration::from_secs(1);
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-const SEESAW_STALL_TIMEOUT: Duration = Duration::from_secs(5);
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SeesawStartupStatus {
-    WaitingForInputScan,
-    WaitingForOutputFrame,
-    Ready,
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-fn seesaw_startup_status(scan_succeeded: bool, output_succeeded: bool) -> SeesawStartupStatus {
-    if !scan_succeeded {
-        SeesawStartupStatus::WaitingForInputScan
-    } else if !output_succeeded {
-        SeesawStartupStatus::WaitingForOutputFrame
-    } else {
-        SeesawStartupStatus::Ready
-    }
-}
+type ShutdownRequest = (Sender<Result<(), String>>, Instant);
 
 #[derive(Clone)]
 pub(crate) enum SeesawCommand {
@@ -59,19 +36,6 @@ pub(crate) struct SeesawIo {
     pub(crate) command_tx: Sender<SeesawCommand>,
     #[cfg(feature = "hardware-orange-pi-zero-2w")]
     worker: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-impl SeesawIo {
-    pub(crate) fn spawn_keyboard(
-        &self,
-        role: playback_runtime::UsbDataRole,
-    ) -> crate::keyboard_capture::KeyboardCapture {
-        crate::keyboard_capture::KeyboardCapture::spawn(
-            self.input_tx.clone(),
-            role == playback_runtime::UsbDataRole::Host,
-        )
-    }
 }
 
 trait LedOutputWriter {
@@ -106,19 +70,9 @@ struct DesiredLedOutputs {
 }
 
 impl DesiredLedOutputs {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    fn startup_complete(&self) -> bool {
-        self.applied_grid == Some([[0; 3]; 64])
-            && self.applied_key_valid == [true; 4]
-            && self.applied_keys == [[0; 3]; 4]
-    }
-
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
-    fn shutdown_complete(&self) -> bool {
-        self.startup_complete()
-    }
-
-    fn accept(&mut self, command: SeesawCommand) {
+    /// Takes a command into the desired outputs; a shutdown asks for black
+    /// outputs and is handed back to the caller to acknowledge.
+    fn accept(&mut self, command: SeesawCommand) -> Option<ShutdownRequest> {
         match command {
             SeesawCommand::GridFrame(frame) => {
                 if self.desired_grid.as_ref() != Some(&frame) {
@@ -133,9 +87,15 @@ impl DesiredLedOutputs {
                 }
             }
             #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            SeesawCommand::Shutdown { .. } => {}
+            SeesawCommand::Shutdown { ack, deadline } => {
+                self.accept(SeesawCommand::GridFrame([[0; 3]; 64]));
+                self.accept(SeesawCommand::NeoKeyColors([[0; 3]; 4]));
+                return Some((ack, deadline));
+            }
         }
+        None
     }
+
     fn resend_after_setup(&mut self, grid: bool, keys: bool) {
         if grid {
             self.applied_grid = None;
@@ -200,75 +160,34 @@ fn attempt_due(next_attempt_at: Option<Instant>, now: Instant) -> bool {
     next_attempt_at.is_none_or(|deadline| now >= deadline)
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn seesaw_worker_has_stalled(
-    last_generation: &mut u64,
-    last_progress_at: &mut Instant,
-    current_generation: u64,
-    now: Instant,
-) -> bool {
-    if current_generation != *last_generation {
-        *last_generation = current_generation;
-        *last_progress_at = now;
-        return false;
-    }
-    now.saturating_duration_since(*last_progress_at) >= SEESAW_STALL_TIMEOUT
+/// The per-board parts of the Seesaw worker: what runs before the first pass,
+/// what a finished input scan records, and when the worker stops.
+trait BoardWorker: Send + 'static {
+    fn start(&mut self, outputs: &mut DesiredLedOutputs);
+    fn record_scan(&mut self, succeeded: bool);
+    /// Returns true when the worker should stop.
+    fn finish_pass(
+        &mut self,
+        shutdown: Option<ShutdownRequest>,
+        outputs: &DesiredLedOutputs,
+    ) -> bool;
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn spawn_seesaw_health_monitor(scan_generation: Arc<AtomicU64>) {
-    let _monitor = thread::spawn(move || {
-        let mut last_generation = scan_generation.load(Ordering::Relaxed);
-        let mut last_progress_at = Instant::now();
-        loop {
-            thread::sleep(SEESAW_HEALTH_CHECK_INTERVAL);
-            let now = Instant::now();
-            let current_generation = scan_generation.load(Ordering::Relaxed);
-            if seesaw_worker_has_stalled(
-                &mut last_generation,
-                &mut last_progress_at,
-                current_generation,
-                now,
-            ) {
-                eprintln!(
-                    "critical Seesaw worker stall: no successful input scan for {}s; exiting for service restart",
-                    SEESAW_STALL_TIMEOUT.as_secs()
-                );
-                std::process::exit(1);
-            }
-        }
-    });
-}
-
-pub(crate) fn spawn(
+fn spawn(
     mut trellis: NeoTrellis,
     mut neokey: NeoKey,
     interrupt: SeesawInterrupt,
-    #[cfg(feature = "hardware-orange-pi-zero-2w")] startup_tx: Sender<Result<(), String>>,
+    mut board: impl BoardWorker,
 ) -> SeesawIo {
     let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
     let (command_tx, command_rx) = mpsc::channel::<SeesawCommand>();
     let worker_input_tx = input_tx.clone();
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    let scan_generation = Arc::new(AtomicU64::new(0));
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    let worker_scan_generation = Arc::clone(&scan_generation);
     let worker = thread::spawn(move || {
         let mut previous_neokey = [false; 4];
         let mut outputs = DesiredLedOutputs::default();
         let mut schedule = ScanSchedule::new(Instant::now());
         let mut setup_refresh = SetupRefresh::new(Instant::now());
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let mut startup_scan_succeeded = false;
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let mut startup_tx = Some(startup_tx);
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        {
-            outputs.accept(SeesawCommand::GridFrame([[0; 3]; 64]));
-            outputs.accept(SeesawCommand::NeoKeyColors([[0; 3]; 4]));
-        }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
-        let mut shutdown_ack = None;
+        board.start(&mut outputs);
         loop {
             let now = Instant::now();
             if schedule.scan_due(now, interrupt.pending(), interrupt.asserted()) {
@@ -279,14 +198,7 @@ pub(crate) fn spawn(
                     &worker_input_tx,
                 )
                 .inspect_err(|error| eprintln!("{error}"));
-                #[cfg(feature = "hardware-orange-pi-zero-2w")]
-                {
-                    startup_scan_succeeded = scan.is_ok();
-                }
-                #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-                if scan.is_ok() {
-                    worker_scan_generation.fetch_add(1, Ordering::Relaxed);
-                }
+                board.record_scan(scan.is_ok());
                 let found_input = scan.as_ref().is_ok_and(|found| *found);
                 schedule.record_scan(scan.is_ok(), found_input, neokey.settling(), Instant::now());
                 outputs.resend_after_setup(trellis.take_led_refresh(), neokey.take_led_refresh());
@@ -301,42 +213,14 @@ pub(crate) fn spawn(
                 trellis: &mut trellis,
                 neokey: &mut neokey,
             };
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            {
-                shutdown_ack =
-                    drain_commands(&command_rx, &mut outputs, &mut output, Instant::now())
-                        .or(shutdown_ack);
-                if let Some((ack, deadline)) = shutdown_ack.take() {
-                    if outputs.shutdown_complete() {
-                        let _ = ack.send(Ok(()));
-                        break;
-                    }
-                    if Instant::now() >= deadline {
-                        let _ = ack.send(Err("Seesaw black-frame cleanup timed out".into()));
-                        break;
-                    }
-                    shutdown_ack = Some((ack, deadline));
-                }
-            }
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-            drain_commands(&command_rx, &mut outputs, &mut output, Instant::now());
-
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            if startup_tx.is_some()
-                && seesaw_startup_status(startup_scan_succeeded, outputs.startup_complete())
-                    == SeesawStartupStatus::Ready
-            {
-                let ack = startup_tx.take().expect("Seesaw startup sender is present");
-                if ack.send(Ok(())).is_err() {
-                    break;
-                }
+            let shutdown = drain_commands(&command_rx, &mut outputs, &mut output, Instant::now());
+            if board.finish_pass(shutdown, &outputs) {
+                break;
             }
 
             thread::sleep(Duration::from_millis(2));
         }
     });
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    spawn_seesaw_health_monitor(scan_generation);
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
     let _ = worker;
 
@@ -349,86 +233,18 @@ pub(crate) fn spawn(
     }
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-pub(crate) fn spawn_interrupt(
-    trellis: NeoTrellis,
-    neokey: NeoKey,
-    interrupt: SeesawInterrupt,
-) -> Result<SeesawIo, String> {
-    let (startup_tx, startup_rx) = mpsc::channel();
-    let seesaw = spawn(trellis, neokey, interrupt, startup_tx);
-    match startup_rx.recv_timeout(SEESAW_STARTUP_TIMEOUT) {
-        Ok(result) => result.map(|_| seesaw),
-        Err(error) => {
-            let _ = seesaw.shutdown();
-            Err(format!("Seesaw startup handshake timed out: {error}"))
-        }
-    }
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-pub(crate) fn spawn_interrupt(
-    trellis: NeoTrellis,
-    neokey: NeoKey,
-    interrupt: SeesawInterrupt,
-) -> SeesawIo {
-    spawn(trellis, neokey, interrupt)
-}
-
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
-impl SeesawIo {
-    pub(crate) fn shutdown(self) -> Result<(), String> {
-        let (ack_tx, ack_rx) = mpsc::channel();
-        let deadline = Instant::now() + SEESAW_SHUTDOWN_TIMEOUT;
-        self.command_tx
-            .send(SeesawCommand::Shutdown {
-                ack: ack_tx,
-                deadline,
-            })
-            .map_err(|error| format!("Seesaw shutdown command failed: {error}"))?;
-        let ack_result = ack_rx
-            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
-            .map_err(|error| format!("Seesaw shutdown acknowledgement failed: {error}"))?;
-        let worker = self
-            .worker
-            .lock()
-            .map_err(|_| "Seesaw worker mutex poisoned".to_string())?
-            .take();
-        if let Some(worker) = worker {
-            worker
-                .join()
-                .map_err(|_| "Seesaw worker panicked during shutdown".to_string())?;
-        }
-        ack_result
-    }
-}
-
 fn drain_commands<W: LedOutputWriter>(
     command_rx: &Receiver<SeesawCommand>,
     outputs: &mut DesiredLedOutputs,
     writer: &mut W,
     now: Instant,
-) -> Option<(Sender<Result<(), String>>, Instant)> {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+) -> Option<ShutdownRequest> {
     let mut shutdown = None;
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-    let shutdown = None;
     for _ in 0..32 {
         let Ok(command) = command_rx.try_recv() else {
             break;
         };
-        match command {
-            SeesawCommand::GridFrame(frame) => outputs.accept(SeesawCommand::GridFrame(frame)),
-            SeesawCommand::NeoKeyColors(colors) => {
-                outputs.accept(SeesawCommand::NeoKeyColors(colors))
-            }
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
-            SeesawCommand::Shutdown { ack, deadline } => {
-                outputs.accept(SeesawCommand::GridFrame([[0; 3]; 64]));
-                outputs.accept(SeesawCommand::NeoKeyColors([[0; 3]; 4]));
-                shutdown = Some((ack, deadline));
-            }
-        }
+        shutdown = outputs.accept(command).or(shutdown);
     }
     outputs.apply_due(writer, now);
     shutdown
@@ -486,6 +302,10 @@ fn scan_inputs(
     Ok(found_input)
 }
 
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+mod orange_worker;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod raspberry_worker;
 mod scan_schedule;
 mod setup_refresh;
 #[cfg(test)]
