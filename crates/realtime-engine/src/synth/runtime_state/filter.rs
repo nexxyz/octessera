@@ -130,18 +130,6 @@ impl BiquadState {
         y
     }
 
-    pub(in crate::synth) fn process(
-        &mut self,
-        x: f32,
-        mode: FilterType,
-        cutoff_hz: f32,
-        q: f32,
-        sample_rate: u32,
-    ) -> f32 {
-        self.prepare(mode, cutoff_hz, q, sample_rate);
-        self.process_prepared(x)
-    }
-
     fn needs_coeffs(&self, mode: FilterType, cutoff: f32, qv: f32, sample_rate: u32) -> bool {
         self.mode != mode
             || self.cutoff_hz != cutoff
