@@ -103,6 +103,7 @@ mod drum_control;
 mod factory_payload;
 mod fx_bus_config;
 mod fx_param_codec;
+pub(crate) mod fx_param_specs;
 mod fx_targets;
 mod grid_assign;
 mod grid_coords;
