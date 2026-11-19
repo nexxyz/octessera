@@ -187,3 +187,49 @@ pub(crate) fn recovery_and_backup_payloads_are_patch_only() {
             ))
     )));
 }
+
+#[test]
+pub(crate) fn preset_name_edit_counts_multi_byte_characters_as_one_slot() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.patch_store.preset_draft_name = "Café".into();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("system.draftName"));
+    let edited_row = |runner: &NativeRunner| {
+        let snapshot = runner.menu.snapshot();
+        let row = snapshot.rows[snapshot.selected_row.unwrap()]
+            .clone()
+            .unwrap();
+        (row.value, row.text_cursor)
+    };
+    let turn = json!({ "type": "encoder_turn", "id": "main", "delta": 1 });
+    let delete = [
+        json!({ "type": "button_shift", "pressed": true }),
+        json!({ "type": "button_a", "pressed": true }),
+        json!({ "type": "button_a", "pressed": false }),
+        json!({ "type": "button_shift", "pressed": false }),
+    ];
+
+    device_input(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    assert_eq!(edited_row(&runner), ("Café".into(), Some(5)));
+
+    device_input(&mut runner, turn.clone());
+    assert_eq!(edited_row(&runner), ("CaféA".into(), Some(5)));
+
+    for input in delete.clone() {
+        device_input(&mut runner, input);
+    }
+    assert_eq!(edited_row(&runner), ("CafA".into(), Some(3)));
+
+    device_input(&mut runner, turn);
+    assert_eq!(edited_row(&runner), ("CafB".into(), Some(3)));
+
+    for _ in 0..3 {
+        for input in delete.clone() {
+            device_input(&mut runner, input);
+        }
+    }
+    assert_eq!(edited_row(&runner), ("B".into(), Some(0)));
+}

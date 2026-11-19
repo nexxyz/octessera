@@ -209,7 +209,7 @@ impl NativeMenuModel {
         }
         value.clear();
         value.push_str(text);
-        *cursor = (*cursor).min(value.len());
+        *cursor = (*cursor).min(value.chars().count());
         true
     }
 

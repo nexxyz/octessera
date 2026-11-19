@@ -135,7 +135,7 @@ fn item_row_parts(item: &NativeMenuItem, selected: bool, editing: bool) -> Nativ
             if *value { "On" } else { "Off" }.into(),
         ),
         NativeMenuValue::Text { value, cursor, .. } if selected && editing => NativeMenuRow {
-            text_cursor: Some(*cursor),
+            text_cursor: Some(text_cursor_byte_offset(value, *cursor)),
             ..row(NativeMenuRowKind::Value, value.clone())
         },
         NativeMenuValue::Text { value, .. } => row(
@@ -143,6 +143,16 @@ fn item_row_parts(item: &NativeMenuItem, selected: bool, editing: bool) -> Nativ
             if value.is_empty() { "(empty)" } else { value }.into(),
         ),
     }
+}
+
+/// Rows place the cursor by byte offset; past the last character it moves one slot per step.
+fn text_cursor_byte_offset(value: &str, cursor: usize) -> usize {
+    value
+        .char_indices()
+        .nth(cursor)
+        .map_or(value.len() + cursor - value.chars().count(), |(byte, _)| {
+            byte
+        })
 }
 
 /// A Play row that selects its grid page on press, like an action, instead of opening a page.

@@ -91,7 +91,7 @@ impl NativeMenuModel {
                 cursor,
             } => {
                 let max_len = *max_len;
-                let at_end = *cursor >= value.len().min(max_len);
+                let at_end = *cursor >= value.chars().count().min(max_len);
                 if self.state.editing && at_end {
                     self.state.editing = false;
                     Some(NativeMenuPressResult::EditingToggled { editing: false })
@@ -99,7 +99,7 @@ impl NativeMenuModel {
                     self.advance_text_cursor(max_len);
                     Some(NativeMenuPressResult::TextCursorAdvanced)
                 } else {
-                    let cursor = value.len().min(max_len);
+                    let cursor = value.chars().count().min(max_len);
                     if let NativeMenuValue::Text { cursor: target, .. } =
                         &mut self.current_item_mut().value
                     {
@@ -151,11 +151,13 @@ impl NativeMenuModel {
         let NativeMenuValue::Text { value, cursor, .. } = &mut self.current_item_mut().value else {
             return false;
         };
-        let cursor_pos = (*cursor).min(value.len());
+        let cursor_pos = (*cursor).min(value.chars().count());
         if cursor_pos == 0 {
             return true;
         }
-        value.remove(cursor_pos - 1);
+        if let Some((byte, _)) = value.char_indices().nth(cursor_pos - 1) {
+            value.remove(byte);
+        }
         *cursor = cursor_pos - 1;
         true
     }
@@ -164,7 +166,7 @@ impl NativeMenuModel {
         if let NativeMenuValue::Text { value, cursor, .. } = &mut self.current_item_mut().value {
             *cursor = (*cursor + 1)
                 .min(max_len)
-                .min(value.len().saturating_add(1));
+                .min(value.chars().count().saturating_add(1));
         }
     }
 }

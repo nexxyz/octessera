@@ -91,7 +91,7 @@ impl NativeMenuModel {
             if let Some(NativeMenuValue::Text { value, cursor, .. }) =
                 find_item_by_key_mut(item, &name_key).map(|name| &mut name.value)
             {
-                *cursor = name_cursor.min(value.len() + 1);
+                *cursor = name_cursor.min(value.chars().count() + 1);
             }
         }
         update_instrument_bindings(&mut self.parameter_tree, config, index);

@@ -107,18 +107,17 @@ pub(super) fn turn_text_value(value: &mut String, max_len: usize, cursor: &mut u
         return;
     }
     let cursor_pos = (*cursor).min(max_len.saturating_sub(1));
-    while value.len() <= cursor_pos {
-        value.push(' ');
+    let mut chars = value.chars().take(max_len).collect::<Vec<_>>();
+    if chars.len() <= cursor_pos {
+        chars.resize(cursor_pos + 1, ' ');
     }
-    value.truncate(max_len);
-    let current = value.as_bytes().get(cursor_pos).copied().unwrap_or(b' ') as char;
-    let current_index = CHARSET.find(current).unwrap_or(0) as isize;
+    let current_index = CHARSET.find(chars[cursor_pos]).unwrap_or(0) as isize;
     let next_index =
         (current_index + isize::from(delta)).rem_euclid(CHARSET.len() as isize) as usize;
-    let next = CHARSET.as_bytes()[next_index] as char;
-    value.replace_range(cursor_pos..cursor_pos + 1, &next.to_string());
-    while value.ends_with(' ') {
-        value.pop();
+    chars[cursor_pos] = CHARSET.as_bytes()[next_index] as char;
+    while chars.last() == Some(&' ') {
+        chars.pop();
     }
-    *cursor = cursor_pos.min(value.len());
+    *value = chars.iter().collect();
+    *cursor = cursor_pos.min(chars.len());
 }
