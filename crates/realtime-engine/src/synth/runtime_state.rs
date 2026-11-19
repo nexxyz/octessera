@@ -42,6 +42,8 @@ pub(super) struct Voice {
     pub(super) filter_key_scale: f32,
     /// Samples left before an enveloped filter recomputes its cutoff and coefficients.
     pub(super) filter_control_countdown: u8,
+    /// The CC74 position the filter last used; NaN until a CC first reaches the voice.
+    pub(super) filter_cc: f32,
     pub(super) index_env: EnvState,
     pub(super) amp_env: EnvState,
     pub(super) filt_env: EnvState,
@@ -87,6 +89,7 @@ impl Voice {
             fm_neutral: true,
             filter_key_scale: 1.0,
             filter_control_countdown: 0,
+            filter_cc: f32::NAN,
             index_env: EnvState::note_on(super::types::FmConfig::default().index_env, 44_100),
             amp_env: EnvState::off(),
             filt_env: EnvState::off(),

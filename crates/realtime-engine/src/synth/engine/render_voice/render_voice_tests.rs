@@ -236,6 +236,55 @@ fn render_cache_refresh_matches_reference_after_config_change() {
     }
 }
 
+#[test]
+fn cc74_maps_evenly_in_pitch_from_120_hz_to_16_khz() {
+    let cfg = SynthVoiceRenderConfig::from_config(default_synth_config());
+    let cutoff = |cc: f32| synth_voice_cutoff(&cfg, Some(cc), 0.0, 1.0, 48_000);
+    assert!((cutoff(0.0) - 120.0).abs() < 1.0e-3);
+    assert!((cutoff(1.0) - 16_000.0).abs() < 0.05);
+    assert!((cutoff(0.5) - (120.0_f32 * 16_000.0).sqrt()).abs() < 0.05);
+    let octaves_per_tenth = (cutoff(0.6) / cutoff(0.5)).log2();
+    assert!((octaves_per_tenth - (16_000.0_f32 / 120.0).log2() / 10.0).abs() < 1.0e-3);
+}
+
+#[test]
+fn a_cc74_move_glides_across_the_control_updates_of_one_block() {
+    let mut synth = default_synth_config();
+    synth.filter.env_amount_pct = 40.0;
+    let cfg = SynthVoiceRenderConfig::from_config(synth);
+    let mut voice = test_voice();
+    let mut mods = InstrumentMod::new();
+    mods.cutoff_cc = Some(0.0);
+    let settled = prepare_synth_voice_block(&cfg, mods, &mut voice, 128, 44_100);
+    assert!(settled.static_cutoff.is_some());
+    assert_eq!(voice.filter_cc, 0.0);
+
+    mods.cutoff_cc = Some(1.0);
+    let block = prepare_synth_voice_block(&cfg, mods, &mut voice, 128, 44_100);
+    assert!(block.static_cutoff.is_none());
+    let mut positions = Vec::new();
+    for _ in 0..128 {
+        control_rate_filter(
+            &cfg,
+            Some((1.0, block.cutoff_cc_step)),
+            &mut voice,
+            0.0,
+            block.q,
+            44_100,
+            0.0,
+        );
+        positions.push(voice.filter_cc);
+    }
+    for (update, frames) in positions.chunks(16).enumerate() {
+        let expected = (update + 1) as f32 / 8.0;
+        assert!(frames
+            .iter()
+            .all(|position| (position - expected).abs() < 1.0e-6));
+    }
+    let next = prepare_synth_voice_block(&cfg, mods, &mut voice, 128, 44_100);
+    assert!(next.static_cutoff.is_some());
+}
+
 fn test_voice() -> Voice {
     let mut voice = Voice::off();
     voice.active = true;
@@ -277,7 +326,7 @@ fn reference_synth_voice_cutoff(cfg: &SynthConfig, cutoff_cc: Option<f32>, filt_
     let env_amt = (cfg.filter.env_amount_pct / 100.0).clamp(-1.0, 1.0);
     let cutoff_env = cutoff_base * (1.0 + env_amt * filt_env).max(0.0);
     match cutoff_cc {
-        Some(cutoff_cc) => 120.0 + cutoff_cc * 15_880.0,
+        Some(cutoff_cc) => 120.0 * (16_000.0_f32 / 120.0).powf(cutoff_cc),
         None => cutoff_env,
     }
 }

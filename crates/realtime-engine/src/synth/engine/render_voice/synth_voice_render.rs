@@ -184,8 +184,8 @@ fn render_started_source_block(
     let block = prepare_synth_voice_block(
         &context.render_config,
         context.mods,
-        voice.velocity_norm,
-        voice.filter_key_scale,
+        voice,
+        frames,
         context.sample_rate,
     );
     if let Some(cutoff) = block.static_cutoff {

@@ -53,6 +53,8 @@ pub(super) struct SynthVoiceBlockRenderState {
     pub(super) velocity_gain: f32,
     pub(super) q: f32,
     pub(super) static_cutoff: Option<f32>,
+    /// How far each control-rate filter update moves the voice towards a new CC74 position.
+    pub(super) cutoff_cc_step: f32,
 }
 
 impl SynthVoiceRenderConfig {
@@ -214,7 +216,8 @@ pub(super) fn render_synth_voice_sample_precomputed(
     let gain = cfg.amp_gain;
     let dry = source_sample(cfg, v, ring);
     let q = synth_voice_q(cfg, mods.resonance_cc);
-    let filtered = control_rate_filter(cfg, mods.cutoff_cc, v, filt_env, q, sample_rate, dry);
+    let cutoff_cc = mods.cutoff_cc.map(|target| (target, 0.0));
+    let filtered = control_rate_filter(cfg, cutoff_cc, v, filt_env, q, sample_rate, dry);
     filtered * amp_env * vel_gain * gain * 0.35
 }
 
@@ -222,9 +225,10 @@ pub(super) fn render_synth_voice_sample_precomputed(
 /// `FILTER_CONTROL_FRAMES` samples (about 0.3 ms) instead of a `sin`/`cos` pair every sample.
 const FILTER_CONTROL_FRAMES: u8 = 16;
 
+/// `cutoff_cc` is the CC74 target and the step each update glides towards it.
 fn control_rate_filter(
     cfg: &SynthVoiceRenderConfig,
-    cutoff_cc: Option<f32>,
+    cutoff_cc: Option<(f32, f32)>,
     v: &mut Voice,
     filt_env: f32,
     q: f32,
@@ -232,6 +236,8 @@ fn control_rate_filter(
     dry: f32,
 ) -> f32 {
     if v.filter_control_countdown == 0 {
+        let cutoff_cc =
+            cutoff_cc.map(|(target, step)| glide_cutoff_cc(&mut v.filter_cc, target, step));
         let cutoff = synth_voice_cutoff(cfg, cutoff_cc, filt_env, v.filter_key_scale, sample_rate);
         v.filt.prepare(cfg.filter_kind, cutoff, q, sample_rate);
         v.filter_control_countdown = FILTER_CONTROL_FRAMES - 1;
@@ -241,31 +247,48 @@ fn control_rate_filter(
     v.filt.process_prepared(dry)
 }
 
+/// Moves `current` one control update towards `target`; a zero step, or a voice that has no CC
+/// position yet, lands on the target at once.
+fn glide_cutoff_cc(current: &mut f32, target: f32, step: f32) -> f32 {
+    let next = *current + step;
+    *current = if step == 0.0 || !next.is_finite() || (step > 0.0) == (next >= target) {
+        target
+    } else {
+        next
+    };
+    *current
+}
+
+/// Prepares one block of a voice. A CC74 move since its last block glides across the block's
+/// control-rate filter updates; a settled CC keeps the one static cutoff per block.
 pub(super) fn prepare_synth_voice_block(
     cfg: &SynthVoiceRenderConfig,
     mods: InstrumentMod,
-    velocity_norm: f32,
-    key_scale: f32,
+    v: &mut Voice,
+    frames: usize,
     sample_rate: u32,
 ) -> SynthVoiceBlockRenderState {
     let vel_sens = cfg.amp_velocity_sensitivity;
-    let velocity_gain = (1.0 - vel_sens) + vel_sens * velocity_norm;
+    let velocity_gain = (1.0 - vel_sens) + vel_sens * v.velocity_norm;
     let q = synth_voice_q(cfg, mods.resonance_cc);
-    let static_cutoff = if mods.cutoff_cc.is_some() || cfg.filter_env_amount == 0.0 {
-        Some(synth_voice_cutoff(
-            cfg,
-            mods.cutoff_cc,
-            0.0,
-            key_scale,
-            sample_rate,
-        ))
-    } else {
-        None
+    let cutoff_cc_step = match mods.cutoff_cc {
+        Some(target) if v.filter_cc.is_finite() && v.filter_cc != target => {
+            (target - v.filter_cc) * f32::from(FILTER_CONTROL_FRAMES) / frames.max(1) as f32
+        }
+        Some(target) => {
+            v.filter_cc = target;
+            0.0
+        }
+        None => 0.0,
     };
+    let static_cutoff = (cutoff_cc_step == 0.0
+        && (mods.cutoff_cc.is_some() || cfg.filter_env_amount == 0.0))
+        .then(|| synth_voice_cutoff(cfg, mods.cutoff_cc, 0.0, v.filter_key_scale, sample_rate));
     SynthVoiceBlockRenderState {
         velocity_gain,
         q,
         static_cutoff,
+        cutoff_cc_step,
     }
 }
 
@@ -283,7 +306,10 @@ pub(super) fn shape_synth_voice_block_sample(
     } else {
         control_rate_filter(
             cfg,
-            context.mods.cutoff_cc,
+            context
+                .mods
+                .cutoff_cc
+                .map(|target| (target, block.cutoff_cc_step)),
             v,
             filt_env,
             block.q,
@@ -395,10 +421,16 @@ fn synth_voice_cutoff(
     let env_amt = cfg.filter_env_amount;
     let cutoff_env = cutoff_base * (1.0 + env_amt * filt_env).max(0.0);
     let cutoff = match cutoff_cc {
-        Some(cutoff_cc) => 120.0 + cutoff_cc * 15_880.0,
+        Some(cutoff_cc) => cc_cutoff_hz(cutoff_cc),
         None => cutoff_env * key_scale,
     };
     cutoff.clamp(20.0, (sample_rate as f32 * 0.49).clamp(20.0, 20_000.0))
+}
+
+/// CC74 sweeps 120 Hz to 16 kHz evenly in pitch, so each step of the knob moves the same
+/// musical distance.
+fn cc_cutoff_hz(cutoff_cc: f32) -> f32 {
+    120.0 * (16_000.0_f32 / 120.0).powf(cutoff_cc)
 }
 
 fn synth_voice_q(cfg: &SynthVoiceRenderConfig, resonance_cc: Option<f32>) -> f32 {
