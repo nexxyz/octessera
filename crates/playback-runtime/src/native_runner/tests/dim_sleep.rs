@@ -320,3 +320,38 @@ pub(crate) fn setup_success_wakes_into_sys_info_popup_without_moving_the_menu() 
         "/SYS/Connections/Wi-Fi"
     );
 }
+
+#[test]
+pub(crate) fn release_that_wakes_the_sleeping_display_still_stops_the_held_fx() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
+    runner.play_fx_assignments.push(NativePlayFxAssignment {
+        x: 2,
+        y: 3,
+        config: json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
+    });
+    let grid = |kind: &str| HostMessage::DeviceInput {
+        input: json!({ "type": kind, "x": 2, "y": 3 }),
+        request_snapshot: Some(false),
+    };
+    runner.send(grid("grid_press")).unwrap();
+    runner.display.ui.screen_sleep_seconds = 2;
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(3);
+    let asleep = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(asleep["display"]["splash"], "sleep");
+
+    let release = runner.send(grid("grid_release")).unwrap();
+
+    assert!(release.iter().any(|message| matches!(
+        message,
+        RunnerMessage::PlatformEffects { effects }
+            if effects == &vec![RuntimePlatformEffect::AudioCommand {
+                command: RuntimeAudioCommand::MomentaryFxStop {
+                    id: "momentary-fx:2:3".into(),
+                    epoch: 1,
+                },
+            }]
+    )));
+    assert_eq!(snapshot_from(&release)["display"]["splash"], "");
+}

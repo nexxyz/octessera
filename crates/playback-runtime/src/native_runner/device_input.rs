@@ -60,6 +60,18 @@ impl NativeRunner {
         }
     }
 
+    fn ends_held_input(input: &DeviceInput) -> bool {
+        match input {
+            DeviceInput::GridRelease { .. } => true,
+            DeviceInput::ButtonA { pressed }
+            | DeviceInput::ButtonS { pressed }
+            | DeviceInput::ButtonShift { pressed }
+            | DeviceInput::ButtonFn { pressed }
+            | DeviceInput::ButtonCombinedModifier { pressed } => *pressed == Some(false),
+            _ => false,
+        }
+    }
+
     pub(super) fn handle_device_input(
         &mut self,
         input: DeviceInput,
@@ -95,7 +107,10 @@ impl NativeRunner {
         }
         let woke_display = self.record_display_interaction();
         if woke_display {
-            return self.messages_with_forced_snapshot();
+            if !Self::ends_held_input(&input) {
+                return self.messages_with_forced_snapshot();
+            }
+            self.pending.suppress_snapshot_response = false;
         }
         if force_error_presentation || self.display.runtime_error_presentation.is_some() {
             return self.handle_runtime_error_presentation_input(input, force_error_presentation);

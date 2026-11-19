@@ -1331,6 +1331,8 @@ Save/Load, Panic, reboot, recording, and setup are actions, not saved fields.
 - Device input and each setup-portal phase change wake the OLED, clear the dim, and restart both
   timers. A repeated status with the same phase does not. Other runtime and transport messages
   never wake it.
+- A press or turn that wakes the OLED is consumed as wake input. A grid tile or button release
+  that wakes it is still handled, so a Play FX, fader or XY tile held through sleep stops on release.
 - Once `OLED Sleep` turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 10 Hz
   sparse dim-star animation of independently pulsing stars. It ignores `ledsDimmed`, stays within
   the sleep dim scale, and keeps a zero-brightness blackout dark.
