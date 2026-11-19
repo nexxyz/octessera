@@ -33,3 +33,43 @@ fn the_crusher_is_symmetric_around_zero() {
     assert_eq!(up, -down);
     assert_eq!(up, 0.25);
 }
+
+#[test]
+fn bit_depth_sets_the_step_and_rounds_to_the_nearest_level() {
+    let ramp: Vec<f32> = (0..=1000).map(|index| index as f32 / 500.0 - 1.0).collect();
+    for bits in [1, 2, 3, 8] {
+        let step = 2.0 / (1_u32 << bits) as f32;
+        for (input, output) in ramp.iter().zip(crush(&ramp, 1, bits)) {
+            let levels = output / step;
+            assert!(
+                (levels - levels.round()).abs() < 1.0e-4,
+                "{bits} bits: {output} is not a multiple of {step}"
+            );
+            assert!(
+                (output - input).abs() <= step * 0.5 + 1.0e-6,
+                "{bits} bits: {input} became {output}"
+            );
+        }
+    }
+}
+
+#[test]
+fn rate_division_holds_each_sample_for_that_many_frames() {
+    let ramp: Vec<f32> = (0..64).map(|index| index as f32 / 64.0).collect();
+    let held = crush(&ramp, 4, 16);
+    let full_rate = crush(&ramp, 1, 16);
+    for (frame, output) in held.iter().enumerate() {
+        assert_eq!(*output, full_rate[frame - frame % 4], "frame {frame}");
+    }
+}
+
+#[test]
+fn the_mix_blends_the_dry_and_crushed_signal() {
+    let mut state = FxBusState::Bitcrusher {
+        hold: 1,
+        count: 0,
+        last: 0.0,
+    };
+    let output = process_bitcrusher(&mut state, 0.3, 1, 2, 0.25);
+    assert!((output - (0.75 * 0.3 + 0.25 * 0.5)).abs() < 1.0e-6);
+}

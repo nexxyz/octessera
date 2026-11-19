@@ -149,6 +149,9 @@ fn next_noise(state: &mut VinylState) -> f32 {
 }
 
 #[cfg(test)]
+mod character_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

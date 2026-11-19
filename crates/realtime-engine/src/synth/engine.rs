@@ -14,6 +14,8 @@ use std::collections::BTreeMap;
 
 #[cfg(test)]
 mod admission_tests;
+#[cfg(test)]
+mod auto_pan_output_tests;
 mod block_slot_scratch;
 mod bus_chain_owner;
 #[cfg(test)]
@@ -36,6 +38,8 @@ mod inline_source_executor;
 mod lifecycle_tests;
 mod live_pitch_shift;
 mod mixer_gain_ramp;
+#[cfg(test)]
+mod master_chain_tests;
 mod momentary_fx_state;
 mod momentary_fx_voice;
 #[cfg(test)]

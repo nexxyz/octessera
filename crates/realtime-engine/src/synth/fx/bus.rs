@@ -184,3 +184,8 @@ pub(in crate::synth) fn process_fx_bus_slot(
         }
     }
 }
+
+#[cfg(test)]
+mod level_tests;
+#[cfg(test)]
+mod time_tests;

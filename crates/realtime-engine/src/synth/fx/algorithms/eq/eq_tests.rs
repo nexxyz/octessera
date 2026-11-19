@@ -60,6 +60,55 @@ fn high_band_shelves_the_highs_for_boost_and_cut() {
     }
 }
 
+fn mid_params(mid_gain_db: f32, mid_freq_hz: f32, mix: f32) -> EqParams {
+    EqParams {
+        low_gain_db: 0.0,
+        mid_gain_db,
+        mid_freq_hz,
+        mid_q: 1.0,
+        high_gain_db: 0.0,
+        mix,
+    }
+}
+
+#[test]
+fn mid_band_reaches_its_gain_at_the_band_center_and_leaves_the_edges_flat() {
+    for (gain, center) in [(9.0, 1000.0), (-9.0, 1000.0), (6.0, 300.0), (-12.0, 3000.0)] {
+        let params = mid_params(gain, center, 1.0);
+        assert_gain(&params, center, gain, 0.3);
+        assert_gain(&params, center / 16.0, 0.0, 0.5);
+        assert_gain(&params, (center * 16.0).min(20_000.0), 0.0, 0.5);
+    }
+}
+
+#[test]
+fn bus_eq_mix_blends_dry_and_boosted_signal_at_the_band_center() {
+    let mut state = FxBusState::Eq {
+        channel: EqChannelState::new(),
+    };
+    let settle = SAMPLE_RATE as usize / 2;
+    let (mut input_energy, mut output_energy) = (0.0_f64, 0.0_f64);
+    for frame in 0..settle * 2 {
+        let input = sine(1000.0, frame);
+        let output = process_eq(
+            &mut state,
+            input,
+            mid_params(12.0, 1000.0, 0.5),
+            SAMPLE_RATE,
+        );
+        if frame >= settle {
+            input_energy += f64::from(input * input);
+            output_energy += f64::from(output * output);
+        }
+    }
+    let measured = 10.0 * (output_energy / input_energy).log10();
+    let expected = 20.0 * (0.5 + 0.5 * 10.0_f64.powf(12.0 / 20.0)).log10();
+    assert!(
+        (measured - expected).abs() < 0.3,
+        "measured {measured} dB, expected {expected} dB"
+    );
+}
+
 #[test]
 fn changed_band_gain_takes_effect_on_the_running_filter() {
     let mut state = EqChannelState::new();

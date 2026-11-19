@@ -93,6 +93,9 @@ fn filter_lfo_mode(kind: FilterLfoKind) -> FilterType {
 }
 
 #[cfg(test)]
+mod sweep_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
