@@ -1,9 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
-import {
-  scanApproximateRustFunctions,
-  scanJavaScriptFunctions,
-} from "./quality-audit-parser.mjs";
+import { scanJavaScriptFunctions } from "./quality-audit-parser.mjs";
 
 const ROOT = resolve(process.cwd());
 const INCLUDE_EXT = new Set([
@@ -128,7 +125,6 @@ const files = listFiles(ROOT);
 const britishSpellingToken = "behavio" + "ur";
 const fileStats = [];
 const fnStats = [];
-const jsComplexityStats = [];
 const namingHits = [];
 
 for (const file of files) {
@@ -137,12 +133,9 @@ for (const file of files) {
   const ext = extname(file);
   const loc = lineCount(text);
   fileStats.push({ file: rel, loc });
-  let fns = [];
-  if (ext === ".rs") {
-    fns = scanApproximateRustFunctions(text);
-  } else if (JAVASCRIPT_EXT.has(ext)) {
+  if (JAVASCRIPT_EXT.has(ext)) {
     try {
-      fns = scanJavaScriptFunctions(text, ext);
+      fnStats.push(...scanJavaScriptFunctions(text, ext).map((f) => ({ ...f, file: rel })));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
@@ -150,13 +143,6 @@ for (const file of files) {
       );
     }
   }
-  const functions = fns.map((f) => ({
-    ...f,
-    file: rel,
-    complexityEligible: JAVASCRIPT_EXT.has(ext),
-  }));
-  fnStats.push(...functions);
-  if (JAVASCRIPT_EXT.has(ext)) jsComplexityStats.push(...functions);
 
   const spellingHits = (text.match(new RegExp(`\\b${britishSpellingToken}\\b`, "gi")) || []).length;
   if (spellingHits > 0) namingHits.push({ file: rel, token: britishSpellingToken, count: spellingHits });
@@ -164,7 +150,7 @@ for (const file of files) {
 
 const largeFiles = fileStats.filter((f) => f.loc > thresholds.fileLocWarn).sort((a, b) => b.loc - a.loc);
 const fileLimitViolations = fileStats.filter((f) => f.loc > thresholds.fileLocFail).sort((a, b) => b.loc - a.loc);
-const complexFns = jsComplexityStats.filter((f) => f.complexity > thresholds.complexityWarn).sort((a, b) => b.complexity - a.complexity);
+const complexFns = fnStats.filter((f) => f.complexity > thresholds.complexityWarn).sort((a, b) => b.complexity - a.complexity);
 const longFns = fnStats.filter((f) => f.loc > thresholds.fnLocWarn).sort((a, b) => b.loc - a.loc);
 const wideFns = fnStats.filter((f) => f.paramCount > thresholds.paramsWarn).sort((a, b) => b.paramCount - a.paramCount);
 
@@ -178,13 +164,13 @@ report.push("# Code Quality Baseline");
 report.push("");
 report.push("## Standards");
 report.push(`- File LOC: warning at > ${thresholds.fileLocWarn}; failure at > ${thresholds.fileLocFail} (enforced)`);
-report.push(`- Function LOC: warning at > ${thresholds.fnLocWarn} (informational; staged hard threshold > ${thresholds.fnLocHard} is not enforced)`);
+report.push(`- JavaScript/TypeScript function LOC: warning at > ${thresholds.fnLocWarn} (informational; staged hard threshold > ${thresholds.fnLocHard} is not enforced)`);
 report.push(`- JavaScript/TypeScript cyclomatic complexity: failure at > ${thresholds.complexityWarn} (enforced)`);
-report.push(`- Function params: warning at > ${thresholds.paramsWarn} (informational; staged hard threshold > ${thresholds.paramsHard} is not enforced)`);
+report.push(`- JavaScript/TypeScript function params: warning at > ${thresholds.paramsWarn} (informational; staged hard threshold > ${thresholds.paramsHard} is not enforced)`);
 report.push("");
 report.push("## Summary");
 report.push(`- Files scanned: ${fileStats.length}`);
-report.push(`- Functions scanned (executable function nodes): ${fnStats.length}`);
+report.push(`- JavaScript/TypeScript functions scanned: ${fnStats.length}`);
 report.push(`- Files above warning threshold (> ${thresholds.fileLocWarn} LOC): ${largeFiles.length}`);
 report.push(`- Files over enforced limit (> ${thresholds.fileLocFail} LOC): ${fileLimitViolations.length}`);
 report.push(`- JavaScript/TypeScript functions over enforced complexity limit (> ${thresholds.complexityWarn}): ${complexFns.length}`);
@@ -202,8 +188,7 @@ report.push("");
 
 report.push("## Top Long Functions");
 for (const f of longFns.slice(0, 20)) {
-  const complexity = f.complexityEligible ? `, complexity=${f.complexity}` : "";
-  report.push(`- ${f.file}:${f.start} ${f.name}() loc=${f.loc}${complexity}`);
+  report.push(`- ${f.file}:${f.start} ${f.name}() loc=${f.loc}, complexity=${f.complexity}`);
 }
 report.push("");
 

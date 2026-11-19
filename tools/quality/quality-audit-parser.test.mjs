@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  scanApproximateRustFunctions,
-  scanJavaScriptFunctions,
-} from "./quality-audit-parser.mjs";
+import { scanJavaScriptFunctions } from "./quality-audit-parser.mjs";
 
 const findFunction = (functions, name) => {
   const result = functions.find((entry) => entry.name === name);
@@ -149,24 +146,6 @@ test("parses ordinary JS functions and measures executable complexity", () => {
       loc: 1,
       complexity: 3,
       paramCount: 1,
-    },
-  ]);
-});
-
-test("keeps Rust LOC and parameter measurements without complexity", () => {
-  const functions = scanApproximateRustFunctions(`
-    pub fn render(value: usize, other: usize) {
-      if value > other { return; }
-    }
-  `);
-
-  assert.deepEqual(functions, [
-    {
-      name: "render",
-      start: 2,
-      end: 4,
-      loc: 3,
-      paramCount: 2,
     },
   ]);
 });
