@@ -1233,6 +1233,30 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   - `Grid Offs` rotates axis indexing (offset 5 treats tile 5 as first, then wraps). Its bounds are
     `-(GRID_SIZE-1)..+(GRID_SIZE-1)`, so `-7..7`.
 
+### Live parameter glides
+
+- A modulated numeric target (LFO, Play XY, layer X/Y, MIDI CC In) reaches the audio engine
+  at its exact value between menu steps; cutoff goes through the same log curve as the menu. The
+  menu and the save hold the nearest whole step. Pan positions, sample Tune, and drum per-sound
+  values stay whole steps.
+- Continuous sound parameters glide whenever they change live, from a menu edit, Aux, a Fader,
+  or modulation:
+  - instrument and bus Volume and Pan: linear over 5 ms;
+  - instrument tone, per slot over 10 ms in steps of one render block: oscillator Level, Detune,
+    and Pulse Width; amp Gain and Velocity Sensitivity; filter Cutoff (evenly in pitch),
+    Resonance, Env Amount, and Key Tracking on Synth, FM, Pluck, and Drum; FM Index, Vel to Index,
+    Mod Shape, and Mod Mix; Pluck Decay and Brightness; Sampler Cutoff (in pitch) and Resonance;
+  - bus and Global FX, frame by frame over 10 ms: Mix, Depth, Feedback, Spread, Drive, Clip,
+    Reverb Decay and Damp, Filter LFO/Wah Center (in pitch) and Q, Duck Threshold and Amount,
+    Compressor Threshold, Ratio, and Makeup, EQ band gains, Mid Freq (in pitch) and Mid Q, and the
+    Vinyl amounts.
+- Everything else switches at once: envelope times and sustain, waveforms, octaves, filter and FX
+  types, FM Ratio and Fine, values a voice reads only when it starts (Pluck pick, dispersion, and
+  body; drum per-sound values; Sampler Tune, Gain, and Velocity), FX Rates, Attack and Release,
+  Glitch Chance and Slice, Bitcrusher Bits and Rate Div, and Delay Time, which rebuilds its slot.
+- Patch and config loads, slot rebuilds, and instrument type changes land on their values without
+  a glide.
+
 ## Save and Load
 
 - Ordinary System preferences, including Auto Save and Backups, are saved when a changed editor is
