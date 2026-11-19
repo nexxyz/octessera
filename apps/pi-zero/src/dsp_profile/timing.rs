@@ -89,7 +89,10 @@ pub fn measure_engine_source(
     let samples_per_block = measure_frames * 2;
     let block_seconds = measure_frames as f64 / sample_rate as f64;
     let mut timings = Vec::with_capacity(blocks);
-    for _ in 0..blocks {
+    for block in 0..blocks {
+        if let Some(param) = scenario.lfo {
+            send_lfo_values(&tx, param, block)?;
+        }
         let start = Instant::now();
         for _ in 0..samples_per_block {
             let _ = source.next();
@@ -102,6 +105,33 @@ pub fn measure_engine_source(
         samples: timings,
         telemetry: TelemetrySummary::new(start_snapshot, end_snapshot)?,
     })
+}
+
+/// Every 7 blocks (~20 ms at 128 frames), one sine LFO value on every synth slot.
+fn send_lfo_values(
+    tx: &rodio_engine_source::EngineEventSender,
+    param: realtime_engine::synth::SynthParamId,
+    block: usize,
+) -> Result<(), String> {
+    const LFO_BLOCKS: usize = 7;
+    if !block.is_multiple_of(LFO_BLOCKS) {
+        return Ok(());
+    }
+    let phase = (block / LFO_BLOCKS) as f32 * 0.1;
+    let value = match param {
+        realtime_engine::synth::SynthParamId::Osc1DetuneCents => 50.0 * phase.sin(),
+        _ => 50.0 + 40.0 * phase.sin(),
+    };
+    for slot in 0..realtime_engine::synth::INSTRUMENT_SLOT_COUNT {
+        tx.send(rodio_engine_source::EngineEvent::SetSynthParam {
+            instrument_slot: slot as u8,
+            generation: 0,
+            param,
+            value,
+        })
+        .map_err(|error| format!("LFO event send failed: {error}"))?;
+    }
+    Ok(())
 }
 
 fn wait_for_probe(

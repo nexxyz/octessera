@@ -16,6 +16,9 @@ use scenario_events::{
 pub struct ScenarioSpec {
     pub name: String,
     pub events: Vec<EngineEvent>,
+    /// A synth parameter an LFO moves on every slot during the measurement, as the runtime's
+    /// Link LFOs do (a new value every ~20 ms at 120 BPM).
+    pub lfo: Option<realtime_engine::synth::SynthParamId>,
     expected: Option<ExpectedProfileState>,
 }
 
@@ -37,6 +40,7 @@ impl ScenarioSpec {
         Self {
             name: name.into(),
             events,
+            lfo: None,
             expected: None,
         }
     }
@@ -49,6 +53,7 @@ impl ScenarioSpec {
         Self {
             name: name.into(),
             events,
+            lfo: None,
             expected: Some(expected),
         }
     }
@@ -164,6 +169,21 @@ fn full_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
             format!("synth_ramp_{voices}"),
             synth_ramp_events(voices),
         ));
+    }
+    for (name, param) in [
+        (
+            "pulse_width",
+            realtime_engine::synth::SynthParamId::Osc2PulseWidthPct,
+        ),
+        (
+            "detune",
+            realtime_engine::synth::SynthParamId::Osc1DetuneCents,
+        ),
+    ] {
+        let mut scenario =
+            ScenarioSpec::new(format!("synth_ramp_32_lfo_{name}"), synth_ramp_events(32));
+        scenario.lfo = Some(param);
+        scenarios.push(scenario);
     }
 
     for voices in [1, 2, 4, 8, 16, 32, 64] {
