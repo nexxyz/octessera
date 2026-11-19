@@ -1,4 +1,6 @@
-use realtime_engine::synth::{SynthEngine, DEFAULT_AUDIO_SAMPLE_RATE};
+use realtime_engine::synth::{
+    SynthEngine, DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES, DEFAULT_AUDIO_SAMPLE_RATE,
+};
 use std::env;
 use std::time::Instant;
 
@@ -9,6 +11,7 @@ mod scenario;
 use scenario::Scenario;
 
 const SAMPLE_RATE: u32 = DEFAULT_AUDIO_SAMPLE_RATE;
+const BLOCK_FRAMES: usize = DEFAULT_AUDIO_RENDER_QUANTUM_FRAMES;
 pub(crate) const SECONDS: usize = 20;
 
 fn main() {
@@ -24,13 +27,21 @@ fn main() {
     scenario.setup(&mut engine);
 
     let frames = SAMPLE_RATE as usize * SECONDS;
+    let (mut left, mut right, mut interleaved) = (Vec::new(), Vec::new(), Vec::new());
     let start = Instant::now();
     let mut checksum = 0.0_f32;
 
-    for frame in 0..frames {
-        scenario.schedule(&mut engine, frame);
-        let (left, right) = engine.next_stereo_sample();
-        checksum += (left * 0.5 + right * 0.5).abs();
+    for block_start in (0..frames).step_by(BLOCK_FRAMES) {
+        let block_frames = BLOCK_FRAMES.min(frames - block_start);
+        for offset in 0..block_frames {
+            engine.with_event_frame_offset(offset as u32, |engine| {
+                scenario.schedule(engine, block_start + offset)
+            });
+        }
+        engine.render_interleaved_block(block_frames, &mut left, &mut right, &mut interleaved);
+        for (left, right) in left.iter().zip(&right) {
+            checksum += (left * 0.5 + right * 0.5).abs();
+        }
     }
 
     print_report(
@@ -54,6 +65,7 @@ fn print_report(
     let profile = engine.profile_snapshot();
     println!("scenario={}", scenario.name());
     println!("sample_rate={SAMPLE_RATE}");
+    println!("block_frames={BLOCK_FRAMES}");
     println!("rendered_seconds={SECONDS}");
     println!("frames={frames}");
     println!("elapsed_seconds={elapsed:.4}");
