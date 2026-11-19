@@ -22,8 +22,38 @@ impl PlaybackRuntime {
             | RuntimePlatformEffect::ApplyDeviceConfig { payload } => {
                 payload.get("revision").and_then(Value::as_u64)
             }
-            RuntimePlatformEffect::StoreSaveSystem { .. } => None,
-            _ => None,
+            RuntimePlatformEffect::AudioCommand { .. }
+            | RuntimePlatformEffect::StoreSaveSystem { .. }
+            | RuntimePlatformEffect::StoreListPresets
+            | RuntimePlatformEffect::StoreLoadPreset { .. }
+            | RuntimePlatformEffect::StoreDeletePreset { .. }
+            | RuntimePlatformEffect::StoreLoadDefault
+            | RuntimePlatformEffect::StoreLoadSystem
+            | RuntimePlatformEffect::UsbSdTransferStart
+            | RuntimePlatformEffect::UsbSdTransferStop
+            | RuntimePlatformEffect::MaintenanceHold { .. }
+            | RuntimePlatformEffect::BluetoothScan { .. }
+            | RuntimePlatformEffect::BluetoothDevice { .. }
+            | RuntimePlatformEffect::RecordingStartAudio { .. }
+            | RuntimePlatformEffect::RecordingStartAudioOled { .. }
+            | RuntimePlatformEffect::RecordingStop
+            | RuntimePlatformEffect::MidiListOutputsRequest
+            | RuntimePlatformEffect::MidiListInputsRequest
+            | RuntimePlatformEffect::MidiSelectOutput { .. }
+            | RuntimePlatformEffect::MidiSelectInput { .. }
+            | RuntimePlatformEffect::MidiPanic
+            | RuntimePlatformEffect::Reboot
+            | RuntimePlatformEffect::Shutdown
+            | RuntimePlatformEffect::RestartApp
+            | RuntimePlatformEffect::UpdateCheck
+            | RuntimePlatformEffect::UpdateApply
+            | RuntimePlatformEffect::Rollback
+            | RuntimePlatformEffect::SystemInfoRequest
+            | RuntimePlatformEffect::SetupPortalOpen
+            | RuntimePlatformEffect::SetupPortalClose
+            | RuntimePlatformEffect::UserDataTransferOpen
+            | RuntimePlatformEffect::UserDataTransferClose
+            | RuntimePlatformEffect::SampleListRequest { .. } => None,
         };
         RuntimePlatformRequest::new(
             effect,

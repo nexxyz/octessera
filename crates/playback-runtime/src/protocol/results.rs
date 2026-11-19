@@ -315,7 +315,30 @@ impl RuntimeStoreResult {
                     None,
                 ));
             }
-            _ => return None,
+            Self::ListPresetsResult { .. }
+            | Self::LoadPresetResult { .. }
+            | Self::SavePresetResult { .. }
+            | Self::DeletePresetResult { .. }
+            | Self::LoadDefaultResult { .. }
+            | Self::SaveDefaultResult { .. }
+            | Self::LoadSystemResult { .. }
+            | Self::SaveSystemResult { .. }
+            | Self::SaveBackupResult { .. }
+            | Self::SaveRecoveryResult { .. }
+            | Self::OperationSucceeded { .. }
+            | Self::MidiListOutputsResult { .. }
+            | Self::MidiListInputsResult { .. }
+            | Self::MidiStatus { .. }
+            | Self::SampleListResult { .. }
+            | Self::SamplePreviewStarted { .. }
+            | Self::SamplesMissing { .. }
+            | Self::DeviceUpdateStatus { .. }
+            | Self::DeviceConfigStatus { .. }
+            | Self::RecordingStatus { .. }
+            | Self::SystemInfoResult { .. }
+            | Self::UserDataExportStatus { .. }
+            | Self::UsbSdTransferStatus { .. }
+            | Self::BluetoothStatus { .. } => return None,
         };
         Some(RuntimeErrorFacts::new(
             domain,

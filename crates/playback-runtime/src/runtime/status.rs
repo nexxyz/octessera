@@ -293,6 +293,33 @@ fn recovery_for_facts(facts: &RuntimeErrorFacts) -> RuntimeRecovery {
         | RuntimeOperation::Snapshot
         | RuntimeOperation::TransportStop => RuntimeRecovery::StopAndSilence,
         RuntimeOperation::Persistence => RuntimeRecovery::Retry,
-        _ => RuntimeRecovery::RetainLastGood,
+        RuntimeOperation::DeviceInput
+        | RuntimeOperation::Transport
+        | RuntimeOperation::MusicalEvent
+        | RuntimeOperation::MidiEvent
+        | RuntimeOperation::MidiMessage
+        | RuntimeOperation::AudioCommand
+        | RuntimeOperation::Store
+        | RuntimeOperation::StoreListPresets
+        | RuntimeOperation::StoreLoadPreset
+        | RuntimeOperation::StoreSavePreset
+        | RuntimeOperation::StoreDeletePreset
+        | RuntimeOperation::StoreLoadDefault
+        | RuntimeOperation::StoreSaveDefault
+        | RuntimeOperation::StoreLoadSystem
+        | RuntimeOperation::StoreSaveSystem
+        | RuntimeOperation::StoreSaveBackup
+        | RuntimeOperation::StoreSaveRecovery
+        | RuntimeOperation::RuntimeEmission
+        | RuntimeOperation::MidiListOutputs
+        | RuntimeOperation::MidiListInputs
+        | RuntimeOperation::MidiStatus
+        | RuntimeOperation::SampleList
+        | RuntimeOperation::SamplePreview
+        | RuntimeOperation::DeviceUpdate
+        | RuntimeOperation::Recording
+        | RuntimeOperation::SystemInfo
+        | RuntimeOperation::SetupPortal
+        | RuntimeOperation::UserDataTransfer => RuntimeRecovery::RetainLastGood,
     }
 }
