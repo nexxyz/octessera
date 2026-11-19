@@ -172,9 +172,13 @@ impl TimedMidiSender {
 }
 
 fn midi_panic_messages() -> impl Iterator<Item = Vec<u8>> {
-    std::iter::once(vec![0xFC]).chain(
-        (0..16_u8).flat_map(|channel| [vec![0xB0 | channel, 120, 0], vec![0xB0 | channel, 123, 0]]),
-    )
+    std::iter::once(vec![0xFC]).chain((0..16_u8).flat_map(|channel| {
+        [
+            vec![0xB0 | channel, 120, 0],
+            vec![0xB0 | channel, 121, 0],
+            vec![0xB0 | channel, 123, 0],
+        ]
+    }))
 }
 
 #[derive(Default)]
