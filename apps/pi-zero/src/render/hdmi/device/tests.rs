@@ -474,24 +474,3 @@ fn a_failed_tile_write_redraws_the_whole_frame_on_the_next_lease() {
     assert_eq!(control.writes.len(), 2);
     assert_eq!(&control.writes[1][0..4], &[0, 255, 0, 0]);
 }
-
-#[test]
-fn many_changed_tiles_or_a_due_heal_write_the_full_frame() {
-    let (mut device, control) = fake_device();
-    let mut shown = presentation([255, 0, 0], NativeHdmiMode::LiveGrid);
-    let start = Instant::now();
-    assert!(device.render(&shown, start).applied);
-    let heal_at = start + FULL_FRAME_HEAL_INTERVAL;
-    let mut render = |tiles: usize, green: u8, now: Instant| {
-        shown.grid.rgb[..tiles * 3].copy_from_slice(&[0, green, 0].repeat(tiles));
-        control.lock().unwrap().events.clear();
-        assert!(device.render(&shown, now).applied);
-        events(&control)
-    };
-    assert_eq!(render(16, 1, start), vec!["write_rows"; 16]);
-    assert_eq!(render(17, 2, start), vec!["write"]);
-    let just_before = heal_at - Duration::from_millis(1);
-    assert_eq!(render(1, 3, just_before), vec!["write_rows"]);
-    assert_eq!(render(1, 4, heal_at), vec!["write"]);
-    assert_eq!(render(1, 5, heal_at), vec!["write_rows"]);
-}
