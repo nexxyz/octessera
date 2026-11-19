@@ -115,7 +115,9 @@ impl NativeBehavior {
             )?));
         }
         match self {
-            NativeBehavior::Keys => Ok(NativeBehaviorState::Keys(native_impl::deserialize(data)?)),
+            NativeBehavior::Keys => Ok(NativeBehaviorState::Keys(native_impl::keys_deserialize(
+                data,
+            )?)),
             NativeBehavior::Looper => Ok(NativeBehaviorState::Looper(
                 native_impl::looper_deserialize(data)?,
             )),

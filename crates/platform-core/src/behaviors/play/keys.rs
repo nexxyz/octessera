@@ -56,6 +56,17 @@ pub fn keys_init(config: Value) -> Result<KeysState, String> {
     })
 }
 
+/// A saved Keys layer keeps only its quantize: no key is still held after a load.
+pub fn keys_deserialize(data: Value) -> Result<KeysState, String> {
+    let saved: KeysState = serde_json::from_value(data).map_err(|error| error.to_string())?;
+    Ok(KeysState {
+        tiles: vec![false; TILE_COUNT],
+        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
+        held_tiles: vec![false; TILE_COUNT],
+        quantize: saved.quantize,
+    })
+}
+
 pub fn keys_on_input(
     state: KeysState,
     input: DeviceInput,
@@ -213,6 +224,23 @@ mod tests {
         assert!(!released.tiles[index]);
         assert!(!released.held_tiles[index]);
         assert_eq!(released.trigger_types[index], TileTriggerType::Deactivate);
+    }
+
+    #[test]
+    fn a_saved_held_key_reloads_released_with_its_quantize() {
+        let state = keys_init(serde_json::json!({ "quantize": "step" })).unwrap();
+        let mut context = context();
+        let mut held = keys_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
+        held = keys_on_tick(held, &mut context);
+        assert!(held.tiles[grid_index(2, 3)]);
+
+        let restored =
+            keys_deserialize(crate::behaviors::native_impl::serialize(&held).unwrap()).unwrap();
+
+        assert_eq!(
+            restored,
+            keys_init(serde_json::json!({ "quantize": "step" })).unwrap()
+        );
     }
 
     #[test]

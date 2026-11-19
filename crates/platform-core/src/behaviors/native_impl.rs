@@ -127,8 +127,8 @@ pub use motion::sand_ripples::{
     sand_ripples_on_tick, sand_ripples_render_model, sand_ripples_serialize, SandRipplesState,
 };
 pub use play::keys::{
-    grid_interaction_for_keys, keys_config_menu, keys_init, keys_on_input, keys_on_tick,
-    keys_render_model, KeysQuantize, KeysState,
+    grid_interaction_for_keys, keys_config_menu, keys_deserialize, keys_init, keys_on_input,
+    keys_on_tick, keys_render_model, KeysQuantize, KeysState,
 };
 pub use play::looper::{
     grid_interaction_for_looper, looper_config_menu, looper_deserialize, looper_init,
