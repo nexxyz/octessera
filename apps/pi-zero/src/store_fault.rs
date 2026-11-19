@@ -1,5 +1,6 @@
-//! The screen shown when the saved settings won't load: the user picks Restore factory settings
-//! (only the broken file is replaced, and kept beside it) or Shut down.
+//! The screen shown when the saved settings won't load: the user picks the last patch backup that
+//! still loads (when the patch is the broken file), Restore factory settings (only the broken file
+//! is replaced, and kept beside it) or Shut down.
 
 mod recovery;
 #[cfg(test)]
@@ -21,7 +22,8 @@ const RESTART_PAUSE: Duration = Duration::from_secs(3);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Choice {
-    Restore,
+    LastBackup,
+    Factory,
     ShutDown,
 }
 
@@ -49,8 +51,9 @@ fn run_store_fault_mode(error: &str, store_dir: &Path, boot_handoff: bool) -> ! 
         }
     }
     devices.open_wake_encoders();
-    let mut choice = Choice::Restore;
-    let mut lines = choice_lines(choice, None);
+    let choices = available_choices(store_dir);
+    let mut choice = choices[0];
+    let mut lines = choice_lines(&choices, choice, None);
     let mut awake_until = Instant::now() + FAULT_SCREEN_AWAKE;
     let mut input_lost = devices.wake_events().is_none();
     let mut shown = None;
@@ -77,15 +80,20 @@ fn run_store_fault_mode(error: &str, store_dir: &Path, boot_handoff: bool) -> ! 
         drawn = false;
         match event {
             HardwareEvent::EncoderTurn { delta, .. } if delta != 0 => {
-                choice = other(choice);
-                lines = choice_lines(choice, None);
+                choice = step(&choices, choice, delta);
+                lines = choice_lines(&choices, choice, None);
             }
-            HardwareEvent::EncoderPress { .. } if choice == Choice::Restore => {
-                match restore(store_dir) {
+            HardwareEvent::EncoderPress { .. } if choice != Choice::ShutDown => {
+                match restore(store_dir, choice) {
                     Ok(()) => {
+                        let first = if choice == Choice::LastBackup {
+                            "The last backup"
+                        } else {
+                            "Factory settings"
+                        };
                         lines = message_lines(&[
-                            "Factory settings",
-                            "are back; the old",
+                            first,
+                            "is back; the old",
                             "file was kept.",
                             "",
                             "Starting again...",
@@ -95,8 +103,8 @@ fn run_store_fault_mode(error: &str, store_dir: &Path, boot_handoff: bool) -> ! 
                         std::process::exit(1);
                     }
                     Err(error) => {
-                        eprintln!("factory restore failed: {error}");
-                        lines = choice_lines(choice, Some("Restore failed."));
+                        eprintln!("restore failed: {error}");
+                        lines = choice_lines(&choices, choice, Some("Restore failed."));
                     }
                 }
             }
@@ -154,42 +162,66 @@ fn show(
     }
 }
 
-fn other(choice: Choice) -> Choice {
-    match choice {
-        Choice::Restore => Choice::ShutDown,
-        Choice::ShutDown => Choice::Restore,
+fn available_choices(store_dir: &Path) -> Vec<Choice> {
+    let backup = recovery::factory_documents()
+        .ok()
+        .and_then(|factory| recovery::loadable_patch_backup(store_dir, &factory));
+    let mut choices = Vec::new();
+    if backup.is_some() {
+        choices.push(Choice::LastBackup);
     }
+    choices.extend([Choice::Factory, Choice::ShutDown]);
+    choices
 }
 
-fn choice_lines(choice: Choice, note: Option<&str>) -> Vec<String> {
-    let mark = |item| if choice == item { "> " } else { "  " };
+fn step(choices: &[Choice], choice: Choice, delta: i8) -> Choice {
+    let count = choices.len() as isize;
+    let index = choices.iter().position(|item| *item == choice).unwrap_or(0) as isize;
+    choices[(index + isize::from(delta.signum())).rem_euclid(count) as usize]
+}
+
+fn choice_lines(choices: &[Choice], choice: Choice, note: Option<&str>) -> Vec<String> {
     let (first, second) = match note {
         Some(note) => (note, "Check the SD card."),
         None => ("My saved settings", "won't load."),
     };
-    vec![
+    let mut lines = vec![
         first.to_string(),
         second.to_string(),
         "Presets are safe.".to_string(),
-        String::new(),
-        format!("{}Restore factory", mark(Choice::Restore)),
-        format!("{}Shut down", mark(Choice::ShutDown)),
-        "Turn, then press.".to_string(),
-    ]
+    ];
+    if choices.len() < 3 {
+        lines.push(String::new());
+    }
+    lines.extend(choices.iter().map(|item| {
+        let mark = if *item == choice { "> " } else { "  " };
+        let label = match item {
+            Choice::LastBackup => "Last backup",
+            Choice::Factory => "Restore factory",
+            Choice::ShutDown => "Shut down",
+        };
+        format!("{mark}{label}")
+    }));
+    lines.push("Turn, then press.".to_string());
+    lines
 }
 
 fn message_lines(lines: &[&str]) -> Vec<String> {
     lines.iter().map(|line| line.to_string()).collect()
 }
 
-fn restore(store_dir: &Path) -> Result<(), String> {
+fn restore(store_dir: &Path, choice: Choice) -> Result<(), String> {
     let factory = recovery::factory_documents()?;
-    let replaced = recovery::restore_factory_files(
-        store_dir,
-        &factory,
-        &playback_runtime::fresh_preset_name(),
-    )?;
-    eprintln!("restored factory {}", replaced.join(" and "));
+    let stamp = playback_runtime::fresh_preset_name();
+    if choice == Choice::LastBackup {
+        let backup = recovery::loadable_patch_backup(store_dir, &factory)
+            .ok_or("no patch backup loads any more")?;
+        recovery::restore_patch_backup(store_dir, &backup, &stamp)?;
+        eprintln!("restored the last patch backup that loads");
+    } else {
+        let replaced = recovery::restore_factory_files(store_dir, &factory, &stamp)?;
+        eprintln!("restored factory {}", replaced.join(" and "));
+    }
     crate::pi_boot_config::read_composed_runtime_config(store_dir)
         .map(|_| ())
         .map_err(|error| format!("settings still won't load: {error}"))

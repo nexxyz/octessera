@@ -157,3 +157,20 @@ fn a_clock_that_went_back_still_names_the_new_backup_newest_and_keeps_it() {
     );
     let _ = fs::remove_dir_all(dir);
 }
+
+#[test]
+fn backups_are_listed_newest_first_by_their_number_not_their_text() {
+    let dir = temp_dir("newest-first");
+    for stamp in ["999", "1000", "20"] {
+        fs::write(dir.join(format!("bak-{stamp}.json")), "{}").unwrap();
+    }
+    fs::write(dir.join("bak-notes.json"), "{}").unwrap();
+
+    let names: Vec<String> = rotated_backups_newest_first(&dir)
+        .iter()
+        .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+
+    assert_eq!(names, ["bak-1000.json", "bak-999.json", "bak-20.json"]);
+    let _ = fs::remove_dir_all(dir);
+}

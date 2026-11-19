@@ -1,5 +1,6 @@
 //! Finds which saved settings file keeps the device from starting and puts the board's factory
-//! version in its place, keeping the broken file beside it.
+//! version, or the newest rolling patch backup that still loads, in its place, keeping the broken
+//! file beside it.
 
 use playback_runtime::{
     compose_local_system_patch_documents, split_system_patch_documents, SystemPatchDocuments,
@@ -36,6 +37,32 @@ pub(crate) fn broken_files(store_dir: &Path, factory: &SystemPatchDocuments) -> 
     }
 }
 
+/// The newest rolling patch backup that loads with the saved System file, offered only when the
+/// patch is the one broken file (a patch backup can't help a broken System file).
+pub(crate) fn loadable_patch_backup(
+    store_dir: &Path,
+    factory: &SystemPatchDocuments,
+) -> Option<Value> {
+    if broken_files(store_dir, factory) != [PATCH_FILE] {
+        return None;
+    }
+    let system = read_document(&store_dir.join(SYSTEM_FILE))?;
+    store_files::rotated_backups_newest_first(&store_dir.join("backups"))
+        .iter()
+        .filter_map(|path| read_document(path))
+        .find(|patch| compose_local_system_patch_documents(&system, patch).is_ok())
+}
+
+/// Keeps the broken patch as `<name>.broken-<stamp>` and writes `backup` in its place.
+pub(crate) fn restore_patch_backup(
+    store_dir: &Path,
+    backup: &Value,
+    stamp: &str,
+) -> Result<(), String> {
+    keep_broken(store_dir, PATCH_FILE, stamp)?;
+    store_files::write_json_atomically(&store_dir.join(PATCH_FILE), backup)
+}
+
 /// Moves each broken file aside as `<name>.broken-<stamp>` and writes the factory version.
 pub(crate) fn restore_factory_files(
     store_dir: &Path,
@@ -45,11 +72,7 @@ pub(crate) fn restore_factory_files(
     let broken = broken_files(store_dir, factory);
     for name in &broken {
         let path = store_dir.join(name);
-        if path.exists() {
-            let kept = free_path(store_dir, &format!("{name}.broken-{stamp}"));
-            std::fs::rename(&path, &kept)
-                .map_err(|error| format!("could not keep {name}: {error}"))?;
-        }
+        keep_broken(store_dir, name, stamp)?;
         let document = if *name == SYSTEM_FILE {
             &factory.system
         } else {
@@ -58,6 +81,15 @@ pub(crate) fn restore_factory_files(
         store_files::write_json_atomically(&path, document)?;
     }
     Ok(broken)
+}
+
+fn keep_broken(store_dir: &Path, name: &str, stamp: &str) -> Result<(), String> {
+    let path = store_dir.join(name);
+    if !path.exists() {
+        return Ok(());
+    }
+    let kept = free_path(store_dir, &format!("{name}.broken-{stamp}"));
+    std::fs::rename(&path, &kept).map_err(|error| format!("could not keep {name}: {error}"))
 }
 
 fn read_document(path: &Path) -> Option<Value> {

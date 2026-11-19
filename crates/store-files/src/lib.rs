@@ -1,6 +1,6 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const KEPT_BACKUPS: usize = 20;
@@ -90,6 +90,21 @@ fn write_rotated_backup_at(
         fs::remove_file(path).map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+/// The rotated backups in `dir`, newest first, in the same order pruning uses.
+pub fn rotated_backups_newest_first(dir: &Path) -> Vec<PathBuf> {
+    let mut backups: Vec<(u128, PathBuf)> = fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            backup_stamp(&path).map(|stamp| (stamp, path))
+        })
+        .collect();
+    backups.sort_by_key(|(stamp, _)| std::cmp::Reverse(*stamp));
+    backups.into_iter().map(|(_, path)| path).collect()
 }
 
 fn backup_stamp(path: &Path) -> Option<u128> {
