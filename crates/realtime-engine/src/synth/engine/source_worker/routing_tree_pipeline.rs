@@ -70,7 +70,7 @@ impl SourceWorkerRuntime {
         } else {
             engine.sample_clock.saturating_add(frames as u64)
         };
-        if apply_controls.is_some() || engine.instrument_param_glides.active {
+        if apply_controls.is_some() || engine.instrument_param_glides.moves_sample_voices() {
             let Some(()) =
                 self.with_routing_tree_controls_ready(engine, dispatch_sample_clock, |engine| {
                     if let Some(apply_controls) = apply_controls {
@@ -83,6 +83,8 @@ impl SourceWorkerRuntime {
                 self.latch_completion_failure(0b11);
                 return SourceWorkerRenderDisposition::Fatal;
             };
+        } else {
+            engine.advance_instrument_param_glides(frames);
         }
         if !self.routing_output_ready {
             if !self.dispatch_routing_tree(engine, frames, dispatch_sample_clock) {

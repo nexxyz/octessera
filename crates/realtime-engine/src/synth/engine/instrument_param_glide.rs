@@ -169,7 +169,7 @@ impl LevelRamp {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct InstrumentParamGlides {
     len: u32,
-    pub(super) active: bool,
+    active: bool,
     slots: [[ParamGlide; PARAM_COUNT]; INSTRUMENT_SLOT_COUNT],
     pub(super) level_ramps: [Option<LevelRamp>; INSTRUMENT_SLOT_COUNT],
 }
@@ -184,6 +184,20 @@ impl InstrumentParamGlides {
             slots: [[ParamGlide::SETTLED; PARAM_COUNT]; INSTRUMENT_SLOT_COUNT],
             level_ramps: [None; INSTRUMENT_SLOT_COUNT],
         }
+    }
+
+    /// Whether a running glide moves a value the sample voices keep, which reaches them only
+    /// while they are with the engine.
+    pub(super) fn moves_sample_voices(&self) -> bool {
+        self.active
+            && self.slots.iter().any(|params| {
+                [
+                    InstrumentGlideParam::SampleCutoff,
+                    InstrumentGlideParam::SampleResonance,
+                ]
+                .into_iter()
+                .any(|param| params[param as usize].remaining > 0)
+            })
     }
 }
 
