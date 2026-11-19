@@ -19,7 +19,7 @@ pub use behavior::{
 pub use behavior_random::{stream_seed, RANDOM_DOMAIN_BUILD, RANDOM_DOMAIN_LINK};
 pub use behaviors::{
     behavior_catalog, behavior_categories, get_native_behavior, list_native_behavior_ids,
-    BehaviorCatalogEntry, BehaviorCategory, NativeBehavior, NativeBehaviorState,
+    BehaviorCatalogEntry, BehaviorCategory, KeysQuantize, NativeBehavior, NativeBehaviorState,
 };
 pub use engine::{NativeInputResult, NativeLayerEngine, NativeLayerEngineConfig, NativeTickResult};
 pub use events::MusicalEvent;

@@ -15,21 +15,44 @@ pub struct KeysState {
     pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "heldTiles")]
     pub held_tiles: Vec<bool>,
-    pub quantize: String,
+    pub quantize: KeysQuantize,
+}
+
+/// Whether a Keys press sounds at once or waits for the next step.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum KeysQuantize {
+    Immediate,
+    Step,
+}
+
+impl KeysQuantize {
+    pub const ALL: [Self; 2] = [Self::Immediate, Self::Step];
+
+    pub const fn wire_name(self) -> &'static str {
+        match self {
+            Self::Immediate => "immediate",
+            Self::Step => "step",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 struct KeysConfig {
-    quantize: Option<String>,
+    quantize: Option<KeysQuantize>,
 }
 
 pub fn keys_init(config: Value) -> Result<KeysState, String> {
-    let config: KeysConfig = serde_json::from_value(config).unwrap_or_default();
+    let config: KeysConfig = if config.is_null() {
+        KeysConfig::default()
+    } else {
+        serde_json::from_value(config).map_err(|error| format!("invalid keys config: {error}"))?
+    };
     Ok(KeysState {
         tiles: vec![false; TILE_COUNT],
         trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         held_tiles: vec![false; TILE_COUNT],
-        quantize: config.quantize.unwrap_or_else(|| "immediate".into()),
+        quantize: config.quantize.unwrap_or(KeysQuantize::Immediate),
     })
 }
 
@@ -49,7 +72,7 @@ pub fn keys_on_input(
     let index = grid_index(x, y);
     let mut held_tiles = state.held_tiles.clone();
     held_tiles[index] = is_press;
-    if state.quantize == "immediate" {
+    if state.quantize == KeysQuantize::Immediate {
         let mut tiles = state.tiles.clone();
         let mut trigger_types = vec![TileTriggerType::None; TILE_COUNT];
         tiles[index] = is_press;
@@ -72,7 +95,7 @@ pub fn keys_on_input(
 }
 
 pub fn keys_on_tick(state: KeysState, _context: &mut BehaviorContext) -> KeysState {
-    if state.quantize == "immediate" {
+    if state.quantize == KeysQuantize::Immediate {
         let trigger_types = state
             .tiles
             .iter()
@@ -115,7 +138,7 @@ pub fn keys_on_tick(state: KeysState, _context: &mut BehaviorContext) -> KeysSta
 pub fn keys_render_model(state: &KeysState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "keys".into(),
-        status_line: if state.quantize == "immediate" {
+        status_line: if state.quantize == KeysQuantize::Immediate {
             "Immediate"
         } else {
             "Quantized"
@@ -133,7 +156,11 @@ pub fn keys_render_model(state: &KeysState) -> BehaviorRenderModel {
 }
 
 pub fn keys_config_menu() -> Vec<BehaviorConfigItem> {
-    vec![enum_item("quantize", "Quantize", &["immediate", "step"])]
+    vec![enum_item(
+        "quantize",
+        "Quantize",
+        &KeysQuantize::ALL.map(KeysQuantize::wire_name),
+    )]
 }
 
 pub fn grid_interaction_for_keys() -> Option<GridInteraction> {
@@ -153,10 +180,11 @@ mod tests {
         let immediate = keys_init(Value::Null).unwrap();
         assert_eq!(immediate.tiles.len(), TILE_COUNT);
         assert!(immediate.tiles.iter().all(|tile| !tile));
-        assert_eq!(immediate.quantize, "immediate");
+        assert_eq!(immediate.quantize, KeysQuantize::Immediate);
 
         let step = keys_init(serde_json::json!({ "quantize": "step" })).unwrap();
-        assert_eq!(step.quantize, "step");
+        assert_eq!(step.quantize, KeysQuantize::Step);
+        assert!(keys_init(serde_json::json!({ "quantize": "bar" })).is_err());
 
         let menu = keys_config_menu();
         assert_eq!(menu.len(), 1);
@@ -263,9 +291,12 @@ mod tests {
         assert_eq!(model.status_line, "Quantized");
         assert_eq!(model.trigger_types.as_ref().unwrap().len(), TILE_COUNT);
 
-        let raw = serde_json::to_value(&state).unwrap();
-        let restored: KeysState = serde_json::from_value(raw).unwrap();
-        assert_eq!(restored.quantize, "step");
+        let mut raw = serde_json::to_value(&state).unwrap();
+        assert_eq!(raw["quantize"], "step");
+        let restored: KeysState = serde_json::from_value(raw.clone()).unwrap();
+        assert_eq!(restored.quantize, KeysQuantize::Step);
         assert!(restored.tiles[3]);
+        raw["quantize"] = serde_json::json!("bar");
+        assert!(serde_json::from_value::<KeysState>(raw).is_err());
     }
 }

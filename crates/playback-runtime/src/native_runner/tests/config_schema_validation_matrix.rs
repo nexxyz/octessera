@@ -273,3 +273,41 @@ pub(crate) fn led_brightness_and_filter_resonance_accept_exactly_the_menu_ranges
     assert!(validates(&resonance(100)));
     assert!(!validates(&resonance(101)));
 }
+
+#[test]
+fn keys_quantize_accepts_only_the_menu_options_wherever_a_patch_keeps_it() {
+    let keys_layer = |field: &'static str, quantize: &'static str| {
+        move |payload: &mut Value| {
+            let build = &mut payload["runtimeConfig"]["layers"][6]["build"];
+            build["behaviorId"] = json!("keys");
+            build[field] = json!({ "quantize": quantize });
+        }
+    };
+    for field in ["behaviorConfig", "savedState"] {
+        for quantize in ["immediate", "step"] {
+            assert_validation_ok(keys_layer(field, quantize));
+        }
+        assert_validation_error(
+            field,
+            &format!("runtimeConfig.layers[6].build.{field}.quantize has unknown value `bar`"),
+            keys_layer(field, "bar"),
+        );
+    }
+    assert_validation_error(
+        "history",
+        "runtimeConfig.layers[0].build.behaviorConfigHistory.keys.quantize has unknown value `bar`",
+        |payload| {
+            payload["runtimeConfig"]["layers"][0]["build"]["behaviorConfigHistory"] =
+                json!({ "keys": { "quantize": "bar" } })
+        },
+    );
+}
+
+fn assert_validation_ok(mutate: impl FnOnce(&mut Value)) {
+    let mut payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/desktop/default.json"
+    ))
+    .unwrap();
+    mutate(&mut payload);
+    validate_config_payload(&payload).unwrap();
+}

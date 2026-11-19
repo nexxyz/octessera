@@ -38,4 +38,5 @@ pub use catalog::{behavior_catalog, behavior_categories, BehaviorCatalogEntry, B
 pub use native_behavior::{
     get_native_behavior, list_native_behavior_ids, NativeBehavior, NativeBehaviorState,
 };
+pub use native_impl::KeysQuantize;
 pub use pattern_music::PatternBehaviorState;

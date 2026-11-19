@@ -10,7 +10,7 @@ use crate::native_runner::{
     ArpMode, ArpSource, LaneCurve, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode,
 };
 use crate::timing_units::NOTE_UNIT_OPTIONS;
-use platform_core::{note_set_ids, RangeMode, LAYER_COUNT, NOTE_SET_ROOTS};
+use platform_core::{note_set_ids, KeysQuantize, RangeMode, LAYER_COUNT, NOTE_SET_ROOTS};
 use serde_json::Map;
 
 pub(super) fn validate_layers(runtime: &Map<String, Value>) -> Result<(), String> {
@@ -50,11 +50,33 @@ pub(super) fn validate_layers(runtime: &Map<String, Value>) -> Result<(), String
                     }
                 }
             }
+            validate_keys_quantize(build, &format!("{path}.build"))?;
         }
         if let Some(link) = object_field(layer, "link", &path)? {
             validate_link(link, &format!("{path}.link"))?;
         }
         validate_layer_modulation(layer, &path)?;
+    }
+    Ok(())
+}
+
+fn validate_keys_quantize(build: &Map<String, Value>, path: &str) -> Result<(), String> {
+    let options = KeysQuantize::ALL.map(KeysQuantize::wire_name);
+    let mut keys_documents = vec![(
+        build
+            .get("behaviorConfigHistory")
+            .and_then(|history| history.get("keys")),
+        format!("{path}.behaviorConfigHistory.keys"),
+    )];
+    if build.get("behaviorId").and_then(Value::as_str) == Some("keys") {
+        for key in ["behaviorConfig", "savedState"] {
+            keys_documents.push((build.get(key), format!("{path}.{key}")));
+        }
+    }
+    for (document, document_path) in keys_documents {
+        if let Some(document) = document.and_then(Value::as_object) {
+            enum_field(document, "quantize", &document_path, &options)?;
+        }
     }
     Ok(())
 }
