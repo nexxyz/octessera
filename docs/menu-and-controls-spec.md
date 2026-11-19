@@ -1375,6 +1375,8 @@ Save/Load, Panic, reboot, recording, and setup are actions, not saved fields.
 - A press or turn that wakes the OLED is consumed as wake input. A grid tile or button release
   that wakes it (only possible after that ten-minute limit) is still handled, so a Play FX,
   fader or XY tile stops on release.
+- A grid tile released while a confirmation dialog is open is still handled, so a held Keys note,
+  Play FX, fader or XY tile ends; the dialog stays open and ignores other grid input.
 - Once `OLED Sleep` turns `display.off` on, Pi replaces semantic grid and NeoKey output with a 10 Hz
   sparse dim-star animation of independently pulsing stars. It ignores `ledsDimmed`, stays within
   the sleep dim scale, and keeps a zero-brightness blackout dark.

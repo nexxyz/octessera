@@ -257,6 +257,9 @@ impl NativeRunner {
         &mut self,
         input: DeviceInput,
     ) -> Result<Vec<RunnerMessage>, String> {
+        if let DeviceInput::GridRelease { x, y } = input {
+            return self.handle_grid_release_input(x, y);
+        }
         if self.restart_settings.is_saving() {
             return self.messages_with_snapshot();
         }

@@ -141,3 +141,42 @@ fn a_held_xy_touch_ends_on_release_after_a_page_switch() {
         (0.5, 0.5)
     );
 }
+
+fn open_confirm_dialog(runner: &mut NativeRunner) {
+    assert!(runner.menu.focus_item_key("default.save"));
+    let _ = device_input(runner, json!({ "type": "encoder_press", "id": "main" }));
+    assert!(runner.display.confirm_dialog.is_some());
+}
+
+#[test]
+fn a_held_play_fx_stops_on_release_while_a_confirm_dialog_is_open() {
+    let mut runner = fx_runner();
+    let _ = press(&mut runner, 3, 4);
+    open_confirm_dialog(&mut runner);
+
+    let messages = release(&mut runner, 3, 4);
+    assert_eq!(stops(&messages), vec!["momentary-fx:3:4".to_string()]);
+    assert!(runner.active_play_fx.is_empty());
+    assert!(runner.display.confirm_dialog.is_some());
+}
+
+#[test]
+fn a_held_keys_note_ends_on_release_while_a_confirm_dialog_is_open() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    assert!(musical_note_ons(&press(&mut runner, 2, 3))
+        .iter()
+        .any(|(_, note)| *note > 0));
+    open_confirm_dialog(&mut runner);
+
+    let messages = release(&mut runner, 2, 3);
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::MusicalEvents { events }
+            if events.iter().any(|event| matches!(event, platform_core::MusicalEvent::NoteOff { .. }))
+    )));
+    assert!(runner.display.confirm_dialog.is_some());
+}
