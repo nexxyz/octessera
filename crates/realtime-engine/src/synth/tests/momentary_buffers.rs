@@ -16,10 +16,9 @@ fn momentary_stutter_repeats_initial_capture() {
 
     let segment_len = (48_000.0 / 30.0) as usize;
     let ramp_len = ((48_000.0 * 0.002) as usize).min(segment_len / 4);
-    let loop_len = segment_len - ramp_len;
 
     let mut captured = Vec::new();
-    for _ in 0..segment_len {
+    for _ in 0..segment_len + ramp_len {
         captured.push(engine.next_sample());
     }
 
@@ -32,11 +31,11 @@ fn momentary_stutter_repeats_initial_capture() {
     }
 
     let mut block_a = Vec::new();
-    for _ in 0..loop_len {
+    for _ in 0..segment_len {
         block_a.push(engine.next_sample());
     }
     let mut block_b = Vec::new();
-    for _ in 0..loop_len {
+    for _ in 0..segment_len {
         block_b.push(engine.next_sample());
     }
 

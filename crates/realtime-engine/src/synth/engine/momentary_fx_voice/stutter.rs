@@ -18,8 +18,8 @@ impl StutterParams {
     }
 }
 
-/// Captures one segment of the target on press, then loops all but its last ~2 ms with a ~2 ms
-/// ease-in, crossfading that tail into the start of each repeat. It ends at once on release.
+/// Captures one segment of the target plus ~2 ms on press, then loops the segment with a ~2 ms
+/// ease-in, crossfading that extra tail into the start of each repeat. It ends at once on release.
 #[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct StutterVoice {
     pub(in crate::synth::engine) params: StutterParams,
@@ -34,13 +34,14 @@ pub(in crate::synth::engine) struct StutterVoice {
 
 impl StutterVoice {
     pub(super) fn new(params: StutterParams, sample_rate: u32) -> Self {
+        let ramp_len = ((sample_rate as f32 * 0.002) as usize).max(1);
         Self {
             params,
-            left: vec![0.0; sample_rate as usize],
-            right: vec![0.0; sample_rate as usize],
+            left: vec![0.0; sample_rate as usize + ramp_len],
+            right: vec![0.0; sample_rate as usize + ramp_len],
             write: 0,
             ready: false,
-            ramp_len: ((sample_rate as f32 * 0.002) as usize).max(1),
+            ramp_len,
             ramp_pos: 0,
             releasing: false,
         }
@@ -64,9 +65,12 @@ impl StutterVoice {
 
     pub(super) fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         let depth = self.params.depth;
-        let segment_len = self.params.segment_len.min(self.left.len()).max(1);
+        let segment_len = self
+            .params
+            .segment_len
+            .min(self.left.len() - self.ramp_len)
+            .max(1);
         let ramp_len = self.ramp_len.min(segment_len / 4);
-        let loop_len = segment_len - ramp_len;
         let mut l = left;
         let mut r = right;
 
@@ -74,7 +78,7 @@ impl StutterVoice {
             self.left[self.write] = l;
             self.right[self.write] = r;
             self.write += 1;
-            if self.write >= segment_len {
+            if self.write >= segment_len + ramp_len {
                 self.ready = true;
                 self.write = 0;
                 self.ramp_pos = 0;
@@ -93,7 +97,7 @@ impl StutterVoice {
 
             if read < ramp_len {
                 let fade_in = read as f32 / ramp_len as f32;
-                let end_read = loop_len + read;
+                let end_read = segment_len + read;
                 wet_l = wet_l * fade_in + self.left[end_read] * (1.0 - fade_in);
                 wet_r = wet_r * fade_in + self.right[end_read] * (1.0 - fade_in);
             }
@@ -101,7 +105,7 @@ impl StutterVoice {
             l = l * (1.0 - eff_wet) + wet_l * eff_wet;
             r = r * (1.0 - eff_wet) + wet_r * eff_wet;
             self.write += 1;
-            if self.write >= loop_len {
+            if self.write >= segment_len {
                 self.write = 0;
             }
         }
