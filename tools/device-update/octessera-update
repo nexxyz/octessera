@@ -347,8 +347,7 @@ def switch(version: str) -> str:
         with tempfile.TemporaryDirectory(prefix=".store-backup-", dir=ROOT) as backup:
             restored: list[str] = []
             try:
-                if is_newer(old_version, version):
-                    restore_store(store, version, Path(backup), restored)
+                restore_store(store, version, Path(backup), restored)
                 set_links(str(target), old_current)
                 healthy = restart_and_wait()
             except (UpdateError, OSError):

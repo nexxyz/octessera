@@ -197,11 +197,11 @@ come up properly, the board quietly switches back to the one you had, so a
 bad update costs you a restart, not an evening.
 
 **Rollback** goes back to the version you had before the last update, and
-pressing it again goes forward again. Going back also restores your settings
-as they were in that version; changes you made since are not carried back.
-Going forward again keeps the settings you have at that moment. Presets you
-saved on the newer version stay on the card; the older one just won't open
-them. The board keeps those two versions and tidies away older ones. One honest caveat: pull the power during that minute
+pressing it again goes forward again. Each version keeps its own settings:
+going back brings back the settings you had on the older version, and going
+forward again brings back exactly the ones you left on the newer one, so a
+rollback never throws away your work. Presets you saved on the newer version
+stay on the card; the older one just won't open them. The board keeps those two versions and tidies away older ones. One honest caveat: pull the power during that minute
 of restarting and the board may wake up on the new version without having
 checked it. If that version then misbehaves, Rollback (or a fresh image) puts
 things right.
