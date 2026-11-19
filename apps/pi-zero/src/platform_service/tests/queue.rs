@@ -27,6 +27,40 @@ fn system_info_job_returns_identified_typed_result() {
 }
 
 #[test]
+fn a_preset_save_job_refuses_to_overwrite_unless_told_to() {
+    let root = crate::test_temp_dir::unique_temp_path("octessera-platform-save-overwrite");
+    let store = root.join("store");
+    let path = super::super::platform_service_store::preset_patch_path(&store, "taken").unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, b"{\"kept\": true}").unwrap();
+    let update_executor = device_update::production_executor();
+    let save = |overwrite| {
+        handle_job(
+            &store,
+            &root,
+            PlatformJob::new(
+                RuntimePlatformRequest::new(
+                    playback_runtime::RuntimePlatformEffect::StoreListPresets,
+                    "save".into(),
+                    None,
+                ),
+                PlatformJobKind::SavePreset {
+                    name: "taken".into(),
+                    payload: serde_json::json!({}),
+                    overwrite,
+                },
+            ),
+            update_executor.as_ref(),
+        )
+    };
+
+    let refused = format!("{:?}", save(false));
+    assert!(refused.contains("preset already exists"), "{refused}");
+    assert_eq!(std::fs::read(&path).unwrap(), b"{\"kept\": true}");
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn system_info_does_not_wait_for_store_lock() {
     let root = crate::test_temp_dir::unique_temp_path("octessera-platform-system-info-lock");
     let service = PiPlatformService::new(root.join("store"), root.join("samples"));

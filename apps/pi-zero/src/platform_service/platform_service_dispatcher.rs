@@ -28,12 +28,17 @@ pub(crate) fn dispatch(
             PlatformJobKind::ListPresets,
             "Preset list".into(),
         )),
-        RuntimePlatformEffect::StoreSavePreset { name, payload, .. } => Some(enqueue_job(
+        RuntimePlatformEffect::StoreSavePreset {
+            name,
+            payload,
+            mode,
+        } => Some(enqueue_job(
             service,
             request,
             PlatformJobKind::SavePreset {
                 name: name.clone(),
                 payload: payload.clone(),
+                overwrite: mode.is_some(),
             },
             format!("Save {name}"),
         )),

@@ -68,6 +68,7 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
             PlatformJobKind::SavePreset {
                 name: "stale-preset".into(),
                 payload: serde_json::json!({"stale": "preset"}),
+                overwrite: false,
             },
         ))
         .unwrap();

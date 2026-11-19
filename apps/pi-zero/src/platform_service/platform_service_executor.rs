@@ -26,25 +26,30 @@ pub(super) fn handle_job(
             Ok(names) => RuntimeStoreResult::ListPresetsResult { names },
             Err(message) => store_error(format!("Preset list failed: {message}")),
         },
-        PlatformJobKind::SavePreset { name, payload } => {
-            match preset_patch_path(store_dir, &name) {
-                Ok(path) => {
-                    let existed = path.is_file();
-                    match super::platform_service_store::validate_named_preset_document(
-                        store_dir, &payload,
-                    )
-                    .and_then(|()| save_json(&path, &payload))
-                    {
-                        Ok(()) => RuntimeStoreResult::SavePresetResult {
-                            name,
-                            outcome: if existed { "overwritten" } else { "created" }.into(),
-                        },
-                        Err(message) => store_error(format!("Save {name} failed: {message}")),
-                    }
-                }
-                Err(message) => store_error(format!("Save {name} failed: {message}")),
+        PlatformJobKind::SavePreset {
+            name,
+            payload,
+            overwrite,
+        } => match preset_patch_path(store_dir, &name) {
+            Ok(path) if path.is_file() && !overwrite => {
+                store_error(format!("Save {name} failed: preset already exists"))
             }
-        }
+            Ok(path) => {
+                let existed = path.is_file();
+                match super::platform_service_store::validate_named_preset_document(
+                    store_dir, &payload,
+                )
+                .and_then(|()| save_json(&path, &payload))
+                {
+                    Ok(()) => RuntimeStoreResult::SavePresetResult {
+                        name,
+                        outcome: if existed { "overwritten" } else { "created" }.into(),
+                    },
+                    Err(message) => store_error(format!("Save {name} failed: {message}")),
+                }
+            }
+            Err(message) => store_error(format!("Save {name} failed: {message}")),
+        },
         PlatformJobKind::DeletePreset { name } => RuntimeStoreResult::DeletePresetResult {
             ok: delete_preset_payload(store_dir, &name),
             name,

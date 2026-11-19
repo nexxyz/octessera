@@ -254,6 +254,7 @@ fn named_preset_load_rejects_queued_named_save_without_cancelling_it() {
             PlatformJobKind::SavePreset {
                 name: "preset".into(),
                 payload: payload.clone(),
+                overwrite: true,
             },
         ))
         .unwrap();

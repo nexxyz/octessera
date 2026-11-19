@@ -15,6 +15,7 @@ pub enum PlatformJobKind {
     SavePreset {
         name: String,
         payload: serde_json::Value,
+        overwrite: bool,
     },
     DeletePreset {
         name: String,
