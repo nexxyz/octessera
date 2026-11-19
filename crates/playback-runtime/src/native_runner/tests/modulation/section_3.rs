@@ -29,7 +29,7 @@ pub(crate) fn assignment_mode_wins_over_fn_layer_navigation_and_autosaves() {
             if matches!(
                 effects.as_slice(),
                 [RuntimePlatformEffect::StoreSaveDefault { mode, .. }]
-                    if mode.as_deref() == Some("deferred")
+                    if matches!(mode, Some(crate::DefaultSaveMode::Deferred))
             )
     )));
 }

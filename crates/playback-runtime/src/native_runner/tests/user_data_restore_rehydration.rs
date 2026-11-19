@@ -234,7 +234,10 @@ pub(crate) fn failed_restore_rehydration_marks_failure_and_retries_dirty_save() 
             .with_identity(request.request_id, request.revision),
         })
         .unwrap();
-    assert!(has_default_save(&rejected, Some("deferred")));
+    assert!(has_default_save(
+        &rejected,
+        Some(crate::DefaultSaveMode::Deferred)
+    ));
     assert!(!has_platform_effect(
         &rejected,
         RuntimePlatformEffect::StoreLoadDefault

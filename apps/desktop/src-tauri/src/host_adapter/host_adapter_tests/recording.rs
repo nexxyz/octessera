@@ -217,7 +217,7 @@ fn exit_finishes_the_active_recording_and_writes_the_pending_default_save() {
     adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveDefault {
             payload: payload.clone(),
-            mode: Some("deferred".into()),
+            mode: Some(playback_runtime::DefaultSaveMode::Deferred),
         }))
         .unwrap();
 

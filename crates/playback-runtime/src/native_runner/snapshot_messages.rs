@@ -170,7 +170,7 @@ impl NativeRunner {
                 self.pending.pending_save_revision = Some(self.config_revision);
                 effects.push(RuntimePlatformEffect::StoreSaveDefault {
                     payload: payload.clone().expect("autosave payload"),
-                    mode: Some("deferred".into()),
+                    mode: Some(crate::DefaultSaveMode::Deferred),
                 });
             }
         }

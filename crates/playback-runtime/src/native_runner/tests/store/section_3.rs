@@ -255,3 +255,24 @@ fn preset_save_mode_keeps_its_overwrite_wire_string() {
     )
     .is_err());
 }
+
+#[test]
+fn default_save_mode_keeps_its_deferred_wire_string() {
+    for wire in [
+        json!({"type": "store_save_default", "payload": {}, "mode": "deferred"}),
+        json!({"type": "store_save_default", "payload": {}, "mode": null}),
+    ] {
+        let effect: RuntimePlatformEffect = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&effect).unwrap(), wire);
+    }
+    let unset: RuntimePlatformEffect =
+        serde_json::from_value(json!({"type": "store_save_default", "payload": {}})).unwrap();
+    assert!(matches!(
+        unset,
+        RuntimePlatformEffect::StoreSaveDefault { mode: None, .. }
+    ));
+    assert!(serde_json::from_value::<RuntimePlatformEffect>(
+        json!({"type": "store_save_default", "payload": {}, "mode": "later"})
+    )
+    .is_err());
+}

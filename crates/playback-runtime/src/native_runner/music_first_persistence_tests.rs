@@ -328,7 +328,7 @@ fn due_music_first_save_follows_notes_without_snapshot_and_reloads_edited_value(
             RunnerMessage::PlatformEffects { effects } => {
                 effects.iter().find_map(|effect| match effect {
                     RuntimePlatformEffect::StoreSaveDefault { payload, mode }
-                        if mode.as_deref() == Some("deferred") =>
+                        if matches!(mode, Some(crate::DefaultSaveMode::Deferred)) =>
                     {
                         Some(payload.clone())
                     }

@@ -15,7 +15,7 @@ fn system_load_and_save_leave_pending_patch_save_intact() {
     adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveDefault {
             payload: serde_json::json!({ "kind": "octessera.patch", "schemaVersion": 2 }),
-            mode: Some("deferred".into()),
+            mode: Some(playback_runtime::DefaultSaveMode::Deferred),
         }))
         .unwrap();
 

@@ -59,7 +59,7 @@ impl DesktopPlaybackHostAdapter {
             }
             RuntimePlatformEffect::StoreLoadDefault => Ok(self.load_default_result(request)?),
             RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
-                Ok(self.save_default_result(request, payload, mode.as_deref())?)
+                Ok(self.save_default_result(request, payload, *mode)?)
             }
             RuntimePlatformEffect::StoreLoadSystem => Ok(self.load_system_result(request)),
             RuntimePlatformEffect::StoreSaveSystem { payload } => Ok(self

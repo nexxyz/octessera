@@ -336,7 +336,7 @@ pub(crate) fn deferred_autosave_payload_restores_active_sequencer_grid_on_startu
             RunnerMessage::PlatformEffects { effects } => {
                 effects.iter().find_map(|effect| match effect {
                     RuntimePlatformEffect::StoreSaveDefault { payload, mode }
-                        if mode.as_deref() == Some("deferred") =>
+                        if matches!(mode, Some(crate::DefaultSaveMode::Deferred)) =>
                     {
                         Some(payload.clone())
                     }

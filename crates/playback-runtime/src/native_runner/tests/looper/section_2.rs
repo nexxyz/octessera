@@ -36,7 +36,7 @@ pub(crate) fn assert_deferred_save(messages: &[RunnerMessage]) {
             if effects.iter().any(|effect| matches!(
                 effect,
                 RuntimePlatformEffect::StoreSaveDefault { mode, .. }
-                    if mode.as_deref() == Some("deferred")
+                    if matches!(mode, Some(crate::DefaultSaveMode::Deferred))
             ))
     )));
 }

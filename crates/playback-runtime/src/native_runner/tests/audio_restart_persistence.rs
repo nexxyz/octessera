@@ -446,9 +446,9 @@ fn immediate_autosave_failure_rearms_the_normal_deferred_retry() {
                     if effects.iter().any(|effect| matches!(
                         effect,
                         RuntimePlatformEffect::StoreSaveDefault {
-                            mode: Some(mode),
+                            mode: Some(crate::DefaultSaveMode::Deferred),
                             ..
-                        } if mode == "deferred"
+                        }
                     ))
             ))
             .count(),

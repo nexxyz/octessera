@@ -17,7 +17,7 @@ pub(crate) fn behavior_selection_applies_immediately() {
             if effects.iter().any(|effect| matches!(
                 effect,
                 RuntimePlatformEffect::StoreSaveDefault { payload, mode }
-                    if mode.as_deref() == Some("deferred")
+                    if matches!(mode, Some(crate::DefaultSaveMode::Deferred))
                         && payload["runtimeConfig"]["layers"][0]["build"]["behaviorId"] == "keys"
             ))
     )));
@@ -110,7 +110,7 @@ pub(crate) fn assert_deferred_autosave_payload(messages: &[RunnerMessage]) {
             if effects.iter().any(|effect| matches!(
                 effect,
                 RuntimePlatformEffect::StoreSaveDefault { mode, .. }
-                    if mode.as_deref() == Some("deferred")
+                    if matches!(mode, Some(crate::DefaultSaveMode::Deferred))
             ))
     )));
 }

@@ -353,7 +353,7 @@ fn assert_deferred_autosave_payload(messages: &[RunnerMessage]) {
             if effects.iter().any(|effect| matches!(
                 effect,
                 RuntimePlatformEffect::StoreSaveDefault { mode, .. }
-                    if mode.as_deref() == Some("deferred")
+                    if matches!(mode, Some(crate::DefaultSaveMode::Deferred))
             ))
     )));
 }

@@ -397,7 +397,7 @@ fn system_save_results_leave_a_pending_default_restart_request_available() {
             &mut runner,
             RuntimePlatformEffect::StoreSaveDefault {
                 payload: json!({ "revision": 41 }),
-                mode: Some("restart-setting".into()),
+                mode: None,
             },
             "pending-default-restart",
             Some(41),

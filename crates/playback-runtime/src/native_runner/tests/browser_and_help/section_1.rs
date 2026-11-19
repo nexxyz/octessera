@@ -119,7 +119,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
             if effects.iter().any(|effect| matches!(
                 effect,
                 RuntimePlatformEffect::StoreSaveDefault { mode, .. }
-                    if mode.as_deref() == Some("deferred")
+                    if matches!(mode, Some(crate::DefaultSaveMode::Deferred))
             ))
     )));
 }

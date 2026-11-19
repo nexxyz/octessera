@@ -98,7 +98,7 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
             if matches!(
                 effects.as_slice(),
                 [RuntimePlatformEffect::StoreSaveDefault { mode, .. }]
-                    if mode.as_deref() == Some("deferred")
+                    if matches!(mode, Some(crate::DefaultSaveMode::Deferred))
             )
     )));
 
@@ -110,7 +110,7 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
             RunnerMessage::PlatformEffects { effects } => {
                 effects.iter().find_map(|effect| match effect {
                     RuntimePlatformEffect::StoreSaveDefault { payload, mode }
-                        if mode.as_deref() == Some("deferred") =>
+                        if matches!(mode, Some(crate::DefaultSaveMode::Deferred)) =>
                     {
                         Some(payload)
                     }
@@ -127,7 +127,7 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
             if matches!(
                 effects.as_slice(),
                 [RuntimePlatformEffect::StoreSaveDefault { mode, .. }]
-                    if mode.as_deref() == Some("deferred")
+                    if matches!(mode, Some(crate::DefaultSaveMode::Deferred))
             )
     )));
 }

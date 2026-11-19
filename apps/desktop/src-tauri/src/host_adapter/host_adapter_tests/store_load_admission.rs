@@ -14,7 +14,7 @@ fn pending_default_save_rejects_default_and_preset_loads_without_losing_bytes() 
     std::fs::write(&preset_path, r#"{"patch":"named"}"#).unwrap();
     let request = platform_request(RuntimePlatformEffect::StoreSaveDefault {
         payload: original_payload.clone(),
-        mode: Some("deferred".into()),
+        mode: Some(playback_runtime::DefaultSaveMode::Deferred),
     });
     adapter
         .handle_platform_effect(&request)

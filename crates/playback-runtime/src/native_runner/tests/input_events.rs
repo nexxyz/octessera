@@ -319,7 +319,7 @@ pub(crate) fn grid_state_edit_emits_deferred_auto_save_when_enabled() {
             if matches!(
                 effects.as_slice(),
                 [RuntimePlatformEffect::StoreSaveDefault { mode, .. }]
-                    if mode.as_deref() == Some("deferred")
+                    if matches!(mode, Some(crate::DefaultSaveMode::Deferred))
             )
     )));
 }

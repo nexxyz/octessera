@@ -151,7 +151,7 @@ fn deferred_default_save_flushes_runtime_result() {
     let follow_ups = adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveDefault {
             payload: payload.clone(),
-            mode: Some("deferred".into()),
+            mode: Some(playback_runtime::DefaultSaveMode::Deferred),
         }))
         .unwrap();
     assert!(follow_ups.is_empty());
@@ -248,7 +248,7 @@ fn pending_default_save_flushes_immediately_on_shutdown() {
     adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreSaveDefault {
             payload: payload.clone(),
-            mode: Some("deferred".into()),
+            mode: Some(playback_runtime::DefaultSaveMode::Deferred),
         }))
         .unwrap();
 
@@ -274,7 +274,7 @@ fn failed_deferred_default_save_retains_pending_payload_for_retry() {
         Instant::now(),
         platform_request(RuntimePlatformEffect::StoreSaveDefault {
             payload: serde_json::json!({ "masterVolume": 72 }),
-            mode: Some("deferred".into()),
+            mode: Some(playback_runtime::DefaultSaveMode::Deferred),
         }),
     );
 

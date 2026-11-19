@@ -211,14 +211,12 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
             _ => [].iter(),
         })
         .filter_map(|effect| match effect {
-            RuntimePlatformEffect::StoreSaveDefault { payload, mode } => {
-                Some((payload, mode.as_deref()))
-            }
+            RuntimePlatformEffect::StoreSaveDefault { payload, mode } => Some((payload, *mode)),
             _ => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(saves.len(), 1);
-    assert_eq!(saves[0].1, Some("deferred"));
+    assert_eq!(saves[0].1, Some(crate::DefaultSaveMode::Deferred));
     assert_eq!(
         saves[0].0["runtimeConfig"]["layers"][1]["build"]["behaviorConfig"]["randomSeedCells"],
         base_before + 2

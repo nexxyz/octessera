@@ -153,9 +153,9 @@ impl DesktopPlaybackHostAdapter {
         &mut self,
         request: &RuntimePlatformRequest,
         payload: &serde_json::Value,
-        mode: Option<&str>,
+        mode: Option<playback_runtime::DefaultSaveMode>,
     ) -> Result<Vec<HostMessage>, String> {
-        if mode == Some("deferred") {
+        if mode == Some(playback_runtime::DefaultSaveMode::Deferred) {
             self.pending_default_save.schedule(
                 payload.clone(),
                 Instant::now() + Duration::from_millis(DEFERRED_DEFAULT_SAVE_MS),

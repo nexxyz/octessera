@@ -29,7 +29,10 @@ pub(super) fn has_platform_effect(
     })
 }
 
-pub(super) fn has_default_save(messages: &[RunnerMessage], mode: Option<&str>) -> bool {
+pub(super) fn has_default_save(
+    messages: &[RunnerMessage],
+    mode: Option<crate::DefaultSaveMode>,
+) -> bool {
     messages.iter().any(|message| {
         matches!(
             message,
@@ -37,7 +40,7 @@ pub(super) fn has_default_save(messages: &[RunnerMessage], mode: Option<&str>) -
                 if effects.iter().any(|effect| matches!(
                     effect,
                     RuntimePlatformEffect::StoreSaveDefault { mode: effect_mode, .. }
-                        if effect_mode.as_deref() == mode
+                        if *effect_mode == mode
                 ))
         )
     })
@@ -70,7 +73,10 @@ fn pending_restart_runner() -> NativeRunner {
     );
     runner.make_deferred_menu_apply_due_for_test();
     let messages = runner.flush_deferred_menu_apply().unwrap();
-    assert!(has_default_save(&messages, Some("deferred")));
+    assert!(has_default_save(
+        &messages,
+        Some(crate::DefaultSaveMode::Deferred)
+    ));
     let revision = runner.restart_settings.pending_write_revision().unwrap();
     runner.register_default_write_request("deferred-restore", Some(revision));
 
@@ -153,7 +159,7 @@ pub(crate) fn restore_invalidation_abandons_cancelled_default_write() {
             _ => unreachable!(),
         };
 
-        if has_default_save(&failure_messages, Some("deferred")) {
+        if has_default_save(&failure_messages, Some(crate::DefaultSaveMode::Deferred)) {
             assert!(runner.restart_settings.has_pending_write(), "{outcome}");
             let pending_patch_revision = runner.pending_default_write_revision().unwrap();
             runner.register_default_write_request("restore-retry", Some(pending_patch_revision));
@@ -164,7 +170,8 @@ pub(crate) fn restore_invalidation_abandons_cancelled_default_write() {
                 ))
                 .unwrap();
             assert!(
-                !has_default_save(&retry, Some("restart-everything")),
+                !has_default_save(&retry, None)
+                    && !has_default_save(&retry, Some(crate::DefaultSaveMode::Deferred)),
                 "{outcome}"
             );
             assert!(!runner.restart_settings.has_pending_write(), "{outcome}");
@@ -287,8 +294,10 @@ pub(crate) fn failed_restore_status_releases_pending_save_for_retry() {
             RunnerMessage::PlatformEffects { effects }
                 if effects.iter().any(|effect| matches!(
                     effect,
-                    RuntimePlatformEffect::StoreSaveDefault { mode: Some(mode), .. }
-                        if mode == "deferred"
+                    RuntimePlatformEffect::StoreSaveDefault {
+                        mode: Some(crate::DefaultSaveMode::Deferred),
+                        ..
+                    }
                 ))
         )
     }));

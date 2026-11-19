@@ -12,6 +12,13 @@ pub enum PresetSaveMode {
     Overwrite,
 }
 
+/// How a default save is written; unset writes it now, deferred waits for the host's quiet period.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DefaultSaveMode {
+    Deferred,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RuntimePlatformEffect {
@@ -32,7 +39,7 @@ pub enum RuntimePlatformEffect {
     StoreSaveDefault {
         payload: Value,
         #[serde(default)]
-        mode: Option<String>,
+        mode: Option<DefaultSaveMode>,
     },
     StoreLoadSystem,
     StoreSaveSystem {
