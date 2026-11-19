@@ -44,8 +44,8 @@ impl LivePitchShift {
         self.buf[self.write_pos * 2 + 1] = r;
         self.write_pos = (self.write_pos + 1) % self.buf_len;
 
-        self.pos += 1.0 - ratio;
-        let pos_norm = ((self.pos % range) + range) % range;
+        self.pos = (self.pos + 1.0 - ratio).rem_euclid(range);
+        let pos_norm = self.pos;
 
         let delay_a = min_delay + pos_norm;
         let delay_b = min_delay + ((pos_norm + range * 0.5) % range);
