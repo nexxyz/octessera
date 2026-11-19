@@ -36,3 +36,17 @@ fn the_ui_may_not_send_host_results_or_midi() {
 fn malformed_ui_messages_are_refused() {
     assert!(ui_host_message(json!({ "type": "device_input" })).is_err());
 }
+
+#[test]
+fn the_main_window_may_listen_for_runtime_events_and_nothing_else_of_the_event_plugin() {
+    let mut context: tauri::Context<tauri::Wry> = tauri::generate_context!();
+    let authority = context.runtime_authority_mut();
+    let allowed = |command| {
+        authority
+            .resolve_access(command, "main", "main", &tauri::ipc::Origin::Local)
+            .is_some()
+    };
+    assert!(allowed("plugin:event|listen"));
+    assert!(allowed("plugin:event|unlisten"));
+    assert!(!allowed("plugin:event|emit"));
+}
