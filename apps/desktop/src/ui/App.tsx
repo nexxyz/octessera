@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   AUX_ENCODER_COUNT,
   type DeviceInput,
@@ -42,15 +42,18 @@ export function App() {
     runtime.dispatch(input);
   }
 
-  function bumpDialPhase(id: EncoderId | undefined, delta: number) {
-    const step = Math.sign(delta);
-    if (step === 0) return;
-    const key = id ?? 'main';
-    setDialPhase((prev) => ({
-      ...prev,
-      [key]: ((prev[key] ?? 0) + step + 8) % 8,
-    }));
-  }
+  const bumpDialPhase = useCallback(
+    (id: EncoderId | undefined, delta: number) => {
+      const step = Math.sign(delta);
+      if (step === 0) return;
+      const key = id ?? 'main';
+      setDialPhase((prev) => ({
+        ...prev,
+        [key]: ((prev[key] ?? 0) + step + 8) % 8,
+      }));
+    },
+    [],
+  );
 
   function turnWithAcceleration(
     id: EncoderId,

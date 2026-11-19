@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   createKeyboardMapper,
   shouldPreventKeyboardDefault,
@@ -26,44 +26,56 @@ export function useRuntimeBindings(
   }, [runtime, setSnapshot]);
 }
 
+export function bindKeyboardInputs(
+  target: EventTarget,
+  mapper: ReturnType<typeof createKeyboardMapper>,
+  runtime: Pick<AppRuntime, 'dispatch'>,
+  bumpDialPhase: (id: EncoderId | undefined, delta: number) => void,
+): () => void {
+  const dispatch = (inputs: DeviceInput[]) => {
+    for (const input of inputs) {
+      if (input.type === 'encoder_turn') bumpDialPhase(input.id, input.delta);
+      runtime.dispatch(input);
+    }
+  };
+
+  const onKey = (event: Event) => {
+    const keyEvent = event as KeyboardEvent;
+    if (shouldPreventKeyboardDefault(keyEvent)) event.preventDefault();
+    dispatch(mapper.keydown(keyEvent));
+  };
+
+  const onKeyUp = (event: Event) => {
+    const keyEvent = event as KeyboardEvent;
+    if (shouldPreventKeyboardDefault(keyEvent)) event.preventDefault();
+    dispatch(mapper.keyup(keyEvent));
+  };
+
+  const onBlur = () => {
+    dispatch(mapper.releaseAll());
+    runtime.dispatch({ type: 'button_shift', pressed: false });
+    runtime.dispatch({ type: 'button_fn', pressed: false });
+  };
+
+  target.addEventListener('keydown', onKey);
+  target.addEventListener('keyup', onKeyUp);
+  target.addEventListener('blur', onBlur);
+  return () => {
+    target.removeEventListener('keydown', onKey);
+    target.removeEventListener('keyup', onKeyUp);
+    target.removeEventListener('blur', onBlur);
+  };
+}
+
 export function useKeyboardBindings(
   runtime: AppRuntime,
   bumpDialPhase: (id: EncoderId | undefined, delta: number) => void,
 ): void {
-  useEffect(() => {
-    const mapper = createKeyboardMapper();
-    const dispatch = (inputs: DeviceInput[]) => {
-      for (const input of inputs) {
-        if (input.type === 'encoder_turn') bumpDialPhase(input.id, input.delta);
-        runtime.dispatch(input);
-      }
-    };
-
-    const onKey = (event: KeyboardEvent) => {
-      if (shouldPreventKeyboardDefault(event)) event.preventDefault();
-      dispatch(mapper.keydown(event));
-    };
-
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (shouldPreventKeyboardDefault(event)) event.preventDefault();
-      dispatch(mapper.keyup(event));
-    };
-
-    const onBlur = () => {
-      dispatch(mapper.releaseAll());
-      runtime.dispatch({ type: 'button_shift', pressed: false });
-      runtime.dispatch({ type: 'button_fn', pressed: false });
-    };
-
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', onBlur);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', onBlur);
-    };
-  }, [bumpDialPhase, runtime]);
+  const [mapper] = useState(createKeyboardMapper);
+  useEffect(
+    () => bindKeyboardInputs(window, mapper, runtime, bumpDialPhase),
+    [bumpDialPhase, mapper, runtime],
+  );
 }
 
 export function useDialDragBindings(
