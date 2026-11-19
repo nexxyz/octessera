@@ -121,13 +121,15 @@ fn show(
         return;
     };
     if *shown != Some(screen_on) {
-        let _ = if screen_on {
+        let switched = if screen_on {
             oled.set_master_contrast(FAULT_SCREEN_CONTRAST)
                 .and_then(|()| oled.display_on())
         } else {
             oled.display_off()
         };
-        *shown = Some(screen_on);
+        if switched.is_ok() {
+            *shown = Some(screen_on);
+        }
         *drawn = false;
     }
     if screen_on && !*drawn {

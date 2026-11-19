@@ -11,10 +11,14 @@ RECOVERY_STAMP_FILE="$STATE_DIR/wifi-stack-recovery-at"
 WIFI_OFF_FILE=/var/lib/octessera/show-hold/wifi-off
 
 # A reconnect or stack reset only helps when a saved network is on the air.
+# An empty scan list may mean a hung driver, and a hidden network never shows by name, so both
+# still count as in range: only a scan that sees other networks but none of ours skips recovery.
 saved_network_in_range() {
-    visible=$(nmcli -t -f SSID dev wifi list --rescan no 2>/dev/null || true)
+    visible=$(nmcli -t -f SSID dev wifi list --rescan no 2>/dev/null | grep -v '^$' || true)
+    [ -n "$visible" ] || return 0
     nmcli -t -f NAME,TYPE connection show 2>/dev/null | sed -n 's/:802-11-wireless$//p' | {
         while IFS= read -r name; do
+            [ "$(nmcli -g 802-11-wireless.hidden connection show "$name" 2>/dev/null)" = yes ] && exit 0
             ssid=$(nmcli -g 802-11-wireless.ssid connection show "$name" 2>/dev/null || true)
             if [ -n "$ssid" ] && printf '%s\n' "$visible" | grep -qxF -- "$ssid"; then
                 exit 0
