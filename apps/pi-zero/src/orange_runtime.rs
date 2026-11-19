@@ -64,14 +64,14 @@ pub fn run() -> Result<(), String> {
         )
     })?;
     let store_dir = default_store_dir();
-    let (usb_config, audio_optimization) =
-        read_boot_runtime_config(&store_dir).map_err(|error| {
-            startup_failure(
-                handoff_mode,
-                StartupFatalCode::StartupFailed,
-                format!("Orange System/Patch boot configuration is unavailable: {error}"),
-            )
-        })?;
+    let (usb_config, audio_optimization) = match read_boot_runtime_config(&store_dir) {
+        Ok(config) => config,
+        Err(error) => crate::store_fault::run_store_fault_mode(
+            &error.to_string(),
+            &store_dir,
+            handoff_mode == HandoffMode::V1,
+        ),
+    };
     let profile = crate::audio::orange_profile(audio_optimization);
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {

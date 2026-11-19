@@ -11,8 +11,8 @@ use crate::render::{fault_oled_frame_into, OLED_FRAME_BYTES};
 
 const FAULT_FLASH_MS: u64 = 500;
 const AUDIO_RETRY_AFTER: Duration = Duration::from_secs(30);
-const FAULT_SCREEN_AWAKE: Duration = Duration::from_secs(10);
-const FAULT_SCREEN_CONTRAST: u8 = 0x0F;
+pub(crate) const FAULT_SCREEN_AWAKE: Duration = Duration::from_secs(10);
+pub(crate) const FAULT_SCREEN_CONTRAST: u8 = 0x0F;
 
 pub(crate) struct HardwareFault {
     failures: Vec<HardwareFailure>,
@@ -77,7 +77,7 @@ impl HardwareFault {
         });
     }
 
-    fn open_wake_encoders(&mut self) {
+    pub(crate) fn open_wake_encoders(&mut self) {
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let opened = crate::hardware_init::init_encoders().map_err(|fault| fault.summary());
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -90,7 +90,7 @@ impl HardwareFault {
         }
     }
 
-    fn adopt_boot_handoff_oled(&mut self) {
+    pub(crate) fn adopt_boot_handoff_oled(&mut self) {
         #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
         let attached = crate::boot_oled_handoff::native_attach();
         #[cfg(feature = "hardware-orange-pi-zero-2w")]
@@ -114,6 +114,14 @@ impl HardwareFault {
             }
         }
         self.oled_handoff = Some(handoff);
+    }
+
+    pub(crate) fn oled_mut(&mut self) -> Option<&mut OledSsd1351> {
+        self.oled.as_mut()
+    }
+
+    pub(crate) fn wake_events(&self) -> Option<&Receiver<HardwareEvent>> {
+        self.wake.as_ref().map(|wake| &wake.events)
     }
 
     #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]

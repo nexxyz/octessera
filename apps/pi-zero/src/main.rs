@@ -107,6 +107,8 @@ mod setup_portal_paths;
 mod setup_portal_worker;
 #[cfg(feature = "native-audio")]
 mod show_hold;
+#[cfg(feature = "native-audio")]
+mod store_fault;
 #[cfg(test)]
 mod test_temp_dir;
 mod timing_input;
@@ -235,14 +237,13 @@ fn main() -> std::process::ExitCode {
     println!("octessera - Pi native runtime");
 
     let store_dir = default_store_dir();
+    let boot_handoff = handoff_mode == boot_oled_handoff::HandoffMode::V1;
     let (usb_config, audio_optimization) = match usb_config::read_boot_runtime_config(&store_dir) {
         Ok(config) => config,
         Err(error) => {
-            eprintln!("Pi System/Patch boot configuration is unavailable: {error}");
-            std::process::exit(2);
+            store_fault::run_store_fault_mode(&error.to_string(), &store_dir, boot_handoff)
         }
     };
-    let boot_handoff = handoff_mode == boot_oled_handoff::HandoffMode::V1;
     let hardware = match init_hardware(!boot_handoff) {
         Ok(devices) => devices,
         Err(fault) => hardware_fault::run_hardware_fault_mode(fault, boot_handoff),

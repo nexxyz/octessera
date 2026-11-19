@@ -48,6 +48,10 @@ fn report_power_lifecycle_result(result: PowerLifecycleResult) -> bool {
     }
 }
 
+pub(crate) fn power_off() -> Result<(), String> {
+    power_pi_system(PowerRequest::Shutdown)
+}
+
 fn power_pi_system(request: PowerRequest) -> Result<(), String> {
     if request == PowerRequest::RestartApp {
         crate::power_lifecycle::submit_app_restart();
