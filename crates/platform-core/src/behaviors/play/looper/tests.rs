@@ -7,8 +7,8 @@ fn context() -> BehaviorContext {
 #[test]
 fn init_exposes_overdub_length_and_clear_menu() {
     let state = looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
-    assert_eq!(state.mode, "overdub");
-    assert_eq!(looper_init(Value::Null).unwrap().mode, "overdub");
+    assert_eq!(state.mode.as_str(), "overdub");
+    assert_eq!(looper_init(Value::Null).unwrap().mode.as_str(), "overdub");
     assert_eq!(state.length_steps, 4);
     assert_eq!(state.steps.len(), 4);
     let menu = looper_config_menu();
@@ -119,7 +119,7 @@ fn set_mode_action_switches_recording_without_clearing_sequence() {
         }),
         &mut context,
     );
-    assert_eq!(state.mode, "play");
+    assert_eq!(state.mode.as_str(), "play");
     state = looper_on_input(state, DeviceInput::GridPress { x: 1, y: 1 }, &mut context);
     assert!(state.steps.iter().all(Vec::is_empty));
 
@@ -131,7 +131,7 @@ fn set_mode_action_switches_recording_without_clearing_sequence() {
         &mut context,
     );
     state = looper_on_input(state, DeviceInput::GridPress { x: 2, y: 2 }, &mut context);
-    assert_eq!(state.mode, "overdub");
+    assert_eq!(state.mode.as_str(), "overdub");
     assert_eq!(state.steps[0].len(), 1);
 }
 
@@ -151,7 +151,7 @@ fn toggle_mode_action_switches_recording_without_clearing_sequence_or_phase() {
         }),
         &mut context,
     );
-    assert_eq!(state.mode, "play");
+    assert_eq!(state.mode.as_str(), "play");
     assert_eq!(state.step_index, 1);
     assert_eq!(state.steps[0].len(), 1);
 
@@ -162,7 +162,7 @@ fn toggle_mode_action_switches_recording_without_clearing_sequence_or_phase() {
         }),
         &mut context,
     );
-    assert_eq!(state.mode, "overdub");
+    assert_eq!(state.mode.as_str(), "overdub");
     assert_eq!(state.step_index, 1);
     assert_eq!(state.steps[0].len(), 1);
 }
@@ -195,7 +195,20 @@ fn reset_transport_phase_restarts_playback_and_preserves_loop_state() {
     assert_eq!(state.trigger_types[looped], TileTriggerType::Deactivate);
     assert_eq!(state.trigger_types[live], TileTriggerType::Stable);
     assert_eq!(state.steps, steps);
-    assert_eq!(state.mode, "play");
+    assert_eq!(state.mode.as_str(), "play");
     assert_eq!(state.length_steps, 4);
     assert_eq!(state.held_tiles, held_tiles);
+}
+
+#[test]
+fn saved_looper_modes_load_and_save_back_unchanged() {
+    for mode in ["overdub", "play"] {
+        let state = looper_deserialize(serde_json::json!({ "mode": mode })).unwrap();
+        assert_eq!(looper_serialize(&state).unwrap()["mode"], mode);
+        assert_eq!(serde_json::to_value(&state).unwrap()["mode"], mode);
+    }
+    for unknown in [serde_json::json!("Play"), serde_json::json!(3)] {
+        let state = looper_deserialize(serde_json::json!({ "mode": unknown })).unwrap();
+        assert_eq!(state.mode, LooperMode::Overdub);
+    }
 }

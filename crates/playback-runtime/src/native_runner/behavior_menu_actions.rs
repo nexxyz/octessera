@@ -56,9 +56,9 @@ impl NativeRunner {
         };
         let config = self.layer_behavior_config(layer_index);
         let mut object = config.as_object().cloned().unwrap_or_default();
-        object.insert("mode".into(), Value::from(state.mode.clone()));
+        object.insert("mode".into(), Value::from(state.mode.as_str()));
         self.set_layer_behavior_config(layer_index, "looper", Value::Object(object));
-        let label = if state.mode == "play" {
+        let label = if state.mode.as_str() == "play" {
             "Play"
         } else {
             "Overdub"

@@ -26,7 +26,24 @@ pub struct LooperState {
     pub step_index: usize,
     #[serde(rename = "lengthSteps")]
     pub length_steps: usize,
-    pub mode: String,
+    pub mode: LooperMode,
+}
+
+/// Whether the looper records presses into its loop or only plays it back.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LooperMode {
+    Overdub,
+    Play,
+}
+
+impl LooperMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Overdub => "overdub",
+            Self::Play => "play",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -95,15 +112,11 @@ pub fn looper_on_input(
                 };
             }
             if action.action_type == "toggleMode" {
-                let mode = if state.mode == "overdub" {
-                    "play"
-                } else {
-                    "overdub"
+                let mode = match state.mode {
+                    LooperMode::Overdub => LooperMode::Play,
+                    LooperMode::Play => LooperMode::Overdub,
                 };
-                return LooperState {
-                    mode: mode.into(),
-                    ..state
-                };
+                return LooperState { mode, ..state };
             }
             state
         }
@@ -148,7 +161,7 @@ pub fn looper_render_model(state: &LooperState) -> BehaviorRenderModel {
         name: "looper".into(),
         status_line: format!(
             "{} {}/{}",
-            state.mode,
+            state.mode.as_str(),
             state.step_index + 1,
             state.length_steps
         ),
@@ -177,7 +190,7 @@ pub fn grid_interaction_for_looper() -> Option<GridInteraction> {
 
 pub fn looper_serialize(state: &LooperState) -> Result<Value, String> {
     serde_json::to_value(LooperSavedState {
-        mode: Some(state.mode.clone()),
+        mode: Some(state.mode.as_str().into()),
         length_steps: Some(state.length_steps),
         step_index: None,
         steps: Some(state.steps.clone()),
@@ -212,7 +225,7 @@ fn apply_grid_input(state: LooperState, x: usize, y: usize, kind: LooperEventKin
     let mut held_tiles = state.held_tiles.clone();
     held_tiles[index] = matches!(kind, LooperEventKind::Press);
     let mut steps = state.steps.clone();
-    if state.mode == "overdub" {
+    if state.mode == LooperMode::Overdub {
         let step_index = state.step_index.min(steps.len().saturating_sub(1));
         if let Some(events) = steps.get_mut(step_index) {
             if events.len() < MAX_EVENTS_PER_STEP {
@@ -251,10 +264,10 @@ fn combined_tiles(held_tiles: &[bool], playback_tiles: &[bool]) -> Vec<bool> {
         .collect()
 }
 
-fn normalize_mode(mode: Option<&str>) -> String {
+fn normalize_mode(mode: Option<&str>) -> LooperMode {
     match mode {
-        Some("play") => "play".into(),
-        _ => "overdub".into(),
+        Some("play") => LooperMode::Play,
+        _ => LooperMode::Overdub,
     }
 }
 
