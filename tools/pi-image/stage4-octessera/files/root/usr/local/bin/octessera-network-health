@@ -8,6 +8,21 @@ LOG_FILE="$LOG_DIR/network-health.log"
 STATE_DIR=/run/octessera-network-health
 FAIL_FILE="$STATE_DIR/fail-count"
 RECOVERY_STAMP_FILE="$STATE_DIR/wifi-stack-recovery-at"
+WIFI_OFF_FILE=/var/lib/octessera/show-hold/wifi-off
+
+# A reconnect or stack reset only helps when a saved network is on the air.
+saved_network_in_range() {
+    visible=$(nmcli -t -f SSID dev wifi list --rescan no 2>/dev/null || true)
+    nmcli -t -f NAME,TYPE connection show 2>/dev/null | sed -n 's/:802-11-wireless$//p' | {
+        while IFS= read -r name; do
+            ssid=$(nmcli -g 802-11-wireless.ssid connection show "$name" 2>/dev/null || true)
+            if [ -n "$ssid" ] && printf '%s\n' "$visible" | grep -qxF -- "$ssid"; then
+                exit 0
+            fi
+        done
+        exit 1
+    }
+}
 
 mkdir -p "$LOG_DIR" "$STATE_DIR"
 
@@ -39,10 +54,14 @@ if [ "$ping_ok" -eq 1 ] && [ "$nm_active" = active ]; then
 fi
 
 skip_reason=
-if systemctl is-active --quiet octessera-setup.service; then
+if [ -e "$WIFI_OFF_FILE" ]; then
+    skip_reason=wifi_off
+elif systemctl is-active --quiet octessera-setup.service; then
     skip_reason=setup_portal
 elif ! nmcli -t -f TYPE,AUTOCONNECT connection show 2>/dev/null | grep -qx '802-11-wireless:yes'; then
     skip_reason=no_wifi_profile
+elif ! saved_network_in_range; then
+    skip_reason=no_saved_network_in_range
 fi
 if [ -n "$skip_reason" ]; then
     printf '%s recovery=skipped reason=%s\n' "$timestamp" "$skip_reason" >> "$LOG_FILE"

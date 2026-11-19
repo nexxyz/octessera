@@ -342,7 +342,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
   connections.
 - The switch and Live Show Mode are independent. The show blocks the radio with `rfkill` only while
   it lasts, and its End or expiry only lifts that block, so a switched-off radio stays off. On
-  Raspberry the network-health timer runs only while no show is active and the switch is on.
+  Raspberry the network-health timer runs only while no show is active and the switch is on. The
+  job itself also skips its reconnect and Wi-Fi stack reset while the switch is off and while no
+  saved network shows up in NetworkManager's scan list.
 
 ### Setup Portal
 
