@@ -11,6 +11,7 @@ use crate::native_menu::{
     NativeSamplePlayback, SAMPLER_KITS, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
 };
 use crate::native_menu::{FactoryLoadKind, PlatformAction};
+use crate::native_menu::{FILTER_ENV_AMOUNT_PCT, FILTER_KEY_TRACKING_PCT, FILTER_RESONANCE};
 
 pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> NativeMenuItem {
     let sample_slot = config.sample_slot.min(7);
@@ -135,24 +136,24 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
                     "Res",
                     format!("{prefix}.sample.filter.resonance"),
                     sample_number(config.sample_filter, &["resonance"], 0),
-                    0,
-                    100,
+                    FILTER_RESONANCE.0,
+                    FILTER_RESONANCE.1,
                     1,
                 ),
                 number_item(
                     "Env Amount",
                     format!("{prefix}.sample.filter.envAmountPct"),
                     sample_number(config.sample_filter, &["envAmountPct"], 0),
-                    -100,
-                    100,
+                    FILTER_ENV_AMOUNT_PCT.0,
+                    FILTER_ENV_AMOUNT_PCT.1,
                     1,
                 ),
                 number_item(
                     "Key Tracking",
                     format!("{prefix}.sample.filter.keyTrackingPct"),
                     sample_number(config.sample_filter, &["keyTrackingPct"], 0),
-                    0,
-                    100,
+                    FILTER_KEY_TRACKING_PCT.0,
+                    FILTER_KEY_TRACKING_PCT.1,
                     1,
                 ),
             ],

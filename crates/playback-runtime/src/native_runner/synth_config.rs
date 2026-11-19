@@ -1,4 +1,8 @@
 use super::*;
+use crate::native_menu::{
+    ENV_ATTACK_MS, ENV_DECAY_MS, ENV_RELEASE_MS, ENV_SUSTAIN_PCT, FILTER_ENV_AMOUNT_PCT,
+    FILTER_KEY_TRACKING_PCT, OSC_DETUNE_CENTS, OSC_LEVEL_PCT, OSC_OCTAVE, OSC_PULSE_WIDTH_PCT,
+};
 
 pub(super) fn instrument_synth_configs(instruments: &[NativeInstrumentSlot]) -> Vec<Value> {
     instruments
@@ -130,41 +134,70 @@ pub(super) fn synth_string_at(
 }
 
 /// The plain numeric synth rows: their menu suffix, JSON path, and range.
-pub(super) const SYNTH_NUMERIC_FIELDS: &[(&str, &[&str], i32, i32)] = &[
-    ("osc1.octave", &["osc1", "octave"], -2, 2),
-    ("osc1.levelPct", &["osc1", "levelPct"], 0, 100),
-    ("osc1.detuneCents", &["osc1", "detuneCents"], -50, 50),
-    ("osc1.pulseWidthPct", &["osc1", "pulseWidthPct"], 5, 95),
-    ("osc2.octave", &["osc2", "octave"], -2, 2),
-    ("osc2.levelPct", &["osc2", "levelPct"], 0, 100),
-    ("osc2.detuneCents", &["osc2", "detuneCents"], -50, 50),
-    ("osc2.pulseWidthPct", &["osc2", "pulseWidthPct"], 5, 95),
+pub(super) const SYNTH_NUMERIC_FIELDS: &[(&str, &[&str], (i32, i32))] = &[
+    ("osc1.octave", &["osc1", "octave"], OSC_OCTAVE),
+    ("osc1.levelPct", &["osc1", "levelPct"], OSC_LEVEL_PCT),
+    (
+        "osc1.detuneCents",
+        &["osc1", "detuneCents"],
+        OSC_DETUNE_CENTS,
+    ),
+    (
+        "osc1.pulseWidthPct",
+        &["osc1", "pulseWidthPct"],
+        OSC_PULSE_WIDTH_PCT,
+    ),
+    ("osc2.octave", &["osc2", "octave"], OSC_OCTAVE),
+    ("osc2.levelPct", &["osc2", "levelPct"], OSC_LEVEL_PCT),
+    (
+        "osc2.detuneCents",
+        &["osc2", "detuneCents"],
+        OSC_DETUNE_CENTS,
+    ),
+    (
+        "osc2.pulseWidthPct",
+        &["osc2", "pulseWidthPct"],
+        OSC_PULSE_WIDTH_PCT,
+    ),
     (
         "filter.envAmountPct",
         &["filter", "envAmountPct"],
-        -100,
-        100,
+        FILTER_ENV_AMOUNT_PCT,
     ),
     (
         "filter.keyTrackingPct",
         &["filter", "keyTrackingPct"],
-        0,
-        100,
+        FILTER_KEY_TRACKING_PCT,
     ),
     (
         "amp.velocitySensitivityPct",
         &["amp", "velocitySensitivityPct"],
-        0,
-        100,
+        (0, 100),
     ),
-    ("ampEnv.attackMs", &["ampEnv", "attackMs"], 0, 5000),
-    ("ampEnv.decayMs", &["ampEnv", "decayMs"], 0, 5000),
-    ("ampEnv.sustainPct", &["ampEnv", "sustainPct"], 0, 100),
-    ("ampEnv.releaseMs", &["ampEnv", "releaseMs"], 0, 10000),
-    ("filterEnv.attackMs", &["filterEnv", "attackMs"], 0, 5000),
-    ("filterEnv.decayMs", &["filterEnv", "decayMs"], 0, 5000),
-    ("filterEnv.sustainPct", &["filterEnv", "sustainPct"], 0, 100),
-    ("filterEnv.releaseMs", &["filterEnv", "releaseMs"], 0, 10000),
+    ("ampEnv.attackMs", &["ampEnv", "attackMs"], ENV_ATTACK_MS),
+    ("ampEnv.decayMs", &["ampEnv", "decayMs"], ENV_DECAY_MS),
+    (
+        "ampEnv.sustainPct",
+        &["ampEnv", "sustainPct"],
+        ENV_SUSTAIN_PCT,
+    ),
+    ("ampEnv.releaseMs", &["ampEnv", "releaseMs"], ENV_RELEASE_MS),
+    (
+        "filterEnv.attackMs",
+        &["filterEnv", "attackMs"],
+        ENV_ATTACK_MS,
+    ),
+    ("filterEnv.decayMs", &["filterEnv", "decayMs"], ENV_DECAY_MS),
+    (
+        "filterEnv.sustainPct",
+        &["filterEnv", "sustainPct"],
+        ENV_SUSTAIN_PCT,
+    ),
+    (
+        "filterEnv.releaseMs",
+        &["filterEnv", "releaseMs"],
+        ENV_RELEASE_MS,
+    ),
 ];
 
 /// The JSON path and range of a synth row the engine takes as a scalar param
@@ -177,7 +210,7 @@ pub(super) fn synth_scalar_field(suffix: &str) -> Option<(&'static [&'static str
     SYNTH_NUMERIC_FIELDS
         .iter()
         .find(|(name, ..)| *name == field)
-        .map(|&(_, path, min, max)| (path, min, max))
+        .map(|&(_, path, (min, max))| (path, min, max))
 }
 
 pub(super) fn cutoff_display_to_hz(display: i32) -> i32 {

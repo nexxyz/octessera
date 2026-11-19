@@ -6,7 +6,9 @@ use super::canonical::{
 };
 use super::Value;
 use crate::native_menu::{
-    MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES, MIDI_DRUM_VELOCITIES,
+    ENV_ATTACK_MS, ENV_DECAY_MS, ENV_RELEASE_MS, ENV_SUSTAIN_PCT, FILTER_ENV_AMOUNT_PCT,
+    FILTER_KEY_TRACKING_PCT, MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES,
+    MIDI_DRUM_VELOCITIES,
 };
 use platform_core::{NoteBehavior, INSTRUMENT_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT};
 use realtime_engine::synth::{MixerRoute, VoiceStealingMode};
@@ -184,7 +186,7 @@ fn validate_synth(instrument: &Map<String, Value>, path: &str) -> Result<(), Str
         if let Some(value) = object_field(synth, osc, &path)? {
             let osc_path = format!("{path}.{osc}");
             enum_field(value, "waveform", &osc_path, OSC_WAVEFORMS)?;
-            for (suffix, _, min, max) in SYNTH_NUMERIC_FIELDS {
+            for (suffix, _, (min, max)) in SYNTH_NUMERIC_FIELDS {
                 if let Some(field) = suffix
                     .strip_prefix(osc)
                     .and_then(|rest| rest.strip_prefix('.'))
@@ -414,10 +416,15 @@ fn validate_env(parent: &Map<String, Value>, key: &str, path: &str) -> Result<()
         return Ok(());
     };
     let path = format!("{path}.{key}");
-    unsigned_field(env, "attackMs", &path, 0, 5000)?;
-    unsigned_field(env, "decayMs", &path, 0, 5000)?;
-    unsigned_field(env, "sustainPct", &path, 0, 100)?;
-    unsigned_field(env, "releaseMs", &path, 0, 10000)
+    for (field, range) in [
+        ("attackMs", ENV_ATTACK_MS),
+        ("decayMs", ENV_DECAY_MS),
+        ("sustainPct", ENV_SUSTAIN_PCT),
+        ("releaseMs", ENV_RELEASE_MS),
+    ] {
+        unsigned_range_field(env, field, &path, range)?;
+    }
+    Ok(())
 }
 
 fn validate_filter(parent: &Map<String, Value>, key: &str, path: &str) -> Result<(), String> {
@@ -428,8 +435,25 @@ fn validate_filter(parent: &Map<String, Value>, key: &str, path: &str) -> Result
     enum_field(filter, "type", &path, FILTER_TYPES)?;
     unsigned_field(filter, "cutoffHz", &path, 20, 20000)?;
     unsigned_field(filter, "resonance", &path, 0, 255)?;
-    signed_field(filter, "envAmountPct", &path, -100, 100)?;
-    unsigned_field(filter, "keyTrackingPct", &path, 0, 100)
+    let (min, max) = FILTER_ENV_AMOUNT_PCT;
+    signed_field(
+        filter,
+        "envAmountPct",
+        &path,
+        i64::from(min),
+        i64::from(max),
+    )?;
+    unsigned_range_field(filter, "keyTrackingPct", &path, FILTER_KEY_TRACKING_PCT)
+}
+
+fn unsigned_range_field(
+    object: &Map<String, Value>,
+    key: &str,
+    path: &str,
+    (min, max): (i32, i32),
+) -> Result<(), String> {
+    let bound = |value: i32| u64::try_from(value).unwrap_or(0);
+    unsigned_field(object, key, path, bound(min), bound(max))
 }
 
 fn validate_route(object: &Map<String, Value>, path: &str) -> Result<(), String> {

@@ -30,6 +30,20 @@ use realtime_engine::synth::SignalSource;
 use sampler::sampler_group;
 use synth::synth_group;
 
+/// The oscillator, filter and envelope ranges every instrument's rows, their edits, and
+/// loaded patches share.
+pub(crate) const OSC_OCTAVE: (i32, i32) = (-2, 2);
+pub(crate) const OSC_LEVEL_PCT: (i32, i32) = (0, 100);
+pub(crate) const OSC_DETUNE_CENTS: (i32, i32) = (-50, 50);
+pub(crate) const OSC_PULSE_WIDTH_PCT: (i32, i32) = (5, 95);
+pub(crate) const FILTER_RESONANCE: (i32, i32) = (0, 100);
+pub(crate) const FILTER_ENV_AMOUNT_PCT: (i32, i32) = (-100, 100);
+pub(crate) const FILTER_KEY_TRACKING_PCT: (i32, i32) = (0, 100);
+pub(crate) const ENV_ATTACK_MS: (i32, i32) = (0, 5000);
+pub(crate) const ENV_DECAY_MS: (i32, i32) = (0, 5000);
+pub(crate) const ENV_SUSTAIN_PCT: (i32, i32) = (0, 100);
+pub(crate) const ENV_RELEASE_MS: (i32, i32) = (0, 10000);
+
 pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) index: usize,
     pub(super) label: String,

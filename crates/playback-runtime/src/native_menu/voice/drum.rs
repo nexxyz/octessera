@@ -6,6 +6,7 @@ use super::{
     NativeMenuAction, NativeMenuItem,
 };
 use crate::native_menu::{FactoryLoadKind, PlatformAction};
+use crate::native_menu::{FILTER_ENV_AMOUNT_PCT, FILTER_KEY_TRACKING_PCT, FILTER_RESONANCE};
 
 const SOUNDS: [&str; 8] = [
     "kick",
@@ -249,24 +250,24 @@ fn filter_group(drum: Option<&serde_json::Value>, prefix: &str) -> NativeMenuIte
                 "Res",
                 format!("{prefix}.drum.filter.resonance"),
                 synth_number(drum, &["filter", "resonance"], 0),
-                0,
-                100,
+                FILTER_RESONANCE.0,
+                FILTER_RESONANCE.1,
                 1,
             ),
             number_item(
                 "Env Amount",
                 format!("{prefix}.drum.filter.envAmountPct"),
                 synth_number(drum, &["filter", "envAmountPct"], 0),
-                -100,
-                100,
+                FILTER_ENV_AMOUNT_PCT.0,
+                FILTER_ENV_AMOUNT_PCT.1,
                 1,
             ),
             number_item(
                 "Key Tracking",
                 format!("{prefix}.drum.filter.keyTrackingPct"),
                 synth_number(drum, &["filter", "keyTrackingPct"], 0),
-                0,
-                100,
+                FILTER_KEY_TRACKING_PCT.0,
+                FILTER_KEY_TRACKING_PCT.1,
                 1,
             ),
         ],

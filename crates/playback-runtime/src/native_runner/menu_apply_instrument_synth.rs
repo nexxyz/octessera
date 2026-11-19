@@ -120,7 +120,7 @@ fn apply_synth_numeric_fields(
     instrument: &mut NativeInstrumentSlot,
 ) -> bool {
     let mut changed = false;
-    for (suffix, path, min, max) in SYNTH_NUMERIC_FIELDS {
+    for (suffix, path, (min, max)) in SYNTH_NUMERIC_FIELDS {
         if let Some(value) = menu.number_for_key(&format!("instruments.{index}.synth.{suffix}")) {
             let value = value.clamp(*min, *max);
             if synth_i32_at(instrument, path, i32::MIN) != value {
