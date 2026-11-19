@@ -3,6 +3,7 @@ mod config_prep;
 mod owner_prep;
 mod prep_results;
 mod preview_prep;
+
 use config_prep::{apply_prepared_audio_config, prepare_audio_config};
 use owner_prep::{process_instrument_slot, process_owner_request, OwnerRequest};
 use playback_runtime::HostMessage;
@@ -10,6 +11,7 @@ use prep_results::{
     audio_config_failure, audio_prep_failure, audio_prep_success, audio_queue_failure,
     send_audio_prep_result, send_missing_samples, AudioPrepError,
 };
+pub(crate) use preview_prep::PreviewRequest;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
@@ -41,7 +43,26 @@ fn audio_control_loop(
 ) {
     let mut pending_owners = VecDeque::new();
     let mut pending_preview = None;
-    while let Ok(request) = rx.recv() {
+    loop {
+        let latest = audio
+            .preview_latest
+            .lock()
+            .ok()
+            .and_then(|mut latest| latest.take());
+        if let Some(preview) = latest {
+            preview_prep::process_request(
+                &audio,
+                preview.instrument_slot,
+                &preview.path,
+                preview.velocity,
+                &preview.samples_dir,
+                preview.preview_token,
+                &result_tx,
+            );
+        }
+        let Ok(request) = rx.recv() else {
+            break;
+        };
         process_audio_control_request(
             request,
             &rx,

@@ -116,6 +116,7 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
         sample_cache: rodio_engine_source::SampleDecodeCache::new(),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
         preview_generation: Arc::new(AtomicU64::new(0)),
+        preview_latest: Arc::new(Mutex::new(None)),
         next_sequence: Arc::new(AtomicU64::new(0)),
         latest_full_sequence: Arc::new(AtomicU64::new(0)),
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
@@ -147,6 +148,7 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
         sample_cache: rodio_engine_source::SampleDecodeCache::new(),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
         preview_generation: Arc::new(AtomicU64::new(0)),
+        preview_latest: Arc::new(Mutex::new(None)),
         next_sequence: Arc::new(AtomicU64::new(0)),
         latest_full_sequence: Arc::new(AtomicU64::new(0)),
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
@@ -219,6 +221,7 @@ pub(crate) fn test_service_with_recorder(
         sample_cache: rodio_engine_source::SampleDecodeCache::new(),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
         preview_generation: Arc::new(AtomicU64::new(0)),
+        preview_latest: Arc::new(Mutex::new(None)),
         next_sequence: Arc::new(AtomicU64::new(0)),
         latest_full_sequence: Arc::new(AtomicU64::new(0)),
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
@@ -279,4 +282,22 @@ fn raspberry_required_jack_worker_terminal_health_reaches_runtime_fault_path() {
 
         assert!(service.required_jack_failed());
     }
+}
+
+#[test]
+fn a_preview_press_on_a_full_prep_queue_replaces_the_waiting_one_instead_of_failing() {
+    let (mut service, _results) = test_service_with_prep_result_sender();
+    let (control_tx, _control_rx) = std::sync::mpsc::sync_channel(1);
+    service.control_tx = control_tx;
+    let press = |service: &AudioService, path: &str| {
+        service.enqueue_sample_preview(0, path.into(), 100, std::path::PathBuf::from("/samples"))
+    };
+
+    assert!(press(&service, "a.wav").is_ok());
+    assert!(press(&service, "b.wav").is_ok());
+    assert!(press(&service, "c.wav").is_ok());
+
+    let latest = service.preview_latest.lock().unwrap().take().unwrap();
+    assert_eq!(latest.path, "c.wav");
+    assert_eq!(latest.preview_token, 3);
 }

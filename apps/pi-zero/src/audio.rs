@@ -34,7 +34,7 @@ use rodio_engine_source::{event_queue, EngineEventReceiver};
 use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, SyncSender, TryRecvError};
+use std::sync::mpsc::{Receiver, SyncSender, TryRecvError, TrySendError};
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
 
@@ -65,6 +65,7 @@ pub struct AudioService {
     pub sample_cache: rodio_engine_source::SampleDecodeCache,
     pub sample_bank_signature: Arc<Mutex<String>>,
     pub preview_generation: Arc<AtomicU64>,
+    pub(crate) preview_latest: Arc<Mutex<Option<crate::host_audio_prep::PreviewRequest>>>,
     pub(crate) next_sequence: Arc<AtomicU64>,
     pub(crate) latest_full_sequence: Arc<AtomicU64>,
     pub(crate) generations: Arc<Mutex<AudioGenerationState>>,
@@ -244,16 +245,38 @@ impl AudioService {
         samples_dir: PathBuf,
     ) -> Result<(), RuntimeAdapterError> {
         let preview_generation = self.preview_generation.fetch_add(1, Ordering::AcqRel) + 1;
-        self.control_tx
-            .try_send(AudioControlRequest::SamplePreview {
-                sequence: self.next_sequence(),
+        let request = AudioControlRequest::SamplePreview {
+            sequence: self.next_sequence(),
+            instrument_slot,
+            path,
+            velocity,
+            samples_dir,
+            preview_token: preview_generation,
+        };
+        match self.control_tx.try_send(request) {
+            Err(TrySendError::Full(AudioControlRequest::SamplePreview {
+                sequence,
                 instrument_slot,
                 path,
                 velocity,
                 samples_dir,
-                preview_token: preview_generation,
-            })
-            .map_err(|error| prep_queue_error(error, "sample preview"))
+                preview_token,
+            })) => {
+                let Ok(mut latest) = self.preview_latest.lock() else {
+                    return Err(prep_queue_error(TrySendError::Full(()), "sample preview"));
+                };
+                *latest = Some(crate::host_audio_prep::PreviewRequest {
+                    sequence,
+                    instrument_slot,
+                    path,
+                    velocity,
+                    samples_dir,
+                    preview_token,
+                });
+                Ok(())
+            }
+            result => result.map_err(|error| prep_queue_error(error, "sample preview")),
+        }
     }
 
     pub fn drain_prep_results(&self, max_results: usize) -> Vec<HostMessage> {
