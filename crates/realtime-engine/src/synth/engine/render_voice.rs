@@ -302,6 +302,7 @@ pub(super) fn prepare_synth_voice_block(
     }
 }
 
+#[inline(always)]
 pub(super) fn shape_synth_voice_block_sample(
     context: &synth_voice_render::SynthVoiceFrameContext,
     v: &mut Voice,
