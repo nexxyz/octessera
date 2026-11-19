@@ -60,6 +60,47 @@ fn voice_block_cost(ramping: bool) -> f64 {
     started.elapsed().as_nanos() as f64 / BLOCKS as f64
 }
 
+/// Moves Osc 1 level of all four slots every `period` blocks, so with a 10 ms glide a period of 2
+/// keeps a level glide running on every block and a period of 8 on about half of them.
+fn level_block_cost(period: usize) -> f64 {
+    const BLOCKS: usize = 4_000;
+    let mut engine = voice_engine();
+    let (mut left, mut right, mut out) = (Vec::new(), Vec::new(), Vec::new());
+    engine.render_interleaved_block(BLOCK, &mut left, &mut right, &mut out);
+    let started = std::time::Instant::now();
+    for block in 0..BLOCKS {
+        if period > 0 && block.is_multiple_of(period) {
+            let level = if (block / period).is_multiple_of(2) {
+                40.0
+            } else {
+                80.0
+            };
+            for slot in 0..SLOTS {
+                engine.set_synth_param_typed(slot, SynthParamId::Osc1LevelPct, level);
+            }
+        }
+        engine.render_interleaved_block(BLOCK, &mut left, &mut right, &mut out);
+        black_box(&out);
+    }
+    started.elapsed().as_nanos() as f64 / BLOCKS as f64
+}
+
+/// Prints what a 128-frame block of 16 held synth voices costs settled, with a level glide on
+/// every block and with one on about half of the blocks; run with
+/// `cargo test --release -p realtime-engine --lib live_level_glide_cost -- --ignored --nocapture`.
+#[test]
+#[ignore = "release-mode micro-benchmark"]
+fn live_level_glide_cost() {
+    for _ in 0..5 {
+        println!(
+            "level: settled {:.0} ns, ramping 100% {:.0} ns, ramping 50% {:.0} ns per block",
+            level_block_cost(0),
+            level_block_cost(2),
+            level_block_cost(8),
+        );
+    }
+}
+
 fn bus_chain() -> BusChainOwner {
     let params = [
         compile_fx_bus_params(&FxBusSlotConfig::Kind("delay".into())),
