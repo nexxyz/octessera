@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 pub(in crate::synth::engine) const FREEZE_INJECT_MS: u32 = 120;
+const INJECT_FADE_MS: u32 = 5;
 const FEEDBACK: f32 = 0.997;
 const DAMP: f32 = 0.35;
 
@@ -34,6 +35,7 @@ pub(in crate::synth::engine) struct FreezeVoice {
     pub(in crate::synth::engine) lp: [f32; 4],
     pub(in crate::synth::engine) inject_pos: u32,
     inject_len: u32,
+    inject_fade_len: u32,
     pub(in crate::synth::engine) ready_len: u32,
     pub(in crate::synth::engine) activation_pos: u32,
     pub(in crate::synth::engine) activation_len: u32,
@@ -46,13 +48,15 @@ impl FreezeVoice {
     pub(super) fn new(params: FreezeParams, sample_rate: u32) -> Self {
         let bufs = comb_buffers(1, sample_rate);
         let ready_len = bufs.iter().map(Vec::len).max().unwrap_or(1) as u32;
+        let inject_len = (sample_rate * FREEZE_INJECT_MS / 1000).max(1);
         Self {
             params,
             bufs,
             idxs: [0; 4],
             lp: [0.0; 4],
             inject_pos: 0,
-            inject_len: (sample_rate * FREEZE_INJECT_MS / 1000).max(1),
+            inject_len,
+            inject_fade_len: (sample_rate * INJECT_FADE_MS / 1000).clamp(1, inject_len),
             ready_len,
             activation_pos: 0,
             activation_len: (sample_rate * 5 / 1000).max(1),
@@ -90,11 +94,7 @@ impl FreezeVoice {
             mix_output(left, right, wet_l, wet_r, mix * activation_gain * fade)
         } else {
             let activation_gain = self.activation_gain();
-            let injecting = self.inject_pos < self.inject_len;
-            let inject_gain = if injecting { 1.0 } else { 0.0 };
-            if injecting {
-                self.inject_pos += 1;
-            }
+            let inject_gain = self.inject_gain();
             let (wet_l, wet_r) = comb_bank_frame(
                 &mut self.bufs,
                 &mut self.idxs,
@@ -104,6 +104,19 @@ impl FreezeVoice {
                 DAMP,
             );
             mix_output(left, right, wet_l, wet_r, mix * activation_gain)
+        }
+    }
+
+    pub(super) fn inject_gain(&mut self) -> f32 {
+        if self.inject_pos >= self.inject_len {
+            return 0.0;
+        }
+        let remaining = self.inject_len - self.inject_pos;
+        self.inject_pos += 1;
+        if remaining >= self.inject_fade_len {
+            1.0
+        } else {
+            remaining as f32 / self.inject_fade_len as f32
         }
     }
 
