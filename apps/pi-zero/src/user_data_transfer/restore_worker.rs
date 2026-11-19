@@ -6,6 +6,9 @@ impl UserDataTransferService {
             let Ok(mut state) = self.inner.state.lock() else {
                 return false;
             };
+            if !state.active || self.inner.stop.load(Ordering::Acquire) {
+                return false;
+            }
             let pending = match std::mem::replace(&mut state.restore, RestoreState::None) {
                 RestoreState::Pending(pending) => *pending,
                 other => {

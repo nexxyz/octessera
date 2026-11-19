@@ -299,6 +299,8 @@ fn remove_stage_root(path: &Path) {
 }
 
 #[cfg(test)]
+mod close_race_tests;
+#[cfg(test)]
 mod restore_tests;
 #[cfg(test)]
 mod tests;

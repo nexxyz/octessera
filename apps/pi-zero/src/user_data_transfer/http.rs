@@ -246,7 +246,7 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
         );
         return;
     }
-    if !restore_slot_available(inner) {
+    let Some(transfer_code) = restore_slot_code(inner) else {
         respond(
             stream,
             409,
@@ -254,7 +254,7 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             br#"{"error":"restore_not_available"}"#,
         );
         return;
-    }
+    };
     let session = match random_session(&inner.random) {
         Ok(session) => session,
         Err(_) => {
@@ -332,6 +332,20 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             );
             return;
         };
+        if inner.stop.load(Ordering::Acquire)
+            || !state.active
+            || state.code.as_ref() != Some(&transfer_code)
+        {
+            drop(state);
+            super::remove_stage(&staged);
+            respond(
+                stream,
+                410,
+                "application/json",
+                br#"{"error":"transfer_closed"}"#,
+            );
+            return;
+        }
         state.restore = RestoreState::Pending(Box::new(PendingRestore {
             session: session.clone(),
             staged,
@@ -344,18 +358,14 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
     respond(stream, 202, "application/json", &body);
 }
 
-fn restore_slot_available(inner: &Arc<TransferInner>) -> bool {
-    inner
-        .state
-        .lock()
-        .map(|state| {
-            state.active
-                && matches!(
-                    &state.restore,
-                    RestoreState::None | RestoreState::Finished { .. }
-                )
-        })
-        .unwrap_or(false)
+fn restore_slot_code(inner: &Arc<TransferInner>) -> Option<String> {
+    let state = inner.state.lock().ok()?;
+    let available = state.active
+        && matches!(
+            &state.restore,
+            RestoreState::None | RestoreState::Finished { .. }
+        );
+    available.then(|| state.code.clone()).flatten()
 }
 
 fn user_export_plan(inner: &Arc<TransferInner>, include_media: bool) -> Result<ExportPlan, String> {

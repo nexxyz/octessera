@@ -20,7 +20,7 @@ fn restore_root(name: &str) -> PathBuf {
     root
 }
 
-fn restore_service(name: &str) -> (UserDataTransferService, PathBuf) {
+pub(super) fn restore_service(name: &str) -> (UserDataTransferService, PathBuf) {
     let root = restore_root(name);
     let store = root.join("store");
     let samples = root.join("samples");
@@ -62,7 +62,7 @@ fn restore_random_source() -> RandomSource {
     })
 }
 
-fn restore_request(
+pub(super) fn restore_request(
     service: &UserDataTransferService,
     method: &str,
     path: &str,
@@ -96,7 +96,7 @@ fn restore_request(
     (status, response[header_end + 4..].to_vec())
 }
 
-fn restore_archive(service: &UserDataTransferService, include_media: bool) -> Vec<u8> {
+pub(super) fn restore_archive(service: &UserDataTransferService, include_media: bool) -> Vec<u8> {
     let inner = service.inner.clone();
     let plan = build_export_plan(
         &inner.store_dir,

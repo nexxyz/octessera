@@ -114,6 +114,7 @@ pub(super) fn response_header(
         403 => "Forbidden",
         405 => "Method Not Allowed",
         409 => "Conflict",
+        410 => "Gone",
         411 => "Length Required",
         413 => "Payload Too Large",
         503 => "Service Unavailable",
