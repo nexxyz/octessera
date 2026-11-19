@@ -36,7 +36,7 @@ impl NativeRunner {
         runtime: &RuntimeConfigDto,
         runtime_value: &Value,
     ) {
-        if let Some(play_fx) = runtime_value.get("playFx") {
+        if let Some(play_fx) = &runtime.play_fx {
             self.apply_play_fx_payload(play_fx);
         }
         apply_xy_release_payload(self, runtime);

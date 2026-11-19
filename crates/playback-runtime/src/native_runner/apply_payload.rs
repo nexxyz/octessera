@@ -6,7 +6,8 @@ use super::NativeHdmiMode;
 use super::{
     prepare_config_payload, prepare_patch_payload, ConfigDto, ConfigurationAggregate,
     ConfigurationRuntimePlan, NativePlayFxAssignment, NativeRunner, NativeRunnerConfig,
-    PreparedConfigPayload, Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
+    PlayConfigDto, PlayFxDto, PreparedConfigPayload, RuntimeConfigDto, Value,
+    DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -164,16 +165,11 @@ impl NativeRunner {
         let typed = envelope.typed_runtime_config()?;
         let runtime_value = typed.applied_value()?;
         let runtime = &runtime_value;
-        let desired_active_layer_index = runtime
-            .get("activeLayerIndex")
-            .and_then(Value::as_u64)
-            .map(|value| {
-                usize::try_from(value)
-                    .map(|value| value.min(GRID_HEIGHT.saturating_sub(1)))
-                    .map_err(|_| "activeLayerIndex is outside the supported range".to_string())
-            })
-            .transpose()?
-            .unwrap_or(self.active_layer_index);
+        let desired_active_layer_index = typed
+            .active_layer_index
+            .map_or(self.active_layer_index, |index| {
+                index.min(GRID_HEIGHT.saturating_sub(1))
+            });
         self.switch_active_engine(desired_active_layer_index)?;
         self.apply_layers_payload(&typed)?;
         self.apply_play_and_xy_payload(&typed, runtime);
@@ -184,16 +180,12 @@ impl NativeRunner {
             self.apply_patch_runtime_payload(&typed, envelope.mapping_config())?;
         }
         self.resample_xy_runtime_sources();
-        self.apply_hdmi_payload(runtime);
+        self.apply_hdmi_payload(&typed);
         self.apply_bluetooth_payload(runtime);
-        if let Some(enabled) = runtime
-            .get("wifi")
-            .and_then(|wifi| wifi.get("enabled"))
-            .and_then(Value::as_bool)
-        {
+        if let Some(enabled) = typed.wifi.as_ref().and_then(|wifi| wifi.enabled) {
             self.wifi_enabled = enabled;
         }
-        self.apply_sample_browser_favourites_payload(runtime);
+        self.apply_sample_browser_favourites_payload(&typed);
         self.refresh_active_mapping_config();
         self.refresh_active_interpretation_profile();
         self.sync_engine_runtime_config();
@@ -254,51 +246,42 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn apply_hdmi_payload(&mut self, runtime: &Value) {
-        let Some(hdmi) = runtime.get("hdmi") else {
+    pub(super) fn apply_hdmi_payload(&mut self, runtime: &RuntimeConfigDto) {
+        let Some(hdmi) = &runtime.hdmi else {
             return;
         };
-        if let Some(mode) = hdmi.get("mode").and_then(Value::as_str) {
+        if let Some(mode) = &hdmi.mode {
             self.display.hdmi.mode =
                 NativeHdmiMode::from_wire_name(mode).unwrap_or(NativeHdmiMode::Terminal);
         }
-        if let Some(show_gridlines) = hdmi.get("showGridlines").and_then(Value::as_bool) {
+        if let Some(show_gridlines) = hdmi.show_gridlines {
             self.display.hdmi.show_gridlines = show_gridlines;
         }
-        if let Some(cycle_measures) = hdmi.get("cycleMeasures").and_then(Value::as_u64) {
+        if let Some(cycle_measures) = hdmi.cycle_measures {
             if let Ok(cycle_measures) = u8::try_from(cycle_measures.clamp(1, 64)) {
                 self.display.hdmi.cycle_measures = cycle_measures;
             }
         }
     }
 
-    pub(super) fn apply_play_fx_payload(&mut self, play_fx: &Value) {
-        self.play_fx_selected = play_fx
-            .get("selected")
-            .map_or_else(PlayFxConfig::default, PlayFxConfig::from_payload);
+    pub(super) fn apply_play_fx_payload(&mut self, play_fx: &PlayFxDto) {
+        let config = |config: Option<&PlayConfigDto>| {
+            config.map_or_else(PlayFxConfig::default, PlayFxConfig::from_dto)
+        };
+        self.play_fx_selected = config(play_fx.selected.as_ref());
         self.play_fx_assignments = play_fx
-            .get("assignments")
-            .and_then(Value::as_array)
-            .map(|assignments| {
-                assignments
-                    .iter()
-                    .filter_map(|assignment| {
-                        let x = usize::try_from(assignment.get("x")?.as_u64()?).ok()?;
-                        let y = usize::try_from(assignment.get("y")?.as_u64()?).ok()?;
-                        if x >= super::GRID_WIDTH || y >= super::GRID_HEIGHT {
-                            return None;
-                        }
-                        Some(NativePlayFxAssignment {
-                            x,
-                            y,
-                            config: assignment
-                                .get("config")
-                                .map_or_else(PlayFxConfig::default, PlayFxConfig::from_payload),
-                        })
-                    })
-                    .collect()
+            .assignments
+            .iter()
+            .flatten()
+            .filter_map(|assignment| {
+                let (x, y) = (assignment.x?, assignment.y?);
+                (x < super::GRID_WIDTH && y < GRID_HEIGHT).then(|| NativePlayFxAssignment {
+                    x,
+                    y,
+                    config: config(assignment.config.as_ref()),
+                })
             })
-            .unwrap_or_default();
+            .collect();
         if matches!(self.grid_assign, Some(GridAssign::PlayFx(_))) {
             self.grid_assign = None;
         }
@@ -311,16 +294,7 @@ impl NativeRunner {
             .unwrap_or(DEFAULT_ALGORITHM_STEP_RED);
     }
 
-    pub(super) fn apply_sample_browser_favourites_payload(&mut self, runtime: &Value) {
-        self.sample_favourite_dirs = runtime
-            .get("sampleFavouriteDirs")
-            .and_then(Value::as_array)
-            .map(|dirs| {
-                dirs.iter()
-                    .filter_map(Value::as_str)
-                    .map(str::to_string)
-                    .collect()
-            })
-            .unwrap_or_default();
+    pub(super) fn apply_sample_browser_favourites_payload(&mut self, runtime: &RuntimeConfigDto) {
+        self.sample_favourite_dirs = runtime.sample_favourite_dirs.clone().unwrap_or_default();
     }
 }

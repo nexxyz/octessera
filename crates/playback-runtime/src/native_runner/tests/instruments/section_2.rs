@@ -6,12 +6,13 @@ use crate::native_runner::modulation_sampler::{
 #[test]
 pub(crate) fn play_fx_payload_sanitizes_type_target_and_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.apply_play_fx_payload(&json!({
+    runner.apply_play_fx_payload(&serde_json::from_value(json!({
         "selected": { "fxType": "stutter", "targetKey": "bad", "params": { "rateHz": 99, "depthPct": -5, "ignored": 42 } },
         "assignments": [
             { "x": 1, "y": 2, "config": { "fxType": "pitch_shift", "targetKey": "instrument_8", "params": { "semitones": 99, "cents": -200, "slideInMs": 1, "slideOutMs": 4000, "mixPct": 250 } } }
         ]
-    }));
+    }))
+    .unwrap());
 
     assert_eq!(runner.play_fx_selected.target_key, "master");
     assert_eq!(runner.play_fx_selected.params["rateHz"], 32);

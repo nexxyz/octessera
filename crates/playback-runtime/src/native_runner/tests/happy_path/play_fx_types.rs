@@ -207,7 +207,9 @@ pub(crate) fn the_shipped_patch_maps_four_distinct_stamps_of_every_play_fx_type(
         for config in stamps {
             assert_eq!(
                 &serde_json::to_value(
-                    crate::native_runner::play_fx_config::PlayFxConfig::from_payload(config)
+                    crate::native_runner::play_fx_config::PlayFxConfig::from_dto(
+                        &serde_json::from_value((*config).clone()).unwrap()
+                    )
                 )
                 .unwrap(),
                 config,

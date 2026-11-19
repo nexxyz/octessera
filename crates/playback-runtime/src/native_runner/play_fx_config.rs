@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{json, Value};
+use super::{json, PlayConfigDto, Value};
 use crate::timing_units::{note_unit_to_pulses, DEFAULT_NOTE_UNIT, NOTE_UNIT_OPTIONS};
 
 /// One Play FX parameter: its saved key, menu label, default, range and encoder step.
@@ -175,16 +175,18 @@ impl Default for PlayFxConfig {
 impl PlayFxConfig {
     /// A saved setup with an unknown type or target replaced and exactly its type's
     /// parameters, each inside its range.
-    pub(super) fn from_payload(config: &Value) -> Self {
-        let text = |key: &str, fallback: &'static str| {
-            config.get(key).and_then(Value::as_str).unwrap_or(fallback)
-        };
-        let params = config.get("params");
-        Self::sanitized(text("fxType", "none"), text("targetKey", "master"), |key| {
-            params
-                .and_then(|params| params.get(key))
-                .and_then(Value::as_i64)
-        })
+    pub(super) fn from_dto(config: &PlayConfigDto) -> Self {
+        Self::sanitized(
+            config.fx_type.as_deref().unwrap_or("none"),
+            config.target_key.as_deref().unwrap_or("master"),
+            |key| {
+                config
+                    .params
+                    .as_ref()
+                    .and_then(|params| params.get(key))
+                    .and_then(Value::as_i64)
+            },
+        )
     }
 
     pub(super) fn sanitized(

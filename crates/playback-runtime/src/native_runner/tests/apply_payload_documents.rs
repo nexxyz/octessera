@@ -142,3 +142,34 @@ fn layer_xy_and_lfo_loads_save_stably_and_reject_missing_or_unknown_keys() {
         "unknown build key",
     );
 }
+
+#[test]
+fn play_fx_and_hdmi_loads_save_stably_and_reject_missing_or_unknown_keys() {
+    assert_saves_are_stable();
+    assert_local_patch_rejected(
+        |patch| {
+            patch["runtimeConfig"]["playFx"]
+                .as_object_mut()
+                .unwrap()
+                .remove("selected");
+        },
+        "missing Play FX selection",
+    );
+    assert_local_patch_rejected(
+        |patch| patch["runtimeConfig"]["playFx"]["selected"]["speed"] = json!(2),
+        "unknown Play FX key",
+    );
+    assert_system_document_rejected(
+        |system| {
+            system["runtimeConfig"]["hdmi"]
+                .as_object_mut()
+                .unwrap()
+                .remove("cycleMeasures");
+        },
+        "missing HDMI cycle",
+    );
+    assert_system_document_rejected(
+        |system| system["runtimeConfig"]["hdmi"]["refreshHz"] = json!(60),
+        "unknown HDMI key",
+    );
+}
