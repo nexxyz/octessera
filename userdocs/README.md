@@ -197,8 +197,9 @@ come up properly, the board quietly switches back to the one you had, so a
 bad update costs you a restart, not an evening.
 
 **Rollback** goes back to the version you had before the last update, and
-pressing it again goes forward again. The board keeps those two versions and
-tidies away older ones. One honest caveat: pull the power during that minute
+pressing it again goes forward again. Going back also restores your settings
+as they were in that version; changes you made since are not carried back. The
+board keeps those two versions and tidies away older ones. One honest caveat: pull the power during that minute
 of restarting and the board may wake up on the new version without having
 checked it. If that version then misbehaves, Rollback (or a fresh image) puts
 things right.

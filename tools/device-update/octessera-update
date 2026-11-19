@@ -5,8 +5,10 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -31,6 +33,7 @@ SERVICE = "octessera.service"
 PROFILES = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
 BINARY = "octessera-pi"
 ENTRIES = sorted([BINARY, "octessera-runtime.json", "SHA256SUMS", "LICENSE", "NOTICE"])
+STORE_FILES = ("system.json", "default.patch.json")
 VERSION_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 MAX_JSON_BYTES = 4 * 1024 * 1024
 MAX_ZIP_BYTES = 128 * 1024 * 1024
@@ -214,6 +217,60 @@ def restart_and_wait() -> bool:
     return False
 
 
+def store_dir() -> Path:
+    try:
+        result = subprocess.run([SYSTEMCTL, "show", "--property=Environment", "--value", SERVICE], timeout=SYSTEMCTL_SECONDS, capture_output=True, text=True)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise UpdateError("systemctl show failed") from error
+    for assignment in result.stdout.split():
+        if assignment.startswith("OCTESSERA_PI_STORE_DIR="):
+            return Path(assignment.split("=", 1)[1])
+    raise UpdateError("The runtime store location is unknown")
+
+
+def copy_file(source: Path, target: Path) -> None:
+    status = source.stat()
+    temporary = target.with_name(f".{target.name}.tmp")
+    shutil.copyfile(source, temporary)
+    os.chown(temporary, status.st_uid, status.st_gid)
+    os.chmod(temporary, stat.S_IMODE(status.st_mode))
+    with temporary.open("rb+") as handle:
+        os.fsync(handle.fileno())
+    os.replace(temporary, target)
+
+
+def snapshot_store(store: Path, version: str) -> None:
+    snapshot = ROOT / "releases" / version / "store-snapshot"
+    snapshot.mkdir(exist_ok=True)
+    for name in STORE_FILES:
+        if (store / name).is_file():
+            copy_file(store / name, snapshot / name)
+        else:
+            (snapshot / name).unlink(missing_ok=True)
+    fsync_directory(snapshot)
+
+
+def restore_store(store: Path, version: str, backup: Path, restored: list[str]) -> None:
+    snapshot = ROOT / "releases" / version / "store-snapshot"
+    for name in STORE_FILES:
+        if not (snapshot / name).is_file():
+            continue
+        if (store / name).is_file():
+            copy_file(store / name, backup / name)
+        restored.append(name)
+        copy_file(snapshot / name, store / name)
+    fsync_directory(store)
+
+
+def put_back_store(store: Path, restored: list[str], backup: Path) -> None:
+    for name in restored:
+        if (backup / name).is_file():
+            copy_file(backup / name, store / name)
+        else:
+            (store / name).unlink(missing_ok=True)
+    fsync_directory(store)
+
+
 def prune(keep: set[str]) -> None:
     for child in (ROOT / "releases").iterdir():
         if child.name not in keep and VERSION_RE.fullmatch(child.name) and not child.is_symlink():
@@ -285,14 +342,21 @@ def switch(version: str) -> str:
         old_version = Path(old_current).name
         if old_version == version:
             raise UpdateError(f"v{version} is already current")
-        set_links(str(target), old_current)
-        try:
-            healthy = restart_and_wait()
-        except UpdateError:
-            healthy = False
-        if healthy:
-            prune({version, old_version})
-            return f"Now running v{version}"
+        store = store_dir()
+        snapshot_store(store, old_version)
+        with tempfile.TemporaryDirectory(prefix=".store-backup-", dir=ROOT) as backup:
+            restored: list[str] = []
+            try:
+                if is_newer(old_version, version):
+                    restore_store(store, version, Path(backup), restored)
+                set_links(str(target), old_current)
+                healthy = restart_and_wait()
+            except (UpdateError, OSError):
+                healthy = False
+            if healthy:
+                prune({version, old_version})
+                return f"Now running v{version}"
+            put_back_store(store, restored, Path(backup))
         set_links(old_current, old_previous)
         systemctl("restart", "--no-block", SERVICE)
         raise UpdateError(f"v{version} did not start; went back to v{old_version}")

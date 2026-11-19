@@ -24,6 +24,7 @@ case "$1" in
   restart) if grep -q hangs "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then sleep 5; fi
     if grep -q healthy "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then echo ready > "$OCTESSERA_CANDIDATE_HEALTH_PATH"; fi ;;
   is-active) [ -f "$OCTESSERA_CANDIDATE_HEALTH_PATH" ] || exit 3 ;;
+  show) echo "OCTESSERA_EXPECTED_BOARD_PROFILE=fixture OCTESSERA_PI_STORE_DIR=$FAKE_STORE" ;;
 esac
 exit 0
 """
@@ -35,6 +36,9 @@ class UpdaterTests(unittest.TestCase):
         self.root = self.work / "opt"
         self.downloads = self.work / "downloads"
         self.log = self.work / "systemctl.log"
+        self.store = self.work / "presets"
+        self.store.mkdir()
+        self.write_store("1.0.0 settings")
         self.install_release("1.0.0", b"healthy 1.0.0")
         os.symlink(self.root / "releases/1.0.0", self.root / "current")
         (self.work / "repo").mkdir()
@@ -58,6 +62,7 @@ class UpdaterTests(unittest.TestCase):
             "OCTESSERA_UPDATE_SETTLE_SECONDS": "0.1",
             "OCTESSERA_UPDATE_SYSTEMCTL_SECONDS": "2",
             "FAKE_LOG": str(self.log),
+            "FAKE_STORE": str(self.store),
         }
 
     def tearDown(self):
@@ -68,6 +73,14 @@ class UpdaterTests(unittest.TestCase):
         release.mkdir(parents=True)
         (release / "octessera-pi").write_bytes(binary)
         (release / "octessera-pi").chmod(0o755)
+
+    def write_store(self, text):
+        for name in ("system.json", "default.patch.json"):
+            (self.store / name).write_text(f"{name} {text}", encoding="utf-8")
+
+    def stored(self, directory=None):
+        directory = directory or self.store
+        return {name: (directory / name).read_text(encoding="utf-8") for name in ("system.json", "default.patch.json")}
 
     def publish(self, version, profile=RASPBERRY, binary=None, prerelease=False, draft=False):
         runtime = self.work / f"runtime-{profile}-{version}"
@@ -174,6 +187,41 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(self.calls()[-1], "start --no-block octessera-update-switch@1.0.0.service")
         self.assertEqual(self.invoke("switch", "1.0.0").returncode, 0)
         self.assertEqual((self.link("current"), self.link("previous")), ("1.0.0", "1.1.0"))
+
+    def test_forward_switch_snapshots_the_old_store_and_keeps_the_current_one(self):
+        (self.store / "system.json").chmod(0o640)
+        (self.store / "presets.json").write_text("presets", encoding="utf-8")
+        self.install_release("1.1.0", b"healthy 1.1.0")
+        stale = self.root / "releases/1.1.0/store-snapshot"
+        stale.mkdir()
+        (stale / "system.json").write_text("stale 1.1.0 settings", encoding="utf-8")
+        self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
+        snapshot = self.root / "releases/1.0.0/store-snapshot"
+        self.assertEqual(self.stored(snapshot), self.stored())
+        self.assertEqual(self.stored()["system.json"], "system.json 1.0.0 settings")
+        self.assertEqual((snapshot / "system.json").stat().st_mode & 0o777, 0o640)
+        self.assertFalse((snapshot / "presets.json").exists())
+
+    def test_going_back_restores_the_older_store_snapshot(self):
+        self.install_release("1.1.0", b"healthy 1.1.0")
+        self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
+        self.write_store("1.1.0 settings")
+        result = self.invoke("switch", "1.0.0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.stored()["default.patch.json"], "default.patch.json 1.0.0 settings")
+        self.assertEqual(self.stored(self.root / "releases/1.1.0/store-snapshot")["system.json"], "system.json 1.1.0 settings")
+        self.assertEqual([path.name for path in self.root.iterdir() if path.name.startswith(".store-backup-")], [])
+
+    def test_failed_going_back_puts_the_newer_store_back(self):
+        self.install_release("1.1.0", b"healthy 1.1.0")
+        self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
+        self.write_store("1.1.0 settings")
+        (self.root / "releases/1.0.0/octessera-pi").write_bytes(b"broken 1.0.0")
+        result = self.invoke("switch", "1.0.0")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(b"did not start; went back to v1.1.0", result.stderr)
+        self.assertEqual(self.link("current"), "1.1.0")
+        self.assertEqual(set(self.stored().values()), {"system.json 1.1.0 settings", "default.patch.json 1.1.0 settings"})
 
     def test_concurrent_update_is_refused(self):
         self.publish("1.1.0")
