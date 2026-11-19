@@ -1265,7 +1265,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   Save-eligible patch edit is dirty: it shows `Saving, then loading`, saves (or lets the pending write
   finish), then loads. A failed save drops the load with `Save failed, not loaded`. With Auto Save
   off and no pending write, the confirmation may discard unsaved patch edits on purpose. After a
-  load the menu stays on the row it was loaded from.
+  load the menu stays on the row it was loaded from. A named preset whose file is gone shows
+  `Not found: <name>` and leaves the current patch and its name untouched.
 - Patches, named presets, `.oct` musical exports, the local default patch, rolling backups, and
   recovery all keep any safe relative WAV sample path (no absolute paths, `..`, or backslashes),
   even when the media is missing. On another device the patch loads cleanly where the same files

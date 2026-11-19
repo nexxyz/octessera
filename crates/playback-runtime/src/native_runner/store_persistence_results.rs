@@ -181,13 +181,20 @@ impl NativeRunner {
                     },
                 )?;
             }
-            RuntimeStoreResult::LoadPresetResult { name, payload } => {
-                if let Some(payload) = payload {
-                    self.apply_patch_payload_preserving_device(payload)?;
-                    self.stop_for_config_load();
-                }
+            RuntimeStoreResult::LoadPresetResult {
+                name,
+                payload: Some(payload),
+            } => {
+                self.apply_patch_payload_preserving_device(payload)?;
+                self.stop_for_config_load();
                 self.show_toast(format!("Loaded {name}"));
                 self.patch_store.current_preset_name = Some(name);
+            }
+            RuntimeStoreResult::LoadPresetResult {
+                name,
+                payload: None,
+            } => {
+                self.show_toast(format!("Not found: {name}"));
             }
             RuntimeStoreResult::SavePresetResult { name, .. } => {
                 if let Some(source) = self.patch_store.preset_rename_source.take() {

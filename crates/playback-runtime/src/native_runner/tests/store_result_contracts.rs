@@ -33,10 +33,12 @@ fn system_info_runtime_failure_updates_modal_and_clears_error_overlay() {
 }
 
 #[test]
-fn load_preset_without_payload_only_presents_the_named_load() {
+fn load_preset_without_payload_reports_it_missing_and_keeps_the_current_patch() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.patch_store.current_preset_name = Some("Current".into());
     let behavior = runner.active_behavior();
     let transport = runner.transport.clone();
+    let payload = runner.config_payload();
     runner
         .apply_store_result(RuntimeStoreResult::LoadPresetResult {
             name: "Empty patch".into(),
@@ -46,13 +48,14 @@ fn load_preset_without_payload_only_presents_the_named_load() {
 
     assert_eq!(runner.active_behavior(), behavior);
     assert_eq!(runner.transport, transport);
+    assert_eq!(runner.config_payload(), payload);
     assert_eq!(
         runner.patch_store.current_preset_name.as_deref(),
-        Some("Empty patch")
+        Some("Current")
     );
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
-        "Loaded Empty patch"
+        "Not found: Empty patch"
     );
     assert!(!runner.outbox.has_platform_effects());
 }
