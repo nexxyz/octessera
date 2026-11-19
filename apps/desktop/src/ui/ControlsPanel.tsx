@@ -7,12 +7,21 @@ import { OledDisplay } from './OledDisplay';
 type EncoderId = 'main' | `aux${number}`;
 type ModifierKind = 'shift' | 'fn';
 
-export function wheelTurnFromDelta(deltaY: number): {
+const WHEEL_PIXELS_PER_TURN = 100;
+
+export function wheelTurnFromDelta(
+  deltaY: number,
+  deltaMode: number,
+): {
   delta: -1 | 1;
-  magnitude: number;
+  turns: number;
 } | null {
   if (deltaY === 0) return null;
-  return { delta: deltaY > 0 ? 1 : -1, magnitude: Math.abs(deltaY) };
+  const units =
+    deltaMode === 0
+      ? Math.abs(deltaY) / WHEEL_PIXELS_PER_TURN
+      : Math.abs(deltaY);
+  return { delta: deltaY > 0 ? 1 : -1, turns: Math.max(1, Math.round(units)) };
 }
 
 export function modifierForButton(key: string): ModifierKind | null {
@@ -59,7 +68,6 @@ export function ControlsPanel({
   setDialDrag,
   setModifier,
   snapshot,
-  turnWithAcceleration,
 }: {
   dialPhase: Record<string, number>;
   dispatch: (input: DeviceInput) => void;
@@ -69,11 +77,6 @@ export function ControlsPanel({
   ) => void;
   setModifier: (kind: 'shift' | 'fn', active: boolean) => void;
   snapshot: SimulatorSnapshot;
-  turnWithAcceleration: (
-    id: EncoderId,
-    delta: -1 | 1,
-    magnitude: number,
-  ) => void;
 }) {
   return (
     <section className="control-grid">
@@ -84,7 +87,6 @@ export function ControlsPanel({
           phase={dialPhase.main ?? 0}
           dispatch={dispatch}
           setDialDrag={setDialDrag}
-          turnWithAcceleration={turnWithAcceleration}
         />
         <small>Menu Control</small>
       </article>
@@ -106,7 +108,6 @@ export function ControlsPanel({
               phase={dialPhase[encoder.id] ?? 0}
               dispatch={dispatch}
               setDialDrag={setDialDrag}
-              turnWithAcceleration={turnWithAcceleration}
             />
             <small>Aux Control</small>
           </article>
@@ -132,18 +133,12 @@ function Dial({
   phase,
   dispatch,
   setDialDrag,
-  turnWithAcceleration,
 }: {
   id: EncoderId;
   phase: number;
   dispatch: (input: DeviceInput) => void;
   setDialDrag: (
     state: { id: EncoderId; y: number; acc: number } | null,
-  ) => void;
-  turnWithAcceleration: (
-    id: EncoderId,
-    delta: -1 | 1,
-    magnitude: number,
   ) => void;
 }) {
   return (
@@ -155,8 +150,10 @@ function Dial({
       }}
       onWheel={(event) => {
         event.preventDefault();
-        const turn = wheelTurnFromDelta(event.deltaY);
-        if (turn) turnWithAcceleration(id, turn.delta, turn.magnitude);
+        const turn = wheelTurnFromDelta(event.deltaY, event.deltaMode);
+        if (!turn) return;
+        for (let i = 0; i < turn.turns; i += 1)
+          dispatch({ type: 'encoder_turn', delta: turn.delta, id });
       }}
     >
       <div className="encoder-ring" aria-hidden="true">

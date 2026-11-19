@@ -98,7 +98,6 @@ export function App() {
           setDialDrag={setDialDrag}
           setModifier={setModifier}
           snapshot={snapshot}
-          turnWithAcceleration={turnWithAcceleration}
         />
 
         <GridMatrix
