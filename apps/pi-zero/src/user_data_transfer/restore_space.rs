@@ -33,6 +33,25 @@ pub(super) fn validate_free_space(
     Ok(())
 }
 
+pub(super) fn remove_leftover_transfer_files(store_dir: &Path) {
+    let Ok(entries) = fs::read_dir(store_dir) else {
+        return;
+    };
+    for entry in entries.filter_map(Result::ok) {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        let Some(rest) = name.strip_prefix(TRANSFER_TEMP_PREFIX) else {
+            continue;
+        };
+        let path = entry.path();
+        if rest.starts_with("upload-") {
+            let _ = fs::remove_file(&path);
+        } else if rest.starts_with("stage-") {
+            let _ = fs::remove_dir_all(&path);
+        }
+    }
+}
+
 fn directory_size(filesystems: &dyn Filesystems, root: &Path, path: &Path) -> u64 {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return 0;
@@ -131,6 +150,28 @@ mod tests {
         let size = directory_size(&MountedAt(store.join("none")), &store, &store);
 
         assert_eq!(size, 7);
+        let _ = fs::remove_dir_all(store);
+    }
+
+    #[test]
+    fn leftover_uploads_and_stages_are_removed_and_nothing_else() {
+        let store = crate::test_temp_dir::unique_temp_path("octessera-transfer-leftovers");
+        let stage = store.join(".user-data-stage-AAAA");
+        fs::create_dir_all(stage.join("samples")).unwrap();
+        fs::write(stage.join("samples").join("kick.wav"), [0; 3]).unwrap();
+        fs::write(store.join(".user-data-upload-AAAA"), [0; 3]).unwrap();
+        fs::write(store.join(".user-data-notes"), [0; 3]).unwrap();
+        fs::write(store.join("system.json"), [0; 3]).unwrap();
+        fs::create_dir_all(store.join("patches")).unwrap();
+
+        remove_leftover_transfer_files(&store);
+
+        let mut left = fs::read_dir(&store)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+            .collect::<Vec<_>>();
+        left.sort();
+        assert_eq!(left, [".user-data-notes", "patches", "system.json"]);
         let _ = fs::remove_dir_all(store);
     }
 }

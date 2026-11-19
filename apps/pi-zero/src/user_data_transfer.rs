@@ -246,6 +246,7 @@ impl UserDataTransferService {
         store_lock: Arc<Mutex<()>>,
         config: TransferConfig,
     ) -> Self {
+        restore_space::remove_leftover_transfer_files(&store_dir);
         Self {
             inner: Arc::new(TransferInner {
                 store_dir,
