@@ -199,17 +199,25 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual((snapshot / "system.json").stat().st_mode & 0o777, 0o640)
         self.assertFalse((snapshot / "presets.json").exists())
 
-    def test_going_forward_after_a_rollback_brings_back_the_newer_settings(self):
+    def test_going_forward_right_after_a_rollback_brings_back_the_newer_settings(self):
         self.install_release("1.1.0", b"healthy 1.1.0")
         self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
         self.write_store("1.1.0 settings")
         self.assertEqual(self.invoke("switch", "1.0.0").returncode, 0)
-        self.write_store("1.0.0 settings after rollback")
         self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
         self.assertEqual(self.stored()["system.json"], "system.json 1.1.0 settings")
+
+    def test_going_forward_after_playing_on_the_rollback_keeps_that_work(self):
+        self.install_release("1.1.0", b"healthy 1.1.0")
+        self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
+        self.write_store("1.1.0 settings")
+        self.assertEqual(self.invoke("switch", "1.0.0").returncode, 0)
+        self.write_store("weeks on 1.0.0")
+        self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
+        self.assertEqual(self.stored()["system.json"], "system.json weeks on 1.0.0")
         self.assertEqual(
-            self.stored(self.root / "releases/1.0.0/store-snapshot")["system.json"],
-            "system.json 1.0.0 settings after rollback",
+            self.stored(self.root / "releases/1.1.0/store-snapshot")["system.json"],
+            "system.json 1.1.0 settings",
         )
 
     def test_going_back_restores_the_older_store_snapshot(self):

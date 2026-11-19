@@ -34,6 +34,7 @@ PROFILES = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
 BINARY = "octessera-pi"
 ENTRIES = sorted([BINARY, "octessera-runtime.json", "SHA256SUMS", "LICENSE", "NOTICE"])
 STORE_FILES = ("system.json", "default.patch.json")
+RESTORED_MARK = ROOT / "store-restored.json"
 VERSION_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 MAX_JSON_BYTES = 4 * 1024 * 1024
 MAX_ZIP_BYTES = 128 * 1024 * 1024
@@ -262,6 +263,28 @@ def restore_store(store: Path, version: str, backup: Path, restored: list[str]) 
     fsync_directory(store)
 
 
+def store_hashes(store: Path) -> dict[str, str]:
+    return {
+        name: hashlib.sha256((store / name).read_bytes()).hexdigest()
+        for name in STORE_FILES
+        if (store / name).is_file()
+    }
+
+
+def unchanged_since_rollback(store: Path) -> bool:
+    try:
+        return json.loads(RESTORED_MARK.read_text(encoding="utf-8")) == store_hashes(store)
+    except (OSError, ValueError):
+        return False
+
+
+def mark_restored(store: Path) -> None:
+    temporary = RESTORED_MARK.with_suffix(".tmp")
+    temporary.write_text(json.dumps(store_hashes(store)), encoding="utf-8")
+    os.replace(temporary, RESTORED_MARK)
+    fsync_directory(ROOT)
+
+
 def put_back_store(store: Path, restored: list[str], backup: Path) -> None:
     for name in restored:
         if (backup / name).is_file():
@@ -347,12 +370,18 @@ def switch(version: str) -> str:
         with tempfile.TemporaryDirectory(prefix=".store-backup-", dir=ROOT) as backup:
             restored: list[str] = []
             try:
-                restore_store(store, version, Path(backup), restored)
+                going_back = is_newer(old_version, version)
+                if going_back or unchanged_since_rollback(store):
+                    restore_store(store, version, Path(backup), restored)
                 set_links(str(target), old_current)
                 healthy = restart_and_wait()
             except (UpdateError, OSError):
                 healthy = False
             if healthy:
+                if going_back:
+                    mark_restored(store)
+                else:
+                    RESTORED_MARK.unlink(missing_ok=True)
                 prune({version, old_version})
                 return f"Now running v{version}"
             put_back_store(store, restored, Path(backup))
