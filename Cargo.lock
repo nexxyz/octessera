@@ -2317,6 +2317,7 @@ dependencies = [
 name = "media-recording"
 version = "0.8.15"
 dependencies = [
+ "chrono",
  "image",
 ]
 

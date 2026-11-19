@@ -8,7 +8,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 const MAX_MINUTES: u16 = 120;
 
@@ -305,9 +304,16 @@ pub(crate) fn reserve_avi_paths_for_test(
 }
 
 fn recording_stem() -> String {
-    let seconds = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
-        .unwrap_or(0);
-    format!("octessera-{seconds}")
+    format!(
+        "octessera-{}",
+        chrono::Local::now().format("%Y-%m-%d-%H%M%S")
+    )
+}
+
+#[cfg(test)]
+#[test]
+fn takes_are_named_by_readable_local_date_and_time() {
+    let stem = recording_stem();
+    let stamp = stem.strip_prefix("octessera-").unwrap();
+    assert!(chrono::NaiveDateTime::parse_from_str(stamp, "%Y-%m-%d-%H%M%S").is_ok());
 }
