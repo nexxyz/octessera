@@ -185,7 +185,8 @@ fn compose_system_patch_documents_structure(
     let canonical_patch = portable_patch_projection(patch)?;
     if canonical_patch != *patch {
         return Err(
-            "patch document contains data not preserved by the native patch projection".into(),
+            "patch has settings this version doesn't know: saved by a newer Octessera, or damaged"
+                .into(),
         );
     }
     let projected_system =

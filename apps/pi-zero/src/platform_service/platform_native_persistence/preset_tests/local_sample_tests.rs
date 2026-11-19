@@ -50,3 +50,26 @@ fn named_preset_save_and_load_keep_user_sample_paths() {
     service.load_preset_now("Local").unwrap();
     cleanup(root);
 }
+
+#[test]
+fn a_preset_saved_by_a_newer_version_is_refused_and_left_on_the_card_untouched() {
+    let (service, root) = service_and_root("preset-from-newer-version");
+    let store = root.join("store");
+    let runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut payload = runner
+        .capture_config_snapshot()
+        .into_local_patch_payload()
+        .unwrap();
+    payload["runtimeConfig"]["fromANewerVersion"] = json!(true);
+    let path = store.join("patches/Newer.json");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, serde_json::to_vec_pretty(&payload).unwrap()).unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+
+    let error = service.load_preset_now("Newer").unwrap_err();
+
+    assert!(error.contains("saved by a newer Octessera"), "{error}");
+    assert!(path.is_file());
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    cleanup(root);
+}
