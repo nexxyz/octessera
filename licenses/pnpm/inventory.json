@@ -3,7 +3,7 @@
   "generator": "tools/legal/dependency_license_generate.py",
   "pnpm_version": "9.12.0",
   "command": "corepack pnpm licenses list --prod --json",
-  "pnpm_lock_sha256": "f3f796dfca32246fa747360c417018104adb04dbf4ad2a6c873de532c7b7cd47",
+  "pnpm_lock_sha256": "976988dcf0032413fcef4b6bf7818668ef6cbd70fc4c14e0fc0e3386245a3ebc",
   "package_count": 6,
   "packages": [
     {
