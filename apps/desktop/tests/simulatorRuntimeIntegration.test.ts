@@ -7,6 +7,8 @@ import {
 import { createSimulatorRuntime } from '../src/runtime/simulatorRuntime';
 import type { AudioLoadStatus } from '../src/audio/audioLoadEvents';
 import type { RuntimeScheduler } from '../src/runtime/runtimeScheduler';
+import type { RuntimeMessagesBatch } from '../src/runtime/runner/tauriCoreRunner';
+import { oledFrame, snapshot } from './simulatorRuntimeOledHarness';
 
 const CONTRACT_RUNNER_MESSAGES: RuntimeRunnerMessage[] = [
   {
@@ -98,7 +100,7 @@ test('simulator preserves native message ordering in one published response', as
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
     runtimeDispatch: async (message) => {
       seen.push({ type: message.type });
-      return CONTRACT_RUNNER_MESSAGES;
+      return { seq: 0, messages: CONTRACT_RUNNER_MESSAGES };
     },
   });
   runtime.subscribe((snapshot) => {
@@ -122,8 +124,9 @@ test('simulator preserves native message ordering in one published response', as
 
 test('simulator routes native OLED and status updates without desktop interpretation', async () => {
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
-    runtimeDispatch: async () =>
-      [
+    runtimeDispatch: async () => ({
+      seq: 0,
+      messages: [
         getRunnerMessage('oled_frame'),
         getRunnerMessage('snapshot'),
         {
@@ -144,6 +147,7 @@ test('simulator routes native OLED and status updates without desktop interpreta
           },
         },
       ] satisfies RuntimeRunnerMessage[],
+    }),
   });
 
   runtime.dispatch({ type: 'grid_press', x: 1, y: 1 });
@@ -164,7 +168,7 @@ test('simulator does not create a desktop fallback for native output messages', 
     { type: 'audio_commands', commands: [] },
   ] as unknown as RuntimeRunnerMessage[];
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
-    runtimeDispatch: async () => outputMessages,
+    runtimeDispatch: async () => ({ seq: 0, messages: outputMessages }),
   });
 
   runtime.dispatch({ type: 'grid_press', x: 1, y: 1 });
@@ -185,7 +189,7 @@ test('simulator teardown stops transport and native subscriptions', async () => 
   let emitAudioLoad: (status: AudioLoadStatus) => void = () => {};
   let unlistenCount = 0;
   const runtime = createSimulatorRuntime(scheduler, {
-    runtimeDispatch: async () => [],
+    runtimeDispatch: async () => ({ seq: 0, messages: [] }),
     asyncRuntimeBatchListener: (handler) => {
       emitAsync = handler;
     },
@@ -228,7 +232,7 @@ test('semantic encoder actions use the direct encoder batching route', async () 
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
     runtimeDispatch: async (message) => {
       seen.push(message);
-      return [];
+      return { seq: 0, messages: [] };
     },
   });
 
@@ -248,7 +252,7 @@ test('semantic encoder actions use the direct encoder batching route', async () 
 test('desktop applies an audio load message to aggregate and missed-quantum presentation', async () => {
   let emitAudioLoad: (status: AudioLoadStatus) => void = () => {};
   const runtime = createSimulatorRuntime(new RecordingScheduler(), {
-    runtimeDispatch: async () => [],
+    runtimeDispatch: async () => ({ seq: 0, messages: [] }),
     audioLoadService: {
       listenAudioLoad: async (handler) => {
         emitAudioLoad = handler;
@@ -276,6 +280,63 @@ test('desktop applies an audio load message to aggregate and missed-quantum pres
   });
   assert.equal(published.length, publishedBeforeLoad + 1);
   assert.equal(published.at(-1), true);
+});
+
+function deferredDispatchRuntime() {
+  let emitAsync: (
+    seq: number,
+    messages: RuntimeRunnerMessage[],
+  ) => void = () => {};
+  let reply: (batch: RuntimeMessagesBatch) => void = () => {};
+  const runtime = createSimulatorRuntime(new RecordingScheduler(), {
+    runtimeDispatch: () =>
+      new Promise((resolve) => {
+        reply = resolve;
+      }),
+    asyncRuntimeBatchListener: (handler) => {
+      emitAsync = handler;
+    },
+  });
+  const titles: string[] = [];
+  runtime.subscribe((current) => titles.push(current.frame.display.title));
+  return {
+    runtime,
+    titles,
+    emitAsync: (seq: number, messages: RuntimeRunnerMessage[]) =>
+      emitAsync(seq, messages),
+    reply: (batch: RuntimeMessagesBatch) => reply(batch),
+  };
+}
+
+test('an async batch emitted before a direct reply is not replayed over it', async () => {
+  const result = deferredDispatchRuntime();
+
+  result.runtime.dispatch({ type: 'grid_press', x: 1, y: 1 });
+  result.emitAsync(1, [oledFrame(1, 0x11), snapshot(1, 'Stopped')]);
+  result.reply({ seq: 1, messages: [snapshot(1, 'Playing', true)] });
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  const current = result.runtime.getSnapshot();
+  assert.deepEqual(result.titles.slice(1), ['Playing']);
+  assert.equal(current.frame.display.title, 'Playing');
+  assert.equal(current.oledFrameFault, null);
+  assert.ok(current.frame.oled.pixels.every((byte) => byte === 0x11));
+});
+
+test('an older async batch arriving after a direct reply keeps only its frame', async () => {
+  const result = deferredDispatchRuntime();
+
+  result.runtime.dispatch({ type: 'grid_press', x: 1, y: 1 });
+  result.reply({ seq: 2, messages: [snapshot(1, 'Playing', true)] });
+  await waitTurn();
+  result.emitAsync(2, [oledFrame(1, 0x22), snapshot(1, 'Stopped')]);
+  result.emitAsync(3, [snapshot(1, 'After')]);
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  const current = result.runtime.getSnapshot();
+  assert.deepEqual(result.titles.slice(1), ['Playing', 'After']);
+  assert.equal(current.oledFrameFault, null);
+  assert.ok(current.frame.oled.pixels.every((byte) => byte === 0x22));
 });
 
 test('simulator requires the native dispatch boundary', () => {

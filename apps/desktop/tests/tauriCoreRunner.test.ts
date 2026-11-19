@@ -2,24 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { normalizeRuntimePayload } from '../src/runtime/runner/tauriCoreRunner';
 
-test('normalizes valid dispatch messages without changing their order or contents', () => {
-  const messages = [
-    { type: 'opaque', value: 1 },
-    { type: 'opaque', value: 1 },
-    null,
-  ];
-
-  const normalized = normalizeRuntimePayload(messages, 'messages');
-
-  assert.strictEqual(normalized, messages);
-  assert.deepEqual(normalized, messages);
-});
-
-test('normalizes malformed dispatch payloads to an empty message list', () => {
-  assert.deepEqual(normalizeRuntimePayload(null, 'messages'), []);
-  assert.deepEqual(normalizeRuntimePayload({ messages: [] }, 'messages'), []);
-});
-
 test('normalizes valid drained batches and preserves numeric sequence values', () => {
   const messages = [{ type: 'opaque', value: 1 }];
   const normalized = normalizeRuntimePayload(
@@ -53,7 +35,7 @@ test('normalizes malformed drained payloads and uses zero for missing sequences'
   );
 });
 
-test('normalizes valid and malformed listen payloads through the same batch boundary', () => {
+test('normalizes valid and malformed listen and dispatch payloads through the same batch boundary', () => {
   const messages = [{ type: 'opaque', value: 2 }];
 
   assert.deepEqual(normalizeRuntimePayload({ seq: '21', messages }, 'batch'), {

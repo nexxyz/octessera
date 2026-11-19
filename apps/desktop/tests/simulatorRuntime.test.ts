@@ -193,7 +193,7 @@ test('runtime dispatches hardware input through native dispatch', async () => {
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
     runtimeDispatch: async (message) => {
       seen.push(message);
-      return [snapshotMessage()];
+      return { seq: 0, messages: [snapshotMessage()] };
     },
   });
 
@@ -213,7 +213,7 @@ test('runtime start requests an initial native snapshot', async () => {
   const runtime = createSimulatorRuntime(scheduler, {
     runtimeDispatch: async (message) => {
       seen.push(message);
-      return [snapshotMessage()];
+      return { seq: 0, messages: [snapshotMessage()] };
     },
   });
   runtime.subscribe(() => (snapshots += 1));
@@ -231,7 +231,7 @@ test('runtime coalesces encoder turn bursts', async () => {
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
     runtimeDispatch: async (message) => {
       seen.push(message);
-      return [snapshotMessage()];
+      return { seq: 0, messages: [snapshotMessage()] };
     },
   });
 
@@ -257,7 +257,7 @@ test('runtime preserves encoder direction reversals for main and aux', async () 
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
     runtimeDispatch: async (message) => {
       seen.push(message);
-      return [snapshotMessage()];
+      return { seq: 0, messages: [snapshotMessage()] };
     },
   });
 
@@ -297,10 +297,12 @@ test('runtime coalesces encoder turns while a dispatch is in flight', async () =
       new Promise((resolve) => {
         seen.push(message);
         if (seen.length === 1) {
-          releaseFirst.push(() => resolve([snapshotMessage()]));
+          releaseFirst.push(() =>
+            resolve({ seq: 0, messages: [snapshotMessage()] }),
+          );
           return;
         }
-        resolve([snapshotMessage()]);
+        resolve({ seq: 0, messages: [snapshotMessage()] });
       }),
   });
 
@@ -338,14 +340,17 @@ test('runtime preserves audio config refs while revision is unchanged', async ()
   const instruments = [{ type: 'synth', value: 1 }];
   const mixer = { buses: [{ name: 'bus' }] };
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
-    runtimeDispatch: async () => [
-      snapshotMessage({
-        audioConfigRevision: 1,
-        instruments,
-        mixer,
-        masterVolume: 80,
-      }),
-    ],
+    runtimeDispatch: async () => ({
+      seq: 0,
+      messages: [
+        snapshotMessage({
+          audioConfigRevision: 1,
+          instruments,
+          mixer,
+          masterVolume: 80,
+        }),
+      ],
+    }),
   });
 
   runtime.dispatch({ type: 'grid_press', x: 1, y: 2 });
@@ -367,7 +372,7 @@ test('runtime preserves cached audio config when snapshots omit unchanged audio 
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
     runtimeDispatch: async () => {
       dispatchCount += 1;
-      return [
+      const messages = [
         dispatchCount === 1
           ? snapshotMessage({
               audioConfigRevision: 1,
@@ -380,6 +385,7 @@ test('runtime preserves cached audio config when snapshots omit unchanged audio 
               masterVolume: 80,
             }),
       ];
+      return { seq: 0, messages };
     },
   });
 
@@ -398,12 +404,15 @@ test('runtime preserves cached audio config when snapshots omit unchanged audio 
 test('runtime applies native transient presentation fields', async () => {
   let transient = true;
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
-    runtimeDispatch: async (): Promise<RuntimeRunnerMessage[]> => [
-      snapshotMessage({
-        eventDotLevel: transient ? 4 : 0,
-        transportFlash: transient ? 'measure' : 'none',
-      }),
-    ],
+    runtimeDispatch: async () => ({
+      seq: 0,
+      messages: [
+        snapshotMessage({
+          eventDotLevel: transient ? 4 : 0,
+          transportFlash: transient ? 'measure' : 'none',
+        }),
+      ],
+    }),
   });
 
   runtime.dispatch({ type: 'grid_press', x: 1, y: 2 });
@@ -421,7 +430,10 @@ test('runtime applies native transient presentation fields', async () => {
 
 test('runtime applies native ledsDimmed to desktop NeoKey LEDs', async () => {
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
-    runtimeDispatch: async () => [snapshotMessage({ ledsDimmed: true })],
+    runtimeDispatch: async () => ({
+      seq: 0,
+      messages: [snapshotMessage({ ledsDimmed: true })],
+    }),
   });
 
   runtime.dispatch({ type: 'grid_press', x: 1, y: 2 });
@@ -435,9 +447,10 @@ test('runtime applies native ledsDimmed to desktop NeoKey LEDs', async () => {
 
 test('display off does not dim desktop NeoKey LEDs', async () => {
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
-    runtimeDispatch: async () => [
-      snapshotMessage({ displayOff: true, ledsDimmed: false }),
-    ],
+    runtimeDispatch: async () => ({
+      seq: 0,
+      messages: [snapshotMessage({ displayOff: true, ledsDimmed: false })],
+    }),
   });
 
   runtime.dispatch({ type: 'grid_press', x: 1, y: 2 });

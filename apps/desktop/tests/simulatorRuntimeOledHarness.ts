@@ -120,7 +120,7 @@ export function harness(): Harness {
   let emitAsync: Harness['emitAsync'] = () => {};
   let emitAudioLoad: Harness['emitAudioLoad'] = () => {};
   const runtime = createSimulatorRuntime(new FakeScheduler(), {
-    runtimeDispatch: async () => response,
+    runtimeDispatch: async () => ({ seq: 0, messages: response }),
     asyncRuntimeBatchListener: (handler) => {
       emitAsync = handler;
     },

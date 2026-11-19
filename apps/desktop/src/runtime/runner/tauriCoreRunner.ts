@@ -5,7 +5,7 @@ import type {
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-type RuntimeMessagesBatch = {
+export type RuntimeMessagesBatch = {
   seq: number;
   messages: RuntimeRunnerMessage[];
 };
@@ -15,7 +15,7 @@ type RuntimePayloadRecord = {
   messages?: unknown;
 };
 
-type RuntimePayloadKind = 'messages' | 'batch' | 'batches';
+type RuntimePayloadKind = 'batch' | 'batches';
 
 function normalizeRuntimeBatch(payload: unknown): RuntimeMessagesBatch {
   const record = (
@@ -32,10 +32,6 @@ function normalizeRuntimeBatch(payload: unknown): RuntimeMessagesBatch {
 
 export function normalizeRuntimePayload(
   payload: unknown,
-  kind: 'messages',
-): RuntimeRunnerMessage[];
-export function normalizeRuntimePayload(
-  payload: unknown,
   kind: 'batch',
 ): RuntimeMessagesBatch;
 export function normalizeRuntimePayload(
@@ -45,10 +41,7 @@ export function normalizeRuntimePayload(
 export function normalizeRuntimePayload(
   payload: unknown,
   kind: RuntimePayloadKind,
-): RuntimeRunnerMessage[] | RuntimeMessagesBatch | RuntimeMessagesBatch[] {
-  if (kind === 'messages') {
-    return Array.isArray(payload) ? (payload as RuntimeRunnerMessage[]) : [];
-  }
+): RuntimeMessagesBatch | RuntimeMessagesBatch[] {
   if (kind === 'batches') {
     return Array.isArray(payload)
       ? payload.map((batch) => normalizeRuntimeBatch(batch))
@@ -73,12 +66,12 @@ function withTimeout<R>(promise: Promise<R>, ms: number): Promise<R> {
 class TauriCoreRunnerClient {
   async dispatchRuntime(
     message: RuntimeHostMessage,
-  ): Promise<RuntimeRunnerMessage[]> {
+  ): Promise<RuntimeMessagesBatch> {
     const payload = await withTimeout(
       invoke<unknown>('runtime_dispatch', { message }),
       IPC_TIMEOUT,
     );
-    return normalizeRuntimePayload(payload, 'messages');
+    return normalizeRuntimePayload(payload, 'batch');
   }
 
   async drainRuntimeMessages(): Promise<RuntimeMessagesBatch[]> {

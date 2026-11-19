@@ -9,6 +9,7 @@ type AsyncRuntimeBatchSuppression = {
   beginDirectDispatch(nowMs: number): void;
   completeDirectDispatch(hasSnapshot: boolean): void;
   rememberDirectResponse(messages: RuntimeRunnerMessage[]): void;
+  takeQueuedThrough(seq: number): AsyncRuntimeBatch[];
   handleAsyncBatch(
     batch: AsyncRuntimeBatch,
     nowMs: number,
@@ -81,6 +82,11 @@ export function createAsyncRuntimeBatchSuppression(
       if (directResponses.length > MAX_SUPPRESSED_ASYNC_BATCHES) {
         directResponses.shift();
       }
+    },
+    takeQueuedThrough(seq) {
+      const taken = queued.filter((batch) => batch.seq <= seq);
+      queued = queued.filter((batch) => batch.seq > seq);
+      return taken;
     },
     handleAsyncBatch(batch, nowMs) {
       if (nowMs >= ignoreUntilMs || batchContainsFault(batch.messages)) {

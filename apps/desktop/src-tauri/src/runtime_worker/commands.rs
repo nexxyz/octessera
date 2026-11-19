@@ -1,4 +1,6 @@
-use super::{queue_by_priority, RuntimeWorker, WorkerCommand, MAX_COMMANDS_PER_WAKE};
+use super::{
+    queue_by_priority, DispatchReply, RuntimeWorker, WorkerCommand, MAX_COMMANDS_PER_WAKE,
+};
 use playback_runtime::{MidiControlChangeBatch, SyncSource};
 use std::sync::mpsc::{self, Receiver};
 use std::time::Instant;
@@ -78,7 +80,10 @@ impl RuntimeWorker {
                 if output.is_ok() {
                     self.observe_accepted_snapshot_revision();
                 }
-                let result = output.map(|output| output.messages);
+                let result = output.map(|output| DispatchReply {
+                    seq: self.next_runtime_seq,
+                    messages: output.messages,
+                });
                 if let Err(err) = &result {
                     let _ = reply.send(Err(err.clone()));
                     return Err(err.clone());

@@ -1,4 +1,4 @@
-use super::WorkerCommand;
+use super::{DispatchReply, WorkerCommand};
 use playback_runtime::{
     HostMessage, RunnerMessage, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorMetadata,
     RuntimeOperation, RuntimeRecovery, RuntimeStatus, RuntimeStatusState, RuntimeTransportState,
@@ -15,17 +15,17 @@ pub(crate) fn request_worker_dispatch(
     worker_tx: &Sender<WorkerCommand>,
     message: HostMessage,
     timeout: Duration,
-) -> Result<Vec<RunnerMessage>, String> {
+) -> Result<DispatchReply, String> {
     let (reply_tx, reply_rx) = mpsc::channel();
     if worker_tx
         .send(WorkerCommand::Dispatch(message, reply_tx))
         .is_err()
     {
-        return Ok(vec![worker_stopped_status()]);
+        return Ok(worker_stopped_reply());
     }
     match reply_rx.recv_timeout(timeout) {
         Ok(reply) => reply,
-        Err(RecvTimeoutError::Disconnected) => Ok(vec![worker_stopped_status()]),
+        Err(RecvTimeoutError::Disconnected) => Ok(worker_stopped_reply()),
         Err(RecvTimeoutError::Timeout) => Err(format!(
             "runtime worker did not answer within {} s",
             timeout.as_secs()
@@ -44,6 +44,14 @@ pub(crate) fn request_worker_exit_preparation(
     let (done_tx, done_rx) = mpsc::channel();
     worker_tx.send(WorkerCommand::PrepareExit(done_tx)).is_ok()
         && done_rx.recv_timeout(timeout).is_ok()
+}
+
+/// A stopped worker emits no more batches, so the reply drops none.
+fn worker_stopped_reply() -> DispatchReply {
+    DispatchReply {
+        seq: 0,
+        messages: vec![worker_stopped_status()],
+    }
 }
 
 fn worker_stopped_status() -> RunnerMessage {

@@ -19,12 +19,16 @@ pub(crate) fn runtime_drain_messages(
 pub(crate) fn runtime_dispatch(
     message: Value,
     state: tauri::State<crate::AppState>,
-) -> Result<Vec<Value>, String> {
-    encode_runtime_responses(request_worker_dispatch(
+) -> Result<RuntimeMessagesPayload, String> {
+    let reply = request_worker_dispatch(
         &state.worker_tx,
         ui_host_message(message)?,
         DISPATCH_REPLY_TIMEOUT,
-    )?)
+    )?;
+    Ok(RuntimeMessagesPayload {
+        seq: reply.seq,
+        messages: encode_runtime_responses(reply.messages)?,
+    })
 }
 
 /// The webview may send only what the simulator UI sends: device input and the snapshot pulse.

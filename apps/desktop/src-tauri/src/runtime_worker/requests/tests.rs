@@ -2,7 +2,7 @@ use super::{
     request_worker_dispatch, request_worker_exit_preparation, DISPATCH_REPLY_TIMEOUT,
     EXIT_PREPARATION_TIMEOUT,
 };
-use crate::runtime_worker::WorkerCommand;
+use crate::runtime_worker::{DispatchReply, WorkerCommand};
 use playback_runtime::{
     HostMessage, RunnerMessage, RuntimeErrorDomain, RuntimeOperation, RuntimeStatusState,
 };
@@ -27,14 +27,15 @@ fn a_dispatch_to_a_stopped_worker_returns_a_visible_runtime_error() {
     let (worker_tx, worker_rx) = mpsc::channel::<WorkerCommand>();
     drop(worker_rx);
 
-    let messages = request_worker_dispatch(
+    let reply = request_worker_dispatch(
         &worker_tx,
         HostMessage::MidiRealtimeStop,
         DISPATCH_REPLY_TIMEOUT,
     )
     .expect("a stopped worker is reported as a runtime status");
 
-    assert_worker_stopped_status(&messages);
+    assert_eq!(reply.seq, 0);
+    assert_worker_stopped_status(&reply.messages);
 }
 
 #[test]
@@ -45,7 +46,7 @@ fn a_worker_that_dies_before_replying_returns_a_visible_runtime_error() {
         drop(command);
     });
 
-    let messages = request_worker_dispatch(
+    let reply = request_worker_dispatch(
         &worker_tx,
         HostMessage::MidiRealtimeStop,
         DISPATCH_REPLY_TIMEOUT,
@@ -53,7 +54,8 @@ fn a_worker_that_dies_before_replying_returns_a_visible_runtime_error() {
     .expect("a dead worker is reported as a runtime status");
 
     worker.join().unwrap();
-    assert_worker_stopped_status(&messages);
+    assert_eq!(reply.seq, 0);
+    assert_worker_stopped_status(&reply.messages);
 }
 
 #[test]
@@ -64,11 +66,14 @@ fn a_worker_reply_passes_through() {
             panic!("expected a dispatch");
         };
         reply
-            .send(Ok(vec![RunnerMessage::PresentedRuntimeErrorDismissed]))
+            .send(Ok(DispatchReply {
+                seq: 7,
+                messages: vec![RunnerMessage::PresentedRuntimeErrorDismissed],
+            }))
             .unwrap();
     });
 
-    let messages = request_worker_dispatch(
+    let reply = request_worker_dispatch(
         &worker_tx,
         HostMessage::MidiRealtimeStop,
         DISPATCH_REPLY_TIMEOUT,
@@ -77,8 +82,11 @@ fn a_worker_reply_passes_through() {
 
     worker.join().unwrap();
     assert_eq!(
-        messages,
-        vec![RunnerMessage::PresentedRuntimeErrorDismissed]
+        reply,
+        DispatchReply {
+            seq: 7,
+            messages: vec![RunnerMessage::PresentedRuntimeErrorDismissed],
+        }
     );
 }
 

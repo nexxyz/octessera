@@ -11,7 +11,10 @@ import {
   createIntervalRuntimeScheduler,
   type RuntimeScheduler,
 } from './runtimeScheduler';
-import { tauriCoreRunner } from './runner/tauriCoreRunner';
+import {
+  tauriCoreRunner,
+  type RuntimeMessagesBatch,
+} from './runner/tauriCoreRunner';
 
 type EncoderTurnInput = Extract<DeviceInput, { type: 'encoder_turn' }>;
 type EncoderId = NonNullable<EncoderTurnInput['id']>;
@@ -28,7 +31,7 @@ export type RuntimeConnectionOptions = {
   scheduler?: RuntimeScheduler;
   runtimeDispatch?: (
     message: RuntimeHostMessage,
-  ) => Promise<RuntimeRunnerMessage[]>;
+  ) => Promise<RuntimeMessagesBatch>;
   asyncRuntimeBatchListener?: (
     handler: (seq: number, messages: RuntimeRunnerMessage[]) => void,
   ) => void;
@@ -72,6 +75,7 @@ export function createRuntimeConnection(
   }
   const dispatchRuntime = runtimeDispatch;
   let lastAsyncRuntimeSeq = 0;
+  let directReplySeq = 0;
   let lastTauriDrainAt = 0;
   let tauriDrainInFlight = false;
   let runtimeListenerActive = true;
@@ -95,6 +99,10 @@ export function createRuntimeConnection(
     nowMs: number,
   ): void {
     if (seq <= lastAsyncRuntimeSeq) return;
+    if (seq <= directReplySeq && !batchContainsFault(messages)) {
+      applyStaleOledFrames([{ seq, messages }]);
+      return;
+    }
     if (
       asyncBatchSuppression.handleAsyncBatch({ seq, messages }, nowMs) !==
       'apply'
@@ -106,6 +114,23 @@ export function createRuntimeConnection(
     lastAsyncRuntimeSeq = seq;
     options.processMessages(messages, true);
     options.publishSnapshot();
+  }
+
+  function applyStaleOledFrames(batches: RuntimeMessagesBatch[]): void {
+    const frames = batches.flatMap((batch) => {
+      lastAsyncRuntimeSeq = Math.max(lastAsyncRuntimeSeq, batch.seq);
+      return batch.messages.filter((message) => message.type === 'oled_frame');
+    });
+    if (frames.length > 0) options.processMessages(frames, true);
+  }
+
+  function takeDirectReply(
+    reply: RuntimeMessagesBatch,
+  ): RuntimeRunnerMessage[] {
+    directReplySeq = Math.max(directReplySeq, reply.seq);
+    applyStaleOledFrames(asyncBatchSuppression.takeQueuedThrough(reply.seq));
+    asyncBatchSuppression.rememberDirectResponse(reply.messages);
+    return reply.messages;
   }
 
   function listenForTauriRuntimeMessages(): void {
@@ -157,10 +182,9 @@ export function createRuntimeConnection(
     asyncBatchSuppression.beginDirectDispatch(performance.now());
     runtimeDispatchInFlight = true;
     void dispatchRuntime(message)
-      .then((messages) => {
-        asyncBatchSuppression.rememberDirectResponse(messages);
+      .then((reply) => {
         asyncBatchSuppression.completeDirectDispatch(
-          options.processMessages(messages, false),
+          options.processMessages(takeDirectReply(reply), false),
         );
         options.publishSnapshot();
       })
@@ -256,9 +280,8 @@ export function createRuntimeConnection(
         source: 'internal',
         requestSnapshot: true,
       })
-        .then((messages) => {
-          asyncBatchSuppression.rememberDirectResponse(messages);
-          options.processMessages(messages, false);
+        .then((reply) => {
+          options.processMessages(takeDirectReply(reply), false);
           asyncBatchSuppression.completeDirectDispatch(true);
           options.publishSnapshot();
         })

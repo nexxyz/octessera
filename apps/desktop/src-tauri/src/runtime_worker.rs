@@ -41,8 +41,15 @@ const XY_GLIDE_TICK: Duration = Duration::from_millis(8);
 /// the boards to reach the engine before their frame is rendered.
 const DESKTOP_SEQUENCED_OUTPUT_DELAY: Duration = Duration::from_millis(30);
 
+/// A direct reply, with the sequence number of the last runtime batch emitted before it.
+#[derive(Debug, PartialEq)]
+pub(crate) struct DispatchReply {
+    pub(crate) seq: u64,
+    pub(crate) messages: Vec<RunnerMessage>,
+}
+
 pub(crate) enum WorkerCommand {
-    Dispatch(HostMessage, Sender<Result<Vec<RunnerMessage>, String>>),
+    Dispatch(HostMessage, Sender<Result<DispatchReply, String>>),
     NativeMidiRealtime(Vec<u8>, Instant),
     NativeMidiControlChange(playback_runtime::MidiControlChange),
     PresentationMetrics(RuntimePresentationMetrics),
