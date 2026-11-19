@@ -160,6 +160,26 @@ fn delay_caches_refresh_across_param_and_sample_rate_changes() {
     assert!(mod_delay_outputs.0 > mod_delay_outputs.1);
 }
 
+#[test]
+fn plain_delay_feedback_stays_bounded_like_the_mod_delay() {
+    let cache = DelayCache::new(5.0, 44_100);
+    let mut state = FxBusState::Delay {
+        buf: vec![0.0; cache.min_len],
+        idx: 0,
+        cache,
+    };
+    for _ in 0..44_100 {
+        process_delay(&mut state, 1.0, 5.0, 0.98, 0.5, 44_100);
+    }
+    let FxBusState::Delay { buf, .. } = &state else {
+        unreachable!();
+    };
+    let peak = buf
+        .iter()
+        .fold(0.0_f32, |peak, sample| peak.max(sample.abs()));
+    assert_eq!(peak, 2.0);
+}
+
 fn assert_delay_cache(state: &FxBusState, time_ms: f32, sample_rate: u32) {
     let FxBusState::Delay { cache, .. } = state else {
         panic!("delay state mismatch")
@@ -209,7 +229,7 @@ fn reference_process_delay(
         buf.resize(desired_len.max(2), 0.0);
     }
     let delayed = reference_read_delay(buf, *idx, delay_samples);
-    buf[*idx] = input + delayed * feedback;
+    buf[*idx] = (input + delayed * feedback).clamp(-2.0, 2.0);
     *idx = (*idx + 1) % buf.len();
     (input * (1.0 - mix) + delayed * mix).clamp(-1.5, 1.5)
 }

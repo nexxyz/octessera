@@ -86,7 +86,7 @@ pub(in crate::synth) fn process_delay(
     };
     cache.refresh(time_ms, sample_rate);
     let delayed = read_delay(buf, *idx, cache.delay_samples);
-    buf[*idx] = input + delayed * feedback;
+    buf[*idx] = (input + delayed * feedback).clamp(-2.0, 2.0);
     *idx = (*idx + 1) % buf.len();
     (input * (1.0 - mix) + delayed * mix).clamp(-1.5, 1.5)
 }
