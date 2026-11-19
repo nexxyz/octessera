@@ -1,7 +1,10 @@
 //! Preset names that differ only in case name one file on the desktop's NTFS store.
 use super::{platform_request, temp_store_dir, test_adapter};
 use crate::host_adapter::DesktopPlaybackHostAdapter;
-use playback_runtime::{HostAdapter, HostMessage, RuntimePlatformEffect, RuntimeStoreResult};
+use playback_runtime::{
+    HostAdapter, HostMessage, PresetSaveMode, RuntimeOperation, RuntimePlatformEffect,
+    RuntimeStoreResult,
+};
 use serde_json::json;
 
 fn effect(
@@ -82,5 +85,43 @@ fn saving_over_a_case_variant_replaces_it_and_refreshes_the_list() {
         ] if name == "song" && names == &["song".to_string()]
     ));
     assert_eq!(names(&adapter), ["song"]);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn saving_onto_an_existing_preset_is_refused_unless_told_to_overwrite() {
+    let (mut adapter, _) = test_adapter();
+    let root = temp_store_dir("preset-overwrite-mode");
+    adapter.store_dir = root.clone();
+    save(&mut adapter, "Song", json!({ "take": 1 }));
+
+    let refused = save(&mut adapter, "Song", json!({ "take": 2 }));
+    assert!(matches!(
+        refused.as_slice(),
+        [RuntimeStoreResult::RuntimeFailure { error }]
+            if error.operation == RuntimeOperation::StoreSavePreset
+                && error.message.as_deref() == Some("Save Song failed: preset already exists")
+    ));
+    assert_eq!(
+        adapter.load_preset_payload("Song").unwrap(),
+        Some(json!({ "take": 1 }))
+    );
+
+    let overwritten = effect(
+        &mut adapter,
+        RuntimePlatformEffect::StoreSavePreset {
+            name: "Song".into(),
+            payload: json!({ "take": 2 }),
+            mode: Some(PresetSaveMode::Overwrite),
+        },
+    );
+    assert!(matches!(
+        overwritten.as_slice(),
+        [RuntimeStoreResult::SavePresetResult { name, .. }] if name == "Song"
+    ));
+    assert_eq!(
+        adapter.load_preset_payload("Song").unwrap(),
+        Some(json!({ "take": 2 }))
+    );
     let _ = std::fs::remove_dir_all(root);
 }

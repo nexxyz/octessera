@@ -146,13 +146,13 @@ impl NativeRunner {
             )),
             PlatformAction::PresetRenameApply => {
                 let from = self.patch_store.preset_rename_source.as_ref()?;
-                Some((
-                    "Confirm Rename",
-                    format!(
-                        "Rename {from} to {}?",
-                        clean_preset_name(&self.patch_store.preset_draft_name)
-                    ),
-                ))
+                let to = clean_preset_name(&self.patch_store.preset_draft_name);
+                let detail = if to != *from && self.patch_store.preset_names.contains(&to) {
+                    format!("Overwrite preset {to} with {from}?")
+                } else {
+                    format!("Rename {from} to {to}?")
+                };
+                Some(("Confirm Rename", detail))
             }
             PlatformAction::DefaultSave => Some(("Confirm Patch", "Save current patch?".into())),
             PlatformAction::DefaultLoad => Some(("Confirm Patch", "Load saved patch?".into())),

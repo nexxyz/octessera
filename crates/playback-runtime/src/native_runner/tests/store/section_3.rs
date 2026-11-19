@@ -276,3 +276,57 @@ fn default_save_mode_keeps_its_deferred_wire_string() {
     )
     .is_err());
 }
+
+#[test]
+pub(crate) fn rename_onto_another_preset_asks_to_overwrite_it_and_saves_with_overwrite() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.patch_store.preset_names = vec!["Alpha".into(), "Beta".into()];
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("preset.renamePick.Alpha"));
+    let _ = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let confirm_rename = |runner: &mut NativeRunner, draft: &str| {
+        runner.patch_store.preset_draft_name = draft.into();
+        runner.menu.rebuild(runner.menu_config());
+        assert!(runner.menu.focus_item_key("preset.rename.apply"));
+        let opened = runner
+            .send(HostMessage::DeviceInput {
+                input: json!({ "type": "encoder_press", "id": "main" }),
+                request_snapshot: None,
+            })
+            .unwrap();
+        let display = snapshot_from(&opened)["display"].clone();
+        assert_eq!(display["title"], "Confirm Rename");
+        let effects = confirm_current_dialog(runner)
+            .into_iter()
+            .find_map(|message| match message {
+                RunnerMessage::PlatformEffects { effects } => Some(effects),
+                _ => None,
+            })
+            .expect("rename save effect");
+        runner.patch_store.preset_rename_source = Some("Alpha".into());
+        (display["lines"].clone(), effects)
+    };
+
+    let (lines, effects) = confirm_rename(&mut runner, " Beta ");
+    assert_eq!(
+        lines.as_array().unwrap()[..2],
+        [json!("Overwrite preset Beta"), json!("with Alpha?")]
+    );
+    assert!(matches!(
+        effects.as_slice(),
+        [RuntimePlatformEffect::StoreSavePreset { name, mode, .. }]
+            if name == "Beta" && *mode == Some(crate::PresetSaveMode::Overwrite)
+    ));
+
+    let (lines, effects) = confirm_rename(&mut runner, "Gamma");
+    assert_eq!(lines.as_array().unwrap()[0], json!("Rename Alpha to"));
+    assert!(matches!(
+        effects.as_slice(),
+        [RuntimePlatformEffect::StoreSavePreset { name, mode: None, .. }] if name == "Gamma"
+    ));
+}

@@ -26,7 +26,7 @@ fn locked_existing_target_returns_identified_write_failure_without_deleting_sour
         &mut runner,
         NativeManualSaveRequest::Preset {
             name: "Target".into(),
-            mode: None,
+            mode: Some(playback_runtime::PresetSaveMode::Overwrite),
             rename_from: Some("Source".into()),
         },
     );

@@ -359,7 +359,9 @@ fn save_native_preset(
     snapshot: NativeConfigSnapshot,
 ) -> Result<NativePresetCompletion, String> {
     let NativeManualSaveRequest::Preset {
-        name, rename_from, ..
+        name,
+        mode,
+        rename_from,
     } = &write.manual
     else {
         return Err("native preset worker received a default save".into());
@@ -367,6 +369,9 @@ fn save_native_preset(
     let target = super::platform_service_store::preset_patch_path(store_dir, name.as_str())
         .map_err(|error| format!("Save {name} failed: {error}"))?;
     let existed = target.is_file();
+    if existed && mode.is_none() {
+        return Err(format!("Save {name} failed: preset already exists"));
+    }
     if let Some(source) = rename_from
         .as_deref()
         .filter(|source| *source != name.as_str())

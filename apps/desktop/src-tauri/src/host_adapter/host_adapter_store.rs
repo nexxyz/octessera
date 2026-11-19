@@ -90,6 +90,12 @@ impl DesktopPlaybackHostAdapter {
         )?)
     }
 
+    /// Exact name only; `save_preset_payload` takes over a case-only variant in place.
+    pub(super) fn preset_exists(&self, name: &str) -> Result<bool, String> {
+        let path = preset_patch_file_path(&self.store_dir.join("presets"), name)?;
+        Ok(stored_entry(&path, true)?.is_some())
+    }
+
     /// Saves the preset; `true` when it replaced a preset whose name differs only in case,
     /// which names the same file on the desktop's case-insensitive store.
     pub(super) fn save_preset_payload(

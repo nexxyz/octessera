@@ -248,3 +248,51 @@ fn save_as_onto_an_existing_preset_name_asks_to_overwrite_it() {
         "Save preset Evening set?"
     );
 }
+
+#[test]
+fn save_as_and_rename_onto_an_existing_preset_request_an_overwrite() {
+    let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    let mut runner = playing_keys_runner(&mut runtime, &mut host);
+    runner.patch_store.preset_names = vec!["Source".into(), "Other".into()];
+
+    runner.patch_store.preset_draft_name = " Other ".into();
+    runner.menu.rebuild(runner.menu_config());
+    let _ = confirm_action(&mut runner, &mut runtime, &mut host, "preset.saveAs.save");
+    assert_eq!(
+        runner.take_manual_save_request(),
+        Some(NativeManualSaveRequest::Preset {
+            name: "Other".into(),
+            mode: Some(crate::PresetSaveMode::Overwrite),
+            rename_from: None,
+        })
+    );
+
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("preset.renamePick.Source"));
+    let _ = press(&mut runner, &mut runtime, &mut host);
+    runner.patch_store.preset_draft_name = "Other".into();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.focus_item_key("preset.rename.apply"));
+    let _ = press(&mut runner, &mut runtime, &mut host);
+    assert_eq!(
+        runner
+            .display
+            .confirm_dialog
+            .as_ref()
+            .unwrap()
+            .lines
+            .join(" "),
+        "Overwrite preset Other with Source?"
+    );
+    let _ = turn(&mut runner, &mut runtime, &mut host, 1);
+    let _ = press(&mut runner, &mut runtime, &mut host);
+    assert_eq!(
+        runner.take_manual_save_request(),
+        Some(NativeManualSaveRequest::Preset {
+            name: "Other".into(),
+            mode: Some(crate::PresetSaveMode::Overwrite),
+            rename_from: Some("Source".into()),
+        })
+    );
+}

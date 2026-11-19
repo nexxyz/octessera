@@ -1296,6 +1296,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   off and no pending write, the confirmation may discard unsaved patch edits on purpose. After a
   load the menu stays on the row it was loaded from. A named preset whose file is gone shows
   `Not found: <name>` and leaves the current patch and its name untouched.
+- `Save As` or `Rename` onto the name of another existing preset confirms with
+  `Overwrite preset <name>?` (Rename: `Overwrite preset <target> with <source>?`). The store
+  refuses to replace an existing preset unless that overwrite was confirmed.
 - Patches, named presets, `.oct` musical exports, the local default patch, rolling backups, and
   recovery all keep any safe relative WAV sample path (no absolute paths, `..`, or backslashes),
   even when the media is missing. On another device the patch loads cleanly where the same files

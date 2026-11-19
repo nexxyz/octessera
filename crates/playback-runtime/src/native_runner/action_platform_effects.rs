@@ -68,16 +68,18 @@ impl NativeRunner {
                     Some(RuntimePlatformEffect::StoreLoadSystem)
                 }
             }
-            PlatformAction::PresetSaveAs => Some(RuntimePlatformEffect::StoreSavePreset {
-                name: clean_preset_name(&self.patch_store.preset_draft_name),
-                payload: portable_patch_payload_for_save(&self.config_payload())?,
-                mode: None,
-            }),
-            PlatformAction::PresetRenameApply => Some(RuntimePlatformEffect::StoreSavePreset {
-                name: clean_preset_name(&self.patch_store.preset_draft_name),
-                payload: portable_patch_payload_for_save(&self.config_payload())?,
-                mode: None,
-            }),
+            PlatformAction::PresetSaveAs | PlatformAction::PresetRenameApply => {
+                let name = clean_preset_name(&self.patch_store.preset_draft_name);
+                Some(RuntimePlatformEffect::StoreSavePreset {
+                    mode: self
+                        .patch_store
+                        .preset_names
+                        .contains(&name)
+                        .then_some(crate::PresetSaveMode::Overwrite),
+                    payload: portable_patch_payload_for_save(&self.config_payload())?,
+                    name,
+                })
+            }
             PlatformAction::PresetSaveCurrent => match self.patch_store.current_preset_name.clone()
             {
                 Some(name) => Some(RuntimePlatformEffect::StoreSavePreset {

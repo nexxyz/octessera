@@ -2,10 +2,10 @@ use super::{host_adapter_recording, DesktopPlaybackHostAdapter};
 use crate::desktop_platform_service::DesktopPlatformServiceKind;
 use crate::midi;
 use playback_runtime::{
-    HostAdapter, HostMessage, RuntimeAdapterError, RuntimeOperation, RuntimePlatformEffect,
-    RuntimePlatformRequest, RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase,
-    RuntimeSetupPortalStatus, RuntimeStoreResult, RuntimeUserDataTransferPhase,
-    RuntimeUserDataTransferStatus,
+    HostAdapter, HostMessage, RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain,
+    RuntimeErrorFacts, RuntimeOperation, RuntimePlatformEffect, RuntimePlatformRequest,
+    RuntimeSetupPortalErrorCode, RuntimeSetupPortalPhase, RuntimeSetupPortalStatus,
+    RuntimeStoreResult, RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus,
 };
 use std::process::Command;
 
@@ -30,8 +30,20 @@ impl DesktopPlaybackHostAdapter {
             RuntimePlatformEffect::StoreSavePreset {
                 name,
                 payload,
-                mode: _,
+                mode,
             } => {
+                if mode.is_none() && self.preset_exists(name)? {
+                    return Ok(vec![HostMessage::RuntimeResult {
+                        result: RuntimeStoreResult::RuntimeFailure {
+                            error: RuntimeErrorFacts::new(
+                                RuntimeErrorDomain::Storage,
+                                RuntimeErrorCode::OperationFailed,
+                                RuntimeOperation::StoreSavePreset,
+                                Some(format!("Save {name} failed: preset already exists")),
+                            ),
+                        },
+                    }]);
+                }
                 let replaced_case_variant = self.save_preset_payload(name, payload)?;
                 let mut results = vec![HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::SavePresetResult {

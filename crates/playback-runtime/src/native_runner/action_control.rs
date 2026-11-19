@@ -144,9 +144,10 @@ impl NativeRunner {
                 crate::clean_preset_name(&self.patch_store.preset_draft_name)
             };
             NativeManualSaveRequest::Preset {
+                mode: (*action == PlatformAction::PresetSaveCurrent
+                    || self.patch_store.preset_names.contains(&name))
+                .then_some(crate::PresetSaveMode::Overwrite),
                 name,
-                mode: (*action == PlatformAction::PresetSaveCurrent)
-                    .then_some(crate::PresetSaveMode::Overwrite),
                 rename_from: if *action == PlatformAction::PresetRenameApply {
                     self.patch_store.preset_rename_source.clone()
                 } else {
