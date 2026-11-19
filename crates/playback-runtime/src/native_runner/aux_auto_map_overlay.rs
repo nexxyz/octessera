@@ -63,7 +63,10 @@ fn append_aux_mapping_lines(lines: &mut Vec<String>, slots: &[ResolvedAuxSlot], 
             index,
             shifted,
             'T',
-            slot.turn.as_ref().map(|turn| turn.label.as_str()),
+            slot.turn
+                .as_ref()
+                .map(NativeRunner::aux_turn_label_with_target)
+                .as_deref(),
             slot.turn_source,
         );
         append_aux_binding_line(
@@ -88,7 +91,7 @@ fn append_aux_binding_line(
     let prefix = format!("{}{} {kind} ", if shifted { 'S' } else { 'A' }, index + 1);
     let value = match (label, source) {
         (Some(label), AuxBindingSource::Auto) => format!("auto: {label}"),
-        (Some(label), AuxBindingSource::Custom) => format!("custom: {label}"),
+        (Some(label), AuxBindingSource::Custom) => format!("man: {label}"),
         _ => "-".into(),
     };
     let mut row = String::new();
@@ -227,10 +230,9 @@ mod tests {
         assert!(lines.iter().all(|line| body_text_fits(line)));
         assert!(lines.iter().any(|line| line == "A1 T auto: Cutoff"));
         assert!(lines.iter().any(|line| line == "A1 C -"));
-        assert!(lines.iter().any(|line| line == "A2 T custom:"));
-        assert!(lines.iter().any(|line| line == "A2 T Resonance"));
-        assert!(lines.iter().any(|line| line == "A2 C custom: Panic"));
-        assert!(lines.iter().any(|line| line == "S2 C custom: Panic"));
+        assert!(lines.iter().any(|line| line == "A2 T man: Resonance"));
+        assert!(lines.iter().any(|line| line == "A2 C man: Panic"));
+        assert!(lines.iter().any(|line| line == "S2 C man: Panic"));
         assert!(lines.iter().any(|line| line == "S3 T -"));
     }
 
@@ -258,7 +260,7 @@ mod tests {
                 .map(|line| line.strip_prefix("A1 T ").unwrap())
                 .collect::<Vec<_>>()
                 .join(" "),
-            format!("custom: {label}")
+            format!("man: {label}")
         );
     }
 }

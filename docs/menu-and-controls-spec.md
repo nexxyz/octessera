@@ -241,7 +241,9 @@ Aux mappings modal:
   | Shifted | 1..3 | Mapping or `-` | Mapping or `-` |
 
 - The first line names the auto-map context it shows (`Auto: Synth Filter`, `Auto: Play FX`).
-- Both banks show the custom binding first, then auto-map.
+- Both banks show the manual binding first, then auto-map. Each line reads
+  `<A|S><1..3> <T|C> <man|auto>: <label>`, and a turn label starts with the short name of what it
+  belongs to (`A1 T man: I1 Cutoff`, `B3 Mix`, `L5 Density`, `M` for the master chain).
 - Main turn scrolls. Aux turns and clicks do nothing while it is open and do not touch the
   underlying menu or bindings.
 - Plain Main press, Fn + Main press again, or Back closes it. Shift + Fn + Main press opens context
@@ -592,7 +594,8 @@ change; only the distance per detent does.
   An Aux turn shows no toast here: its card lights its arc white and boxes its value in the card
   colour for 1.2 s, the Aux toast hold, through one state deadline. The visual has no live
   steps: it is redrawn only when a capture changes it.
-- Bank (only while `aux` shows): Main turn right picks `Manual`, left picks `Auto`, and toasts
+- Bank (only while `aux` shows): it starts on `Manual` in each session; Main turn right picks
+  `Manual`, left picks `Auto`, and toasts
   `Aux: Manual` / `Aux: Auto`. The visual names the bank in its upper-left corner (`x=2`, `y=12`)
   in the header font, in gray at half level: `Auto` or `Man`, short enough to stay clear of the
   longest top-card name (`Spawn Interval`) in both fonts. The header stays as in every visual. The
@@ -1143,7 +1146,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   effects by their area), and whether it comes from the auto map or a manual binding. The Shift
   layer flag is set while Shift (alone or with Fn) is held.
 - A manual hint names its target: the bound row's label for a turn, the bound action's own row
-  label for a click (`Stop` for `System > Recording > Stop`). A manual binding whose target no
+  label for a click (`Stop` for `System > Recording > Stop`). Every turn label, manual or auto,
+  starts with the short name of the instrument, bus, layer or master chain it belongs to
+  (`I1 Cutoff`, `B3 Mix`, `L5 Density`, `M Drive`); global targets such as `Master Vol` have none. A manual binding whose target no
   longer exists (its FX slot type, instrument kind or behavior changed) shows no hint on that
   side, and an auto hint it overrides under Manual priority stays hidden too.
 - Slots sit at `x=0`, `37` and `74`: a cap at `x..x+6` on `y=118..124` (Shift cap `117..125`

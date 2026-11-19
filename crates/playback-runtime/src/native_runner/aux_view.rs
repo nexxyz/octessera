@@ -37,10 +37,10 @@ impl NativeRunner {
     }
 
     /// The bank the Aux visual applies strictly while it shows: the one a Main turn picked this
-    /// session, Auto until then. `None` elsewhere, where Aux Priority merges both as usual.
+    /// session, Manual until then. `None` elsewhere, where Aux Priority merges both as usual.
     pub(super) fn aux_view_bank(&self) -> Option<AuxPriority> {
         self.shows_aux_view()
-            .then(|| self.display.aux_view_bank.unwrap_or(AuxPriority::Auto))
+            .then(|| self.display.aux_view_bank.unwrap_or(AuxPriority::Manual))
     }
 
     /// A Main turn in the Aux visual: right picks the Manual bank, left the Auto bank.

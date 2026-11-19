@@ -29,6 +29,26 @@ fn aux_runner(start: Instant) -> (NativeRunner, &'static SignalTap) {
     (runner, tap)
 }
 
+/// The Aux visual on the Auto bank (a Main turn left), for the auto-map cards.
+fn auto_bank_runner(start: Instant) -> (NativeRunner, &'static SignalTap) {
+    let (mut runner, tap) = aux_runner(start);
+    runner.turn_aux_view_bank(-1);
+    (runner.display.toast, runner.display.toast_expires_at) = (None, None);
+    (runner, tap)
+}
+
+#[test]
+fn the_aux_visual_starts_on_the_manual_bank() {
+    let (mut runner, _tap) = aux_runner(Instant::now());
+    let shown = presented(&mut runner);
+    let view = shown.display.aux_view.unwrap();
+    assert_eq!(view.bank, "Man");
+    assert_eq!(
+        view.cards[0].turn.as_ref().map(|turn| turn.label.as_str()),
+        Some("Cutoff")
+    );
+}
+
 fn press(runner: &mut NativeRunner, button: &str) {
     device_input(runner, json!({ "type": button, "pressed": true }));
     device_input(runner, json!({ "type": button, "pressed": false }));
@@ -70,7 +90,7 @@ fn summary(cards: &[OledAuxCard; 3]) -> Vec<String> {
 #[test]
 fn the_aux_visual_mirrors_the_layer_auto_map_and_schedules_nothing() {
     let start = Instant::now();
-    let (mut runner, tap) = aux_runner(start);
+    let (mut runner, tap) = auto_bank_runner(start);
     assert!(runner.shows_aux_view());
     let shown = presented(&mut runner);
     assert!(shown.display.signal.is_none());
@@ -175,7 +195,7 @@ fn main_turns_pick_a_strict_bank_that_holds_only_while_the_aux_visual_shows() {
 
 #[test]
 fn shift_held_shows_the_shift_layer_on_the_same_cards() {
-    let (mut runner, _) = aux_runner(Instant::now());
+    let (mut runner, _) = auto_bank_runner(Instant::now());
     device_input(
         &mut runner,
         json!({ "type": "button_shift", "pressed": true }),
@@ -194,7 +214,7 @@ fn shift_held_shows_the_shift_layer_on_the_same_cards() {
 #[test]
 fn an_aux_turn_updates_its_card_and_lights_it_instead_of_a_toast() {
     let start = Instant::now();
-    let (mut runner, _) = aux_runner(start);
+    let (mut runner, _) = auto_bank_runner(start);
     device_input(
         &mut runner,
         json!({ "type": "encoder_turn", "id": "aux2", "delta": 1 }),

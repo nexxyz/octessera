@@ -69,7 +69,7 @@ pub(crate) fn aux_priority_decides_a_turn_claimed_by_both_a_manual_binding_and_t
     assert_ne!(runner.menu.number_for_key(&cutoff_key), cutoff);
     let hints = runner.aux_hints();
     let turn = hints.normal[0].turn.as_ref().unwrap();
-    assert_eq!(turn.text, "Cutoff");
+    assert_eq!(turn.text, "I1 Cutoff");
     assert_eq!(turn.source, OledHintSource::Auto);
     assert!(cutoff_row_line(&mut runner).contains("1-Cutoff"));
 

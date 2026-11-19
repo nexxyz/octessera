@@ -370,7 +370,7 @@ pub(crate) fn behavior_row_uses_the_behavior_layout_for_caps_hints_and_turns() {
         .any(|line| line.as_str().unwrap_or_default().starts_with("1-Step Rate")));
     let hints = runner.aux_hints();
     assert_eq!(hints.normal[0].turn.as_ref().unwrap().text, "Step");
-    assert_eq!(hints.normal[1].turn.as_ref().unwrap().text, "Count");
+    assert_eq!(hints.normal[1].turn.as_ref().unwrap().text, "L1 Count");
 
     let messages = runner
         .send(HostMessage::DeviceInput {

@@ -44,14 +44,14 @@ fn fn_main_opens_scrollable_aux_mapping_popup_and_aux_inputs_are_ignored() {
     let lines = &runner.display.help_popup.as_ref().unwrap().lines;
     assert_eq!(snapshot["display"]["title"], "AUX MAP");
     assert_eq!(lines[0], "Auto: Synth Filter");
-    assert_mapping_entry(lines, "A1 T ", "custom:", "Master Vol");
-    assert_mapping_entry(lines, "A1 C ", "custom:", "MIDI Panic");
+    assert_mapping_entry(lines, "A1 T ", "man:", "Master Vol");
+    assert_mapping_entry(lines, "A1 C ", "man:", "MIDI Panic");
     assert_mapping_entry(lines, "A2 T ", "auto:", "Res");
     assert_mapping_entry(lines, "A3 T ", "auto:", "Env");
     assert_mapping_entry(lines, "S1 T ", "auto:", "Key");
     assert_mapping_entry(lines, "S2 T ", "auto:", "Type");
-    assert_mapping_entry(lines, "S3 T ", "custom:", "Master Vol");
-    assert_mapping_entry(lines, "S3 C ", "custom:", "Refresh");
+    assert_mapping_entry(lines, "S3 T ", "man:", "Master Vol");
+    assert_mapping_entry(lines, "S3 C ", "man:", "Refresh");
     assert!(lines
         .iter()
         .all(|line| crate::oled_frame::body_text_fits(line)));

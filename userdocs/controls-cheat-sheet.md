@@ -116,7 +116,9 @@ you what they do. `System > Basic Help` shows the core shortcuts in one place.
 | Click *Main*, *Fn* + click *Main*, or *Back* | Close. |
 
 It shows all three Aux encoders' turn and click mappings in the normal and
-*Shift* banks, with `-` for unbound. Aux turns and clicks do nothing while it's
+*Shift* banks, with `-` for unbound. `man` marks a mapping you set yourself,
+`auto` one the auto-map picked, and a turn names what it belongs to:
+`A1 T man: I1 Cutoff` is Aux 1's turn, your own mapping, instrument 1's cutoff. Aux turns and clicks do nothing while it's
 open, so you can't change anything by accident.
 
 ## Aux encoders and auto-map

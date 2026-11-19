@@ -140,6 +140,15 @@ impl NativeRunner {
             .unwrap_or_else(|| key.rsplit('.').next().unwrap_or(key).into())
     }
 
+    /// A turn target's label with the short name of what it belongs to (`I1 Cutoff`, `B3 Mix`,
+    /// `L5 Density`, `M Drive`), as the footer hints and the mappings modal show it.
+    pub(super) fn aux_turn_label_with_target(turn: &ResolvedAuxTurn) -> String {
+        match aux_target_shorthand(&turn.key) {
+            Some(shorthand) if !turn.label.is_empty() => format!("{shorthand} {}", turn.label),
+            _ => turn.label.clone(),
+        }
+    }
+
     /// The label of the row a bound key turns, `None` when no such row exists any more.
     pub(super) fn aux_key_target_label(&self, key: &str) -> Option<String> {
         self.menu
@@ -307,4 +316,45 @@ fn pick_aux_side<T>(
         ((Some(target), source), _) | (_, (Some(target), source)) => (Some(target), source),
         _ => (None, AuxBindingSource::None),
     }
+}
+
+/// The short name of the instrument, bus, layer or master chain a key belongs to.
+fn aux_target_shorthand(key: &str) -> Option<String> {
+    let mut parts = key.split('.');
+    let numbered = |prefix: &str, index: Option<&str>| {
+        index
+            .and_then(|index| index.parse::<usize>().ok())
+            .map(|index| format!("{prefix}{}", index + 1))
+    };
+    match (parts.next(), parts.next()) {
+        (Some("instruments"), index) => numbered("I", index),
+        (Some("layers"), index) => numbered("L", index),
+        (Some("mixer"), Some("buses")) => numbered("B", parts.next()),
+        (Some("mixer"), Some("master")) => Some("M".into()),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn a_turn_target_names_the_instrument_bus_layer_or_master_chain_it_belongs_to() {
+    let shorthand = |key: &str| aux_target_shorthand(key);
+    assert_eq!(
+        shorthand("instruments.0.synth.filter.cutoffHz").as_deref(),
+        Some("I1")
+    );
+    assert_eq!(
+        shorthand("mixer.buses.2.slot1.params.mixPct").as_deref(),
+        Some("B3")
+    );
+    assert_eq!(
+        shorthand("layers.4.build.behaviorConfig.density").as_deref(),
+        Some("L5")
+    );
+    assert_eq!(
+        shorthand("mixer.master.slots.0.params.drivePct").as_deref(),
+        Some("M")
+    );
+    assert_eq!(shorthand("masterVolume"), None);
+    assert_eq!(shorthand("instruments.x.synth"), None);
 }

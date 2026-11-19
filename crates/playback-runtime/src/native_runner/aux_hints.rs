@@ -35,7 +35,8 @@ impl NativeRunner {
             OledAuxHint {
                 turn: slot.turn.as_ref().and_then(|turn| {
                     let color = key_home_section_color(&turn.key);
-                    self.hint_label(&turn.label, color, slot.turn_source)
+                    let label = Self::aux_turn_label_with_target(turn);
+                    self.hint_label(&label, color, slot.turn_source)
                 }),
                 click: slot.press.as_ref().and_then(|press| {
                     let color = action_home_color(&press.action);
@@ -169,9 +170,9 @@ mod tests {
                 .as_ref()
                 .map(|turn| turn.text.as_str())
         };
-        assert_eq!(turn(0), Some("Cutoff"));
-        assert_eq!(turn(1), Some("Mix"));
-        assert_eq!(turn(2), Some("Density"));
+        assert_eq!(turn(0), Some("I1 Cutoff"));
+        assert_eq!(turn(1), Some("B3 Mix"));
+        assert_eq!(turn(2), Some("L5 Density"));
         assert_eq!(
             hints.normal[2]
                 .click
@@ -189,13 +190,13 @@ mod tests {
             .focus_item_key("mixer.buses.0.slot1.params.feedback"));
         let hints = runner.aux_hints();
         let turn = |index: usize| hints.normal[index].turn.as_ref().unwrap();
-        assert_eq!(turn(0).text, "FB");
-        assert_eq!(turn(1).text, "Mix");
-        assert_eq!(turn(2).text, "Time");
+        assert_eq!(turn(0).text, "B1 FB");
+        assert_eq!(turn(1).text, "B1 Mix");
+        assert_eq!(turn(2).text, "B1 Time");
         assert!(hints.normal.iter().all(|hint| hint.click.is_none()));
         assert_eq!(turn(0).color, palette::BLUE_RGB565);
         assert_eq!(turn(0).source, OledHintSource::Auto);
-        assert_eq!(hints.shift[0].turn.as_ref().unwrap().text, "Spread");
+        assert_eq!(hints.shift[0].turn.as_ref().unwrap().text, "B1 Spread");
 
         runner.display.ui.aux_auto_hints = false;
         assert_eq!(runner.aux_hints(), OledAuxHints::default());
@@ -227,12 +228,12 @@ mod tests {
         let hints = runner.aux_hints();
         assert!(hints.normal[2].turn.is_none());
         assert!(hints.normal[2].click.is_none());
-        assert_eq!(hints.normal[0].turn.as_ref().unwrap().text, "FB");
+        assert_eq!(hints.normal[0].turn.as_ref().unwrap().text, "B1 FB");
 
         runner.display.ui.aux_manual_hints = true;
         runner.aux_bindings[2] = None;
         let hints = runner.aux_hints();
-        assert_eq!(hints.normal[2].turn.as_ref().unwrap().text, "Time");
+        assert_eq!(hints.normal[2].turn.as_ref().unwrap().text, "B1 Time");
     }
 
     #[test]
@@ -247,7 +248,7 @@ mod tests {
             .focus_item_key("mixer.buses.0.slot1.params.feedback"));
         assert_eq!(
             runner.aux_hints().normal[1].turn.as_ref().unwrap().text,
-            "Spread"
+            "B1 Spread"
         );
 
         runner.edit_menu_key("mixer.buses.0.slot1.type", 1).unwrap();
@@ -269,8 +270,8 @@ mod tests {
             .focus_item_key("layers.0.build.behaviorConfig.randomCellsPerTick"));
         let hints = runner.aux_hints();
         let shift = &hints.shift[0];
-        assert_eq!(shift.turn.as_ref().unwrap().text, "Interval");
+        assert_eq!(shift.turn.as_ref().unwrap().text, "L1 Interval");
         assert_eq!(shift.click.as_ref().unwrap().text, "Glider");
-        assert_eq!(hints.normal[1].turn.as_ref().unwrap().text, "Count");
+        assert_eq!(hints.normal[1].turn.as_ref().unwrap().text, "L1 Count");
     }
 }
