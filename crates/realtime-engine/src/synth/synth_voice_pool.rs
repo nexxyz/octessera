@@ -1,3 +1,4 @@
+#[cfg(test)]
 use super::pluck_string::PluckRing;
 use super::runtime_state::Voice;
 pub(super) use super::synth_voice_partition::SynthVoicePartition;
@@ -79,6 +80,7 @@ impl SynthVoicePool {
             .get_mut(local_lane)
     }
 
+    #[cfg(test)]
     pub(super) fn lane_and_ring_mut(
         &mut self,
         lane: usize,

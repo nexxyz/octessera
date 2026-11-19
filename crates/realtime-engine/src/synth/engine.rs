@@ -62,6 +62,7 @@ mod render_momentary_fx;
 mod render_plan;
 mod render_routing;
 mod render_samples;
+#[cfg(test)]
 mod render_synth;
 #[cfg(test)]
 mod render_synth_block_tests;
@@ -300,6 +301,7 @@ pub struct SynthEngine {
     fx_silence_generation: u32,
 }
 
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct SlotFrameOutput {
     pub sample: f32,

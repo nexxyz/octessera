@@ -1,10 +1,11 @@
 use super::super::super::runtime_state::{InstrumentMod, Voice};
 use super::super::super::types::{EnvConfig, SynthConfig, INSTRUMENT_SLOT_COUNT};
+#[cfg(test)]
+use super::render_synth_voice_sample_precomputed;
 use super::{
     fm_source_sample, pluck_source_sample, prepare_synth_voice_block,
-    refresh_synth_voice_render_cache, render_synth_voice_sample_precomputed,
-    shape_synth_voice_block_sample, synth_source_sample, SynthVoiceBlockRenderState,
-    SynthVoiceRenderConfig, VoiceSource,
+    refresh_synth_voice_render_cache, shape_synth_voice_block_sample, synth_source_sample,
+    SynthVoiceBlockRenderState, SynthVoiceRenderConfig, VoiceSource,
 };
 use crate::synth::pluck_string::PluckRing;
 
@@ -26,6 +27,7 @@ pub(in crate::synth::engine) struct SynthVoiceFrameContext {
     pub(in crate::synth::engine) mods: InstrumentMod,
 }
 
+#[cfg(test)]
 pub(in crate::synth::engine) fn render_synth_voice_frame(
     voice: &mut Voice,
     ring: &mut PluckRing,
@@ -43,6 +45,7 @@ pub(in crate::synth::engine) fn render_synth_voice_frame(
     value
 }
 
+#[cfg(test)]
 fn render_source_frame(
     voice: &mut Voice,
     ring: &mut PluckRing,

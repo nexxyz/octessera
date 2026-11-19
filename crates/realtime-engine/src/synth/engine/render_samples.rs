@@ -1,4 +1,5 @@
 use super::sample_voice_loop::{Hermite, SampleInterpolation, SampleVoiceLoop};
+#[cfg(test)]
 use super::sample_voice_renderer::render_sample_voice_frame;
 use super::source_worker_placement;
 use super::voice_budget::split_steal;
@@ -222,6 +223,7 @@ impl SynthEngine {
         self.enforce_voice_budgets();
     }
 
+    #[cfg(test)]
     pub(super) fn render_sample_voices(
         &mut self,
         slot_out: &mut [f32; INSTRUMENT_SLOT_COUNT],
@@ -235,6 +237,7 @@ impl SynthEngine {
         active
     }
 
+    #[cfg(test)]
     pub(super) fn render_sample_slot(&mut self, slot: usize) -> SlotFrameOutput {
         if !self.active_sample_slots[slot] {
             return SlotFrameOutput::default();
