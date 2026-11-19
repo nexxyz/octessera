@@ -14,8 +14,8 @@ pub(super) use layer::{
 };
 pub(super) use mixer::{FxBusDto, FxSlotDto, MixerDto};
 pub(super) use runtime::{
-    AudioOutputsDto, BluetoothDto, HdmiDto, MidiDto, ParamModsDto, RuntimeConfigDto, UsbDto,
-    WifiDto,
+    AudioOutputsDto, BluetoothDto, HdmiDto, MidiDto, ParamBindingDto, ParamModsDto,
+    RuntimeConfigDto, UsbDto, WifiDto,
 };
 
 /// Reads a field whose null means "clear" apart from its absence, which means "keep".

@@ -175,8 +175,8 @@ impl NativeRunner {
             .transpose()?
             .unwrap_or(self.active_layer_index);
         self.switch_active_engine(desired_active_layer_index)?;
-        self.apply_layers_payload(runtime, typed.layers.as_deref().unwrap_or_default())?;
-        self.apply_play_and_xy_payload(runtime);
+        self.apply_layers_payload(&typed)?;
+        self.apply_play_and_xy_payload(&typed, runtime);
         self.apply_instruments_payload(typed.instruments.as_deref().unwrap_or_default());
         if apply_device {
             self.apply_runtime_ui_and_sound_payload(&typed, envelope.mapping_config())?;

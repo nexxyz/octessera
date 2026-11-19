@@ -60,13 +60,6 @@ pub(super) fn default_missing_seed_fields(patch: &mut Value) {
     }
 }
 
-pub(super) fn random_seed_from_payload(runtime: &Value) -> Option<u16> {
-    runtime
-        .get(RANDOM_SEED_KEY)
-        .and_then(Value::as_u64)
-        .map(|seed| seed.clamp(1, u64::from(MAX_RANDOM_SEED)) as u16)
-}
-
 impl NativeRunner {
     pub(super) fn layer_random_seed(&self, layer_index: usize) -> Option<u64> {
         self.layers

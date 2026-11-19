@@ -111,3 +111,34 @@ fn sound_display_and_device_loads_save_stably_and_reject_missing_or_unknown_keys
         "unknown MIDI key",
     );
 }
+
+#[test]
+fn layer_xy_and_lfo_loads_save_stably_and_reject_missing_or_unknown_keys() {
+    assert_saves_are_stable();
+    assert_local_patch_rejected(
+        |patch| {
+            patch["runtimeConfig"]["xy"]
+                .as_object_mut()
+                .unwrap()
+                .remove("smoothingMs");
+        },
+        "missing XY smoothing",
+    );
+    assert_local_patch_rejected(
+        |patch| {
+            patch["runtimeConfig"]["layers"][2]
+                .as_object_mut()
+                .unwrap()
+                .remove("link");
+        },
+        "missing layer link",
+    );
+    assert_local_patch_rejected(
+        |patch| patch["runtimeConfig"]["linkLfos"][0]["shape"] = json!("sine"),
+        "unknown LFO key",
+    );
+    assert_local_patch_rejected(
+        |patch| patch["runtimeConfig"]["layers"][0]["build"]["speed"] = json!(2),
+        "unknown build key",
+    );
+}
