@@ -22,7 +22,7 @@ fn transfer_entries(store: &Path) -> Vec<String> {
         .collect()
 }
 
-fn wait_for_received_upload(store: &Path, length: u64) {
+pub(super) fn wait_for_received_upload(store: &Path, length: u64) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline {
         let received = fs::read_dir(store)
