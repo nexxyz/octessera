@@ -44,15 +44,16 @@ pub enum NativeHdmiMode {
 }
 
 impl NativeHdmiMode {
-    fn from_name(name: &str) -> Self {
-        match name {
-            "terminal" => Self::Terminal,
-            "live-grid" => Self::LiveGrid,
-            "plain-grid" => Self::PlainGrid,
-            "active-behavior" => Self::ActiveBehavior,
-            "cycle-behaviors" => Self::CycleBehaviors,
-            _ => panic!("invalid canonical HDMI mode: {name}"),
-        }
+    pub const ALL: [Self; 5] = [
+        Self::Terminal,
+        Self::LiveGrid,
+        Self::PlainGrid,
+        Self::ActiveBehavior,
+        Self::CycleBehaviors,
+    ];
+
+    pub fn from_wire_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|mode| mode.as_str() == name)
     }
 
     pub fn as_str(self) -> &'static str {
@@ -93,7 +94,7 @@ impl HdmiScene {
     fn into_hardware(self, live_rgb: &[u8], live_active: &[bool]) -> NativeHdmiPresentation {
         let (rgb, active) = self.grid.into_frame(live_rgb, live_active);
         NativeHdmiPresentation {
-            mode: NativeHdmiMode::from_name(&self.mode),
+            mode: self.mode,
             show_gridlines: self.show_gridlines,
             cycle_measures: self.cycle_measures,
             source_layer_index: self.source_layer_index,
@@ -110,7 +111,7 @@ impl HdmiScene {
 
 impl PresentationScene {
     pub fn hdmi_mode(&self) -> NativeHdmiMode {
-        NativeHdmiMode::from_name(&self.hdmi.mode)
+        self.hdmi.mode
     }
 
     pub fn into_hardware_presentation(

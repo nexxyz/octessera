@@ -51,7 +51,7 @@ pub(crate) fn configure_wifi_uses_a_stable_resolvable_action_help_key() {
 pub(crate) fn hdmi_mode_and_bars_per_cycle_rows_have_help() {
     let mut config = config();
     config.board = true;
-    config.hdmi_mode = "cycle-behaviors".into();
+    config.hdmi_mode = crate::NativeHdmiMode::CycleBehaviors;
     let menu = NativeMenuModel::new(config);
 
     let mode_target = menu

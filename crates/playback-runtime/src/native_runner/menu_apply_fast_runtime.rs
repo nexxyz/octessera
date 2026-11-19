@@ -1,4 +1,5 @@
 use super::play_pages::PlayMode;
+use super::NativeHdmiMode;
 use crate::protocol::RuntimeAudioCommand;
 
 use super::menu_apply_fast::value_changed;
@@ -36,17 +37,14 @@ impl NativeRunner {
                 Some(self.fast_dsp_config_menu_key())
             }
             "hdmi.mode" => Some(self.fast_string_menu_key(key, |runner, value| {
-                let value = match value.as_str() {
-                    "Terminal" => "terminal".into(),
-                    "terminal" | "live-grid" | "plain-grid" | "active-behavior"
-                    | "cycle-behaviors" => value,
-                    _ => "terminal".into(),
-                };
-                let changed = value_changed(&mut runner.display.hdmi.mode, value);
+                let mode =
+                    NativeHdmiMode::from_wire_name(&value).unwrap_or(NativeHdmiMode::Terminal);
+                let changed = runner.display.hdmi.mode != mode;
+                runner.display.hdmi.mode = mode;
                 if changed {
                     let hdmi = &runner.display.hdmi;
-                    let cycle_measures =
-                        (hdmi.mode == "cycle-behaviors").then_some(hdmi.cycle_measures);
+                    let cycle_measures = (hdmi.mode == NativeHdmiMode::CycleBehaviors)
+                        .then_some(hdmi.cycle_measures);
                     runner.menu.show_hdmi_cycle_row(cycle_measures);
                 }
                 changed

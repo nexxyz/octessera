@@ -1,5 +1,5 @@
 use super::snapshot_leds::base_led_snapshot;
-use super::{display_index, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
+use super::{display_index, NativeHdmiMode, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
 
 impl NativeRunner {
     pub fn capture_display_scene(&mut self) -> Result<super::PresentationScene, String> {
@@ -73,8 +73,8 @@ impl NativeRunner {
 }
 
 impl NativeRunner {
-    pub(super) fn hdmi_source_layer_index(&self, mode: &str) -> usize {
-        if mode == "cycle-behaviors" {
+    pub(super) fn hdmi_source_layer_index(&self, mode: NativeHdmiMode) -> usize {
+        if mode == NativeHdmiMode::CycleBehaviors {
             let candidates: Vec<usize> = self
                 .layers
                 .iter()

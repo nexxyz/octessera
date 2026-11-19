@@ -190,7 +190,7 @@ impl NativeRunner {
             usb_data_role_available: self.audio_io.usb_data_role_available,
             usb_midi_out_enabled: self.audio_io.usb_midi_out_enabled,
             recording_max_minutes: self.audio_io.recording_max_minutes,
-            hdmi_mode: self.display.hdmi.mode.clone(),
+            hdmi_mode: self.display.hdmi.mode,
             hdmi_show_gridlines: self.display.hdmi.show_gridlines,
             hdmi_cycle_measures: self.display.hdmi.cycle_measures,
             preset_names: self.patch_store.preset_names.clone(),

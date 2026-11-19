@@ -195,7 +195,7 @@ impl SystemPersistenceState {
             "masterVolume": runner.display.ui.master_volume,
             "sampleFavouriteDirs": runner.sample_favourite_dirs,
             "hdmi": {
-                "mode": runner.display.hdmi.mode,
+                "mode": runner.display.hdmi.mode.as_str(),
                 "showGridlines": runner.display.hdmi.show_gridlines,
                 "cycleMeasures": runner.display.hdmi.cycle_measures,
             },

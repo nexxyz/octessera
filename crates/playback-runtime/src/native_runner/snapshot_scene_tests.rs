@@ -350,7 +350,7 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
     runner.display.confirm_dialog = None;
     runner.display.help_popup = None;
     for mode in ["terminal", "live-grid", "plain-grid", "active-behavior"] {
-        runner.display.hdmi.mode = mode.into();
+        runner.display.hdmi.mode = crate::NativeHdmiMode::from_wire_name(mode).unwrap();
         let scene = converted_scene(&runner, false);
         assert_eq!(scene["hdmi"]["mode"], mode);
         assert_eq!(

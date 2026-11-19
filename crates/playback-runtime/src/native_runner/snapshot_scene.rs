@@ -43,7 +43,7 @@ enum HdmiGrid {
 }
 
 struct HdmiScene {
-    mode: String,
+    mode: NativeHdmiMode,
     show_gridlines: bool,
     cycle_measures: u8,
     source_layer_index: usize,
@@ -138,7 +138,7 @@ impl NativeRunner {
         for led in leds {
             led.append_rgb(&mut led_rgb);
         }
-        let hdmi_mode = self.display.hdmi.mode.as_str();
+        let hdmi_mode = self.display.hdmi.mode;
         let source_layer_index = self.hdmi_source_layer_index(hdmi_mode);
         let source_behavior_id = self
             .layers
@@ -146,19 +146,19 @@ impl NativeRunner {
             .map(|layer| layer.behavior_id.clone())
             .unwrap_or_else(|| "none".into());
         let grid = match hdmi_mode {
-            "live-grid" => HdmiGrid::Live,
-            "plain-grid" => HdmiGrid::Model(model),
-            "active-behavior" | "cycle-behaviors"
+            NativeHdmiMode::LiveGrid => HdmiGrid::Live,
+            NativeHdmiMode::PlainGrid => HdmiGrid::Model(model),
+            NativeHdmiMode::ActiveBehavior | NativeHdmiMode::CycleBehaviors
                 if source_layer_index == self.active_layer_index
                     && source_behavior_id != "none" =>
             {
                 HdmiGrid::Model(model)
             }
-            "active-behavior" | "cycle-behaviors" => self
+            NativeHdmiMode::ActiveBehavior | NativeHdmiMode::CycleBehaviors => self
                 .hdmi_model_for_layer(source_layer_index)
                 .map(HdmiGrid::Model)
                 .unwrap_or(HdmiGrid::Black),
-            _ => HdmiGrid::Black,
+            NativeHdmiMode::Terminal => HdmiGrid::Black,
         };
         let menu = self.menu.snapshot();
         let title_color = menu.section_color;
@@ -216,7 +216,7 @@ impl NativeRunner {
             led_rgb,
             active_tiles,
             hdmi: HdmiScene {
-                mode: self.display.hdmi.mode.clone(),
+                mode: self.display.hdmi.mode,
                 show_gridlines: self.display.hdmi.show_gridlines,
                 cycle_measures: self.display.hdmi.cycle_measures,
                 source_layer_index,

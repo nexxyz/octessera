@@ -49,7 +49,7 @@ impl NativeRunnerConstructionSeed {
             now,
             ui,
             hdmi: NativeHdmiConfig {
-                mode: "terminal".into(),
+                mode: NativeHdmiMode::Terminal,
                 show_gridlines: false,
                 cycle_measures: 4,
                 source_layer_index: 0,

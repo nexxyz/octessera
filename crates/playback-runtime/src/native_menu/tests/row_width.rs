@@ -161,7 +161,7 @@ fn system_configs() -> Vec<NativeMenuConfig> {
     .map(|role| {
         let mut cfg = config();
         cfg.board = true;
-        cfg.hdmi_mode = "cycle-behaviors".into();
+        cfg.hdmi_mode = crate::NativeHdmiMode::CycleBehaviors;
         cfg.usb_data_role_available = true;
         cfg.usb_data_role = role;
         cfg

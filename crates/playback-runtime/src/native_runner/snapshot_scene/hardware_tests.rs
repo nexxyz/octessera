@@ -130,7 +130,7 @@ fn shipped_default_modes_preserve_native_pixels_and_source() {
         ("active-behavior", NativeHdmiMode::ActiveBehavior),
         ("cycle-behaviors", NativeHdmiMode::CycleBehaviors),
     ] {
-        runner.display.hdmi.mode = name.into();
+        runner.display.hdmi.mode = crate::NativeHdmiMode::from_wire_name(name).unwrap();
         let hardware = verify_hardware(&runner, OledPresentationMetrics::default(), None);
         assert_eq!(hardware.hdmi.mode, mode);
         assert_eq!(hardware.leds.brightness, 25);
@@ -160,7 +160,7 @@ fn shipped_default_modes_preserve_native_pixels_and_source() {
             assert!(hardware.hdmi.grid.rgb.iter().all(|byte| *byte == 0));
         }
     }
-    runner.display.hdmi.mode = "cycle-behaviors".into();
+    runner.display.hdmi.mode = crate::NativeHdmiMode::CycleBehaviors;
     runner.transport.current_ppqn_pulse = 4 * 96;
     let cycled = verify_hardware(&runner, OledPresentationMetrics::default(), None);
     assert_eq!(cycled.hdmi.source_layer_index, 1);
@@ -175,7 +175,7 @@ fn shipped_default_modes_preserve_native_pixels_and_source() {
         &cycled.hdmi.grid.rgb[sequencer_tile * 3..sequencer_tile * 3 + 3],
         &[255, 255, 0]
     );
-    runner.display.hdmi.mode = "active-behavior".into();
+    runner.display.hdmi.mode = crate::NativeHdmiMode::ActiveBehavior;
     runner.display.hdmi.source_layer_index = 6;
     let empty_source = verify_hardware(&runner, OledPresentationMetrics::default(), None);
     assert_eq!(empty_source.hdmi.mode, NativeHdmiMode::ActiveBehavior);
@@ -195,7 +195,7 @@ fn scene_hdmi_mode_accessor_reads_all_fixed_modes_without_snapshot_conversion() 
         ("cycle-behaviors", NativeHdmiMode::CycleBehaviors),
     ];
     for (name, expected) in modes {
-        runner.display.hdmi.mode = name.into();
+        runner.display.hdmi.mode = crate::NativeHdmiMode::from_wire_name(name).unwrap();
         let scene = runner.capture_presentation_scene(false).unwrap();
         let generation = scene.generation();
         assert_eq!(scene.hdmi_mode(), expected);
@@ -207,7 +207,7 @@ fn scene_hdmi_mode_accessor_reads_all_fixed_modes_without_snapshot_conversion() 
 #[test]
 fn hardware_oled_off_and_error_leave_grid_and_hdmi_live() {
     let mut runner = shipped_runner();
-    runner.display.hdmi.mode = "plain-grid".into();
+    runner.display.hdmi.mode = crate::NativeHdmiMode::PlainGrid;
     let awake = verify_hardware(&runner, OledPresentationMetrics::default(), None);
     let metadata = OledRuntimeErrorMetadata {
         domain: Some("runtime".into()),

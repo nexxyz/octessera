@@ -194,7 +194,7 @@ pub(crate) fn config() -> NativeMenuConfig {
         usb_data_role: crate::native_runner::UsbDataRole::Gadget,
         usb_data_role_available: false,
         usb_midi_out_enabled: false,
-        hdmi_mode: "terminal".into(),
+        hdmi_mode: crate::NativeHdmiMode::Terminal,
         hdmi_show_gridlines: false,
         hdmi_cycle_measures: 4,
         recording_max_minutes: 10,

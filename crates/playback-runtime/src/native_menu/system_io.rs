@@ -227,13 +227,7 @@ pub(super) fn sd_transfer_start_item() -> NativeMenuItem {
 }
 
 pub(super) fn hdmi_video_group(config: &NativeMenuConfig) -> NativeMenuItem {
-    let mode_values = [
-        "terminal",
-        "live-grid",
-        "plain-grid",
-        "active-behavior",
-        "cycle-behaviors",
-    ];
+    let mode_values = crate::NativeHdmiMode::ALL.map(crate::NativeHdmiMode::as_str);
     let mut children = vec![enum_item(
         "Mode",
         "hdmi.mode",
@@ -244,9 +238,9 @@ pub(super) fn hdmi_video_group(config: &NativeMenuConfig) -> NativeMenuItem {
             "active-behavior",
             "cycle-behaviors",
         ],
-        selected_index(&mode_values, &config.hdmi_mode),
+        selected_index(&mode_values, config.hdmi_mode.as_str()),
     )];
-    if config.hdmi_mode == "cycle-behaviors" {
+    if config.hdmi_mode == crate::NativeHdmiMode::CycleBehaviors {
         children.push(hdmi_cycle_measures_item(config.hdmi_cycle_measures));
     }
     children.push(bool_item(

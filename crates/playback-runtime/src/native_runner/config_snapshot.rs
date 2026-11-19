@@ -21,7 +21,7 @@ pub struct NativeConfigSnapshot {
     swing_b: u8,
     xy_release: String,
     sample_favourite_dirs: Vec<String>,
-    hdmi_mode: String,
+    hdmi_mode: NativeHdmiMode,
     hdmi_show_gridlines: bool,
     hdmi_cycle_measures: u8,
     bluetooth_enabled: bool,
@@ -155,7 +155,7 @@ impl NativeConfigSnapshot {
                 "xyRelease": self.xy_release,
                 "sampleFavouriteDirs": self.sample_favourite_dirs,
                 "hdmi": {
-                    "mode": self.hdmi_mode,
+                    "mode": self.hdmi_mode.as_str(),
                     "showGridlines": self.hdmi_show_gridlines,
                     "cycleMeasures": self.hdmi_cycle_measures
                 },
@@ -282,7 +282,7 @@ impl NativeConfigSnapshot {
             swing_b: runner.transport.swing_b,
             xy_release: runner.xy.release.clone(),
             sample_favourite_dirs: runner.sample_favourite_dirs.clone(),
-            hdmi_mode: runner.display.hdmi.mode.clone(),
+            hdmi_mode: runner.display.hdmi.mode,
             hdmi_show_gridlines: runner.display.hdmi.show_gridlines,
             hdmi_cycle_measures: runner.display.hdmi.cycle_measures,
             bluetooth_enabled: runner.bluetooth.enabled,

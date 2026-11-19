@@ -2,6 +2,7 @@ use super::grid_assign::GridAssign;
 use super::play_fx_config::{default_play_fx_selected, sanitize_play_fx_config};
 #[cfg(test)]
 use super::prepare_device_payload;
+use super::NativeHdmiMode;
 use super::{
     prepare_config_payload, prepare_patch_payload, ConfigDto, ConfigurationAggregate,
     ConfigurationRuntimePlan, NativePlayFxAssignment, NativeRunner, NativeRunnerConfig,
@@ -258,13 +259,8 @@ impl NativeRunner {
             return;
         };
         if let Some(mode) = hdmi.get("mode").and_then(Value::as_str) {
-            self.display.hdmi.mode = match mode {
-                "terminal" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors" => {
-                    mode
-                }
-                _ => "terminal",
-            }
-            .into();
+            self.display.hdmi.mode =
+                NativeHdmiMode::from_wire_name(mode).unwrap_or(NativeHdmiMode::Terminal);
         }
         if let Some(show_gridlines) = hdmi.get("showGridlines").and_then(Value::as_bool) {
             self.display.hdmi.show_gridlines = show_gridlines;

@@ -117,7 +117,7 @@ pub struct NativeMenuConfig {
     pub usb_data_role_available: bool,
     pub usb_midi_out_enabled: bool,
     pub recording_max_minutes: u16,
-    pub hdmi_mode: String,
+    pub hdmi_mode: crate::NativeHdmiMode,
     pub hdmi_show_gridlines: bool,
     pub hdmi_cycle_measures: u8,
     pub preset_names: Vec<String>,

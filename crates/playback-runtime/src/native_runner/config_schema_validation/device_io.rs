@@ -83,13 +83,7 @@ pub(super) fn validate_hdmi(runtime: &Map<String, Value>) -> Result<(), String> 
         hdmi,
         "mode",
         "runtimeConfig.hdmi",
-        &[
-            "terminal",
-            "live-grid",
-            "plain-grid",
-            "active-behavior",
-            "cycle-behaviors",
-        ],
+        &crate::NativeHdmiMode::ALL.map(crate::NativeHdmiMode::as_str),
     )?;
     bool_field(hdmi, "showGridlines", "runtimeConfig.hdmi")?;
     unsigned_field(hdmi, "cycleMeasures", "runtimeConfig.hdmi", 1, 64)

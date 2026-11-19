@@ -228,7 +228,7 @@ impl NativeTransportState {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct NativeHdmiConfig {
-    pub(super) mode: String,
+    pub(super) mode: NativeHdmiMode,
     pub(super) show_gridlines: bool,
     pub(super) cycle_measures: u8,
     pub(super) source_layer_index: usize,

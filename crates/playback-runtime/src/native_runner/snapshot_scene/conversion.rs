@@ -139,7 +139,7 @@ impl HdmiScene {
     fn into_snapshot(self, live_rgb: &[u8], live_active: &[bool]) -> Value {
         let (rgb, active) = self.grid.into_frame(live_rgb, live_active);
         json!({
-            "mode": self.mode,
+            "mode": self.mode.as_str(),
             "showGridlines": self.show_gridlines,
             "cycleMeasures": self.cycle_measures,
             "sourceLayerIndex": self.source_layer_index,

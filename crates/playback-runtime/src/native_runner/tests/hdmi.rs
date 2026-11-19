@@ -11,6 +11,35 @@ fn hdmi_runner() -> NativeRunner {
 }
 
 #[test]
+fn every_saved_hdmi_mode_loads_and_saves_back_unchanged() {
+    let mut runner = hdmi_runner();
+    for mode in [
+        "terminal",
+        "live-grid",
+        "plain-grid",
+        "active-behavior",
+        "cycle-behaviors",
+    ] {
+        runner
+            .apply_config_payload(config_with(
+                &runner,
+                json!({ "runtimeConfig": { "hdmi": { "mode": mode } } }),
+            ))
+            .unwrap();
+        assert_eq!(
+            runner.config_payload()["runtimeConfig"]["hdmi"]["mode"],
+            mode
+        );
+        assert_eq!(
+            super::super::system_persistence::SystemPersistenceState::system_document(&runner)
+                .unwrap()["runtimeConfig"]["hdmi"]["mode"],
+            mode
+        );
+    }
+    assert_eq!(crate::NativeHdmiMode::from_wire_name("Terminal"), None);
+}
+
+#[test]
 fn hdmi_menu_displays_terminal_for_the_stored_terminal_mode() {
     let mut runner = hdmi_runner();
     let item = runner.menu.item_for_key("hdmi.mode").unwrap();
@@ -269,7 +298,7 @@ fn hdmi_mode_changes_its_rows_in_place_to_match_a_full_rebuild() {
         (-4, "terminal"),
     ] {
         let _ = commit_setting(&mut runner, "hdmi.mode", delta);
-        assert_eq!(runner.display.hdmi.mode, mode);
+        assert_eq!(runner.display.hdmi.mode.as_str(), mode);
         assert_eq!(runner.menu.rebuild_count, rebuilds);
         assert_eq!(
             runner.menu.root,
