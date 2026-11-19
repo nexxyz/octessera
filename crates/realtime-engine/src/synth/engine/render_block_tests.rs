@@ -247,13 +247,19 @@ fn inline_quantum_preserves_active_voices_across_omitted_type_and_route_edits() 
 }
 
 #[test]
-fn oversized_block_slot_render_falls_back_to_canonical() {
+fn oversized_block_renders_in_scratch_sized_chunks_matching_canonical() {
     let mut block = SynthEngine::new(44_100);
     let mut reference = SynthEngine::new(44_100);
+    block.set_instruments(delay_bus_config());
+    reference.set_instruments(delay_bus_config());
     block.note_on(0, 60, 96, 1_000);
     reference.note_on(0, 60, 96, 1_000);
 
-    assert_block_matches_reference(&mut block, &mut reference, BLOCK_SLOT_SCRATCH_FRAMES + 1);
+    assert_block_matches_reference(
+        &mut block,
+        &mut reference,
+        2 * BLOCK_SLOT_SCRATCH_FRAMES + 17,
+    );
 }
 
 fn assert_prepared_block_matches_reference(

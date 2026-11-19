@@ -290,15 +290,11 @@ impl SynthEngine {
         left.resize(frames, 0.0);
         right.resize(frames, 0.0);
         out.resize(frames * 2, 0.0);
-        if self.block_slot_scratch.prepare_output(frames) {
-            self.block_slot_frame_graph(frames, left, right);
-            interleave_stereo(left, right, out);
-            return;
-        }
-        for frame in 0..frames {
-            let (l, r) = self.next_stereo_sample();
-            left[frame] = l;
-            right[frame] = r;
+        for start in (0..frames).step_by(BLOCK_SLOT_SCRATCH_FRAMES) {
+            let end = frames.min(start + BLOCK_SLOT_SCRATCH_FRAMES);
+            let prepared = self.block_slot_scratch.prepare_output(end - start);
+            debug_assert!(prepared);
+            self.block_slot_frame_graph(end - start, &mut left[start..end], &mut right[start..end]);
         }
         interleave_stereo(left, right, out);
     }
