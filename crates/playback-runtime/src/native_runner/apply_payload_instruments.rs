@@ -2,12 +2,12 @@ use crate::native_menu::HOME_VISUALS;
 use crate::protocol::RuntimePlatformEffect;
 
 use super::apply_payload_instrument_values::apply_instrument_payload;
-use super::apply_payload_mixer_values::*;
+use super::apply_payload_mixer_values::apply_mixer_payload;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::play_pages::{ActivePlayMode, PlayMode};
 use super::{
     velocity_curve_from_id, AudioOptimization, AudioOutputSet, AuxPriority, InstrumentDto, MidiDto,
-    NativeRunner, SyncSource, UsbDataRole, Value, VoiceStealingMode,
+    NativeRunner, RuntimeConfigDto, SyncSource, UsbDataRole, Value, VoiceStealingMode,
 };
 use serde::Deserialize;
 
@@ -20,6 +20,7 @@ impl NativeRunner {
 
     pub(super) fn apply_runtime_ui_and_sound_payload(
         &mut self,
+        typed: &RuntimeConfigDto,
         runtime: &Value,
         mapping_config: Option<&Value>,
     ) -> Result<(), String> {
@@ -27,7 +28,7 @@ impl NativeRunner {
         self.apply_dsp_payload(runtime)?;
         self.apply_runtime_transport_payload(runtime);
         apply_mixer_payload(
-            runtime,
+            typed.mixer.as_ref(),
             &mut self.fx_buses,
             &mut self.global_fx_slots,
             &mut self.global_fx_params,
@@ -46,6 +47,7 @@ impl NativeRunner {
 
     pub(super) fn apply_patch_runtime_payload(
         &mut self,
+        typed: &RuntimeConfigDto,
         runtime: &Value,
         mapping_config: Option<&Value>,
     ) -> Result<(), String> {
@@ -53,7 +55,7 @@ impl NativeRunner {
         self.apply_dsp_payload(runtime)?;
         self.apply_runtime_transport_payload(runtime);
         apply_mixer_payload(
-            runtime,
+            typed.mixer.as_ref(),
             &mut self.fx_buses,
             &mut self.global_fx_slots,
             &mut self.global_fx_params,

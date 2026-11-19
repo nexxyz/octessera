@@ -5,43 +5,43 @@ use serde_json::Value;
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct MixerDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) buses: Option<Vec<FxBusDto>>,
+    pub(in crate::native_runner) buses: Option<Vec<FxBusDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) master: Option<MasterMixerDto>,
+    pub(in crate::native_runner) master: Option<MasterMixerDto>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FxBusDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) name: Option<String>,
+    pub(in crate::native_runner) name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) slot1: Option<FxSlotDto>,
+    pub(in crate::native_runner) slot1: Option<FxSlotDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) slot2: Option<FxSlotDto>,
+    pub(in crate::native_runner) slot2: Option<FxSlotDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) slot3: Option<FxSlotDto>,
+    pub(in crate::native_runner) slot3: Option<FxSlotDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) pan_pos: Option<u8>,
+    pub(in crate::native_runner) pan_pos: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) volume_pct: Option<u8>,
+    pub(in crate::native_runner) volume_pct: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) auto_name: Option<bool>,
+    pub(in crate::native_runner) auto_name: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct MasterMixerDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) slots: Option<Vec<FxSlotDto>>,
+    pub(in crate::native_runner) slots: Option<Vec<FxSlotDto>>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FxSlotDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) r#type: Option<String>,
+    pub(in crate::native_runner) r#type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) params: Option<Value>,
+    pub(in crate::native_runner) params: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

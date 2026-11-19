@@ -179,9 +179,9 @@ impl NativeRunner {
         self.apply_play_and_xy_payload(runtime);
         self.apply_instruments_payload(typed.instruments.as_deref().unwrap_or_default());
         if apply_device {
-            self.apply_runtime_ui_and_sound_payload(runtime, envelope.mapping_config())?;
+            self.apply_runtime_ui_and_sound_payload(&typed, runtime, envelope.mapping_config())?;
         } else {
-            self.apply_patch_runtime_payload(runtime, envelope.mapping_config())?;
+            self.apply_patch_runtime_payload(&typed, runtime, envelope.mapping_config())?;
         }
         self.resample_xy_runtime_sources();
         self.apply_hdmi_payload(runtime);

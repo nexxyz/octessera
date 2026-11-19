@@ -12,7 +12,7 @@ pub(super) use instrument::{InstrumentDto, MidiDrumDto, SampleDto, SampleSlotDto
 pub(super) use layer::{
     ArpDto, AxisDto, BuildDto, LayerDto, LinkDto, MappingEventDto, PitchDto, SlotDto, ValueLaneDto,
 };
-pub(super) use mixer::MixerDto;
+pub(super) use mixer::{FxBusDto, FxSlotDto, MixerDto};
 pub(super) use runtime::{
     AudioOutputsDto, BluetoothDto, HdmiDto, MidiDto, ParamModsDto, RuntimeConfigDto, UsbDto,
     WifiDto,

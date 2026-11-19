@@ -46,6 +46,7 @@ impl NativeRunner {
     }
 }
 
+mod apply_payload_documents;
 mod audio_menu;
 mod audio_menu_direct;
 mod audio_menu_naming;
