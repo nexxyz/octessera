@@ -131,8 +131,5 @@ fn valid_duck_source(source: Option<&str>) -> bool {
 }
 
 fn fx_param_range(slot_type: &str, key: &str) -> Option<(f64, f64)> {
-    if (slot_type, key) == ("tremolo", "mixPct") {
-        return Some((0.0, 100.0));
-    }
     fx_param_spec(slot_type, key).map(FxParam::saved_range)
 }

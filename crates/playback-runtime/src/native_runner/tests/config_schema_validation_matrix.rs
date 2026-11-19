@@ -311,3 +311,16 @@ fn assert_validation_ok(mutate: impl FnOnce(&mut Value)) {
     mutate(&mut payload);
     validate_config_payload(&payload).unwrap();
 }
+
+#[test]
+pub(crate) fn tremolo_has_no_mix_parameter_to_save() {
+    let mut payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/desktop/default.json"
+    ))
+    .unwrap();
+    payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"] =
+        json!({ "type": "tremolo", "params": { "rateHz": 4, "depthPct": 60 } });
+    assert!(validate_config_payload(&payload).is_ok());
+    payload["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]["mixPct"] = json!(35);
+    assert!(validate_config_payload(&payload).is_err());
+}
