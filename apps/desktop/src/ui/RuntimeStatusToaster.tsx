@@ -62,7 +62,8 @@ export function RuntimeStatusToaster({
   const [dismissedIdentity, setDismissedIdentity] = useState<string | null>(
     null,
   );
-  const [paused, setPaused] = useState(false);
+  const [pausedToast, setPausedToast] = useState<RuntimeStatus | null>(null);
+  const paused = toastPaused(pausedToast, visible);
   const copy = useMemo(
     () => (visible?.error ? runtimeErrorCopy(visible.error) : null),
     [visible],
@@ -137,10 +138,10 @@ export function RuntimeStatusToaster({
           className="runtime-status-toast"
           role="alert"
           aria-live="assertive"
-          onMouseEnter={() => setPaused(true)}
-          onMouseLeave={() => setPaused(false)}
-          onFocus={() => setPaused(true)}
-          onBlur={() => setPaused(false)}
+          onMouseEnter={() => setPausedToast(visible)}
+          onMouseLeave={() => setPausedToast(null)}
+          onFocus={() => setPausedToast(visible)}
+          onBlur={() => setPausedToast(null)}
         >
           <div className="runtime-status-copy">
             <strong>{copy.title}</strong>
@@ -168,6 +169,13 @@ export function RuntimeStatusToaster({
       )}
     </aside>
   );
+}
+
+export function toastPaused(
+  pausedToast: RuntimeStatus | null,
+  visible: RuntimeStatus | null,
+): boolean {
+  return pausedToast !== null && pausedToast === visible;
 }
 
 export function oledFaultCopy(
