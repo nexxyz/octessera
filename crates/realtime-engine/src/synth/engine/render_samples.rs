@@ -1,4 +1,4 @@
-use super::sample_voice_loop::SampleVoiceLoop;
+use super::sample_voice_loop::{Hermite, SampleInterpolation, SampleVoiceLoop};
 use super::sample_voice_renderer::render_sample_voice_frame;
 use super::source_worker_placement;
 use super::voice_budget::split_steal;
@@ -321,10 +321,7 @@ fn render_preview_frame(
             voice.pos = voice_frames as f64;
             continue;
         }
-        let source_frame = voice.pos as usize;
-        let frac = (voice.pos - source_frame as f64) as f32;
-        let next_frame = (source_frame + 1).min(voice_frames - 1);
-        out += view.mono_frame(source_frame) * (1.0 - frac) + view.mono_frame(next_frame) * frac;
+        out += Hermite::at(&view, voice.pos);
         voice.pos += voice.step;
         active = true;
     }

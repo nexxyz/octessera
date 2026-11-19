@@ -9,18 +9,52 @@ use crate::synth::SampleBuffer;
 /// The forward loop's seam crossfade, in seconds of the sample itself.
 const LOOP_CROSSFADE_SECONDS: f64 = 0.010;
 
-#[inline(always)]
-fn lerp_at(source: &SampleBufferView, pos: f64) -> f32 {
-    let frame = pos as usize;
-    let frac = (pos - frame as f64) as f32;
-    let next_frame = (frame + 1).min(source.frames() - 1);
-    source.mono_frame(frame) * (1.0 - frac) + source.mono_frame(next_frame) * frac
+/// How a cursor reads the input at a position. A block picks one for its whole read loop.
+pub(super) trait SampleInterpolation {
+    fn at(source: &SampleBufferView, pos: f64) -> f32;
+}
+
+/// Playback at the sample's own rate from a whole frame stays on whole frames, so it reads them
+/// as they are.
+pub(super) struct WholeFrames;
+
+impl SampleInterpolation for WholeFrames {
+    #[inline(always)]
+    fn at(source: &SampleBufferView, pos: f64) -> f32 {
+        source.mono_frame(pos as usize)
+    }
+}
+
+/// 4-point, 3rd-order Hermite between frames; the neighbours clamp to the sample's first and
+/// last frame. It passes exactly through every frame.
+pub(super) struct Hermite;
+
+impl SampleInterpolation for Hermite {
+    #[inline(always)]
+    fn at(source: &SampleBufferView, pos: f64) -> f32 {
+        let frame = pos as usize;
+        let t = (pos - frame as f64) as f32;
+        let last = source.frames() - 1;
+        let before = source.mono_frame(frame.saturating_sub(1));
+        let x0 = source.mono_frame(frame);
+        let x1 = source.mono_frame((frame + 1).min(last));
+        let x2 = source.mono_frame((frame + 2).min(last));
+        let c1 = 0.5 * (x1 - before);
+        let c2 = before - 2.5 * x0 + 2.0 * x1 - 0.5 * x2;
+        let c3 = 0.5 * (x2 - before) + 1.5 * (x0 - x1);
+        ((c3 * t + c2) * t + c1) * t + x0
+    }
 }
 
 /// Reads the input at `pos` and moves `pos` on by `step`; `None` once a one-shot read has run
 /// off the end of the sample.
 pub(super) trait SampleCursor: Copy {
-    fn read(&mut self, source: &SampleBufferView, pos: &mut f64, step: f64) -> Option<f32>;
+    fn read<I: SampleInterpolation>(
+        &mut self,
+        source: &SampleBufferView,
+        pos: &mut f64,
+        step: f64,
+    ) -> Option<f32>;
     fn into_loop(self) -> SampleVoiceLoop;
 }
 
@@ -74,11 +108,16 @@ pub(super) struct OnceThrough;
 
 impl SampleCursor for OnceThrough {
     #[inline(always)]
-    fn read(&mut self, source: &SampleBufferView, pos: &mut f64, step: f64) -> Option<f32> {
+    fn read<I: SampleInterpolation>(
+        &mut self,
+        source: &SampleBufferView,
+        pos: &mut f64,
+        step: f64,
+    ) -> Option<f32> {
         if *pos >= source.end_position() {
             return None;
         }
-        let input = lerp_at(source, *pos);
+        let input = I::at(source, *pos);
         *pos += step;
         Some(input)
     }
@@ -100,12 +139,17 @@ pub(super) struct ForwardLoop {
 
 impl SampleCursor for ForwardLoop {
     #[inline(always)]
-    fn read(&mut self, source: &SampleBufferView, pos: &mut f64, step: f64) -> Option<f32> {
+    fn read<I: SampleInterpolation>(
+        &mut self,
+        source: &SampleBufferView,
+        pos: &mut f64,
+        step: f64,
+    ) -> Option<f32> {
         let at = *pos;
-        let mut input = lerp_at(source, at);
+        let mut input = I::at(source, at);
         if at >= self.fade_start {
             let blend = (at - self.fade_start) as f32 * self.inverse_fade;
-            input += (lerp_at(source, at - self.jump) - input) * blend;
+            input += (I::at(source, at - self.jump) - input) * blend;
         }
         let next = at + step;
         *pos = if next >= self.end {
@@ -132,8 +176,13 @@ pub(super) struct PingPongLoop {
 
 impl SampleCursor for PingPongLoop {
     #[inline(always)]
-    fn read(&mut self, source: &SampleBufferView, pos: &mut f64, step: f64) -> Option<f32> {
-        let input = lerp_at(source, *pos);
+    fn read<I: SampleInterpolation>(
+        &mut self,
+        source: &SampleBufferView,
+        pos: &mut f64,
+        step: f64,
+    ) -> Option<f32> {
+        let input = I::at(source, *pos);
         if self.reverse {
             let next = *pos - step;
             if next < self.start {
@@ -158,3 +207,6 @@ impl SampleCursor for PingPongLoop {
         SampleVoiceLoop::PingPong(self)
     }
 }
+
+#[cfg(test)]
+mod tests;

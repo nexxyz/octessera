@@ -1,5 +1,7 @@
 use super::sample_voice::{SampleBufferView, SampleVoice};
-use super::sample_voice_loop::{SampleCursor, SampleVoiceLoop};
+use super::sample_voice_loop::{
+    Hermite, SampleCursor, SampleInterpolation, SampleVoiceLoop, WholeFrames,
+};
 
 #[derive(Clone, Copy)]
 pub(super) struct SampleSourceContext {
@@ -28,7 +30,8 @@ fn render_sample_voice_frame_once(
         None
     } else if let Some(buffer) = voice.buffer.take() {
         let view = SampleBufferView::from_buffer(&buffer);
-        let sample = render_sample_voice_frame_with(voice, &view, &mut cursor, sample_rate);
+        let sample =
+            render_sample_voice_frame_with::<Hermite>(voice, &view, &mut cursor, sample_rate);
         voice.buffer = Some(buffer);
         sample
     } else {
@@ -41,7 +44,7 @@ fn render_sample_voice_frame_once(
 
 /// One frame of a voice whose buffer `view` reads; the voice's own buffer is out meanwhile.
 #[inline(always)]
-fn render_sample_voice_frame_with(
+fn render_sample_voice_frame_with<I: SampleInterpolation>(
     voice: &mut SampleVoice,
     view: &SampleBufferView,
     cursor: &mut impl SampleCursor,
@@ -54,7 +57,7 @@ fn render_sample_voice_frame_with(
         voice.active = false;
         return None;
     }
-    let Some(sample) = cursor.read(view, &mut voice.pos, voice.step) else {
+    let Some(sample) = cursor.read::<I>(view, &mut voice.pos, voice.step) else {
         voice.active = false;
         return None;
     };
@@ -133,21 +136,36 @@ fn render_sample_source_block(
         voice.active = false;
         return 0;
     }
+    if voice.step == 1.0 && voice.pos.fract() == 0.0 {
+        render_source_block_as::<WholeFrames>(voice, frames, sample_rate, samples)
+    } else {
+        render_source_block_as::<Hermite>(voice, frames, sample_rate, samples)
+    }
+}
+
+/// Picks the cursor and the interpolation once per block, so each pair runs its own loop.
+#[inline(always)]
+fn render_source_block_as<I: SampleInterpolation>(
+    voice: &mut SampleVoice,
+    frames: usize,
+    sample_rate: u32,
+    samples: &mut [f32],
+) -> usize {
     match voice.cursor {
         SampleVoiceLoop::Once(cursor) => {
-            render_source_block_with(voice, cursor, frames, sample_rate, samples)
+            render_source_block_with::<I>(voice, cursor, frames, sample_rate, samples)
         }
         SampleVoiceLoop::Forward(cursor) => {
-            render_source_block_with(voice, cursor, frames, sample_rate, samples)
+            render_source_block_with::<I>(voice, cursor, frames, sample_rate, samples)
         }
         SampleVoiceLoop::PingPong(cursor) => {
-            render_source_block_with(voice, cursor, frames, sample_rate, samples)
+            render_source_block_with::<I>(voice, cursor, frames, sample_rate, samples)
         }
     }
 }
 
 #[inline(always)]
-fn render_source_block_with(
+fn render_source_block_with<I: SampleInterpolation>(
     voice: &mut SampleVoice,
     mut cursor: impl SampleCursor,
     frames: usize,
@@ -156,7 +174,7 @@ fn render_source_block_with(
 ) -> usize {
     if !voice.shape.is_static() {
         let rendered =
-            render_shaped_sample_voice_block(voice, &mut cursor, frames, sample_rate, samples);
+            render_shaped_sample_voice_block::<I>(voice, &mut cursor, frames, sample_rate, samples);
         voice.cursor = cursor.into_loop();
         return rendered;
     }
@@ -177,7 +195,7 @@ fn render_source_block_with(
         gain: voice.gain,
     };
     let (rendered_frames, ended) = if voice.filt.is_open() {
-        read.frames(
+        read.frames::<I>(
             &mut cursor,
             &mut voice.pos,
             &mut samples[..frames],
@@ -185,7 +203,7 @@ fn render_source_block_with(
         )
     } else {
         let filt = &mut voice.filt;
-        read.frames(
+        read.frames::<I>(
             &mut cursor,
             &mut voice.pos,
             &mut samples[..frames],
@@ -209,7 +227,7 @@ struct PlainSampleRead<'a> {
 
 impl PlainSampleRead<'_> {
     #[inline(always)]
-    fn frames(
+    fn frames<I: SampleInterpolation>(
         &self,
         cursor: &mut impl SampleCursor,
         pos: &mut f64,
@@ -218,7 +236,7 @@ impl PlainSampleRead<'_> {
     ) -> (usize, bool) {
         let mut rendered_frames = 0;
         for sample in samples.iter_mut() {
-            let Some(input) = cursor.read(self.view, pos, self.step) else {
+            let Some(input) = cursor.read::<I>(self.view, pos, self.step) else {
                 return (rendered_frames, true);
             };
             let filtered = filter(input).clamp(-8.0, 8.0);
@@ -231,7 +249,7 @@ impl PlainSampleRead<'_> {
 
 /// The enveloped variant of the block loop, kept separate so plain voices stay on the plain loop;
 /// it ends the voice when the amp envelope's release reaches zero.
-fn render_shaped_sample_voice_block(
+fn render_shaped_sample_voice_block<I: SampleInterpolation>(
     voice: &mut SampleVoice,
     cursor: &mut impl SampleCursor,
     frames: usize,
@@ -245,7 +263,8 @@ fn render_shaped_sample_voice_block(
     let view = SampleBufferView::from_buffer(&buffer);
     let mut rendered_frames = 0;
     for sample in samples[..frames].iter_mut() {
-        let Some(value) = render_sample_voice_frame_with(voice, &view, cursor, sample_rate) else {
+        let Some(value) = render_sample_voice_frame_with::<I>(voice, &view, cursor, sample_rate)
+        else {
             break;
         };
         *sample = value;

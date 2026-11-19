@@ -126,10 +126,11 @@ fn identity_voice(
 }
 
 /// `identity_hash_blocks` and `identity_hash_frames` as rendered by the pre-loop engine at
-/// b00241fa, re-pinned when the playhead moved to f64: the f32 playhead's accumulated rounding
-/// was the only difference.
-const PRE_LOOP_BLOCK_HASH: u64 = 0x641f_be1a_2d3c_c1ef;
-const PRE_LOOP_FRAME_HASH: u64 = 0xbe34_783e_2619_402f;
+/// b00241fa, re-pinned when the playhead moved to f64 (the f32 playhead's accumulated rounding
+/// was the only difference) and again when pitched reads moved from linear to Hermite
+/// interpolation.
+const PRE_LOOP_BLOCK_HASH: u64 = 0xa2e3_740d_3fd1_84dd;
+const PRE_LOOP_FRAME_HASH: u64 = 0x0b8e_c499_613c_3e95;
 
 #[test]
 fn default_playback_renders_bit_identically_to_the_pre_loop_engine() {
