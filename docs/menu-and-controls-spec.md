@@ -1343,7 +1343,7 @@ Save/Load, Panic, reboot, recording, and setup are actions, not saved fields.
 
 ## Native Behavior Contract
 
-Native behaviors implement the Rust `BehaviorEngine` trait in `crates/platform-core/src/behavior.rs`
+Native behaviors are `NativeBehavior` variants in `crates/platform-core/src/behaviors/native_behavior.rs`
 and are registered from `crates/platform-core/src/behaviors/`. Each behavior provides:
 
 - a stable behavior id

@@ -1,6 +1,5 @@
 use crate::events::MusicalEvent;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -44,12 +43,6 @@ pub struct GlobalSoundConfig {
     pub note_length_ms: u32,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NoteBehaviorResult {
-    pub events: Vec<MusicalEvent>,
-    pub held_notes: Vec<String>,
-}
-
 pub fn apply_global_sound(
     events: &[MusicalEvent],
     config: &GlobalSoundConfig,
@@ -84,64 +77,6 @@ pub fn apply_global_sound(
         .collect()
 }
 
-pub fn apply_note_behavior(
-    events: &[MusicalEvent],
-    behaviors: &[NoteBehavior],
-    layer_idx: usize,
-    initial_held: &[String],
-) -> NoteBehaviorResult {
-    let mut held = initial_held.iter().cloned().collect::<HashSet<_>>();
-    held.reserve(events.len());
-    let mut out = Vec::with_capacity(events.len());
-    for event in events {
-        match event {
-            MusicalEvent::NoteOn {
-                channel,
-                note,
-                velocity,
-                duration_ms,
-            } => {
-                let key = format!("{layer_idx}:{channel}:{note}");
-                let behavior = behaviors
-                    .get(*channel as usize)
-                    .copied()
-                    .unwrap_or(NoteBehavior::Oneshot);
-                if behavior == NoteBehavior::Hold && held.contains(&key) {
-                    continue;
-                }
-                if behavior == NoteBehavior::Hold {
-                    held.insert(key);
-                    out.push(MusicalEvent::NoteOn {
-                        channel: *channel,
-                        note: *note,
-                        velocity: *velocity,
-                        duration_ms: None,
-                    });
-                } else {
-                    out.push(MusicalEvent::NoteOn {
-                        channel: *channel,
-                        note: *note,
-                        velocity: *velocity,
-                        duration_ms: *duration_ms,
-                    });
-                }
-            }
-            MusicalEvent::NoteOff { channel, note } => {
-                let key = format!("{layer_idx}:{channel}:{note}");
-                let _ = held.remove(&key);
-                out.push(event.clone());
-            }
-            _ => out.push(event.clone()),
-        }
-    }
-    let mut held_notes = held.into_iter().collect::<Vec<_>>();
-    held_notes.sort();
-    NoteBehaviorResult {
-        events: out,
-        held_notes,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,44 +103,5 @@ mod tests {
                 duration_ms: Some(180),
             }]
         );
-    }
-
-    #[test]
-    fn applies_hold_note_behavior() {
-        let events = vec![
-            MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 100,
-                duration_ms: Some(120),
-            },
-            MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 100,
-                duration_ms: Some(120),
-            },
-            MusicalEvent::NoteOff {
-                channel: 0,
-                note: 60,
-            },
-        ];
-        let result = apply_note_behavior(&events, &[NoteBehavior::Hold], 2, &[]);
-        assert_eq!(
-            result.events,
-            vec![
-                MusicalEvent::NoteOn {
-                    channel: 0,
-                    note: 60,
-                    velocity: 100,
-                    duration_ms: None
-                },
-                MusicalEvent::NoteOff {
-                    channel: 0,
-                    note: 60
-                },
-            ]
-        );
-        assert!(result.held_notes.is_empty());
     }
 }

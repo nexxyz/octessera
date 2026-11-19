@@ -14,8 +14,7 @@ mod transforms;
 
 pub use behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext,
-    BehaviorEngine, BehaviorRenderModel, BehaviorRenderPalette, DeviceInput, GridInteraction,
-    TileTriggerType,
+    BehaviorRenderModel, BehaviorRenderPalette, DeviceInput, GridInteraction, TileTriggerType,
 };
 pub use behavior_random::{stream_seed, RANDOM_DOMAIN_BUILD, RANDOM_DOMAIN_LINK};
 pub use behaviors::{
@@ -47,7 +46,4 @@ pub use platform_capabilities::{
     PAN_POSITION_COUNT, PLATFORM_CAPABILITIES, PLAY_FX_MAX_CONCURRENT, SAMPLE_SLOT_COUNT,
     SAMPLE_VOICE_LANE_CAPACITY, SCAN_SECTION_COUNTS, SYNTH_VOICE_LANE_CAPACITY,
 };
-pub use transforms::{
-    apply_global_sound, apply_note_behavior, GlobalSoundConfig, NoteBehavior, NoteBehaviorResult,
-    VelocityCurve,
-};
+pub use transforms::{apply_global_sound, GlobalSoundConfig, NoteBehavior, VelocityCurve};
