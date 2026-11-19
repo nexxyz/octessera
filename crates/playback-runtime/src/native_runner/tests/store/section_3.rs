@@ -233,3 +233,25 @@ pub(crate) fn preset_name_edit_counts_multi_byte_characters_as_one_slot() {
     }
     assert_eq!(edited_row(&runner), ("B".into(), Some(0)));
 }
+
+#[test]
+fn preset_save_mode_keeps_its_overwrite_wire_string() {
+    for wire in [
+        json!({"type": "store_save_preset", "name": "A", "payload": {}, "mode": "overwrite"}),
+        json!({"type": "store_save_preset", "name": "A", "payload": {}, "mode": null}),
+    ] {
+        let effect: RuntimePlatformEffect = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&effect).unwrap(), wire);
+    }
+    let unset: RuntimePlatformEffect =
+        serde_json::from_value(json!({"type": "store_save_preset", "name": "A", "payload": {}}))
+            .unwrap();
+    assert!(matches!(
+        unset,
+        RuntimePlatformEffect::StoreSavePreset { mode: None, .. }
+    ));
+    assert!(serde_json::from_value::<RuntimePlatformEffect>(
+        json!({"type": "store_save_preset", "name": "A", "payload": {}, "mode": "append"})
+    )
+    .is_err());
+}
