@@ -335,6 +335,9 @@ install_overlay_file etc/systemd/journald.conf.d/10-octessera.conf /etc/systemd/
 sed -i -E 's/^ENABLED=.*/ENABLED=false/' /etc/default/armbian-ramlog
 grep -qx 'ENABLED=false' /etc/default/armbian-ramlog || { echo "Armbian ramlog is still enabled." >&2; exit 1; }
 install -d -m 2755 -o root -g systemd-journal /var/log/journal
+[[ -f /etc/default/cpufrequtils ]] || { echo "Missing Armbian cpufreq defaults." >&2; exit 1; }
+sed -i -E 's/^MIN_SPEED=.*/MIN_SPEED=1200000/' /etc/default/cpufrequtils
+grep -qx 'MIN_SPEED=1200000' /etc/default/cpufrequtils || { echo "Armbian cpufreq floor is not 1.2 GHz." >&2; exit 1; }
 install_overlay_file etc/sysctl.d/60-octessera-audio.conf /etc/sysctl.d/60-octessera-audio.conf 0644
 install_overlay_file etc/tmpfiles.d/octessera-audio.conf /etc/tmpfiles.d/octessera-audio.conf 0644
 install_overlay_file etc/tmpfiles.d/octessera-restore.conf /etc/tmpfiles.d/octessera-restore.conf 0644

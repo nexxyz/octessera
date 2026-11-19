@@ -234,9 +234,10 @@ for up to 2.5 ms, so the store worker runs at nice 10.
 
 The Orange keeps Armbian's `ondemand` governor, but its dips to 480 and 720 MHz
 (about 200 ms every 2 seconds, right in the runtime's heavy layer steps)
-doubled the worst dispatch time. `octessera-orange-cpu-floor.service` sets
-only `scaling_min_freq` to 1.2 GHz and logs instead of failing if that step is
-missing. In 2026-11 cloned-store smokes (10 minutes OLED awake, 45 minutes
+doubled the worst dispatch time. The image sets `MIN_SPEED=1200000` in
+Armbian's `/etc/default/cpufrequtils`, which `armbian-hardware-optimize` applies
+at boot as the `scaling_min_freq` floor (a separate unit lost that race: the
+Armbian script keeps writing in the background after it reports finished). In 2026-11 cloned-store smokes (10 minutes OLED awake, 45 minutes
 asleep) the dispatch maximum fell from 1.49 and 1.80 ms to 0.79 and 0.82 ms;
 the CPU stayed below 60 °C with no cooling-device steps either way. The
 Raspberry runs the `performance` governor at a fixed 1 GHz instead.
