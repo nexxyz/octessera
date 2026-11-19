@@ -328,7 +328,9 @@ fn held_fx_runner() -> NativeRunner {
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 2,
         y: 3,
-        config: json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
+        config: literal_play_fx(
+            json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
+        ),
     });
     runner
 }

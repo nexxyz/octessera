@@ -1,8 +1,8 @@
 use super::modulation_value::{
     apply_fx_param_binding_value, apply_fx_slot_type_value, apply_u8_value,
 };
-use super::play_fx_config::{is_play_fx_target, play_fx_types};
-use super::{derive_bus_name, fx_default_params, json, Value, PAN_POSITION_COUNT};
+use super::play_fx_config::{is_play_fx_target, play_fx_types, PlayFxConfig};
+use super::{derive_bus_name, Value, PAN_POSITION_COUNT};
 use crate::native_menu::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};
 
 pub(super) fn apply_fx_bus_binding_value(
@@ -62,9 +62,12 @@ pub(super) fn apply_global_fx_binding_value(
     }
 }
 
-pub(super) fn apply_play_fx_binding_value(selected: &mut Value, field: &str, value: Value) -> bool {
-    let mut object = selected.as_object().cloned().unwrap_or_default();
-    let changed = match field {
+pub(super) fn apply_play_fx_binding_value(
+    selected: &mut PlayFxConfig,
+    field: &str,
+    value: Value,
+) -> bool {
+    match field {
         "type" => {
             let Some(value) = value
                 .as_str()
@@ -72,50 +75,29 @@ pub(super) fn apply_play_fx_binding_value(selected: &mut Value, field: &str, val
             else {
                 return false;
             };
-            let changed = object
-                .get("fxType")
-                .and_then(Value::as_str)
-                .unwrap_or("none")
-                != value;
-            if changed {
-                object.insert("fxType".into(), json!(value));
-                object.insert("params".into(), fx_default_params(value));
+            if selected.fx_type == value {
+                return false;
             }
-            changed
+            selected.fx_type = value.into();
+            selected.params.clear();
+            true
         }
         "target" => {
             let Some(value) = value.as_str().filter(|value| is_play_fx_target(value)) else {
                 return false;
             };
-            let changed = object
-                .get("targetKey")
-                .and_then(Value::as_str)
-                .unwrap_or("master")
-                != value;
-            if changed {
-                object.insert("targetKey".into(), json!(value));
+            if selected.target_key == value {
+                return false;
             }
-            changed
+            selected.target_key = value.into();
+            true
         }
-        field if field.starts_with("params.") => {
-            let mut params = object
-                .get("params")
-                .and_then(Value::as_object)
-                .cloned()
-                .unwrap_or_default();
-            let key = &field[7..];
-            let changed = params.get(key) != Some(&value);
-            if changed {
-                params.insert(key.into(), value);
-                object.insert("params".into(), Value::Object(params));
-            }
-            changed
+        field => {
+            let (Some(key), Some(value)) = (field.strip_prefix("params."), value.as_f64()) else {
+                return false;
+            };
+            let value = value.round() as i64;
+            selected.params.insert(key.into(), value) != Some(value)
         }
-        _ => false,
-    };
-    if changed {
-        *selected = Value::Object(object);
-        return true;
     }
-    false
 }

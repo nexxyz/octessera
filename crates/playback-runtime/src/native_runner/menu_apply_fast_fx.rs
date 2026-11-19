@@ -1,6 +1,6 @@
 use super::menu_apply_fast_values::parse_indexed_key;
-use super::play_fx_config::{play_fx_target_key, sanitize_play_fx_config};
-use super::{json, NativeRunner};
+use super::play_fx_config::PlayFxConfig;
+use super::NativeRunner;
 use crate::native_menu::FX_BUSES_LABEL;
 
 impl NativeRunner {
@@ -12,11 +12,9 @@ impl NativeRunner {
         let target = self
             .menu
             .value_for_key("play.fx.target")
-            .unwrap_or_else(|| play_fx_target_key(&before).into());
-        let params = before.get("params").cloned().unwrap_or_else(|| json!({}));
-        self.play_fx_selected = sanitize_play_fx_config(
-            &json!({ "fxType": fx_type, "targetKey": target, "params": params }),
-        );
+            .unwrap_or_else(|| before.target_key.clone());
+        self.play_fx_selected =
+            PlayFxConfig::sanitized(&fx_type, &target, |key| before.params.get(key).copied());
         if self.play_fx_selected != before {
             self.menu.show_play_fx_rows(&self.menu_config());
             self.menu.keep_focus_on_key(key);

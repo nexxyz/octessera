@@ -13,28 +13,16 @@ pub(crate) fn play_fx_payload_sanitizes_type_target_and_params() {
         ]
     }));
 
-    assert_eq!(runner.play_fx_selected["targetKey"], "master");
-    assert_eq!(runner.play_fx_selected["params"]["rateHz"], 32);
-    assert_eq!(runner.play_fx_selected["params"]["depthPct"], 0);
-    assert!(runner.play_fx_selected["params"].get("ignored").is_none());
+    assert_eq!(runner.play_fx_selected.target_key, "master");
+    assert_eq!(runner.play_fx_selected.params["rateHz"], 32);
+    assert_eq!(runner.play_fx_selected.params["depthPct"], 0);
+    assert!(runner.play_fx_selected.params.get("ignored").is_none());
+    assert_eq!(runner.play_fx_assignments[0].config.params["semitones"], 24);
+    assert_eq!(runner.play_fx_assignments[0].config.params["cents"], -100);
+    assert_eq!(runner.play_fx_assignments[0].config.params["mixPct"], 100);
+    assert_eq!(runner.play_fx_assignments[0].config.params["slideInMs"], 10);
     assert_eq!(
-        runner.play_fx_assignments[0].config["params"]["semitones"],
-        24
-    );
-    assert_eq!(
-        runner.play_fx_assignments[0].config["params"]["cents"],
-        -100
-    );
-    assert_eq!(
-        runner.play_fx_assignments[0].config["params"]["mixPct"],
-        100
-    );
-    assert_eq!(
-        runner.play_fx_assignments[0].config["params"]["slideInMs"],
-        10
-    );
-    assert_eq!(
-        runner.play_fx_assignments[0].config["params"]["slideOutMs"],
+        runner.play_fx_assignments[0].config.params["slideOutMs"],
         3000
     );
 }

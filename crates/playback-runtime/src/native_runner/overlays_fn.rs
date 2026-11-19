@@ -1,6 +1,5 @@
 use super::led_color::{trigger_gate_color, LedColor};
 use super::play_control::MIX_MASTER_COLUMN;
-use super::play_fx_config::play_fx_type;
 use super::play_fx_presentation::play_fx_color;
 use super::play_pages::{play_page_at, ActivePlayMode, PlayBank};
 use super::{
@@ -98,7 +97,7 @@ impl NativeRunner {
                 .active_play_fx
                 .iter()
                 .any(|active| active.tile_id == id);
-            let fx_type = play_fx_type(&assignment.config);
+            let fx_type = assignment.config.fx_type.as_str();
             let same_type_active = self
                 .active_play_fx
                 .iter()

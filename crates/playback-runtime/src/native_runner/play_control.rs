@@ -3,7 +3,7 @@ use crate::protocol::RuntimePlatformEffect;
 
 use super::grid_assign::GridAssign;
 use super::pan_mapping::touch_pan_pos_from_grid_x;
-use super::play_fx_config::play_fx_type;
+use super::play_fx_config::PlayFxConfig;
 use super::play_pages::PlayMode;
 use super::{
     NativePlayFxAssignment, NativeRunner, TriggerProbabilityMode, GRID_HEIGHT, GRID_WIDTH,
@@ -30,7 +30,7 @@ impl NativeRunner {
         self.play_fx_assignments
             .retain(|assignment| assignment.x != x || assignment.y != y);
         let toast = format!("FX {}", play_fx_type_label(&config));
-        if play_fx_type(&config) != "none" {
+        if config.fx_type != "none" {
             self.play_fx_assignments
                 .push(NativePlayFxAssignment { x, y, config });
         }
@@ -204,9 +204,6 @@ impl NativeRunner {
 }
 
 /// The display name of a Play FX config's type (`filter sweep`, not `filter_sweep`).
-pub(super) fn play_fx_type_label(config: &serde_json::Value) -> String {
-    crate::native_menu::format_values::format_display_value(
-        Some("play.fx.type"),
-        play_fx_type(config),
-    )
+pub(super) fn play_fx_type_label(config: &PlayFxConfig) -> String {
+    crate::native_menu::format_values::format_display_value(Some("play.fx.type"), &config.fx_type)
 }

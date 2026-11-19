@@ -401,7 +401,7 @@ pub struct NativeRunner {
     play_mode: PlayMode,
     active_play_mode: ActivePlayMode,
     drum_selected_voices: Vec<usize>,
-    play_fx_selected: Value,
+    play_fx_selected: play_fx_config::PlayFxConfig,
     grid_assign: Option<GridAssign>,
     play_fx_assignments: Vec<NativePlayFxAssignment>,
     active_play_fx: Vec<NativeActivePlayFx>,

@@ -127,7 +127,7 @@ pub(crate) fn assignment_overlays_suppress_fn_navigation_overlay() {
                 })
             }
             "trigger" => runner.grid_assign = Some(GridAssign::TriggerProbability(0)),
-            _ => runner.grid_assign = Some(GridAssign::PlayFx(json!({ "fxType": "filter" }))),
+            _ => runner.grid_assign = Some(GridAssign::PlayFx(Default::default())),
         }
 
         let snapshot = runner.snapshot().unwrap();

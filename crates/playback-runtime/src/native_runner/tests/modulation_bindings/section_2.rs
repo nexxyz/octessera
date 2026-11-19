@@ -145,13 +145,16 @@ pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
             invert: false,
         }),
     );
-    runner.play_fx_selected = json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8, "depthPct": 100 } });
+    runner.play_fx_selected = literal_play_fx(
+        json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8, "depthPct": 100 } }),
+    );
 
     runner.refresh_xy_runtime_sources();
     runner.process_modulation_step(false).unwrap();
 
     assert_eq!(runner.global_fx_params[0]["cracklePct"], json!(100));
-    assert_eq!(runner.play_fx_selected["params"]["rateHz"], json!(32.0));
+    assert_eq!(runner.play_fx_selected.params["rateHz"], 32);
+    validate_config_payload(&runner.config_payload()).unwrap();
 }
 
 #[test]

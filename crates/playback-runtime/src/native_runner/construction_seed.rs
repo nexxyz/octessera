@@ -1,4 +1,4 @@
-use super::play_fx_config::default_play_fx_selected;
+use super::play_fx_config::PlayFxConfig;
 use super::*;
 
 pub(super) struct NativeRunnerConstructionSeed {
@@ -31,7 +31,7 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) midi_outputs: Vec<MidiPort>,
     pub(super) midi_inputs: Vec<MidiPort>,
     pub(super) play_mode: PlayMode,
-    pub(super) play_fx_selected: Value,
+    pub(super) play_fx_selected: PlayFxConfig,
     pub(super) xy_release: String,
     pub(super) xy_smoothing_ms: u16,
     pub(super) xy_invert_x: bool,
@@ -80,7 +80,7 @@ impl NativeRunnerConstructionSeed {
             midi_outputs: Vec::new(),
             midi_inputs: Vec::new(),
             play_mode: PlayMode::Mix,
-            play_fx_selected: default_play_fx_selected(),
+            play_fx_selected: PlayFxConfig::default(),
             xy_release: "sample-hold".into(),
             xy_smoothing_ms: DEFAULT_XY_SMOOTHING_MS,
             xy_invert_x: false,

@@ -47,8 +47,8 @@ fn play_fx_enum_bindings_reject_values_outside_their_sets() {
 
     assert!(write(&mut runner, "play.fx.type", "crush"));
     assert!(write(&mut runner, "play.fx.target", "instrument_3"));
-    assert_eq!(runner.play_fx_selected["fxType"], "crush");
-    assert_eq!(runner.play_fx_selected["targetKey"], "instrument_3");
+    assert_eq!(runner.play_fx_selected.fx_type, "crush");
+    assert_eq!(runner.play_fx_selected.target_key, "instrument_3");
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn play_fx_target_bindings_take_every_fx_bus() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     for target in ["fx_bus_3", "fx_bus_4"] {
         assert!(write(&mut runner, "play.fx.target", target), "{target}");
-        assert_eq!(runner.play_fx_selected["targetKey"], target);
+        assert_eq!(runner.play_fx_selected.target_key, target);
     }
     assert!(!write(&mut runner, "play.fx.target", "fx_bus_5"));
 }

@@ -8,11 +8,11 @@ pub(crate) fn play_fx_grid_press_and_release_emit_audio_commands() {
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 2,
         y: 3,
-        config: json!({
+        config: literal_play_fx(json!({
             "fxType": "stutter",
             "targetKey": "master",
             "params": { "rateHz": 12, "depthPct": 70 }
-        }),
+        })),
     });
 
     let start = runner
@@ -66,7 +66,9 @@ pub(crate) fn play_fx_grid_press_and_release_emit_audio_commands() {
 #[test]
 pub(crate) fn play_fx_same_config_assignment_toggles_tile_clear() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let config = json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8 } });
+    let config = literal_play_fx(
+        json!({ "fxType": "stutter", "targetKey": "master", "params": { "rateHz": 8 } }),
+    );
     runner.grid_assign = Some(GridAssign::PlayFx(config.clone()));
     runner.handle_play_fx_assignment_grid_press(1, 2);
     assert_eq!(runner.play_fx_assignments.len(), 1);
@@ -87,18 +89,20 @@ pub(crate) fn play_fx_press_takes_over_its_type_and_limits_concurrency() {
         runner.play_fx_assignments.push(NativePlayFxAssignment {
             x,
             y: 0,
-            config: json!({ "fxType": fx_type, "targetKey": "master", "params": {} }),
+            config: literal_play_fx(
+                json!({ "fxType": fx_type, "targetKey": "master", "params": {} }),
+            ),
         });
     }
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 4,
         y: 0,
-        config: json!({ "fxType": "freeze", "targetKey": "master", "params": {} }),
+        config: literal_play_fx(json!({ "fxType": "freeze", "targetKey": "master", "params": {} })),
     });
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 5,
         y: 0,
-        config: json!({ "fxType": "glitch", "targetKey": "master", "params": {} }),
+        config: literal_play_fx(json!({ "fxType": "glitch", "targetKey": "master", "params": {} })),
     });
 
     for x in 0..2 {
@@ -121,12 +125,16 @@ pub(crate) fn play_fx_overlay_marks_active_and_limited_tiles() {
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 0,
         y: 0,
-        config: json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
+        config: literal_play_fx(
+            json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
+        ),
     });
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 1,
         y: 0,
-        config: json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
+        config: literal_play_fx(
+            json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
+        ),
     });
     runner.active_play_fx = ["0:0", "2:0"]
         .into_iter()
@@ -163,7 +171,9 @@ pub(crate) fn play_fx_overlay_uses_canonical_fx_palette() {
         runner.play_fx_assignments.push(NativePlayFxAssignment {
             x,
             y: 0,
-            config: json!({ "fxType": fx_type, "targetKey": "master", "params": {} }),
+            config: literal_play_fx(
+                json!({ "fxType": fx_type, "targetKey": "master", "params": {} }),
+            ),
         });
     }
 
@@ -191,11 +201,11 @@ pub(crate) fn play_fx_overlay_uses_canonical_fx_palette() {
 #[test]
 pub(crate) fn play_fx_map_to_grid_stores_config_and_payload_round_trips() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_fx_selected = json!({
+    runner.play_fx_selected = literal_play_fx(json!({
         "fxType": "pitch_shift",
         "targetKey": "fx_bus_1",
         "params": { "semitones": 7, "cents": 12, "slideInMs": 120, "slideOutMs": 180, "mixPct": 65 }
-    });
+    }));
     let _ = runner
         .execute_menu_action(crate::native_menu::NativeMenuAction::PlatformEffect(
             PlatformAction::PlayFxMap,
@@ -209,26 +219,20 @@ pub(crate) fn play_fx_map_to_grid_stores_config_and_payload_round_trips() {
         })
         .unwrap();
     assert_eq!(runner.play_fx_assignments.len(), 1);
-    assert_eq!(
-        runner.play_fx_assignments[0].config["fxType"],
-        "pitch_shift"
-    );
+    assert_eq!(runner.play_fx_assignments[0].config.fx_type, "pitch_shift");
 
     let payload = runner.config_payload();
     let mut loaded = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     loaded.apply_config_payload(payload).unwrap();
     assert_eq!(loaded.play_fx_assignments.len(), 1);
     assert_eq!(loaded.play_fx_assignments[0].x, 4);
+    assert_eq!(loaded.play_fx_assignments[0].config.params["semitones"], 7);
     assert_eq!(
-        loaded.play_fx_assignments[0].config["params"]["semitones"],
-        7
-    );
-    assert_eq!(
-        loaded.play_fx_assignments[0].config["params"]["slideInMs"],
+        loaded.play_fx_assignments[0].config.params["slideInMs"],
         120
     );
     assert_eq!(
-        loaded.play_fx_assignments[0].config["params"]["slideOutMs"],
+        loaded.play_fx_assignments[0].config.params["slideOutMs"],
         180
     );
 }
@@ -241,7 +245,9 @@ pub(crate) fn a_slow_clock_drift_retimes_a_held_dub_throw_once_it_adds_up() {
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 0,
         y: 0,
-        config: json!({ "fxType": "dub_throw", "targetKey": "master", "params": { "delayNote": 3 } }),
+        config: literal_play_fx(
+            json!({ "fxType": "dub_throw", "targetKey": "master", "params": { "delayNote": 3 } }),
+        ),
     });
     let mut at = std::time::Instant::now();
     runner.observe_external_clock_tempo_at(1, at);
@@ -286,6 +292,32 @@ pub(crate) fn play_fx_targets_on_fx_bus_3_and_4_round_trip() {
     let saved = runner.config_payload();
     let mut fresh = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     fresh.apply_config_payload(saved).unwrap();
-    assert_eq!(fresh.play_fx_selected["targetKey"], "fx_bus_4");
-    assert_eq!(fresh.play_fx_assignments[0].config["targetKey"], "fx_bus_3");
+    assert_eq!(fresh.play_fx_selected.target_key, "fx_bus_4");
+    assert_eq!(fresh.play_fx_assignments[0].config.target_key, "fx_bus_3");
+}
+
+#[test]
+fn play_fx_setups_save_the_shape_they_load_from() {
+    let wire = json!({
+        "fxType": "dub_throw",
+        "targetKey": "instrument_2",
+        "params": { "delayNote": 7, "feedbackPct": 55, "mixPct": 40 }
+    });
+    let config = play_fx_config::PlayFxConfig::from_payload(&wire);
+    assert_eq!(config.fx_type, "dub_throw");
+    assert_eq!(config.target_key, "instrument_2");
+    assert_eq!(config.params["feedbackPct"], 55);
+    assert_eq!(serde_json::to_value(&config).unwrap(), wire);
+
+    for default in [
+        include_str!("../../../../../config/generated/desktop/default.json"),
+        include_str!("../../../../../config/generated/pi/default.json"),
+    ] {
+        let default: Value = serde_json::from_str(default).unwrap();
+        let play_fx = &default["runtimeConfig"]["playFx"];
+        let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+        runner.apply_config_payload(default.clone()).unwrap();
+        let saved = runner.config_payload();
+        assert_eq!(&saved["runtimeConfig"]["playFx"], play_fx);
+    }
 }

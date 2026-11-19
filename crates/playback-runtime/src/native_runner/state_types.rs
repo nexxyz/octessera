@@ -338,7 +338,7 @@ pub(super) struct NativeXyGlide {
 pub(super) struct NativePlayFxAssignment {
     pub(super) x: usize,
     pub(super) y: usize,
-    pub(super) config: Value,
+    pub(super) config: super::play_fx_config::PlayFxConfig,
 }
 
 /// A sounding Play FX type: the lit tile and the engine voice it drives, which a same-type sweep

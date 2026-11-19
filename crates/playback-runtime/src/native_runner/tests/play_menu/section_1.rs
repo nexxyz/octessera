@@ -167,7 +167,7 @@ pub(crate) fn play_fx_type_turn_updates_params_immediately() {
         runner.menu.value_for_key("play.fx.type").as_deref(),
         Some("stutter")
     );
-    assert_eq!(runner.play_fx_selected["fxType"], "stutter");
+    assert_eq!(runner.play_fx_selected.fx_type, "stutter");
     assert!(runner
         .menu
         .number_for_key("play.fx.params.rateHz")
@@ -182,26 +182,26 @@ pub(crate) fn play_fx_type_turn_updates_params_immediately() {
 #[test]
 pub(crate) fn pitch_play_fx_mapping_normalizes_complete_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.play_fx_selected = json!({
+    runner.play_fx_selected = literal_play_fx(json!({
         "fxType": "pitch_shift",
         "targetKey": "master",
         "params": {}
-    });
+    }));
     runner.menu.rebuild(runner.menu_config());
 
     assert!(runner.apply_play_fx_menu_state());
-    let params = runner.play_fx_selected["params"].as_object().unwrap();
+    let params = &runner.play_fx_selected.params;
     let mut keys = params.keys().cloned().collect::<Vec<_>>();
     keys.sort();
     assert_eq!(
         keys,
         vec!["cents", "mixPct", "semitones", "slideInMs", "slideOutMs"]
     );
-    assert_eq!(params["semitones"], json!(0));
-    assert_eq!(params["cents"], json!(0));
-    assert_eq!(params["slideInMs"], json!(120));
-    assert_eq!(params["slideOutMs"], json!(180));
-    assert_eq!(params["mixPct"], json!(100));
+    assert_eq!(params["semitones"], 0);
+    assert_eq!(params["cents"], 0);
+    assert_eq!(params["slideInMs"], 120);
+    assert_eq!(params["slideOutMs"], 180);
+    assert_eq!(params["mixPct"], 100);
 }
 
 #[test]
@@ -209,7 +209,7 @@ pub(crate) fn play_fx_none_exposes_type_without_effect_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.play_mode = PlayMode::Fx;
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
-    runner.play_fx_selected["fxType"] = json!("none");
+    runner.play_fx_selected.fx_type = "none".into();
     runner.menu.rebuild(runner.menu_config());
 
     assert_eq!(

@@ -1,5 +1,4 @@
 use super::drum_config::instrument_drum_configs;
-use super::play_fx_config::{play_fx_params_map, play_fx_target_key, play_fx_type};
 use super::{
     aux_binding_configs, fx_bus_configs, instrument_auto_names, instrument_fm_configs,
     instrument_labels, instrument_midi_channels, instrument_midi_duration_ms,
@@ -205,9 +204,14 @@ impl NativeRunner {
             bluetooth_found: self.bluetooth.found_rows(),
             bluetooth_searching: self.bluetooth.searching,
             play_mode: self.play_mode,
-            play_fx_type: play_fx_type(&self.play_fx_selected).into(),
-            play_fx_target: play_fx_target_key(&self.play_fx_selected).into(),
-            play_fx_params: play_fx_params_map(&self.play_fx_selected),
+            play_fx_type: self.play_fx_selected.fx_type.clone(),
+            play_fx_target: self.play_fx_selected.target_key.clone(),
+            play_fx_params: self
+                .play_fx_selected
+                .params
+                .iter()
+                .map(|(key, value)| (key.clone(), Value::from(*value)))
+                .collect(),
             xy_release: self.xy.release.clone(),
             xy_smoothing_ms: self.xy.smoothing_ms,
             xy_invert_x: self.xy.invert_x,

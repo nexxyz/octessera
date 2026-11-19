@@ -1,9 +1,9 @@
-use super::play_fx_config::{play_fx_param_specs, play_fx_target_key, play_fx_type};
+use super::play_fx_config::{play_fx_param_specs, PlayFxConfig};
 use super::{
-    apply_value_lane_menu_state, json, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
+    apply_value_lane_menu_state, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
     set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, set_wire_from_menu,
     ArpMode, ArpSource, NativeLinkLayer, NativeRunner, RangeMode, ScanAxis, ScanDirection,
-    ScanMode, TriggerAction, TriggerProbabilityMode, Value,
+    ScanMode, TriggerAction, TriggerProbabilityMode,
 };
 impl NativeRunner {
     pub(super) fn apply_play_fx_menu_state(&mut self) -> bool {
@@ -11,27 +11,28 @@ impl NativeRunner {
         let fx_type = self
             .menu
             .value_for_key("play.fx.type")
-            .unwrap_or_else(|| play_fx_type(&before).into());
-        let target = self
+            .unwrap_or_else(|| before.fx_type.clone());
+        let target_key = self
             .menu
             .value_for_key("play.fx.target")
-            .unwrap_or_else(|| play_fx_target_key(&before).into());
-        let mut params = serde_json::Map::new();
-        for spec in play_fx_param_specs(&fx_type) {
-            let value = self
-                .menu
-                .number_for_key(&format!("play.fx.params.{}", spec.key))
-                .unwrap_or_else(|| {
-                    before
-                        .get("params")
-                        .and_then(|params| params.get(spec.key))
-                        .and_then(Value::as_i64)
-                        .map(|value| value as i32)
-                        .unwrap_or(spec.default)
-                });
-            params.insert(spec.key.into(), Value::from(value));
-        }
-        self.play_fx_selected = json!({ "fxType": fx_type, "targetKey": target, "params": params });
+            .unwrap_or_else(|| before.target_key.clone());
+        let params = play_fx_param_specs(&fx_type)
+            .iter()
+            .map(|spec| {
+                let value = self
+                    .menu
+                    .number_for_key(&format!("play.fx.params.{}", spec.key))
+                    .map(i64::from)
+                    .or_else(|| before.params.get(spec.key).copied())
+                    .unwrap_or_else(|| i64::from(spec.default));
+                (spec.key.to_string(), value)
+            })
+            .collect();
+        self.play_fx_selected = PlayFxConfig {
+            fx_type,
+            target_key,
+            params,
+        };
         self.play_fx_selected != before
     }
 }

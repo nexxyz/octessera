@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
+
 use super::{json, Value};
 use crate::timing_units::{note_unit_to_pulses, DEFAULT_NOTE_UNIT, NOTE_UNIT_OPTIONS};
 
@@ -150,32 +152,101 @@ pub(crate) fn play_fx_param_specs(fx_type: &str) -> &'static [PlayFxParam] {
         .map_or(&[], |(_, params)| params)
 }
 
-pub(super) fn default_play_fx_selected() -> Value {
-    json!({ "fxType": "none", "targetKey": "master", "params": {} })
+/// A Play FX setup: the selected one, a tile stamp, or the one being stamped. Saved as
+/// `{ "fxType", "targetKey", "params" }`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct PlayFxConfig {
+    pub(super) fx_type: String,
+    pub(super) target_key: String,
+    pub(super) params: BTreeMap<String, i64>,
 }
 
-pub(super) fn sanitize_play_fx_config(config: &Value) -> Value {
-    let fx_type = PLAY_FX_PARAMS
-        .iter()
-        .map(|(name, _)| *name)
-        .find(|name| *name == play_fx_type(config))
-        .unwrap_or("none");
-    let target_key = Some(play_fx_target_key(config))
-        .filter(|key| is_play_fx_target(key))
-        .unwrap_or("master");
-    let mut params = serde_json::Map::new();
-    for spec in play_fx_param_specs(fx_type) {
-        let value = config
-            .get("params")
-            .and_then(|params| params.get(spec.key))
-            .and_then(Value::as_i64)
-            .unwrap_or_else(|| i64::from(spec.default));
-        params.insert(
-            spec.key.into(),
-            json!(value.clamp(i64::from(spec.min), i64::from(spec.max))),
-        );
+impl Default for PlayFxConfig {
+    fn default() -> Self {
+        Self {
+            fx_type: "none".into(),
+            target_key: "master".into(),
+            params: BTreeMap::new(),
+        }
     }
-    json!({ "fxType": fx_type, "targetKey": target_key, "params": params })
+}
+
+impl PlayFxConfig {
+    /// A saved setup with an unknown type or target replaced and exactly its type's
+    /// parameters, each inside its range.
+    pub(super) fn from_payload(config: &Value) -> Self {
+        let text = |key: &str, fallback: &'static str| {
+            config.get(key).and_then(Value::as_str).unwrap_or(fallback)
+        };
+        let params = config.get("params");
+        Self::sanitized(text("fxType", "none"), text("targetKey", "master"), |key| {
+            params
+                .and_then(|params| params.get(key))
+                .and_then(Value::as_i64)
+        })
+    }
+
+    pub(super) fn sanitized(
+        fx_type: &str,
+        target_key: &str,
+        param: impl Fn(&str) -> Option<i64>,
+    ) -> Self {
+        let fx_type = PLAY_FX_PARAMS
+            .iter()
+            .map(|(name, _)| *name)
+            .find(|name| *name == fx_type)
+            .unwrap_or("none");
+        let target_key = Some(target_key)
+            .filter(|key| is_play_fx_target(key))
+            .unwrap_or("master");
+        let params = play_fx_param_specs(fx_type)
+            .iter()
+            .map(|spec| {
+                let value = param(spec.key).unwrap_or_else(|| i64::from(spec.default));
+                (
+                    spec.key.to_string(),
+                    value.clamp(i64::from(spec.min), i64::from(spec.max)),
+                )
+            })
+            .collect();
+        Self {
+            fx_type: fx_type.into(),
+            target_key: target_key.into(),
+            params,
+        }
+    }
+
+    fn audio_param_values(&self) -> BTreeMap<String, Value> {
+        self.params
+            .iter()
+            .map(|(key, value)| (key.clone(), Value::from(*value)))
+            .collect()
+    }
+
+    /// The audio-command parameters: `Note` rows become clock pulses, and a tempo-synced type
+    /// carries the tempo it follows. `None` for a type that does not follow it.
+    pub(super) fn synced_audio_params(&self, bpm: f64) -> Option<BTreeMap<String, Value>> {
+        let mut params = self.audio_param_values();
+        let mut synced = false;
+        for (note_key, pulses_key) in SYNCED_NOTE_PARAMS {
+            if let Some(index) = self.params.get(note_key) {
+                params.remove(note_key);
+                let pulses = note_unit_to_pulses(play_fx_note_unit(*index));
+                params.insert(pulses_key.into(), json!(pulses));
+                synced = true;
+            }
+        }
+        synced.then(|| {
+            params.insert("tempoBpm".into(), json!(bpm));
+            params
+        })
+    }
+
+    pub(super) fn audio_params(&self, bpm: f64) -> BTreeMap<String, Value> {
+        self.synced_audio_params(bpm)
+            .unwrap_or_else(|| self.audio_param_values())
+    }
 }
 
 pub(crate) fn play_fx_targets() -> Vec<String> {
@@ -188,55 +259,4 @@ pub(crate) fn play_fx_targets() -> Vec<String> {
 
 pub(super) fn is_play_fx_target(key: &str) -> bool {
     play_fx_targets().iter().any(|target| target == key)
-}
-
-pub(super) fn play_fx_type(config: &Value) -> &str {
-    config
-        .get("fxType")
-        .and_then(Value::as_str)
-        .unwrap_or("none")
-}
-
-pub(super) fn play_fx_target_key(config: &Value) -> &str {
-    config
-        .get("targetKey")
-        .and_then(Value::as_str)
-        .unwrap_or("master")
-}
-
-pub(super) fn play_fx_params_map(config: &Value) -> serde_json::Map<String, Value> {
-    config
-        .get("params")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default()
-}
-
-pub(super) fn play_fx_params(config: &Value) -> BTreeMap<String, Value> {
-    play_fx_params_map(config).into_iter().collect()
-}
-
-/// The audio-command parameters of a Play FX config: `Note` rows become clock pulses, and a
-/// tempo-synced type carries the tempo it follows. `None` for a type that does not follow it.
-pub(super) fn play_fx_synced_audio_params(
-    config: &Value,
-    bpm: f64,
-) -> Option<BTreeMap<String, Value>> {
-    let mut params = play_fx_params(config);
-    let mut synced = false;
-    for (note_key, pulses_key) in SYNCED_NOTE_PARAMS {
-        if let Some(index) = params.remove(note_key).and_then(|value| value.as_i64()) {
-            let pulses = note_unit_to_pulses(play_fx_note_unit(index));
-            params.insert(pulses_key.into(), json!(pulses));
-            synced = true;
-        }
-    }
-    synced.then(|| {
-        params.insert("tempoBpm".into(), json!(bpm));
-        params
-    })
-}
-
-pub(super) fn play_fx_audio_params(config: &Value, bpm: f64) -> BTreeMap<String, Value> {
-    play_fx_synced_audio_params(config, bpm).unwrap_or_else(|| play_fx_params(config))
 }

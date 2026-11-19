@@ -1,6 +1,5 @@
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
-use super::play_fx_config::{play_fx_audio_params, play_fx_target_key, play_fx_type};
 use super::{
     momentary_fx_target, play_fx_tile_id, NativeActivePlayFx, NativePlayFxAssignment, NativeRunner,
     PLAY_FX_MAX_CONCURRENT,
@@ -20,7 +19,7 @@ impl NativeRunner {
         let Some(assignment) = self.play_fx_assignment_at(x, y).cloned() else {
             return Vec::new();
         };
-        let fx_type = play_fx_type(&assignment.config).to_string();
+        let fx_type = assignment.config.fx_type.as_str().to_string();
         let id = play_fx_tile_id(x, y);
         if fx_type == "none" || self.play_fx_held(&id) {
             return Vec::new();
@@ -88,7 +87,7 @@ impl NativeRunner {
                 .play_fx_assignments
                 .iter()
                 .find(|assignment| play_fx_tile_id(assignment.x, assignment.y) == tile_id)
-                .filter(|assignment| play_fx_type(&assignment.config) == fx_type)
+                .filter(|assignment| assignment.config.fx_type.as_str() == fx_type)
                 .cloned()
             else {
                 continue;
@@ -124,14 +123,12 @@ impl NativeRunner {
     /// A sweep type hands its running voice to the next tile of that type on the same Target,
     /// which glides it to the new settings instead of restarting it.
     fn play_fx_moves(&self, sounding_tile_id: &str, next: &NativePlayFxAssignment) -> bool {
-        PLAY_FX_MOVING_TYPES.contains(&play_fx_type(&next.config))
+        PLAY_FX_MOVING_TYPES.contains(&next.config.fx_type.as_str())
             && self
                 .play_fx_assignments
                 .iter()
                 .find(|assignment| play_fx_tile_id(assignment.x, assignment.y) == sounding_tile_id)
-                .is_some_and(|sounding| {
-                    play_fx_target_key(&sounding.config) == play_fx_target_key(&next.config)
-                })
+                .is_some_and(|sounding| sounding.config.target_key == next.config.target_key)
     }
 
     fn play_fx_update_effect(
@@ -145,7 +142,7 @@ impl NativeRunner {
             command: RuntimeAudioCommand::MomentaryFxUpdate {
                 id: voice_id.to_string(),
                 epoch: 0,
-                params: play_fx_audio_params(&assignment.config, bpm),
+                params: assignment.config.audio_params(bpm),
             },
         }
     }
@@ -160,9 +157,9 @@ impl NativeRunner {
             command: RuntimeAudioCommand::MomentaryFxStart {
                 id: play_fx_tile_id(assignment.x, assignment.y),
                 epoch: 0,
-                fx_type: play_fx_type(&assignment.config).to_string(),
-                params: play_fx_audio_params(&assignment.config, bpm),
-                target: momentary_fx_target(play_fx_target_key(&assignment.config)),
+                fx_type: assignment.config.fx_type.as_str().to_string(),
+                params: assignment.config.audio_params(bpm),
+                target: momentary_fx_target(&assignment.config.target_key),
             },
         }
     }

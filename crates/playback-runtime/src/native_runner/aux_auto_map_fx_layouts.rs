@@ -1,7 +1,6 @@
 use super::aux_auto_map::{
     aux_auto_map, AuxAutoMap, AuxBindingSource, ResolvedAuxPress, ResolvedAuxSlot, ResolvedAuxTurn,
 };
-use super::play_fx_config::play_fx_type;
 use super::*;
 use crate::native_menu::PlatformAction;
 
@@ -155,7 +154,7 @@ impl NativeRunner {
 
     /// Play FX: Aux 1 click always maps the selected effect onto the grid.
     pub(super) fn play_fx_auto_map(&self) -> AuxAutoMap {
-        let fx_type = play_fx_type(&self.play_fx_selected);
+        let fx_type = self.play_fx_selected.fx_type.as_str();
         let turn =
             |name: &str, label: &str| Some(self.turn_slot(format!("play.fx.params.{name}"), label));
         let mut slots = match fx_type {

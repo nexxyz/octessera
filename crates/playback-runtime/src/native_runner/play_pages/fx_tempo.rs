@@ -4,7 +4,6 @@ use crate::delay_timing::clamp_visible_bpm;
 use crate::protocol::RuntimeAudioCommand;
 use crate::timing_units::{BAR_PULSES, BEAT_PULSES};
 
-use super::super::play_fx_config::play_fx_synced_audio_params;
 use super::super::{play_fx_tile_id, NativeRunner, SyncSource};
 
 /// A clock gap this long means the external clock stopped, so the next beat is measured anew.
@@ -100,7 +99,7 @@ impl NativeRunner {
                     .active_play_fx
                     .iter()
                     .find(|active| active.tile_id == id)?;
-                play_fx_synced_audio_params(&assignment.config, bpm).map(|params| {
+                assignment.config.synced_audio_params(bpm).map(|params| {
                     RuntimeAudioCommand::MomentaryFxUpdate {
                         id: active.voice_id.clone(),
                         epoch: 0,

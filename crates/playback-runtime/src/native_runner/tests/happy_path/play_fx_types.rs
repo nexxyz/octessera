@@ -88,8 +88,8 @@ pub(crate) fn every_new_play_fx_type_maps_to_a_tile_and_plays_while_held() {
             .iter()
             .find(|assignment| assignment.x == index && assignment.y == 6)
             .expect("mapped tile");
-        assert_eq!(stored.config["fxType"], fx_type);
-        assert_eq!(stored.config["targetKey"], target);
+        assert_eq!(stored.config.fx_type, fx_type);
+        assert_eq!(stored.config.target_key, target);
 
         let starts = momentary_starts(&grid_press(&mut runner, index, 6));
         assert_eq!(starts.len(), 1, "{fx_type} starts once");
@@ -206,7 +206,10 @@ pub(crate) fn the_shipped_patch_maps_four_distinct_stamps_of_every_play_fx_type(
         assert_eq!(distinct.len(), 4, "{fx_type} stamps differ");
         for config in stamps {
             assert_eq!(
-                &crate::native_runner::play_fx_config::sanitize_play_fx_config(config),
+                &serde_json::to_value(
+                    crate::native_runner::play_fx_config::PlayFxConfig::from_payload(config)
+                )
+                .unwrap(),
                 config,
                 "{fx_type} stamp is in range and complete"
             );

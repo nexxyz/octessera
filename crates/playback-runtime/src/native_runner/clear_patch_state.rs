@@ -1,4 +1,4 @@
-use super::play_fx_config::default_play_fx_selected;
+use super::play_fx_config::PlayFxConfig;
 use super::*;
 
 impl NativeRunner {
@@ -57,7 +57,7 @@ impl NativeRunner {
         self.fx_buses = default_fx_buses();
         self.global_fx_slots = default_global_fx_slots();
         self.global_fx_params = default_global_fx_params();
-        self.play_fx_selected = default_play_fx_selected();
+        self.play_fx_selected = PlayFxConfig::default();
         self.play_fx_assignments.clear();
         self.displaced_play_fx.clear();
         for active in std::mem::take(&mut self.active_play_fx) {

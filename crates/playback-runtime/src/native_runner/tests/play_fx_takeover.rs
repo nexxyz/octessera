@@ -64,9 +64,11 @@ fn audio(messages: &[RunnerMessage]) -> Vec<String> {
 fn mapped_runner(tiles: Vec<(usize, Value)>) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     for (x, config) in tiles {
-        runner
-            .play_fx_assignments
-            .push(NativePlayFxAssignment { x, y: 0, config });
+        runner.play_fx_assignments.push(NativePlayFxAssignment {
+            x,
+            y: 0,
+            config: literal_play_fx(config),
+        });
     }
     button(&mut runner, "button_shift", true);
     button(&mut runner, "button_fn", true);

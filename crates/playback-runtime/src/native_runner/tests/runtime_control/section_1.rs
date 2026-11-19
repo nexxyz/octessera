@@ -107,7 +107,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.patch_store.preset_names = vec!["old".into()];
     runner.instruments[0].kind = InstrumentType::Synth;
     runner.fx_buses[0].slot1_type = "delay".into();
-    runner.grid_assign = Some(GridAssign::PlayFx(json!({ "type": "delay" })));
+    runner.grid_assign = Some(GridAssign::PlayFx(Default::default()));
     runner.aux_auto_map_enabled = false;
     runner.display.ui.ghost_tiles = false;
     runner.display.ui.master_volume = 77;

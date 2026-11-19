@@ -40,7 +40,7 @@ fn play_fx_page_tiles_start_their_effect_through_device_input() {
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 1,
         y: 2,
-        config: json!({ "fxType": "crush", "targetKey": "master", "params": {} }),
+        config: literal_play_fx(json!({ "fxType": "crush", "targetKey": "master", "params": {} })),
     });
     held(
         &mut runner,

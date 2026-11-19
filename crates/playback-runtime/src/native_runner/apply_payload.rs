@@ -1,5 +1,5 @@
 use super::grid_assign::GridAssign;
-use super::play_fx_config::{default_play_fx_selected, sanitize_play_fx_config};
+use super::play_fx_config::PlayFxConfig;
 #[cfg(test)]
 use super::prepare_device_payload;
 use super::NativeHdmiMode;
@@ -273,12 +273,9 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_play_fx_payload(&mut self, play_fx: &Value) {
-        self.play_fx_selected = sanitize_play_fx_config(
-            &play_fx
-                .get("selected")
-                .cloned()
-                .unwrap_or_else(default_play_fx_selected),
-        );
+        self.play_fx_selected = play_fx
+            .get("selected")
+            .map_or_else(PlayFxConfig::default, PlayFxConfig::from_payload);
         self.play_fx_assignments = play_fx
             .get("assignments")
             .and_then(Value::as_array)
@@ -294,12 +291,9 @@ impl NativeRunner {
                         Some(NativePlayFxAssignment {
                             x,
                             y,
-                            config: sanitize_play_fx_config(
-                                &assignment
-                                    .get("config")
-                                    .cloned()
-                                    .unwrap_or_else(default_play_fx_selected),
-                            ),
+                            config: assignment
+                                .get("config")
+                                .map_or_else(PlayFxConfig::default, PlayFxConfig::from_payload),
                         })
                     })
                     .collect()

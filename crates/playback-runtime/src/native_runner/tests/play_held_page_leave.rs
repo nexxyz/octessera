@@ -26,7 +26,9 @@ fn fx_runner() -> NativeRunner {
     runner.play_fx_assignments.push(NativePlayFxAssignment {
         x: 3,
         y: 4,
-        config: json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
+        config: literal_play_fx(
+            json!({ "fxType": "stutter", "targetKey": "master", "params": {} }),
+        ),
     });
     open_musical_page(&mut runner, 0);
     assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Fx));
