@@ -176,10 +176,23 @@ impl RuntimePlatformEffect {
             | Self::StoreSaveSystem { .. }
             | Self::StoreSaveBackup { .. }
             | Self::StoreSaveRecovery { .. } => RuntimeErrorDomain::Storage,
-            Self::SystemInfoRequest => RuntimeErrorDomain::Runtime,
-            Self::SetupPortalOpen | Self::SetupPortalClose => RuntimeErrorDomain::Runtime,
-            Self::UserDataTransferOpen | Self::UserDataTransferClose => RuntimeErrorDomain::Runtime,
-            _ => RuntimeErrorDomain::Runtime,
+            Self::ApplyDeviceConfig { .. }
+            | Self::UsbSdTransferStart
+            | Self::UsbSdTransferStop
+            | Self::MaintenanceHold { .. }
+            | Self::BluetoothScan { .. }
+            | Self::BluetoothDevice { .. }
+            | Self::Reboot
+            | Self::Shutdown
+            | Self::RestartApp
+            | Self::UpdateCheck
+            | Self::UpdateApply
+            | Self::Rollback
+            | Self::SystemInfoRequest
+            | Self::SetupPortalOpen
+            | Self::SetupPortalClose
+            | Self::UserDataTransferOpen
+            | Self::UserDataTransferClose => RuntimeErrorDomain::Runtime,
         }
     }
 }
