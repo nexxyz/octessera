@@ -41,7 +41,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: tools/pi/install-cross.sh /usr/local/bin
       - name: Build Raspberry runtime exactly once
-        run: cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-raspberry-pi-zero-2w
+        run: cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-raspberry-pi-zero-2w
       - name: Create and verify Raspberry runtime bundle
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -105,7 +105,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: tools/pi/install-cross.sh /usr/local/bin
       - name: Build Orange runtime exactly once
-        run: cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --features hardware-orange-pi-zero-2w
+        run: cross build --release --locked --target aarch64-unknown-linux-gnu -p octessera-pi --no-default-features --features hardware-orange-pi-zero-2w
       - name: Create and verify Orange runtime bundle
         env:
           RELEASE_VERSION: ${{ inputs.version }}
