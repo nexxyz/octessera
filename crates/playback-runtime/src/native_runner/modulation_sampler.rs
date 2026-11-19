@@ -281,7 +281,10 @@ fn prepare_note_on_with_intent(
             })
         }
         InstrumentType::Midi => return true,
-        _ => None,
+        InstrumentType::None
+        | InstrumentType::Drum
+        | InstrumentType::Sampler
+        | InstrumentType::MidiDrum => None,
     };
     if duration_ms.is_none() {
         if let (Some(active_notes), Some(held_note)) = (active_transpose_notes, held_note) {
@@ -329,7 +332,10 @@ fn prepare_note_off_with_intent(
             *channel = instrument.midi_channel.saturating_sub(1).min(15);
         }
         InstrumentType::Midi => return true,
-        _ => {}
+        InstrumentType::None
+        | InstrumentType::Drum
+        | InstrumentType::Sampler
+        | InstrumentType::MidiDrum => {}
     }
     false
 }

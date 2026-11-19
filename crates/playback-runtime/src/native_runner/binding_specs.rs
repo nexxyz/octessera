@@ -90,7 +90,19 @@ pub(super) fn press_action_payload(action: Option<&NativeMenuAction>) -> Value {
             json!({ "kind": "instrument_reset", "slot": index })
         }
         Some(NativeMenuAction::ResetBehavior) => json!({ "kind": "reset_behavior" }),
-        _ => Value::Null,
+        None
+        | Some(
+            NativeMenuAction::BehaviorAction(_)
+            | NativeMenuAction::SelectBehavior(_)
+            | NativeMenuAction::SelectLayerBehavior { .. }
+            | NativeMenuAction::SelectNoteSet { .. }
+            | NativeMenuAction::NavigateBack
+            | NativeMenuAction::SetParamBinding { .. }
+            | NativeMenuAction::ClearParamBinding { .. }
+            | NativeMenuAction::SetAuxClick { .. }
+            | NativeMenuAction::SetShiftAuxClick { .. }
+            | NativeMenuAction::SetFaderTileAction { .. },
+        ) => Value::Null,
     }
 }
 

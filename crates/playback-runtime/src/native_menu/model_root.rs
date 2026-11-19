@@ -374,7 +374,11 @@ pub(super) fn instrument_item_label(
                 .channel
         ),
         InstrumentType::None => return short,
-        _ => compact_route_value(
+        InstrumentType::Synth
+        | InstrumentType::Fm
+        | InstrumentType::Pluck
+        | InstrumentType::Drum
+        | InstrumentType::Sampler => compact_route_value(
             config
                 .instrument_routes
                 .get(index)

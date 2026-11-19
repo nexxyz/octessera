@@ -272,7 +272,7 @@ impl NativeRunner {
                 .get("followTranspose")
                 .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false),
-            _ => false,
+            InstrumentType::None | InstrumentType::MidiDrum => false,
         }
     }
 }

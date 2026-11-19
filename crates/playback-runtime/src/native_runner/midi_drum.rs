@@ -114,7 +114,12 @@ impl NativeInstrumentSlot {
                 self.midi_drum.settings.enabled,
                 self.midi_drum.settings.channel,
             ),
-            _ => return None,
+            InstrumentType::None
+            | InstrumentType::Synth
+            | InstrumentType::Fm
+            | InstrumentType::Pluck
+            | InstrumentType::Drum
+            | InstrumentType::Sampler => return None,
         };
         enabled.then(|| channel.saturating_sub(1).min(15))
     }
