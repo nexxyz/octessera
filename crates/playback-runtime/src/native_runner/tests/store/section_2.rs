@@ -31,7 +31,7 @@ pub(crate) fn save_current_uses_loaded_preset_name() {
             if matches!(
                 effects.as_slice(),
                 [RuntimePlatformEffect::StoreSavePreset { name, mode, .. }]
-                    if name == "Alpha" && mode.as_deref() == Some("overwrite")
+                    if name == "Alpha" && *mode == Some(crate::PresetSaveMode::Overwrite)
             )
     )));
 }

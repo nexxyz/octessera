@@ -37,7 +37,7 @@ pub use bluetooth::{
 pub use messages::{HostMessage, RunnerMessage, TileHit};
 pub(crate) use musical_event_range::MIN_NOTE_DURATION_MS;
 pub use musical_event_range::{clamp_musical_event, validate_tile_hit, ClampedMusicalEvent};
-pub use platform::{RuntimePlatformEffect, RuntimePlatformRequest};
+pub use platform::{PresetSaveMode, RuntimePlatformEffect, RuntimePlatformRequest};
 pub use results::{MidiPort, RuntimeStoreResult, SampleEntry};
 pub(crate) use runtime_error::{
     is_midi_input_list_failure, MIDI_INPUTS_ERROR_LINE, MIDI_INPUTS_ERROR_TITLE,

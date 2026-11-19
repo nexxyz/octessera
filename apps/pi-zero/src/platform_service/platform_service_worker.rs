@@ -359,16 +359,11 @@ fn save_native_preset(
     snapshot: NativeConfigSnapshot,
 ) -> Result<NativePresetCompletion, String> {
     let NativeManualSaveRequest::Preset {
-        name,
-        mode,
-        rename_from,
+        name, rename_from, ..
     } = &write.manual
     else {
         return Err("native preset worker received a default save".into());
     };
-    if mode.as_deref().is_some_and(|mode| mode != "overwrite") {
-        return Err(format!("Save {name} failed: unsupported overwrite mode"));
-    }
     let target = super::platform_service_store::preset_patch_path(store_dir, name.as_str())
         .map_err(|error| format!("Save {name} failed: {error}"))?;
     let existed = target.is_file();

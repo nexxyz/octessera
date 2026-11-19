@@ -310,7 +310,7 @@ pub enum NativeManualSaveRequest {
     Default,
     Preset {
         name: String,
-        mode: Option<String>,
+        mode: Option<crate::PresetSaveMode>,
         rename_from: Option<String>,
     },
 }

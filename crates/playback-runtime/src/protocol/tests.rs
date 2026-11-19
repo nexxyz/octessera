@@ -130,6 +130,28 @@ fn device_update_protocol_is_dedicated_and_requires_status_fields() {
 }
 
 #[test]
+fn preset_save_mode_keeps_its_overwrite_wire_string() {
+    for wire in [
+        json!({"type": "store_save_preset", "name": "A", "payload": {}, "mode": "overwrite"}),
+        json!({"type": "store_save_preset", "name": "A", "payload": {}, "mode": null}),
+    ] {
+        let effect: RuntimePlatformEffect = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&effect).unwrap(), wire);
+    }
+    let unset: RuntimePlatformEffect =
+        serde_json::from_value(json!({"type": "store_save_preset", "name": "A", "payload": {}}))
+            .unwrap();
+    assert!(matches!(
+        unset,
+        RuntimePlatformEffect::StoreSavePreset { mode: None, .. }
+    ));
+    assert!(serde_json::from_value::<RuntimePlatformEffect>(
+        json!({"type": "store_save_preset", "name": "A", "payload": {}, "mode": "append"})
+    )
+    .is_err());
+}
+
+#[test]
 fn system_store_protocol_has_distinct_wire_and_error_identity() {
     let save = RuntimePlatformEffect::StoreSaveSystem {
         payload: json!({"kind": "octessera.system"}),

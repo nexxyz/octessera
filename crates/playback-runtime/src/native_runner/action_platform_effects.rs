@@ -83,7 +83,7 @@ impl NativeRunner {
                 Some(name) => Some(RuntimePlatformEffect::StoreSavePreset {
                     name,
                     payload: portable_patch_payload_for_save(&self.config_payload())?,
-                    mode: Some("overwrite".into()),
+                    mode: Some(crate::PresetSaveMode::Overwrite),
                 }),
                 None => None,
             },

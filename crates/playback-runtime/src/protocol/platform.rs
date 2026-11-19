@@ -5,6 +5,13 @@ use super::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// How a preset save treats an existing preset of the same name; unset saves a new one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PresetSaveMode {
+    Overwrite,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RuntimePlatformEffect {
@@ -16,7 +23,7 @@ pub enum RuntimePlatformEffect {
         name: String,
         payload: Value,
         #[serde(default)]
-        mode: Option<String>,
+        mode: Option<PresetSaveMode>,
     },
     StoreDeletePreset {
         name: String,

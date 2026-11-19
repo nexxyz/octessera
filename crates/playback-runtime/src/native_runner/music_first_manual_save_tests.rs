@@ -190,7 +190,7 @@ fn preset_save_actions_freeze_cleaned_target_overwrite_mode_and_rename_source() 
         runner.take_manual_save_request(),
         Some(NativeManualSaveRequest::Preset {
             name: "Alpha".into(),
-            mode: Some("overwrite".into()),
+            mode: Some(crate::PresetSaveMode::Overwrite),
             rename_from: None,
         })
     );
