@@ -1,6 +1,6 @@
 import type { DeviceInput } from '@octessera/device-contracts';
 import { AUX_ENCODER_COUNT } from '@octessera/device-contracts';
-import type { CSSProperties } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import type { SimulatorSnapshot } from '../runtime/types';
 import { OledDisplay } from './OledDisplay';
 
@@ -9,19 +9,22 @@ type ModifierKind = 'shift' | 'fn';
 
 const WHEEL_PIXELS_PER_TURN = 100;
 
-export function wheelTurnFromDelta(
+/**
+ * Turns for one wheel event: a notch-sized event turns at once, while the small events of a
+ * trackpad or smooth-scrolling wheel add up in `pending` pixels until they make a whole turn.
+ */
+export function wheelTurns(
+  pending: number,
   deltaY: number,
   deltaMode: number,
-): {
-  delta: -1 | 1;
-  turns: number;
-} | null {
-  if (deltaY === 0) return null;
-  const units =
-    deltaMode === 0
-      ? Math.abs(deltaY) / WHEEL_PIXELS_PER_TURN
-      : Math.abs(deltaY);
-  return { delta: deltaY > 0 ? 1 : -1, turns: Math.max(1, Math.round(units)) };
+): { turns: number; pending: number } {
+  const pixels = deltaMode === 0 ? deltaY : deltaY * WHEEL_PIXELS_PER_TURN;
+  if (Math.abs(pixels) >= WHEEL_PIXELS_PER_TURN)
+    return { turns: Math.round(pixels / WHEEL_PIXELS_PER_TURN), pending: 0 };
+  const total =
+    Math.sign(pending) === -Math.sign(pixels) ? pixels : pending + pixels;
+  const turns = Math.trunc(total / WHEEL_PIXELS_PER_TURN) || 0;
+  return { turns, pending: total - turns * WHEEL_PIXELS_PER_TURN };
 }
 
 export function modifierForButton(key: string): ModifierKind | null {
@@ -141,6 +144,7 @@ function Dial({
     state: { id: EncoderId; y: number; acc: number } | null,
   ) => void;
 }) {
+  const wheelPending = useRef(0);
   return (
     <div
       className="encoder-dial"
@@ -150,10 +154,15 @@ function Dial({
       }}
       onWheel={(event) => {
         event.preventDefault();
-        const turn = wheelTurnFromDelta(event.deltaY, event.deltaMode);
-        if (!turn) return;
-        for (let i = 0; i < turn.turns; i += 1)
-          dispatch({ type: 'encoder_turn', delta: turn.delta, id });
+        const { turns, pending } = wheelTurns(
+          wheelPending.current,
+          event.deltaY,
+          event.deltaMode,
+        );
+        wheelPending.current = pending;
+        const delta = turns > 0 ? 1 : -1;
+        for (let i = 0; i < Math.abs(turns); i += 1)
+          dispatch({ type: 'encoder_turn', delta, id });
       }}
     >
       <div className="encoder-ring" aria-hidden="true">
