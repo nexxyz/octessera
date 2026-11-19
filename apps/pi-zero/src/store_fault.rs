@@ -37,6 +37,8 @@ pub(crate) fn read_boot_runtime_config_or_restore(
 
 fn run_store_fault_mode(error: &str, store_dir: &Path, boot_handoff: bool) -> ! {
     eprintln!("saved settings won't load ({error}); showing the restore screen");
+    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    crate::orange_runtime::signal::restore_default_handlers();
     let mut devices = HardwareFault::new();
     if boot_handoff {
         devices.adopt_boot_handoff_oled();

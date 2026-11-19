@@ -22,7 +22,7 @@ use std::time::Instant;
 mod handoff;
 mod lifecycle;
 mod runtime_loop;
-mod signal;
+pub(crate) mod signal;
 mod startup;
 pub(crate) use crate::runtime_output::{process_runtime_output, wait_for_initial_audio_prep};
 pub(crate) use runtime_loop::run_prepared_runtime;
