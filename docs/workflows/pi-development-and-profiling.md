@@ -160,7 +160,10 @@ it also presses grid tile (0,0) through the real input dispatch and reports
 the note reaching the audio service). The smoke clones the board's own patch,
 so set it up on the board first and put it back afterwards: a Keys layer with
 Link events enabled on the active layer (or the probe reports `probe_silent`),
-and Voice Stealing `none`, so stealing does not hide the limit. Correlate the step lines with `underrun occurred` lines and the
+and Voice Stealing `none`, so stealing does not hide the limit. On any other active layer the probe
+press changes the patch (on Life it toggles cell (0,0) and soon breaks the oscillator, so the
+background load drops at a random point); for an underrun-only capacity comparison of the unchanged
+patch, add `OCTESSERA_TIMING_LOAD_PROBE=0` to skip the probe presses. Correlate the step lines with `underrun occurred` lines and the
 `pi-ui-profile` windows in the journal. Add
 `OCTESSERA_TIMING_RECORD=1` to run the same study while an Audio+Video take
 records (up to 120 minutes) into the board's screen-recordings folder; delete

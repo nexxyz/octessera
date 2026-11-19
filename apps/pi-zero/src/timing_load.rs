@@ -2,6 +2,8 @@
 //! Ramps held notes through the host musical-event path and times probe Keys
 //! presses from arrival to audio hand-off. Inert unless the variable is set.
 //! `OCTESSERA_TIMING_RECORD=1` also starts an Audio+Video take at the first step.
+//! `OCTESSERA_TIMING_LOAD_PROBE=0` skips the probe presses: each one toggles tile (0,0) of the
+//! active layer, which on the default Life layer breaks the oscillator and changes the load.
 
 use crate::host_adapter::PiHostAdapter;
 use crate::input::grid_message;
@@ -11,6 +13,7 @@ use std::time::{Duration, Instant};
 const LOAD_ENV: &str = "OCTESSERA_TIMING_LOAD";
 const AUTOPLAY_ENV: &str = "OCTESSERA_TIMING_AUTOPLAY";
 const RECORD_ENV: &str = "OCTESSERA_TIMING_RECORD";
+const PROBE_ENV: &str = "OCTESSERA_TIMING_LOAD_PROBE";
 const RECORD_MINUTES: u16 = 120;
 const NOTE_GATE: Duration = Duration::from_millis(2_000);
 const LOAD_SLOTS: [u8; 3] = [0, 2, 3];
@@ -74,6 +77,7 @@ pub(crate) struct TimingLoad {
     note_counter: u64,
     next_probe_at: Instant,
     probe_counter: u32,
+    probes: bool,
     release_at: Option<Instant>,
     stats: StepStats,
     record: bool,
@@ -103,6 +107,7 @@ impl TimingLoad {
             note_counter: 0,
             next_probe_at: now + PROBE_INTERVAL,
             probe_counter: 0,
+            probes: std::env::var(PROBE_ENV).as_deref() != Ok("0"),
             release_at: None,
             stats: StepStats::default(),
             record: std::env::var(RECORD_ENV).as_deref() == Ok("1"),
@@ -201,6 +206,9 @@ impl TimingLoad {
         runner: &mut NativeRunner,
         host: &mut PiHostAdapter,
     ) -> Result<(), String> {
+        if !self.probes {
+            return Ok(());
+        }
         if self.release_at.is_some_and(|release_at| now >= release_at) {
             self.release_at = None;
             crate::runtime_dispatch::dispatch(playback, runner, host, grid_message(0, 0, false))?;
