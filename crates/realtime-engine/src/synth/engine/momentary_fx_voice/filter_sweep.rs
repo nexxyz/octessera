@@ -1,6 +1,6 @@
 use super::super::super::scalar_param::ScalarMutation;
-use super::{param_f32, pct_param};
-use crate::synth::runtime_state::{ms_to_samples, BiquadState};
+use super::{ms_param_len, pct_param};
+use crate::synth::runtime_state::BiquadState;
 use crate::synth::types::FilterType;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -16,10 +16,8 @@ pub(in crate::synth::engine) struct FilterSweepParams {
 impl FilterSweepParams {
     /// Cutoff 0 targets about 120 Hz and 100 about 8 kHz.
     pub(super) fn from_map(params: &BTreeMap<String, Value>, sample_rate: u32) -> Self {
-        let in_len =
-            ms_to_samples(param_f32(params, "sweepInMs", 200.0), sample_rate).max(1) as f32;
-        let out_len =
-            ms_to_samples(param_f32(params, "sweepOutMs", 500.0), sample_rate).max(1) as f32;
+        let in_len = ms_param_len(params, "sweepInMs", 200.0, 10.0, 3_000.0, sample_rate) as f32;
+        let out_len = ms_param_len(params, "sweepOutMs", 500.0, 10.0, 3_000.0, sample_rate) as f32;
         Self {
             target_cutoff: 120.0 + pct_param(params, "cutoffPct", 35.0) * 8_000.0,
             q: 0.5 + pct_param(params, "resonancePct", 70.0) * 11.5,

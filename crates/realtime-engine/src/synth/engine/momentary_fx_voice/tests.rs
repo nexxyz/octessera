@@ -379,6 +379,18 @@ fn hp_riser_removes_lows_and_keeps_highs_at_its_target() {
 }
 
 #[test]
+fn filter_sweep_times_stay_within_their_menu_range() {
+    let sweep = |ms: f64| {
+        let params = params(&[("sweepInMs", ms), ("sweepOutMs", ms)]);
+        let sweep = super::FilterSweepParams::from_map(&params, RATE);
+        (sweep.sweep_in_step, sweep.sweep_out_step)
+    };
+    assert_eq!(sweep(0.0), sweep(10.0));
+    assert_eq!(sweep(60_000.0), sweep(3_000.0));
+    assert_eq!(sweep(3_000.0).0, 1.0 / (RATE as f32 * 3.0));
+}
+
+#[test]
 fn crush_quantizes_to_its_bit_depth_and_holds_samples() {
     let mut states = state(
         "crush",

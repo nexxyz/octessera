@@ -288,8 +288,8 @@ fn routing_tree_inline_parity_tracks_local_momentary_expiry_frame() {
             "expiry".into(),
             "filter_sweep".into(),
             BTreeMap::from([
-                ("sweepInMs".into(), json!(1.0)),
-                ("sweepOutMs".into(), json!(1.0)),
+                ("sweepInMs".into(), json!(30.0)),
+                ("sweepOutMs".into(), json!(10.0)),
             ]),
             MomentaryFxTarget::Instrument { index: 0 },
         );
@@ -351,7 +351,7 @@ fn routing_tree_inline_parity_tracks_local_momentary_expiry_frame() {
         .iter()
         .position(|active| !active)
         .expect("momentary expiry frame");
-    assert_eq!(expiry_frame, 44);
+    assert_eq!(expiry_frame, 42);
     assert!(expected_active[..expiry_frame].iter().all(|active| *active));
     assert!(!routed.block_slot_scratch.source_active[expiry_frame]);
     shutdown(lifecycle, runtime);
