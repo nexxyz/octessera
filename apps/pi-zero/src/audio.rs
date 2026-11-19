@@ -65,7 +65,6 @@ pub struct AudioService {
     pub sample_cache: rodio_engine_source::SampleDecodeCache,
     pub sample_bank_signature: Arc<Mutex<String>>,
     pub preview_generation: Arc<AtomicU64>,
-    pub momentary_fx_types: Arc<Mutex<std::collections::BTreeMap<String, (u64, String)>>>,
     pub(crate) next_sequence: Arc<AtomicU64>,
     pub(crate) latest_full_sequence: Arc<AtomicU64>,
     pub(crate) generations: Arc<Mutex<AudioGenerationState>>,
@@ -140,40 +139,6 @@ impl AudioService {
 
     pub fn send_realtime(&self, event: EngineEvent) -> Result<(), RuntimeAdapterError> {
         self.engine.send(event).map_err(audio_queue_error)
-    }
-
-    pub fn remember_momentary_fx_type(
-        &self,
-        id: &str,
-        epoch: u64,
-        fx_type: &str,
-    ) -> Result<(), String> {
-        self.momentary_fx_types
-            .lock()
-            .map_err(|_| "momentary FX type lock failed".to_string())?
-            .insert(id.to_string(), (epoch, fx_type.to_string()));
-        Ok(())
-    }
-
-    pub fn momentary_fx_type(&self, id: &str) -> Result<Option<(u64, String)>, String> {
-        self.momentary_fx_types
-            .lock()
-            .map_err(|_| "momentary FX type lock failed".to_string())
-            .map(|types| types.get(id).cloned())
-    }
-
-    pub fn remove_momentary_fx_type(&self, id: &str, epoch: u64) -> Result<(), String> {
-        let mut types = self
-            .momentary_fx_types
-            .lock()
-            .map_err(|_| "momentary FX type lock failed".to_string())?;
-        if types
-            .get(id)
-            .is_some_and(|(active_epoch, _)| *active_epoch == epoch)
-        {
-            types.remove(id);
-        }
-        Ok(())
     }
 
     pub(crate) fn next_sequence(&self) -> u64 {

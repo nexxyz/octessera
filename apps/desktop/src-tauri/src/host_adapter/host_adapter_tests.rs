@@ -68,7 +68,7 @@ fn test_adapter_with_recording_dir(
         midi_output_missing: false,
         midi_input_missing: false,
         shutdown_requested: false,
-        momentary_fx_types: std::collections::HashMap::new(),
+        momentary_fx_types: rodio_engine_source::MomentaryFxTypes::new(),
     };
     (adapter, engine_rx)
 }

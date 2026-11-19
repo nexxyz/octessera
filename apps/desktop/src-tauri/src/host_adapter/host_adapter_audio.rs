@@ -1,14 +1,14 @@
 use crate::audio_prep_service::AudioPrepEnqueueResult;
 use crate::host_adapter::DesktopPlaybackHostAdapter;
 use playback_runtime::{
-    invalid_audio_command, validate_audio_command, RuntimeAdapterError, RuntimeAudioCommand,
-    RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation,
+    RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorCode, RuntimeErrorDomain,
+    RuntimeErrorFacts, RuntimeOperation,
 };
-use realtime_engine::synth::{
-    prepare_momentary_fx_start_with_epoch, prepare_momentary_fx_update, validate_momentary_fx_type,
-    FmParamId, PluckParamId, SampleBankParamId, SynthParamId, DEFAULT_AUDIO_SAMPLE_RATE,
+use rodio_engine_source::{
+    apply_runtime_audio_command, EngineEvent, MomentaryFxTypes, RuntimeAudioCommandHost,
 };
-use rodio_engine_source::EngineEvent;
+use serde_json::Value;
+use std::collections::BTreeMap;
 
 pub(super) fn audio_queue_error(
     error: rodio_engine_source::QueueSendError,
@@ -33,304 +33,91 @@ impl DesktopPlaybackHostAdapter {
         &mut self,
         command: &RuntimeAudioCommand,
     ) -> Result<(), RuntimeAdapterError> {
-        validate_audio_command(command)?;
-        match command {
-            RuntimeAudioCommand::SetAudioConfig {
-                revision,
-                request_id,
-                generation,
-                config,
-            } => prep_result(
-                self.audio.audio_control.enqueue_full_config(
-                    *revision,
-                    *generation,
-                    request_id.clone(),
-                    config.clone(),
-                ),
-                "full audio configuration",
-            ),
-            RuntimeAudioCommand::SetDspConfig { generation, config } => self.send_engine_event(
-                EngineEvent::SetDspConfig {
-                    generation: *generation,
-                    config: *config,
-                },
-                playback_runtime::RuntimeOperation::AudioCommand,
-            ),
-            RuntimeAudioCommand::SetMasterVolume {
-                generation,
-                volume_pct,
-            } => self.send_engine_event(
-                EngineEvent::SetMasterVolume {
-                    generation: *generation,
-                    volume_pct: *volume_pct,
-                },
-                playback_runtime::RuntimeOperation::AudioCommand,
-            ),
-            RuntimeAudioCommand::SetInstrumentMixer {
-                instrument_slot,
-                generation,
-                volume_pct,
-                pan_pos,
-            } => self.send_engine_event(
-                EngineEvent::SetInstrumentMixer {
-                    instrument_slot: *instrument_slot as u8,
-                    generation: *generation,
-                    volume_pct: *volume_pct,
-                    pan_pos: *pan_pos,
-                },
-                playback_runtime::RuntimeOperation::AudioCommand,
-            ),
-            RuntimeAudioCommand::SetInstrumentSlot {
-                instrument_slot,
-                generation,
-                config,
-            } => prep_result(
-                self.audio.audio_control.enqueue_instrument_slot(
-                    *instrument_slot,
-                    *generation,
-                    config.clone(),
-                ),
-                "instrument configuration",
-            ),
-            RuntimeAudioCommand::SetFxBusMixer {
-                bus_index,
-                generation,
-                pan_pos,
-                volume_pct,
-            } => self.send_engine_event(
-                EngineEvent::SetFxBusMixer {
-                    bus_index: *bus_index as u8,
-                    generation: *generation,
-                    pan_pos: *pan_pos,
-                    volume_pct: *volume_pct,
-                },
-                playback_runtime::RuntimeOperation::AudioCommand,
-            ),
-            RuntimeAudioCommand::SetSynthParam {
-                instrument_slot,
-                generation,
-                path,
-                value,
-            } => {
-                let param = SynthParamId::from_path(path).ok_or_else(|| {
-                    invalid_audio_command(format!("unsupported synth parameter path `{path}`"))
-                })?;
-                self.send_engine_event(
-                    EngineEvent::SetSynthParam {
-                        instrument_slot: *instrument_slot as u8,
-                        generation: *generation,
-                        param,
-                        value: *value,
-                    },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
-            RuntimeAudioCommand::SetFmParam {
-                instrument_slot,
-                generation,
-                path,
-                value,
-            } => {
-                let param = FmParamId::from_path(path).ok_or_else(|| {
-                    invalid_audio_command(format!("unsupported FM parameter path `{path}`"))
-                })?;
-                self.send_engine_event(
-                    EngineEvent::SetFmParam {
-                        instrument_slot: *instrument_slot as u8,
-                        generation: *generation,
-                        param,
-                        value: *value,
-                    },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
-            RuntimeAudioCommand::SetPluckParam {
-                instrument_slot,
-                generation,
-                path,
-                value,
-            } => {
-                let param = PluckParamId::from_path(path).ok_or_else(|| {
-                    invalid_audio_command(format!("unsupported Plucked parameter path `{path}`"))
-                })?;
-                self.send_engine_event(
-                    EngineEvent::SetPluckParam {
-                        instrument_slot: *instrument_slot as u8,
-                        generation: *generation,
-                        param,
-                        value: *value,
-                    },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
-            RuntimeAudioCommand::SetDrumParam {
-                instrument_slot,
-                voice,
-                generation,
-                path,
-                value,
-            } => {
-                self.handle_runtime_drum_param(*instrument_slot, *voice, *generation, path, *value)
-            }
-            RuntimeAudioCommand::SetSampleBankParam {
-                instrument_slot,
-                generation,
-                path,
-                value,
-            } => {
-                let param = SampleBankParamId::from_path(path).ok_or_else(|| {
-                    invalid_audio_command(format!("unsupported sample parameter path `{path}`"))
-                })?;
-                self.send_engine_event(
-                    EngineEvent::SetSampleBankParam {
-                        instrument_slot: *instrument_slot as u8,
-                        generation: *generation,
-                        param,
-                        value: *value,
-                    },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
-            RuntimeAudioCommand::SetFxBusParam {
-                bus_index,
-                slot_index,
-                generation,
-                param,
-                value,
-            } => self.send_engine_event(
-                EngineEvent::SetFxBusParam {
-                    bus_index: *bus_index as u8,
-                    slot_index: *slot_index as u8,
-                    generation: *generation,
-                    param: *param,
-                    value: *value,
-                },
-                playback_runtime::RuntimeOperation::AudioCommand,
-            ),
-            RuntimeAudioCommand::SetFxBusSlot {
-                bus_index,
-                slot_index,
-                generation,
-                fx_type,
-                params,
-            } => prep_result(
-                self.audio.audio_control.enqueue_fx_bus_slot(
-                    *bus_index,
-                    *slot_index,
-                    *generation,
-                    fx_type.clone(),
-                    params.clone(),
-                ),
-                "FX bus configuration",
-            ),
-            RuntimeAudioCommand::SetGlobalFxSlot {
-                slot_index,
-                generation,
-                fx_type,
-                params,
-            } => prep_result(
-                self.audio.audio_control.enqueue_global_fx_slot(
-                    *slot_index,
-                    *generation,
-                    fx_type.clone(),
-                    params.clone(),
-                ),
-                "global FX configuration",
-            ),
-            RuntimeAudioCommand::SetGlobalFxParam {
-                slot_index,
-                generation,
-                param,
-                value,
-            } => self.send_engine_event(
-                EngineEvent::SetGlobalFxParam {
-                    slot_index: *slot_index as u8,
-                    generation: *generation,
-                    param: *param,
-                    value: *value,
-                },
-                playback_runtime::RuntimeOperation::AudioCommand,
-            ),
-            RuntimeAudioCommand::MomentaryFxStart {
-                id,
-                epoch,
-                fx_type,
-                params,
-                target,
-            } => {
-                let prepared = prepare_momentary_fx_start_with_epoch(
-                    id.clone(),
-                    *epoch,
-                    fx_type.clone(),
-                    params.clone(),
-                    target.into(),
-                    DEFAULT_AUDIO_SAMPLE_RATE,
-                )
-                .ok_or_else(|| invalid_audio_command("invalid momentary FX parameters".into()))?;
-                self.send_engine_event(
-                    EngineEvent::PreparedMomentaryFxStart { config: prepared },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )?;
-                self.momentary_fx_types
-                    .insert(id.clone(), (*epoch, fx_type.clone()));
-                Ok(())
-            }
-            RuntimeAudioCommand::MomentaryFxUpdate { id, epoch, params } => {
-                let Some((active_epoch, fx_type)) = self.momentary_fx_types.get(id) else {
-                    return Err(invalid_audio_command(format!(
-                        "momentary FX is not active: {id}"
-                    )));
-                };
-                if *active_epoch != *epoch {
-                    return Err(invalid_audio_command(format!(
-                        "momentary FX epoch is stale for {id}"
-                    )));
-                }
-                validate_momentary_fx_type(fx_type).map_err(invalid_audio_command)?;
-                let prepared = prepare_momentary_fx_update(
-                    *epoch,
-                    fx_type.clone(),
-                    params.clone(),
-                    DEFAULT_AUDIO_SAMPLE_RATE,
-                )
-                .ok_or_else(|| invalid_audio_command("invalid momentary FX parameters".into()))?;
-                self.send_engine_event(
-                    EngineEvent::MomentaryFxUpdate(prepared),
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )
-            }
-            RuntimeAudioCommand::MomentaryFxStop { id, epoch } => {
-                let Some((active_epoch, _)) = self.momentary_fx_types.get(id) else {
-                    return Err(invalid_audio_command(format!(
-                        "momentary FX is not active: {id}"
-                    )));
-                };
-                if *active_epoch != *epoch {
-                    return Err(invalid_audio_command(format!(
-                        "momentary FX epoch is stale for {id}"
-                    )));
-                }
-                self.send_engine_event(
-                    EngineEvent::MomentaryFxStop { epoch: *epoch },
-                    playback_runtime::RuntimeOperation::AudioCommand,
-                )?;
-                self.momentary_fx_types.remove(id);
-                Ok(())
-            }
-            RuntimeAudioCommand::SamplePreview {
-                instrument_slot,
-                path,
-                velocity,
-                ..
-            } => prep_result(
-                self.audio.audio_control.enqueue_sample_preview(
-                    *instrument_slot,
-                    path.clone(),
-                    *velocity,
-                ),
-                "sample preview",
-            ),
-        }
+        apply_runtime_audio_command(self, command)
+    }
+}
+
+impl RuntimeAudioCommandHost for DesktopPlaybackHostAdapter {
+    fn send_audio_event(&mut self, event: EngineEvent) -> Result<(), RuntimeAdapterError> {
+        self.send_engine_event(event, RuntimeOperation::AudioCommand)
+    }
+
+    fn enqueue_full_config(
+        &mut self,
+        revision: u64,
+        generation: u64,
+        request_id: Option<String>,
+        config: Value,
+    ) -> Result<(), RuntimeAdapterError> {
+        prep_result(
+            self.audio
+                .audio_control
+                .enqueue_full_config(revision, generation, request_id, config),
+            "full audio configuration",
+        )
+    }
+
+    fn enqueue_instrument_slot(
+        &mut self,
+        instrument_slot: usize,
+        generation: u64,
+        config: Value,
+    ) -> Result<(), RuntimeAdapterError> {
+        prep_result(
+            self.audio
+                .audio_control
+                .enqueue_instrument_slot(instrument_slot, generation, config),
+            "instrument configuration",
+        )
+    }
+
+    fn enqueue_fx_bus_slot(
+        &mut self,
+        bus_index: usize,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: BTreeMap<String, Value>,
+    ) -> Result<(), RuntimeAdapterError> {
+        prep_result(
+            self.audio
+                .audio_control
+                .enqueue_fx_bus_slot(bus_index, slot_index, generation, fx_type, params),
+            "FX bus configuration",
+        )
+    }
+
+    fn enqueue_global_fx_slot(
+        &mut self,
+        slot_index: usize,
+        generation: u64,
+        fx_type: String,
+        params: BTreeMap<String, Value>,
+    ) -> Result<(), RuntimeAdapterError> {
+        prep_result(
+            self.audio
+                .audio_control
+                .enqueue_global_fx_slot(slot_index, generation, fx_type, params),
+            "global FX configuration",
+        )
+    }
+
+    fn enqueue_sample_preview(
+        &mut self,
+        instrument_slot: usize,
+        path: String,
+        velocity: u8,
+    ) -> Result<(), RuntimeAdapterError> {
+        prep_result(
+            self.audio
+                .audio_control
+                .enqueue_sample_preview(instrument_slot, path, velocity),
+            "sample preview",
+        )
+    }
+
+    fn momentary_fx_types(&mut self) -> &mut MomentaryFxTypes {
+        &mut self.momentary_fx_types
     }
 }
 

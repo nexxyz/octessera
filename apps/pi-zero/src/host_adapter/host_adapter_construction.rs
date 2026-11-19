@@ -80,6 +80,7 @@ impl PiHostAdapter {
             #[cfg(feature = "profiling")]
             note_sent_probe: None,
             bluetooth_audio: None,
+            momentary_fx_types: Default::default(),
         }
     }
 

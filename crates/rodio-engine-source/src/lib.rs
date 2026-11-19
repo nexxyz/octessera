@@ -11,6 +11,7 @@ mod profile_cache;
 mod queue;
 mod queue_types;
 mod retired_audio_backlog;
+mod runtime_audio_command;
 mod sample_decode;
 mod sample_decode_cache;
 mod source_factory;
@@ -44,6 +45,9 @@ use realtime_engine::synth::{
     SourceWorkerLifecycle, SourceWorkerSetupError, SourceWorkerStartHook,
 };
 use retired_audio_backlog::RetiredAudioBacklog;
+pub use runtime_audio_command::{
+    apply_runtime_audio_command, MomentaryFxTypes, RuntimeAudioCommandHost,
+};
 pub use sample_decode::decode_sample_file;
 pub use sample_decode_cache::{SampleDecodeCache, SampleDecodeCacheError};
 use source_state::{

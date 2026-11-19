@@ -10,6 +10,7 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
     };
 
     let audio = test_service_for_sample_prep();
+    let mut momentary = rodio_engine_source::MomentaryFxTypes::new();
     let mut instruments = default_pi_instruments();
     instruments.instruments[0].kind = "fm".into();
     instruments.instruments[0].fm = Some(FmConfig::default());
@@ -25,7 +26,8 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
         .unwrap();
 
     crate::host_audio_command::send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::SetFmParam {
             instrument_slot: 0,
             generation: 42,
@@ -36,7 +38,8 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
     )
     .unwrap();
     crate::host_audio_command::send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::SetPluckParam {
             instrument_slot: 1,
             generation: 42,
@@ -47,7 +50,8 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
     )
     .unwrap();
     crate::host_audio_command::send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::SetDrumParam {
             instrument_slot: 2,
             voice: 4,
@@ -112,7 +116,6 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
         sample_cache: rodio_engine_source::SampleDecodeCache::new(),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
         preview_generation: Arc::new(AtomicU64::new(0)),
-        momentary_fx_types: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
         next_sequence: Arc::new(AtomicU64::new(0)),
         latest_full_sequence: Arc::new(AtomicU64::new(0)),
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
@@ -144,7 +147,6 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
         sample_cache: rodio_engine_source::SampleDecodeCache::new(),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
         preview_generation: Arc::new(AtomicU64::new(0)),
-        momentary_fx_types: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
         next_sequence: Arc::new(AtomicU64::new(0)),
         latest_full_sequence: Arc::new(AtomicU64::new(0)),
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
@@ -217,7 +219,6 @@ pub(crate) fn test_service_with_recorder(
         sample_cache: rodio_engine_source::SampleDecodeCache::new(),
         sample_bank_signature: Arc::new(Mutex::new(String::new())),
         preview_generation: Arc::new(AtomicU64::new(0)),
-        momentary_fx_types: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
         next_sequence: Arc::new(AtomicU64::new(0)),
         latest_full_sequence: Arc::new(AtomicU64::new(0)),
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),

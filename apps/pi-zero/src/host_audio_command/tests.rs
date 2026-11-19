@@ -27,8 +27,10 @@ fn pi_pluck_scalar_command_accepts_coalesced_audio_lane() {
     let (audio, _, _event_rx, _) = crate::audio::test_service_with_recording_dir(
         std::env::temp_dir().join("octessera-pi-pluck-command-recordings"),
     );
+    let mut momentary = MomentaryFxTypes::new();
     send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::SetPluckParam {
             instrument_slot: 2,
             generation: 42,
@@ -44,6 +46,7 @@ fn pi_pluck_scalar_command_accepts_coalesced_audio_lane() {
 fn pi_invalid_fx_command_has_typed_invalid_payload_failure() {
     let error = send_audio_command(
         None,
+        &mut MomentaryFxTypes::new(),
         &RuntimeAudioCommand::SetFxBusSlot {
             bus_index: 0,
             slot_index: 0,
@@ -64,9 +67,11 @@ fn stale_momentary_stop_does_not_remove_newer_epoch() {
     let (audio, _, mut event_rx, _) = crate::audio::test_service_with_recording_dir(
         std::env::temp_dir().join("octessera-pi-momentary-recordings"),
     );
+    let mut momentary = MomentaryFxTypes::new();
     let params = BTreeMap::new();
     send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::MomentaryFxStart {
             id: "fx".into(),
             epoch: 2,
@@ -82,7 +87,8 @@ fn stale_momentary_stop_does_not_remove_newer_epoch() {
         EngineEvent::PreparedMomentaryFxStart { .. }
     ));
     send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::MomentaryFxStart {
             id: "other-fx".into(),
             epoch: 4,
@@ -98,7 +104,8 @@ fn stale_momentary_stop_does_not_remove_newer_epoch() {
         EngineEvent::PreparedMomentaryFxStart { .. }
     ));
     let error = send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::MomentaryFxStop {
             id: "fx".into(),
             epoch: 4,
@@ -110,9 +117,10 @@ fn stale_momentary_stop_does_not_remove_newer_epoch() {
     assert_eq!(error.facts.code, RuntimeErrorCode::InvalidPayload);
     assert_eq!(error.facts.operation, RuntimeOperation::AudioCommand);
     assert!(event_rx.try_recv().is_err());
-    assert_eq!(audio.momentary_fx_type("fx").unwrap().unwrap().0, 2);
+    assert_eq!(momentary["fx"].0, 2);
     send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::MomentaryFxStop {
             id: "fx".into(),
             epoch: 2,
@@ -124,7 +132,7 @@ fn stale_momentary_stop_does_not_remove_newer_epoch() {
         event_rx.try_recv().unwrap(),
         EngineEvent::MomentaryFxStop { epoch: 2 }
     ));
-    assert!(audio.momentary_fx_type("fx").unwrap().is_none());
+    assert!(!momentary.contains_key("fx"));
 }
 
 #[test]
@@ -132,8 +140,10 @@ fn unknown_momentary_stop_is_typed_invalid_payload_and_silent() {
     let (audio, _, mut event_rx, _) = crate::audio::test_service_with_recording_dir(
         std::env::temp_dir().join("octessera-pi-unknown-momentary-recordings"),
     );
+    let mut momentary = MomentaryFxTypes::new();
     let error = send_audio_command(
-        Some(audio),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::MomentaryFxStop {
             id: "missing-fx".into(),
             epoch: 1,
@@ -152,8 +162,10 @@ fn failed_momentary_stop_keeps_current_state() {
     let (audio, _, mut event_rx, _) = crate::audio::test_service_with_recording_dir(
         std::env::temp_dir().join("octessera-pi-momentary-failure-recordings"),
     );
+    let mut momentary = MomentaryFxTypes::new();
     send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::MomentaryFxStart {
             id: "fx".into(),
             epoch: 3,
@@ -171,7 +183,8 @@ fn failed_momentary_stop_keeps_current_state() {
     drop(event_rx);
 
     let error = send_audio_command(
-        Some(audio.clone()),
+        Some(&audio),
+        &mut momentary,
         &RuntimeAudioCommand::MomentaryFxStop {
             id: "fx".into(),
             epoch: 3,
@@ -180,7 +193,7 @@ fn failed_momentary_stop_keeps_current_state() {
     )
     .unwrap_err();
     assert_eq!(error.facts.code, RuntimeErrorCode::AudioThreadFailed);
-    assert_eq!(audio.momentary_fx_type("fx").unwrap().unwrap().0, 3);
+    assert_eq!(momentary["fx"].0, 3);
 }
 
 #[test]
@@ -193,7 +206,9 @@ fn pi_prep_lane_reports_full_and_disconnected_as_typed_audio_failures() {
         generation: 0,
         config: serde_json::json!({ "type": "synth" }),
     };
-    let send = || send_audio_command(Some(audio.clone()), &command, Path::new("samples"));
+    let mut momentary = MomentaryFxTypes::new();
+    let mut send =
+        || send_audio_command(Some(&audio), &mut momentary, &command, Path::new("samples"));
     for _ in 0..crate::audio::AUDIO_PREP_QUEUE_CAPACITY {
         send().unwrap();
     }

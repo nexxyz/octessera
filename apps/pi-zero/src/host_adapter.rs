@@ -40,6 +40,7 @@ pub struct PiHostAdapter {
     #[cfg(feature = "profiling")]
     pub(crate) note_sent_probe: Option<crate::timing_load::NoteSentProbe>,
     bluetooth_audio: Option<crate::bluetooth::BluetoothAudioMonitor>,
+    momentary_fx_types: rodio_engine_source::MomentaryFxTypes,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -337,7 +338,12 @@ impl HostAdapter for PiHostAdapter {
         if self.shutdown_pending() {
             return Ok(());
         }
-        send_audio_command(self.audio.clone(), command, &self.samples_dir)?;
+        send_audio_command(
+            self.audio.as_ref(),
+            &mut self.momentary_fx_types,
+            command,
+            &self.samples_dir,
+        )?;
         if let Some(evidence) = self.timing_evidence.as_mut() {
             evidence.record_command(command);
         }

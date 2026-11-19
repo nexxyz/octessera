@@ -3494,6 +3494,7 @@ version = "0.8.15"
 dependencies = [
  "crossbeam-channel",
  "hound",
+ "playback-runtime",
  "realtime-engine",
  "rodio",
  "serde",

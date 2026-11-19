@@ -17,8 +17,8 @@ use playback_runtime::{
     RuntimeAdapterError, RuntimeAudioCommand, RuntimeOperation, RuntimePlatformRequest,
     RuntimeStoreResult, TimedMidiSender,
 };
+use rodio_engine_source::MomentaryFxTypes;
 use rodio_engine_source::{EngineEvent, EngineEventSender, QueueKind, QueueSendError};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::{Sender, SyncSender};
 use std::sync::{Arc, Mutex};
@@ -37,7 +37,7 @@ pub(crate) struct DesktopPlaybackHostAdapter {
     midi_output_missing: bool,
     midi_input_missing: bool,
     shutdown_requested: bool,
-    momentary_fx_types: HashMap<String, (u64, String)>,
+    momentary_fx_types: MomentaryFxTypes,
 }
 
 #[derive(Clone)]
@@ -76,7 +76,7 @@ impl DesktopPlaybackHostAdapter {
             midi_output_missing: false,
             midi_input_missing: false,
             shutdown_requested: false,
-            momentary_fx_types: HashMap::new(),
+            momentary_fx_types: MomentaryFxTypes::new(),
         }
     }
 

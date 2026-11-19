@@ -74,7 +74,6 @@ impl AudioManager {
             sample_cache: rodio_engine_source::SampleDecodeCache::new(),
             sample_bank_signature: Arc::new(Mutex::new(String::new())),
             preview_generation: Arc::new(AtomicU64::new(0)),
-            momentary_fx_types: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
             next_sequence: Arc::new(AtomicU64::new(0)),
             latest_full_sequence: Arc::new(AtomicU64::new(0)),
             generations: Arc::new(Mutex::new(crate::audio::AudioGenerationState::default())),
