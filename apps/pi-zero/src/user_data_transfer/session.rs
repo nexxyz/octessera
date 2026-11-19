@@ -57,7 +57,7 @@ impl UserDataTransferService {
             return Ok(status);
         }
         let network = self.resolve_network()?;
-        self.join_server();
+        self.join_finished_server()?;
         let listener = TcpListener::bind(self.inner.config.bind).map_err(|error| {
             OpenError::Failed(format!("user-data transfer listener unavailable: {error}"))
         })?;
@@ -274,6 +274,28 @@ impl UserDataTransferService {
                 let _ = join.join();
             }
         }
+    }
+
+    fn join_finished_server(&self) -> Result<(), OpenError> {
+        let mut server = self
+            .inner
+            .server
+            .lock()
+            .map_err(lock_error)
+            .map_err(OpenError::Failed)?;
+        let deadline = Instant::now() + 2 * ACCEPT_POLL;
+        while server.as_ref().is_some_and(|join| !join.is_finished()) {
+            if Instant::now() >= deadline {
+                return Err(OpenError::Unavailable(
+                    "Still closing, try again in a moment".into(),
+                ));
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+        if let Some(join) = server.take() {
+            let _ = join.join();
+        }
+        Ok(())
     }
 
     fn join_server(&self) {

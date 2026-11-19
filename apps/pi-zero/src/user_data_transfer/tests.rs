@@ -1,3 +1,4 @@
+use super::close_race_tests::wait_for_server_exit;
 use super::*;
 use playback_runtime::{
     HostMessage, RuntimeErrorCode, RuntimePlatformEffect, RuntimePlatformRequest,
@@ -318,6 +319,7 @@ fn close_expiry_and_auth_revocation_emit_closed_with_their_open_identity() {
     assert_eq!(request_id, "close-request");
     assert_eq!(revision, Some(4));
 
+    wait_for_server_exit(&service);
     let open = transfer_request("expiry-open", 5);
     let _ = service.open(&open);
     service.inner.state.lock().unwrap().expires_at = Some(Instant::now() - Duration::from_secs(1));
@@ -327,6 +329,7 @@ fn close_expiry_and_auth_revocation_emit_closed_with_their_open_identity() {
     assert_eq!(request_id, "expiry-open");
     assert_eq!(revision, Some(5));
 
+    wait_for_server_exit(&service);
     let open = transfer_request("auth-open", 6);
     let _ = service.open(&open);
     for _ in 0..MAX_AUTH_FAILURES {
