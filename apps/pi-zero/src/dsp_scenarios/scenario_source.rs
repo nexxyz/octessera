@@ -179,6 +179,7 @@ fn full_scenarios(sample_rate: u32) -> Vec<ScenarioSpec> {
             "detune",
             realtime_engine::synth::SynthParamId::Osc1DetuneCents,
         ),
+        ("level", realtime_engine::synth::SynthParamId::Osc1LevelPct),
     ] {
         let mut scenario =
             ScenarioSpec::new(format!("synth_ramp_32_lfo_{name}"), synth_ramp_events(32));
