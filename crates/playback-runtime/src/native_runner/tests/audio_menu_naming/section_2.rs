@@ -125,11 +125,10 @@ pub(crate) fn layer_four_auto_name_change_is_in_deferred_autosave_payload() {
         .find_map(|message| match message {
             RunnerMessage::PlatformEffects { effects } => {
                 effects.iter().find_map(|effect| match effect {
-                    RuntimePlatformEffect::StoreSaveDefault { payload, mode }
-                        if matches!(mode, Some(crate::DefaultSaveMode::Deferred)) =>
-                    {
-                        Some(payload)
-                    }
+                    RuntimePlatformEffect::StoreSaveDefault {
+                        payload,
+                        mode: Some(crate::DefaultSaveMode::Deferred),
+                    } => Some(payload),
                     _ => None,
                 })
             }
