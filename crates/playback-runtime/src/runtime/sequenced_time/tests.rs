@@ -277,3 +277,72 @@ fn swung_events_play_their_offset_after_the_pulse_stamp() {
         .collect();
     assert_eq!(note_ons, vec![Some(pulse), Some(swung), Some(pulse)]);
 }
+
+struct RetriggerRunner {
+    pulse: u64,
+}
+
+impl CoreRunner for RetriggerRunner {
+    fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        let HostMessage::TransportPulseStep { pulses, .. } = message else {
+            return Ok(Vec::new());
+        };
+        self.pulse += u64::from(pulses);
+        let events = if matches!(self.pulse, 1 | 3) {
+            vec![MusicalEvent::NoteOn {
+                channel: 2,
+                note: 62,
+                velocity: 90,
+                duration_ms: Some(100),
+            }]
+        } else {
+            Vec::new()
+        };
+        Ok(vec![
+            RunnerMessage::MidiEvents { events },
+            status(RuntimeTransportState::Playing, self.pulse),
+        ])
+    }
+
+    fn send_system_store_result(
+        &mut self,
+        _message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>), String> {
+        Ok((Vec::new(), None))
+    }
+}
+
+#[test]
+fn retriggered_midi_note_ends_the_held_one_first_and_keeps_only_its_own_note_off() {
+    let (mut runtime, mut host, origin) = started(true);
+    host.midi_messages.clear();
+    host.midi_message_at.clear();
+    let mut runner = RetriggerRunner { pulse: 0 };
+    for _ in 0..250 {
+        runtime
+            .advance_duration(Duration::from_millis(1), &mut runner, &mut host)
+            .unwrap();
+    }
+
+    let first = origin + pulse_offset(1);
+    let retrigger = origin + pulse_offset(3);
+    let note_bytes: Vec<_> = host
+        .midi_messages
+        .iter()
+        .zip(&host.midi_message_at)
+        .filter(|(bytes, _)| bytes.get(1) == Some(&62))
+        .map(|(bytes, at)| (bytes.clone(), *at))
+        .collect();
+    assert_eq!(
+        note_bytes,
+        vec![
+            (vec![0x92, 62, 90], Some(first)),
+            (vec![0x82, 62, 0], Some(retrigger)),
+            (vec![0x92, 62, 90], Some(retrigger)),
+            (
+                vec![0x82, 62, 0],
+                Some(retrigger + Duration::from_millis(100))
+            ),
+        ]
+    );
+}

@@ -62,6 +62,18 @@ impl PlaybackRuntime {
                 velocity,
                 duration_ms,
             } => {
+                let note_off = [0x80 | (channel & 0x0F), note.min(127), 0];
+                let pending = self.scheduled_note_offs.len();
+                self.scheduled_note_offs
+                    .retain(|message| message.bytes != note_off);
+                if self.scheduled_note_offs.len() != pending {
+                    self.send_midi_message(
+                        &note_off,
+                        self.sequenced_at,
+                        RuntimeOperation::MidiEvent,
+                        host,
+                    )?;
+                }
                 self.send_midi_message(
                     &[
                         0x90 | (channel & 0x0F),
@@ -77,7 +89,7 @@ impl PlaybackRuntime {
                     self.scheduled_note_offs.push_back(ScheduledMidiMessage {
                         due_at: self.now + duration,
                         at: self.sequenced_at.and_then(|at| at.checked_add(duration)),
-                        bytes: [0x80 | (channel & 0x0F), note.min(127), 0],
+                        bytes: note_off,
                     });
                     self.scheduled_note_offs_dirty = true;
                 }

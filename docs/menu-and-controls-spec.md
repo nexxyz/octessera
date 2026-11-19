@@ -416,6 +416,9 @@ change; only the distance per detent does.
   unaffected. Switching to `MIDI inst.` sends exact note-offs for the copied notes still held, and
   leaves MIDI Inst. and MIDI Drum notes alone. An instrument muted in Play Mix sends no copies;
   muting it sends the same exact note-offs for its held copies.
+- A timed MIDI note that starts again on the same channel before its note-off is due sends that
+  note-off first, at the new note's time, and drops it from the schedule, so only the new note's own
+  note-off ends it.
 - A MIDI-domain runtime error at startup (USB MIDI saved on while the boot-built USB gadget has no
   MIDI function) does not block the first scene: the board starts on the normal menu with that error
   frame shown. Any other startup runtime error still aborts startup.

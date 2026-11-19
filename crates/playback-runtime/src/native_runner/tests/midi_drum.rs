@@ -301,7 +301,11 @@ fn mute_disabled_output_and_a_closed_trigger_gate_block_midi_drum_notes() {
     assert!(rig.take_notes().is_empty(), "trigger gate closed");
     rig.press_with(&["button_shift", "button_fn"], 0, 0);
     rig.press(2, 3);
-    assert_eq!(rig.take_notes().len(), 1, "trigger gate open");
+    assert_eq!(
+        rig.take_notes(),
+        vec![vec![0x89, SNARE, 0], vec![0x99, SNARE, 90]],
+        "trigger gate open, ending the still-held unmuted hit first"
+    );
 
     let mode = std::mem::replace(
         &mut rig.runner.layers[0].link.trigger_probability_mode,
