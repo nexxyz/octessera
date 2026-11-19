@@ -11,7 +11,10 @@ import {
   shouldApplyRuntimeBatch,
 } from '../src/runtime/simulatorRuntime';
 import { scaleNeoKeyLeds } from '../src/runtime/simulatorSnapshot';
-import type { RuntimeRunnerMessage } from '@octessera/device-contracts';
+import type {
+  NeoKeyLeds,
+  RuntimeRunnerMessage,
+} from '@octessera/device-contracts';
 import type { RuntimeScheduler } from '../src/runtime/runtimeScheduler';
 
 class FakeScheduler implements RuntimeScheduler {
@@ -51,7 +54,7 @@ function snapshotMessage(
       transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
       display: {
         page: 'boot',
-        bodyLayout: 'rows',
+        bodyLayout: 'rows' as const,
         title: 'Boot',
         lines: [],
         editing: false,
@@ -64,10 +67,10 @@ function snapshotMessage(
         space: [221, 130, 205],
         shift: [67, 68, 71],
         fn: [67, 68, 71],
-      },
+      } satisfies NeoKeyLeds,
       eventDotLevel: options.eventDotLevel ?? 0,
       transportIcon: 'stop' as const,
-      transportFlash: options.transportFlash ?? 'none',
+      transportFlash: options.transportFlash ?? ('none' as const),
       settings: {
         displayBrightness: 12,
         buttonBrightness: 75,

@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { OLED_HEIGHT, OLED_WIDTH } from '@octessera/device-contracts';
+import {
+  OLED_HEIGHT,
+  OLED_WIDTH,
+  type OledFrame,
+} from '@octessera/device-contracts';
 import { oledPanelCurrentFactor, toOledImage } from '../src/ui/oledImage';
 
 const FRAME_BYTES = OLED_WIDTH * OLED_HEIGHT * 2;
@@ -27,14 +31,14 @@ function frame(
     height: number;
     format: string;
   }> = {},
-) {
+): OledFrame {
   return {
     width: OLED_WIDTH,
     height: OLED_HEIGHT,
     format: 'rgb565be' as const,
     pixels,
     ...overrides,
-  };
+  } as OledFrame;
 }
 
 test('OLED image accepts only the exact 128x128 RGB565BE framebuffer', () => {

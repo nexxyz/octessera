@@ -135,7 +135,7 @@ test('desktop OLED cache retains the last valid frame for malformed input', () =
   const cache = createOledFrameCache();
   ingestOledFrame(cache, frame(1));
   const pixels = cache.acceptedPixels;
-  ingestOledFrame(cache, { ...frame(2), width: 127 });
+  ingestOledFrame(cache, { ...frame(2), width: 127 as never });
   assert.equal(cache.fault, 'malformed');
   assert.equal(cache.acceptedRevision, 0);
   assert.equal(cache.acceptedPixels, pixels);
@@ -146,7 +146,7 @@ test('desktop OLED cache retains the last valid frame for malformed input', () =
   assert.equal(cache.fault, 'malformed');
   ingestOledFrame(cache, { ...frame(2), format: 'rgb565le' as 'rgb565be' });
   assert.equal(cache.fault, 'malformed');
-  ingestOledFrame(cache, { ...frame(2), height: 127 });
+  ingestOledFrame(cache, { ...frame(2), height: 127 as never });
   assert.equal(cache.fault, 'malformed');
 
   ingestOledFrame(cache, frame(2, new Uint8Array(FRAME_BYTES).fill(2)));

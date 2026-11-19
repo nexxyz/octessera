@@ -1,6 +1,6 @@
 import { act, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Window } from 'happy-dom';
+import { Window, type Event as HappyEvent } from 'happy-dom';
 
 const DOM_GLOBALS = [
   'document',
@@ -85,9 +85,9 @@ export function mount(element: ReactElement): Mounted {
   };
 }
 
-export function fire(target: EventTarget, event: Event): void {
+export function fire(target: EventTarget, event: HappyEvent): void {
   act(() => {
-    target.dispatchEvent(event);
+    target.dispatchEvent(event as unknown as Event);
   });
 }
 
