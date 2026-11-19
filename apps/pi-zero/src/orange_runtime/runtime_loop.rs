@@ -144,7 +144,13 @@ impl BoardLoop for OrangeBoardLoop<'_> {
     ) -> Result<(), String> {
         self.audio_manager.recover_audio_if_due();
         let metrics = self.audio_manager.drain_audio_load_status(playback);
-        process_runtime_output(playback, runner, adapter, metrics)?;
+        if let Err(error) = process_runtime_output(playback, runner, adapter, metrics) {
+            crate::runtime_dispatch::report_runtime_failure(
+                adapter,
+                "pi audio load-status output processing failed",
+                error,
+            );
+        }
         self.audio_manager.report_runtime_terminal_diagnostics();
         ensure_required_audio_health(self.audio_manager.required_jack_runtime_status())?;
         self.audio.ensure_route_readiness()?;
