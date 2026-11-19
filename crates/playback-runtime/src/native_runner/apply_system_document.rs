@@ -12,6 +12,7 @@ impl NativeRunner {
         let runtime = full
             .get("runtimeConfig")
             .ok_or_else(|| "System document is missing runtimeConfig".to_string())?;
+        let typed = super::RuntimeConfigDto::from_value(runtime)?;
 
         let optimization = runtime
             .get("sound")
@@ -58,15 +59,15 @@ impl NativeRunner {
             self.audio_io.usb_data_role,
         );
         let before = self.configuration_aggregate();
-        self.apply_midi_payload(runtime)?;
-        self.apply_system_sound_payload(runtime);
+        self.apply_midi_payload(&typed);
+        self.apply_system_sound_payload(&typed);
         self.dsp_config = dsp;
-        self.apply_display_payload(runtime);
-        self.apply_runtime_input_payload(runtime);
-        self.apply_aux_mapping_payload(runtime);
-        self.apply_usb_payload(runtime);
+        self.apply_display_payload(&typed);
+        self.apply_runtime_input_payload(&typed);
+        self.apply_aux_mapping_payload(&typed);
+        self.apply_usb_payload(&typed);
         self.audio_io.audio_outputs = audio_outputs;
-        self.apply_recording_payload(runtime);
+        self.apply_recording_payload(&typed);
         self.apply_hdmi_payload(runtime);
         self.apply_bluetooth_payload(runtime);
         self.apply_sample_browser_favourites_payload(runtime);
