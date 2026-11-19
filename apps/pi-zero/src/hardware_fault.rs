@@ -168,13 +168,15 @@ pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handof
         let screen_on = fault.wake.is_none() || Instant::now() < awake_until;
         if let Some(oled) = fault.oled.as_mut() {
             if screen_shown != Some(screen_on) {
-                let _ = if screen_on {
+                let applied = if screen_on {
                     oled.set_master_contrast(FAULT_SCREEN_CONTRAST)
                         .and_then(|()| oled.display_on())
                 } else {
                     oled.display_off()
                 };
-                screen_shown = Some(screen_on);
+                if applied.is_ok() {
+                    screen_shown = Some(screen_on);
+                }
             }
             if screen_on {
                 fault_oled_frame_into(header, &lines, &mut frame, lit);
