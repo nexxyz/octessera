@@ -2,6 +2,8 @@ use platform_core::AUX_ENCODER_COUNT;
 use playback_runtime::HostMessage;
 use serde_json::json;
 #[cfg(feature = "native-audio")]
+use std::sync::{mpsc, Arc};
+#[cfg(feature = "native-audio")]
 use std::time::Instant;
 
 #[cfg(feature = "native-audio")]
@@ -97,6 +99,21 @@ pub fn midi_input_message(bytes: &[u8]) -> Option<MidiMessage> {
         });
     }
     playback_runtime::MidiControlChange::parse(bytes).map(MidiMessage::ControlChange)
+}
+
+#[cfg(feature = "native-audio")]
+pub(crate) type MidiInputHandler = Arc<dyn Fn(Vec<u8>) + Send + Sync>;
+
+/// The MIDI input callback the host adapter calls, and the receiver the runtime loop drains.
+#[cfg(feature = "native-audio")]
+pub(crate) fn midi_input_channel() -> (MidiInputHandler, mpsc::Receiver<MidiMessage>) {
+    let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
+    let midi_handler = Arc::new(move |bytes: Vec<u8>| {
+        if let Some(message) = midi_input_message(&bytes) {
+            let _ = midi_tx.send(message);
+        }
+    });
+    (midi_handler, midi_rx)
 }
 
 #[cfg(test)]

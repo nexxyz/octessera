@@ -5,13 +5,12 @@ use crate::candidate_readiness::CandidateReadiness;
 use crate::hardware_fault::HardwareFault;
 use crate::hardware_runtime_scheduler::HardwareRuntimeScheduler;
 use crate::host_adapter::PiHostAdapter;
-use crate::input::{midi_input_message, MidiMessage};
+use crate::input::MidiMessage;
 use crate::main_paths::default_store_dir;
 use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render::HardwareRenderTargets;
 use crate::render_loop::RenderWorker;
 use crate::seesaw_io::{self, SeesawIo};
-use crate::usb_config::read_boot_runtime_config;
 use octessera_hal::board_profiles::ORANGE_PI_ZERO_2W_DEVICES;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351, OrangeEncoderGpio, SeesawInterrupt};
@@ -47,6 +46,30 @@ fn enter_hardware_fault_mode(fault: HardwareFault) -> ! {
     crate::hardware_fault::run_hardware_fault_mode(Box::new(fault), true)
 }
 
+pub(crate) fn run_utility_mode(
+    utility_mode: crate::utility_mode::UtilityMode,
+) -> Option<std::process::ExitCode> {
+    match utility_mode {
+        crate::utility_mode::UtilityMode::InteractiveHardware
+        | crate::utility_mode::UtilityMode::InteractiveNoise => {
+            eprintln!(
+                "interactive hardware test is only available on the canonical Raspberry build"
+            );
+            std::process::exit(2);
+        }
+        crate::utility_mode::UtilityMode::Normal => {}
+    }
+    crate::profiling_modes::run_requested();
+    None
+}
+
+pub(crate) fn run_normal_startup() {
+    if let Err(error) = crate::runtime_thread::run_on_runtime_thread(run) {
+        eprintln!("Orange foreground candidate failed: {error}");
+        std::process::exit(1);
+    }
+}
+
 struct OrangeRuntimeServices {
     midi_rx: Receiver<MidiMessage>,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
@@ -64,21 +87,12 @@ pub fn run() -> Result<(), String> {
         )
     })?;
     let store_dir = default_store_dir();
-    let (usb_config, audio_optimization) = match read_boot_runtime_config(&store_dir) {
-        Ok(config) => config,
-        Err(error) => crate::store_fault::run_store_fault_mode(
-            &error.to_string(),
-            &store_dir,
-            handoff_mode == HandoffMode::V1,
-        ),
-    };
+    let (usb_config, audio_optimization) = crate::store_fault::read_boot_runtime_config_or_restore(
+        &store_dir,
+        handoff_mode == HandoffMode::V1,
+    );
     let profile = crate::audio::orange_profile(audio_optimization);
-    let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
-    let midi_handler = Arc::new(move |bytes: Vec<u8>| {
-        if let Some(message) = midi_input_message(&bytes) {
-            let _ = midi_tx.send(message);
-        }
-    });
+    let (midi_handler, midi_rx) = crate::input::midi_input_channel();
     let mut audio = match AudioManager::new_orange(profile, usb_config.audio_outputs) {
         Ok(audio) => audio,
         Err(error) => {

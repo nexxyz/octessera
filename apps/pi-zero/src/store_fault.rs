@@ -7,8 +7,10 @@ mod tests;
 
 use crate::hardware_fault::{HardwareFault, FAULT_SCREEN_AWAKE, FAULT_SCREEN_CONTRAST};
 use crate::render::{fault_oled_frame_into, OLED_FRAME_BYTES};
+use crate::usb_config::UsbRuntimeConfig;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use octessera_hal::OledSsd1351;
+use playback_runtime::AudioOptimization;
 use std::path::Path;
 use std::sync::mpsc::RecvTimeoutError;
 use std::thread;
@@ -23,7 +25,17 @@ enum Choice {
     ShutDown,
 }
 
-pub(crate) fn run_store_fault_mode(error: &str, store_dir: &Path, boot_handoff: bool) -> ! {
+pub(crate) fn read_boot_runtime_config_or_restore(
+    store_dir: &Path,
+    boot_handoff: bool,
+) -> (UsbRuntimeConfig, AudioOptimization) {
+    match crate::usb_config::read_boot_runtime_config(store_dir) {
+        Ok(config) => config,
+        Err(error) => run_store_fault_mode(&error.to_string(), store_dir, boot_handoff),
+    }
+}
+
+fn run_store_fault_mode(error: &str, store_dir: &Path, boot_handoff: bool) -> ! {
     eprintln!("saved settings won't load ({error}); showing the restore screen");
     let mut devices = HardwareFault::new();
     if boot_handoff {

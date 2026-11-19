@@ -1,6 +1,4 @@
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
-mod input;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_runtime;
 mod render;
 mod render_loop;
@@ -60,7 +58,7 @@ mod host_audio_prep;
 mod host_power_lifecycle;
 #[cfg(feature = "native-audio")]
 mod initial_audio_prep;
-#[cfg(all(feature = "native-audio", not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(feature = "native-audio")]
 mod input;
 mod keyboard_capture;
 mod main_paths;
@@ -90,6 +88,8 @@ mod profiling_modes;
 mod raspberry_power;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod raspberry_runtime;
+#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+mod raspberry_startup;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
 mod rpi_oled_handoff_runtime;
 mod runtime_dispatch;
@@ -128,23 +128,12 @@ mod user_data_archive;
 mod user_data_restore;
 mod user_data_transfer;
 mod utility_mode;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use audio::AudioManager;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use hardware_init::{init_encoders, init_hardware, HardwareDevices};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use input::{midi_input_message, MidiMessage};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use render::HardwareRenderTargets;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use render_loop::RenderWorker;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use std::sync::mpsc;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use std::sync::Arc;
 
+#[cfg(feature = "hardware-orange-pi-zero-2w")]
+use orange_runtime as board_startup;
 #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-use main_paths::{default_samples_dir, default_store_dir, ensure_runtime_dirs};
+use raspberry_startup as board_startup;
+
 use octessera_pi::board_profile;
 
 #[cfg(feature = "native-audio")]
@@ -155,7 +144,6 @@ fn pin_normal_startup_thread() {
     }
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
 fn main() -> std::process::ExitCode {
     let utility_mode = match utility_mode::from_process() {
         Ok(mode) => mode,
@@ -164,173 +152,24 @@ fn main() -> std::process::ExitCode {
             std::process::exit(2);
         }
     };
-    match utility_mode {
-        utility_mode::UtilityMode::InteractiveHardware
-        | utility_mode::UtilityMode::InteractiveNoise => {
-            eprintln!(
-                "interactive hardware test is only available on the canonical Raspberry build"
-            );
-            std::process::exit(2);
-        }
-        utility_mode::UtilityMode::Normal => {}
+    if let Some(exit) = board_startup::run_utility_mode(utility_mode) {
+        return exit;
     }
-    profiling_modes::run_requested();
     #[cfg(feature = "native-audio")]
     pin_normal_startup_thread();
-    #[cfg(target_os = "linux")]
-    audio_priority::lock_process_memory();
-    #[cfg(target_os = "linux")]
-    audio_priority::tighten_timer_slack();
-    if let Err(error) = runtime_thread::run_on_runtime_thread(orange_runtime::run) {
-        eprintln!("Orange foreground candidate failed: {error}");
-        std::process::exit(1);
+    #[cfg(all(
+        target_os = "linux",
+        any(
+            feature = "hardware-raspberry-pi-zero-2w",
+            feature = "hardware-orange-pi-zero-2w"
+        )
+    ))]
+    {
+        audio_priority::lock_process_memory();
+        audio_priority::tighten_timer_slack();
     }
+    board_startup::run_normal_startup();
     power_lifecycle::process_exit_code()
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn main() -> std::process::ExitCode {
-    let utility_mode = match utility_mode::from_process() {
-        Ok(mode) => mode,
-        Err(error) => {
-            eprintln!("Utility mode error: {error}");
-            std::process::exit(2);
-        }
-    };
-    if utility_mode == utility_mode::UtilityMode::Normal && board_profile::metadata_requested() {
-        board_profile::print_build_metadata();
-        return std::process::ExitCode::SUCCESS;
-    }
-    match utility_mode {
-        utility_mode::UtilityMode::InteractiveHardware => {
-            std::process::exit(exit_code(hardware_test::run_interactive()))
-        }
-        utility_mode::UtilityMode::InteractiveNoise => {
-            std::process::exit(exit_code(hardware_test::run_noise_only()))
-        }
-        utility_mode::UtilityMode::Normal => {}
-    }
-
-    run_requested_utility();
-
-    #[cfg(feature = "native-audio")]
-    pin_normal_startup_thread();
-    #[cfg(all(target_os = "linux", feature = "hardware-raspberry-pi-zero-2w"))]
-    audio_priority::lock_process_memory();
-    #[cfg(all(target_os = "linux", feature = "hardware-raspberry-pi-zero-2w"))]
-    audio_priority::tighten_timer_slack();
-    let _ = simple_logger::init();
-
-    let handoff_mode = match boot_oled_handoff::mode_from_env() {
-        Ok(mode) => mode,
-        Err(error) => {
-            eprintln!("{error}");
-            std::process::exit(2);
-        }
-    };
-
-    if let Err(error) = board_profile::validate_runtime_profile() {
-        eprintln!("{error}");
-        std::process::exit(2);
-    }
-
-    println!("octessera - Pi native runtime");
-
-    let store_dir = default_store_dir();
-    let boot_handoff = handoff_mode == boot_oled_handoff::HandoffMode::V1;
-    let (usb_config, audio_optimization) = match usb_config::read_boot_runtime_config(&store_dir) {
-        Ok(config) => config,
-        Err(error) => {
-            store_fault::run_store_fault_mode(&error.to_string(), &store_dir, boot_handoff)
-        }
-    };
-    let hardware = match init_hardware(!boot_handoff) {
-        Ok(devices) => devices,
-        Err(fault) => hardware_fault::run_hardware_fault_mode(fault, boot_handoff),
-    };
-    let (event_rx, _encoders) = match init_encoders() {
-        Ok(encoders) => encoders,
-        Err(mut fault) => {
-            fault.attach_outputs(hardware.oled, Some(hardware.trellis), Some(hardware.neokey));
-            hardware_fault::run_hardware_fault_mode(fault, boot_handoff);
-        }
-    };
-    let HardwareDevices {
-        _i2c_bus,
-        oled,
-        trellis,
-        neokey,
-        input_interrupt,
-        _dac,
-    } = hardware;
-    let seesaw_io = seesaw_io::spawn_interrupt(trellis, neokey, input_interrupt);
-    let audio = match init_audio(audio_optimization, usb_config.audio_outputs) {
-        Ok(audio) => audio,
-        Err(error) => {
-            let mut fault = hardware_fault::HardwareFault::new();
-            fault.push("AUDIO", format!("Audio init failed: {error}"));
-            fault.attach_outputs(oled, None, None);
-            fault.attach_wake_encoders(event_rx, _encoders);
-            hardware_fault::run_hardware_fault_mode(Box::new(fault), boot_handoff);
-        }
-    };
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-    let mut audio = audio;
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-    let audio_load_rx = audio
-        .as_mut()
-        .and_then(AudioManager::take_load_status_receiver);
-
-    let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
-    let midi_handler = Arc::new(move |bytes: Vec<u8>| {
-        if let Some(message) = midi_input_message(&bytes) {
-            let _ = midi_tx.send(message);
-        }
-    });
-
-    let samples_dir = default_samples_dir();
-    ensure_runtime_dirs(&store_dir, &samples_dir);
-    let runtime_config = raspberry_runtime::RaspberryRuntimeConfig {
-        audio: audio.as_ref().map(AudioManager::service),
-        store_dir,
-        samples_dir,
-        midi_handler,
-        usb_midi_out_enabled: usb_config.midi_out_enabled,
-        audio_outputs: usb_config.audio_outputs,
-        usb_data_role: usb_config.data_role,
-        audio_optimization,
-        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
-        audio_load_rx,
-        midi_rx,
-        keyboard: seesaw_io.spawn_keyboard(usb_config.data_role),
-        input_rx: seesaw_io.input_rx,
-        encoder_rx: event_rx,
-        early_boot_splash: handoff_mode == boot_oled_handoff::HandoffMode::V1,
-    };
-    let hdmi = render::hdmi::HdmiFramebuffer::new();
-    if handoff_mode == boot_oled_handoff::HandoffMode::V1 {
-        rpi_oled_handoff_runtime::run(runtime_config, seesaw_io.command_tx.clone(), hdmi);
-    } else {
-        let oled = oled.expect("direct startup must initialize OLED");
-        #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
-        let oled = render::test_oled_output::real_oled_output(oled);
-        let render_worker = RenderWorker::spawn(HardwareRenderTargets {
-            oled,
-            seesaw_tx: seesaw_io.command_tx.clone(),
-            oled_handoff: None,
-            hdmi,
-        });
-        raspberry_runtime::run(runtime_config, render_worker);
-    }
-    power_lifecycle::process_exit_code()
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn run_requested_utility() {
-    profiling_modes::run_requested();
-    if oled_utility::requested() {
-        std::process::exit(exit_code(oled_utility::run()));
-    }
 }
 
 #[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
@@ -339,20 +178,5 @@ fn exit_code(success: bool) -> i32 {
         0
     } else {
         1
-    }
-}
-
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
-fn init_audio(
-    audio_optimization: playback_runtime::AudioOptimization,
-    audio_outputs: playback_runtime::AudioOutputSet,
-) -> Result<Option<AudioManager>, String> {
-    match AudioManager::new(audio_optimization, audio_outputs) {
-        Ok(audio) => {
-            audio.service().ensure_route_readiness()?;
-            println!("Audio ready");
-            Ok(Some(audio))
-        }
-        Err(error) => Err(error),
     }
 }
