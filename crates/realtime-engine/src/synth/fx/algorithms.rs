@@ -9,9 +9,9 @@ mod vinyl;
 #[cfg(test)]
 mod bitcrusher_tests;
 #[cfg(test)]
-mod reverb_tests;
-#[cfg(test)]
 mod compressor_tests;
+#[cfg(test)]
+mod reverb_tests;
 
 pub use comb_bank::REVERB_COMB_LENGTHS;
 pub(in crate::synth) use comb_bank::{

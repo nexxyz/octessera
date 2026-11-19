@@ -122,7 +122,18 @@ fn vibrato_delay_time_follows_the_lfo_between_base_and_base_plus_depth() {
 
 /// What an impulse into the undamped reverb leaves: each comb returns it every comb length,
 /// `decay` quieter each time, and the four combs share a quarter of the wet level.
+/// Above decay 0.9 the comb input is scaled by `sqrt((1 - d^2) / (1 - 0.9^2))` so a long tail
+/// does not clip; at or below 0.9 it is 1.
+fn reverb_input_gain(decay: f32) -> f32 {
+    if decay <= 0.9 {
+        1.0
+    } else {
+        ((1.0 - decay * decay) / (1.0 - 0.81)).sqrt()
+    }
+}
+
 fn undamped_reverb_impulse(frames: usize, decay: f32, mix: f32) -> Vec<f32> {
+    let input_gain = reverb_input_gain(decay);
     (0..frames)
         .map(|frame| {
             let dry = if frame == 0 { 1.0 - mix } else { 0.0 };
@@ -131,7 +142,7 @@ fn undamped_reverb_impulse(frames: usize, decay: f32, mix: f32) -> Vec<f32> {
                 .filter(|length| frame > 0 && frame % **length == 0)
                 .map(|length| decay.powi((frame / length) as i32 - 1))
                 .sum();
-            dry + wet * 0.25 * mix
+            dry + wet * input_gain * 0.25 * mix
         })
         .collect()
 }

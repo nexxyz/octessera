@@ -37,9 +37,9 @@ mod inline_source_executor;
 #[cfg(test)]
 mod lifecycle_tests;
 mod live_pitch_shift;
-mod mixer_gain_ramp;
 #[cfg(test)]
 mod master_chain_tests;
+mod mixer_gain_ramp;
 mod momentary_fx_state;
 mod momentary_fx_voice;
 #[cfg(test)]
