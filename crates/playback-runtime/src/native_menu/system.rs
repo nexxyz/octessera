@@ -9,6 +9,9 @@ use super::{
 };
 use crate::native_runner::AuxPriority;
 
+/// Grid and button LED brightness, in percent; the config validator uses the same range.
+pub(crate) const LED_BRIGHTNESS_PCT: (i32, i32) = (10, 100);
+
 pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
     let host_role = config.usb_data_role_available && config.usb_data_role.is_host();
     let mut children = vec![
@@ -168,16 +171,16 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
             "Grid Bright",
             "gridBrightness",
             i32::from(config.grid_brightness),
-            10,
-            100,
+            LED_BRIGHTNESS_PCT.0,
+            LED_BRIGHTNESS_PCT.1,
             5,
         ),
         number_item(
             "Button Bright",
             "buttonBrightness",
             i32::from(config.button_brightness),
-            10,
-            100,
+            LED_BRIGHTNESS_PCT.0,
+            LED_BRIGHTNESS_PCT.1,
             5,
         ),
     ];

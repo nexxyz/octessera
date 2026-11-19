@@ -278,13 +278,11 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         alternate_enum(&canonical_runtime["homeVisual"], "scope", "none");
     source_runtime["perfViewOnBack"] = alternate_bool(&canonical_runtime["perfViewOnBack"]);
     source_runtime["perfViewAtBoot"] = alternate_bool(&canonical_runtime["perfViewAtBoot"]);
-    for field in [
-        "dimTimerSeconds",
-        "screenSleepSeconds",
-        "gridBrightness",
-        "buttonBrightness",
-    ] {
+    for field in ["dimTimerSeconds", "screenSleepSeconds"] {
         source_runtime[field] = alternate_unsigned(&canonical_runtime[field], 0, 600);
+    }
+    for field in ["gridBrightness", "buttonBrightness"] {
+        source_runtime[field] = alternate_unsigned(&canonical_runtime[field], 10, 100);
     }
     source_runtime["displayBrightness"] =
         alternate_unsigned(&canonical_runtime["displayBrightness"], 1, 16);

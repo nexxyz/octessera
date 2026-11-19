@@ -238,3 +238,38 @@ pub(crate) fn validation_rejects_bad_fader_sliders_and_tiles() {
         },
     );
 }
+
+#[test]
+pub(crate) fn led_brightness_and_filter_resonance_accept_exactly_the_menu_ranges() {
+    let default: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/desktop/default.json"
+    ))
+    .unwrap();
+    let validates = |mutate: &dyn Fn(&mut Value)| {
+        let mut payload = default.clone();
+        mutate(&mut payload);
+        validate_config_payload(&payload).is_ok()
+    };
+    for key in ["gridBrightness", "buttonBrightness"] {
+        assert!(validates(
+            &|payload| payload["runtimeConfig"][key] = json!(10)
+        ));
+        assert!(validates(
+            &|payload| payload["runtimeConfig"][key] = json!(100)
+        ));
+        assert!(!validates(
+            &|payload| payload["runtimeConfig"][key] = json!(9)
+        ));
+        assert!(!validates(
+            &|payload| payload["runtimeConfig"][key] = json!(101)
+        ));
+    }
+    let resonance = |value: u64| {
+        move |payload: &mut Value| {
+            payload["runtimeConfig"]["instruments"][0]["synth"]["filter"]["resonance"] =
+                json!(value)
+        }
+    };
+    assert!(validates(&resonance(100)));
+    assert!(!validates(&resonance(101)));
+}

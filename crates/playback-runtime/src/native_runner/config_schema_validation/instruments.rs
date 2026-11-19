@@ -7,8 +7,8 @@ use super::canonical::{
 use super::Value;
 use crate::native_menu::{
     ENV_ATTACK_MS, ENV_DECAY_MS, ENV_RELEASE_MS, ENV_SUSTAIN_PCT, FILTER_ENV_AMOUNT_PCT,
-    FILTER_KEY_TRACKING_PCT, MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS, MIDI_DRUM_NOTES,
-    MIDI_DRUM_VELOCITIES,
+    FILTER_KEY_TRACKING_PCT, FILTER_RESONANCE, MIDI_DRUM_CHANNELS, MIDI_DRUM_DURATION_MS,
+    MIDI_DRUM_NOTES, MIDI_DRUM_VELOCITIES,
 };
 use platform_core::{NoteBehavior, INSTRUMENT_COUNT, PAN_POSITION_COUNT, SAMPLE_SLOT_COUNT};
 use realtime_engine::synth::{MixerRoute, VoiceStealingMode};
@@ -434,7 +434,8 @@ fn validate_filter(parent: &Map<String, Value>, key: &str, path: &str) -> Result
     let path = format!("{path}.{key}");
     enum_field(filter, "type", &path, FILTER_TYPES)?;
     unsigned_field(filter, "cutoffHz", &path, 20, 20000)?;
-    unsigned_field(filter, "resonance", &path, 0, 255)?;
+    let (min, max) = FILTER_RESONANCE;
+    unsigned_field(filter, "resonance", &path, min as u64, max as u64)?;
     let (min, max) = FILTER_ENV_AMOUNT_PCT;
     signed_field(
         filter,

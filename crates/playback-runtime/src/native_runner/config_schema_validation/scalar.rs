@@ -40,8 +40,10 @@ fn validate_scalar(key: &str, value: &Value, path: &str) -> Result<(), String> {
     }
     match key {
         "revision" | "schemaVersion" => unsigned_value(value, path)?,
-        "masterVolume" | "gridBrightness" | "buttonBrightness" => {
-            unsigned_range(value, path, 0, 100)?
+        "masterVolume" => unsigned_range(value, path, 0, 100)?,
+        "gridBrightness" | "buttonBrightness" => {
+            let (min, max) = crate::native_menu::LED_BRIGHTNESS_PCT;
+            unsigned_range(value, path, min as u64, max as u64)?
         }
         "displayBrightness" => unsigned_range(value, path, 1, 16)?,
         "velocityScalePct" => unsigned_range(value, path, 0, 200)?,
