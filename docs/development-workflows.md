@@ -35,16 +35,18 @@ corepack pnpm install
 Use pnpm workspaces; npm and yarn will only confuse the lockfile.
 
 The repository integrity gate checks generated assets (configs, capabilities,
-palette, logos), legal inventories, internal Markdown links and anchors, and
-the code-quality thresholds. Run it after documentation or generator changes:
+palette, logos), legal inventories, internal Markdown links and anchors,
+the code-quality thresholds, and `bash -n` over the board image shell scripts
+(so a typo in `customize-image.sh` fails here, not three hours into an image
+build). Run it after documentation or generator changes:
 
 ```bash
 bash tools/quality/repository-integrity.sh
 git diff --check
 ```
 
-Skip a class with `--skip-stale-assets`, `--skip-legal`, `--skip-links`, or
-`--skip-quality`. The link check on its own is
+Skip a class with `--skip-stale-assets`, `--skip-legal`, `--skip-links`,
+`--skip-quality`, or `--skip-shell-syntax`. The link check on its own is
 `python tools/docs/check_links.py`.
 
 Menu/help changes also use the focused runtime test:

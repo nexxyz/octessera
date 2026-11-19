@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fixture tests for tools/quality/repository-integrity.sh.
-# Proves each of the four check classes fails independently on drift.
+# Proves each of the five check classes fails independently on drift.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -99,7 +99,7 @@ assert_gate() {
       if printf '%s' "$output" | grep -q "\[FAIL\] $expected_class"; then
         if [ "$expect_exit" -eq 1 ]; then
           local other_ok=1
-          for cls in stale-assets legal links quality; do
+          for cls in stale-assets legal links quality shell-syntax; do
             if [ "$cls" != "$expected_class" ] && printf '%s' "$output" | grep -q "\[FAIL\] $cls"; then
               other_ok=0
             fi
@@ -176,6 +176,10 @@ for _ in $(seq 1 510); do
   printf '// filler line to exceed the 500 LOC file limit\n' >>"$TMP/fixture-quality/src/oversized.rs"
 done
 
+# Class 5: shell-syntax drift (image script that does not parse).
+run_case shell-syntax
+printf '#!/usr/bin/env bash\nif true; then\n' >"$TMP/fixture-shell-syntax/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-broken"
+
 # Apply each drift and assert the gate fails with exactly the expected class.
 assert_gate "$TMP/fixture-stale-assets" 1 "stale-assets drift detected" stale-assets
 assert_gate "$TMP/fixture-assets" 1 "assets drift detected" stale-assets
@@ -186,6 +190,7 @@ assert_gate "$TMP/fixture-extra-palette" 1 "extra palette key detected" stale-as
 assert_gate "$TMP/fixture-legal" 1 "legal drift detected" legal
 assert_gate "$TMP/fixture-links" 1 "links drift detected" links
 assert_gate "$TMP/fixture-quality" 1 "quality drift detected" quality
+assert_gate "$TMP/fixture-shell-syntax" 1 "shell-syntax drift detected" shell-syntax
 
 echo
 echo "repository-integrity fixtures: $passes passed, $failures failed"

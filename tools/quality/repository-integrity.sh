@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2317,SC2329
-# Deterministic repository integrity gate with four independently addressable
+# Deterministic repository integrity gate with five independently addressable
 # check classes. Runs offline and exits non-zero if any enabled class fails.
 set -euo pipefail
 
@@ -12,16 +12,18 @@ run_stale_assets=1
 run_legal=1
 run_links=1
 run_quality=1
+run_shell_syntax=1
 
 usage() {
   cat <<'EOF'
-Usage: repository-integrity.sh [--root DIR] [--skip-stale-assets] [--skip-legal] [--skip-links] [--skip-quality]
+Usage: repository-integrity.sh [--root DIR] [--skip-stale-assets] [--skip-legal] [--skip-links] [--skip-quality] [--skip-shell-syntax]
 
-Deterministic repository integrity gate with four independently addressable check classes:
+Deterministic repository integrity gate with five independently addressable check classes:
   stale-assets  Generated config/capabilities/palette/logo outputs match their sources.
   legal         Lockfile-hash and checksum inventories are fresh.
   links         Internal Markdown links and anchors resolve.
   quality       Code quality regression thresholds hold.
+  shell-syntax  Board image shell scripts parse with bash -n.
 
 Exit code 0 when all enabled classes pass, 1 when any class fails.
 EOF
@@ -37,6 +39,7 @@ while (($#)); do
     --skip-legal) run_legal=0; shift ;;
     --skip-links) run_links=0; shift ;;
     --skip-quality) run_quality=0; shift ;;
+    --skip-shell-syntax) run_shell_syntax=0; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -80,6 +83,19 @@ check_quality() {
   (cd "$root" && node "$REPO_ROOT/tools/quality/quality-audit.mjs")
 }
 
+check_shell_syntax() {
+  local script first failed=0
+  while IFS= read -r -d '' script; do
+    if [[ "$script" != *.sh ]]; then
+      first=
+      IFS= read -r first <"$script" || true
+      [[ "$first" =~ ^#!.*(/|env\ )(ba)?sh$ ]] || continue
+    fi
+    bash -n "$script" || failed=1
+  done < <(find "$root/userpatches" "$root/tools/pi-image" "$root/tools/armbian-image" "$root/tools/pi/provision" -type f -print0 2>/dev/null)
+  return "$failed"
+}
+
 if ((run_stale_assets)); then
   run_class stale-assets check_stale_assets
 fi
@@ -91,6 +107,9 @@ if ((run_links)); then
 fi
 if ((run_quality)); then
   run_class quality check_quality
+fi
+if ((run_shell_syntax)); then
+  run_class shell-syntax check_shell_syntax
 fi
 
 failed=0
