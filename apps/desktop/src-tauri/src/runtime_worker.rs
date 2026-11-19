@@ -28,7 +28,7 @@ mod tests;
 pub(crate) use config::desktop_native_runner_config;
 #[cfg(debug_assertions)]
 use perf::RuntimePerfCounters;
-use queue::{queue_by_priority, retain_runtime_outbox_batch, MAX_COMMANDS_PER_WAKE};
+use queue::{retain_runtime_outbox_batch, run_command_batch, BatchStep};
 pub(crate) use requests::{
     request_worker_dispatch, request_worker_exit_preparation, DISPATCH_REPLY_TIMEOUT,
     EXIT_PREPARATION_TIMEOUT,
@@ -144,9 +144,7 @@ impl RuntimeWorker {
             if let Err(err) = self.maybe_advance() {
                 self.handle_error(err);
             }
-            if let Err(err) = self.handle_ready_commands(&rx) {
-                self.handle_error(err);
-            }
+            self.handle_ready_commands(&rx);
             if let Err(err) = self.flush_deferred_host_work() {
                 self.handle_error(err);
             }
@@ -163,11 +161,7 @@ impl RuntimeWorker {
                 Duration::from_millis(4)
             };
             match rx.recv_timeout(wait) {
-                Ok(command) => {
-                    if let Err(err) = self.handle_command_batch(command, &rx) {
-                        self.handle_error(err);
-                    }
-                }
+                Ok(command) => self.handle_command_batch(command, &rx),
                 Err(mpsc::RecvTimeoutError::Timeout) => continue,
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
                     if let Err(err) = self.prepare_for_exit() {

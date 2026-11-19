@@ -1,8 +1,6 @@
-use super::{
-    queue_by_priority, DispatchReply, RuntimeWorker, WorkerCommand, MAX_COMMANDS_PER_WAKE,
-};
-use playback_runtime::{MidiControlChangeBatch, SyncSource};
-use std::sync::mpsc::{self, Receiver};
+use super::{run_command_batch, BatchStep, DispatchReply, RuntimeWorker, WorkerCommand};
+use playback_runtime::SyncSource;
+use std::sync::mpsc::Receiver;
 use std::time::Instant;
 
 impl RuntimeWorker {
@@ -23,46 +21,21 @@ impl RuntimeWorker {
         &mut self,
         first: WorkerCommand,
         rx: &Receiver<WorkerCommand>,
-    ) -> Result<(), String> {
-        let mut realtime = Vec::new();
-        let mut control_changes = MidiControlChangeBatch::default();
-        let mut normal = std::collections::VecDeque::new();
-        queue_by_priority(first, &mut realtime, &mut control_changes, &mut normal);
-        for _ in 1..MAX_COMMANDS_PER_WAKE {
-            match rx.try_recv() {
-                Ok(command) => {
-                    queue_by_priority(command, &mut realtime, &mut control_changes, &mut normal)
-                }
-                Err(mpsc::TryRecvError::Empty) => break,
-                Err(mpsc::TryRecvError::Disconnected) => break,
-            }
+    ) {
+        let errors = run_command_batch(first, rx, |step| match step {
+            BatchStep::Command(command) => self.handle_command(command),
+            BatchStep::Advance if self.is_internal_playing() => self.maybe_advance(),
+            BatchStep::Advance => Ok(()),
+        });
+        for error in errors {
+            self.handle_error(error);
         }
-        for command in realtime {
-            self.handle_command(command)?;
-        }
-        for change in control_changes {
-            self.handle_command(WorkerCommand::NativeMidiControlChange(change))?;
-        }
-        while let Some(command) = normal.pop_front() {
-            if self.is_internal_playing() {
-                self.maybe_advance()?;
-            }
-            self.handle_command(command)?;
-        }
-        if self.is_internal_playing() {
-            self.maybe_advance()?;
-        }
-        Ok(())
     }
 
-    pub(super) fn handle_ready_commands(
-        &mut self,
-        rx: &Receiver<WorkerCommand>,
-    ) -> Result<(), String> {
-        let Ok(first) = rx.try_recv() else {
-            return Ok(());
-        };
-        self.handle_command_batch(first, rx)
+    pub(super) fn handle_ready_commands(&mut self, rx: &Receiver<WorkerCommand>) {
+        if let Ok(first) = rx.try_recv() {
+            self.handle_command_batch(first, rx);
+        }
     }
 
     fn handle_command(&mut self, command: WorkerCommand) -> Result<(), String> {

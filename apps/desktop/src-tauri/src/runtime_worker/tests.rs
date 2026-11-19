@@ -1,5 +1,6 @@
 use super::queue::{
-    queue_by_priority, retain_runtime_outbox_batch, RETAINED_RUNTIME_OUTBOX_BATCHES,
+    queue_by_priority, retain_runtime_outbox_batch, run_command_batch, BatchStep,
+    RETAINED_RUNTIME_OUTBOX_BATCHES,
 };
 use super::{
     observe_accepted_snapshot_revision, periodic_snapshot_due, timed_display_snapshot_due,
@@ -56,6 +57,46 @@ fn runtime_outbox_retains_capped_monotonic_tail() {
         outbox.last().map(|payload| payload.seq),
         Some(RETAINED_RUNTIME_OUTBOX_BATCHES as u64 + 2)
     );
+}
+
+#[test]
+fn a_failing_command_does_not_drop_the_rest_of_its_batch_or_the_exit_flush() {
+    let (tx, rx) = mpsc::channel();
+    let (failing_reply, _) = mpsc::channel();
+    let (later_reply, _) = mpsc::channel();
+    let (exit_done, _) = mpsc::channel();
+    tx.send(WorkerCommand::Dispatch(
+        HostMessage::MidiRealtimeStart,
+        later_reply,
+    ))
+    .unwrap();
+    tx.send(WorkerCommand::PrepareExit(exit_done)).unwrap();
+    let mut steps = Vec::new();
+
+    let errors = run_command_batch(
+        WorkerCommand::Dispatch(HostMessage::MidiRealtimeStop, failing_reply),
+        &rx,
+        |step| {
+            let name = match step {
+                BatchStep::Advance => "advance",
+                BatchStep::Command(WorkerCommand::Dispatch(HostMessage::MidiRealtimeStop, _)) => {
+                    steps.push("stop");
+                    return Err("stop failed".into());
+                }
+                BatchStep::Command(WorkerCommand::Dispatch(..)) => "start",
+                BatchStep::Command(WorkerCommand::PrepareExit(_)) => "exit",
+                BatchStep::Command(_) => "other",
+            };
+            steps.push(name);
+            Ok(())
+        },
+    );
+
+    assert_eq!(
+        steps,
+        ["advance", "stop", "advance", "start", "advance", "exit", "advance"]
+    );
+    assert_eq!(errors, ["stop failed"]);
 }
 
 #[test]
