@@ -3,24 +3,14 @@ import {
   GRID_WIDTH,
   OLED_HEIGHT,
   OLED_WIDTH,
-  PAN_POSITION_COUNT,
   type NeoKeyLeds,
   type OledFrame,
   type LocalBootstrapSnapshot,
-  type NativeRuntimeSnapshot,
   type RuntimeSnapshot,
   type RuntimeStatus,
 } from '@octessera/device-contracts';
 import type { SimulatorSnapshot } from './types';
 import type { OledFrameCacheFault } from './oledFrameCache';
-
-export type RuntimeSnapshotCache = {
-  audioRevision?: number;
-  instruments: unknown[];
-  mixer: unknown;
-  panPositions: number;
-  masterVolume: number;
-};
 
 type SnapshotAudioState = {
   audioLoad: import('../audio/audioLoadEvents').AudioLoadStatus;
@@ -28,15 +18,6 @@ type SnapshotAudioState = {
   oledFrameFault?: OledFrameCacheFault | null;
   oledFrameAvailable?: boolean;
 };
-
-export function createRuntimeSnapshotCache(): RuntimeSnapshotCache {
-  return {
-    instruments: [],
-    mixer: { buses: [] },
-    panPositions: PAN_POSITION_COUNT,
-    masterVolume: 100,
-  };
-}
 
 export function createInitialRuntimeSnapshot(): LocalBootstrapSnapshot {
   const blankOled: OledFrame = {
@@ -77,28 +58,12 @@ export function createInitialRuntimeSnapshot(): LocalBootstrapSnapshot {
   };
 }
 
-export function mergeSnapshotSettings(
-  snapshot: NativeRuntimeSnapshot,
-  previous: RuntimeSnapshot | LocalBootstrapSnapshot,
-): void {
-  const previousSettings = previous.settings;
-  const nextSettings = snapshot.settings;
-  if (!previousSettings || !nextSettings) return;
-  if (!('instruments' in nextSettings))
-    nextSettings.instruments = previousSettings.instruments;
-  if (!('mixer' in nextSettings)) nextSettings.mixer = previousSettings.mixer;
-  if (!('panPositions' in nextSettings))
-    nextSettings.panPositions = previousSettings.panPositions;
-}
-
 export function snapshotFromCore(
   frame: RuntimeSnapshot | LocalBootstrapSnapshot,
-  cache: RuntimeSnapshotCache,
   audio: SnapshotAudioState,
   oled: OledFrame,
 ): SimulatorSnapshot {
   const settings = frame.settings;
-  refreshRuntimeSnapshotCache(cache, settings);
   const frameWithoutRevision = { ...frame };
   if ('oledFrameRevision' in frameWithoutRevision) {
     delete (frameWithoutRevision as { oledFrameRevision?: unknown })
@@ -115,35 +80,8 @@ export function snapshotFromCore(
       settings?.ledsDimmed ?? false,
     ),
     displayBrightness: settings?.displayBrightness ?? 12,
-    buttonBrightness: settings?.buttonBrightness ?? 75,
-    masterVolume: cache.masterVolume,
     audioLoad: audio.audioLoad,
-    instruments: cache.instruments,
-    mixer: cache.mixer,
-    panPositions: cache.panPositions,
-    autoSaveFlash: settings?.autoSaveFlash ?? 'none',
-    autoSaveFlashSerial: settings?.autoSaveFlashSerial,
   };
-}
-
-function refreshRuntimeSnapshotCache(
-  cache: RuntimeSnapshotCache,
-  settings: RuntimeSnapshot['settings'],
-): void {
-  if (!settings) return;
-  const revision = settings.audioConfigRevision;
-  if (
-    cache.audioRevision !== undefined &&
-    revision !== undefined &&
-    revision === cache.audioRevision
-  ) {
-    return;
-  }
-  cache.audioRevision = revision;
-  cache.instruments = settings.instruments ?? [];
-  cache.mixer = settings.mixer ?? { buses: [] };
-  cache.panPositions = settings.panPositions ?? PAN_POSITION_COUNT;
-  cache.masterVolume = settings.masterVolume ?? 100;
 }
 
 export function scaleNeoKeyLeds(

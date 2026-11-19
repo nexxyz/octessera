@@ -31,52 +31,8 @@ export type DisplayFrame = {
   page: PageId;
   bodyLayout: OledDisplayLayout;
   title: string;
-  titleColor?: number;
   lines: string[];
   editing: boolean;
-  off?: boolean;
-  splash?: "startup" | "sleep" | "wakeup" | "shutdown" | string;
-  toast?: string;
-  colors?: number[];
-  barValues?: Array<{
-    frac: number;
-    style?: "marker" | string;
-  } | null>;
-  rows?: Array<DisplayMenuRow | null>;
-  scrollOffset?: number | null;
-  totalRows?: number | null;
-  visibleRows?: number | null;
-};
-
-export type AuxCap = {
-  encoder: number;
-  shift: boolean;
-};
-
-export type AuxHintLabel = {
-  text: string;
-  color: number;
-  source: "auto" | "manual";
-};
-
-export type AuxHint = {
-  turn: AuxHintLabel | null;
-  click: AuxHintLabel | null;
-};
-
-export type AuxHints = {
-  normal: [AuxHint, AuxHint, AuxHint];
-  shift: [AuxHint, AuxHint, AuxHint];
-};
-
-export type DisplayMenuRow = {
-  kind: "value" | "group" | "action" | "entry" | "picker";
-  label: string;
-  value: string;
-  textCursor: number | null;
-  auxCap: AuxCap | null;
-  preview?: boolean;
-  active?: boolean;
 };
 
 export type OledFrame = {
@@ -93,22 +49,13 @@ export type OledFrameRevision = number & {
 export type RuntimeSnapshotFields = {
   display: DisplayFrame;
   leds: LedMatrixFrame;
-  hdmi?: HdmiSnapshot;
   transport: TransportFrame;
   activeBehavior: string;
   gridInteraction: GridInteraction;
   neoKeyLeds: NeoKeyLeds;
-  selectedRow?: number | null;
   eventDotLevel: number;
-  workerUtilization?: number;
-  missedQuantumFlash?: boolean;
   transportIcon: "play" | "pause" | "stop";
   transportFlash: "none" | "beat" | "measure";
-  auxHints?: AuxHints;
-  auxShiftLayer?: boolean;
-  recordingActive?: boolean;
-  recordingPulseDim?: boolean;
-  cpuLoadRatio?: number;
   settings?: RuntimeSnapshotSettings;
   runtimeError?: RuntimeErrorMetadata;
 };
@@ -129,18 +76,6 @@ export type NeoKeyLeds = {
   fn: [number, number, number];
 };
 
-type HdmiMode =
-  "terminal" | "live-grid" | "plain-grid" | "active-behavior" | "cycle-behaviors";
-
-type HdmiSnapshot = {
-  mode: HdmiMode;
-  showGridlines: boolean;
-  cycleMeasures: number;
-  sourceLayerIndex: number;
-  sourceBehaviorId: string;
-  grid: LedMatrixFrame;
-};
-
 export type GridInteraction = "paint" | "momentary";
 
 export type TransportFrame = {
@@ -154,28 +89,7 @@ export type RuntimeSnapshotSettings = {
   displayBrightness: number;
   gridBrightness?: number;
   buttonBrightness: number;
-  masterVolume: number;
-  instruments?: unknown[];
-  mixer?: unknown;
-  panPositions?: number;
-  audioConfigRevision?: number;
-  autoSaveFlash: "none" | "flash";
-  autoSaveFlashSerial?: number;
-  dimTimerSeconds?: number;
-  screenSleepSeconds?: number;
   ledsDimmed?: boolean;
-  stopLatched: boolean;
-  shiftHeld: boolean;
-  fnHeld: boolean;
-  combinedModifierHeld: boolean;
-  midi: {
-    enabled: boolean;
-    outId: string | null;
-    inId: string | null;
-    syncMode: "internal" | "external";
-    clockOutEnabled: boolean;
-    clockInEnabled: boolean;
-  };
 };
 
 export type NativeRuntimeSnapshot = RuntimeSnapshotFields & {

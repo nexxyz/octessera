@@ -56,20 +56,6 @@ const settings = (
   displayBrightness: 12,
   gridBrightness: 100,
   buttonBrightness: 75,
-  masterVolume: 73,
-  autoSaveFlash: 'none',
-  stopLatched: false,
-  shiftHeld: false,
-  fnHeld: false,
-  combinedModifierHeld: false,
-  midi: {
-    enabled: false,
-    outId: null,
-    inId: null,
-    syncMode: 'internal',
-    clockOutEnabled: false,
-    clockInEnabled: false,
-  },
   ...overrides,
 });
 

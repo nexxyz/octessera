@@ -21,7 +21,6 @@ pub(crate) fn transport_and_event_indicators_appear_in_snapshot() {
             "fn": [67, 68, 71]
         })
     );
-    assert_eq!(start_snapshot["cpuLoadRatio"], 0.0);
 
     let tick = runner
         .send(HostMessage::TransportPulseStep {

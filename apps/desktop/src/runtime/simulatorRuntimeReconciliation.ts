@@ -22,10 +22,7 @@ import {
 } from './oledAsyncReferenceGrace';
 import {
   createInitialRuntimeSnapshot,
-  createRuntimeSnapshotCache,
-  mergeSnapshotSettings,
   snapshotFromCore,
-  type RuntimeSnapshotCache,
 } from './simulatorSnapshot';
 import type { SimulatorSnapshot } from './types';
 
@@ -55,7 +52,6 @@ export function createRuntimeReconciliation(
     createInitialRuntimeSnapshot();
   let runtimeStatus: RuntimeStatus | null = null;
   let visibleOledFrameFault: OledFrameCacheFault | null = null;
-  const snapshotCache: RuntimeSnapshotCache = createRuntimeSnapshotCache();
   const oledFrameCache = createOledFrameCache();
   const oledAsyncReferenceGrace = createOledAsyncReferenceGrace(() => {
     visibleOledFrameFault = oledFrameCache.fault;
@@ -115,7 +111,6 @@ export function createRuntimeReconciliation(
         revision === undefined ? 'missing' : 'malformed',
       );
     }
-    mergeSnapshotSettings(snapshot, latestFrame);
     latestFrame = {
       ...snapshot,
       oled: acceptedOledFrame(oledFrameCache),
@@ -138,7 +133,6 @@ export function createRuntimeReconciliation(
     getSnapshot(audioLoad) {
       return snapshotFromCore(
         latestFrame,
-        snapshotCache,
         {
           audioLoad,
           runtimeStatus,

@@ -235,33 +235,33 @@ test('malformed, missing, future, stale, and conflicting OLED data retain the la
   assert.ok(pixelBytes(missing).every((byte) => byte === 0x11));
 
   const future = await acceptedHarness();
-  await send(future, [snapshot(3, 'Future', true, 43)]);
+  await send(future, [snapshot(3, 'Future', true, 3)]);
   assert.equal(future.runtime.getSnapshot().oledFrameFault, 'future');
   assert.equal(future.runtime.getSnapshot().frame.display.title, 'Future');
   assert.equal(future.runtime.getSnapshot().frame.transport.playing, true);
-  assert.equal(future.runtime.getSnapshot().masterVolume, 43);
+  assert.equal(future.runtime.getSnapshot().displayBrightness, 3);
   assert.ok(pixelBytes(future).every((byte) => byte === 0x11));
 
   const stale = await acceptedHarness(2);
   await send(stale, [oledFrame(1, 0x33)]);
   assert.equal(stale.runtime.getSnapshot().oledFrameFault, 'stale');
   assert.ok(pixelBytes(stale).every((byte) => byte === 0x11));
-  await send(stale, [snapshot(1, 'Stale', true, 44)]);
+  await send(stale, [snapshot(1, 'Stale', true, 4)]);
   assert.equal(stale.runtime.getSnapshot().frame.display.title, 'Stale');
   assert.equal(stale.runtime.getSnapshot().frame.transport.playing, true);
-  assert.equal(stale.runtime.getSnapshot().masterVolume, 44);
+  assert.equal(stale.runtime.getSnapshot().displayBrightness, 4);
   assert.ok(pixelBytes(stale).every((byte) => byte === 0x11));
 
   const conflict = await acceptedHarness();
   await send(conflict, [
     oledFrame(2, 0x22),
     oledFrame(2, 0x33),
-    snapshot(2, 'Conflict', true, 45),
+    snapshot(2, 'Conflict', true, 5),
   ]);
   assert.equal(conflict.runtime.getSnapshot().oledFrameFault, 'conflict');
   assert.equal(conflict.runtime.getSnapshot().frame.display.title, 'Conflict');
   assert.equal(conflict.runtime.getSnapshot().frame.transport.playing, true);
-  assert.equal(conflict.runtime.getSnapshot().masterVolume, 45);
+  assert.equal(conflict.runtime.getSnapshot().displayBrightness, 5);
   assert.ok(pixelBytes(conflict).every((byte) => byte === 0x11));
 
   const malformedSnapshot = await acceptedHarness();
@@ -276,19 +276,19 @@ test('malformed, missing, future, stale, and conflicting OLED data retain the la
 test('OLED reference faults preserve semantic snapshot fields', async () => {
   const result = await acceptedHarness();
 
-  await send(result, [snapshot(null, 'Missing', true, 41)]);
+  await send(result, [snapshot(null, 'Missing', true, 1)]);
   let current = result.runtime.getSnapshot();
   assert.equal(current.frame.display.title, 'Missing');
   assert.equal(current.frame.transport.playing, true);
-  assert.equal(current.masterVolume, 41);
+  assert.equal(current.displayBrightness, 1);
   assert.equal(current.oledFrameFault, 'missing');
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
 
-  await send(result, [snapshot(0, 'Malformed', false, 42)]);
+  await send(result, [snapshot(0, 'Malformed', false, 2)]);
   current = result.runtime.getSnapshot();
   assert.equal(current.frame.display.title, 'Malformed');
   assert.equal(current.frame.transport.playing, false);
-  assert.equal(current.masterVolume, 42);
+  assert.equal(current.displayBrightness, 2);
   assert.equal(current.oledFrameFault, 'malformed');
   assert.ok(pixelBytes(result).every((byte) => byte === 0x11));
 
@@ -303,19 +303,19 @@ test('OLED reference faults preserve semantic snapshot fields', async () => {
 test('OLED reference faults preserve semantic state before the first accepted frame', async () => {
   const result = harness();
 
-  await send(result, [snapshot(null, 'Missing', true, 51)]);
+  await send(result, [snapshot(null, 'Missing', true, 6)]);
   let current = result.runtime.getSnapshot();
   assert.equal(current.frame.display.title, 'Missing');
   assert.equal(current.frame.transport.playing, true);
-  assert.equal(current.masterVolume, 51);
+  assert.equal(current.displayBrightness, 6);
   assert.equal(current.oledFrameFault, 'missing');
   assert.ok(pixelBytes(result).every((byte) => byte === 0));
 
-  await send(result, [snapshot(0, 'Malformed', false, 52)]);
+  await send(result, [snapshot(0, 'Malformed', false, 7)]);
   current = result.runtime.getSnapshot();
   assert.equal(current.frame.display.title, 'Malformed');
   assert.equal(current.frame.transport.playing, false);
-  assert.equal(current.masterVolume, 52);
+  assert.equal(current.displayBrightness, 7);
   assert.equal(current.oledFrameFault, 'malformed');
   assert.ok(pixelBytes(result).every((byte) => byte === 0));
 });

@@ -33,10 +33,6 @@ function waitMicrotask(): Promise<void> {
 
 function snapshotMessage(
   options: {
-    audioConfigRevision?: number;
-    instruments?: unknown[];
-    mixer?: unknown;
-    masterVolume?: number;
     ledsDimmed?: boolean;
     displayOff?: boolean;
     eventDotLevel?: number;
@@ -75,14 +71,12 @@ function snapshotMessage(
       settings: {
         displayBrightness: 12,
         buttonBrightness: 75,
-        masterVolume: options.masterVolume ?? 73,
-        instruments: options.instruments ?? [],
-        mixer: options.mixer ?? { buses: [] },
+        masterVolume: 73,
+        instruments: [],
+        mixer: { buses: [] },
         panPositions: 33,
-        audioConfigRevision: options.audioConfigRevision,
         ledsDimmed: options.ledsDimmed,
         autoSaveFlash: 'none' as const,
-        stopLatched: false,
         shiftHeld: false,
         fnHeld: false,
         combinedModifierHeld: false,
@@ -132,61 +126,6 @@ test('fault-bearing runtime batches bypass stale display suppression', () => {
     false,
   );
 });
-
-function sparseAudioSnapshotMessage(
-  options: { audioConfigRevision?: number; masterVolume?: number } = {},
-) {
-  return {
-    type: 'snapshot' as const,
-    snapshot: {
-      leds: {
-        width: GRID_WIDTH,
-        height: GRID_HEIGHT,
-        rgb: Array.from({ length: GRID_WIDTH * GRID_HEIGHT * 3 }, () => 0),
-        active: Array.from({ length: GRID_WIDTH * GRID_HEIGHT }, () => false),
-      },
-      transport: { playing: false, bpm: 120, tick: 0, ppqnPulse: 0 },
-      display: {
-        page: 'boot',
-        bodyLayout: 'rows',
-        title: 'Boot',
-        lines: [],
-        editing: false,
-      },
-      activeBehavior: 'life',
-      gridInteraction: 'paint' as const,
-      neoKeyLeds: {
-        back: [221, 130, 205],
-        space: [221, 130, 205],
-        shift: [67, 68, 71],
-        fn: [67, 68, 71],
-      },
-      eventDotLevel: 0,
-      transportIcon: 'stop' as const,
-      transportFlash: 'none' as const,
-      settings: {
-        displayBrightness: 12,
-        buttonBrightness: 75,
-        masterVolume: options.masterVolume ?? 73,
-        audioConfigRevision: options.audioConfigRevision,
-        autoSaveFlash: 'none' as const,
-        stopLatched: false,
-        shiftHeld: false,
-        fnHeld: false,
-        combinedModifierHeld: false,
-        midi: {
-          enabled: false,
-          outId: null,
-          inId: null,
-          syncMode: 'internal' as const,
-          clockOutEnabled: false,
-          clockInEnabled: false,
-        },
-      },
-      oledFrameRevision: createOledFrameRevision(1),
-    },
-  };
-}
 
 test('runtime dispatches hardware input through native dispatch', async () => {
   const seen: any[] = [];
@@ -334,71 +273,6 @@ test('runtime coalesces encoder turns while a dispatch is in flight', async () =
       input: { type: 'encoder_turn', id: 'main', delta: 2 },
     },
   ]);
-});
-
-test('runtime preserves audio config refs while revision is unchanged', async () => {
-  const instruments = [{ type: 'synth', value: 1 }];
-  const mixer = { buses: [{ name: 'bus' }] };
-  const runtime = createSimulatorRuntime(new FakeScheduler(), {
-    runtimeDispatch: async () => ({
-      seq: 0,
-      messages: [
-        snapshotMessage({
-          audioConfigRevision: 1,
-          instruments,
-          mixer,
-          masterVolume: 80,
-        }),
-      ],
-    }),
-  });
-
-  runtime.dispatch({ type: 'grid_press', x: 1, y: 2 });
-  await waitMicrotask();
-  const first = runtime.getSnapshot();
-  runtime.dispatch({ type: 'grid_press', x: 2, y: 3 });
-  await waitMicrotask();
-  const second = runtime.getSnapshot();
-
-  assert.equal(second.instruments, first.instruments);
-  assert.equal(second.mixer, first.mixer);
-  assert.equal(second.masterVolume, 80);
-});
-
-test('runtime preserves cached audio config when snapshots omit unchanged audio payloads', async () => {
-  let dispatchCount = 0;
-  const instruments = [{ type: 'synth', value: 1 }];
-  const mixer = { buses: [{ name: 'bus' }] };
-  const runtime = createSimulatorRuntime(new FakeScheduler(), {
-    runtimeDispatch: async () => {
-      dispatchCount += 1;
-      const messages = [
-        dispatchCount === 1
-          ? snapshotMessage({
-              audioConfigRevision: 1,
-              instruments,
-              mixer,
-              masterVolume: 80,
-            })
-          : sparseAudioSnapshotMessage({
-              audioConfigRevision: 1,
-              masterVolume: 80,
-            }),
-      ];
-      return { seq: 0, messages };
-    },
-  });
-
-  runtime.dispatch({ type: 'grid_press', x: 1, y: 2 });
-  await waitMicrotask();
-  const first = runtime.getSnapshot();
-  runtime.dispatch({ type: 'grid_press', x: 2, y: 3 });
-  await waitMicrotask();
-  const second = runtime.getSnapshot();
-
-  assert.equal(second.instruments, first.instruments);
-  assert.equal(second.mixer, first.mixer);
-  assert.equal(second.panPositions, first.panPositions);
 });
 
 test('runtime applies native transient presentation fields', async () => {

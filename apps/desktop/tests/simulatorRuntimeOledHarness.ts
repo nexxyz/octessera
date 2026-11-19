@@ -52,7 +52,7 @@ export function snapshot(
   revision: number | null,
   title = 'Boot',
   transportPlaying = false,
-  masterVolume = 73,
+  displayBrightness = 12,
 ): RuntimeRunnerMessage {
   const snapshotFields = {
     display: {
@@ -81,11 +81,10 @@ export function snapshot(
     transportIcon: 'stop' as const,
     transportFlash: 'none' as const,
     settings: {
-      displayBrightness: 12,
+      displayBrightness,
       buttonBrightness: 75,
-      masterVolume,
+      masterVolume: 73,
       autoSaveFlash: 'none' as const,
-      stopLatched: false,
       shiftHeld: false,
       fnHeld: false,
       combinedModifierHeld: false,

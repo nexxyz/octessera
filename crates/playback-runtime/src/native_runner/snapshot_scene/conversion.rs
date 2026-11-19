@@ -84,7 +84,6 @@ impl PresentationScene {
                 "autoSaveFlashSerial": self.auto_save_flash_serial,
                 "cpuWarnPercent": self.cpu_warn_percent,
                 "transport": {"bpm": transport.bpm, "swingA": transport.swing_a, "swingB": transport.swing_b},
-                "stopLatched": false,
                 "fnHeld": ui.fn_held, "combinedModifierHeld": ui.combined_modifier_held,
                 "midi": {
                     "enabled": self.midi_enabled,
@@ -115,8 +114,7 @@ impl PresentationScene {
             "auxShiftLayer": ui.shift_held || ui.combined_modifier_held,
             "recordingActive": self.transient.recording_active,
             "recordingPulseDim": recording_pulse_dim,
-            "oledAnimation": (!self.animation.is_empty()).then_some(&self.animation),
-            "cpuLoadRatio": 0.0
+            "oledAnimation": (!self.animation.is_empty()).then_some(&self.animation)
         });
         if let Some(audio) = self.audio {
             let Some(settings) = snapshot.get_mut("settings").and_then(Value::as_object_mut) else {
