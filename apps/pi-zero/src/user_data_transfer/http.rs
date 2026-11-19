@@ -1,7 +1,7 @@
 use super::http_protocol::{copy_request_body, read_request, respond, response_header};
 use super::restore_space::{validate_free_space, TRANSFER_TEMP_PREFIX};
 use super::*;
-use crate::user_data_archive::{self, ExportPlan};
+use crate::user_data_archive::{self, io_error, ExportPlan, STORAGE_FULL};
 use serde_json::json;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
@@ -291,6 +291,16 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
     let _ = fs::remove_file(&upload_path);
     let staged = match result {
         Ok(staged) => staged,
+        Err(error) if error == STORAGE_FULL => {
+            let _ = fs::remove_dir_all(&stage_root);
+            respond(
+                stream,
+                507,
+                "application/json",
+                br#"{"error":"insufficient_space"}"#,
+            );
+            return;
+        }
         Err(_) => {
             let _ = fs::remove_dir_all(&stage_root);
             respond(
@@ -437,8 +447,4 @@ fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
             difference | (left ^ right)
         })
         == 0
-}
-
-fn io_error(error: io::Error) -> String {
-    error.to_string()
 }

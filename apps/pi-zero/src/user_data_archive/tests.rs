@@ -365,3 +365,28 @@ fn export_skips_unreadable_patches_and_presets_with_warnings() {
     assert!(plan.warnings[2].starts_with("preset `Broken` skipped: "));
     let _ = fs::remove_dir_all(root);
 }
+
+struct FullDisk;
+
+impl Write for FullDisk {
+    fn write(&mut self, _buffer: &[u8]) -> io::Result<usize> {
+        Err(io::Error::from(io::ErrorKind::StorageFull))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn a_full_disk_while_staging_media_reports_storage_full() {
+    let mut payload: &[u8] = b"sample bytes";
+
+    let error = copy_hashed(&mut payload, &mut FullDisk, 12).unwrap_err();
+
+    assert_eq!(error, "storage is full");
+    assert_eq!(
+        io_error(io::Error::from(io::ErrorKind::PermissionDenied)),
+        "permission denied"
+    );
+}

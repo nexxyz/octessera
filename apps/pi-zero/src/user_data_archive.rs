@@ -399,7 +399,12 @@ fn read_u64<R: Read>(reader: &mut R) -> Result<u64, String> {
     Ok(u64::from_le_bytes(value))
 }
 
-fn io_error(error: io::Error) -> String {
+pub(crate) const STORAGE_FULL: &str = "storage is full";
+
+pub(crate) fn io_error(error: io::Error) -> String {
+    if error.kind() == io::ErrorKind::StorageFull {
+        return STORAGE_FULL.into();
+    }
     error.to_string()
 }
 

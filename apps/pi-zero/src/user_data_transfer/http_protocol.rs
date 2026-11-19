@@ -1,6 +1,7 @@
 use super::MAX_HEADER_BYTES;
+use crate::user_data_archive::io_error;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -128,8 +129,4 @@ pub(super) fn response_header(
         "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {length}\r\n{disposition}Connection: close\r\n\r\n"
     )
     .into_bytes()
-}
-
-fn io_error(error: io::Error) -> String {
-    error.to_string()
 }
