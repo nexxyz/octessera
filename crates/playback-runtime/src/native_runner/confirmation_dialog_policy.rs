@@ -128,13 +128,15 @@ impl NativeRunner {
         action: &PlatformAction,
     ) -> Option<(&'static str, String)> {
         match action {
-            PlatformAction::PresetSaveAs => Some((
-                "Confirm Save",
-                format!(
-                    "Save preset {}?",
-                    clean_preset_name(&self.patch_store.preset_draft_name)
-                ),
-            )),
+            PlatformAction::PresetSaveAs => {
+                let name = clean_preset_name(&self.patch_store.preset_draft_name);
+                let verb = if self.patch_store.preset_names.contains(&name) {
+                    "Overwrite"
+                } else {
+                    "Save"
+                };
+                Some(("Confirm Save", format!("{verb} preset {name}?")))
+            }
             PlatformAction::PresetSaveCurrent => Some((
                 "Confirm Save",
                 format!(

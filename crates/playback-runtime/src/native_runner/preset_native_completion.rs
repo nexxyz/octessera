@@ -1,4 +1,5 @@
 use super::{NativeManualSaveRequest, NativePendingPresetWrite, NativeRunner};
+use crate::{clean_preset_name, fresh_preset_name};
 
 pub(super) enum NativePresetResultAction {
     Complete(NativePendingPresetWrite),
@@ -127,6 +128,9 @@ impl NativeRunner {
             if self.patch_store.preset_rename_source.as_deref() == Some(source.as_str()) {
                 self.patch_store.preset_rename_source = None;
             }
+        }
+        if clean_preset_name(&self.patch_store.preset_draft_name) == name {
+            self.patch_store.preset_draft_name = fresh_preset_name();
         }
         self.patch_store.current_preset_name = Some(name.clone());
         if let Some(error) = write.cleanup_error {

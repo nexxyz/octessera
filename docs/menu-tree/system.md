@@ -179,7 +179,7 @@ nothing changes until Confirm.
 |---|---|---|
 | Load Preset / Library Load | `Confirm Load` | `Load preset <name>?` |
 | Library Delete | `Confirm Delete` | `Delete preset <name>?` |
-| Save As > Save | `Confirm Save` | `Save preset <name>?` |
+| Save As > Save | `Confirm Save` | `Save preset <name>?`, or `Overwrite preset <name>?` when a preset already has that name; after a save, Save As drafts a fresh name |
 | Save Current | `Confirm Save` | `Overwrite preset <name>?` |
 | Rename > Apply | `Confirm Rename` | `Rename <old> to <new>?` |
 | Save Patch / Load Patch | `Confirm Patch` | `Save current patch?` / `Load saved patch?` |

@@ -397,3 +397,31 @@ fn cleanup_failure_uses_the_returned_catalog_and_honest_status() {
     );
     assert!(host.effects.is_empty());
 }
+
+#[test]
+fn a_finished_save_under_the_draft_name_drafts_a_fresh_name_for_the_next_save_as() {
+    let (mut runner, mut runtime, mut host, request) = prepare_native_rename();
+    assert!(runner.attach_native_preset_catalog(
+        request.request_id(),
+        request.revision(),
+        vec!["Other".into(), "Target".into()],
+        None,
+    ));
+
+    let _ = runtime
+        .dispatch_host_message_music_first(
+            save_result(request.request_id(), request.revision(), "Target"),
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+
+    assert_eq!(
+        runner.patch_store.current_preset_name.as_deref(),
+        Some("Target")
+    );
+    assert_ne!(runner.patch_store.preset_draft_name, "Target");
+    assert!(crate::is_valid_preset_name(
+        &runner.patch_store.preset_draft_name
+    ));
+}

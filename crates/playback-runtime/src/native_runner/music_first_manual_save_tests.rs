@@ -217,3 +217,34 @@ fn preset_save_actions_freeze_cleaned_target_overwrite_mode_and_rename_source() 
         serialization_calls
     );
 }
+
+#[test]
+fn save_as_onto_an_existing_preset_name_asks_to_overwrite_it() {
+    let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    let mut runner = playing_keys_runner(&mut runtime, &mut host);
+    runner.patch_store.preset_names = vec!["Morning set".into()];
+    let mut dialog_for = |runner: &mut NativeRunner, draft: &str| {
+        runner.display.confirm_dialog = None;
+        runner.patch_store.preset_draft_name = draft.into();
+        runner.menu.rebuild(runner.menu_config());
+        assert!(runner.menu.focus_item_key("preset.saveAs.save"));
+        let _ = press(runner, &mut runtime, &mut host);
+        runner
+            .display
+            .confirm_dialog
+            .as_ref()
+            .unwrap()
+            .lines
+            .join(" ")
+    };
+
+    assert_eq!(
+        dialog_for(&mut runner, " Morning set "),
+        "Overwrite preset Morning set?"
+    );
+    assert_eq!(
+        dialog_for(&mut runner, "Evening set"),
+        "Save preset Evening set?"
+    );
+}
