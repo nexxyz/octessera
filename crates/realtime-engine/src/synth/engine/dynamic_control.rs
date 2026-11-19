@@ -27,7 +27,12 @@ impl SynthEngine {
             self.reject_routing_tree_mutation_for_control();
             return ScalarMutation::Rejected;
         }
-        set_clamped_f32(&mut self.master_volume, volume_pct, 0.0, 100.0, 100.0)
+        let mut target = self.master_volume_target();
+        let mutation = set_clamped_f32(&mut target, volume_pct, 0.0, 100.0, 100.0);
+        if mutation == ScalarMutation::Changed {
+            self.ramp_master_volume(target);
+        }
+        mutation
     }
 
     pub fn set_instrument_mixer(
@@ -46,16 +51,18 @@ impl SynthEngine {
         let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
         let mut mutation = ScalarMutation::Unchanged;
         if let Some(volume_pct) = volume_pct {
-            mutation = combine_mutation(
-                mutation,
-                set_clamped_f32(&mut self.slot_volume[slot], volume_pct, 0.0, 100.0, 100.0),
-            );
+            let mut target = self.slot_volume_target(slot);
+            let volume = set_clamped_f32(&mut target, volume_pct, 0.0, 100.0, 100.0);
+            if volume == ScalarMutation::Changed {
+                self.ramp_slot_volume(slot, target);
+            }
+            mutation = combine_mutation(mutation, volume);
         }
         if let Some(pan_pos) = pan_pos {
             let normalized_pan = pan_pos.min(self.pan_positions - 1);
             if self.slot_pan_pos[slot] != normalized_pan {
                 self.slot_pan_pos[slot] = normalized_pan;
-                self.slot_pan_gains[slot] = pan_gains(normalized_pan, self.pan_positions);
+                self.ramp_slot_pan(slot, pan_gains(normalized_pan, self.pan_positions));
                 mutation = combine_mutation(mutation, ScalarMutation::Changed);
             }
         }
@@ -83,21 +90,17 @@ impl SynthEngine {
             let normalized_pan = pan_pos.min(self.pan_positions - 1);
             if self.bus_pan_pos[bus_index] != normalized_pan {
                 self.bus_pan_pos[bus_index] = normalized_pan;
-                self.bus_pan_gains_cache[bus_index] = pan_gains(normalized_pan, self.pan_positions);
+                self.ramp_bus_pan(bus_index, pan_gains(normalized_pan, self.pan_positions));
                 mutation = combine_mutation(mutation, ScalarMutation::Changed);
             }
         }
         if let Some(volume_pct) = volume_pct {
-            mutation = combine_mutation(
-                mutation,
-                set_clamped_f32(
-                    &mut self.bus_volume[bus_index],
-                    volume_pct,
-                    0.0,
-                    100.0,
-                    100.0,
-                ),
-            );
+            let mut target = self.bus_volume_target(bus_index);
+            let volume = set_clamped_f32(&mut target, volume_pct, 0.0, 100.0, 100.0);
+            if volume == ScalarMutation::Changed {
+                self.ramp_bus_volume(bus_index, target);
+            }
+            mutation = combine_mutation(mutation, volume);
         }
         mutation
     }

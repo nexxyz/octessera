@@ -17,7 +17,17 @@ pub(super) fn stage_components(
 ) -> Result<u16, ()> {
     let mut executed_cost = 0_u16;
     routing.output.bus_active[..frames].fill(false);
+    let ramps = &context.mixer_gain_ramps;
+    let ramping = ramps.mix_active();
     for frame in 0..frames {
+        let ramped_slot_gains;
+        let (slot_volume, slot_pan_gains) = if ramping {
+            ramped_slot_gains =
+                ramps.slot_gains_at(frame as u32, &context.slot_volume, &context.slot_pan_gains);
+            (&ramped_slot_gains.0, &ramped_slot_gains.1)
+        } else {
+            (&context.slot_volume, &context.slot_pan_gains)
+        };
         let mut raw_slots = [0.0_f32; INSTRUMENT_SLOT_COUNT];
         let source_active =
             routing.scratch.preview_active[frame] || frame < routing.scratch.source.rendered_prefix;
@@ -27,7 +37,7 @@ pub(super) fn stage_components(
             let worker = context.slot_worker[slot];
             if worker == owner.parity as u8 {
                 let target = super::super::types::MomentaryFxTarget::Instrument { index: slot };
-                let sample = *raw * context.slot_volume[slot];
+                let sample = *raw * slot_volume[slot];
                 let (fx_l, fx_r) = process_momentary_fx_states(
                     &mut routing.momentary_fx,
                     target,
@@ -40,8 +50,8 @@ pub(super) fn stage_components(
                 local_active |= target_active;
                 match context.slot_route[slot] {
                     RenderPlanRoute::Direct => {
-                        routing.output.left[frame] += sample * context.slot_pan_gains[slot].0;
-                        routing.output.right[frame] += sample * context.slot_pan_gains[slot].1;
+                        routing.output.left[frame] += sample * slot_pan_gains[slot].0;
+                        routing.output.right[frame] += sample * slot_pan_gains[slot].1;
                     }
                     RenderPlanRoute::Bus(bus) => {
                         if bus >= context.bus_count || context.bus_worker[bus] != owner.parity as u8
@@ -61,6 +71,22 @@ pub(super) fn stage_components(
         routing.output.source_active[frame] = source_active || local_active;
         let bus_snapshot: [f32; BUS_COUNT] =
             std::array::from_fn(|bus| routing.scratch.bus_input[bus][frame]);
+        let ramped_bus_volume: [f32; BUS_COUNT];
+        let bus_volume = if ramping {
+            ramped_bus_volume = std::array::from_fn(|bus| {
+                ramps
+                    .bus_gains_at(
+                        bus,
+                        frame as u32,
+                        context.bus_volume[bus],
+                        context.bus_pan_gains[bus],
+                    )
+                    .0
+            });
+            &ramped_bus_volume
+        } else {
+            &context.bus_volume
+        };
         for bus in 0..context.bus_count {
             if context.bus_worker[bus] != owner.parity as u8 {
                 continue;
@@ -97,13 +123,8 @@ pub(super) fn stage_components(
                         return Err(());
                     }
                 }
-                carrier.scratch.resolved_duck[slot][frame] = resolve_duck_source(
-                    params,
-                    &raw_slots,
-                    &context.slot_volume,
-                    &bus_snapshot,
-                    &context.bus_volume,
-                );
+                carrier.scratch.resolved_duck[slot][frame] =
+                    resolve_duck_source(params, &raw_slots, slot_volume, &bus_snapshot, bus_volume);
             }
         }
     }
@@ -194,12 +215,17 @@ pub(super) fn stage_components(
                     ..BusChainFrameOutput::default()
                 }
             };
-            let (left, right) = render_bus_stereo_output(
-                output,
-                spread_state,
-                context.bus_pan_gains[bus],
-                context.bus_volume[bus],
-            );
+            let (volume, pan_gains) = if ramping {
+                ramps.bus_gains_at(
+                    bus,
+                    frame as u32,
+                    context.bus_volume[bus],
+                    context.bus_pan_gains[bus],
+                )
+            } else {
+                (context.bus_volume[bus], context.bus_pan_gains[bus])
+            };
+            let (left, right) = render_bus_stereo_output(output, spread_state, pan_gains, volume);
             routing.output.left[frame] += left;
             routing.output.right[frame] += right;
         }

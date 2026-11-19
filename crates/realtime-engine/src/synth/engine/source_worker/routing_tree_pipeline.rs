@@ -84,6 +84,7 @@ impl SourceWorkerRuntime {
             if !self.dispatch_routing_tree(engine, frames, dispatch_sample_clock) {
                 return self.routing_tree_failure_disposition();
             }
+            engine.advance_dispatched_mix_gain_ramps(frames);
             return SourceWorkerRenderDisposition::Recovering;
         }
         if !engine.routing_tree_assignment_is_valid() {
@@ -94,6 +95,7 @@ impl SourceWorkerRuntime {
             self.reclaim_available(engine);
             return self.routing_tree_failure_disposition();
         }
+        engine.advance_dispatched_mix_gain_ramps(frames);
         let outputs = self
             .routing_output_spares
             .as_ref()

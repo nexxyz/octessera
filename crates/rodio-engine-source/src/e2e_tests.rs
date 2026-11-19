@@ -264,6 +264,7 @@ fn bus_and_master_routing_controls_bound_output_energy() {
         volume_pct: Some(0.0),
     })
     .unwrap();
+    settle_mixer_ramp(&mut source);
     send_sample_hit(&tx);
     assert!(energy(&block(&mut source)) < energy(&audible) * 0.01);
 
@@ -283,8 +284,16 @@ fn bus_and_master_routing_controls_bound_output_energy() {
         volume_pct: 0.0,
     })
     .unwrap();
+    settle_mixer_ramp(&mut source);
     send_sample_hit(&tx);
     assert!(energy(&block(&mut source)) < f32::EPSILON);
+}
+
+/// Volume controls ramp over 5 ms, longer than one block here.
+fn settle_mixer_ramp(source: &mut EngineSource) {
+    for _ in 0..4 {
+        let _ = block(source);
+    }
 }
 
 #[test]

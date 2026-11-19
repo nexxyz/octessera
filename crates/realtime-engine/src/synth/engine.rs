@@ -35,6 +35,7 @@ mod inline_source_executor;
 #[cfg(test)]
 mod lifecycle_tests;
 mod live_pitch_shift;
+mod mixer_gain_ramp;
 mod momentary_fx_state;
 mod momentary_fx_voice;
 #[cfg(test)]
@@ -205,6 +206,7 @@ use bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
 use control::MOMENTARY_FX_CAPACITY;
 #[cfg(test)]
 use live_pitch_shift::PITCH_FILL_FRAMES;
+use mixer_gain_ramp::MixerGainRamps;
 pub(super) use momentary_fx_state::is_momentary_fx_type;
 #[cfg(test)]
 use momentary_fx_state::parse_momentary_fx_kind;
@@ -262,6 +264,7 @@ pub struct SynthEngine {
     master_activity_frames: u32,
     pan_positions: usize,
     master_volume: f32,
+    mixer_gain_ramps: MixerGainRamps,
     voice_stealing_mode: VoiceStealingMode,
     smoothed_load_ratio: f32,
     #[cfg(any(test, feature = "profiling"))]

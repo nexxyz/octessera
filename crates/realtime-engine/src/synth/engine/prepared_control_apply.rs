@@ -59,6 +59,7 @@ impl SynthEngine {
             return retired_rejected_instruments(prepared, None);
         }
         let mut next_render_plan = prepared.render_plan;
+        self.finish_mixer_gain_ramps();
         self.pan_positions = prepared.pan_positions;
         self.master_volume = prepared.master_volume;
         for (index, slot) in prepared.slots.iter().enumerate() {
@@ -175,6 +176,7 @@ impl SynthEngine {
     }
 
     fn install_prepared_instrument_slot(&mut self, index: usize, prepared: PreparedInstrumentSlot) {
+        self.finish_mixer_gain_ramps();
         let has_mixer = prepared.route.is_some();
         self.apply_normalized_instrument_slot(
             index,

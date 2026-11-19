@@ -1,5 +1,5 @@
 use super::*;
-use crate::synth::{SampleLoopMode, SamplePlaybackConfig};
+use crate::synth::{SampleLoopMode, SamplePlaybackConfig, ScalarMutation};
 
 const RATE: u32 = 44_100;
 const BLOCK: usize = 128;
@@ -45,15 +45,15 @@ fn one_instrument_config(kind: &str, route: &str) -> InstrumentsConfig {
 }
 
 /// Renders `blocks` blocks on the routing-tree workers and inline, asserting identical output.
-/// `stop` is the block whose control point stops the Play FX on the workers, and the block the
-/// inline engine stops it before. The workers dispatch one block ahead, so a control reaches a
-/// worker-owned target one block later than a Global one.
+/// `control(engine, block, routed)` runs at each routed block's control point and before each
+/// inline block. The workers dispatch one block ahead, so a control reaches a worker-owned
+/// target one block later than a Global one.
 fn assert_worker_render_matches_inline(
     routed: &mut SynthEngine,
     inline: &mut SynthEngine,
     blocks: usize,
     label: &str,
-    stop: Option<(usize, usize)>,
+    control: impl Fn(&mut SynthEngine, usize, bool),
 ) {
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(routed, BLOCK)
@@ -67,10 +67,7 @@ fn assert_worker_render_matches_inline(
     let mut inline_out = Vec::new();
     let mut peak = 0.0_f32;
     for block in 0..blocks {
-        if stop.is_some_and(|(_, inline_block)| inline_block == block) {
-            drop(inline.momentary_fx_stop_by_epoch(1));
-        }
-        let routed_stop = stop.is_some_and(|(routed_block, _)| routed_block == block);
+        control(inline, block, false);
         assert_eq!(
             routed.render_interleaved_block_with_source_runtime_ready_with_controls(
                 &mut runtime,
@@ -79,9 +76,7 @@ fn assert_worker_render_matches_inline(
                 &mut right,
                 &mut routed_out,
                 |engine| {
-                    if routed_stop {
-                        drop(engine.momentary_fx_stop_by_epoch(1));
-                    }
+                    control(engine, block, true);
                     Ok(())
                 },
             ),
@@ -142,7 +137,11 @@ fn every_play_fx_type_renders_the_same_on_the_routing_tree_workers() {
                 &mut inline,
                 80,
                 &label,
-                Some((40, inline_stop)),
+                |engine, block, routed| {
+                    if block == if routed { 40 } else { inline_stop } {
+                        drop(engine.momentary_fx_stop_by_epoch(1));
+                    }
+                },
             );
         }
     }
@@ -185,7 +184,40 @@ fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
             &mut inline,
             40,
             &format!("{loop_mode:?} loop via {route}"),
-            None,
+            |_, _, _| {},
+        );
+    }
+}
+
+#[test]
+fn mixer_gain_ramps_render_the_same_on_the_routing_tree_workers() {
+    for route in ["direct", "fx_bus_1"] {
+        let mut routed = SynthEngine::new(RATE);
+        let mut inline = SynthEngine::new(RATE);
+        for engine in [&mut routed, &mut inline] {
+            engine.set_instruments(one_instrument_config("synth", route));
+            engine.note_on(0, 60, 100, 2_000);
+        }
+        assert_worker_render_matches_inline(
+            &mut routed,
+            &mut inline,
+            40,
+            &format!("mixer ramps via {route}"),
+            |engine, block, routed| {
+                let worker_block = if routed { block + 1 } else { block };
+                if block == 10 {
+                    assert_eq!(engine.set_master_volume(40.0), ScalarMutation::Changed);
+                }
+                if worker_block == 20 {
+                    engine.set_instrument_mixer(0, Some(30.0), Some(0));
+                }
+                if worker_block == 21 {
+                    engine.set_instrument_mixer(0, Some(90.0), None);
+                }
+                if worker_block == 30 {
+                    engine.set_fx_bus_mixer(0, Some(DEFAULT_PAN_POSITIONS - 1), Some(20.0));
+                }
+            },
         );
     }
 }

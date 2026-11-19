@@ -44,6 +44,7 @@ impl SynthEngine {
             master_activity_frames: 0,
             pan_positions: DEFAULT_PAN_POSITIONS,
             master_volume: 1.0,
+            mixer_gain_ramps: MixerGainRamps::new(sample_rate),
             voice_stealing_mode: VoiceStealingMode::AutoBalanced,
             smoothed_load_ratio: 0.0,
             #[cfg(any(test, feature = "profiling"))]

@@ -115,6 +115,7 @@ impl SynthEngine {
             self.reject_routing_tree_mutation_for_control();
             return;
         }
+        self.finish_mixer_gain_ramps();
         self.pan_positions = cfg.pan_positions.max(1);
         self.master_volume = (cfg.master_volume / 100.0).clamp(0.0, 1.0);
         self.apply_instrument_slots_config(cfg.instruments);
@@ -195,6 +196,7 @@ impl SynthEngine {
                 return;
             }
         }
+        self.finish_mixer_gain_ramps();
         self.apply_instrument_slot_config(index, slot);
         self.refresh_slot_pan_gains();
         let mut render_plan = render_plan;

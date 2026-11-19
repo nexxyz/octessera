@@ -67,6 +67,9 @@ impl SynthEngine {
         if process_buses {
             (left, right) = self.mix_fx_buses::<TAP>(&slot_out, left, right, tapped_bus);
         }
+        if self.mixer_gain_ramps.mix_active() {
+            self.advance_mix_gain_ramps(1);
+        }
         left += preview;
         right += preview;
         let sources_active =
@@ -101,6 +104,7 @@ impl SynthEngine {
         self.sample_clock = self.sample_clock.saturating_add(1);
         let left = left * self.master_volume;
         let right = right * self.master_volume;
+        self.advance_master_gain_ramp();
         if !(left.is_finite() && right.is_finite()) {
             self.master_nonfinite = true;
             return (0.0, 0.0, true);

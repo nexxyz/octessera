@@ -147,6 +147,7 @@ pub(super) struct RoutingTreeWorkerContext {
     pub(super) slot_pan_gains: [(f32, f32); INSTRUMENT_SLOT_COUNT],
     pub(super) bus_pan_gains: [(f32, f32); BUS_COUNT],
     pub(super) bus_volume: [f32; BUS_COUNT],
+    pub(super) mixer_gain_ramps: super::mixer_gain_ramp::MixerGainRamps,
     pub(super) bus_count: usize,
     pub(super) sample_rate: u32,
     pub(super) synth_context: SynthSourceContext,
@@ -192,6 +193,7 @@ impl RoutingTreeWorkerContext {
             bus_volume: std::array::from_fn(|bus| {
                 engine.bus_volume.get(bus).copied().unwrap_or(1.0)
             }),
+            mixer_gain_ramps: engine.mixer_gain_ramps,
             bus_count,
             sample_rate: engine.sample_rate,
             synth_context: engine.synth_source_context(),
