@@ -130,3 +130,30 @@ fn backups_in_the_same_millisecond_keep_distinct_sortable_names() {
     );
     let _ = fs::remove_dir_all(dir);
 }
+
+#[test]
+fn a_clock_that_went_back_still_names_the_new_backup_newest_and_keeps_it() {
+    let dir = temp_dir("clock-back");
+    for index in 0..KEPT_BACKUPS {
+        let millis = 1_700_000_000_000 + index as u128 * 1_000;
+        write_rotated_backup_at(&dir, &serde_json::json!({ "old": index }), millis).unwrap();
+    }
+
+    write_rotated_backup_at(
+        &dir,
+        &serde_json::json!({ "after reboot": true }),
+        1_600_000_000_000,
+    )
+    .unwrap();
+
+    let names = file_names(&dir);
+    assert_eq!(names.len(), KEPT_BACKUPS);
+    assert!(!names.contains(&"bak-1700000000000.json".to_string()));
+    let newest = format!("bak-{}.json", 1_700_000_000_000_u128 + 19_000 + 1);
+    assert_eq!(names.last(), Some(&newest));
+    assert_eq!(
+        read_json_file(&dir.join(&newest)).unwrap(),
+        Some(serde_json::json!({ "after reboot": true }))
+    );
+    let _ = fs::remove_dir_all(dir);
+}

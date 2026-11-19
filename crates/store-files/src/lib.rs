@@ -59,33 +59,46 @@ pub fn write_rotated_backup(dir: &Path, payload: &serde_json::Value) -> Result<(
     write_rotated_backup_at(dir, payload, millis)
 }
 
-/// A backup name already taken in this millisecond moves to the next free one, so names stay
-/// unique and keep sorting oldest first.
+/// Each backup is named after the later of the clock and the newest backup plus one, so a clock
+/// that went back after a reboot still names new backups newest and pruning keeps them.
 fn write_rotated_backup_at(
     dir: &Path,
     payload: &serde_json::Value,
-    mut millis: u128,
+    millis: u128,
 ) -> Result<(), String> {
     fs::create_dir_all(dir).map_err(|error| error.to_string())?;
-    while dir.join(format!("bak-{millis}.json")).exists() {
-        millis += 1;
-    }
-    write_json_atomically(&dir.join(format!("bak-{millis}.json")), payload)?;
-    let mut paths = Vec::new();
+    let mut backups = Vec::new();
     for entry in fs::read_dir(dir).map_err(|error| error.to_string())? {
         let path = entry.map_err(|error| error.to_string())?.path();
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-            continue;
-        };
-        if name.starts_with("bak-") && name.ends_with(".json") {
-            paths.push(path);
+        if let Some(stamp) = backup_stamp(&path) {
+            backups.push((stamp, path));
         }
     }
-    paths.sort();
-    for path in paths.iter().take(paths.len().saturating_sub(KEPT_BACKUPS)) {
+    let stamp = backups
+        .iter()
+        .map(|(stamp, _)| stamp + 1)
+        .max()
+        .map_or(millis, |next| next.max(millis));
+    let path = dir.join(format!("bak-{stamp}.json"));
+    write_json_atomically(&path, payload)?;
+    backups.push((stamp, path));
+    backups.sort();
+    for (_, path) in backups
+        .iter()
+        .take(backups.len().saturating_sub(KEPT_BACKUPS))
+    {
         fs::remove_file(path).map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+fn backup_stamp(path: &Path) -> Option<u128> {
+    path.file_name()?
+        .to_str()?
+        .strip_prefix("bak-")?
+        .strip_suffix(".json")?
+        .parse()
+        .ok()
 }
 
 #[cfg(not(windows))]
