@@ -1,6 +1,6 @@
 use super::algorithms::{
     comb_buffers, DelayCache, EqChannelState, FilterLfoCache, ModDelayCache, ModDelayParams,
-    VinylState,
+    ReverbInputGain, VinylState,
 };
 use super::{BiquadState, FxBusParams};
 
@@ -38,6 +38,7 @@ pub(in crate::synth) enum FxBusState {
         bufs: [Vec<f32>; 4],
         idxs: [usize; 4],
         lp: [f32; 4],
+        input_gain: ReverbInputGain,
     },
     Glitch {
         buf: Vec<f32>,
@@ -162,6 +163,7 @@ pub(in crate::synth) fn fx_bus_state_from_params(
             bufs: comb_buffers(1, sample_rate),
             idxs: [0; 4],
             lp: [0.0; 4],
+            input_gain: ReverbInputGain::default(),
         },
         FxBusParams::Glitch { .. } => FxBusState::Glitch {
             buf: vec![0.0; ((sample_rate as f32) * 0.25) as usize],

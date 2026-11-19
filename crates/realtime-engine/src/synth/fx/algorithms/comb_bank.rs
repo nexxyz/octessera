@@ -7,6 +7,40 @@ pub(in crate::synth) fn comb_buffers(scale: usize, sample_rate: u32) -> [Vec<f32
     REVERB_COMB_LENGTHS.map(|n| vec![0.0; (n * scale * sample_rate as usize / 44_100).max(1)])
 }
 
+const REVERB_FULL_INPUT_DECAY: f32 = 0.9;
+
+/// The bus reverb's comb input gain, recomputed only when the decay changes: unity up to a
+/// decay of 0.9, then falling with the tail's energy gain so a long decay does not clip.
+#[derive(Clone, Copy, Debug)]
+pub(in crate::synth) struct ReverbInputGain {
+    decay: f32,
+    gain: f32,
+}
+
+impl Default for ReverbInputGain {
+    fn default() -> Self {
+        Self {
+            decay: 0.0,
+            gain: 1.0,
+        }
+    }
+}
+
+impl ReverbInputGain {
+    pub(in crate::synth) fn for_decay(&mut self, decay: f32) -> f32 {
+        if self.decay.to_bits() != decay.to_bits() {
+            self.decay = decay;
+            self.gain = if decay <= REVERB_FULL_INPUT_DECAY {
+                1.0
+            } else {
+                let full = 1.0 - REVERB_FULL_INPUT_DECAY * REVERB_FULL_INPUT_DECAY;
+                ((1.0 - decay * decay).max(0.0) / full).sqrt().min(1.0)
+            };
+        }
+        self.gain
+    }
+}
+
 /// One frame through the four combs, each fed its own input; returns what each comb delayed.
 pub(in crate::synth) fn comb_bank_step(
     bufs: &mut [Vec<f32>; 4],

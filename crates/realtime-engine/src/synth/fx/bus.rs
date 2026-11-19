@@ -62,11 +62,18 @@ pub(in crate::synth) fn process_fx_bus_slot(
             sample_rate,
         ),
         FxBusParams::Reverb { mix, decay, damp } => {
-            let FxBusState::Reverb { bufs, idxs, lp } = state else {
+            let FxBusState::Reverb {
+                bufs,
+                idxs,
+                lp,
+                input_gain,
+            } = state
+            else {
                 *state = fx_bus_state_from_params(params, sample_rate);
                 return input;
             };
-            let wet = comb_bank_step(bufs, idxs, lp, [input; 4], decay, damp)
+            let comb_input = input * input_gain.for_decay(decay);
+            let wet = comb_bank_step(bufs, idxs, lp, [comb_input; 4], decay, damp)
                 .iter()
                 .fold(0.0, |wet, delayed| wet + delayed);
             (input * (1.0 - mix) + wet * 0.25 * mix).clamp(-1.5, 1.5)
