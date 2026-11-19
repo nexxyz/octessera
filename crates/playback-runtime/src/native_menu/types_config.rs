@@ -12,7 +12,6 @@ use super::{NativeMenuAction, NativeMenuItem, NativeParamBindingSpec};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeMenuConfig {
     pub behavior_id: String,
-    pub behavior_ids: Vec<String>,
     pub build_items: Vec<NativeMenuItem>,
     pub build_items_by_layer: Vec<Vec<NativeMenuItem>>,
     pub random_seed: u16,

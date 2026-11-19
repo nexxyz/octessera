@@ -27,10 +27,6 @@ impl NativeRunner {
     pub(crate) fn menu_config(&self) -> NativeMenuConfig {
         NativeMenuConfig {
             behavior_id: self.active_behavior().id().into(),
-            behavior_ids: platform_core::list_native_behavior_ids()
-                .iter()
-                .map(|id| (*id).to_string())
-                .collect(),
             build_items: self.build_menu_items(),
             build_items_by_layer: self.build_menu_items_by_layer(),
             random_seed: self.random_seed,

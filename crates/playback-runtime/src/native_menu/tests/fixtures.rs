@@ -5,7 +5,6 @@ use realtime_engine::synth::{DspRuntimeConfig, MixerRoute};
 pub(crate) fn config() -> NativeMenuConfig {
     NativeMenuConfig {
         behavior_id: "life".into(),
-        behavior_ids: vec!["life".into(), "brain".into(), "none".into()],
         build_items: vec![
             NativeMenuItem {
                 label: "Behavior".into(),
