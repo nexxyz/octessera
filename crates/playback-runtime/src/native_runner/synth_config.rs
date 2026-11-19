@@ -214,8 +214,13 @@ pub(super) fn synth_scalar_field(suffix: &str) -> Option<(&'static [&'static str
 }
 
 pub(super) fn cutoff_display_to_hz(display: i32) -> i32 {
-    let t = f64::from(display.clamp(0, 255)) / 255.0;
-    (20.0 * (20_000.0_f64 / 20.0).ln().mul_add(t, 0.0).exp()).round() as i32
+    cutoff_display_position_to_hz(f64::from(display)).round() as i32
+}
+
+/// The cutoff at a display position that may sit between two menu steps, on the same log curve.
+pub(super) fn cutoff_display_position_to_hz(display: f64) -> f64 {
+    let t = display.clamp(0.0, 255.0) / 255.0;
+    20.0 * (20_000.0_f64 / 20.0).ln().mul_add(t, 0.0).exp()
 }
 
 pub(super) fn cutoff_hz_to_display(hz: i32) -> i32 {

@@ -18,6 +18,12 @@ pub(super) fn display_to_storage(param: &str, value: f64) -> Value {
     }
 }
 
+/// The engine value for a live FX parameter command: the storage units without the whole-step
+/// rounding the saved value gets, so modulation between two menu steps reaches the engine.
+pub(super) fn display_to_live_value(param: &str, value: f64) -> f64 {
+    value / scale(param)
+}
+
 fn scale(param: &str) -> f64 {
     match param {
         "threshold" | "feedback" | "rateHz" | "clip" | "q" | "damp" | "midQ" => 100.0,

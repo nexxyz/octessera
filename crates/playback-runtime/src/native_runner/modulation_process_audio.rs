@@ -293,11 +293,7 @@ pub(super) fn materialize_endpoint_commands(
                     safe = false;
                     break;
                 };
-                let value = super::fx_param_codec::display_to_storage(field, value);
-                let Some(value) = value.as_f64() else {
-                    safe = false;
-                    break;
-                };
+                let value = super::fx_param_codec::display_to_live_value(field, value);
                 commands.push(RuntimeAudioCommand::SetFxBusParam {
                     bus_index: *bus_index,
                     slot_index: *slot,
@@ -336,11 +332,7 @@ pub(super) fn materialize_endpoint_commands(
                     safe = false;
                     break;
                 };
-                let value = super::fx_param_codec::display_to_storage(field, value);
-                let Some(value) = value.as_f64() else {
-                    safe = false;
-                    break;
-                };
+                let value = super::fx_param_codec::display_to_live_value(field, value);
                 commands.push(RuntimeAudioCommand::SetGlobalFxParam {
                     slot_index: *slot,
                     generation: 0,

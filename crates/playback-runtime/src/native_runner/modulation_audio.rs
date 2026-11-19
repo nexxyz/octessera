@@ -136,7 +136,6 @@ pub(super) fn instrument_modulation_audio_command(
     value: &Value,
 ) -> Option<RuntimeAudioCommand> {
     let value = value.as_f64()?;
-    let display = value.round() as i32;
     if let Some((voice, param, min, max)) = super::drum_config::voice_numeric_field(field) {
         return Some(RuntimeAudioCommand::SetDrumParam {
             instrument_slot: index,
@@ -148,9 +147,9 @@ pub(super) fn instrument_modulation_audio_command(
     }
     if let Some((_, min, max)) = super::drum_config::common_numeric_field(field) {
         let stored = if field == "drum.filter.cutoffHz" {
-            super::cutoff_display_to_hz(display) as f32
+            super::cutoff_display_position_to_hz(value) as f32
         } else {
-            value.round().clamp(f64::from(min), f64::from(max)) as f32
+            value.clamp(f64::from(min), f64::from(max)) as f32
         };
         return Some(RuntimeAudioCommand::SetDrumParam {
             instrument_slot: index,
@@ -164,7 +163,7 @@ pub(super) fn instrument_modulation_audio_command(
         "mixer.volume" => Some(RuntimeAudioCommand::SetInstrumentMixer {
             instrument_slot: index,
             generation: 0,
-            volume_pct: Some(value.round().clamp(0.0, 100.0) as f32),
+            volume_pct: Some(value.clamp(0.0, 100.0) as f32),
             pan_pos: None,
         }),
         "mixer.panPos" => Some(RuntimeAudioCommand::SetInstrumentMixer {
@@ -177,19 +176,19 @@ pub(super) fn instrument_modulation_audio_command(
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: super::cutoff_display_to_hz(display) as f32,
+            value: super::cutoff_display_position_to_hz(value) as f32,
         }),
         "fm.filter.cutoffHz" => Some(RuntimeAudioCommand::SetFmParam {
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: super::cutoff_display_to_hz(display) as f32,
+            value: super::cutoff_display_position_to_hz(value) as f32,
         }),
         "pluck.filter.cutoffHz" => Some(RuntimeAudioCommand::SetPluckParam {
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: super::cutoff_display_to_hz(display) as f32,
+            value: super::cutoff_display_position_to_hz(value) as f32,
         }),
         field if field.starts_with("pluck.") => {
             let (_, min, max) =
@@ -198,7 +197,7 @@ pub(super) fn instrument_modulation_audio_command(
                 instrument_slot: index,
                 generation: 0,
                 path: field.into(),
-                value: value.round().clamp(f64::from(min), f64::from(max)) as f32,
+                value: value.clamp(f64::from(min), f64::from(max)) as f32,
             })
         }
         "fm.index"
@@ -224,7 +223,7 @@ pub(super) fn instrument_modulation_audio_command(
                 instrument_slot: index,
                 generation: 0,
                 path: field.into(),
-                value: value.round().clamp(f64::from(min), f64::from(max)) as f32,
+                value: value.clamp(f64::from(min), f64::from(max)) as f32,
             })
         }
         "synth.osc1.levelPct" | "synth.osc2.levelPct" | "synth.amp.gainPct" => {
@@ -232,7 +231,7 @@ pub(super) fn instrument_modulation_audio_command(
                 instrument_slot: index,
                 generation: 0,
                 path: field.into(),
-                value: value.round().clamp(0.0, 100.0) as f32,
+                value: value.clamp(0.0, 100.0) as f32,
             })
         }
         "synth.osc1.detuneCents" | "synth.osc2.detuneCents" => {
@@ -240,7 +239,7 @@ pub(super) fn instrument_modulation_audio_command(
                 instrument_slot: index,
                 generation: 0,
                 path: field.into(),
-                value: value.round().clamp(-50.0, 50.0) as f32,
+                value: value.clamp(-50.0, 50.0) as f32,
             })
         }
         "synth.osc1.pulseWidthPct" | "synth.osc2.pulseWidthPct" => {
@@ -248,20 +247,20 @@ pub(super) fn instrument_modulation_audio_command(
                 instrument_slot: index,
                 generation: 0,
                 path: field.into(),
-                value: value.round().clamp(5.0, 95.0) as f32,
+                value: value.clamp(5.0, 95.0) as f32,
             })
         }
         "synth.filter.resonance" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: value.round().clamp(0.0, 255.0) as f32,
+            value: value.clamp(0.0, 255.0) as f32,
         }),
         "synth.filter.envAmountPct" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: value.round().clamp(-100.0, 100.0) as f32,
+            value: value.clamp(-100.0, 100.0) as f32,
         }),
         "synth.filter.keyTrackingPct"
         | "synth.amp.velocitySensitivityPct"
@@ -270,7 +269,7 @@ pub(super) fn instrument_modulation_audio_command(
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: value.round().clamp(0.0, 100.0) as f32,
+            value: value.clamp(0.0, 100.0) as f32,
         }),
         "synth.ampEnv.attackMs"
         | "synth.ampEnv.decayMs"
@@ -279,27 +278,27 @@ pub(super) fn instrument_modulation_audio_command(
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: value.round().clamp(0.0, 5000.0) as f32,
+            value: value.clamp(0.0, 5000.0) as f32,
         }),
         "synth.ampEnv.releaseMs" | "synth.filterEnv.releaseMs" => {
             Some(RuntimeAudioCommand::SetSynthParam {
                 instrument_slot: index,
                 generation: 0,
                 path: field.into(),
-                value: value.round().clamp(0.0, 10000.0) as f32,
+                value: value.clamp(0.0, 10000.0) as f32,
             })
         }
         "sample.filter.cutoffHz" => Some(RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: super::cutoff_display_to_hz(display) as f32,
+            value: super::cutoff_display_position_to_hz(value) as f32,
         }),
         "sample.filter.resonance" => Some(RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: value.round().clamp(0.0, 255.0) as f32,
+            value: value.clamp(0.0, 255.0) as f32,
         }),
         "sample.tuneSemis" => Some(RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot: index,
@@ -312,7 +311,7 @@ pub(super) fn instrument_modulation_audio_command(
                 instrument_slot: index,
                 generation: 0,
                 path: field.into(),
-                value: value.round().clamp(0.0, 100.0) as f32,
+                value: value.clamp(0.0, 100.0) as f32,
             })
         }
         _ => None,

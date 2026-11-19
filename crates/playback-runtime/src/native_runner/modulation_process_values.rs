@@ -66,9 +66,13 @@ pub(super) fn numeric_sample(
         return super::modulation_process_audio::audio_base_value(runner, &binding.key)
             .unwrap_or(0.0);
     };
-    let mut value = min + normalized.clamp(0.0, 1.0) * (max - min);
-    if let Some(step) = binding.step.filter(|step| *step > 0.0) {
-        value = (value / step).round() * step;
+    (min + normalized.clamp(0.0, 1.0) * (max - min)).clamp(min, max)
+}
+
+/// The whole menu step a modulated value is saved as; the engine gets the value itself.
+pub(super) fn stepped_binding_value(binding: &NativeParamBinding, value: f64) -> f64 {
+    match binding.step.filter(|step| *step > 0.0) {
+        Some(step) => canonical_clamp(binding.min, binding.max, (value / step).round() * step),
+        None => value,
     }
-    value.clamp(min, max)
 }

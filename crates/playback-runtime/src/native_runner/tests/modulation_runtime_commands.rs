@@ -256,3 +256,73 @@ fn assert_type_modulation_emits_midi_slot_update(previous_kind: &str) {
         RuntimeAudioCommand::SetSynthParam { .. } | RuntimeAudioCommand::SetSampleBankParam { .. }
     )));
 }
+
+#[test]
+pub(crate) fn modulation_between_menu_steps_reaches_the_engine_unrounded_and_saves_whole_steps() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    assert_eq!(runner.instruments[0].kind, InstrumentType::Synth);
+    let source = |lane| {
+        crate::native_runner::modulation_source::ModulationSourceId::layer_axis(
+            0,
+            crate::native_runner::modulation_source::ModulationAxis::X,
+            lane,
+        )
+        .unwrap()
+    };
+    let cutoff = fx_binding("instruments.0.synth.filter.cutoffHz", 0.0, 255.0, 1.0);
+    let resonance = fx_binding("instruments.0.synth.filter.resonance", 0.0, 100.0, 1.0);
+    runner.set_runtime_source_input(source(0), cutoff, 100.4 / 255.0);
+    runner.set_runtime_source_input(source(1), resonance, 0.4025);
+    runner.process_dirty_modulation_step(false).unwrap();
+
+    let commands = runner.outbox.drain_audio_commands();
+    let sent = |path: &str| {
+        commands.iter().find_map(|command| match command {
+            RuntimeAudioCommand::SetSynthParam {
+                instrument_slot: 0,
+                path: sent,
+                value,
+                ..
+            } if sent == path => Some(f64::from(*value)),
+            _ => None,
+        })
+    };
+    let cutoff_hz = sent("synth.filter.cutoffHz").expect("cutoff command");
+    assert!((cutoff_hz - 20.0 * 1000.0_f64.powf(100.4 / 255.0)).abs() < 0.01);
+    let resonance = sent("synth.filter.resonance").expect("resonance command");
+    assert!((resonance - 40.25).abs() < 1.0e-4);
+    let saved = &runner.instruments[0].synth_config["filter"];
+    let saved_cutoff = (20.0 * 1000.0_f64.powf(100.0 / 255.0)).round();
+    assert_eq!(saved["cutoffHz"].as_f64(), Some(saved_cutoff));
+    assert_eq!(saved["resonance"].as_f64(), Some(40.0));
+}
+
+#[test]
+pub(crate) fn fx_modulation_between_menu_steps_reaches_the_engine_unrounded() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slot1_params = json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    let source = crate::native_runner::modulation_source::ModulationSourceId::layer_axis(
+        0,
+        crate::native_runner::modulation_source::ModulationAxis::X,
+        0,
+    )
+    .unwrap();
+    let mix = fx_binding("mixer.buses.0.slot1.params.mixPct", 0.0, 100.0, 1.0);
+    runner.set_runtime_source_input(source, mix, 0.333);
+    runner.process_dirty_modulation_step(false).unwrap();
+
+    let commands = runner.outbox.drain_audio_commands();
+    let sent = commands.iter().find_map(|command| match command {
+        RuntimeAudioCommand::SetFxBusParam {
+            bus_index: 0,
+            slot_index: 0,
+            param: realtime_engine::synth::FxParamId::MixPct,
+            value,
+            ..
+        } => Some(*value),
+        _ => None,
+    });
+    assert!((sent.expect("mix command") - 33.3).abs() < 1.0e-4);
+    assert_eq!(runner.fx_buses[0].slot1_params["mixPct"], json!(33));
+}

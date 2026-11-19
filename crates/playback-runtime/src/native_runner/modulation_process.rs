@@ -6,7 +6,9 @@ use super::modulation_process_audio::audio_base_value;
 pub(super) use super::modulation_process_audio::materialize_endpoint;
 use super::modulation_process_sources::HeldValue;
 pub(super) use super::modulation_process_sources::ModulationProcessState;
-use super::modulation_process_values::{canonical_clamp, persistent_base_value};
+use super::modulation_process_values::{
+    canonical_clamp, persistent_base_value, stepped_binding_value,
+};
 use super::modulation_source::ModulationSourceId;
 use super::modulation_target::{classify_key, TargetMode, TargetValueKind};
 use super::{NativeParamBinding, NativeRunner, Value};
@@ -106,7 +108,8 @@ impl ModulationProcessState {
                 .unwrap_or_else(|| persistent_base_value(runner, &binding));
             let value = canonical_clamp(binding.min, binding.max, base + delta);
             audio_values.insert(key.clone(), value);
-            resolved.insert(key, (binding, Value::from(value)));
+            let stepped = stepped_binding_value(&binding, value);
+            resolved.insert(key, (binding, Value::from(stepped)));
         }
         for (key, (binding, normalized)) in discrete {
             resolved.insert(
@@ -162,9 +165,10 @@ impl ModulationProcessState {
                 continue;
             };
             let base = audio_base_value(runner, &key).unwrap_or(0.0);
-            let persistent = resolved
+            let persistent = audio_values
                 .get(&key)
-                .and_then(|(_, value)| value.as_f64())
+                .copied()
+                .or_else(|| resolved.get(&key).and_then(|(_, value)| value.as_f64()))
                 .unwrap_or(base);
             audio_values.insert(
                 key,
