@@ -3,9 +3,8 @@ use super::super::fx_param::{FxParamId, FxParamMutation};
 use super::super::fx_param_glide::fx_param_glide_frames;
 use super::super::scalar_param::{SampleBankParamId, ScalarMutation, SynthParamId};
 use super::instrument_param_glide::InstrumentGlideParam as Glide;
-use super::prepared_control_prepare::prepare_fx_bus_slot;
+use super::prepared_control_prepare::{prepare_fx_bus_slot, prepare_global_fx_slot};
 use super::*;
-use crate::synth::engine::render_plan::render_plan_fx_slot;
 
 mod drum_param_control;
 mod fm_param_control;
@@ -257,23 +256,8 @@ impl SynthEngine {
         fx_type: String,
         params: BTreeMap<String, Value>,
     ) {
-        if slot_index >= self.master_slot_params.len() {
-            return;
-        }
-        let config = FxBusSlotConfig::Config {
-            kind: fx_type,
-            params,
-        };
-        let render_plan = render_plan_fx_slot(&config);
-        let next_params = compile_fx_bus_params(&config);
-        if !master_fx_state_matches_params(&self.master_slot_state[slot_index], &next_params) {
-            self.master_slot_state[slot_index] = master_fx_state_from_params(&next_params);
-        }
-        self.master_slot_params[slot_index] = next_params;
-        self.master_param_glides.settle(slot_index);
-        self.render_plan
-            .install_master_fx_slot(slot_index, render_plan);
-        self.refresh_master_active_slot_indices();
+        let prepared = prepare_global_fx_slot(fx_type, params);
+        drop(self.apply_prepared_global_fx_slot(slot_index, prepared));
     }
 
     pub fn set_fx_bus_param(

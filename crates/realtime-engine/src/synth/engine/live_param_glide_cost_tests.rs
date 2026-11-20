@@ -3,6 +3,7 @@ use super::*;
 use crate::synth::fx::fx_bus_state_from_params;
 use crate::synth::fx_param::FxParamId;
 use crate::synth::fx_param_glide::fx_param_glide_frames;
+use crate::synth::fx_params::compile_fx_bus_params;
 use crate::synth::SynthParamId;
 use std::hint::black_box;
 
