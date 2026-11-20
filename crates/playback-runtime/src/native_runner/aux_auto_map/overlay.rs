@@ -1,11 +1,11 @@
-use super::aux_auto_map::{AuxBindingSource, ResolvedAuxSlot};
-use super::*;
+use super::super::aux_auto_map::{AuxBindingSource, ResolvedAuxSlot};
+use super::super::*;
 use crate::native_menu::section_labels::{BUILD_LABEL, PLAY_LABEL};
 use crate::native_menu::PlatformAction;
 use crate::oled_frame::body_text_fits;
 
 impl NativeRunner {
-    pub(super) fn aux_mapping_popup(&self) -> NativeHelpPopup {
+    pub(in crate::native_runner) fn aux_mapping_popup(&self) -> NativeHelpPopup {
         let normal_slots = self.overlay_aux_slots();
         let shifted_slots = (0..platform_core::AUX_ENCODER_COUNT)
             .map(|index| self.effective_shift_aux_slot(index))

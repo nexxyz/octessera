@@ -1,16 +1,16 @@
-use super::aux_auto_map::{aux_auto_map, AuxAutoMap, ResolvedAuxSlot};
-use super::aux_auto_map_instrument_layouts::{
+use super::super::aux_auto_map::{aux_auto_map, AuxAutoMap, ResolvedAuxSlot};
+use super::super::play_pages::{ActivePlayMode, PlayMode};
+use super::super::*;
+use super::instrument_layouts::{
     instrument_amp_auto_map, instrument_drum_voice_auto_map, instrument_envelope_auto_map,
     instrument_filter_auto_map, instrument_fm_tone_auto_map, instrument_mixer_auto_map,
     instrument_oscillator_auto_map, instrument_pluck_string_auto_map, instrument_sample_auto_map,
 };
-use super::play_pages::{ActivePlayMode, PlayMode};
-use super::*;
 use crate::native_menu::section_labels::{LINK_LABEL, PLAY_LABEL};
 use crate::native_menu::PlatformAction;
 
 impl NativeRunner {
-    pub(super) fn resolve_aux_auto_map(
+    pub(in crate::native_runner) fn resolve_aux_auto_map(
         &self,
         path: &str,
         selected_key: Option<&str>,

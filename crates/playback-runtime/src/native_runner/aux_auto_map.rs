@@ -358,3 +358,8 @@ fn a_turn_target_names_the_instrument_bus_layer_or_master_chain_it_belongs_to() 
     assert_eq!(shorthand("masterVolume"), None);
     assert_eq!(shorthand("instruments.x.synth"), None);
 }
+
+mod fx_layouts;
+mod instrument_layouts;
+mod layouts;
+mod overlay;

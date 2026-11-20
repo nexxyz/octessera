@@ -1,7 +1,7 @@
-use super::aux_auto_map::{
+use super::super::aux_auto_map::{
     aux_auto_map, AuxAutoMap, AuxBindingSource, ResolvedAuxPress, ResolvedAuxSlot, ResolvedAuxTurn,
 };
-use super::*;
+use super::super::*;
 use crate::native_menu::PlatformAction;
 
 impl NativeRunner {
