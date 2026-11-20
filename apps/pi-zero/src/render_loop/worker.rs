@@ -16,7 +16,10 @@ pub(super) fn render_worker_loop(
     let mut presentation = PresentationState::default();
     let mut animation_deadline = None;
     loop {
-        let command = take_next_command(&state, animation_deadline);
+        let Ok(command) = take_next_command(&state, animation_deadline) else {
+            eprintln!("render worker stopping: its state mutex is poisoned");
+            break;
+        };
         match command {
             Some(RenderCommand::Scene(scene)) => {
                 #[cfg(test)]
@@ -123,9 +126,13 @@ pub(super) fn render_worker_loop(
                 break;
             }
             None => {
-                let pending_work = {
-                    let state = state.0.lock().expect("render worker state mutex poisoned");
-                    pending_work_wins_over_expired_animation_deadline(&state)
+                let Ok(pending_work) = state
+                    .0
+                    .lock()
+                    .map(|state| pending_work_wins_over_expired_animation_deadline(&state))
+                else {
+                    eprintln!("render worker stopping: its state mutex is poisoned");
+                    break;
                 };
                 if pending_work {
                     animation_deadline = None;
@@ -179,32 +186,28 @@ pub(super) fn render_worker_loop(
 pub(super) fn take_next_command(
     state: &Arc<(Mutex<RenderState>, Condvar)>,
     animation_deadline: Option<Instant>,
-) -> Option<RenderCommand> {
+) -> Result<Option<RenderCommand>, ()> {
     let (lock, ready) = &**state;
-    let mut guard = lock.lock().expect("render worker state mutex poisoned");
+    let mut guard = lock.lock().map_err(drop)?;
     loop {
         if let Some(command) = guard.command.take() {
-            return Some(command);
+            return Ok(Some(command));
         }
         if let Some(scene) = guard.scene.take() {
-            return Some(RenderCommand::Scene(scene));
+            return Ok(Some(RenderCommand::Scene(scene)));
         }
         let Some(deadline) = animation_deadline else {
-            guard = ready
-                .wait(guard)
-                .expect("render worker state mutex poisoned while waiting");
+            guard = ready.wait(guard).map_err(drop)?;
             continue;
         };
         let timeout = deadline.saturating_duration_since(Instant::now());
         if timeout.is_zero() {
-            return None;
+            return Ok(None);
         }
-        let (next_guard, result) = ready
-            .wait_timeout(guard, timeout)
-            .expect("render worker state mutex poisoned while waiting");
+        let (next_guard, result) = ready.wait_timeout(guard, timeout).map_err(drop)?;
         guard = next_guard;
         if result.timed_out() && !pending_work_wins_over_expired_animation_deadline(&guard) {
-            return None;
+            return Ok(None);
         }
     }
 }

@@ -33,7 +33,7 @@ impl PiPlatformService {
                 | PlatformResult::NativePresetCompletion(_)) => self
                     .preserved_results
                     .lock()
-                    .expect("Orange preserved platform results lock is poisoned")
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .push_back(result),
             }
         }
@@ -51,7 +51,7 @@ impl PiPlatformService {
             if let Some(result) = self
                 .preserved_results
                 .lock()
-                .expect("Orange preserved platform results lock is poisoned")
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .pop_front()
             {
                 results.push(result);

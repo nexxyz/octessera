@@ -138,7 +138,20 @@ fn pending_scene_lane_wins_over_expired_animation_deadline() {
     }
 
     let command = take_next_command(&state, Some(Instant::now() - Duration::from_millis(1)));
-    assert!(matches!(command, Some(RenderCommand::Scene(_))));
+    assert!(matches!(command, Ok(Some(RenderCommand::Scene(_)))));
+}
+
+#[test]
+fn a_poisoned_render_state_stops_the_worker_instead_of_panicking_it() {
+    let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
+    let poison_state = Arc::clone(&state);
+    let _ = thread::spawn(move || {
+        let _guard = poison_state.0.lock().unwrap();
+        panic!("poison render state");
+    })
+    .join();
+
+    assert!(take_next_command(&state, None).is_err());
 }
 
 #[test]

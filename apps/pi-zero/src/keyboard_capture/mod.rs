@@ -16,7 +16,7 @@ use playback_runtime::HostMessage;
 use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -86,8 +86,15 @@ impl KeyboardCaptureControl {
         self.update(|state| state.board_host = host);
     }
 
+    fn state(&self) -> MutexGuard<'_, KeyboardCaptureState> {
+        self.shared
+            .state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
     fn update(&self, change: impl FnOnce(&mut KeyboardCaptureState)) {
-        let mut state = self.shared.state.lock().unwrap();
+        let mut state = self.state();
         change(&mut state);
         let enabled = !state.shutdown && state.hdmi_allows && (state.board_host || state.bluetooth);
         if state.enabled != enabled {
@@ -97,7 +104,7 @@ impl KeyboardCaptureControl {
     }
 
     pub(crate) fn buses(&self) -> KeyboardBuses {
-        let state = self.shared.state.lock().unwrap();
+        let state = self.state();
         KeyboardBuses {
             usb: state.board_host,
             bluetooth: state.bluetooth,
@@ -105,22 +112,22 @@ impl KeyboardCaptureControl {
     }
 
     pub(crate) fn is_enabled(&self) -> bool {
-        self.shared.state.lock().unwrap().enabled
+        self.state().enabled
     }
 
     fn is_shutdown(&self) -> bool {
-        self.shared.state.lock().unwrap().shutdown
+        self.state().shutdown
     }
 
     fn stop(&self) {
-        let mut state = self.shared.state.lock().unwrap();
+        let mut state = self.state();
         state.shutdown = true;
         state.enabled = false;
         self.shared.wake.notify_one();
     }
 
     fn wait_for_change(&self, enabled: bool, timeout: Option<Duration>) {
-        let mut state = self.shared.state.lock().unwrap();
+        let mut state = self.state();
         if state.shutdown || state.enabled != enabled {
             return;
         }
@@ -131,10 +138,14 @@ impl KeyboardCaptureControl {
                 .wait_timeout_while(state, timeout, |state| {
                     !state.shutdown && state.enabled == enabled
                 })
-                .unwrap();
+                .unwrap_or_else(PoisonError::into_inner);
         } else {
             while !state.shutdown && state.enabled == enabled {
-                state = self.shared.wake.wait(state).unwrap();
+                state = self
+                    .shared
+                    .wake
+                    .wait(state)
+                    .unwrap_or_else(PoisonError::into_inner);
             }
         }
     }

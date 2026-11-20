@@ -4,7 +4,7 @@ use playback_runtime::{
     RuntimeStoreResult,
 };
 use serde_json::Value;
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError};
 
 mod completion;
 
@@ -96,7 +96,7 @@ impl super::PiPlatformService {
     pub(crate) fn native_default_write(&self) -> Option<NativeStoreRequest> {
         self.native_default_write
             .lock()
-            .expect("native default save state lock is poisoned")
+            .unwrap_or_else(PoisonError::into_inner)
             .clone()
     }
 
@@ -138,7 +138,7 @@ impl super::PiPlatformService {
     pub(crate) fn native_preset_write(&self) -> Option<NativePresetWrite> {
         self.native_preset_write
             .lock()
-            .expect("native preset save state lock is poisoned")
+            .unwrap_or_else(PoisonError::into_inner)
             .clone()
     }
 
@@ -146,7 +146,7 @@ impl super::PiPlatformService {
         let mut current = self
             .native_preset_write
             .lock()
-            .expect("native preset save state lock is poisoned");
+            .unwrap_or_else(PoisonError::into_inner);
         if current.as_ref().is_some_and(|current| {
             current.request == write.request && current.manual == write.manual
         }) {
@@ -158,7 +158,7 @@ impl super::PiPlatformService {
         let mut current = self
             .native_default_write
             .lock()
-            .expect("native default save state lock is poisoned");
+            .unwrap_or_else(PoisonError::into_inner);
         if current.as_ref() == Some(request) {
             *current = None;
         }

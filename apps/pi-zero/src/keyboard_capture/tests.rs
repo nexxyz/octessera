@@ -67,6 +67,26 @@ fn usb_host_role_turns_usb_keyboard_capture_on_and_off_live() {
 }
 
 #[test]
+fn a_thread_panicking_under_the_gate_lock_leaves_capture_control_working() {
+    let control = KeyboardCaptureControl::new(true);
+    let poisoner = control.clone();
+    let _ = thread::spawn(move || {
+        let _state = poisoner.shared.state.lock().unwrap();
+        panic!("poison the keyboard capture gate");
+    })
+    .join();
+    assert!(control.shared.state.is_poisoned());
+
+    control.observe_hdmi_mode(playback_runtime::NativeHdmiMode::LiveGrid);
+    assert!(control.is_enabled());
+    assert!(control.buses().usb);
+    control.wait_for_change(false, None);
+    control.stop();
+    assert!(control.is_shutdown());
+    assert!(!control.is_enabled());
+}
+
+#[test]
 fn control_transitions_wake_and_update_gate() {
     let control = KeyboardCaptureControl::new(true);
     assert!(!control.is_enabled());
