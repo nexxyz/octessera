@@ -1177,7 +1177,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Layer X/Y, Play XY, LFO, and MIDI CC In assignments are staged through the native claim
   validator. An exclusive target may have one layer/Play/CC claim, and an LFO may never claim one. A rejected
   assignment leaves binding, contribution, revision, autosave state, and menu focus unchanged and
-  shows `Mapping rejected: unsupported target`, `This control can't move that setting.`,
+  shows `That setting can't be mapped.`, `This control can't move that setting.`,
   `LFOs only move smooth settings.`, or
   `Already on another control. Clear that first.`. Accepted assignments and removals refresh the visible
   `Current:` label.
@@ -1247,7 +1247,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   playback and panic/clear held notes while keeping local System settings and ports.
 - A confirmed load waits for the current patch's save when a patch write is pending or an Auto
   Save-eligible patch edit is dirty: it shows `Saving, then loading`, saves (or lets the pending write
-  finish), then loads. A failed save drops the load with `Save failed, not loaded`. With Auto Save
+  finish), then loads. A failed save drops the load with `Not saved, so not loaded. Check the SD card.`. With Auto Save
   off and no pending write, the confirmation may discard unsaved patch edits on purpose. After a
   load the menu stays on the row it was loaded from. A named preset whose file is gone shows
   `Not found: <name>` and leaves the current patch and its name untouched.

@@ -297,7 +297,7 @@ System-only Apply flow:
 1. `Apply System` with `Restart required.`. Options: `Cancel` (default), `Save this one` (only when
    that setting can be saved on its own), and `Save System`. Back means Cancel.
 2. `Saving...` / `Please wait` while the System file is written. A second Apply during this shows
-   `System Apply save pending, try again`.
+   `Still saving. Try again in a few seconds.`.
 3. `Restart?` with `System saved.` / `Restart the app` / `to apply?`. Options: `Continue` (default)
    and `Restart now`. Back means Continue. `Restart now` runs the same terminal lifecycle as Reboot
    with the toast `Restarting`, then only the Octessera app exits and systemd starts it again; the

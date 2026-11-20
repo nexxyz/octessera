@@ -20,7 +20,7 @@ pub(super) enum BindingValidationError {
 impl BindingValidationError {
     pub(super) fn toast_message(&self) -> &'static str {
         match self {
-            Self::UnsupportedTarget => "Mapping rejected: unsupported target",
+            Self::UnsupportedTarget => "That setting can't be mapped.",
             Self::KindMismatch => "This control can't move that setting.",
             Self::LfoTargetNotLive => "LFOs only move smooth settings.",
             Self::AssignmentClaim => "Already on another control. Clear that first.",

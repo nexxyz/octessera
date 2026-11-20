@@ -359,7 +359,10 @@ fn failed_save_drops_the_waiting_load() {
 
     let failed = finish_default_save(&mut runner, "default-save", false);
     assert!(!effects(&failed).iter().any(is_load));
-    assert_eq!(toast(&runner), Some("Save failed, not loaded"));
+    assert_eq!(
+        toast(&runner),
+        Some("Not saved, so not loaded. Check the SD card.")
+    );
     assert!(runner.pending.patch_load_after_save.is_none());
 }
 

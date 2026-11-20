@@ -46,7 +46,7 @@ impl NativeRunner {
         }
         if *operation == RuntimeOperation::StoreSaveDefault && !succeeded {
             self.pending.patch_load_after_save = None;
-            self.show_toast("Save failed, not loaded");
+            self.show_toast("Not saved, so not loaded. Check the SD card.");
             return;
         }
         if self.patch_save_pending() {

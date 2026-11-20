@@ -74,7 +74,7 @@ impl NativeRunner {
                     || self.pending.system_persistence.has_completed_auto_save()
                     || self.system_apply_pending()
                 {
-                    self.show_toast("System operation pending, try again");
+                    self.show_toast("Still saving. Try again in a few seconds.");
                     None
                 } else {
                     Some(RuntimePlatformEffect::StoreLoadSystem)

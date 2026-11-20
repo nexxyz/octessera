@@ -90,7 +90,7 @@ impl NativeRunner {
         }
         let current = self.config_payload();
         if self.restart_settings.is_saving() {
-            self.show_toast("System Apply save pending, try again");
+            self.show_toast("Still saving. Try again in a few seconds.");
             return;
         }
         let setting_payload = (!self.restart_settings.has_pending_write())
@@ -204,7 +204,7 @@ impl NativeRunner {
                 Some(NativeManualSaveRequest::Default)
             )
         {
-            return Some("Patch save pending, try again");
+            return Some("Still saving the Patch. Try again in a few seconds.");
         }
         if self.pending.native_preset_write.is_some()
             || matches!(
@@ -212,10 +212,10 @@ impl NativeRunner {
                 Some(NativeManualSaveRequest::Preset { .. })
             )
         {
-            return Some("Preset save pending, try again");
+            return Some("Still saving the Preset. Try again in a few seconds.");
         }
         self.config_dirty.then_some(if self.auto_save_default {
-            "Patch save pending, try again"
+            "Still saving the Patch. Try again in a few seconds."
         } else {
             "Save or discard Patch before reboot"
         })

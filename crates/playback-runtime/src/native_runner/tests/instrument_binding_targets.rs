@@ -285,6 +285,6 @@ fn inert_sample_bindings_reject_new_actions_but_legacy_config_still_loads() {
             .toast
             .as_ref()
             .map(|toast| toast.message.as_str()),
-        Some("Mapping rejected: unsupported target")
+        Some("That setting can't be mapped.")
     );
 }
