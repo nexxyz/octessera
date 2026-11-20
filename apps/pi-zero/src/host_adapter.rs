@@ -105,11 +105,13 @@ impl PiHostAdapter {
 
     pub(crate) fn save_recovery_for_power(&mut self) -> Result<(), String> {
         let recovery = self.core.take_recovery_save_status();
-        let recording = self
-            .audio
+        power_save_result(recovery, self.stop_recording())
+    }
+
+    pub(crate) fn stop_recording(&self) -> Result<(), String> {
+        self.audio
             .as_ref()
-            .map_or(Ok(()), AudioService::stop_recording);
-        power_save_result(recovery, recording)
+            .map_or(Ok(()), AudioService::stop_recording)
     }
 
     pub(crate) fn poll_recording_status(&self) -> Option<RuntimeStoreResult> {

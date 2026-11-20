@@ -9,7 +9,7 @@ use crate::power_lifecycle::{
 use crate::render_loop::RenderWorker;
 use crate::runtime_dispatch::{dispatch_runtime_message, handle_deferred_host_work};
 use playback_runtime::{HostAdapter, NativeRunner, PlaybackRuntime};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub(crate) fn run_ordinary_power_lifecycle(
     playback: &PlaybackRuntime,
@@ -29,25 +29,45 @@ pub(crate) fn run_ordinary_power_lifecycle(
     PowerLifecycle::default().execute(action, &mut callbacks)
 }
 
-/// Writes now what the coalesced autosave would have written later. Queued
-/// jobs finish first, so a default write already in flight frees its slot.
+const EXIT_SAVE_BARRIER_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Writes now what the coalesced autosave would have written later. Notes stop and a running
+/// recording ends first, so nothing hangs while the store catches up. Queued jobs finish first,
+/// so a default write already in flight frees its slot; a store worker that does not catch up in
+/// time still gets the save queued behind it.
 pub(crate) fn save_pending_persistence_for_exit(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiHostAdapter,
 ) {
+    save_pending_persistence_for_exit_within(playback, runner, adapter, EXIT_SAVE_BARRIER_TIMEOUT);
+}
+
+pub(crate) fn save_pending_persistence_for_exit_within(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+    barrier_timeout: Duration,
+) {
+    if let Err(error) = HostAdapter::silence_internal_audio(adapter) {
+        eprintln!("pi exit silence failed: {error}");
+    }
+    if let Err(error) = HostAdapter::panic_external_midi(adapter) {
+        eprintln!("pi exit MIDI panic failed: {error}");
+    }
+    if let Err(error) = adapter.stop_recording() {
+        eprintln!("pi exit recording stop failed: {error}");
+    }
     runner.make_deferred_work_due_now();
-    let result = adapter
-        .wait_for_queued_store_jobs()
-        .and_then(|()| handle_deferred_host_work(playback, runner, adapter))
-        .and_then(|()| {
-            for message in
-                adapter.flush_native_persistence_at(playback, runner, Instant::now(), true)
-            {
-                dispatch_runtime_message(playback, runner, adapter, message)?;
-            }
-            adapter.wait_for_queued_store_jobs()
-        });
+    if let Err(error) = adapter.wait_for_queued_store_jobs(barrier_timeout) {
+        eprintln!("pi exit save is queued behind unfinished store jobs: {error}");
+    }
+    let result = handle_deferred_host_work(playback, runner, adapter).and_then(|()| {
+        for message in adapter.flush_native_persistence_at(playback, runner, Instant::now(), true) {
+            dispatch_runtime_message(playback, runner, adapter, message)?;
+        }
+        adapter.wait_for_queued_store_jobs(barrier_timeout)
+    });
     if let Err(error) = result {
         eprintln!("pi exit save failed: {error}");
     }

@@ -2,8 +2,6 @@ use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use std::time::{Duration, Instant};
 
-const QUEUED_STORE_JOBS_TIMEOUT: Duration = Duration::from_secs(5);
-
 #[cfg(all(test, any(board_raspberry, board_host)))]
 mod load_admission_tests;
 
@@ -19,10 +17,8 @@ impl PiHostAdapter {
             .flush_native_persistence_at(playback, runner, now, skip_coalescing)
     }
 
-    pub(crate) fn wait_for_queued_store_jobs(&self) -> Result<(), String> {
-        self.core
-            .platform_service
-            .wait_for_queued_jobs(QUEUED_STORE_JOBS_TIMEOUT)
+    pub(crate) fn wait_for_queued_store_jobs(&self, timeout: Duration) -> Result<(), String> {
+        self.core.platform_service.wait_for_queued_jobs(timeout)
     }
 
     pub(crate) fn take_manual_save(

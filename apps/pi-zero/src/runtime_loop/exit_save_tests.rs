@@ -32,9 +32,18 @@ impl BoardLoop for InterruptedBoard {
     }
 }
 
-#[test]
-fn a_termination_signal_writes_the_coalesced_autosave_before_the_loop_ends() {
-    let root = crate::test_temp_dir::unique_temp_path("octessera-exit-save");
+struct EditedStore {
+    root: std::path::PathBuf,
+    default_path: std::path::PathBuf,
+    edited: Value,
+    playback: PlaybackRuntime,
+    runner: NativeRunner,
+    adapter: PiHostAdapter,
+}
+
+/// A runner with one coalesced autosave pending and no `default.patch.json` on disk yet.
+fn edited_store(name: &str) -> EditedStore {
+    let root = crate::test_temp_dir::unique_temp_path(name);
     let mut full_default: Value =
         serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
     full_default["runtimeConfig"]["autoSaveDefault"] = json!(true);
@@ -87,6 +96,26 @@ fn a_termination_signal_writes_the_coalesced_autosave_before_the_loop_ends() {
         .into_local_patch_payload()
         .unwrap();
     assert!(!default_path.exists());
+    EditedStore {
+        root,
+        default_path,
+        edited,
+        playback,
+        runner,
+        adapter,
+    }
+}
+
+#[test]
+fn a_termination_signal_writes_the_coalesced_autosave_before_the_loop_ends() {
+    let EditedStore {
+        root,
+        default_path,
+        edited,
+        mut playback,
+        mut runner,
+        mut adapter,
+    } = edited_store("octessera-exit-save");
 
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
@@ -121,5 +150,52 @@ fn a_termination_signal_writes_the_coalesced_autosave_before_the_loop_ends() {
     let saved: Value = serde_json::from_slice(&std::fs::read(&default_path).unwrap()).unwrap();
     assert_eq!(saved, edited);
     worker.abort().unwrap();
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn the_exit_save_is_still_written_when_the_first_store_barrier_times_out() {
+    let EditedStore {
+        root,
+        default_path,
+        edited,
+        mut playback,
+        mut runner,
+        mut adapter,
+    } = edited_store("octessera-exit-save-busy");
+    let (entered_tx, entered_rx) = mpsc::sync_channel(1);
+    let (release_tx, release_rx) = mpsc::channel();
+    adapter
+        .core
+        .platform_service
+        .enqueue(crate::platform_service::PlatformJob::new(
+            playback_runtime::RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                "busy-store".into(),
+                None,
+            ),
+            crate::platform_service::PlatformJobKind::TestGate {
+                entered: entered_tx,
+                release: release_rx,
+            },
+        ))
+        .unwrap();
+    entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+    let barrier_timeout = Duration::from_secs(1);
+    let releaser = std::thread::spawn(move || {
+        std::thread::sleep(barrier_timeout + barrier_timeout / 2);
+        release_tx.send(()).unwrap();
+    });
+
+    crate::host_power_lifecycle::save_pending_persistence_for_exit_within(
+        &mut playback,
+        &mut runner,
+        &mut adapter,
+        barrier_timeout,
+    );
+
+    releaser.join().unwrap();
+    let saved: Value = serde_json::from_slice(&std::fs::read(&default_path).unwrap()).unwrap();
+    assert_eq!(saved, edited);
     let _ = std::fs::remove_dir_all(root);
 }

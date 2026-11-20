@@ -28,6 +28,7 @@ SYSTEMCTL = os.environ.get("OCTESSERA_UPDATE_SYSTEMCTL", "systemctl")
 READY_SECONDS = float(os.environ.get("OCTESSERA_UPDATE_READY_SECONDS", "60"))
 SETTLE_SECONDS = float(os.environ.get("OCTESSERA_UPDATE_SETTLE_SECONDS", "5"))
 SYSTEMCTL_SECONDS = float(os.environ.get("OCTESSERA_UPDATE_SYSTEMCTL_SECONDS", "10"))
+STOP_SECONDS = float(os.environ.get("OCTESSERA_UPDATE_STOP_SECONDS", "20"))
 SERVICE = "octessera.service"
 PROFILES = ("raspberry-pi-zero-2w", "orange-pi-zero-2w")
 BINARY = "octessera-pi"
@@ -178,8 +179,9 @@ def stage(profile: str, version: str) -> None:
 
 
 def systemctl(*arguments: str) -> int:
+    seconds = STOP_SECONDS if arguments[0] == "stop" else SYSTEMCTL_SECONDS
     try:
-        return subprocess.run([SYSTEMCTL, *arguments], timeout=SYSTEMCTL_SECONDS, capture_output=True).returncode
+        return subprocess.run([SYSTEMCTL, *arguments], timeout=seconds, capture_output=True).returncode
     except (OSError, subprocess.TimeoutExpired) as error:
         raise UpdateError(f"systemctl {arguments[0]} failed") from error
 

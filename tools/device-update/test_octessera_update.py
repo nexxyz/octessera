@@ -21,6 +21,7 @@ ORANGE = "orange-pi-zero-2w"
 FAKE_SYSTEMCTL = """#!/bin/sh
 echo "$*" >> "$FAKE_LOG"
 case "$1" in
+  stop) sleep "${FAKE_STOP_SLEEP:-0}" ;;
   restart) if grep -q hangs "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then sleep 5; fi
     if grep -q scribbles "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then echo scribbled > "$FAKE_STORE/system.json"; fi
     if grep -q healthy "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then echo ready > "$OCTESSERA_CANDIDATE_HEALTH_PATH"; fi ;;
@@ -62,6 +63,7 @@ class UpdaterTests(unittest.TestCase):
             "OCTESSERA_UPDATE_READY_SECONDS": "2",
             "OCTESSERA_UPDATE_SETTLE_SECONDS": "0.1",
             "OCTESSERA_UPDATE_SYSTEMCTL_SECONDS": "2",
+            "OCTESSERA_UPDATE_STOP_SECONDS": "4",
             "FAKE_LOG": str(self.log),
             "FAKE_STORE": str(self.store),
         }
@@ -262,6 +264,13 @@ class UpdaterTests(unittest.TestCase):
         calls = self.calls()
         stop = calls.index("stop octessera.service")
         self.assertLess(stop, calls.index("restart --no-block octessera.service"))
+
+    def test_a_slow_stop_gets_longer_than_other_systemctl_calls(self):
+        self.install_release("1.1.0", b"healthy 1.1.0")
+        self.env["FAKE_STOP_SLEEP"] = "3"
+        result = self.invoke("switch", "1.1.0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.link("current"), "1.1.0")
 
     def test_failed_update_undoes_what_the_new_version_wrote(self):
         self.install_release("1.1.0", b"scribbles 1.1.0")
