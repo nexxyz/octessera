@@ -59,11 +59,11 @@ impl SynthEngine {
             retired.sample_bank = Some(bank);
             return retired;
         }
-        if !self.sample_voice_pool.has_home() {
+        if instrument_slot >= INSTRUMENT_SLOT_COUNT || !self.sample_voice_pool.has_home() {
             retired.sample_bank = Some(bank);
             return retired;
         }
-        let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
+        let slot = instrument_slot;
         self.finish_instrument_param_glides(slot);
         self.sample_banks
             .resize(INSTRUMENT_SLOT_COUNT, SampleBankConfig::default());

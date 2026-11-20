@@ -13,7 +13,10 @@ impl SynthEngine {
         if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
-        let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
+        if instrument_slot >= INSTRUMENT_SLOT_COUNT {
+            return ScalarMutation::Rejected;
+        }
+        let slot = instrument_slot;
         if self.slot_kind[slot] != InstrumentKind::Fm || !value.is_finite() {
             return ScalarMutation::Rejected;
         }

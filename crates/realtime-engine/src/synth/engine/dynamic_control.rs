@@ -41,7 +41,10 @@ impl SynthEngine {
         if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
-        let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
+        if instrument_slot >= INSTRUMENT_SLOT_COUNT {
+            return ScalarMutation::Rejected;
+        }
+        let slot = instrument_slot;
         let mut mutation = ScalarMutation::Unchanged;
         if let Some(volume_pct) = volume_pct {
             let mut target = self.slot_volume_target(slot);
@@ -103,7 +106,10 @@ impl SynthEngine {
         if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
-        let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
+        if instrument_slot >= INSTRUMENT_SLOT_COUNT {
+            return ScalarMutation::Rejected;
+        }
+        let slot = instrument_slot;
         if self.slot_kind[slot] != InstrumentKind::Synth {
             return ScalarMutation::Rejected;
         }
@@ -199,7 +205,10 @@ impl SynthEngine {
         if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
-        let slot = instrument_slot.min(INSTRUMENT_SLOT_COUNT - 1);
+        if instrument_slot >= INSTRUMENT_SLOT_COUNT {
+            return ScalarMutation::Rejected;
+        }
+        let slot = instrument_slot;
         if !self.sample_voice_pool.has_home() {
             return ScalarMutation::Rejected;
         }

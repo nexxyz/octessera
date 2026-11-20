@@ -1,6 +1,9 @@
 use super::*;
 use crate::synth::fx_params::{DuckSource, DuckSourceTap};
 use crate::synth::{BusIdleThreshold, WorkerWarningThreshold};
+use crate::synth::{
+    FmConfig, FmParamId, PluckConfig, PluckParamId, SampleBankParamId, ScalarMutation, SynthParamId,
+};
 
 #[test]
 fn dsp_config_is_dynamic_and_does_not_change_render_plan() {
@@ -188,4 +191,70 @@ fn duck_source_tap_change_preserves_plan_generation_and_state() {
         engine.bus_mix.chains[0].slot_state[0],
         FxBusState::Duck { env } if env.to_bits() == 0.37_f32.to_bits()
     ));
+}
+
+fn eight_slot_engine(kind: &str) -> SynthEngine {
+    let mut engine = SynthEngine::new(48_000);
+    engine.set_instruments(InstrumentsConfig {
+        instruments: (0..INSTRUMENT_SLOT_COUNT)
+            .map(|_| InstrumentSlotConfig {
+                kind: kind.into(),
+                synth: default_synth_config(),
+                fm: (kind == "fm").then(FmConfig::default),
+                pluck: (kind == "pluck").then(PluckConfig::default),
+                drum: None,
+                mixer: None,
+            })
+            .collect(),
+        mixer: None,
+        pan_positions: DEFAULT_PAN_POSITIONS,
+        master_volume: 100.0,
+    });
+    engine
+}
+
+#[test]
+fn scalar_setters_ignore_an_out_of_range_slot_instead_of_hitting_the_last_slot() {
+    let last = INSTRUMENT_SLOT_COUNT - 1;
+    let mut synth = eight_slot_engine("synth");
+    assert_eq!(
+        synth.set_synth_param_typed(INSTRUMENT_SLOT_COUNT, SynthParamId::AmpGainPct, 12.0),
+        ScalarMutation::Rejected
+    );
+    assert_eq!(
+        synth.set_instrument_mixer(INSTRUMENT_SLOT_COUNT, Some(12.0), Some(1)),
+        ScalarMutation::Rejected
+    );
+    assert_ne!(synth.slot_volume_target(last), 12.0);
+
+    let mut fm = eight_slot_engine("fm");
+    assert_eq!(
+        fm.set_fm_param_typed(INSTRUMENT_SLOT_COUNT, FmParamId::Index, 7.0),
+        ScalarMutation::Rejected
+    );
+    let mut pluck = eight_slot_engine("pluck");
+    assert_eq!(
+        pluck.set_pluck_param_typed(INSTRUMENT_SLOT_COUNT, PluckParamId::DecayMs, 900.0),
+        ScalarMutation::Rejected
+    );
+
+    let mut sample = SynthEngine::new(48_000);
+    sample.set_sample_banks(vec![SampleBankConfig::default(); INSTRUMENT_SLOT_COUNT]);
+    assert_eq!(
+        sample.set_sample_bank_param_typed(
+            INSTRUMENT_SLOT_COUNT,
+            SampleBankParamId::TuneSemis,
+            5.0
+        ),
+        ScalarMutation::Rejected
+    );
+    assert_eq!(sample.sample_banks[last].tune_semis, 0.0);
+
+    let bank = SampleBankConfig {
+        tune_semis: 5.0,
+        ..SampleBankConfig::default()
+    };
+    let retired = sample.set_sample_bank(INSTRUMENT_SLOT_COUNT, bank);
+    assert_eq!(retired.sample_bank.map(|b| b.tune_semis), Some(5.0));
+    assert_eq!(sample.sample_banks[last].tune_semis, 0.0);
 }
