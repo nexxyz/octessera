@@ -187,6 +187,7 @@ impl NativeRunner {
             | PlatformAction::DefaultLoad
             | PlatformAction::SystemSave
             | PlatformAction::SystemLoad
+            | PlatformAction::SystemFactoryReset
             | PlatformAction::SystemBackupRestore
             | PlatformAction::SystemUpdateCheck
             | PlatformAction::SystemUpdateApply

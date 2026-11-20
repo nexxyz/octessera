@@ -62,6 +62,11 @@ fn reset_group() -> NativeMenuItem {
                 "factory.load",
                 NativeMenuAction::PlatformEffect(PlatformAction::FactoryLoad),
             ),
+            action_item(
+                "Factory System",
+                "system.factoryReset",
+                NativeMenuAction::PlatformEffect(PlatformAction::SystemFactoryReset),
+            ),
         ],
     )
 }

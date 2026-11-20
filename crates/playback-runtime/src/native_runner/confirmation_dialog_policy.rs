@@ -46,6 +46,11 @@ impl NativeRunner {
                     "Load an empty patch? Your current patch is replaced. Device settings stay."
                         .into(),
                 ),
+                PlatformAction::SystemFactoryReset => (
+                    "Confirm Factory Sys.",
+                    "Put device settings back to factory? Patches and presets stay. Then it asks to restart."
+                        .into(),
+                ),
                 PlatformAction::MidiPanic => ("Confirm MIDI", "Send MIDI panic?".into()),
                 PlatformAction::SystemReboot => ("Confirm Reboot", "Reboot Octessera?".into()),
                 PlatformAction::SystemShutdown => {

@@ -239,3 +239,46 @@ fn missing_and_corrupt_system_store_are_not_replaced_with_default() {
     assert!(adapter.power_request.is_none());
     let _ = std::fs::remove_dir_all(root);
 }
+
+#[test]
+fn factory_system_reset_keeps_the_old_system_file_and_leaves_the_patch_alone() {
+    let (mut adapter, root) = adapter("factory-system");
+    let store = root.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    let mut full = crate::user_data_archive::canonical_defaults();
+    full["runtimeConfig"]["screenSleepSeconds"] = json!(45);
+    crate::pi_store_test_support::write_pair(&store, &full);
+    let old_system = std::fs::read(store.join("system.json")).unwrap();
+    let patch = std::fs::read(store.join("default.patch.json")).unwrap();
+    let factory = crate::store_fault::recovery::factory_documents().unwrap();
+
+    let messages = adapter
+        .handle_platform_effect(&request(RuntimePlatformEffect::StoreResetSystem))
+        .unwrap();
+
+    let [HostMessage::RuntimeResult { result }] = messages.as_slice() else {
+        panic!("expected one result, got {messages:?}");
+    };
+    let RuntimeStoreResult::LoadSystemResult { payload } = result else {
+        panic!("expected a system document, got {result:?}");
+    };
+    assert_eq!(payload.as_ref(), Some(&factory.system));
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(
+            &std::fs::read(store.join("system.json")).unwrap()
+        )
+        .unwrap(),
+        factory.system
+    );
+    let kept = std::fs::read_dir(&store)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .filter(|name| name.starts_with("system.json.pre-reset-"))
+        .collect::<Vec<_>>();
+    assert_eq!(kept.len(), 1);
+    assert_eq!(std::fs::read(store.join(&kept[0])).unwrap(), old_system);
+    assert_eq!(
+        std::fs::read(store.join("default.patch.json")).unwrap(),
+        patch
+    );
+}

@@ -48,6 +48,7 @@ pub(super) struct NativePendingState {
     pub(super) autosave_payload_notified_at: Option<Instant>,
     pub(super) manual_save_request: Option<NativeManualSaveRequest>,
     pub(super) patch_load_after_save: Option<crate::protocol::RuntimePlatformEffect>,
+    pub(super) system_reset_pending: bool,
     pub(super) native_preset_write: Option<NativePendingPresetWrite>,
     pub(super) pending_aux_turn_toast: Option<PendingNativeToast>,
     pub(super) pending_menu_apply: Option<PendingMenuApply>,

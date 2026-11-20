@@ -6,7 +6,7 @@ use playback_runtime::{
     compose_local_system_patch_documents, split_system_patch_documents, SystemPatchDocuments,
 };
 use serde_json::Value;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub(crate) const SYSTEM_FILE: &str = "system.json";
 pub(crate) const PATCH_FILE: &str = "default.patch.json";
@@ -83,25 +83,20 @@ pub(crate) fn restore_factory_files(
     Ok(broken)
 }
 
+/// Keeps `system.json` as `system.json.pre-reset-<stamp>` and writes the factory System in its place.
+pub(crate) fn reset_system_file(
+    store_dir: &Path,
+    factory: &SystemPatchDocuments,
+    stamp: &str,
+) -> Result<(), String> {
+    store_files::keep_file_aside(store_dir, SYSTEM_FILE, "pre-reset", stamp)?;
+    store_files::write_json_atomically(&store_dir.join(SYSTEM_FILE), &factory.system)
+}
+
 fn keep_broken(store_dir: &Path, name: &str, stamp: &str) -> Result<(), String> {
-    let path = store_dir.join(name);
-    if !path.exists() {
-        return Ok(());
-    }
-    let kept = free_path(store_dir, &format!("{name}.broken-{stamp}"));
-    std::fs::rename(&path, &kept).map_err(|error| format!("could not keep {name}: {error}"))
+    store_files::keep_file_aside(store_dir, name, "broken", stamp)
 }
 
 fn read_document(path: &Path) -> Option<Value> {
     serde_json::from_slice(&std::fs::read(path).ok()?).ok()
-}
-
-fn free_path(dir: &Path, name: &str) -> PathBuf {
-    let mut path = dir.join(name);
-    let mut suffix = 1;
-    while path.exists() {
-        path = dir.join(format!("{name}-{suffix}"));
-        suffix += 1;
-    }
-    path
 }

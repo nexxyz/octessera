@@ -189,3 +189,24 @@ fn a_failed_atomic_write_names_the_path_and_leaves_no_temp_file() {
     assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
     let _ = fs::remove_dir_all(dir);
 }
+
+#[test]
+fn kept_aside_file_gets_a_free_name_and_a_missing_file_is_left_alone() {
+    let dir = temp_dir("aside");
+    keep_file_aside(&dir, "system.json", "pre-reset", "t1").unwrap();
+    assert!(file_names(&dir).is_empty());
+
+    fs::write(dir.join("system.json"), "one").unwrap();
+    keep_file_aside(&dir, "system.json", "pre-reset", "t1").unwrap();
+    fs::write(dir.join("system.json"), "two").unwrap();
+    keep_file_aside(&dir, "system.json", "pre-reset", "t1").unwrap();
+
+    assert_eq!(
+        file_names(&dir),
+        vec!["system.json.pre-reset-t1", "system.json.pre-reset-t1-1"]
+    );
+    assert_eq!(
+        fs::read_to_string(dir.join("system.json.pre-reset-t1")).unwrap(),
+        "one"
+    );
+}

@@ -15,6 +15,23 @@ pub fn read_json_file(path: &Path) -> Result<Option<serde_json::Value>, String> 
         .map_err(|error| error.to_string())
 }
 
+/// Renames `dir/name` to `dir/<name>.<label>-<stamp>` (a numeric suffix keeps it from replacing an
+/// earlier one); a missing file is left alone.
+pub fn keep_file_aside(dir: &Path, name: &str, label: &str, stamp: &str) -> Result<(), String> {
+    let path = dir.join(name);
+    if !path.exists() {
+        return Ok(());
+    }
+    let kept_name = format!("{name}.{label}-{stamp}");
+    let mut kept = dir.join(&kept_name);
+    let mut suffix = 1;
+    while kept.exists() {
+        kept = dir.join(format!("{kept_name}-{suffix}"));
+        suffix += 1;
+    }
+    fs::rename(&path, &kept).map_err(|error| format!("could not keep {name}: {error}"))
+}
+
 pub fn write_json_atomically(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
     let content = serde_json::to_vec_pretty(payload).map_err(|e| e.to_string())?;
     write_atomically(path, |file| file.write_all(&content)).map_err(|error| error.to_string())

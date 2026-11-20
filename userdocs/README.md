@@ -89,6 +89,8 @@ with it.
 
 If you've changed things and want the starting point back,
 `System > Maintenance > Reset > Factory Patch` restores it (it asks first).
+If it is the device settings (display, MIDI, USB, audio) you want back to factory, `Factory System`
+next to it does that and leaves your patches and presets alone.
 
 ### Save, revert, switch off
 

@@ -29,6 +29,7 @@ impl PlaybackRuntime {
             | RuntimePlatformEffect::StoreDeletePreset { .. }
             | RuntimePlatformEffect::StoreLoadDefault
             | RuntimePlatformEffect::StoreLoadSystem
+            | RuntimePlatformEffect::StoreResetSystem
             | RuntimePlatformEffect::UsbSdTransferStart
             | RuntimePlatformEffect::UsbSdTransferStop
             | RuntimePlatformEffect::MaintenanceHold { .. }

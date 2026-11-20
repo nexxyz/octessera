@@ -42,6 +42,7 @@ pub enum RuntimePlatformEffect {
         mode: Option<DefaultSaveMode>,
     },
     StoreLoadSystem,
+    StoreResetSystem,
     StoreSaveSystem {
         payload: Value,
     },
@@ -116,7 +117,7 @@ impl RuntimePlatformEffect {
             Self::StoreDeletePreset { .. } => RuntimeOperation::StoreDeletePreset,
             Self::StoreLoadDefault => RuntimeOperation::StoreLoadDefault,
             Self::StoreSaveDefault { .. } => RuntimeOperation::StoreSaveDefault,
-            Self::StoreLoadSystem => RuntimeOperation::StoreLoadSystem,
+            Self::StoreLoadSystem | Self::StoreResetSystem => RuntimeOperation::StoreLoadSystem,
             Self::StoreSaveSystem { .. } => RuntimeOperation::StoreSaveSystem,
             Self::StoreSaveBackup { .. } => RuntimeOperation::StoreSaveBackup,
             Self::StoreSaveRecovery { .. } => RuntimeOperation::StoreSaveRecovery,
@@ -187,6 +188,7 @@ impl RuntimePlatformEffect {
             | Self::StoreLoadDefault
             | Self::StoreSaveDefault { .. }
             | Self::StoreLoadSystem
+            | Self::StoreResetSystem
             | Self::StoreSaveSystem { .. }
             | Self::StoreSaveBackup { .. }
             | Self::StoreSaveRecovery { .. } => RuntimeErrorDomain::Storage,

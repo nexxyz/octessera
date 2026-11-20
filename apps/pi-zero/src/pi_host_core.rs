@@ -250,6 +250,13 @@ impl PiHostCore {
                 self.platform_service.load_system_now(),
                 |payload| RuntimeStoreResult::LoadSystemResult { payload },
             ),
+            RuntimePlatformEffect::StoreResetSystem => store_result(
+                request,
+                self.platform_service.reset_system_now(),
+                |system| RuntimeStoreResult::LoadSystemResult {
+                    payload: Some(system),
+                },
+            ),
             RuntimePlatformEffect::StoreSaveSystem { payload } => {
                 return Some(enqueue_job(
                     &self.platform_service,

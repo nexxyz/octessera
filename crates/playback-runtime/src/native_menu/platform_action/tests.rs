@@ -20,6 +20,7 @@ fn one_of_each() -> Vec<PlatformAction> {
         SystemLoad,
         FactoryLoad,
         SystemClearAll,
+        SystemFactoryReset,
         SystemReboot,
         SystemShutdown,
         SystemControlsHelp,
@@ -145,6 +146,7 @@ fn variant_count_guard(action: &PlatformAction) -> usize {
         | SystemUpdateCheck
         | SystemUpdateApply
         | SystemRollback
+        | SystemFactoryReset
         | MaintenanceHold
         | MaintenanceRelease
         | UsbSdTransferStart
@@ -177,7 +179,7 @@ fn variant_count_guard(action: &PlatformAction) -> usize {
         | DrumAssign { .. }
         | DrumPreview { .. }
         | MidiDrumAssign(_)
-        | FactoryInstrumentLoad { .. } => 56,
+        | FactoryInstrumentLoad { .. } => 57,
     }
 }
 

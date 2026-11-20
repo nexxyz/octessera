@@ -93,6 +93,7 @@ mod factory_instrument_load;
 mod factory_kit_assets;
 mod factory_preset_catalog;
 mod factory_sound_sanity;
+mod factory_system_reset;
 mod fast_dispatch_parity;
 mod fm;
 mod fm_device;

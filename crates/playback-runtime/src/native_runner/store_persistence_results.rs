@@ -44,6 +44,7 @@ impl NativeRunner {
         ) else {
             return Ok(None);
         };
+        let was_system_reset = std::mem::take(&mut self.pending.system_reset_pending);
         let operation_for_restart = operation.clone();
         let request_id_for_restart = request_id.clone();
         let is_auto_save = self
@@ -61,7 +62,11 @@ impl NativeRunner {
                 Ok(device_changed) => {
                     let baseline = self.pending.system_persistence.record_system_load(&system);
                     self.restart_settings.update_system_baseline(baseline);
-                    self.show_toast("System loaded");
+                    if was_system_reset {
+                        self.offer_restart_after_system_reset();
+                    } else {
+                        self.show_toast("System loaded");
+                    }
                     if self.restore_rehydration_pending() {
                         self.outbox
                             .push_platform_effect(RuntimePlatformEffect::StoreLoadDefault);

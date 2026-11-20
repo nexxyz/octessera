@@ -32,6 +32,33 @@ impl DesktopPlaybackHostAdapter {
         }]
     }
 
+    pub(super) fn reset_system_result(&self, request: &RuntimePlatformRequest) -> Vec<HostMessage> {
+        let result = match self.reset_system_payload() {
+            Ok(system) => RuntimeStoreResult::LoadSystemResult {
+                payload: Some(system),
+            },
+            Err(error) => RuntimeStoreResult::RuntimeFailure {
+                error: RuntimeErrorFacts::new(
+                    RuntimeErrorDomain::Storage,
+                    RuntimeErrorCode::OperationFailed,
+                    RuntimeOperation::StoreLoadSystem,
+                    Some(format!("System reset failed: {error}")),
+                ),
+            },
+        };
+        vec![HostMessage::RuntimeResult {
+            result: result.with_identity(request.request_id.clone(), request.revision),
+        }]
+    }
+
+    fn reset_system_payload(&self) -> Result<serde_json::Value, String> {
+        let system = crate::store_startup::factory_system_document()?;
+        let stamp = playback_runtime::fresh_preset_name();
+        store_files::keep_file_aside(&self.store_dir, "system.json", "pre-reset", &stamp)?;
+        write_json_atomically(&self.store_dir.join("system.json"), &system)?;
+        Ok(system)
+    }
+
     fn load_system_payload(&self) -> Result<Option<serde_json::Value>, String> {
         read_json_file(&self.store_dir.join("system.json"))
     }

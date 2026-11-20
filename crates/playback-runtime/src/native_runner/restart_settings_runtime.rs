@@ -324,6 +324,11 @@ impl NativeRunner {
         Ok(None)
     }
 
+    pub(super) fn offer_restart_after_system_reset(&mut self) {
+        self.restart_settings.open_restart_choice();
+        self.display.confirm_dialog = Some(restart_choice_dialog());
+    }
+
     /// The Restart? dialog's `Restart now`, once the restart save is done.
     pub(super) fn restart_app_after_save(
         &mut self,

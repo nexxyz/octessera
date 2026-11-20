@@ -108,7 +108,8 @@ System
 │   ├── Hardware Test: (action)
 │   ├── Reset (group)
 │   │   ├── Empty Patch: (action)
-│   │   └── Factory Patch: (action)
+│   │   ├── Factory Patch: (action)
+│   │   └── Factory System: (action)       ← device settings back to factory, then Restart?
 │   └── Sys. Info: (action)
 ├── Panic: (action)
 ├── Basic Help: (action)
@@ -161,10 +162,10 @@ Raspberry Host
   Display: Ghost Tiles … Button Bright; HDMI Video
 
 Raspberry and Orange
-  Maintenance: Updates (Check, Apply, Rollback); Backup / Restore; Hardware Test; Reset (Empty Patch, Factory Patch); Sys. Info
+  Maintenance: Updates (Check, Apply, Rollback); Backup / Restore; Hardware Test; Reset (Empty Patch, Factory Patch, Factory System); Sys. Info
 
 Desktop
-  Maintenance: Updates (Check); Hardware Test; Reset (Empty Patch, Factory Patch); Sys. Info
+  Maintenance: Updates (Check); Hardware Test; Reset (Empty Patch, Factory Patch, Factory System); Sys. Info
 ```
 
 Raspberry Host hides USB Audio, USB MIDI, and SD Card 2 Start Transfer, but keeps HDMI Audio and
@@ -192,6 +193,7 @@ nothing changes until Confirm.
 | Updates > Rollback | `Confirm Rollback` | `Rollback to the previous release?` |
 | Hardware Test | `Confirm Hardware Test` | `Run the hardware test?` |
 | Reset > Empty Patch | `Confirm Load Empty` | `Load an empty patch? Your current patch is replaced. Device settings stay.` |
+| Reset > Factory System | `Confirm Factory Sys.` | `Put device settings back to factory? Patches and presets stay. Then it asks to restart.` |
 | Reset > Factory Patch | `Confirm Factory` | `Load the factory patch? Your current patch is replaced. Device settings stay.` |
 | Panic | `Confirm MIDI` | `Send MIDI panic?` |
 | Reboot / Shutdown | `Confirm Reboot` / `Confirm Shutdown` | `Reboot Octessera?` / `Shut down Octessera?` |
@@ -542,6 +544,14 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   all of them are cleared.
 - `Factory Patch` (`factory.load`) opens `Confirm Factory` / `Load the factory patch? Your current patch is replaced. Device settings stay.` and loads the
   factory payload on Confirm.
+- `Factory System` (`system.factoryReset`) opens `Confirm Factory Sys.`. Confirm sends one
+  `StoreResetSystem` effect (refused with `Still saving. Try again in a few seconds.` while a System
+  write is pending). The host keeps the current `system.json` beside the store as
+  `system.json.pre-reset-<stamp>` (a numeric suffix keeps an earlier one), writes the platform's
+  factory System document, and answers with it as a System load. The runner applies it live like
+  Load System, then offers the usual `Restart?` dialog. Patches, presets, samples and Wi-Fi
+  credentials are untouched. Behavior is the same on Raspberry, Orange and the desktop simulator;
+  the desktop's `Restart now` is unavailable there as for any other restart-requiring setting.
 
 ### Sys. Info
 

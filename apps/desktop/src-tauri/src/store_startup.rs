@@ -156,6 +156,12 @@ fn prepare_store_dir(dir: PathBuf) -> Result<PathBuf, DesktopStoreStartupError> 
     Ok(dir)
 }
 
+pub(crate) fn factory_system_document() -> Result<serde_json::Value, String> {
+    let bundled: serde_json::Value = serde_json::from_str(BUNDLED_DEFAULT_CONFIG)
+        .map_err(|error| format!("factory settings are unreadable: {error}"))?;
+    Ok(playback_runtime::split_system_patch_documents(&bundled)?.system)
+}
+
 fn ensure_split_documents(dir: &std::path::Path) -> Result<(), DesktopStoreStartupError> {
     use playback_runtime::{compose_system_patch_documents, split_system_patch_documents};
 

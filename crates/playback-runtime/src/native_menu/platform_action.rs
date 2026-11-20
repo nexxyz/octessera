@@ -23,6 +23,7 @@ pub enum PlatformAction {
     SystemLoad,
     FactoryLoad,
     SystemClearAll,
+    SystemFactoryReset,
     SystemReboot,
     SystemShutdown,
     SystemControlsHelp,
@@ -147,6 +148,7 @@ impl PlatformAction {
             | Self::SystemLoad
             | Self::FactoryLoad
             | Self::SystemClearAll
+            | Self::SystemFactoryReset
             | Self::SystemReboot
             | Self::SystemShutdown
             | Self::SystemControlsHelp

@@ -146,6 +146,11 @@ impl RestartSettingsState {
         matches!(self.flow, RestartFlow::RestartChoice)
     }
 
+    pub(super) fn open_restart_choice(&mut self) {
+        self.editing = None;
+        self.flow = RestartFlow::RestartChoice;
+    }
+
     pub(super) fn continue_after_save(&mut self) {
         self.editing = None;
         self.flow = RestartFlow::Idle;

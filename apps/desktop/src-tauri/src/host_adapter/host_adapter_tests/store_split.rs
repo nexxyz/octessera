@@ -138,3 +138,48 @@ fn backup_and_recovery_write_only_patch_files() {
     assert!(!temp_dir.join("system.json").exists());
     let _ = std::fs::remove_dir_all(temp_dir);
 }
+
+#[test]
+fn factory_system_reset_keeps_the_old_system_file_beside_the_factory_one() {
+    let (mut adapter, _) = test_adapter();
+    let temp_dir = temp_store_dir("system-reset");
+    adapter.store_dir = temp_dir.clone();
+    let old_system = serde_json::json!({ "deviceName": "mine" });
+    std::fs::write(
+        temp_dir.join("system.json"),
+        serde_json::to_vec(&old_system).unwrap(),
+    )
+    .unwrap();
+    let factory = crate::store_startup::factory_system_document().unwrap();
+
+    let reset = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreResetSystem))
+        .unwrap();
+
+    assert!(matches!(
+        reset.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { result, .. }
+        }] if matches!(result.as_ref(), RuntimeStoreResult::LoadSystemResult { payload: Some(payload) } if payload == &factory)
+    ));
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(
+            &std::fs::read(temp_dir.join("system.json")).unwrap()
+        )
+        .unwrap(),
+        factory
+    );
+    let kept = std::fs::read_dir(&temp_dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .filter(|name| name.starts_with("system.json.pre-reset-"))
+        .collect::<Vec<_>>();
+    assert_eq!(kept.len(), 1);
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(
+            &std::fs::read(temp_dir.join(&kept[0])).unwrap()
+        )
+        .unwrap(),
+        old_system
+    );
+}

@@ -57,6 +57,18 @@ impl NativeRunner {
                     })
                 }
             }
+            PlatformAction::SystemFactoryReset => {
+                if self.pending.system_persistence.has_pending_request()
+                    || self.pending.system_persistence.has_completed_auto_save()
+                    || self.system_apply_pending()
+                {
+                    self.show_toast("Still saving. Try again in a few seconds.");
+                    None
+                } else {
+                    self.pending.system_reset_pending = true;
+                    Some(RuntimePlatformEffect::StoreResetSystem)
+                }
+            }
             PlatformAction::SystemLoad => {
                 if self.pending.system_persistence.has_pending_request()
                     || self.pending.system_persistence.has_completed_auto_save()

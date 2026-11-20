@@ -171,6 +171,7 @@ fn platform_action_help_key(action: &PlatformAction) -> String {
         PlatformAction::SystemLoad => "system_load",
         PlatformAction::FactoryLoad => "factory_load",
         PlatformAction::SystemClearAll => "system_clear_all",
+        PlatformAction::SystemFactoryReset => "system_factory_reset",
         PlatformAction::SystemReboot => "system_reboot",
         PlatformAction::SystemShutdown => "system_shutdown",
         PlatformAction::SystemHardwareTest => "system_hardware_test",

@@ -2,7 +2,7 @@
 //! still loads (when the patch is the broken file), Restore factory settings (only the broken file
 //! is replaced, and kept beside it) or Shut down.
 
-mod recovery;
+pub(crate) mod recovery;
 #[cfg(test)]
 mod tests;
 

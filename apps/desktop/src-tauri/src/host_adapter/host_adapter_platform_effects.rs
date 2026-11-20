@@ -74,6 +74,7 @@ impl DesktopPlaybackHostAdapter {
                 Ok(self.save_default_result(request, payload, *mode)?)
             }
             RuntimePlatformEffect::StoreLoadSystem => Ok(self.load_system_result(request)),
+            RuntimePlatformEffect::StoreResetSystem => Ok(self.reset_system_result(request)),
             RuntimePlatformEffect::StoreSaveSystem { payload } => Ok(self
                 .enqueue_platform_service_request(
                     request,
