@@ -202,7 +202,7 @@ fn format_ms(ms: i32) -> String {
 fn format_play_fx_param(param: &str, raw: &str) -> String {
     let value = raw.parse::<i32>().unwrap_or(0);
     if param.ends_with("Note") {
-        return crate::native_runner::play_fx_config::play_fx_note_unit(i64::from(value)).into();
+        return crate::native_runner::play_fx::config::play_fx_note_unit(i64::from(value)).into();
     }
     if param.ends_with("Hz") {
         format!("{value}Hz")

@@ -10,7 +10,7 @@ use super::mixer_fx;
 use super::modulation;
 use super::Value;
 use crate::native_menu::HOME_VISUALS;
-use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_targets, play_fx_types};
+use crate::native_runner::play_fx::config::{play_fx_param_specs, play_fx_targets, play_fx_types};
 use crate::native_runner::play_pages::PlayMode;
 use crate::native_runner::AuxPriority;
 use realtime_engine::synth::DspRuntimeConfig;

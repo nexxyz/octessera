@@ -1,5 +1,5 @@
 use super::grid_assign::GridAssign;
-use super::play_fx_config::PlayFxConfig;
+use super::play_fx::config::PlayFxConfig;
 #[cfg(test)]
 use super::prepare_device_payload;
 use super::NativeHdmiMode;

@@ -14,7 +14,7 @@ pub struct NativeConfigSnapshot {
     xy_invert_x: bool,
     xy_invert_y: bool,
     layers: Vec<NativeLayerConfigSnapshot>,
-    play_fx_selected: play_fx_config::PlayFxConfig,
+    play_fx_selected: play_fx::config::PlayFxConfig,
     play_fx_assignments: Vec<NativePlayFxAssignment>,
     bpm: f64,
     swing_a: u8,

@@ -1,4 +1,4 @@
-use super::super::play_fx_config::PlayFxConfig;
+use super::super::play_fx::config::PlayFxConfig;
 use super::super::*;
 
 pub(in crate::native_runner) struct NativeRunnerConstructionSeed {

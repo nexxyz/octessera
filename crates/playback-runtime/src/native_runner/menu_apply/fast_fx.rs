@@ -1,4 +1,4 @@
-use super::super::play_fx_config::PlayFxConfig;
+use super::super::play_fx::config::PlayFxConfig;
 use super::super::NativeRunner;
 use super::fast_values::parse_indexed_key;
 use crate::native_menu::FX_BUSES_LABEL;

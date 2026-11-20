@@ -1,6 +1,6 @@
-use super::led_color::LedColor;
+use super::super::led_color::LedColor;
 
-pub(super) fn play_fx_color(fx_type: &str) -> LedColor {
+pub(in crate::native_runner) fn play_fx_color(fx_type: &str) -> LedColor {
     match fx_type {
         "stutter" => LedColor::YELLOW,
         "freeze" => LedColor::BLUE,

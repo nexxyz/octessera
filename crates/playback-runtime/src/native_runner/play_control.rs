@@ -3,7 +3,7 @@ use crate::protocol::RuntimePlatformEffect;
 
 use super::grid_assign::GridAssign;
 use super::pan_mapping::touch_pan_pos_from_grid_x;
-use super::play_fx_config::PlayFxConfig;
+use super::play_fx::config::PlayFxConfig;
 use super::play_pages::PlayMode;
 use super::{
     NativePlayFxAssignment, NativeRunner, TriggerProbabilityMode, GRID_HEIGHT, GRID_WIDTH,

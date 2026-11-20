@@ -4,7 +4,7 @@ use super::{
     NativeMenuValue, PlatformAction,
 };
 use crate::native_menu::section_labels::PLAY_LABEL;
-use crate::native_runner::play_fx_config::{play_fx_param_specs, play_fx_targets, play_fx_types};
+use crate::native_runner::play_fx::config::{play_fx_param_specs, play_fx_targets, play_fx_types};
 use crate::native_runner::play_pages::{PlayMode, PLAY_PAGES};
 
 pub(super) fn play_group(config: &NativeMenuConfig) -> NativeMenuItem {

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{json, PlayConfigDto, Value};
+use super::super::{json, PlayConfigDto, Value};
 use crate::timing_units::{note_unit_to_pulses, DEFAULT_NOTE_UNIT, NOTE_UNIT_OPTIONS};
 
 /// One Play FX parameter: its saved key, menu label, default, range and encoder step.
@@ -156,10 +156,10 @@ pub(crate) fn play_fx_param_specs(fx_type: &str) -> &'static [PlayFxParam] {
 /// `{ "fxType", "targetKey", "params" }`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct PlayFxConfig {
-    pub(super) fx_type: String,
-    pub(super) target_key: String,
-    pub(super) params: BTreeMap<String, i64>,
+pub(in crate::native_runner) struct PlayFxConfig {
+    pub(in crate::native_runner) fx_type: String,
+    pub(in crate::native_runner) target_key: String,
+    pub(in crate::native_runner) params: BTreeMap<String, i64>,
 }
 
 impl Default for PlayFxConfig {
@@ -175,7 +175,7 @@ impl Default for PlayFxConfig {
 impl PlayFxConfig {
     /// A saved setup with an unknown type or target replaced and exactly its type's
     /// parameters, each inside its range.
-    pub(super) fn from_dto(config: &PlayConfigDto) -> Self {
+    pub(in crate::native_runner) fn from_dto(config: &PlayConfigDto) -> Self {
         Self::sanitized(
             config.fx_type.as_deref().unwrap_or("none"),
             config.target_key.as_deref().unwrap_or("master"),
@@ -189,7 +189,7 @@ impl PlayFxConfig {
         )
     }
 
-    pub(super) fn sanitized(
+    pub(in crate::native_runner) fn sanitized(
         fx_type: &str,
         target_key: &str,
         param: impl Fn(&str) -> Option<i64>,
@@ -228,7 +228,10 @@ impl PlayFxConfig {
 
     /// The audio-command parameters: `Note` rows become clock pulses, and a tempo-synced type
     /// carries the tempo it follows. `None` for a type that does not follow it.
-    pub(super) fn synced_audio_params(&self, bpm: f64) -> Option<BTreeMap<String, Value>> {
+    pub(in crate::native_runner) fn synced_audio_params(
+        &self,
+        bpm: f64,
+    ) -> Option<BTreeMap<String, Value>> {
         let mut params = self.audio_param_values();
         let mut synced = false;
         for (note_key, pulses_key) in SYNCED_NOTE_PARAMS {
@@ -259,6 +262,6 @@ pub(crate) fn play_fx_targets() -> Vec<String> {
     targets
 }
 
-pub(super) fn is_play_fx_target(key: &str) -> bool {
+pub(in crate::native_runner) fn is_play_fx_target(key: &str) -> bool {
     play_fx_targets().iter().any(|target| target == key)
 }

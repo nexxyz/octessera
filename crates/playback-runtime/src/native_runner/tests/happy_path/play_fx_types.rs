@@ -165,10 +165,10 @@ pub(crate) fn a_tempo_change_retimes_a_held_trance_gate() {
 
 #[test]
 pub(crate) fn every_play_fx_type_has_its_own_led_color() {
-    let colors = crate::native_runner::play_fx_config::play_fx_types()
+    let colors = crate::native_runner::play_fx::config::play_fx_types()
         .filter(|fx_type| *fx_type != "none")
         .map(|fx_type| {
-            let color = crate::native_runner::play_fx_presentation::play_fx_color(fx_type);
+            let color = crate::native_runner::play_fx::presentation::play_fx_color(fx_type);
             assert_ne!(
                 color,
                 crate::native_runner::led_color::LedColor::SYSTEM,
@@ -192,7 +192,7 @@ pub(crate) fn the_shipped_patch_maps_four_distinct_stamps_of_every_play_fx_type(
         .map(|assignment| (assignment["x"].as_u64(), assignment["y"].as_u64()))
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(tiles.len(), assignments.len(), "one stamp per tile");
-    for fx_type in crate::native_runner::play_fx_config::play_fx_types().skip(1) {
+    for fx_type in crate::native_runner::play_fx::config::play_fx_types().skip(1) {
         let stamps = assignments
             .iter()
             .map(|assignment| &assignment["config"])
@@ -207,7 +207,7 @@ pub(crate) fn the_shipped_patch_maps_four_distinct_stamps_of_every_play_fx_type(
         for config in stamps {
             assert_eq!(
                 &serde_json::to_value(
-                    crate::native_runner::play_fx_config::PlayFxConfig::from_dto(
+                    crate::native_runner::play_fx::config::PlayFxConfig::from_dto(
                         &serde_json::from_value((*config).clone()).unwrap()
                     )
                 )

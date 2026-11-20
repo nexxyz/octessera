@@ -303,8 +303,9 @@ fn play_fx_setups_save_the_shape_they_load_from() {
         "targetKey": "instrument_2",
         "params": { "delayNote": 7, "feedbackPct": 55, "mixPct": 40 }
     });
-    let config =
-        play_fx_config::PlayFxConfig::from_dto(&serde_json::from_value(wire.clone()).unwrap());
+    let config = super::super::play_fx::config::PlayFxConfig::from_dto(
+        &serde_json::from_value(wire.clone()).unwrap(),
+    );
     assert_eq!(config.fx_type, "dub_throw");
     assert_eq!(config.target_key, "instrument_2");
     assert_eq!(config.params["feedbackPct"], 55);

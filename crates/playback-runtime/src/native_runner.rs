@@ -164,9 +164,7 @@ mod patch_store;
 mod performance_view;
 mod persistence_intent;
 mod play_control;
-pub(crate) mod play_fx_config;
-mod play_fx_hold;
-mod play_fx_presentation;
+pub(crate) mod play_fx;
 pub(crate) mod play_pages;
 mod play_transpose;
 mod play_trigger_gate;
@@ -334,7 +332,7 @@ pub struct NativeRunner {
     play_mode: PlayMode,
     active_play_mode: ActivePlayMode,
     drum_selected_voices: Vec<usize>,
-    play_fx_selected: play_fx_config::PlayFxConfig,
+    play_fx_selected: play_fx::config::PlayFxConfig,
     grid_assign: Option<GridAssign>,
     play_fx_assignments: Vec<NativePlayFxAssignment>,
     active_play_fx: Vec<NativeActivePlayFx>,

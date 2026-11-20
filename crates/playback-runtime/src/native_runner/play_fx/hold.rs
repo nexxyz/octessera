@@ -1,6 +1,6 @@
 use crate::protocol::{RuntimeAudioCommand, RuntimePlatformEffect};
 
-use super::{
+use super::super::{
     momentary_fx_target, play_fx_tile_id, NativeActivePlayFx, NativePlayFxAssignment, NativeRunner,
     PLAY_FX_MAX_CONCURRENT,
 };
@@ -11,7 +11,7 @@ impl NativeRunner {
     /// A press of a tile whose type already sounds takes over from the older tile, which stays
     /// held underneath; the limit counts types, not tiles. A sweep type on the same Target keeps
     /// its voice and glides to the new tile's settings.
-    pub(super) fn play_fx_press_effects(
+    pub(in crate::native_runner) fn play_fx_press_effects(
         &mut self,
         x: usize,
         y: usize,
@@ -58,7 +58,7 @@ impl NativeRunner {
     /// `None` when the tile holds no Play FX. Letting go of the sounding tile hands its type back
     /// to the most recent older tile of that type still held, the same way a press takes over;
     /// letting go of one underneath is silent.
-    pub(super) fn play_fx_release_effects(
+    pub(in crate::native_runner) fn play_fx_release_effects(
         &mut self,
         x: usize,
         y: usize,

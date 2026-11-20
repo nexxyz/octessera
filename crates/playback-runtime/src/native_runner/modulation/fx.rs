@@ -1,4 +1,4 @@
-use super::super::play_fx_config::{is_play_fx_target, play_fx_types, PlayFxConfig};
+use super::super::play_fx::config::{is_play_fx_target, play_fx_types, PlayFxConfig};
 use super::super::{derive_bus_name, Value, PAN_POSITION_COUNT};
 use super::value::{apply_fx_param_binding_value, apply_fx_slot_type_value, apply_u8_value};
 use crate::native_menu::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};

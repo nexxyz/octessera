@@ -5,7 +5,7 @@ use crate::native_menu::section_labels::{BUILD_LABEL, LINK_LABEL, PLAY_LABEL, SH
 /// The one grid assignment a press stamps; entering one replaces any other.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum GridAssign {
-    PlayFx(super::play_fx_config::PlayFxConfig),
+    PlayFx(super::play_fx::config::PlayFxConfig),
     Sample { slot: usize, sample_slot: usize },
     Drum { slot: usize, voice: u8 },
     MidiDrum { slot: usize },

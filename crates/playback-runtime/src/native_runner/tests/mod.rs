@@ -217,7 +217,7 @@ pub(crate) fn optimization_capable_runner() -> NativeRunner {
 }
 
 /// A Play FX setup exactly as written, without the defaults and clamping a patch load adds.
-pub(crate) fn literal_play_fx(config: Value) -> play_fx_config::PlayFxConfig {
+pub(crate) fn literal_play_fx(config: Value) -> super::play_fx::config::PlayFxConfig {
     serde_json::from_value(config).unwrap()
 }
 

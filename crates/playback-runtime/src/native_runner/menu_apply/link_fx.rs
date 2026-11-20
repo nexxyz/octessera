@@ -1,4 +1,4 @@
-use super::super::play_fx_config::{play_fx_param_specs, PlayFxConfig};
+use super::super::play_fx::config::{play_fx_param_specs, PlayFxConfig};
 use super::super::{
     apply_value_lane_menu_state, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
     set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, set_wire_from_menu,

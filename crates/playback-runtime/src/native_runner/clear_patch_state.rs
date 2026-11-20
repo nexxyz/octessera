@@ -1,4 +1,4 @@
-use super::play_fx_config::PlayFxConfig;
+use super::play_fx::config::PlayFxConfig;
 use super::*;
 
 impl NativeRunner {
