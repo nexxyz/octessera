@@ -172,7 +172,6 @@ mod portable_patch_validation;
 mod preset_native_completion;
 mod random_streams;
 mod restart_settings;
-mod restart_settings_runtime;
 mod runner_config;
 mod runtime_config;
 mod runtime_io;

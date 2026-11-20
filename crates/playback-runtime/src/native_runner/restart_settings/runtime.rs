@@ -3,16 +3,20 @@ use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 use serde_json::Value;
 use std::sync::Arc;
 
-use super::restart_settings::{is_restart_setting, DefaultSaveScope, DefaultWriteCompletion};
-use super::{NativeConfirmDialog, NativeManualSaveRequest, NativeRunner};
+use super::super::restart_settings::{
+    is_restart_setting, DefaultSaveScope, DefaultWriteCompletion,
+};
+use super::super::{NativeConfirmDialog, NativeManualSaveRequest, NativeRunner};
 
 impl NativeRunner {
-    pub(super) fn begin_system_parameter_edit(&mut self, key: &str) {
+    pub(in crate::native_runner) fn begin_system_parameter_edit(&mut self, key: &str) {
         if let Ok(document) =
-            super::system_persistence::SystemPersistenceState::document_for_ordinary_save(self)
+            super::super::system_persistence::SystemPersistenceState::document_for_ordinary_save(
+                self,
+            )
         {
             if let Some(value) =
-                super::system_persistence::SystemPersistenceState::ordinary_system_value(
+                super::super::system_persistence::SystemPersistenceState::ordinary_system_value(
                     &document, key,
                 )
             {
@@ -21,20 +25,24 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn finish_system_parameter_edit(&mut self, key: &str) {
+    pub(in crate::native_runner) fn finish_system_parameter_edit(&mut self, key: &str) {
         let Ok(document) =
-            super::system_persistence::SystemPersistenceState::document_for_ordinary_save(self)
+            super::super::system_persistence::SystemPersistenceState::document_for_ordinary_save(
+                self,
+            )
         else {
             return;
         };
-        let Some(value) = super::system_persistence::SystemPersistenceState::ordinary_system_value(
-            &document, key,
-        ) else {
+        let Some(value) =
+            super::super::system_persistence::SystemPersistenceState::ordinary_system_value(
+                &document, key,
+            )
+        else {
             return;
         };
         if !self.pending.system_persistence.finish_edit(key, &value) {
             if let Ok(live_document) =
-                super::system_persistence::SystemPersistenceState::system_document(self)
+                super::super::system_persistence::SystemPersistenceState::system_document(self)
             {
                 self.pending
                     .system_persistence
@@ -43,15 +51,17 @@ impl NativeRunner {
             return;
         }
         self.save_system_document(&document);
-        if super::device_config_apply::is_device_config_key(key) {
+        if super::super::device_config_apply::is_device_config_key(key) {
             self.apply_device_config(document);
         }
     }
 
     /// Saves a System change that is not a menu edit, such as a MIDI port or a sample favorite.
-    pub(super) fn save_system_change(&mut self) {
+    pub(in crate::native_runner) fn save_system_change(&mut self) {
         if let Ok(document) =
-            super::system_persistence::SystemPersistenceState::document_for_ordinary_save(self)
+            super::super::system_persistence::SystemPersistenceState::document_for_ordinary_save(
+                self,
+            )
         {
             self.save_system_document(&document);
         }
@@ -73,7 +83,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn finish_restart_sensitive_edit(&mut self, key: &str) {
+    pub(in crate::native_runner) fn finish_restart_sensitive_edit(&mut self, key: &str) {
         if !is_restart_setting(key) {
             return;
         }
@@ -83,7 +93,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn commit_restart_sensitive_setting(&mut self) {
+    pub(in crate::native_runner) fn commit_restart_sensitive_setting(&mut self) {
         self.mark_system_dirty();
         if self.menu.state.editing {
             return;
@@ -156,7 +166,7 @@ impl NativeRunner {
             .attach_native_payload(request_id, revision, payload)
     }
 
-    pub(super) fn register_default_write(
+    pub(in crate::native_runner) fn register_default_write(
         &mut self,
         payload: Value,
         scope: DefaultSaveScope,
@@ -169,7 +179,7 @@ impl NativeRunner {
             .track_write(payload, scope, revision, self.dirty_revision)
     }
 
-    pub(super) fn register_default_write_request(
+    pub(in crate::native_runner) fn register_default_write_request(
         &mut self,
         request_id: &str,
         revision: Option<u64>,
@@ -177,18 +187,18 @@ impl NativeRunner {
         self.restart_settings.register_request(request_id, revision);
     }
 
-    pub(super) fn pending_default_write_revision(&self) -> Option<u64> {
+    pub(in crate::native_runner) fn pending_default_write_revision(&self) -> Option<u64> {
         self.restart_settings.pending_write_revision()
     }
 
-    pub(super) fn abandon_pending_default_write(&mut self) {
+    pub(in crate::native_runner) fn abandon_pending_default_write(&mut self) {
         self.restart_settings.abandon_pending_write();
         self.restart_settings.cancel();
         self.pending.pending_save_revision = None;
         self.display.confirm_dialog = None;
     }
 
-    pub(super) fn reboot_blocked_by_pending_saves(&self) -> Option<&'static str> {
+    pub(in crate::native_runner) fn reboot_blocked_by_pending_saves(&self) -> Option<&'static str> {
         if self.pending.system_persistence.has_pending_request()
             || self.pending.system_persistence.has_completed_auto_save()
         {
@@ -221,13 +231,13 @@ impl NativeRunner {
         })
     }
 
-    pub(super) fn system_apply_pending(&self) -> bool {
+    pub(in crate::native_runner) fn system_apply_pending(&self) -> bool {
         self.restart_settings
             .pending_write_scope()
             .is_some_and(DefaultSaveScope::is_restart)
     }
 
-    pub(super) fn apply_restart_default_save_result(
+    pub(in crate::native_runner) fn apply_restart_default_save_result(
         &mut self,
         result: &RuntimeStoreResult,
         request_id: &str,
@@ -239,7 +249,7 @@ impl NativeRunner {
         self.apply_restart_save_completion(result, request_id, revision, true)
     }
 
-    pub(super) fn apply_restart_system_save_result(
+    pub(in crate::native_runner) fn apply_restart_system_save_result(
         &mut self,
         result: &RuntimeStoreResult,
         request_id: &str,
@@ -287,13 +297,15 @@ impl NativeRunner {
         Some(completion)
     }
 
-    pub(super) fn cancel_restart_flow(&mut self) {
+    pub(in crate::native_runner) fn cancel_restart_flow(&mut self) {
         self.restart_settings.cancel();
         self.display.confirm_dialog = None;
     }
 
     /// The Apply System dialog's `Save this one`: saves only the setting that needs the restart.
-    pub(super) fn save_restart_setting(&mut self) -> Result<Option<RuntimePlatformEffect>, String> {
+    pub(in crate::native_runner) fn save_restart_setting(
+        &mut self,
+    ) -> Result<Option<RuntimePlatformEffect>, String> {
         if self.restart_settings.has_pending_write() {
             self.display.confirm_dialog = Some(self.save_choice_dialog());
             return Ok(None);
@@ -309,7 +321,7 @@ impl NativeRunner {
     }
 
     /// The Apply System dialog's `Save System`.
-    pub(super) fn save_restart_everything(
+    pub(in crate::native_runner) fn save_restart_everything(
         &mut self,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
         if !self.restart_settings.is_save_choice() {
@@ -319,18 +331,19 @@ impl NativeRunner {
             self.display.confirm_dialog = Some(self.save_choice_dialog());
             return Ok(None);
         }
-        let payload = super::system_persistence::SystemPersistenceState::system_document(self)?;
+        let payload =
+            super::super::system_persistence::SystemPersistenceState::system_document(self)?;
         self.start_restart_system_save(payload, DefaultSaveScope::RestartEverything);
         Ok(None)
     }
 
-    pub(super) fn offer_restart_after_system_reset(&mut self) {
+    pub(in crate::native_runner) fn offer_restart_after_system_reset(&mut self) {
         self.restart_settings.open_restart_choice();
         self.display.confirm_dialog = Some(restart_choice_dialog());
     }
 
     /// The Restart? dialog's `Restart now`, once the restart save is done.
-    pub(super) fn restart_app_after_save(
+    pub(in crate::native_runner) fn restart_app_after_save(
         &mut self,
     ) -> Result<Option<RuntimePlatformEffect>, String> {
         if !self.restart_settings.is_restart_choice() {
@@ -342,7 +355,7 @@ impl NativeRunner {
 
     fn reconcile_dirty_with_persisted_default(&mut self) {
         if let Ok(current) =
-            super::system_persistence::SystemPersistenceState::system_document(self)
+            super::super::system_persistence::SystemPersistenceState::system_document(self)
         {
             if current == *self.restart_settings.persisted_default {
                 self.pending.system_persistence.dirty_revision = None;
@@ -354,10 +367,10 @@ impl NativeRunner {
 
     fn setting_payload_for_restart(&self, current: &Value) -> Option<Value> {
         let payload = self.restart_settings.setting_payload(current)?;
-        let patch = super::split_local_system_patch_documents(current)
+        let patch = super::super::split_local_system_patch_documents(current)
             .ok()?
             .patch;
-        super::compose_local_system_patch_documents(&payload, &patch)
+        super::super::compose_local_system_patch_documents(&payload, &patch)
             .is_ok()
             .then_some(payload)
     }
