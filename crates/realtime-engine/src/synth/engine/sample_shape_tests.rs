@@ -62,6 +62,27 @@ fn neutral_shape_plays_a_sample_at_full_level_until_note_off() {
 }
 
 #[test]
+fn a_note_off_releases_only_the_sample_voices_a_note_started() {
+    let mut engine = sampler_engine(SampleShapeConfig::default(), vec![0.5; RATE as usize]);
+    engine.tile_hit(0, 0, 5, 0, 127);
+    engine.note_on(0, 36, 127, 50_000);
+    render(&mut engine, ms(20.0));
+    assert_eq!(engine.profile_snapshot().active_sample_voices, 2);
+
+    engine.note_off(0, 36);
+    render(&mut engine, ms(20.0));
+    assert_eq!(
+        engine.profile_snapshot().active_sample_voices,
+        1,
+        "the held tile's voice keeps sounding"
+    );
+
+    engine.tile_hit(0, 0, 5, 0, 0);
+    render(&mut engine, ms(20.0));
+    assert_eq!(engine.profile_snapshot().active_sample_voices, 0);
+}
+
+#[test]
 fn amp_env_shapes_attack_sustain_and_release() {
     let shape = SampleShapeConfig {
         amp_env: EnvConfig {

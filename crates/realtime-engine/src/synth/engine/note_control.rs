@@ -426,7 +426,9 @@ impl SynthEngine {
         }
 
         let sample_slot = sample_slot_for_note(midi_note);
-        self.release_sample_voices(slot, |voice| voice.sample_slot == sample_slot);
+        self.release_sample_voices(slot, |voice| {
+            voice.tile.is_none() && voice.sample_slot == sample_slot
+        });
     }
 
     /// Forgets every slot's latched CC74/CC71, as a patch load or Panic does.
