@@ -180,6 +180,7 @@ Grid keys, left to right = grid columns 1..8. Grid rows count from the bottom (w
 Help popup:
 
 - Combined modifier + Main press opens it. Main turn scrolls the text; Main press closes it.
+  Text longer than the screen shows the menu scrollbar, counting the `Close` row.
 - The title is `Help: <title>`, or the bare title when that does not fit the header. The body,
   like a confirm dialog's detail, wraps to the pixel width of a plain body line in both glyph sets;
   a word wider than a line breaks after `/`, `-` or `_`, else between letters. Every menu row has
@@ -635,7 +636,8 @@ behavior primary red), so a mute never reads as a section color.
 - Snapshots include rendered-row scroll metadata (`scrollOffset`, `totalRows`, `visibleRows`).
   When more than 8 rows exist, a 2 px scrollbar sits at `x=126..127`, `y=10..111`: a track at 1/6
   of the area colour and a thumb in the area colour, `max(6, 8*102/totalRows)` px tall. It is
-  omitted for splash/help/confirm overlays unless menu metadata is present.
+  omitted for splash/confirm overlays unless menu metadata is present; the help popup sends its
+  own.
 - Left gutter: every row an Aux encoder runs shows its Aux cap at `x=0..6`, selected or not and never
   inverted: a disc at 28 % of the row colour with 1-3 pips in the row colour; a plain cap covers
   `s+1..s+7`, a Shift cap `s..s+6` with a 5 px bar at 55 % on `s+8`. On a page where any row

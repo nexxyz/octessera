@@ -277,7 +277,11 @@ pub(super) fn help_popup_display(help: &NativeHelpPopup) -> DisplaySnapshot {
         bar_values: vec![None; line_count],
         full_lines: vec![None; line_count],
         rows: vec![None; line_count],
-        scroll: None,
+        scroll: Some(DisplayScrollMetadata {
+            scroll_offset: help.scroll,
+            total_rows: help.lines.len() + 1,
+            visible_rows: line_count,
+        }),
         selected_row: Some(
             help.lines
                 .len()
