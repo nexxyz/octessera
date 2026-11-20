@@ -212,8 +212,8 @@ no entries, so do not add one instead of normalizing the stores.
 `.githooks/pre-push` delegates to `tools/quality/pre-push.sh`; the check list
 lives in `tools/quality/pre-push-checks.sh`. The full profile runs lint,
 typecheck, format checks, the JS tests under coverage, `cargo fmt`, the
-file-length limit, the repository integrity fixtures and gate (generated-output
-freshness, legal inventories, links, and the quality audit), the `tools/legal`
+repository integrity fixtures and gate (generated-output
+freshness, legal inventories, links, and the quality audit with its file-length limit), the `tools/legal`
 packaging tests, the remaining workspace and routing-tree-executor Rust tests,
 the [factory patch UI scenario](factory-patch-ui-scenario.md), Rust coverage
 (which runs the `platform-core`, `playback-runtime`, and `realtime-engine`
@@ -235,4 +235,4 @@ git config core.hooksPath .githooks
 The hook refuses to run on a dirty working tree. Set
 `OCTESSERA_PRE_PUSH_COMMITTED_TREE=1` for the push to validate the committed
 `HEAD` in a temporary worktree instead. Run `tools/quality/pre-push.sh --fast`
-by hand when you only want lint, typecheck, formatting, and file length.
+by hand when you only want lint, typecheck, and formatting.
