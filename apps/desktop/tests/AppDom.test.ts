@@ -75,3 +75,29 @@ test('held keys release exactly once after the app re-renders in between', async
   ]);
   app.unmount();
 });
+
+test('a paint drag releases every tile it pressed', async () => {
+  sentInputs.length = 0;
+  const app = mount(createElement(App));
+  const tile = (x: number, y: number) =>
+    app.container.querySelector(`button[aria-label="Grid ${x},${y}"]`)!;
+
+  fire(tile(0, 0), new win.MouseEvent('mousedown', { bubbles: true }));
+  for (const x of [1, 2]) {
+    fire(
+      tile(x, 0),
+      new win.MouseEvent('mouseover', { bubbles: true, buttons: 1 }),
+    );
+  }
+  fire(tile(2, 0), new win.MouseEvent('mouseup', { bubbles: true }));
+
+  await waitFor(() => nonTurnInputs().length >= 6);
+  const columns = (type: string) =>
+    nonTurnInputs()
+      .filter((input) => input.type === type)
+      .map((input) => (input as { x: number }).x)
+      .sort();
+  assert.deepEqual(columns('grid_press'), [0, 1, 2]);
+  assert.deepEqual(columns('grid_release'), [0, 1, 2]);
+  app.unmount();
+});

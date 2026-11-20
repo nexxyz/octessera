@@ -74,6 +74,7 @@ export function useGridInteraction(
   const [, setPainted] = useState<Set<string>>(new Set());
   const paintedRef = useRef(new Set<string>());
   const lastPressedTile = useRef<{ x: number; y: number } | null>(null);
+  const paintPressedTiles = useRef<GridTile[]>([]);
 
   function tileAlive(index: number): boolean {
     return frame.leds.active[index] ?? false;
@@ -95,7 +96,14 @@ export function useGridInteraction(
       x,
       y,
     });
-    if (transition.input) dispatch(transition.input);
+    if (transition.input) {
+      dispatch(transition.input);
+      if (transition.input.type === 'grid_press')
+        paintPressedTiles.current.push({
+          x: transition.input.x,
+          y: transition.input.y,
+        });
+    }
     paintedRef.current = transition.painted;
     setPainted(transition.painted);
   }
@@ -122,6 +130,9 @@ export function useGridInteraction(
       });
       lastPressedTile.current = null;
     }
+    for (const { x, y } of paintPressedTiles.current)
+      dispatch({ type: 'grid_release', x, y });
+    paintPressedTiles.current = [];
     endPaint();
   }
 
@@ -137,7 +148,6 @@ export function useGridInteraction(
     setPaintMode(desired);
     paintedRef.current = new Set();
     setPainted(new Set());
-    lastPressedTile.current = logicalTileFromDisplay(x, y);
     applyPaint(x, y, desired);
   }
 
