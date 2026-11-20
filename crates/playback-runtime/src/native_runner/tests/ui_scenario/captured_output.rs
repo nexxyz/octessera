@@ -14,6 +14,7 @@ pub(super) struct CapturedOutput {
     pub(super) sample_list_requests: Vec<(usize, usize, String)>,
     pub(super) load_preset_requests: Vec<String>,
     pub(super) saved_presets: Vec<(String, Value)>,
+    pub(super) deleted_presets: Vec<String>,
     pub(super) saved_systems: Vec<Value>,
     pub(super) set_instrument_slot_count: usize,
     pub(super) synth_param_count: usize,
@@ -73,6 +74,9 @@ impl CapturedOutput {
                             }
                             RuntimePlatformEffect::StoreSavePreset { name, payload, .. } => {
                                 self.saved_presets.push((name.clone(), payload.clone()));
+                            }
+                            RuntimePlatformEffect::StoreDeletePreset { name } => {
+                                self.deleted_presets.push(name.clone());
                             }
                             _ => {}
                         }

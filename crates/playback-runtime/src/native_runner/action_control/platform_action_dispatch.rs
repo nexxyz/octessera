@@ -24,6 +24,7 @@ impl NativeRunner {
             PlatformAction::PresetRenamePick(name) => {
                 self.patch_store.preset_draft_name = name.clone();
                 self.patch_store.preset_rename_source = Some(name);
+                self.show_preset_catalog();
                 Ok(None)
             }
             PlatformAction::PresetSaveCurrent if self.patch_store.current_preset_name.is_none() => {

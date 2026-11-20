@@ -7,6 +7,7 @@ mod factory_patch_configuration;
 mod factory_patch_playback;
 mod factory_patch_scenario;
 mod picker_refresh_scenario;
+mod preset_rename_scenario;
 mod resync_scenario;
 mod screen_sweep;
 mod screen_sweep_checks;
@@ -50,4 +51,9 @@ pub(crate) fn changed_system_setting_saves_after_visible_main_edit_exit() {
 #[test]
 pub(crate) fn shared_pickers_follow_an_instrument_type_change_and_a_load() {
     picker_refresh_scenario::run();
+}
+
+#[test]
+pub(crate) fn rename_shows_new_name_after_a_pick_and_overwrites_on_confirm() {
+    preset_rename_scenario::run();
 }
