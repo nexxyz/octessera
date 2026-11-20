@@ -255,6 +255,8 @@ impl PlaybackRuntime {
     ) -> Result<(), RuntimeAdapterError> {
         match host.handle_midi_message(bytes, at) {
             Ok(()) => {
+                self.sent_midi_notes
+                    .remember(bytes, at.unwrap_or_else(|| host.now()));
                 self.clear_error(operation);
                 Ok(())
             }

@@ -287,7 +287,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   `hold` slot holds it until the key's note-off, a `oneshot` slot plays the Sound > Note Length and
   the key's note-off ends it early. A Drum slot plays the voice whose Sound has that GM note. A MIDI
   Inst. or MIDI Drum slot forwards the note to its own MIDI channel while it is enabled. An incoming
-  note identical (channel, note, velocity) to one forwarded in the last 30 ms is taken as the device
+  note identical (channel, note, velocity) to any note Octessera put on MIDI out in the last 30 ms
+  (forwarded keys, MIDI Inst. and MIDI Drum parts, Send MIDI `all inst.` copies) is taken as the device
   echoing it back and dropped with its note-off: no sound, no forward, no recording. Stop, Pause,
   Panic, a patch load, MIDI Active off and Notes In off release every held keyboard note, forwarded
   ones too. Every Looper layer that is overdubbing and whose Link plays that slot records the note

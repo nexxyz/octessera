@@ -105,7 +105,6 @@ impl NativeRunner {
             midi_cc_mappings: super::midi_cc_in::default_midi_cc_mappings(),
             midi_cc_learn: None,
             keyboard_notes: Vec::with_capacity(16),
-            forwarded_notes: Default::default(),
             faders: Default::default(),
             modulation_process: ModulationProcessState::default(),
             aux_bindings: seed.aux_bindings,

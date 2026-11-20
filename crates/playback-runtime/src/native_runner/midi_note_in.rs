@@ -9,7 +9,6 @@ use crate::runtime::MidiNote;
 use platform_core::{MusicalEvent, NoteBehavior, StepPhase};
 use realtime_engine::synth::SAMPLE_SLOTS_PER_INSTRUMENT;
 use serde_json::Value;
-use std::time::{Duration, Instant};
 
 /// A Sampler plays its slots 1-8 on notes 36-43, as the audio engine reads a plain note; other
 /// notes play nothing.
@@ -26,43 +25,9 @@ pub(super) struct HeldKeyboardNote {
     recorded_tiles: [Option<u8>; LAYER_COUNT],
 }
 
-/// How long after a keyboard note goes out to MIDI an identical incoming note counts as its echo.
-const ECHO_WINDOW: Duration = Duration::from_millis(30);
-
-/// The last notes forwarded from the keyboard to MIDI out, so a device that echoes its input
-/// cannot loop them back in. A note-off is kept with velocity 0.
-#[derive(Clone, Copy, Debug, Default)]
-pub(super) struct ForwardedNotes {
-    notes: [Option<(MidiNote, Instant)>; 16],
-    next: usize,
-}
-
-impl ForwardedNotes {
-    fn remember(&mut self, note: MidiNote, at: Instant) {
-        self.notes[self.next] = Some((note, at));
-        self.next = (self.next + 1) % self.notes.len();
-    }
-
-    /// True, and forgets it, when `note` repeats one forwarded within the echo window.
-    fn take_echo(&mut self, note: MidiNote, now: Instant) -> bool {
-        let Some(slot) = self.notes.iter_mut().find(|slot| {
-            slot.is_some_and(|(sent, at)| {
-                sent == note && now.saturating_duration_since(at) <= ECHO_WINDOW
-            })
-        }) else {
-            return false;
-        };
-        *slot = None;
-        true
-    }
-}
-
 impl NativeRunner {
+    /// A note `PlaybackRuntime` recognized as the echo of one it sent never reaches here.
     pub(super) fn send_midi_note(&mut self, note: MidiNote) -> Result<Vec<RunnerMessage>, String> {
-        let now = self.display.transients.now();
-        if self.forwarded_notes.take_echo(note, now) {
-            return self.messages_without_snapshot();
-        }
         let mut routed = RoutedMusicalEvents::default();
         self.release_keyboard_note(note.channel, note.note, &mut routed);
         if note.velocity > 0
@@ -137,9 +102,6 @@ impl NativeRunner {
                     ));
                 }
                 routed.midi.push(on(channel, None));
-                let now = self.display.transients.now();
-                self.forwarded_notes
-                    .remember(MidiNote { channel, ..note }, now);
                 self.transport.midi_channels_sounded |= 1 << channel;
                 Some(Some(channel))
             }
@@ -166,17 +128,6 @@ impl NativeRunner {
             return;
         };
         let held = self.keyboard_notes.swap_remove(index);
-        if let Some(channel) = held.midi_channel {
-            let now = self.display.transients.now();
-            self.forwarded_notes.remember(
-                MidiNote {
-                    channel,
-                    note,
-                    velocity: 0,
-                },
-                now,
-            );
-        }
         push_note_off(routed, held);
         self.record_keyboard_release(&held.recorded_tiles);
     }

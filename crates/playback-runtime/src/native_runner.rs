@@ -346,7 +346,6 @@ pub struct NativeRunner {
     midi_cc_mappings: [midi_cc_in::NativeMidiCcMapping; midi_cc_in::MIDI_CC_SLOT_COUNT],
     midi_cc_learn: Option<midi_cc_in::MidiCcLearn>,
     keyboard_notes: Vec<midi_note_in::HeldKeyboardNote>,
-    forwarded_notes: midi_note_in::ForwardedNotes,
     faders: play_pages::faders::NativeFaders,
     modulation_process: ModulationProcessState,
     aux_bindings: Vec<Option<NativeAuxBinding>>,

@@ -1,4 +1,5 @@
 mod errors;
+pub(crate) mod midi_echo;
 mod native_runner;
 mod oled_runtime;
 mod oled_runtime_compat;

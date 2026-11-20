@@ -546,6 +546,7 @@ Sample-bank preparation is atomic on both hosts: every configured sample path mu
 - MIDI instruments emit external MIDI/control data and are not an internal audio source unless an audio return path is explicitly added.
 - MIDI-only instrument notes and CCs use the `midi_events` path and must not call host internal-audio musical event handling.
 - `PlaybackRuntime` copies internal instruments' notes to MIDI out only for the channels in `RuntimeConfig::midi_out_internal_channels`. See [MIDI copies of internal notes](#midi-copies-of-internal-notes).
+- `PlaybackRuntime` remembers the last 64 notes it sent to MIDI out, at the instant each goes on the wire, and drops an incoming MIDI In note identical to one of them within 30 ms as that device's echo before it reaches the runner.
 - MIDI Drum slots are routed by the runner straight to the `midi_events` path: a Link note-on on a stamped tile becomes that tile's note and velocity on the slot's channel, with a timed note-off.
 - Sample browser preview is musical audio and must route through the selected instrument slot, pan, volume, FX bus, and master output path.
 - The default sample library is the `samples/` folder of WAV files; builds copy it as-is, and there is no sample manifest. Pi and desktop audio preparation leave a missing, undecodable or too-long sample's slot empty and report the affected paths with `RuntimeStoreResult::SamplesMissing`; the runtime owns the resulting `N/A-` slots and the `Samples missing` popup.

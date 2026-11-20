@@ -190,7 +190,8 @@ wander in by accident.
 - A `MIDI Inst.` or `MIDI Drum` slot passes the note on to its own channel on
   MIDI out, as long as it's enabled. Handy for playing outboard gear through
   Octessera without re-patching cables. Gear that echoes its input straight
-  back is fine too: a note that comes back identical within a blink (30 ms) is
+  back is fine too: anything Octessera sends to MIDI out (your keys, MIDI
+  parts, Send MIDI copies) that comes back identical within a blink (30 ms) is
   recognized as our own echo and ignored, so it can't bounce around forever.
 - Stop, Pause, Panic and loading a patch let go of every key you're still
   holding, notes passed on to MIDI out included, so nothing gets stuck.

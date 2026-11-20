@@ -16,6 +16,7 @@ mod dispatch_profile;
 mod internal_note_mirror;
 mod midi;
 mod midi_cc_input;
+mod midi_echo;
 mod midi_note_input;
 mod midi_realtime_input;
 mod music_first;
@@ -197,6 +198,7 @@ pub struct PlaybackRuntime {
     scheduled_note_offs_dirty: bool,
     sounding_notes: sounding_notes::SoundingNotes,
     mirrored_held_notes: internal_note_mirror::MirroredHeldNotes,
+    sent_midi_notes: midi_echo::SentMidiNotes,
     request_next_snapshot: bool,
     next_request_id: u64,
     oled: oled::RuntimeOled,

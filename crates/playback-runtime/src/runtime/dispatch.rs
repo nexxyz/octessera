@@ -62,6 +62,21 @@ impl PlaybackRuntime {
             }
         };
         while let Some(next) = queue.pop_front() {
+            if let HostMessage::MidiNote {
+                channel,
+                note,
+                velocity,
+            } = next
+            {
+                let note = super::MidiNote {
+                    channel,
+                    note,
+                    velocity,
+                };
+                if self.sent_midi_notes.take_echo(note, host.now()) {
+                    continue;
+                }
+            }
             let gated_error = match &next {
                 HostMessage::DeviceInput { input, .. } => self
                     .latched_errors
