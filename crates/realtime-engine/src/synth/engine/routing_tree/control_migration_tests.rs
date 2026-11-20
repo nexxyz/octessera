@@ -1,4 +1,4 @@
-use super::{
+use super::super::{
     prepare_instruments_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MixerConfig, SourceWorkerLifecycle,
     SourceWorkerRenderDisposition, SynthEngine,
@@ -11,7 +11,7 @@ use std::time::Duration;
 
 const MIGRATION_SOURCE_SLOT: usize = 1;
 
-fn shutdown(lifecycle: SourceWorkerLifecycle, runtime: super::SourceWorkerRuntime) {
+fn shutdown(lifecycle: SourceWorkerLifecycle, runtime: super::super::SourceWorkerRuntime) {
     let retirement = runtime.retire();
     let report = lifecycle.shutdown(retirement);
     assert_eq!(report.joined_workers, 2);
@@ -270,11 +270,11 @@ fn assert_source_migration_parity(
         );
         assert!(matches!(
             routed.render_plan.instrument_slots[MIGRATION_SOURCE_SLOT].route,
-            super::render_plan::RenderPlanRoute::Direct
+            super::super::render_plan::RenderPlanRoute::Direct
         ));
     }
     assert!(!routed.take_routing_tree_rejection());
-    super::routing_tree_pipeline_tests::assert_interleaved_reassociated_close(
+    super::pipeline_tests::assert_interleaved_reassociated_close(
         &runtime,
         &routed_output,
         &inline_output,
@@ -284,7 +284,7 @@ fn assert_source_migration_parity(
 
 fn render_quantum(
     engine: &mut SynthEngine,
-    runtime: Option<&mut super::SourceWorkerRuntime>,
+    runtime: Option<&mut super::super::SourceWorkerRuntime>,
     migrated: Option<InstrumentsConfig>,
 ) -> Vec<f32> {
     let mut left = vec![0.0; 128];

@@ -1,9 +1,9 @@
-use super::render_plan::InstrumentKind;
-use super::render_plan::RenderPlan;
-use super::routing_tree_executor::RoutingTreeBlockScratch;
-use super::routing_tree_executor_test_support::*;
-use super::routing_tree_plan::{RoutingTreePlan, INVALID_COMPONENT_ID, ROUTING_NODE_COUNT};
-use super::*;
+use super::super::render_plan::InstrumentKind;
+use super::super::render_plan::RenderPlan;
+use super::super::*;
+use super::executor::RoutingTreeBlockScratch;
+use super::executor_test_support::*;
+use super::plan::{RoutingTreePlan, INVALID_COMPONENT_ID, ROUTING_NODE_COUNT};
 use crate::synth::{BUS_COUNT, INSTRUMENT_SLOT_COUNT};
 
 #[test]

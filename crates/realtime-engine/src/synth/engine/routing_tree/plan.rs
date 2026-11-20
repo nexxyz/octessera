@@ -1,14 +1,14 @@
-use super::super::fx_params::{DuckSource, FxKind};
-use super::super::types::{BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
-use super::render_plan::{RenderPlan, RenderPlanRoute};
+use super::super::super::fx_params::{DuckSource, FxKind};
+use super::super::super::types::{BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
+use super::super::render_plan::{RenderPlan, RenderPlanRoute};
 
 pub(super) const INVALID_COMPONENT_ID: u8 = u8::MAX;
 
 pub(super) const ROUTING_NODE_COUNT: usize = INSTRUMENT_SLOT_COUNT + BUS_COUNT;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct RoutingTreePlan {
-    pub(super) generation: u64,
+pub(in crate::synth::engine) struct RoutingTreePlan {
+    pub(in crate::synth::engine) generation: u64,
     pub(super) slot_component: [u8; INSTRUMENT_SLOT_COUNT],
     pub(super) bus_component: [u8; BUS_COUNT],
     pub(super) component_masks: [u16; ROUTING_NODE_COUNT],

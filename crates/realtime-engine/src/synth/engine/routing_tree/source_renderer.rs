@@ -1,7 +1,7 @@
-use super::render_voice::synth_voice_render::SynthSourceContext;
-use super::routing_tree_source_bank::RoutingTreeSourceBank;
-use super::voice_block_sum::{sum_sample_voice, sum_synth_voice, SlotBlockSum};
-use super::BLOCK_SLOT_SCRATCH_FRAMES;
+use super::super::render_voice::synth_voice_render::SynthSourceContext;
+use super::super::voice_block_sum::{sum_sample_voice, sum_synth_voice, SlotBlockSum};
+use super::super::BLOCK_SLOT_SCRATCH_FRAMES;
+use super::source_bank::RoutingTreeSourceBank;
 use crate::synth::types::INSTRUMENT_SLOT_COUNT;
 
 pub(super) struct RoutingTreeSourceBlockScratch {

@@ -1,14 +1,14 @@
-use super::bus_chain_owner::BusChainCarrier;
-use super::routing_tree_executor::RoutingTreeAssignment;
-use super::routing_tree_state;
-use super::routing_tree_worker::RoutingTreeOwnerData;
-use super::source_worker_carrier_transfer;
-use super::source_worker_lifecycle::{
+use super::super::bus_chain_owner::BusChainCarrier;
+use super::super::source_worker_carrier_transfer;
+use super::super::source_worker_lifecycle::{
     OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerLifecycle,
 };
-use super::source_worker_protocol::{SourceWorkerSetupError, SourceWorkerStartHook};
-use super::source_worker_transfer;
-use super::{SourceWorkerRuntime, SynthEngine};
+use super::super::source_worker_protocol::{SourceWorkerSetupError, SourceWorkerStartHook};
+use super::super::source_worker_transfer;
+use super::super::{SourceWorkerRuntime, SynthEngine};
+use super::executor::RoutingTreeAssignment;
+use super::state;
+use super::worker::RoutingTreeOwnerData;
 use crate::synth::types::BUS_COUNT;
 
 pub(super) fn start_prewarmed(
@@ -45,7 +45,7 @@ fn start_prewarmed_with_hold(
         return Err(error);
     }
     let bus_carriers = source_worker_carrier_transfer::take_bus_carriers(engine);
-    let Some(source_bank) = routing_tree_state::take_source_bank(engine) else {
+    let Some(source_bank) = state::take_source_bank(engine) else {
         source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::PartitionsUnavailable);
@@ -53,7 +53,7 @@ fn start_prewarmed_with_hold(
     let Some(home_partitions) = source_worker_transfer::take_source_partition_bundles(engine)
     else {
         let mut source_bank = source_bank;
-        let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
+        let _ = state::restore_source_bank(engine, &mut source_bank);
         source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::PartitionsUnavailable);
@@ -66,7 +66,7 @@ fn start_prewarmed_with_hold(
     {
         let mut source_bank = source_bank;
         restore_partitions(engine, home_partitions);
-        let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
+        let _ = state::restore_source_bank(engine, &mut source_bank);
         source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::InlineSourceExecutorUnavailable);
@@ -74,13 +74,13 @@ fn start_prewarmed_with_hold(
     let mut bus_carriers = bus_carriers;
     for carrier in bus_carriers.iter_mut().flatten() {
         carrier.routing_tree_spread_state = Some(
-            super::render_routing::FxBusOutputSpreadState::new(engine.sample_rate),
+            super::super::render_routing::FxBusOutputSpreadState::new(engine.sample_rate),
         );
     }
     let Some(assignment) = engine.routing_tree_assignment() else {
         let mut source_bank = source_bank;
         restore_partitions(engine, home_partitions);
-        let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
+        let _ = state::restore_source_bank(engine, &mut source_bank);
         source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
@@ -90,7 +90,7 @@ fn start_prewarmed_with_hold(
         Some(banks) => banks,
         None => {
             restore_partitions(engine, home_partitions);
-            let _ = routing_tree_state::restore_source_bank(engine, &mut source_bank);
+            let _ = state::restore_source_bank(engine, &mut source_bank);
             source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
             lifecycle.mark_runtime_closed();
             let _ = lifecycle.shutdown_after_runtime_drop();
@@ -124,12 +124,7 @@ fn start_prewarmed_with_hold(
     let Some(routing_second) = second_owner.routing_tree.as_mut() else {
         return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
     };
-    if !routing_tree_state::move_engine_aux_to_owners(
-        engine,
-        &assignment,
-        routing_first,
-        routing_second,
-    ) {
+    if !state::move_engine_aux_to_owners(engine, &assignment, routing_first, routing_second) {
         lifecycle.mark_runtime_closed();
         let _ = lifecycle.shutdown_after_runtime_drop();
         return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);

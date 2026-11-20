@@ -1,9 +1,9 @@
-use super::super::types::{MomentaryFxTarget, BUS_COUNT};
-use super::bus_chain_owner::BusChainCarrier;
-use super::retired_state::{store_retired_momentary, store_retired_preview};
-use super::routing_tree_source_bank::RoutingTreeSourceBank;
-use super::routing_tree_worker::RoutingTreeOwnerData;
-use super::SynthEngine;
+use super::super::super::types::{MomentaryFxTarget, BUS_COUNT};
+use super::super::bus_chain_owner::BusChainCarrier;
+use super::super::retired_state::{store_retired_momentary, store_retired_preview};
+use super::super::SynthEngine;
+use super::source_bank::RoutingTreeSourceBank;
+use super::worker::RoutingTreeOwnerData;
 
 pub(super) fn take_source_bank(engine: &mut SynthEngine) -> Option<Box<RoutingTreeSourceBank>> {
     let mut bank = RoutingTreeSourceBank::empty();
@@ -52,7 +52,7 @@ pub(super) fn restore_source_bank(
     install_source_bank(engine, bank)
 }
 
-pub(super) fn move_owner_state_to_engine(
+pub(in crate::synth::engine) fn move_owner_state_to_engine(
     engine: &mut SynthEngine,
     first: &mut RoutingTreeOwnerData,
     second: &mut RoutingTreeOwnerData,
@@ -99,7 +99,7 @@ pub(super) fn move_owner_state_to_engine(
 
 pub(super) fn move_engine_aux_to_owners(
     engine: &mut SynthEngine,
-    assignment: &super::routing_tree_executor::RoutingTreeAssignment,
+    assignment: &super::executor::RoutingTreeAssignment,
     first: &mut RoutingTreeOwnerData,
     second: &mut RoutingTreeOwnerData,
 ) -> bool {
@@ -143,9 +143,9 @@ pub(super) fn move_engine_aux_to_owners(
     true
 }
 
-pub(super) fn move_engine_state_to_owners(
+pub(in crate::synth::engine) fn move_engine_state_to_owners(
     engine: &mut SynthEngine,
-    assignment: &super::routing_tree_executor::RoutingTreeAssignment,
+    assignment: &super::executor::RoutingTreeAssignment,
     first: &mut RoutingTreeOwnerData,
     second: &mut RoutingTreeOwnerData,
 ) -> bool {
@@ -174,13 +174,13 @@ pub(super) fn move_engine_state_to_owners(
     move_engine_aux_to_owners(engine, assignment, first, second)
 }
 
-pub(super) fn preflight_owner_state(
+pub(in crate::synth::engine) fn preflight_owner_state(
     engine: &SynthEngine,
-    assignment: &super::routing_tree_executor::RoutingTreeAssignment,
+    assignment: &super::executor::RoutingTreeAssignment,
     first: &RoutingTreeOwnerData,
     second: &RoutingTreeOwnerData,
 ) -> bool {
-    let result = super::source_worker_transfer::source_partitions_vacant(engine)
+    let result = super::super::source_worker_transfer::source_partitions_vacant(engine)
         && engine.bus_mix.chains.is_empty()
         && engine.preview_sample_voices.iter().all(Option::is_none)
         && owner_state_matches(first, 0, assignment)
@@ -191,7 +191,7 @@ pub(super) fn preflight_owner_state(
 
 fn preflight_owner_state_installed(
     engine: &SynthEngine,
-    assignment: &super::routing_tree_executor::RoutingTreeAssignment,
+    assignment: &super::executor::RoutingTreeAssignment,
     first: &RoutingTreeOwnerData,
     second: &RoutingTreeOwnerData,
 ) -> bool {
@@ -206,7 +206,7 @@ fn preflight_owner_state_installed(
 fn owner_state_matches(
     owner: &RoutingTreeOwnerData,
     parity: usize,
-    assignment: &super::routing_tree_executor::RoutingTreeAssignment,
+    assignment: &super::executor::RoutingTreeAssignment,
 ) -> bool {
     let Some(bank) = owner.source_bank.as_ref() else {
         return false;
@@ -237,14 +237,14 @@ fn owner_state_matches(
 
 fn preflight_engine_aux(
     engine: &SynthEngine,
-    assignment: &super::routing_tree_executor::RoutingTreeAssignment,
+    assignment: &super::executor::RoutingTreeAssignment,
     first: &RoutingTreeOwnerData,
     second: &RoutingTreeOwnerData,
 ) -> bool {
     first.preview_sample_voices.iter().all(Option::is_none)
         && second.preview_sample_voices.iter().all(Option::is_none)
         && first.momentary_fx.len() + second.momentary_fx.len()
-            <= super::control::MOMENTARY_FX_CAPACITY
+            <= super::super::control::MOMENTARY_FX_CAPACITY
         && engine
             .preview_sample_voices
             .iter()
@@ -264,7 +264,7 @@ fn preflight_engine_aux(
 
 fn preflight_engine_source_state(
     engine: &SynthEngine,
-    assignment: &super::routing_tree_executor::RoutingTreeAssignment,
+    assignment: &super::executor::RoutingTreeAssignment,
     first: &RoutingTreeSourceBank,
     second: &RoutingTreeSourceBank,
 ) -> bool {
@@ -278,16 +278,16 @@ fn preflight_engine_source_state(
 
 fn pools_match_assignment(
     engine: &SynthEngine,
-    assignment: &super::routing_tree_executor::RoutingTreeAssignment,
+    assignment: &super::executor::RoutingTreeAssignment,
 ) -> bool {
-    (0..super::super::types::SYNTH_VOICE_LANE_CAPACITY).all(|lane| {
+    (0..super::super::super::types::SYNTH_VOICE_LANE_CAPACITY).all(|lane| {
         engine.synth_voice_pool.lane(lane).is_none_or(|voice| {
             !voice.active
                 || assignment
                     .worker_for_slot(voice.instrument_slot as usize)
                     .is_some()
         })
-    }) && (0..super::super::types::SAMPLE_VOICE_LANE_CAPACITY).all(|lane| {
+    }) && (0..super::super::super::types::SAMPLE_VOICE_LANE_CAPACITY).all(|lane| {
         engine.sample_voice_pool.lane(lane).is_none_or(|voice| {
             !voice.active
                 || assignment
@@ -299,7 +299,7 @@ fn pools_match_assignment(
 
 fn engine_aux_targets_valid(
     engine: &SynthEngine,
-    assignment: &super::routing_tree_executor::RoutingTreeAssignment,
+    assignment: &super::executor::RoutingTreeAssignment,
 ) -> bool {
     engine.momentary_fx.iter().all(|state| match state.target {
         MomentaryFxTarget::Global => true,
@@ -362,7 +362,7 @@ fn transfer_owner_retirements(
     }
 }
 
-pub(super) fn sync_routing_tree_spread_states_to_engine(
+pub(in crate::synth::engine) fn sync_routing_tree_spread_states_to_engine(
     engine: &mut SynthEngine,
     carriers: &mut [Option<BusChainCarrier>; BUS_COUNT],
 ) -> bool {
@@ -382,7 +382,7 @@ pub(super) fn sync_routing_tree_spread_states_to_engine(
     true
 }
 
-pub(super) fn sync_routing_tree_spread_states_to_carriers(
+pub(in crate::synth::engine) fn sync_routing_tree_spread_states_to_carriers(
     engine: &mut SynthEngine,
     carriers: &mut [Option<BusChainCarrier>; BUS_COUNT],
 ) -> bool {

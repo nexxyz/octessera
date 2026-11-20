@@ -1,16 +1,16 @@
-use super::super::synth_voice_pool::SynthVoicePool;
-use super::super::types::BUS_COUNT;
+use super::super::super::synth_voice_pool::SynthVoicePool;
+use super::super::super::types::BUS_COUNT;
 #[cfg(feature = "routing-tree-executor")]
-use super::bus_chain_owner::BusChainOwner;
-use super::render_plan::InstrumentKind;
-use super::render_plan::RenderPlan;
-use super::routing_tree_plan::{RoutingTreePlan, INVALID_COMPONENT_ID, ROUTING_NODE_COUNT};
-use super::sample_voice_pool::SampleVoicePool;
-use super::source_worker_load::{
+use super::super::bus_chain_owner::BusChainOwner;
+use super::super::render_plan::InstrumentKind;
+use super::super::render_plan::RenderPlan;
+use super::super::sample_voice_pool::SampleVoicePool;
+use super::super::source_worker_load::{
     SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_SAMPLE_COST_UNITS, SOURCE_WORKER_SYNTH_COST_UNITS,
 };
 #[cfg(feature = "routing-tree-executor")]
-use super::SynthEngine;
+use super::super::SynthEngine;
+use super::plan::{RoutingTreePlan, INVALID_COMPONENT_ID, ROUTING_NODE_COUNT};
 use crate::synth::types::INSTRUMENT_SLOT_COUNT;
 #[cfg(feature = "routing-tree-executor")]
 use crate::synth::types::{SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY};
@@ -23,15 +23,15 @@ mod reference;
 
 #[cfg(feature = "routing-tree-executor")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct RoutingTreeAssignment {
-    pub(super) plan: RoutingTreePlan,
+pub(in crate::synth::engine) struct RoutingTreeAssignment {
+    pub(in crate::synth::engine) plan: RoutingTreePlan,
     component_worker: [u8; ROUTING_NODE_COUNT],
     slot_worker: [u8; INSTRUMENT_SLOT_COUNT],
 }
 
 #[cfg(feature = "routing-tree-executor")]
 impl RoutingTreeAssignment {
-    pub(super) fn worker_for_slot(&self, slot: usize) -> Option<usize> {
+    pub(in crate::synth::engine) fn worker_for_slot(&self, slot: usize) -> Option<usize> {
         let component = self.plan.slot_component.get(slot).copied()?;
         if component != INVALID_COMPONENT_ID {
             return self.worker_for_component(component);
@@ -161,7 +161,7 @@ impl RoutingTreeAssignment {
     }
 }
 
-pub(super) struct RoutingTreeBlockScratch {
+pub(in crate::synth::engine) struct RoutingTreeBlockScratch {
     #[cfg(test)]
     worker_left: [Vec<f32>; WORKER_COUNT],
     #[cfg(test)]
@@ -174,14 +174,18 @@ pub(super) struct RoutingTreeBlockScratch {
 }
 
 impl RoutingTreeBlockScratch {
-    pub(super) fn new() -> Self {
+    pub(in crate::synth::engine) fn new() -> Self {
         Self {
             #[cfg(test)]
-            worker_left: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
+            worker_left: std::array::from_fn(|_| {
+                vec![0.0; super::super::BLOCK_SLOT_SCRATCH_FRAMES]
+            }),
             #[cfg(test)]
-            worker_right: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
+            worker_right: std::array::from_fn(|_| {
+                vec![0.0; super::super::BLOCK_SLOT_SCRATCH_FRAMES]
+            }),
             #[cfg(test)]
-            bus_input: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
+            bus_input: std::array::from_fn(|_| vec![0.0; super::super::BLOCK_SLOT_SCRATCH_FRAMES]),
             component_worker: [INVALID_WORKER; ROUTING_NODE_COUNT],
             slot_worker: [INVALID_WORKER; INSTRUMENT_SLOT_COUNT],
             plan: RoutingTreePlan::from_render_plan(&RenderPlan::new()),
@@ -190,7 +194,7 @@ impl RoutingTreeBlockScratch {
 
     #[cfg(test)]
     fn prepare(&mut self, frames: usize) -> bool {
-        if frames > super::BLOCK_SLOT_SCRATCH_FRAMES {
+        if frames > super::super::BLOCK_SLOT_SCRATCH_FRAMES {
             return false;
         }
         for worker in 0..WORKER_COUNT {

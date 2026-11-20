@@ -1,10 +1,10 @@
-use super::prepared_control_prepare::{
+use super::super::prepared_control_prepare::{
     PreparedAudioConfig, PreparedFxBusSlot, PreparedInstrumentSlot, PreparedInstrumentsConfig,
 };
-use super::routing_tree_executor::{RoutingTreeAssignment, RoutingTreeBlockScratch};
-use super::routing_tree_plan::RoutingTreePlan;
-use super::routing_tree_worker::RoutingTreeOutputBlock;
-use super::SynthEngine;
+use super::super::SynthEngine;
+use super::executor::{RoutingTreeAssignment, RoutingTreeBlockScratch};
+use super::plan::RoutingTreePlan;
+use super::worker::RoutingTreeOutputBlock;
 use crate::synth::types::{SynthProfileSnapshot, BUS_COUNT};
 
 impl SynthEngine {
@@ -37,7 +37,7 @@ impl SynthEngine {
         }
     }
 
-    pub(super) fn enable_routing_tree(&mut self) -> bool {
+    pub(in crate::synth::engine) fn enable_routing_tree(&mut self) -> bool {
         let Some(assignment) = RoutingTreeBlockScratch::assignment_for_engine(self) else {
             self.reject_routing_tree_mutation();
             return false;
@@ -47,11 +47,13 @@ impl SynthEngine {
         true
     }
 
-    pub(super) fn routing_tree_assignment(&self) -> Option<RoutingTreeAssignment> {
+    pub(in crate::synth::engine) fn routing_tree_assignment(
+        &self,
+    ) -> Option<RoutingTreeAssignment> {
         self.routing_tree_assignment
     }
 
-    pub(super) fn refresh_routing_tree_assignment(&mut self) -> bool {
+    pub(in crate::synth::engine) fn refresh_routing_tree_assignment(&mut self) -> bool {
         let Some(current) = self.routing_tree_assignment else {
             return false;
         };
@@ -72,11 +74,11 @@ impl SynthEngine {
         true
     }
 
-    pub(super) fn routing_tree_mark_note_event(&mut self) {
+    pub(in crate::synth::engine) fn routing_tree_mark_note_event(&mut self) {
         self.routing_tree_notes_started = true;
     }
 
-    pub(super) fn routing_tree_assignment_is_valid(&self) -> bool {
+    pub(in crate::synth::engine) fn routing_tree_assignment_is_valid(&self) -> bool {
         let Some(assignment) = self.routing_tree_assignment.as_ref() else {
             return false;
         };
@@ -93,12 +95,15 @@ impl SynthEngine {
         }
     }
 
-    pub(super) fn routing_tree_prepared_audio_allowed(&self, config: &PreparedAudioConfig) -> bool {
+    pub(in crate::synth::engine) fn routing_tree_prepared_audio_allowed(
+        &self,
+        config: &PreparedAudioConfig,
+    ) -> bool {
         self.routing_tree_source_event_sample_clock.is_some()
             && config.instruments.bus_mix.chains.len() <= BUS_COUNT
     }
 
-    pub(super) fn routing_tree_prepared_instruments_allowed(
+    pub(in crate::synth::engine) fn routing_tree_prepared_instruments_allowed(
         &self,
         config: &PreparedInstrumentsConfig,
     ) -> bool {
@@ -106,7 +111,7 @@ impl SynthEngine {
             && config.bus_mix.chains.len() <= BUS_COUNT
     }
 
-    pub(super) fn routing_tree_prepared_instrument_slot_allowed(
+    pub(in crate::synth::engine) fn routing_tree_prepared_instrument_slot_allowed(
         &self,
         slot: usize,
         _config: &PreparedInstrumentSlot,
@@ -115,7 +120,7 @@ impl SynthEngine {
             && self.render_plan.instrument_slots.get(slot).is_some()
     }
 
-    pub(super) fn routing_tree_prepared_fx_bus_slot_allowed(
+    pub(in crate::synth::engine) fn routing_tree_prepared_fx_bus_slot_allowed(
         &self,
         bus: usize,
         slot: usize,
@@ -130,11 +135,14 @@ impl SynthEngine {
                 .is_some()
     }
 
-    pub(super) fn reject_routing_tree_mutation_for_control(&mut self) {
+    pub(in crate::synth::engine) fn reject_routing_tree_mutation_for_control(&mut self) {
         self.reject_routing_tree_mutation();
     }
 
-    pub(super) fn set_routing_tree_profile(&mut self, outputs: [&RoutingTreeOutputBlock; 2]) {
+    pub(in crate::synth::engine) fn set_routing_tree_profile(
+        &mut self,
+        outputs: [&RoutingTreeOutputBlock; 2],
+    ) {
         self.routing_tree_profile = SynthProfileSnapshot {
             active_synth_voices: outputs
                 .iter()

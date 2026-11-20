@@ -1,5 +1,5 @@
-use super::render_plan::RenderPlan;
-use super::routing_tree_plan::{RoutingTreePlan, INVALID_COMPONENT_ID};
+use super::super::render_plan::RenderPlan;
+use super::plan::{RoutingTreePlan, INVALID_COMPONENT_ID};
 use crate::synth::test_allocator;
 use crate::synth::types::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,

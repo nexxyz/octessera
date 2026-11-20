@@ -1,4 +1,4 @@
-use super::super::routing_tree_worker::RoutingTreeOutputBlock;
+use super::super::routing_tree::worker::RoutingTreeOutputBlock;
 use super::super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
 use super::super::source_worker_lifecycle::SourceWorkerLifecycle;
 use super::super::source_worker_load::SourceWorkerLoad;

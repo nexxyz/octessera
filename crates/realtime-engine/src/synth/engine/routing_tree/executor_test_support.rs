@@ -1,7 +1,7 @@
-use super::super::fx::FxBusState;
-use super::routing_tree_momentary_test_support::momentary_state;
-use super::routing_tree_plan::RoutingTreePlan;
-use super::SynthEngine;
+use super::super::super::fx::FxBusState;
+use super::super::SynthEngine;
+use super::momentary_test_support::momentary_state;
+use super::plan::RoutingTreePlan;
 use crate::synth::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MasterFxConfig, MixerConfig, MixerRoute,
@@ -397,7 +397,7 @@ pub(super) fn assert_reassociated_close(
         })
         .sum::<f32>();
     let unit_roundoff = f32::EPSILON * 0.5;
-    let operation_count = (INSTRUMENT_SLOT_COUNT + super::super::types::BUS_COUNT) as f32;
+    let operation_count = (INSTRUMENT_SLOT_COUNT + super::super::super::types::BUS_COUNT) as f32;
     let error_ratio = (operation_count * unit_roundoff) / (1.0 - operation_count * unit_roundoff);
     let bound = magnitude * error_ratio;
     let ulp = ulp_size(actual.abs().max(expected.abs()));

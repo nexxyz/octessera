@@ -1,4 +1,4 @@
-use super::*;
+use super::super::*;
 use crate::synth::{SampleLoopMode, SamplePlaybackConfig, ScalarMutation};
 
 const RATE: u32 = 44_100;

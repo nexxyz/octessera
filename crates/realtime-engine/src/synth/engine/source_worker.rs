@@ -1,4 +1,4 @@
-use super::routing_tree_worker::RoutingTreeOutputBlock;
+use super::routing_tree::worker::RoutingTreeOutputBlock;
 use super::source_worker_health::{
     SourceWorkerHealth, SourceWorkerHealthSnapshot, SourceWorkerHealthState,
 };

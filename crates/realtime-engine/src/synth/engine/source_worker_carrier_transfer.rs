@@ -17,7 +17,7 @@ struct OwnerReturnData {
     generation: u64,
     parity: usize,
     partitions: SourceLanePartitionBundle,
-    routing_tree: Option<super::routing_tree_worker::RoutingTreeOwnerData>,
+    routing_tree: Option<super::routing_tree::worker::RoutingTreeOwnerData>,
 }
 
 pub(super) fn with_both_source_owners<R>(
@@ -42,12 +42,14 @@ pub(super) fn with_both_source_owners_for_routing_tree_controls<R>(
     ) -> Result<R, ()>,
 ) -> Result<R, ()> {
     with_both_source_owners_inner(engine, first, second, true, |engine, carriers| {
-        if !super::routing_tree_state::sync_routing_tree_spread_states_to_engine(engine, carriers) {
+        if !super::routing_tree::state::sync_routing_tree_spread_states_to_engine(engine, carriers)
+        {
             return Err(());
         }
         let result = operation(engine, carriers);
-        if !super::routing_tree_state::sync_routing_tree_spread_states_to_carriers(engine, carriers)
-        {
+        if !super::routing_tree::state::sync_routing_tree_spread_states_to_carriers(
+            engine, carriers,
+        ) {
             return Err(());
         }
         result
@@ -97,7 +99,7 @@ fn with_both_source_owners_inner<R>(
             second.restore_owner(second_owner);
             return Err(());
         };
-        if !super::routing_tree_state::preflight_owner_state(
+        if !super::routing_tree::state::preflight_owner_state(
             engine,
             &assignment,
             first_routing_tree,
@@ -134,7 +136,7 @@ fn with_both_source_owners_inner<R>(
             let Some(second_routing_tree) = second_routing_tree.as_mut() else {
                 panic!("routing-tree owner state missing");
             };
-            if !super::routing_tree_state::move_owner_state_to_engine(
+            if !super::routing_tree::state::move_owner_state_to_engine(
                 engine,
                 first_routing_tree,
                 second_routing_tree,
@@ -153,7 +155,7 @@ fn with_both_source_owners_inner<R>(
             let Some(second_routing_tree) = second_routing_tree.as_mut() else {
                 panic!("routing-tree owner state missing");
             };
-            if !super::routing_tree_state::move_engine_state_to_owners(
+            if !super::routing_tree::state::move_engine_state_to_owners(
                 engine,
                 &assignment,
                 first_routing_tree,

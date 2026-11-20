@@ -1,13 +1,13 @@
-use super::routing_tree_executor::RoutingTreeAssignment;
-use super::sample_voice::SampleVoice;
+use super::super::sample_voice::SampleVoice;
+use super::executor::RoutingTreeAssignment;
 use crate::synth::pluck_string::PluckRings;
 use crate::synth::runtime_state::Voice;
 use crate::synth::types::{SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY};
 
-pub(super) struct RoutingTreeSourceBank {
-    pub(super) synth: Box<[Voice; SYNTH_VOICE_LANE_CAPACITY]>,
+pub(in crate::synth::engine) struct RoutingTreeSourceBank {
+    pub(in crate::synth::engine) synth: Box<[Voice; SYNTH_VOICE_LANE_CAPACITY]>,
     pub(super) rings: PluckRings,
-    pub(super) sample: Box<[SampleVoice; SAMPLE_VOICE_LANE_CAPACITY]>,
+    pub(in crate::synth::engine) sample: Box<[SampleVoice; SAMPLE_VOICE_LANE_CAPACITY]>,
 }
 
 impl RoutingTreeSourceBank {

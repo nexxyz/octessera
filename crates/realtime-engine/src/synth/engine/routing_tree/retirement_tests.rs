@@ -1,5 +1,5 @@
-use super::source_worker_test_fixtures::sample_engine_with_shared_buffer;
-use super::*;
+use super::super::source_worker_test_fixtures::sample_engine_with_shared_buffer;
+use super::super::*;
 use crate::synth::types::{default_synth_config, DEFAULT_PAN_POSITIONS};
 use crate::synth::{MomentaryFxTarget, SampleBuffer};
 use std::collections::BTreeMap;

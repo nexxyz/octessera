@@ -1,13 +1,11 @@
-use super::routing_tree_executor_test_support::{
-    assert_momentary_state_matches, assert_reassociated_close,
-};
-use super::{
+use super::super::{
     FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig, InstrumentSlotConfig, InstrumentsConfig,
     MixerConfig,
 };
-use super::{
+use super::super::{
     SourceWorkerHealth, SourceWorkerLifecycle, SourceWorkerRenderDisposition, SynthEngine,
 };
+use super::executor_test_support::{assert_momentary_state_matches, assert_reassociated_close};
 use crate::synth::types::{default_synth_config, MixerRoute, DEFAULT_PAN_POSITIONS};
 use crate::synth::{
     RoutingTreePipelineProbe, SourceWorkerRuntime, BUS_CHAIN_SLOT_COST_UNITS,
@@ -38,13 +36,16 @@ fn render_block(
         .render_interleaved_block_with_source_runtime(runtime, 128, &mut left, &mut right, &mut out)
 }
 
-pub(super) fn shutdown(lifecycle: SourceWorkerLifecycle, runtime: SourceWorkerRuntime) {
+pub(in crate::synth::engine) fn shutdown(
+    lifecycle: SourceWorkerLifecycle,
+    runtime: SourceWorkerRuntime,
+) {
     let retirement = runtime.retire();
     let report = lifecycle.shutdown(retirement);
     assert_eq!(report.joined_workers, 2);
 }
 
-pub(super) fn assert_interleaved_reassociated_close(
+pub(in crate::synth::engine) fn assert_interleaved_reassociated_close(
     runtime: &SourceWorkerRuntime,
     actual: &[f32],
     expected: &[f32],

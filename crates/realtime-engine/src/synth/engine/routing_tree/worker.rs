@@ -1,17 +1,15 @@
-use super::momentary_fx_state::MomentaryFxState;
-use super::render_samples::render_preview_sample_voices_block_into;
-use super::render_voice::synth_voice_render::SynthSourceContext;
-use super::retired_state::PREVIEW_AUDITION_SLOTS;
-use super::routing_tree_executor::RoutingTreeAssignment;
-use super::routing_tree_plan::RoutingTreePlan;
-use super::routing_tree_source_bank::RoutingTreeSourceBank;
-use super::routing_tree_source_renderer::{
-    render_routing_tree_sources, RoutingTreeSourceBlockScratch,
-};
-use super::sample_voice::PreviewSampleVoice;
-use super::source_worker_lifecycle::OwnerEnvelope;
-use super::source_worker_protocol::WorkStamp;
-use super::SynthEngine;
+use super::super::momentary_fx_state::MomentaryFxState;
+use super::super::render_samples::render_preview_sample_voices_block_into;
+use super::super::render_voice::synth_voice_render::SynthSourceContext;
+use super::super::retired_state::PREVIEW_AUDITION_SLOTS;
+use super::super::sample_voice::PreviewSampleVoice;
+use super::super::source_worker_lifecycle::OwnerEnvelope;
+use super::super::source_worker_protocol::WorkStamp;
+use super::super::SynthEngine;
+use super::executor::RoutingTreeAssignment;
+use super::plan::RoutingTreePlan;
+use super::source_bank::RoutingTreeSourceBank;
+use super::source_renderer::{render_routing_tree_sources, RoutingTreeSourceBlockScratch};
 use crate::synth::dsp_config::BusIdleThreshold;
 use crate::synth::signal_tap::{SignalSource, SignalTap};
 use crate::synth::types::{
@@ -20,11 +18,13 @@ use crate::synth::types::{
 };
 
 pub(super) const ROUTING_TREE_WORKER_COUNT: usize = 2;
-pub(super) const ROUTING_TREE_MAX_COST_UNITS: u16 = (SYNTH_VOICE_LANE_CAPACITY
-    * super::source_worker_load::SOURCE_WORKER_SYNTH_COST_UNITS as usize
+pub(in crate::synth::engine) const ROUTING_TREE_MAX_COST_UNITS: u16 = (SYNTH_VOICE_LANE_CAPACITY
+    * super::super::source_worker_load::SOURCE_WORKER_SYNTH_COST_UNITS as usize
     + (SAMPLE_VOICE_LANE_CAPACITY + PREVIEW_AUDITION_SLOTS)
-        * super::source_worker_load::SOURCE_WORKER_SAMPLE_COST_UNITS as usize
-    + BUS_COUNT * BUS_SLOTS_PER_BUS * super::bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS as usize)
+        * super::super::source_worker_load::SOURCE_WORKER_SAMPLE_COST_UNITS as usize
+    + BUS_COUNT
+        * BUS_SLOTS_PER_BUS
+        * super::super::bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS as usize)
     as u16;
 
 pub(super) struct RoutingTreeWorkerScratch {
@@ -39,17 +39,17 @@ pub(super) struct RoutingTreeWorkerScratch {
 impl RoutingTreeWorkerScratch {
     pub(super) fn new() -> Self {
         Self {
-            slot_out: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
-            bus_input: std::array::from_fn(|_| vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES]),
+            slot_out: std::array::from_fn(|_| vec![0.0; super::super::BLOCK_SLOT_SCRATCH_FRAMES]),
+            bus_input: std::array::from_fn(|_| vec![0.0; super::super::BLOCK_SLOT_SCRATCH_FRAMES]),
             source: RoutingTreeSourceBlockScratch::new(),
-            preview_active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
-            preview_out: vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES],
-            momentary_active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
+            preview_active: vec![false; super::super::BLOCK_SLOT_SCRATCH_FRAMES],
+            preview_out: vec![0.0; super::super::BLOCK_SLOT_SCRATCH_FRAMES],
+            momentary_active: vec![false; super::super::BLOCK_SLOT_SCRATCH_FRAMES],
         }
     }
 
     fn prepare(&mut self, frames: usize) -> bool {
-        if frames > super::BLOCK_SLOT_SCRATCH_FRAMES {
+        if frames > super::super::BLOCK_SLOT_SCRATCH_FRAMES {
             return false;
         }
         for output in &mut self.slot_out {
@@ -65,11 +65,11 @@ impl RoutingTreeWorkerScratch {
     }
 }
 
-pub(super) struct RoutingTreeOutputBlock {
-    pub(super) left: Vec<f32>,
-    pub(super) right: Vec<f32>,
-    pub(super) source_active: Vec<bool>,
-    pub(super) bus_active: Vec<bool>,
+pub(in crate::synth::engine) struct RoutingTreeOutputBlock {
+    pub(in crate::synth::engine) left: Vec<f32>,
+    pub(in crate::synth::engine) right: Vec<f32>,
+    pub(in crate::synth::engine) source_active: Vec<bool>,
+    pub(in crate::synth::engine) bus_active: Vec<bool>,
     pub(super) active_synth_voices: usize,
     pub(super) active_sample_voices: usize,
     pub(super) active_preview_sample_voices: usize,
@@ -78,12 +78,12 @@ pub(super) struct RoutingTreeOutputBlock {
 }
 
 impl RoutingTreeOutputBlock {
-    pub(super) fn new() -> Self {
+    pub(in crate::synth::engine) fn new() -> Self {
         Self {
-            left: vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES],
-            right: vec![0.0; super::BLOCK_SLOT_SCRATCH_FRAMES],
-            source_active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
-            bus_active: vec![false; super::BLOCK_SLOT_SCRATCH_FRAMES],
+            left: vec![0.0; super::super::BLOCK_SLOT_SCRATCH_FRAMES],
+            right: vec![0.0; super::super::BLOCK_SLOT_SCRATCH_FRAMES],
+            source_active: vec![false; super::super::BLOCK_SLOT_SCRATCH_FRAMES],
+            bus_active: vec![false; super::super::BLOCK_SLOT_SCRATCH_FRAMES],
             active_synth_voices: 0,
             active_sample_voices: 0,
             active_preview_sample_voices: 0,
@@ -93,7 +93,7 @@ impl RoutingTreeOutputBlock {
     }
 
     pub(super) fn prepare(&mut self, frames: usize) -> bool {
-        if frames > super::BLOCK_SLOT_SCRATCH_FRAMES {
+        if frames > super::super::BLOCK_SLOT_SCRATCH_FRAMES {
             return false;
         }
         self.left[..frames].fill(0.0);
@@ -109,16 +109,17 @@ impl RoutingTreeOutputBlock {
     }
 }
 
-pub(super) struct RoutingTreeOwnerData {
+pub(in crate::synth::engine) struct RoutingTreeOwnerData {
     pub(super) scratch: RoutingTreeWorkerScratch,
-    pub(super) output: RoutingTreeOutputBlock,
-    pub(super) source_bank: Option<Box<RoutingTreeSourceBank>>,
-    pub(super) preview_sample_voices: [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
+    pub(in crate::synth::engine) output: RoutingTreeOutputBlock,
+    pub(in crate::synth::engine) source_bank: Option<Box<RoutingTreeSourceBank>>,
+    pub(in crate::synth::engine) preview_sample_voices:
+        [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
     pub(super) preview_sample_orders: [u64; PREVIEW_AUDITION_SLOTS],
-    pub(super) momentary_fx: Vec<MomentaryFxState>,
+    pub(in crate::synth::engine) momentary_fx: Vec<MomentaryFxState>,
     pub(super) retired_preview_samples: [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-    pub(super) retired_momentary_fx:
-        [Option<MomentaryFxState>; super::control::MOMENTARY_FX_CAPACITY],
+    pub(in crate::synth::engine) retired_momentary_fx:
+        [Option<MomentaryFxState>; super::super::control::MOMENTARY_FX_CAPACITY],
     pub(super) fx_silence_generation: u32,
 }
 
@@ -130,7 +131,7 @@ impl RoutingTreeOwnerData {
             source_bank: Some(source_bank),
             preview_sample_voices: std::array::from_fn(|_| None),
             preview_sample_orders: [0; PREVIEW_AUDITION_SLOTS],
-            momentary_fx: Vec::with_capacity(super::control::MOMENTARY_FX_CAPACITY),
+            momentary_fx: Vec::with_capacity(super::super::control::MOMENTARY_FX_CAPACITY),
             retired_preview_samples: std::array::from_fn(|_| None),
             retired_momentary_fx: std::array::from_fn(|_| None),
             fx_silence_generation,
@@ -139,16 +140,16 @@ impl RoutingTreeOwnerData {
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct RoutingTreeWorkerContext {
+pub(in crate::synth::engine) struct RoutingTreeWorkerContext {
     pub(super) slot_worker: [u8; INSTRUMENT_SLOT_COUNT],
-    pub(super) bus_worker: [u8; BUS_COUNT],
-    pub(super) slot_route: [super::render_plan::RenderPlanRoute; INSTRUMENT_SLOT_COUNT],
+    pub(in crate::synth::engine) bus_worker: [u8; BUS_COUNT],
+    pub(super) slot_route: [super::super::render_plan::RenderPlanRoute; INSTRUMENT_SLOT_COUNT],
     pub(super) slot_volume: [f32; INSTRUMENT_SLOT_COUNT],
     pub(super) slot_pan_gains: [(f32, f32); INSTRUMENT_SLOT_COUNT],
     pub(super) bus_pan_gains: [(f32, f32); BUS_COUNT],
     pub(super) bus_volume: [f32; BUS_COUNT],
-    pub(super) mixer_gain_ramps: super::mixer_gain_ramp::MixerGainRamps,
-    pub(super) bus_count: usize,
+    pub(super) mixer_gain_ramps: super::super::mixer_gain_ramp::MixerGainRamps,
+    pub(in crate::synth::engine) bus_count: usize,
     pub(super) sample_rate: u32,
     pub(super) synth_context: SynthSourceContext,
     pub(super) bus_idle_threshold: BusIdleThreshold,
@@ -159,7 +160,7 @@ pub(super) struct RoutingTreeWorkerContext {
 }
 
 impl RoutingTreeWorkerContext {
-    pub(super) fn from_engine(
+    pub(in crate::synth::engine) fn from_engine(
         engine: &SynthEngine,
         assignment: &RoutingTreeAssignment,
     ) -> Option<Self> {
@@ -207,7 +208,7 @@ impl RoutingTreeWorkerContext {
     }
 }
 
-pub(super) fn render_owner(
+pub(in crate::synth::engine) fn render_owner(
     owner: &mut OwnerEnvelope,
     context: RoutingTreeWorkerContext,
     stamp: WorkStamp,
@@ -240,7 +241,7 @@ pub(super) fn render_owner(
         if let Some(bank) = routing.source_bank.as_mut() {
             bank.end_poisoned_voices();
         }
-        super::retired_state::retire_momentary_states(
+        super::super::retired_state::retire_momentary_states(
             &mut routing.momentary_fx,
             &mut routing.retired_momentary_fx,
         );
@@ -271,17 +272,12 @@ pub(super) fn render_owner(
                 &mut routing.scratch.preview_active,
             );
             for voice in completed.into_iter().flatten() {
-                super::retired_state::store_retired_preview(
+                super::super::retired_state::store_retired_preview(
                     &mut routing.retired_preview_samples,
                     voice,
                 );
             }
-            super::routing_tree_component_renderer::stage_components(
-                owner,
-                &mut routing,
-                &context,
-                stamp.frames,
-            )
+            super::component_renderer::stage_components(owner, &mut routing, &context, stamp.frames)
         }
     };
     owner.routing_tree = Some(routing);

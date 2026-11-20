@@ -1,9 +1,9 @@
-use super::momentary_fx_voice::MomentaryFxVoice;
-use super::SynthEngine;
+use super::super::momentary_fx_voice::MomentaryFxVoice;
+use super::super::SynthEngine;
 
 /// The positions and filter memories of each running Play FX; capture buffers are left out, as
 /// the routed and inline renders they hold may differ by reassociation.
-pub(super) fn momentary_state(engine: &SynthEngine) -> Vec<String> {
+pub(in crate::synth::engine) fn momentary_state(engine: &SynthEngine) -> Vec<String> {
     engine
         .momentary_fx
         .iter()

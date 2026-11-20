@@ -1,10 +1,10 @@
-use super::bus_chain_owner::BusChainFrameOutput;
-use super::duck_source::resolve_duck_source;
-use super::render_momentary_fx::process_momentary_fx_states;
-use super::render_plan::RenderPlanRoute;
-use super::render_routing::{render_bus_stereo_output, FxBusOutputSpreadState};
-use super::routing_tree_worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
-use super::source_worker_lifecycle::OwnerEnvelope;
+use super::super::bus_chain_owner::BusChainFrameOutput;
+use super::super::duck_source::resolve_duck_source;
+use super::super::render_momentary_fx::process_momentary_fx_states;
+use super::super::render_plan::RenderPlanRoute;
+use super::super::render_routing::{render_bus_stereo_output, FxBusOutputSpreadState};
+use super::super::source_worker_lifecycle::OwnerEnvelope;
+use super::worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
 use crate::synth::fx_params::FxBusParams;
 use crate::synth::signal_tap::SignalSource;
 use crate::synth::types::{BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
@@ -36,7 +36,8 @@ pub(super) fn stage_components(
             *raw = routing.scratch.slot_out[slot][frame];
             let worker = context.slot_worker[slot];
             if worker == owner.parity as u8 {
-                let target = super::super::types::MomentaryFxTarget::Instrument { index: slot };
+                let target =
+                    super::super::super::types::MomentaryFxTarget::Instrument { index: slot };
                 let sample = *raw * slot_volume[slot];
                 let (fx_l, fx_r) = process_momentary_fx_states(
                     &mut routing.momentary_fx,
@@ -104,7 +105,7 @@ pub(super) fn stage_components(
                     continue;
                 };
                 if let FxBusParams::Duck {
-                    source: super::super::fx_params::DuckSource::Bus(source_bus),
+                    source: super::super::super::fx_params::DuckSource::Bus(source_bus),
                     ..
                 } = params
                 {
@@ -115,7 +116,7 @@ pub(super) fn stage_components(
                     }
                 }
                 if let FxBusParams::Duck {
-                    source: super::super::fx_params::DuckSource::Instrument(source_slot),
+                    source: super::super::super::fx_params::DuckSource::Instrument(source_slot),
                     ..
                 } = params
                 {
@@ -177,7 +178,7 @@ pub(super) fn stage_components(
             .as_mut()
             .expect("spread state");
         for frame in 0..frames {
-            let target = super::super::types::MomentaryFxTarget::FxBus { index: bus };
+            let target = super::super::super::types::MomentaryFxTarget::FxBus { index: bus };
             let chain_ran = carrier.scratch.chain_ran[frame];
             let tail_held = !chain_ran && routing.momentary_fx.iter().any(|fx| fx.target == target);
             let mono = carrier.scratch.mono_output[frame];

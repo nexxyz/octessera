@@ -1,4 +1,4 @@
-use super::super::routing_tree_worker::RoutingTreeWorkerContext;
+use super::super::routing_tree::worker::RoutingTreeWorkerContext;
 use super::super::source_worker_health::SourceWorkerHealth;
 use super::super::source_worker_protocol::{RoutingTreeWork, SourceWorkerRenderDisposition};
 use super::super::{SynthEngine, BLOCK_SLOT_SCRATCH_FRAMES};
@@ -296,7 +296,7 @@ impl SourceWorkerRuntime {
         {
             if !load.observe_pair_with_max_cost(
                 [first, second],
-                super::super::routing_tree_worker::ROUTING_TREE_MAX_COST_UNITS,
+                super::super::routing_tree::worker::ROUTING_TREE_MAX_COST_UNITS,
             ) {
                 self.latch_completion_failure(0b11);
                 self.source_load_observations = [None; SOURCE_WORKER_COUNT];

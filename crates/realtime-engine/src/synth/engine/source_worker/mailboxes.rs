@@ -59,7 +59,7 @@ impl SourceWorkerRuntime {
             && self.expected_stamp == Some(completion.stamp)
             && completion.render_ok
             && completion.active_cost_units
-                <= super::super::routing_tree_worker::ROUTING_TREE_MAX_COST_UNITS
+                <= super::super::routing_tree::worker::ROUTING_TREE_MAX_COST_UNITS
     }
 
     pub(super) fn reclaim_available(&mut self, _engine: &mut SynthEngine) {

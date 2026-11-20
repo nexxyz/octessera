@@ -56,7 +56,7 @@ fn routing_tree_actual_threaded_over_max_combined_completion_is_terminal() {
     assert!(runtime.rewrite_completion_measurement_for_test(
         0,
         1_000_000,
-        super::super::routing_tree_worker::ROUTING_TREE_MAX_COST_UNITS + 1,
+        super::super::worker::ROUTING_TREE_MAX_COST_UNITS + 1,
     ));
     assert!(!runtime.collect_wait_for_test(&mut engine));
     assert_eq!(

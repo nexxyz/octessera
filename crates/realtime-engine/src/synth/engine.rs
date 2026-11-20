@@ -76,48 +76,8 @@ mod render_synth_block_tests;
 mod render_tests;
 mod render_voice;
 mod retired_state;
-#[cfg(feature = "routing-tree-executor")]
-mod routing_tree_admission;
-#[cfg(all(test, feature = "routing-tree-executor"))]
-mod routing_tree_completion_tests;
-#[cfg(feature = "routing-tree-executor")]
-mod routing_tree_component_renderer;
-#[cfg(all(test, feature = "routing-tree-executor"))]
-mod routing_tree_control_migration_tests;
 #[cfg(any(test, feature = "routing-tree-executor"))]
-mod routing_tree_executor;
-#[cfg(test)]
-mod routing_tree_executor_assignment_tests;
-#[cfg(test)]
-mod routing_tree_executor_state_tests;
-#[cfg(test)]
-mod routing_tree_executor_test_support;
-#[cfg(test)]
-mod routing_tree_executor_tests;
-#[cfg(feature = "routing-tree-executor")]
-mod routing_tree_lifecycle;
-#[cfg(test)]
-mod routing_tree_momentary_test_support;
-#[cfg(all(test, feature = "routing-tree-executor"))]
-mod routing_tree_pipeline_tests;
-#[cfg(any(test, feature = "routing-tree-executor"))]
-mod routing_tree_plan;
-#[cfg(test)]
-mod routing_tree_plan_tests;
-#[cfg(all(test, feature = "routing-tree-executor"))]
-mod routing_tree_retirement_tests;
-#[cfg(feature = "routing-tree-executor")]
-mod routing_tree_source_bank;
-#[cfg(feature = "routing-tree-executor")]
-mod routing_tree_source_renderer;
-#[cfg(feature = "routing-tree-executor")]
-mod routing_tree_state;
-#[cfg(test)]
-mod routing_tree_validation;
-#[cfg(feature = "routing-tree-executor")]
-mod routing_tree_worker;
-#[cfg(all(test, feature = "routing-tree-executor"))]
-mod routing_tree_worker_parity_tests;
+mod routing_tree;
 #[cfg(test)]
 mod sample_buffer_view_tests;
 #[cfg(test)]
@@ -227,9 +187,9 @@ use pan_law::{pan_gains, pan_gains_float};
 use render_plan::RenderPlan;
 use render_plan::{slot_route, InstrumentKind};
 #[cfg(feature = "routing-tree-executor")]
-use routing_tree_executor::RoutingTreeAssignment;
+use routing_tree::executor::RoutingTreeAssignment;
 #[cfg(test)]
-use routing_tree_executor::RoutingTreeBlockScratch;
+use routing_tree::executor::RoutingTreeBlockScratch;
 use sample_voice::{sample_slot_for_note, PreviewSampleVoice, SampleBufferView, SampleVoice};
 use sample_voice_pool::SampleVoicePool;
 

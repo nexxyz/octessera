@@ -1,5 +1,5 @@
 use super::super::synth_voice_pool::SynthVoicePartition;
-use super::routing_tree_worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
+use super::routing_tree::worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
 use super::sample_voice_pool::SampleVoicePartition;
 use super::source_worker_protocol::WorkStamp;
 
@@ -25,7 +25,7 @@ pub(super) struct RoutingTreeWork {
 
 impl RoutingTreeWork {
     pub(super) fn render(&mut self) -> Result<u16, ()> {
-        super::routing_tree_worker::render_owner(&mut self.owner, self.context, self.stamp)
+        super::routing_tree::worker::render_owner(&mut self.owner, self.context, self.stamp)
     }
 
     pub(super) fn active_cost_units(&self) -> u16 {
