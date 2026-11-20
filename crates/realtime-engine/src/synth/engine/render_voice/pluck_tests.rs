@@ -25,19 +25,33 @@ pub(super) fn pluck_engine(cfg: PluckConfig, sample_rate: u32) -> SynthEngine {
 
 #[test]
 fn pluck_starts_immediately_across_midi_range_with_safe_full_delay_ring() {
+    let dispersed = |brightness_pct, decay_ms| PluckConfig {
+        dispersion_pct: 100,
+        brightness_pct,
+        decay_ms,
+        ..PluckConfig::default()
+    };
+    let configs = [
+        PluckConfig::default(),
+        dispersed(0.0, 100.0),
+        dispersed(100.0, 5_000.0),
+    ];
     for sample_rate in [44_100, 48_000] {
-        for note in 0_u8..=127 {
-            let mut engine = pluck_engine(PluckConfig::default(), sample_rate);
-            engine.note_on(0, note, 127, 10_000);
-            let voice = engine.synth_voice_pool.lane(0).unwrap();
-            assert!(voice.pluck_voice);
-            assert!((3..8192).contains(&voice.pluck.delay));
-            let delay = voice.pluck.delay;
-            let first = engine.next_sample();
-            assert!(first.is_finite() && first.abs() > 1e-9, "note {note}");
-            for _ in 0..(delay * 3 + 100) {
-                let sample = engine.next_sample();
-                assert!(sample.is_finite() && sample.abs() < 8.0, "note {note}");
+        for (config, cfg) in configs.iter().enumerate() {
+            for note in 0_u8..=127 {
+                let mut engine = pluck_engine(*cfg, sample_rate);
+                engine.note_on(0, note, 127, 10_000);
+                let voice = engine.synth_voice_pool.lane(0).unwrap();
+                assert!(voice.pluck_voice);
+                assert!((3..8192).contains(&voice.pluck.delay));
+                let delay = voice.pluck.delay;
+                let first = engine.next_sample();
+                let at = format!("{sample_rate} Hz config {config} note {note}");
+                assert!(first.is_finite() && first.abs() > 1e-9, "{at}");
+                for _ in 0..(delay * 3 + 100) {
+                    let sample = engine.next_sample();
+                    assert!(sample.is_finite() && sample.abs() < 8.0, "{at}");
+                }
             }
         }
     }
