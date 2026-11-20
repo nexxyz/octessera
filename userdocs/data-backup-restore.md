@@ -67,6 +67,14 @@ desktop simulator doesn't have it.
      -o octessera-user-data.oct "$URL/export"
    ```
 
+   On Windows, type this in PowerShell or Command Prompt (say `curl.exe`, not
+   `curl`, since PowerShell's `curl` is something else), with your own address
+   and code filled in:
+
+   ```bat
+   curl.exe -fL -H "X-Octessera-Transfer-Code: <code>" -o octessera-user-data.oct "http://<board-ip>:8081/export"
+   ```
+
    Use `$URL/export?media=1` instead to include media: samples you added to
    the board (folders too, up to four levels deep) and your recordings. The
    bundled library and samples on the SD2 card stay where they are.
