@@ -289,12 +289,10 @@ impl SynthEngine {
     /// The browser preview's mono contribution to this frame, already at unity, for the master.
     pub(super) fn render_preview_sample_voices(&mut self) -> (f32, bool) {
         let (sample, active) = render_preview_frame(&mut self.preview_sample_voices);
-        for voice in take_completed_previews(&mut self.preview_sample_voices)
-            .into_iter()
-            .flatten()
-        {
-            self.retire_render_preview(voice);
-        }
+        retire_completed_previews(
+            &mut self.preview_sample_voices,
+            &mut self.pending_render_retired.preview_sample_voices,
+        );
         (sample, active)
     }
 }
@@ -305,11 +303,12 @@ pub(super) fn render_preview_sample_voices_block_into(
     frames: usize,
     preview_out: &mut [f32],
     active_frames: &mut [bool],
-) -> [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS] {
+    retired: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
+) {
     for frame in 0..frames {
         (preview_out[frame], active_frames[frame]) = render_preview_frame(voices);
     }
-    take_completed_previews(voices)
+    retire_completed_previews(voices, retired);
 }
 
 fn render_preview_frame(
@@ -331,18 +330,23 @@ fn render_preview_frame(
     (out, active || voices.iter().any(Option::is_some))
 }
 
-fn take_completed_previews(
+/// Moves finished previews to free retired slots; one with no free slot stays in place, silent,
+/// so its buffer is never freed on the audio thread.
+fn retire_completed_previews(
     voices: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
-) -> [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS] {
-    std::array::from_fn(|index| {
-        let complete = voices[index].as_ref().is_some_and(|voice| {
+    retired: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
+) {
+    for voice in voices.iter_mut() {
+        let complete = voice.as_ref().is_some_and(|voice| {
             let frames = voice.buffer.samples.len() / voice.buffer.channels.max(1) as usize;
             frames == 0 || voice.pos >= frames as f64
         });
-        if complete {
-            voices[index].take()
-        } else {
-            None
+        if !complete {
+            continue;
         }
-    })
+        let Some(slot) = retired.iter_mut().find(|slot| slot.is_none()) else {
+            return;
+        };
+        *slot = voice.take();
+    }
 }

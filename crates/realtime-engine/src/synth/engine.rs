@@ -123,7 +123,7 @@ pub use prepared_momentary_fx::{
     PreparedMomentaryFxStart, PreparedMomentaryFxUpdate,
 };
 pub use retired_state::RetiredAudioState;
-use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};
+use retired_state::PREVIEW_AUDITION_SLOTS;
 #[cfg(feature = "routing-tree-executor")]
 pub use source_worker::lifecycle::SourceWorkerLifecycle;
 #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
@@ -373,12 +373,5 @@ impl SynthEngine {
     #[cfg(feature = "routing-tree-executor")]
     pub(super) fn observe_worker_utilization(&mut self, utilization_ppm: u32) {
         self.worker_utilization_ppm = Some(utilization_ppm);
-    }
-
-    pub(in crate::synth::engine) fn retire_render_preview(&mut self, voice: PreviewSampleVoice) {
-        store_retired_preview(
-            &mut self.pending_render_retired.preview_sample_voices,
-            voice,
-        );
     }
 }

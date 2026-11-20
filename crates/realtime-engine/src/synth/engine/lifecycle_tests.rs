@@ -56,6 +56,28 @@ fn completed_preview_moves_to_pending_render_retirement() {
 }
 
 #[test]
+fn completed_preview_waits_in_place_while_retired_slots_are_full() {
+    let mut engine = SynthEngine::new(48_000);
+    let _ = engine.preview_sample(sample_buffer(1.0, 1));
+    let _ = engine.preview_sample(sample_buffer(2.0, 1));
+    let _ = engine.next_stereo_sample();
+    let waiting = sample_buffer(3.0, 1);
+    let samples = std::sync::Arc::clone(&waiting.samples);
+    let _ = engine.preview_sample(waiting);
+
+    let _ = engine.next_stereo_sample();
+
+    assert_eq!(engine.profile_snapshot().active_preview_sample_voices, 1);
+    assert_eq!(std::sync::Arc::strong_count(&samples), 2);
+    drop(engine.take_pending_render_retired());
+    let _ = engine.next_stereo_sample();
+    assert_eq!(engine.profile_snapshot().active_preview_sample_voices, 0);
+    let retired = engine.take_pending_render_retired();
+    assert_eq!(retired.preview_sample_voices.iter().flatten().count(), 1);
+    assert_eq!(std::sync::Arc::strong_count(&samples), 2);
+}
+
+#[test]
 fn invalid_preview_moves_its_buffer_to_retirement() {
     let mut engine = SynthEngine::new(48_000);
 

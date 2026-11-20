@@ -265,18 +265,13 @@ pub(in crate::synth::engine) fn render_owner(
         if !valid_source_residency(owner, &routing, &context) {
             Err(())
         } else {
-            let completed = render_preview_sample_voices_block_into(
+            render_preview_sample_voices_block_into(
                 &mut routing.preview_sample_voices,
                 stamp.frames,
                 &mut routing.scratch.preview_out,
                 &mut routing.scratch.preview_active,
+                &mut routing.retired_preview_samples,
             );
-            for voice in completed.into_iter().flatten() {
-                super::super::retired_state::store_retired_preview(
-                    &mut routing.retired_preview_samples,
-                    voice,
-                );
-            }
             super::component_renderer::stage_components(owner, &mut routing, &context, stamp.frames)
         }
     };
