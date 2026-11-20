@@ -47,6 +47,8 @@ ends.
   how small mistakes become expensive ones.
 - Power down and unplug before moving wiring, reseating a module, or opening the
   case.
+- Don't pull the power while the instrument is saving. Use `System > Shutdown`
+  and wait for the screen to go dark first.
 
 ## USB data
 
@@ -54,6 +56,13 @@ USB data cables are optional. When you use one, follow [USB roles](usb-roles.md)
 for the right role, cable, port and adapter. Keep the instrument powered through
 the enclosure USB-C breakout while the data cable is connected: the data cable
 is not a second power supply.
+
+**On the Orange Pi:** the two USB-C openings behave differently. Plug a
+computer only into the two-dot one; a computer in the one-dot (host) port
+leaves both ends trying to supply power, and the cable can get hot. Unplug the
+computer before you power-cycle the instrument, and if a cable gets warm or the
+instrument switches off when you plug it in, unplug it and bin that cable. The
+details are in [USB roles](usb-roles.md).
 
 ## microSD cards and the enclosure
 
