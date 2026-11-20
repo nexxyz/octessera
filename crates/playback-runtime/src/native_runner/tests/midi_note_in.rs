@@ -5,11 +5,11 @@ use super::*;
 use crate::native_help::resolve_native_help;
 use crate::{MidiControlChange, MidiNote};
 
-const NOTES_IN: &str = "midi.notesIn";
-const MIDI_SLOT: usize = 2;
-const MIDI_OUT_CHANNEL: u8 = 5;
+pub(super) const NOTES_IN: &str = "midi.notesIn";
+pub(super) const MIDI_SLOT: usize = 2;
+pub(super) const MIDI_OUT_CHANNEL: u8 = 5;
 
-fn keyboard_runner(behavior: &str) -> NativeRunner {
+pub(super) fn keyboard_runner(behavior: &str) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: behavior.into(),
         behavior_config: if behavior == "looper" {
@@ -30,13 +30,13 @@ fn keyboard_runner(behavior: &str) -> NativeRunner {
     runner
 }
 
-fn send_note(runner: &mut NativeRunner, bytes: [u8; 3]) -> Vec<RunnerMessage> {
+pub(super) fn send_note(runner: &mut NativeRunner, bytes: [u8; 3]) -> Vec<RunnerMessage> {
     runner
         .send(MidiNote::parse(&bytes).expect("a note").into())
         .unwrap()
 }
 
-fn audio(messages: &[RunnerMessage]) -> Vec<MusicalEvent> {
+pub(super) fn audio(messages: &[RunnerMessage]) -> Vec<MusicalEvent> {
     messages
         .iter()
         .filter_map(|message| match message {
@@ -47,7 +47,7 @@ fn audio(messages: &[RunnerMessage]) -> Vec<MusicalEvent> {
         .collect()
 }
 
-fn midi(messages: &[RunnerMessage]) -> Vec<MusicalEvent> {
+pub(super) fn midi(messages: &[RunnerMessage]) -> Vec<MusicalEvent> {
     messages
         .iter()
         .filter_map(|message| match message {
@@ -59,7 +59,12 @@ fn midi(messages: &[RunnerMessage]) -> Vec<MusicalEvent> {
         .collect()
 }
 
-fn note_on(channel: u8, note: u8, velocity: u8, duration_ms: Option<u32>) -> MusicalEvent {
+pub(super) fn note_on(
+    channel: u8,
+    note: u8,
+    velocity: u8,
+    duration_ms: Option<u32>,
+) -> MusicalEvent {
     MusicalEvent::NoteOn {
         channel,
         note,
@@ -68,7 +73,7 @@ fn note_on(channel: u8, note: u8, velocity: u8, duration_ms: Option<u32>) -> Mus
     }
 }
 
-fn note_off(channel: u8, note: u8) -> MusicalEvent {
+pub(super) fn note_off(channel: u8, note: u8) -> MusicalEvent {
     MusicalEvent::NoteOff { channel, note }
 }
 
@@ -255,7 +260,7 @@ fn notes_leave_cc_learn_waiting_for_its_control_change() {
 
 /// The notes a press of each tile plays on a Keys layer with the same Link, lowest index
 /// first.
-fn tile_notes() -> Vec<u8> {
+pub(super) fn tile_notes() -> Vec<u8> {
     let mut runner = keyboard_runner("keys");
     (0..GRID_WIDTH * GRID_HEIGHT)
         .map(|index| {
@@ -283,7 +288,7 @@ fn tile_notes() -> Vec<u8> {
         .collect()
 }
 
-fn recorded_events(runner: &NativeRunner, layer: usize) -> Vec<Value> {
+pub(super) fn recorded_events(runner: &NativeRunner, layer: usize) -> Vec<Value> {
     let state = runner.layers[layer].engine.serialized_state().unwrap();
     state["steps"]
         .as_array()
@@ -293,7 +298,7 @@ fn recorded_events(runner: &NativeRunner, layer: usize) -> Vec<Value> {
         .collect()
 }
 
-fn playing_looper() -> NativeRunner {
+pub(super) fn playing_looper() -> NativeRunner {
     let mut runner = keyboard_runner("looper");
     runner.transport.transport = RuntimeTransportState::Playing;
     runner

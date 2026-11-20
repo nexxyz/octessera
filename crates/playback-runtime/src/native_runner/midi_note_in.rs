@@ -25,15 +25,13 @@ pub(super) struct HeldKeyboardNote {
 
 impl NativeRunner {
     pub(super) fn send_midi_note(&mut self, note: MidiNote) -> Result<Vec<RunnerMessage>, String> {
-        if !self.midi.enabled
-            || !self.midi.notes_in
-            || usize::from(note.channel) >= INSTRUMENT_COUNT
-        {
-            return self.messages_without_snapshot();
-        }
         let mut routed = RoutedMusicalEvents::default();
         self.release_keyboard_note(note.channel, note.note, &mut routed);
-        if note.velocity > 0 {
+        if note.velocity > 0
+            && self.midi.enabled
+            && self.midi.notes_in
+            && usize::from(note.channel) < INSTRUMENT_COUNT
+        {
             self.play_keyboard_note(note, &mut routed);
         }
         self.drop_muted_midi_note_ons(&mut routed);

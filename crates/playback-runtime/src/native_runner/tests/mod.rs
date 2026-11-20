@@ -126,6 +126,7 @@ mod menu_navigation_state;
 mod midi_cc_in;
 mod midi_drum;
 mod midi_note_in;
+mod midi_note_in_guards;
 mod midi_port_save;
 mod modulation;
 mod modulation_behavior_targets;
