@@ -1318,6 +1318,11 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 | `system.json` | System settings | `/home/pi/presets/system.json` | `/var/lib/octessera/presets/system.json` |
 | `default.patch.json` | Default musical patch | `/home/pi/presets/` | `/var/lib/octessera/presets/` |
 
+- `default.patch.json` holds a document of kind `octessera.patch`, schema version 2; `system.json`
+  holds the System document.
+- Both hosts write each file atomically on their platform worker, off the runtime thread, and
+  answer with an identified completion that updates the save baseline. A host refuses a load that
+  arrives while its own default write is pending.
 - Desktop seeds both files into an empty store folder at first launch and refuses any other
   incomplete or unrecognised store rather than guessing.
 - `crates/playback-runtime` owns classification, validation, and save/load intent; the desktop and
