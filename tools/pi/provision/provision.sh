@@ -201,7 +201,7 @@ install_show_hold_conditions() {
         sudo install -d "$(target_path "/etc/systemd/system/$unit.service.d")"
         sudo tee "$(target_path "/etc/systemd/system/$unit.service.d/50-octessera-show-hold.conf")" >/dev/null <<'EOF'
 [Service]
-ExecCondition=/bin/sh -c 'u=$$(cat /var/lib/octessera/show-hold/until 2>/dev/null) || exit 0; case "$$u" in ""|*[!0-9]*) exit 0;; esac; n=$$(date +%%s); [ "$$u" -le "$$n" ] || [ "$$u" -gt $$((n + 173100)) ]'
+ExecCondition=/usr/bin/test ! -e /var/lib/octessera/show-hold/length
 EOF
     done
 }

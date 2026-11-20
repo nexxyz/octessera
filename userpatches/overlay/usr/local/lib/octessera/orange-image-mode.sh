@@ -182,7 +182,7 @@ octessera_configure_background_maintenance() {
     install -d "/etc/systemd/system/$unit.service.d"
     cat >"/etc/systemd/system/$unit.service.d/50-octessera-show-hold.conf" <<'EOF'
 [Service]
-ExecCondition=/bin/sh -c 'u=$$(cat /var/lib/octessera/show-hold/until 2>/dev/null) || exit 0; case "$$u" in ""|*[!0-9]*) exit 0;; esac; n=$$(date +%%s); [ "$$u" -le "$$n" ] || [ "$$u" -gt $$((n + 173100)) ]'
+ExecCondition=/usr/bin/test ! -e /var/lib/octessera/show-hold/length
 EOF
   done
 }

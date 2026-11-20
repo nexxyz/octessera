@@ -49,8 +49,10 @@ a show:
 - It asks first, because it also switches Wi-Fi off. No SSH, no updates and no
   Wi-Fi setup until it ends, and nothing on the network can poke the board
   mid-song. Bluetooth keyboards and speakers keep working.
-- Housekeeping is postponed for 48 hours, and a reboot doesn't cancel that.
-  The jobs run at their next scheduled time afterwards.
+- Housekeeping is postponed for 48 hours of switched-on time. A reboot doesn't
+  cancel that, and time spent switched off doesn't count, so a show packed into
+  its case overnight picks up where it left off. The jobs run at their next
+  scheduled time afterwards.
 - Wi-Fi comes back by itself when the 48 hours are up. **End** finishes early
   and brings Wi-Fi straight back.
 - A couple of tiny chores always keep running because things break without

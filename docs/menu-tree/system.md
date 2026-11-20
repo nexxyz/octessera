@@ -496,16 +496,20 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   says Wi-Fi goes off for 48 h. `End` (`maintenance.release`) is direct. Both emit
   `RuntimePlatformEffect::MaintenanceHold { active }` and toast `Live Show Mode: 48h` or
   `Live Show Mode off`.
-- The board writes or removes `/var/lib/octessera/show-hold/until` (Unix expiry seconds). While that
-  time is in the future and no more than about 48 h away, the images' `ExecCondition` drop-ins skip
-  fstrim, logrotate, systemd-tmpfiles-clean, and the Raspberry network-health logger. The daily
-  dpkg-db-backup timer is masked on both images.
+- The board writes `/var/lib/octessera/show-hold/length` (the show length, `172800` seconds) or
+  removes it. While that file exists, the images' `ExecCondition` drop-ins skip fstrim, logrotate,
+  systemd-tmpfiles-clean, and the Raspberry network-health logger. The daily dpkg-db-backup timer is
+  masked on both images.
 - On both boards `octessera-show-hold.path` runs `octessera-show-hold-apply` whenever the file
   changes and at boot. While the mode is on it blocks the Wi-Fi radio (`rfkill block wlan`;
   Bluetooth is untouched), on Raspberry also stops `octessera-network-health.timer`, and schedules a
-  transient timer that re-runs the script at expiry. End or expiry unblocks Wi-Fi and, on Raspberry,
-  restarts the timer unless the Wi-Fi switch is off.
-- Skipped jobs run at their next schedule. The hold survives reboots.
+  transient monotonic timer that re-runs the script as a tick at most an hour later. Each tick banks
+  its seconds in `show-hold/elapsed`, keyed to that show's `length` file, so the show counts powered
+  time and never reads the wall clock. Once the banked time reaches the length, the script removes
+  `length`. End or expiry unblocks Wi-Fi and, on Raspberry, restarts the timer unless the Wi-Fi
+  switch is off.
+- Skipped jobs run at their next schedule. The hold survives reboots: boot resumes from the banked
+  time, so a power cut adds at most the unbanked hour. Starting again restarts the 48 h.
 
 ## Maintenance
 
