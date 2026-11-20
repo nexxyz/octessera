@@ -149,6 +149,7 @@ impl NativeRunner {
                 operation,
                 Some(message),
             )
+            .logged()
             .with_identity(request_id, revision),
         };
         self.apply_error_presentation_result(failure.clone())?;
@@ -234,7 +235,8 @@ impl NativeRunner {
                             crate::RuntimeErrorCode::OperationFailed,
                             crate::RuntimeOperation::StoreSaveDefault,
                             Some("native save payload unavailable".into()),
-                        ),
+                        )
+                        .logged(),
                     })?;
                 } else if allow_default_feedback {
                     self.show_saved_patch_feedback();
@@ -375,7 +377,8 @@ impl NativeRunner {
                         crate::RuntimeErrorCode::InvalidPayload,
                         crate::RuntimeOperation::StoreLoadDefault,
                         Some(message),
-                    ),
+                    )
+                    .logged(),
                 },
             },
             RuntimeStoreResult::RuntimeFailure { error } => RuntimeStoreResult::RuntimeFailure {
@@ -424,6 +427,7 @@ impl NativeRunner {
                 crate::RuntimeOperation::StoreLoadDefault,
                 Some(message),
             )
+            .logged()
             .with_identity(Some(request_id), revision),
         };
         self.fail_restore_patch_rehydration();

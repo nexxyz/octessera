@@ -178,23 +178,6 @@ fn a_long_layer_toast_scrolls_on_the_oled_while_stopped() {
             &mut adapter,
             &worker,
         );
-        eprintln!(
-            "DBG due={:?} {:?} rev={} toast={:?} dl={:?}",
-            state
-                .scheduler
-                .display_snapshot_due(Instant::now(), &runner, &playback),
-            input_at.elapsed(),
-            playback.last_snapshot_revision(),
-            playback
-                .last_snapshot()
-                .map(|s| s["display"]["toast"].clone()),
-            runner
-                .next_continuous_display_snapshot_deadline(
-                    Instant::now(),
-                    Duration::from_millis(33)
-                )
-                .map(|d| d.saturating_duration_since(Instant::now()))
-        );
         if state.native_scenes.capture_count > captures {
             captures = state.native_scenes.capture_count;
             if input_at.elapsed() > Duration::from_millis(850) {

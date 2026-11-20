@@ -83,6 +83,7 @@ impl NativeRunner {
                                 crate::RuntimeOperation::StoreSavePreset,
                                 Some("native preset catalog unavailable".into()),
                             )
+                            .logged()
                             .with_preset_name(Some(name)),
                         }),
                     Some(NativePresetResultAction::Ignore) => Ok(()),

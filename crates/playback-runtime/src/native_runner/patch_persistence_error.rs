@@ -14,7 +14,8 @@ impl NativeRunner {
                 RuntimeErrorCode::InvalidPayload,
                 operation,
                 Some(message),
-            ),
+            )
+            .logged(),
         })
     }
 }

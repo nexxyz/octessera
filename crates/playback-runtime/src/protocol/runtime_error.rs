@@ -259,6 +259,18 @@ impl RuntimeErrorFacts {
         }
     }
 
+    /// Journals an error the runner creates itself; errors latched by the runtime are journaled there.
+    pub fn logged(self) -> Self {
+        eprintln!(
+            "runtime error: domain={} code={} operation={} message={}",
+            enum_text(&self.domain),
+            enum_text(&self.code),
+            enum_text(&self.operation),
+            self.message.as_deref().unwrap_or("-"),
+        );
+        self
+    }
+
     pub fn with_identity(mut self, request_id: Option<String>, revision: Option<u64>) -> Self {
         self.request_id = request_id;
         self.revision = revision;
