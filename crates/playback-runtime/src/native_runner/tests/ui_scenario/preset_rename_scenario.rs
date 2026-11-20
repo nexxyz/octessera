@@ -1,6 +1,6 @@
 //! Rename through the visible menu: picking a preset shows its name ready to edit and Apply;
-//! renaming onto another existing name asks to overwrite it, and Confirm saves under the new
-//! name and then removes the old one.
+//! renaming onto another existing name asks to overwrite it, and Confirm moves the stored preset
+//! over it without saving the loaded patch anywhere.
 use super::device_driver::DeviceDriver;
 use super::visible_menu_driver::VisibleMenuDriver;
 use crate::protocol::RuntimeStoreResult;
@@ -37,16 +37,20 @@ pub(super) fn run() {
     );
     VisibleMenuDriver::new(&mut device).confirm("Confirm Rename");
     assert_eq!(
-        device
-            .latest_saved_preset()
-            .map(|(name, _)| name)
-            .as_deref(),
-        Some("Bet")
+        device.output().renamed_presets,
+        vec![(
+            "Beta".to_string(),
+            "Bet".to_string(),
+            Some(crate::PresetSaveMode::Overwrite)
+        )]
     );
+    assert_eq!(device.latest_saved_preset(), None);
 
-    device.send_store_result(RuntimeStoreResult::SavePresetResult {
+    device.send_store_result(RuntimeStoreResult::RenamePresetResult {
+        from: "Beta".into(),
         name: "Bet".into(),
-        outcome: "overwritten".into(),
     });
-    assert_eq!(device.output().deleted_presets, vec!["Beta".to_string()]);
+    assert!(device.output().deleted_presets.is_empty());
+    assert_eq!(device.output().saved_presets, Vec::new());
+    assert_eq!(device.menu_labels(), vec!["Bet"]);
 }

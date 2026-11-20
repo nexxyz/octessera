@@ -211,7 +211,7 @@ pub(crate) fn is_timestamp_preset_name(name: &str) -> bool {
 }
 
 #[test]
-pub(crate) fn preset_rename_pick_sets_new_name_and_apply_saves() {
+pub(crate) fn preset_rename_pick_sets_new_name_and_apply_renames_the_stored_preset() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.patch_store.preset_names = vec!["Alpha".into()];
     runner.menu.rebuild(runner.menu_config());
@@ -245,27 +245,32 @@ pub(crate) fn preset_rename_pick_sets_new_name_and_apply_saves() {
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }
-            if matches!(
-                effects.as_slice(),
-                [RuntimePlatformEffect::StoreSavePreset { name, .. }]
-                    if name == "Alpha A"
-            )
+            if effects == &vec![RuntimePlatformEffect::StoreRenamePreset {
+                from: "Alpha".into(),
+                name: "Alpha A".into(),
+                mode: None,
+            }]
     )));
 
     let messages = runner
         .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SavePresetResult {
+            result: RuntimeStoreResult::RenamePresetResult {
+                from: "Alpha".into(),
                 name: "Alpha A".into(),
-                outcome: "created".into(),
             },
         })
         .unwrap();
 
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        RunnerMessage::PlatformEffects { effects }
-            if effects == &vec![RuntimePlatformEffect::StoreDeletePreset { name: "Alpha".into() }]
-    )));
+    assert!(!messages
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::PlatformEffects { .. })));
+    assert_eq!(runner.patch_store.preset_names, vec!["Alpha A"]);
+    assert_eq!(runner.patch_store.preset_rename_source, None);
+    assert_eq!(runner.patch_store.current_preset_name, None);
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "Renamed to Alpha A"
+    );
 }
 
 #[test]

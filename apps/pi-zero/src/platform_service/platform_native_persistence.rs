@@ -54,7 +54,6 @@ pub(crate) struct NativeAutosaveWrite {
 pub(crate) struct NativePresetCompletion {
     pub(crate) result: RuntimeStoreResult,
     pub(crate) names: Vec<String>,
-    pub(crate) cleanup_error: Option<String>,
 }
 
 impl super::PiPlatformService {

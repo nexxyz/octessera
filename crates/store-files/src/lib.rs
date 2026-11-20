@@ -101,6 +101,16 @@ fn write_atomically_inner(
     result
 }
 
+/// Moves `from` over `to` in one step, replacing any file there, and syncs the directory.
+pub fn rename_atomically(from: &Path, to: &Path) -> io::Result<()> {
+    replace_file(from, to)
+        .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", to.display())))?;
+    if let Some(parent) = to.parent() {
+        let _ = File::open(parent).and_then(|dir| dir.sync_all());
+    }
+    Ok(())
+}
+
 pub fn write_rotated_backup(dir: &Path, payload: &serde_json::Value) -> Result<(), String> {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)

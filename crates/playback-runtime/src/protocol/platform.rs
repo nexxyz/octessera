@@ -35,6 +35,14 @@ pub enum RuntimePlatformEffect {
     StoreDeletePreset {
         name: String,
     },
+    /// Renames the stored preset `from` to `name`; an existing `name` is replaced only in
+    /// overwrite mode.
+    StoreRenamePreset {
+        from: String,
+        name: String,
+        #[serde(default)]
+        mode: Option<PresetSaveMode>,
+    },
     StoreLoadDefault,
     StoreSaveDefault {
         payload: Value,
@@ -113,7 +121,9 @@ impl RuntimePlatformEffect {
         match self {
             Self::StoreListPresets => RuntimeOperation::StoreListPresets,
             Self::StoreLoadPreset { .. } => RuntimeOperation::StoreLoadPreset,
-            Self::StoreSavePreset { .. } => RuntimeOperation::StoreSavePreset,
+            Self::StoreSavePreset { .. } | Self::StoreRenamePreset { .. } => {
+                RuntimeOperation::StoreSavePreset
+            }
             Self::StoreDeletePreset { .. } => RuntimeOperation::StoreDeletePreset,
             Self::StoreLoadDefault => RuntimeOperation::StoreLoadDefault,
             Self::StoreSaveDefault { .. } => RuntimeOperation::StoreSaveDefault,
@@ -174,6 +184,7 @@ impl RuntimePlatformEffect {
     pub fn preset_name(&self) -> Option<String> {
         match self {
             Self::StoreSavePreset { name, .. }
+            | Self::StoreRenamePreset { name, .. }
             | Self::StoreLoadPreset { name }
             | Self::StoreDeletePreset { name } => Some(name.clone()),
             _ => None,
@@ -195,6 +206,7 @@ impl RuntimePlatformEffect {
             Self::StoreListPresets
             | Self::StoreLoadPreset { .. }
             | Self::StoreSavePreset { .. }
+            | Self::StoreRenamePreset { .. }
             | Self::StoreDeletePreset { .. }
             | Self::StoreLoadDefault
             | Self::StoreSaveDefault { .. }

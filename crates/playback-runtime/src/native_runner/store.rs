@@ -45,6 +45,10 @@ impl NativeRunner {
                     result.as_ref(),
                     RuntimeStoreResult::SaveDefaultResult { ok: true, .. }
                 );
+                let is_rename = matches!(
+                    result.as_ref(),
+                    RuntimeStoreResult::RenamePresetResult { .. }
+                );
                 let native_preset_action =
                     if operation == crate::protocol::RuntimeOperation::StoreSavePreset {
                         self.resolve_native_preset_result(&request_id, revision, result.as_ref())
@@ -118,6 +122,7 @@ impl NativeRunner {
                 }
                 if succeeded
                     && is_save_operation
+                    && !is_rename
                     && restart_completion.is_none()
                     && operation != crate::protocol::RuntimeOperation::StoreSaveDefault
                     && pending_default_revision != revision
@@ -180,6 +185,7 @@ impl NativeRunner {
             result @ (RuntimeStoreResult::ListPresetsResult { .. }
             | RuntimeStoreResult::LoadPresetResult { .. }
             | RuntimeStoreResult::SavePresetResult { .. }
+            | RuntimeStoreResult::RenamePresetResult { .. }
             | RuntimeStoreResult::DeletePresetResult { .. }
             | RuntimeStoreResult::LoadDefaultResult { .. }
             | RuntimeStoreResult::SaveBackupResult { .. }

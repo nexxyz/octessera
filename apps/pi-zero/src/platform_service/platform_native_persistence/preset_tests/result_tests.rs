@@ -68,7 +68,6 @@ fn stale_preset_result_does_not_attach_catalog_or_clear_newer_rename() {
         }
         .with_identity(old.request_id().into(), Some(old.revision())),
         names: vec!["OldTarget".into()],
-        cleanup_error: None,
     });
     assert!(finish_platform_result(&service, &mut runner, stale).is_none());
     assert_eq!(service.native_preset_write().unwrap().request, current);
@@ -94,8 +93,8 @@ fn stale_preset_result_does_not_attach_catalog_or_clear_newer_rename() {
         HostMessage::RuntimeResult {
             result: RuntimeStoreResult::Identified { request_id, result, .. }
         } if request_id == current.request_id()
-            && matches!(result.as_ref(), RuntimeStoreResult::SavePresetResult { name, outcome }
-                if name == "NewTarget" && outcome == "created")
+            && matches!(result.as_ref(), RuntimeStoreResult::RenamePresetResult { from, name }
+                if from == "CurrentSource" && name == "NewTarget")
     ));
     playback
         .dispatch_host_message_music_first(completion, &mut runner, &mut TestHost)

@@ -22,6 +22,10 @@ pub enum RuntimeStoreResult {
         name: String,
         outcome: String,
     },
+    RenamePresetResult {
+        from: String,
+        name: String,
+    },
     DeletePresetResult {
         name: String,
         ok: bool,
@@ -190,7 +194,9 @@ impl RuntimeStoreResult {
         match self {
             Self::ListPresetsResult { .. } => RuntimeOperation::StoreListPresets,
             Self::LoadPresetResult { .. } => RuntimeOperation::StoreLoadPreset,
-            Self::SavePresetResult { .. } => RuntimeOperation::StoreSavePreset,
+            Self::SavePresetResult { .. } | Self::RenamePresetResult { .. } => {
+                RuntimeOperation::StoreSavePreset
+            }
             Self::DeletePresetResult { .. } => RuntimeOperation::StoreDeletePreset,
             Self::LoadDefaultResult { .. } => RuntimeOperation::StoreLoadDefault,
             Self::SaveDefaultResult { .. } => RuntimeOperation::StoreSaveDefault,
@@ -328,6 +334,7 @@ impl RuntimeStoreResult {
             Self::ListPresetsResult { .. }
             | Self::LoadPresetResult { .. }
             | Self::SavePresetResult { .. }
+            | Self::RenamePresetResult { .. }
             | Self::DeletePresetResult { .. }
             | Self::LoadDefaultResult { .. }
             | Self::SaveDefaultResult { .. }

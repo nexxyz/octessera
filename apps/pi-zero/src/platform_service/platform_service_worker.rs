@@ -330,43 +330,52 @@ fn save_native_preset(
     let target = super::platform_service_store::preset_patch_path(store_dir, name.as_str())
         .map_err(|error| format!("Save {name} failed: {error}"))?;
     let existed = target.is_file();
-    if existed && mode.is_none() {
-        return Err(format!("Save {name} failed: preset already exists"));
-    }
-    if let Some(source) = rename_from
-        .as_deref()
-        .filter(|source| *source != name.as_str())
-    {
-        super::platform_service_store::preset_patch_path(store_dir, source)
-            .map_err(|error| format!("Rename {source} failed: {error}"))?;
-    }
-    let payload = snapshot
-        .into_portable_patch_payload()
-        .map_err(|error| format!("Save {name} failed: {error}"))?;
-    super::platform_service_store::validate_named_preset_document(store_dir, &payload)
-        .map_err(|error| format!("Save {name} failed: {error}"))?;
-    super::platform_service_store::save_json(&target, &payload)
-        .map_err(|error| format!("Save {name} failed: {error}"))?;
-    let cleanup_error = rename_from
-        .as_deref()
-        .filter(|source| *source != name.as_str())
-        .and_then(|source| {
-            super::platform_service_store::delete_preset_payload_result(store_dir, source).err()
-        });
-    let names = super::platform_service_store::list_presets(store_dir)
-        .map_err(|error| format!("Preset catalog refresh failed: {error}"))?;
-    Ok(NativePresetCompletion {
-        result: RuntimeStoreResult::SavePresetResult {
+    let result = if let Some(source) = rename_from {
+        if source != name {
+            if existed && mode.is_none() {
+                return Err(format!("Rename {source} failed: {name} already exists"));
+            }
+            rename_preset(store_dir, source, &target)?;
+        }
+        RuntimeStoreResult::RenamePresetResult {
+            from: source.clone(),
+            name: name.clone(),
+        }
+    } else {
+        if existed && mode.is_none() {
+            return Err(format!("Save {name} failed: preset already exists"));
+        }
+        let payload = snapshot
+            .into_portable_patch_payload()
+            .map_err(|error| format!("Save {name} failed: {error}"))?;
+        super::platform_service_store::validate_named_preset_document(store_dir, &payload)
+            .map_err(|error| format!("Save {name} failed: {error}"))?;
+        super::platform_service_store::save_json(&target, &payload)
+            .map_err(|error| format!("Save {name} failed: {error}"))?;
+        RuntimeStoreResult::SavePresetResult {
             name: name.clone(),
             outcome: if existed { "overwritten" } else { "created" }.into(),
         }
-        .with_identity(
+    };
+    let names = super::platform_service_store::list_presets(store_dir)
+        .map_err(|error| format!("Preset catalog refresh failed: {error}"))?;
+    Ok(NativePresetCompletion {
+        result: result.with_identity(
             write.request.request_id().into(),
             Some(write.request.revision()),
         ),
         names,
-        cleanup_error,
     })
+}
+
+fn rename_preset(store_dir: &Path, source: &str, target: &Path) -> Result<(), String> {
+    let source_path = super::platform_service_store::preset_patch_path(store_dir, source)
+        .map_err(|error| format!("Rename {source} failed: {error}"))?;
+    if !source_path.is_file() {
+        return Err(format!("Rename {source} failed: preset does not exist"));
+    }
+    store_files::rename_atomically(&source_path, target)
+        .map_err(|error| format!("Rename {source} failed: {error}"))
 }
 
 fn job_requires_store_lock(kind: &PlatformJobKind) -> bool {

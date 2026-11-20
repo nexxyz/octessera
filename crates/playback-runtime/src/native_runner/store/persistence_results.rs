@@ -224,13 +224,6 @@ impl NativeRunner {
                 self.show_toast(format!("Not found: {name}"));
             }
             RuntimeStoreResult::SavePresetResult { name, .. } => {
-                if let Some(source) = self.patch_store.preset_rename_source.take() {
-                    if source != name {
-                        self.outbox.push_platform_effect(
-                            RuntimePlatformEffect::StoreDeletePreset { name: source },
-                        );
-                    }
-                }
                 self.show_toast(format!("Saved {name}"));
                 if !self.patch_store.preset_names.contains(&name) {
                     self.patch_store.preset_names.push(name.clone());
@@ -239,6 +232,9 @@ impl NativeRunner {
                 self.patch_store.current_preset_name = Some(name);
                 self.acknowledge_config_save(None);
                 self.show_preset_catalog();
+            }
+            RuntimeStoreResult::RenamePresetResult { from, name } => {
+                self.apply_host_preset_rename(&from, &name);
             }
             RuntimeStoreResult::DeletePresetResult { name, ok } if ok => {
                 if self.patch_store.current_preset_name.as_deref() == Some(name.as_str()) {

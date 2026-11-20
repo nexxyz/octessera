@@ -77,6 +77,29 @@ fn prepare_native_rename() -> (NativeRunner, PlaybackRuntime, FakeHost, NativeSt
             rename_from: Some("Source".into()),
         }
     );
+    register_native_write(runner, runtime, host, request)
+}
+
+fn prepare_native_save() -> (NativeRunner, PlaybackRuntime, FakeHost, NativeStoreRequest) {
+    let mut runner = playing_default();
+    runner.rolling_backups = false;
+    let runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    runner.patch_store.preset_names = vec!["Source".into(), "Other".into()];
+    runner.patch_store.preset_draft_name = "Target".into();
+    let request = NativeManualSaveRequest::Preset {
+        name: "Target".into(),
+        mode: None,
+        rename_from: None,
+    };
+    register_native_write(runner, runtime, FakeHost::default(), request)
+}
+
+fn register_native_write(
+    mut runner: NativeRunner,
+    mut runtime: PlaybackRuntime,
+    host: FakeHost,
+    request: NativeManualSaveRequest,
+) -> (NativeRunner, PlaybackRuntime, FakeHost, NativeStoreRequest) {
     runner.mark_config_dirty();
     let native_request = runtime
         .next_native_store_request(RuntimeOperation::StoreSavePreset, runner.config_revision);
@@ -88,17 +111,30 @@ fn prepare_native_rename() -> (NativeRunner, PlaybackRuntime, FakeHost, NativeSt
     (runner, runtime, host, native_request)
 }
 
-fn save_result(request_id: &str, revision: u64, name: &str) -> HostMessage {
+fn identified(request_id: &str, revision: u64, result: RuntimeStoreResult) -> HostMessage {
     HostMessage::RuntimeResult {
         result: RuntimeStoreResult::Identified {
-            result: Box::new(RuntimeStoreResult::SavePresetResult {
-                name: name.into(),
-                outcome: "created".into(),
-            }),
+            result: Box::new(result),
             request_id: request_id.into(),
             revision: Some(revision),
         },
     }
+}
+
+fn save_result(request_id: &str, revision: u64, name: &str) -> HostMessage {
+    let result = RuntimeStoreResult::SavePresetResult {
+        name: name.into(),
+        outcome: "created".into(),
+    };
+    identified(request_id, revision, result)
+}
+
+fn rename_result(request_id: &str, revision: u64, name: &str) -> HostMessage {
+    let result = RuntimeStoreResult::RenamePresetResult {
+        from: "Source".into(),
+        name: name.into(),
+    };
+    identified(request_id, revision, result)
 }
 
 #[test]
@@ -108,13 +144,11 @@ fn matching_preset_result_uses_frozen_rename_context_and_authoritative_catalog_o
         request.request_id(),
         request.revision(),
         vec!["Later".into(), "Other".into()],
-        None,
     ));
     assert!(runner.attach_native_preset_catalog(
         request.request_id(),
         request.revision(),
         vec!["Later".into(), "Other".into(), "Target".into()],
-        None,
     ));
     runner.patch_store.preset_rename_source = Some("Later".into());
     runner.patch_store.preset_draft_name = "Changed after queue".into();
@@ -130,7 +164,7 @@ fn matching_preset_result_uses_frozen_rename_context_and_authoritative_catalog_o
 
     let output = runtime
         .dispatch_host_message_music_first(
-            save_result(request.request_id(), request.revision(), "Target"),
+            rename_result(request.request_id(), request.revision(), "Target"),
             &mut runner,
             &mut host,
         )
@@ -144,10 +178,7 @@ fn matching_preset_result_uses_frozen_rename_context_and_authoritative_catalog_o
         .messages
         .iter()
         .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
-    assert_eq!(
-        runner.patch_store.current_preset_name.as_deref(),
-        Some("Target")
-    );
+    assert_eq!(runner.patch_store.current_preset_name, None);
     assert_eq!(
         runner.behavior_state_serialization_calls.get(),
         serialization_calls
@@ -176,12 +207,15 @@ fn matching_preset_result_uses_frozen_rename_context_and_authoritative_catalog_o
     assert!(runner.display_scene_pending());
     let scene = runner.capture_display_scene().unwrap();
     let scene_generation = scene.generation();
-    assert_eq!(scene.into_snapshot()["display"]["toast"], "Saved Target");
+    assert_eq!(
+        scene.into_snapshot()["display"]["toast"],
+        "Renamed to Target"
+    );
     runner.acknowledge_display_scene(scene_generation);
 
     let duplicate = runtime
         .dispatch_host_message_music_first(
-            save_result(request.request_id(), request.revision(), "Target"),
+            rename_result(request.request_id(), request.revision(), "Target"),
             &mut runner,
             &mut host,
         )
@@ -200,12 +234,11 @@ fn matching_preset_result_uses_frozen_rename_context_and_authoritative_catalog_o
 
 #[test]
 fn successful_saved_snapshot_does_not_report_newer_dirty_revision_as_saved() {
-    let (mut runner, mut runtime, mut host, request) = prepare_native_rename();
+    let (mut runner, mut runtime, mut host, request) = prepare_native_save();
     assert!(runner.attach_native_preset_catalog(
         request.request_id(),
         request.revision(),
         vec!["Other".into(), "Source".into(), "Target".into()],
-        None,
     ));
     let saved_revision = request.revision();
     runner.aux_bindings[0] = Some(NativeAuxBinding {
@@ -271,7 +304,6 @@ fn wrong_native_preset_identity_or_target_leaves_the_pending_write_unchanged() {
             request.request_id(),
             request.revision(),
             vec!["Source".into(), "Other".into(), "Target".into()],
-            None,
         ));
         let baseline_names = runner.patch_store.preset_names.clone();
         let baseline_dirty = runner.dirty_revision;
@@ -289,7 +321,7 @@ fn wrong_native_preset_identity_or_target_leaves_the_pending_write_unchanged() {
 
         let output = runtime
             .dispatch_host_message_music_first(
-                save_result(request_id, request.revision(), target),
+                rename_result(request_id, request.revision(), target),
                 &mut runner,
                 &mut host,
             )
@@ -323,7 +355,7 @@ fn wrong_native_preset_identity_or_target_leaves_the_pending_write_unchanged() {
 
 #[test]
 fn matching_native_preset_success_without_authoritative_catalog_fails_closed() {
-    let (mut runner, mut runtime, mut host, request) = prepare_native_rename();
+    let (mut runner, mut runtime, mut host, request) = prepare_native_save();
     let original_names = runner.patch_store.preset_names.clone();
 
     let output = runtime
@@ -346,67 +378,53 @@ fn matching_native_preset_success_without_authoritative_catalog_fails_closed() {
 }
 
 #[test]
-fn cleanup_failure_uses_the_returned_catalog_and_honest_status() {
-    let (mut runner, mut runtime, mut host, request) = prepare_native_rename();
-    assert!(!runner.attach_native_preset_catalog(
-        request.request_id(),
-        request.revision(),
-        vec!["Later".into(), "Other".into()],
-        None,
-    ));
-    assert!(runner.attach_native_preset_catalog(
-        request.request_id(),
-        request.revision(),
-        vec!["Other".into(), "Source".into(), "Target".into()],
-        Some("source removal failed".into()),
-    ));
-    runner.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("instruments.0.synth.osc1.levelPct".into()),
-        press_action: None,
-    });
-    let _ = dispatch_input(
-        &mut runner,
-        &mut runtime,
-        &mut host,
-        json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
-    );
-    assert_eq!(runner.config_revision, request.revision() + 1);
+fn a_finished_rename_keeps_the_loaded_patch_dirty_and_follows_only_its_own_name() {
+    for (loaded, after) in [
+        (Some("Source"), Some("Target")),
+        (Some("Target"), None),
+        (Some("Other"), Some("Other")),
+    ] {
+        let (mut runner, mut runtime, mut host, request) = prepare_native_rename();
+        runner.patch_store.current_preset_name = loaded.map(str::to_owned);
+        assert!(runner.attach_native_preset_catalog(
+            request.request_id(),
+            request.revision(),
+            vec!["Other".into(), "Target".into()],
+        ));
+        let dirty_revision = runner.dirty_revision;
+        assert!(dirty_revision.is_some());
 
-    let output = runtime
-        .dispatch_host_message_music_first(
-            save_result(request.request_id(), request.revision(), "Target"),
-            &mut runner,
-            &mut host,
-        )
-        .unwrap();
+        let output = runtime
+            .dispatch_host_message_music_first(
+                rename_result(request.request_id(), request.revision(), "Target"),
+                &mut runner,
+                &mut host,
+            )
+            .unwrap();
 
-    assert!(!output
-        .messages
-        .iter()
-        .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
-    assert_eq!(
-        runner.patch_store.preset_names,
-        vec!["Other", "Source", "Target"]
-    );
-    assert_eq!(
-        runner
-            .display
-            .toast
-            .as_ref()
-            .map(|toast| toast.message.as_str()),
-        Some("Saved Target; cleanup failed: source removal failed")
-    );
-    assert!(host.effects.is_empty());
+        assert!(!output
+            .messages
+            .iter()
+            .any(|message| matches!(message, RunnerMessage::Snapshot { .. })));
+        assert_eq!(runner.patch_store.preset_names, vec!["Other", "Target"]);
+        assert_eq!(runner.patch_store.current_preset_name.as_deref(), after);
+        assert!(
+            runner.config_dirty,
+            "a rename saves no part of the loaded patch"
+        );
+        assert_eq!(runner.dirty_revision, dirty_revision);
+        assert_eq!(runner.patch_store.preset_rename_source, None);
+        assert!(host.effects.is_empty());
+    }
 }
 
 #[test]
 fn a_finished_save_under_the_draft_name_drafts_a_fresh_name_for_the_next_save_as() {
-    let (mut runner, mut runtime, mut host, request) = prepare_native_rename();
+    let (mut runner, mut runtime, mut host, request) = prepare_native_save();
     assert!(runner.attach_native_preset_catalog(
         request.request_id(),
         request.revision(),
         vec!["Other".into(), "Target".into()],
-        None,
     ));
 
     let _ = runtime

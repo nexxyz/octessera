@@ -141,6 +141,23 @@ impl DesktopPlaybackHostAdapter {
         Ok(case_variant.is_some())
     }
 
+    /// Moves the stored preset `from` to `name`, so it keeps its music; `true` when it replaced
+    /// another preset whose name differs only in case.
+    pub(super) fn rename_preset_payload(&self, from: &str, name: &str) -> Result<bool, String> {
+        let presets_dir = self.store_dir.join("presets");
+        let source = preset_patch_file_path(&presets_dir, from)?;
+        if stored_entry(&source, true)?.is_none() {
+            return Err(format!("Rename {from} failed: preset does not exist"));
+        }
+        let target = preset_patch_file_path(&presets_dir, name)?;
+        let case_variant = stored_entry(&target, false)?.filter(|variant| *variant != source);
+        if let Some(case_variant) = &case_variant {
+            std::fs::rename(case_variant, &target).map_err(|e| e.to_string())?;
+        }
+        store_files::rename_atomically(&source, &target).map_err(|e| e.to_string())?;
+        Ok(case_variant.is_some())
+    }
+
     /// Deletes the preset. A name whose file a case-only rename took over is already gone, so
     /// its delete succeeds without touching the renamed preset.
     pub(super) fn delete_preset_payload(&self, name: &str) -> Result<bool, String> {

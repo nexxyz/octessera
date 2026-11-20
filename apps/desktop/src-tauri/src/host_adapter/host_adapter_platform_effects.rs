@@ -61,6 +61,46 @@ impl DesktopPlaybackHostAdapter {
                 }
                 Ok(results)
             }
+            RuntimePlatformEffect::StoreRenamePreset { from, name, mode } => {
+                if from == name {
+                    return Ok(vec![HostMessage::RuntimeResult {
+                        result: RuntimeStoreResult::RenamePresetResult {
+                            from: from.clone(),
+                            name: name.clone(),
+                        },
+                    }]);
+                }
+                let refused = mode.is_none() && self.preset_exists(name)?;
+                let renamed = if refused {
+                    Err(format!("Rename {from} failed: {name} already exists"))
+                } else {
+                    self.rename_preset_payload(from, name)
+                };
+                let replaced_case_variant = match renamed {
+                    Ok(replaced) => replaced,
+                    Err(message) => {
+                        return Ok(vec![HostMessage::RuntimeResult {
+                            result: RuntimeStoreResult::RuntimeFailure {
+                                error: request.effect.failure_facts(message),
+                            },
+                        }]);
+                    }
+                };
+                let mut results = vec![HostMessage::RuntimeResult {
+                    result: RuntimeStoreResult::RenamePresetResult {
+                        from: from.clone(),
+                        name: name.clone(),
+                    },
+                }];
+                if replaced_case_variant {
+                    results.push(HostMessage::RuntimeResult {
+                        result: RuntimeStoreResult::ListPresetsResult {
+                            names: self.list_preset_names()?,
+                        },
+                    });
+                }
+                Ok(results)
+            }
             RuntimePlatformEffect::StoreDeletePreset { name } => {
                 let ok = self.delete_preset_payload(name)?;
                 Ok(vec![HostMessage::RuntimeResult {

@@ -278,7 +278,7 @@ fn default_save_mode_keeps_its_deferred_wire_string() {
 }
 
 #[test]
-pub(crate) fn rename_onto_another_preset_asks_to_overwrite_it_and_saves_with_overwrite() {
+pub(crate) fn rename_onto_another_preset_asks_to_overwrite_it_and_renames_with_overwrite() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.patch_store.preset_names = vec!["Alpha".into(), "Beta".into()];
     runner.menu.rebuild(runner.menu_config());
@@ -307,7 +307,7 @@ pub(crate) fn rename_onto_another_preset_asks_to_overwrite_it_and_saves_with_ove
                 RunnerMessage::PlatformEffects { effects } => Some(effects),
                 _ => None,
             })
-            .expect("rename save effect");
+            .expect("rename effect");
         runner.patch_store.preset_rename_source = Some("Alpha".into());
         (display["lines"].clone(), effects)
     };
@@ -317,16 +317,23 @@ pub(crate) fn rename_onto_another_preset_asks_to_overwrite_it_and_saves_with_ove
         lines.as_array().unwrap()[..2],
         [json!("Overwrite preset Beta"), json!("with Alpha?")]
     );
-    assert!(matches!(
-        effects.as_slice(),
-        [RuntimePlatformEffect::StoreSavePreset { name, mode, .. }]
-            if name == "Beta" && *mode == Some(crate::PresetSaveMode::Overwrite)
-    ));
+    assert_eq!(
+        effects,
+        vec![RuntimePlatformEffect::StoreRenamePreset {
+            from: "Alpha".into(),
+            name: "Beta".into(),
+            mode: Some(crate::PresetSaveMode::Overwrite),
+        }]
+    );
 
     let (lines, effects) = confirm_rename(&mut runner, "Gamma");
     assert_eq!(lines.as_array().unwrap()[0], json!("Rename Alpha to"));
-    assert!(matches!(
-        effects.as_slice(),
-        [RuntimePlatformEffect::StoreSavePreset { name, mode: None, .. }] if name == "Gamma"
-    ));
+    assert_eq!(
+        effects,
+        vec![RuntimePlatformEffect::StoreRenamePreset {
+            from: "Alpha".into(),
+            name: "Gamma".into(),
+            mode: None,
+        }]
+    );
 }

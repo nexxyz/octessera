@@ -1,7 +1,7 @@
 #![cfg(board_not_orange)]
 
 use super::*;
-use playback_runtime::{RunnerMessage, RuntimePlatformEffect, RuntimeTransportState};
+use playback_runtime::{RuntimePlatformEffect, RuntimeTransportState};
 use std::sync::mpsc;
 
 fn input(
@@ -55,6 +55,9 @@ fn next_preset_result(
                 } if request_id.starts_with("native-preset-") => match result.as_ref() {
                     RuntimeStoreResult::SavePresetResult { name, outcome } => {
                         Some((name.clone(), outcome.clone()))
+                    }
+                    RuntimeStoreResult::RenamePresetResult { from, name } => {
+                        Some((name.clone(), format!("renamed from {from}")))
                     }
                     RuntimeStoreResult::RuntimeFailure { error } => {
                         panic!("native preset save failed: {error:?}")
@@ -288,104 +291,16 @@ fn check_catalog_rows(runner: &mut NativeRunner, name: &str) {
     }
 }
 
-fn receive_partial_rename(
-    host: &mut crate::host_adapter::PiHostAdapter,
-    playback: &mut PlaybackRuntime,
-    runner: &mut NativeRunner,
+fn rename_by_device_input(
     source_name: &str,
-) -> (String, String, String) {
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline {
-        for result in host.core.platform_service.drain_platform_results(8) {
-            match result {
-                PlatformResult::NativePresetCompletion(completion) => {
-                    let cleanup_error = completion.cleanup_error.clone().unwrap();
-                    assert!(cleanup_error.contains(source_name));
-                    assert!(cleanup_error.contains("does not exist"));
-                    let message = finish_platform_result(
-                        &host.core.platform_service,
-                        runner,
-                        PlatformResult::NativePresetCompletion(completion),
-                    )
-                    .expect("matching rename completion should be dispatched");
-                    let (name, outcome) = match &message {
-                        HostMessage::RuntimeResult {
-                            result: RuntimeStoreResult::Identified { result, .. },
-                        } => match result.as_ref() {
-                            RuntimeStoreResult::SavePresetResult { name, outcome } => {
-                                (name.clone(), outcome.clone())
-                            }
-                            result => panic!("expected successful partial rename, got {result:?}"),
-                        },
-                        message => panic!("expected preset result, got {message:?}"),
-                    };
-                    playback
-                        .dispatch_host_message_music_first(message, runner, host)
-                        .unwrap();
-                    return (name, outcome, cleanup_error);
-                }
-                result => {
-                    if let Some(message) =
-                        finish_platform_result(&host.core.platform_service, runner, result)
-                    {
-                        if let HostMessage::RuntimeResult {
-                            result: RuntimeStoreResult::Identified { result, .. },
-                        } = &message
-                        {
-                            if let RuntimeStoreResult::RuntimeFailure { error } = result.as_ref() {
-                                panic!("native rename worker failed: {error:?}");
-                            }
-                        }
-                        playback
-                            .dispatch_host_message_music_first(message, runner, host)
-                            .unwrap();
-                    }
-                }
-            }
-        }
-        std::thread::sleep(Duration::from_millis(2));
-    }
-    panic!("partial rename completion did not arrive");
-}
-
-fn cleanup_warning_reaches_display(runner: &mut NativeRunner) {
-    let start = Instant::now();
-    for step in 0..100 {
-        runner.test_set_display_time(start + Duration::from_millis(200 * step));
-        let snapshot = runner
-            .messages_with_snapshot()
-            .unwrap()
-            .into_iter()
-            .find_map(|message| match message {
-                RunnerMessage::Snapshot { snapshot } => Some(snapshot),
-                _ => None,
-            })
-            .unwrap();
-        if snapshot["display"]["toast"]
-            .as_str()
-            .unwrap()
-            .contains("cleanup")
-        {
-            return;
-        }
-    }
-    panic!("cleanup warning never scrolled into view");
-}
-
-fn rename_after_source_disappears(
-    source_name: &str,
-    source_path: &std::path::Path,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     host: &mut crate::host_adapter::PiHostAdapter,
-) -> (String, String, serde_json::Value) {
+) -> (String, String) {
     stop_playing(playback, runner, host);
     edit_rename_target(source_name, playback, runner, host);
     start_playing(playback, runner, host);
-    let expected = runner
-        .capture_config_snapshot()
-        .into_portable_patch_payload()
-        .unwrap();
+    let loaded = loaded_patch(runner);
     let release = gate_worker(host);
     confirm_action(playback, runner, host, "preset.rename.apply");
     assert!(matches!(
@@ -396,15 +311,14 @@ fn rename_after_source_disappears(
             ..
         } if source == source_name
     ));
-    assert!(source_path.is_file());
-    std::fs::remove_file(source_path).unwrap();
     release.send(()).unwrap();
-    let (name, outcome, cleanup_error) =
-        receive_partial_rename(host, playback, runner, source_name);
-    assert!(!source_path.exists());
-    cleanup_warning_reaches_display(runner);
-    assert!(cleanup_error.contains(source_name));
-    (name, outcome, expected)
+    let renamed = next_preset_result(host, playback, runner);
+    assert_eq!(
+        loaded_patch(runner),
+        loaded,
+        "a rename leaves the loaded patch alone"
+    );
+    renamed
 }
 
 #[test]
@@ -451,27 +365,23 @@ fn playing_save_as_save_current_and_rename_follow_device_input_and_refresh_catal
     assert_eq!(saved_current, source_name);
     assert_eq!(current_outcome, "overwritten");
 
-    let (target_name, outcome, expected_rename_patch) = rename_after_source_disappears(
+    let stored_source = write_patch(
+        &root.join("store"),
         &source_name,
-        &source_path,
-        &mut playback,
-        &mut runner,
-        &mut host,
+        &json!({"stored": source_name}),
     );
+    let (target_name, outcome) =
+        rename_by_device_input(&source_name, &mut playback, &mut runner, &mut host);
     assert_ne!(target_name, source_name);
-    assert_eq!(outcome, "created");
+    assert_eq!(outcome, format!("renamed from {source_name}"));
     assert!(!source_path.exists());
-    assert!(root
-        .join("store/patches")
-        .join(format!("{target_name}.json"))
-        .is_file());
     assert_eq!(
-        crate::platform_service::load_json(
-            &crate::platform_service::preset_patch_path(&root.join("store"), &target_name,)
-                .unwrap(),
+        std::fs::read(
+            crate::platform_service::preset_patch_path(&root.join("store"), &target_name).unwrap()
         )
         .unwrap(),
-        Some(expected_rename_patch)
+        stored_source,
+        "the renamed preset keeps its own music, not the loaded patch"
     );
     assert_eq!(
         runner

@@ -1287,6 +1287,10 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - `Save As` or `Rename` onto the name of another existing preset confirms with
   `Overwrite preset <name>?` (Rename: `Overwrite preset <target> with <source>?`). The store
   refuses to replace an existing preset unless that overwrite was confirmed.
+- `Rename` moves the stored preset file to the new name in one step, so it keeps its own music and
+  the loaded patch is neither saved nor changed. The toast reads `Renamed to <name>`. The current
+  preset name follows only when the renamed preset was the loaded one, and clears when the rename
+  replaced the loaded preset's name.
 - Patches, named presets, `.oct` musical exports, the local default patch, rolling backups, and
   recovery all keep any safe relative WAV sample path (no absolute paths, `..`, or backslashes),
   even when the media is missing. On another device the patch loads cleanly where the same files

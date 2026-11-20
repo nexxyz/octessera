@@ -67,24 +67,19 @@ fn locked_existing_target_returns_identified_write_failure_without_deleting_sour
 }
 
 #[test]
-#[cfg(board_not_orange)]
-fn source_delete_failure_keeps_both_presets_and_reports_partial_cleanup() {
-    let (service, root) = service_and_root("rename-cleanup-failure");
+fn a_locked_source_fails_the_rename_and_keeps_the_source_preset() {
+    let (service, root) = service_and_root("rename-locked-source");
     let store = root.join("store");
     let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let expected = runner
-        .capture_config_snapshot()
-        .into_portable_patch_payload()
-        .unwrap();
     let source_path = crate::platform_service::preset_patch_path(&store, "Source").unwrap();
-    let source_bytes = write_patch(&store, "Source", &expected);
+    let source_bytes = write_patch(&store, "Source", &json!({"stored": "Source"}));
     let mut source_lock = std::fs::OpenOptions::new()
         .read(true)
         .share_mode(0)
         .open(&source_path)
         .unwrap();
-    let _request = enqueue_preset(
+    enqueue_preset(
         &service,
         &mut playback,
         &mut runner,
@@ -94,54 +89,15 @@ fn source_delete_failure_keeps_both_presets_and_reports_partial_cleanup() {
             rename_from: Some("Source".into()),
         },
     );
-    let deadline = Instant::now() + Duration::from_secs(2);
-    let raw = loop {
-        if let Some(result) = service.drain_platform_results(8).into_iter().next() {
-            break result;
-        }
-        assert!(Instant::now() < deadline, "preset cleanup result timed out");
-        std::thread::sleep(Duration::from_millis(2));
-    };
-    let PlatformResult::NativePresetCompletion(completion) = raw else {
-        panic!("rename target should be saved before source cleanup result");
-    };
+    let message = receive_preset_result(&service, &mut runner, Duration::from_secs(2));
     assert!(matches!(
-        &completion.result,
-        RuntimeStoreResult::Identified { result, .. }
-            if matches!(result.as_ref(), RuntimeStoreResult::SavePresetResult { name, .. } if name == "Target")
+        &message,
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { result, .. }
+        } if matches!(result.as_ref(), RuntimeStoreResult::RuntimeFailure { error }
+            if error.operation == RuntimeOperation::StoreSavePreset
+                && error.message.as_deref().is_some_and(|message| message.starts_with("Rename Source failed")))
     ));
-    let cleanup_error = completion.cleanup_error.clone().unwrap();
-    assert!(cleanup_error.contains("Source"));
-    assert!(cleanup_error.contains("could not be removed"));
-    assert_eq!(
-        completion.names,
-        vec!["Source".to_string(), "Target".to_string()]
-    );
-    let message = finish_platform_result(
-        &service,
-        &mut runner,
-        PlatformResult::NativePresetCompletion(completion),
-    )
-    .unwrap();
-    playback
-        .dispatch_host_message_music_first(message, &mut runner, &mut TestHost)
-        .unwrap();
-    let toast = runner.capture_display_scene().unwrap().into_snapshot()["display"]["toast"]
-        .as_str()
-        .unwrap()
-        .to_string();
-    let shown = toast.strip_suffix("..").unwrap_or(&toast);
-    assert!(
-        shown.contains("Target") && "Saved Target; cleanup failed".contains(shown),
-        "{toast}"
-    );
-    assert_eq!(
-        crate::platform_service::load_json(
-            &crate::platform_service::preset_patch_path(&store, "Target").unwrap()
-        )
-        .unwrap(),
-        Some(expected)
-    );
     source_lock.seek(SeekFrom::Start(0)).unwrap();
     let mut current_source = Vec::new();
     source_lock.read_to_end(&mut current_source).unwrap();
@@ -149,7 +105,7 @@ fn source_delete_failure_keeps_both_presets_and_reports_partial_cleanup() {
     drop(source_lock);
     assert_eq!(
         crate::platform_service::list_presets(&store).unwrap(),
-        vec!["Source".to_string(), "Target".to_string()]
+        vec!["Source".to_string()]
     );
     cleanup(root);
 }

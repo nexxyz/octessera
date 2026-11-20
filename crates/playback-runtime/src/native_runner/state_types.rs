@@ -64,7 +64,6 @@ pub(super) struct NativePendingPresetWrite {
     pub(super) revision: u64,
     pub(super) request: NativeManualSaveRequest,
     pub(super) catalog: Option<Vec<String>>,
-    pub(super) cleanup_error: Option<String>,
 }
 
 #[derive(Clone)]

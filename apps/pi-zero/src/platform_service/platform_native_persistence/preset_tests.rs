@@ -124,6 +124,13 @@ fn write_patch(store_dir: &std::path::Path, name: &str, payload: &serde_json::Va
     std::fs::read(path).unwrap()
 }
 
+fn loaded_patch(runner: &NativeRunner) -> serde_json::Value {
+    runner
+        .capture_config_snapshot()
+        .into_portable_patch_payload()
+        .unwrap()
+}
+
 fn cleanup(root: PathBuf) {
     let _ = std::fs::remove_dir_all(root);
 }
@@ -183,16 +190,13 @@ fn wait_for_worker_queue(service: &crate::platform_service::PiPlatformService) {
 }
 
 #[test]
-fn native_rename_to_default_name_updates_catalog_and_current_preset() {
+fn native_rename_to_default_name_moves_the_stored_preset_and_updates_the_catalog() {
     let (service, root) = service_and_root("rename-default-stem");
     let store = root.join("store");
     let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
-    let expected = runner
-        .capture_config_snapshot()
-        .into_portable_patch_payload()
-        .unwrap();
+    let expected = json!({"stored": "Source"});
     write_patch(&store, "Source", &expected);
     let request = enqueue_preset(
         &service,
@@ -210,8 +214,8 @@ fn native_rename_to_default_name_updates_catalog_and_current_preset() {
         HostMessage::RuntimeResult {
             result: RuntimeStoreResult::Identified { request_id, result, .. }
         } if request_id == request.request_id()
-            && matches!(result.as_ref(), RuntimeStoreResult::SavePresetResult { name, .. }
-                if name == "default")
+            && matches!(result.as_ref(), RuntimeStoreResult::RenamePresetResult { from, name }
+                if from == "Source" && name == "default")
     ));
     assert_eq!(
         crate::platform_service::list_presets(&store).unwrap(),
@@ -232,18 +236,7 @@ fn native_rename_to_default_name_updates_catalog_and_current_preset() {
         runner.test_focus_menu_item("preset.load.default").unwrap(),
         "default"
     );
-    runner.test_focus_menu_item("preset.saveCurrent").unwrap();
-    playback
-        .dispatch_host_message_music_first(
-            HostMessage::DeviceInput {
-                input: json!({"type":"encoder_press","id":"main"}),
-                request_snapshot: Some(false),
-            },
-            &mut runner,
-            &mut TestHost,
-        )
-        .unwrap();
-    assert!(runner.test_confirmation_is_open());
+    assert!(runner.test_focus_menu_item("preset.load.Source").is_err());
     cleanup(root);
 }
 
@@ -341,7 +334,7 @@ fn preset_queue_rejection_and_restore_generation_never_delete_rename_source() {
         HostMessage::RuntimeResult {
             result: RuntimeStoreResult::Identified { request_id, result, .. }
         } if request_id == request.request_id()
-            && matches!(result.as_ref(), RuntimeStoreResult::SavePresetResult { name, .. }
+            && matches!(result.as_ref(), RuntimeStoreResult::RenamePresetResult { name, .. }
                 if name == "Target")
     ));
     playback

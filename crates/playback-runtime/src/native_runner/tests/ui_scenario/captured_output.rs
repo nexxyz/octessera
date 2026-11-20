@@ -15,6 +15,7 @@ pub(super) struct CapturedOutput {
     pub(super) load_preset_requests: Vec<String>,
     pub(super) saved_presets: Vec<(String, Value)>,
     pub(super) deleted_presets: Vec<String>,
+    pub(super) renamed_presets: Vec<(String, String, Option<crate::PresetSaveMode>)>,
     pub(super) saved_systems: Vec<Value>,
     pub(super) set_instrument_slot_count: usize,
     pub(super) synth_param_count: usize,
@@ -77,6 +78,10 @@ impl CapturedOutput {
                             }
                             RuntimePlatformEffect::StoreDeletePreset { name } => {
                                 self.deleted_presets.push(name.clone());
+                            }
+                            RuntimePlatformEffect::StoreRenamePreset { from, name, mode } => {
+                                self.renamed_presets
+                                    .push((from.clone(), name.clone(), *mode));
                             }
                             _ => {}
                         }

@@ -15,13 +15,13 @@ use serde_json::Value;
 const PRESET_BPMS: [(&str, i32); 3] = [("A", 100), ("B", 130), ("C", 90)];
 const EDITED_BPM: i32 = 111;
 
-fn bpm(session: &HeadlessSession) -> f64 {
+pub(crate) fn bpm(session: &HeadlessSession) -> f64 {
     session.config_payload()["runtimeConfig"]["transport"]["bpm"]
         .as_f64()
         .unwrap()
 }
 
-fn set_bpm(session: &mut HeadlessSession, target: i32) {
+pub(crate) fn set_bpm(session: &mut HeadlessSession, target: i32) {
     open(session, &["Link"]);
     set_number(
         session,
@@ -33,7 +33,7 @@ fn set_bpm(session: &mut HeadlessSession, target: i32) {
 
 /// Saves the current patch as a named preset. The Name draft keeps the last save's name, so
 /// appending `suffix` gives each save its own name, ending in that letter.
-fn save_as(session: &mut HeadlessSession, suffix: &str) {
+pub(crate) fn save_as(session: &mut HeadlessSession, suffix: &str) {
     open(session, &["System", "Saves", "Library", "Save As"]);
     select(session, "Name");
     tap(session, press_main());

@@ -134,7 +134,8 @@ fn is_successful_manual_save_result(runner: &NativeRunner, result: &RuntimeStore
         RuntimeStoreResult::SaveDefaultResult { ok: true, .. } => runner
             .restart_settings
             .native_write_matches(request_id, *revision),
-        RuntimeStoreResult::SavePresetResult { name, .. } => {
+        RuntimeStoreResult::SavePresetResult { name, .. }
+        | RuntimeStoreResult::RenamePresetResult { name, .. } => {
             runner.native_preset_write_matches(request_id, *revision, name)
         }
         RuntimeStoreResult::SaveBackupResult { ok: true } => true,

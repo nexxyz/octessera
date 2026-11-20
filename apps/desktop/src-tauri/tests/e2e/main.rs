@@ -12,6 +12,7 @@ mod midi;
 mod performance_pass;
 mod play_fx;
 mod preset_loads;
+mod preset_rename;
 mod recording;
 mod sample_loop;
 mod save_reload;

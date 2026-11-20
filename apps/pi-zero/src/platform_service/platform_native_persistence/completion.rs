@@ -178,6 +178,7 @@ fn finish_native_preset_result(
         &completion.result,
         RuntimeStoreResult::Identified { result, .. }
             if matches!(result.as_ref(), RuntimeStoreResult::SavePresetResult { name, .. }
+                | RuntimeStoreResult::RenamePresetResult { name, .. }
                 if matches!(&current.manual, NativeManualSaveRequest::Preset { name: target, .. } if name == target))
     );
     let Some(revision) = revision else {
@@ -188,12 +189,7 @@ fn finish_native_preset_result(
         ));
     };
     if !valid_success
-        || !runner.attach_native_preset_catalog(
-            request_id,
-            revision,
-            completion.names,
-            completion.cleanup_error,
-        )
+        || !runner.attach_native_preset_catalog(request_id, revision, completion.names)
     {
         service.clear_native_preset_write(&current);
         return Some(failure(

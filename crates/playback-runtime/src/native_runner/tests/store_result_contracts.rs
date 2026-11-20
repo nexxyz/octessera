@@ -101,7 +101,7 @@ fn failed_delete_and_default_operations_are_persistence_no_ops() {
 }
 
 #[test]
-fn rename_save_appends_delete_after_existing_outbox_and_preserves_message_order() {
+fn a_save_after_picking_a_rename_source_deletes_no_preset() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
     runner.patch_store.preset_rename_source = Some("Old".into());
@@ -124,15 +124,9 @@ fn rename_save_appends_delete_after_existing_outbox_and_preserves_message_order(
             RunnerMessage::PlatformEffects { effects } => Some(effects.clone()),
             _ => None,
         })
-        .expect("rename platform effects");
+        .expect("queued platform effects");
 
-    assert_eq!(
-        effects,
-        vec![
-            existing,
-            RuntimePlatformEffect::StoreDeletePreset { name: "Old".into() },
-        ]
-    );
+    assert_eq!(effects, vec![existing]);
     assert_eq!(
         runner.patch_store.current_preset_name.as_deref(),
         Some("New")

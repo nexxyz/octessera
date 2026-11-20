@@ -33,7 +33,6 @@ impl NativeRunner {
             revision,
             request,
             catalog: None,
-            cleanup_error: None,
         });
         true
     }
@@ -43,7 +42,6 @@ impl NativeRunner {
         request_id: &str,
         revision: u64,
         names: Vec<String>,
-        cleanup_error: Option<String>,
     ) -> bool {
         let Some(write) = self.pending.native_preset_write.as_mut() else {
             return false;
@@ -58,7 +56,6 @@ impl NativeRunner {
             return false;
         }
         write.catalog = Some(names);
-        write.cleanup_error = cleanup_error;
         true
     }
 
@@ -125,21 +122,52 @@ impl NativeRunner {
         };
         self.patch_store.preset_names = catalog;
         if let Some(source) = rename_from {
-            if self.patch_store.preset_rename_source.as_deref() == Some(source.as_str()) {
-                self.patch_store.preset_rename_source = None;
+            self.apply_preset_rename(&source, &name);
+        } else {
+            if clean_preset_name(&self.patch_store.preset_draft_name) == name {
+                self.patch_store.preset_draft_name = fresh_preset_name();
             }
+            self.patch_store.current_preset_name = Some(name.clone());
+            if self.config_revision == write.revision {
+                self.show_toast(format!("Saved {name}"));
+            }
+        }
+        self.display.transients.mark_presentation_due();
+        self.show_preset_catalog();
+    }
+
+    /// A host rename result updates the catalog itself; a native one brings the whole catalog.
+    pub(super) fn apply_host_preset_rename(&mut self, from: &str, name: &str) {
+        self.patch_store.preset_names.retain(|entry| entry != from);
+        if !self
+            .patch_store
+            .preset_names
+            .iter()
+            .any(|entry| entry == name)
+        {
+            self.patch_store.preset_names.push(name.into());
+            self.patch_store.preset_names.sort_unstable();
+        }
+        self.apply_preset_rename(from, name);
+        self.show_preset_catalog();
+    }
+
+    /// A renamed preset keeps its music; the loaded patch only follows the name it was loaded
+    /// from, and loses a name whose preset the rename replaced.
+    fn apply_preset_rename(&mut self, from: &str, name: &str) {
+        if self.patch_store.preset_rename_source.as_deref() == Some(from) {
+            self.patch_store.preset_rename_source = None;
         }
         if clean_preset_name(&self.patch_store.preset_draft_name) == name {
             self.patch_store.preset_draft_name = fresh_preset_name();
         }
-        self.patch_store.current_preset_name = Some(name.clone());
-        if let Some(error) = write.cleanup_error {
-            self.show_toast(format!("Saved {name}; cleanup failed: {error}"));
-        } else if self.config_revision == write.revision {
-            self.show_toast(format!("Saved {name}"));
+        let current = self.patch_store.current_preset_name.as_deref();
+        if current == Some(from) {
+            self.patch_store.current_preset_name = Some(name.into());
+        } else if current == Some(name) {
+            self.patch_store.current_preset_name = None;
         }
-        self.display.transients.mark_presentation_due();
-        self.show_preset_catalog();
+        self.show_toast(format!("Renamed to {name}"));
     }
 
     pub(super) fn show_preset_catalog(&mut self) {
@@ -179,7 +207,8 @@ impl NativeRunner {
     ) -> Option<NativePresetResultAction> {
         let native_request = request_id.starts_with("native-preset-");
         match result {
-            crate::RuntimeStoreResult::SavePresetResult { name, .. } => {
+            crate::RuntimeStoreResult::SavePresetResult { name, .. }
+            | crate::RuntimeStoreResult::RenamePresetResult { name, .. } => {
                 if let Some(revision) = revision {
                     if let Some(write) =
                         self.take_matching_native_preset_write(request_id, revision, name)

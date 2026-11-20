@@ -27,6 +27,7 @@ impl PlaybackRuntime {
             | RuntimePlatformEffect::StoreListPresets
             | RuntimePlatformEffect::StoreLoadPreset { .. }
             | RuntimePlatformEffect::StoreDeletePreset { .. }
+            | RuntimePlatformEffect::StoreRenamePreset { .. }
             | RuntimePlatformEffect::StoreLoadDefault
             | RuntimePlatformEffect::StoreLoadSystem
             | RuntimePlatformEffect::StoreResetSystem
