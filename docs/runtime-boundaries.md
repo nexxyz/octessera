@@ -63,6 +63,8 @@ Unnamed threads have no `Builder::name`.
 | `octessera-usb-keyboard` | `keyboard_capture/mod.rs` | `HostMessage` input out | stop flag and join on shutdown or `Drop` | inherited |
 | `orange-oled-suspend` (Orange) | `orange_oled_suspend.rs` | Unix socket, render worker handle | stop flag; `shutdown` joins | inherited |
 | `octessera-orange-<encoder>` (Orange) | `octessera-hal` `orange_encoder_gpio.rs` | `HardwareEvent` out | stop flag in `Drop` | inherited |
+| rppal encoder interrupts (unnamed, Raspberry; one each for A, B and the switch of every encoder) | rppal `set_async_interrupt`, from `octessera-hal` `encoder_gpio.rs` | `HardwareEvent` out | pin dropped with its `EncoderGpio` | inherited |
+| rppal Seesaw INT interrupt (unnamed, Raspberry) | rppal `set_async_interrupt`, from `octessera-hal` `seesaw_interrupt.rs` | edge signal to the Seesaw worker | pin dropped with its `SeesawInterrupt` | inherited |
 | platform worker (unnamed) | `platform_service/platform_service_worker.rs` | `PlatformWorkItem` in, platform result lane out | job channel closes | nice 10, CPU0 |
 | `octessera-device-update` | `platform_service/platform_service_worker.rs` | platform result lane | after its one update job | nice 10, CPU0 |
 | `octessera-setup-portal` | `setup_portal_worker.rs` | platform result lane | stop flag | inherited |
