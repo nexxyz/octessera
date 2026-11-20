@@ -133,3 +133,47 @@ fn timer_and_brightness_edits_stop_at_the_menu_range() {
         (600, 600, 100)
     );
 }
+
+#[test]
+fn brightness_selectors_report_the_scalar_table_range_at_both_ends() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    for (delta, display, button) in [(80, 16, 100), (-80, 1, 10)] {
+        runner.edit_menu_key("displayBrightness", delta).unwrap();
+        runner.edit_menu_key("buttonBrightness", delta).unwrap();
+        assert_eq!(runner.menu.selected_display_brightness(), Some(display));
+        assert_eq!(runner.menu.selected_button_brightness(), Some(button));
+    }
+}
+
+#[test]
+fn loaded_led_brightness_is_clamped_to_the_scalar_table_range() {
+    let mut runtime = default_payload()["runtimeConfig"].clone();
+    runtime["gridBrightness"] = json!(3);
+    runtime["buttonBrightness"] = json!(0);
+    runtime["displayBrightness"] = json!(0);
+    let dto = RuntimeConfigDto::from_value(&runtime).unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_display_payload(&dto);
+    let ui = &runner.display.ui;
+    assert_eq!(
+        (
+            ui.grid_brightness,
+            ui.button_brightness,
+            ui.display_brightness
+        ),
+        (10, 10, 1)
+    );
+}
+
+#[test]
+fn only_table_scalars_are_turnable_brightness_and_screen_keys() {
+    for key in ["gridBrightness", "buttonBrightness", "displayBrightness"] {
+        assert!(supported_aux_turn_key(key), "{key}");
+    }
+    for key in ["screenSleepSeconds", "dimTimerSeconds"] {
+        assert!(supported_aux_turn_key(key), "{key}");
+    }
+    for key in ["ledBrightness", "screenFlash", "screen", "Brightness"] {
+        assert!(!supported_aux_turn_key(key), "{key}");
+    }
+}

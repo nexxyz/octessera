@@ -134,10 +134,12 @@ impl NativeRunner {
                 value.clamp(DISPLAY_BRIGHTNESS.0 as u8, DISPLAY_BRIGHTNESS.1 as u8);
         }
         if let Some(value) = runtime.grid_brightness {
-            ui.grid_brightness = value.min(LED_BRIGHTNESS_PCT.1 as u8);
+            ui.grid_brightness =
+                value.clamp(LED_BRIGHTNESS_PCT.0 as u8, LED_BRIGHTNESS_PCT.1 as u8);
         }
         if let Some(value) = runtime.button_brightness {
-            ui.button_brightness = value.min(LED_BRIGHTNESS_PCT.1 as u8);
+            ui.button_brightness =
+                value.clamp(LED_BRIGHTNESS_PCT.0 as u8, LED_BRIGHTNESS_PCT.1 as u8);
         }
         self.apply_oled_style_payload(runtime);
         let ui = &mut self.display.ui;

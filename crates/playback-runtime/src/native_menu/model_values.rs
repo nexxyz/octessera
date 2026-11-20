@@ -4,6 +4,7 @@ use super::format::note_unit_to_pulses;
 use super::section_labels::PLAY_PATH_PREFIX;
 use super::{NativeMenuItem, NativeMenuModel, NativeMenuValue};
 use crate::native_runner::play_pages::{PlayMode, PLAY_PAGES};
+use crate::native_runner::system_scalars::{DISPLAY_BRIGHTNESS, LED_BRIGHTNESS_PCT};
 
 impl NativeMenuModel {
     pub fn selected_behavior(&self) -> Option<String> {
@@ -29,12 +30,12 @@ impl NativeMenuModel {
 
     pub fn selected_display_brightness(&self) -> Option<u8> {
         self.number_for_key("displayBrightness")
-            .map(|value| value.clamp(0, 100) as u8)
+            .map(|value| value.clamp(DISPLAY_BRIGHTNESS.0, DISPLAY_BRIGHTNESS.1) as u8)
     }
 
     pub fn selected_button_brightness(&self) -> Option<u8> {
         self.number_for_key("buttonBrightness")
-            .map(|value| value.clamp(0, 100) as u8)
+            .map(|value| value.clamp(LED_BRIGHTNESS_PCT.0, LED_BRIGHTNESS_PCT.1) as u8)
     }
 
     pub(crate) fn selected_play_mode(&self) -> Option<PlayMode> {
