@@ -1,4 +1,6 @@
-use super::super::play_fx::config::{is_play_fx_target, play_fx_types, PlayFxConfig};
+use super::super::play_fx::config::{
+    is_play_fx_target, play_fx_param_specs, play_fx_types, PlayFxConfig,
+};
 use super::super::{derive_bus_name, Value, PAN_POSITION_COUNT};
 use super::value::{apply_fx_param_binding_value, apply_fx_slot_type_value, apply_u8_value};
 use crate::native_menu::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};
@@ -94,7 +96,13 @@ pub(super) fn apply_play_fx_binding_value(
             let (Some(key), Some(value)) = (field.strip_prefix("params."), value.as_f64()) else {
                 return false;
             };
-            let value = value.round() as i64;
+            let Some(spec) = play_fx_param_specs(&selected.fx_type)
+                .iter()
+                .find(|spec| spec.key == key)
+            else {
+                return false;
+            };
+            let value = (value.round() as i64).clamp(i64::from(spec.min), i64::from(spec.max));
             selected.params.insert(key.into(), value) != Some(value)
         }
     }

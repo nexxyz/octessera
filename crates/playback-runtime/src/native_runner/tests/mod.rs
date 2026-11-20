@@ -187,6 +187,7 @@ mod shutdown;
 mod signal_view;
 mod snapshot_autosave;
 mod snapshot_runtime;
+mod stale_binding_targets;
 mod step_rates;
 mod stop_all_notes_off;
 mod stopped_snapshot_settings;

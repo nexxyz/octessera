@@ -2,6 +2,7 @@ use super::super::{
     cutoff_display_to_hz, set_json_path_number, synth_numeric_field, NativeInstrumentSlot, Value,
     PAN_POSITION_COUNT,
 };
+use crate::native_menu::FILTER_RESONANCE;
 
 pub(in crate::native_runner) fn apply_instrument_numeric_binding_value(
     instrument: &mut NativeInstrumentSlot,
@@ -87,7 +88,9 @@ pub(in crate::native_runner) fn apply_instrument_numeric_binding_value(
         "synth.filter.resonance" => set_json_path_number(
             &mut instrument.synth_config,
             &["filter", "resonance"],
-            value.round().clamp(0.0, 255.0),
+            value
+                .round()
+                .clamp(f64::from(FILTER_RESONANCE.0), f64::from(FILTER_RESONANCE.1)),
         ),
         field if field.starts_with("synth.") => {
             let Some((path, min, max)) = synth_numeric_field(field) else {
@@ -127,7 +130,9 @@ pub(in crate::native_runner) fn apply_instrument_numeric_binding_value(
         "sample.filter.resonance" => set_json_path_number(
             &mut instrument.sample_filter,
             &["resonance"],
-            value.round().clamp(0.0, 255.0),
+            value
+                .round()
+                .clamp(f64::from(FILTER_RESONANCE.0), f64::from(FILTER_RESONANCE.1)),
         ),
         "sample.filter.envAmountPct" => set_json_path_number(
             &mut instrument.sample_filter,

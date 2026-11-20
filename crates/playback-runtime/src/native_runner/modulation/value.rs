@@ -94,10 +94,10 @@ pub(super) fn apply_fx_param_binding_value(
                 )
             })
             .map(|value| json!(value))
-    } else if super::super::fx_param_specs::fx_param_spec(fx_type, key).is_some() {
-        value
-            .as_f64()
-            .map(|value| fx_param_storage_value(key, value))
+    } else if let Some(spec) = super::super::fx_param_specs::fx_param_spec(fx_type, key) {
+        value.as_f64().map(|value| {
+            fx_param_storage_value(key, value.clamp(f64::from(spec.min), f64::from(spec.max)))
+        })
     } else {
         None
     };

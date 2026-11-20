@@ -43,7 +43,7 @@ const SYNTH_PARAM_CONTRACT: &[SynthParam] = &[
     (
         "filter.resonance",
         &["filter", "resonance"],
-        (0.0, 255.0),
+        (0.0, 100.0),
         Some(32.0),
     ),
     (

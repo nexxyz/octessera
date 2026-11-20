@@ -1,6 +1,6 @@
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, INSTRUMENT_COUNT};
 
-pub(super) const FX_BUS_SLOT_OPTIONS: &[&str] = &[
+pub(crate) const FX_BUS_SLOT_OPTIONS: &[&str] = &[
     "none",
     "tremolo",
     "delay",
@@ -21,7 +21,7 @@ pub(super) const FX_BUS_SLOT_OPTIONS: &[&str] = &[
     "bitcrusher",
 ];
 
-pub(super) const GLOBAL_FX_SLOT_OPTIONS: &[&str] = &[
+pub(crate) const GLOBAL_FX_SLOT_OPTIONS: &[&str] = &[
     "none",
     "vinyl",
     "eq",

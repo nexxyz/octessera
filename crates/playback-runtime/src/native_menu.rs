@@ -7,7 +7,7 @@ use fx::default_fx_bus_config;
 #[cfg(test)]
 use link::default_link_layer_config;
 #[cfg(test)]
-use options::{FX_BUS_SLOT_OPTIONS, GLOBAL_FX_SLOT_OPTIONS};
+pub(crate) use options::{FX_BUS_SLOT_OPTIONS, GLOBAL_FX_SLOT_OPTIONS};
 #[cfg(test)]
 use platform_core::{BUS_COUNT as FX_BUS_COUNT, GLOBAL_FX_SLOT_COUNT};
 
