@@ -66,8 +66,11 @@ this be?".
    tape stop, reverse, trance gate, dub throw, wash, riser or bitcrush below
    them. Two at a time, one of each kind.
 5. In **Build**, draw a few tiles on Layer 1, or swap its behavior for `brain`
-   or `raindrops`. Then try `Shape > I3 > Plucked > Preset > Load > Koto` and
-   `Shape > I6 > Drum > Kit > Load > Hand Perc`.
+   or `raindrops`. Then try
+   `Shape > Instruments > I3: Plucked fxb2 > Plucked > Preset > Load > Koto` and
+   `Shape > Instruments > I6: Drum direct > Drum > Kit > Load > Hand Perc`. (The
+   slot rows are named after their type and route, so yours may read slightly
+   differently if you've changed those.)
 
 **Save what you like.** Auto Save is off, so your edits live in memory until
 you save them: `System > Saves > Default > Save Patch`, or a named preset under
@@ -82,7 +85,7 @@ Where to go next:
 
 - [Controls cheat sheet](controls-cheat-sheet.md): every button, combo and
   grid mode.
-- [Behaviors and Play pages](behaviors-and-play.md): the 48 worlds and the
+- [Behaviors and Play pages](behaviors-and-play.md): about 50 worlds and the
   performance pages.
 - [Sound and Link](sound-and-link.md): how tile changes become notes,
   instruments and effects.
