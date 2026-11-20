@@ -187,7 +187,6 @@ mod state_instrument_types;
 mod state_link;
 mod state_types;
 mod store;
-mod store_persistence_results;
 mod synth_config;
 mod system_info;
 mod system_persistence;

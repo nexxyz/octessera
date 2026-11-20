@@ -2,10 +2,10 @@ use crate::protocol::{RuntimePlatformEffect, RuntimeStoreResult};
 use serde_json::Value;
 use std::sync::Arc;
 
-use super::NativeRunner;
+use super::super::NativeRunner;
 
 impl NativeRunner {
-    pub(super) fn apply_system_store_result(
+    pub(in crate::native_runner) fn apply_system_store_result(
         &mut self,
         result: RuntimeStoreResult,
     ) -> Result<Option<RuntimeStoreResult>, String> {
@@ -31,10 +31,10 @@ impl NativeRunner {
             _ => return Ok(None),
         };
         let operation = result.operation();
-        if !super::store::is_system_store_operation(&operation) {
+        if !super::super::store::is_system_store_operation(&operation) {
             return Ok(None);
         }
-        if !super::system_persistence::SystemPersistenceState::accepts_result(&result) {
+        if !super::super::system_persistence::SystemPersistenceState::accepts_result(&result) {
             return Ok(None);
         }
         let Some(pending) = self.pending.system_persistence.take_matching_request(
@@ -255,7 +255,7 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn apply_restored_patch_result(
+    pub(in crate::native_runner) fn apply_restored_patch_result(
         &mut self,
         result: RuntimeStoreResult,
     ) -> Result<Option<(RuntimeStoreResult, bool)>, String> {
@@ -341,7 +341,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_default_patch_result_for_runtime(
+    pub(in crate::native_runner) fn apply_default_patch_result_for_runtime(
         &mut self,
         result: RuntimeStoreResult,
     ) -> Result<RuntimeStoreResult, String> {
