@@ -134,3 +134,35 @@ pub(crate) fn looper_length_edit_keeps_live_mode_when_config_has_none() {
 
     assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
 }
+
+#[test]
+pub(crate) fn a_saved_looper_with_steps_past_its_length_loads_and_saves_them_again() {
+    let runner = looper_runner();
+    let mut patch =
+        crate::native_runner::split_local_system_patch_documents(&runner.config_payload())
+            .unwrap()
+            .patch;
+    let steps = json!([[{ "kind": "press", "tile": 26 }], [{ "kind": "press", "tile": 27 }], []]);
+    let build = &mut patch["runtimeConfig"]["layers"][0]["build"];
+    build["behaviorConfig"]["lengthSteps"] = json!(1);
+    build["savedState"] = json!({ "lengthSteps": 1, "mode": "overdub", "steps": steps });
+
+    let mut fresh = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    fresh
+        .apply_store_result(RuntimeStoreResult::LoadDefaultResult {
+            payload: Some(patch),
+        })
+        .unwrap();
+
+    let saved = crate::native_runner::split_local_system_patch_documents(&fresh.config_payload())
+        .unwrap()
+        .patch;
+    assert_eq!(
+        saved["runtimeConfig"]["layers"][0]["build"]["savedState"]["lengthSteps"],
+        1
+    );
+    assert_eq!(
+        saved["runtimeConfig"]["layers"][0]["build"]["savedState"]["steps"],
+        steps
+    );
+}
