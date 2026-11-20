@@ -180,8 +180,12 @@ The desktop store lives in `%APPDATA%/xyz.nex.octessera/` (or
 and `presets/` into a third folder next to the boards to compose it too. With
 `OCTESSERA_DESKTOP_STORE_DIR` set, user samples live in its `samples/` folder
 too. A running simulator holds an exclusive lock on the store's
-`octessera.lock`; a second instance on the same store shows a startup error and
-exits before it reads the store or repairs a take. The lock covers that one store
+`octessera.lock`; a second instance on the same store reads the first one's
+`octessera.handoff.json` (loopback port plus a random token), asks it to
+unminimize and focus its window, and exits quietly. If that hand-off fails (no
+file, stale port, a hung first instance) it shows the "already running" startup
+error instead. Either way it exits before it reads the store or repairs a
+take. The lock covers that one store
 only: a dev instance with a different `OCTESSERA_DESKTOP_STORE_DIR` runs next to
 the installed app unguarded.
 

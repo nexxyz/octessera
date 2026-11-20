@@ -8,6 +8,7 @@ mod desktop_platform_service;
 #[cfg(feature = "headless")]
 pub mod headless;
 mod host_adapter;
+mod instance_handoff;
 mod late_timed_events;
 mod midi;
 mod persistence;
@@ -60,7 +61,18 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let startup_result = samples::initialize_samples_root(app)
                 .and_then(|()| {
-                    store_startup::ensure_store_dir(app).map_err(|error| error.to_string())
+                    store_startup::ensure_store_dir(app).map_err(|error| {
+                        if matches!(
+                            error,
+                            store_startup::DesktopStoreStartupError::HandedOffToRunning
+                        ) {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.hide();
+                            }
+                            std::process::exit(0);
+                        }
+                        error.to_string()
+                    })
                 })
                 .and_then(|store| {
                     recording::resolve_recordings_dir(app).and_then(|recording_dir| {
@@ -77,6 +89,19 @@ pub fn run() {
                     startup_failure::StartupDecision::FailurePresented => return Ok(()),
                 };
             app.manage(store_lock);
+            let window_handle = app_handle.clone();
+            match instance_handoff::listen(&store_dir, move || {
+                if let Some(window) = window_handle.get_webview_window("main") {
+                    let _ = window.unminimize();
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }) {
+                Ok(port) => {
+                    app.manage(port);
+                }
+                Err(error) => eprintln!("second-instance hand-off unavailable: {error}"),
+            }
             recording::spawn_partial_take_repair([&recording_dir, &screen_recording_dir]);
             let recording = recording::DesktopRecording::with_screen_directory(
                 recording_dir,

@@ -19,6 +19,7 @@ pub(crate) enum DesktopStoreStartupError {
     InvalidStore { detail: String },
     LockStore { path: PathBuf, source: String },
     AlreadyRunning { path: PathBuf },
+    HandedOffToRunning,
 }
 
 impl fmt::Display for DesktopStoreStartupError {
@@ -61,6 +62,10 @@ impl fmt::Display for DesktopStoreStartupError {
                 "Octessera is already running with the store in {}. Close the other Octessera window, then start this one again.",
                 path.display()
             ),
+            Self::HandedOffToRunning => write!(
+                formatter,
+                "Octessera is already running with this store; its window was brought to the front."
+            ),
         }
     }
 }
@@ -99,6 +104,9 @@ fn lock_store_dir(dir: &Path) -> Result<StoreLock, DesktopStoreStartupError> {
         .map_err(|error| lock_error(error.to_string()))?;
     match file.try_lock() {
         Ok(()) => Ok(StoreLock { _file: file }),
+        Err(TryLockError::WouldBlock) if crate::instance_handoff::request_show(dir) => {
+            Err(DesktopStoreStartupError::HandedOffToRunning)
+        }
         Err(TryLockError::WouldBlock) => Err(DesktopStoreStartupError::AlreadyRunning {
             path: dir.to_path_buf(),
         }),

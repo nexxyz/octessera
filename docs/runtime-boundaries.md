@@ -183,6 +183,10 @@ Desktop and board adapters hand runtime audio commands to the shared `playback_r
 
 Desktop `AudioRuntime` retains the rodio `Sink` and constructs the inline `EngineSource` with the existing load-status sender, wrapping that final source once with the desktop recording tap and once with `ContainedAudioSource`, which pulls it one engine block at a time inside `catch_unwind`; a panic there leaves the output silent for good without touching the source again and reports `audio_thread_failed` through the desktop audio failure channel; desktop does not select the Orange routing-tree capacity path or create source-worker lifecycle state.
 
+### Desktop second-instance hand-off
+
+The desktop host owns one small thread, `octessera-instance-handoff` (`apps/desktop/src-tauri/src/instance_handoff.rs`), beside its audio and runtime threads. It accepts loopback TCP connections on an ephemeral port recorded with a random token in `octessera.handoff.json` in the store directory, and on a request carrying the token unminimizes, shows and focuses the main window. A second instance that finds the store lock held makes that request and exits; a failed request keeps the "already running" startup error. It touches no runtime state.
+
 ### Backup and restore service
 
 `System > Maintenance > Backup / Restore` is a separate native action. PlaybackRuntime owns its action/status/card presentation and existing archive contract; Pi adapters select a usable regular `wlan0` IPv4, bind the authenticated service to `0.0.0.0:8081`, and publish the dynamic URL/code/lifetime. No regular address returns typed unavailable without binding or retry. Desktop returns typed unsupported. The service is never opened through the setup AP or coordinator.
