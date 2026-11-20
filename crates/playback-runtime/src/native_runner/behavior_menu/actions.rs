@@ -1,12 +1,15 @@
-use super::*;
+use super::super::*;
 
 impl NativeRunner {
-    pub(super) fn trigger_behavior_action(&mut self, action_type: String) -> Result<(), String> {
+    pub(in crate::native_runner) fn trigger_behavior_action(
+        &mut self,
+        action_type: String,
+    ) -> Result<(), String> {
         let _ = self.trigger_behavior_action_result(action_type)?;
         Ok(())
     }
 
-    pub(super) fn trigger_behavior_action_result(
+    pub(in crate::native_runner) fn trigger_behavior_action_result(
         &mut self,
         action_type: String,
     ) -> Result<platform_core::NativeInputResult, String> {
@@ -14,7 +17,7 @@ impl NativeRunner {
     }
 
     /// Runs a behavior action on `layer_index`, whichever layer is active.
-    pub(super) fn trigger_layer_behavior_action_result(
+    pub(in crate::native_runner) fn trigger_layer_behavior_action_result(
         &mut self,
         layer_index: usize,
         action_type: String,
@@ -36,7 +39,7 @@ impl NativeRunner {
     }
 
     /// The behavior id of `layer_index`, active or not.
-    pub(super) fn layer_behavior_id(&self, layer_index: usize) -> &str {
+    pub(in crate::native_runner) fn layer_behavior_id(&self, layer_index: usize) -> &str {
         if layer_index == self.active_layer_index {
             self.active_behavior().id()
         } else {
@@ -66,7 +69,7 @@ impl NativeRunner {
         self.show_toast(format!("Looper: {label}"));
     }
 
-    pub(super) fn seed_visible_state(&mut self) -> Result<(), String> {
+    pub(in crate::native_runner) fn seed_visible_state(&mut self) -> Result<(), String> {
         let layer_index = self.active_layer_index;
         let behavior_id = self
             .layers

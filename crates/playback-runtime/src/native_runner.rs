@@ -60,7 +60,6 @@ mod aux_priority;
 mod aux_turn_input;
 mod behavior_config_recomposition;
 mod behavior_menu;
-mod behavior_menu_actions;
 mod behavior_target_menu;
 mod binding_payload;
 mod binding_specs;
