@@ -93,9 +93,8 @@ fn preset_save_failure(message: &str, preset_name: Option<&str>) -> (&'static st
         || PRESET_NAME_FALLBACK.to_owned(),
         |name| {
             if name.chars().count() > PRESET_NAME_COLUMNS {
-                let mut clipped: String = name.chars().take(PRESET_NAME_COLUMNS - 2).collect();
-                clipped.push_str("..");
-                clipped
+                let kept: String = name.chars().take(PRESET_NAME_COLUMNS - 2).collect();
+                format!("{}..", kept.trim_end())
             } else {
                 name.to_owned()
             }

@@ -373,7 +373,7 @@ fn preset_save_failures_name_the_preset_and_the_real_cause() {
     );
     assert_eq!(
         screen_of(&save("disk full"), Some("A very long preset name")).1,
-        "A very long .. was not saved. Check the SD card, then try again."
+        "A very long.. was not saved. Check the SD card, then try again."
     );
     assert!(screen_of(&save("disk full"), None)
         .1
