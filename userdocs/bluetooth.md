@@ -2,7 +2,7 @@
 
 A Bluetooth keyboard plays the instrument the same way a USB keyboard does:
 the arrow keys turn *Main*, *Enter* clicks it, *Space* is *Play*, and so on
-(the full map is in the [controls cheat sheet](controls-cheat-sheet.md#usb-host-keyboard)).
+(the full map is in the [controls cheat sheet](controls-reference.md#usb-host-keyboard)).
 There's no cable, so on the Raspberry you can stay in USB Gadget mode with
 the computer plugged in and still play from a keyboard on your lap.
 

@@ -17,12 +17,10 @@ How a behavior's tiles turn into notes is covered in
 
 ## Start with a small patch
 
-The shipped patch is a good place to start. Layer 1 runs a self-sustaining
-`life` pattern into a dark saw-and-pulse synth, Layer 2 a `sequencer` beat
-into the Sampler (kick, clap and open hat), Layer 3 a `looper` into a Kalimba,
-Layer 4 another `sequencer` into the Swell Bass FM voice, and Layer 5 a
-`twinkle` sky into FM Glass. Layer 5 starts asleep at a 0% Trigger Gate:
-*Shift* + *Fn* and its left-column tile wakes it. The Faders page is set up to play with it, and
+The shipped patch is a good place to start; [your first ten
+minutes](first-ten-minutes.md#2-press-play) lists what each layer plays.
+Layer 5 starts asleep at a 0% Trigger Gate: *Shift* + *Fn* and its
+left-column tile wakes it. The Faders page is set up to play with it, and
 the other pages all have something on them to press.
 
 The Aux encoders come bound, too. *Aux 1* opens and closes the synth's filter

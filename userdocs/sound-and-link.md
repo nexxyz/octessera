@@ -93,8 +93,9 @@ layer makes the delay bloom.
 
 - `full` lets them all through and `zero` blocks the layer.
 - `custom` uses a per-tile map you paint with **Map Prob Grid**. Each press
-  cycles a tile through zero (dark), low (magenta), high (yellow) and full
-  (green); *Shift* paints a row and *Shift* + *Fn* a column.
+  cycles a tile through zero, low, high and full (the colors are in the
+  [cheat sheet](controls-cheat-sheet.md#assignment-modes)); *Shift* paints a
+  row and *Shift* + *Fn* a column.
 - **Prob Low** and **Prob High** set what "low" and "high" mean, in percent.
 - **Prob Note Off** decides whether note-offs roll the dice too. It starts
   off, so a held note always gets its release, even at `zero`. Turn it on
@@ -151,7 +152,7 @@ and faders on a MIDI controller move parameters, much like the XY pad does.
 incoming MIDI for clock, start/stop and these CC knobs only, and ignores
 notes on every channel. The keyboard's knobs and faders work here, its keys
 don't. To play tiles from a keyboard, plug in a computer keyboard instead (see
-the [keyboard map](controls-cheat-sheet.md#usb-host-keyboard)), or play live
+the [keyboard map](controls-reference.md#usb-host-keyboard)), or play live
 with a `keys` layer on the grid.
 
 - Switch on `System > MIDI > MIDI Active` and connect the controller under
@@ -364,7 +365,7 @@ your kick instrument, and the pad breathes in time.
 
 Choosing a Type loads sensible starting values, so it's safe to try things.
 All twelve slots can be busy at once, but see the
-[performance table](README.md#practical-performance) before you ask a
+[performance table](performance-and-live.md#practical-performance) before you ask a
 Raspberry to run them all.
 
 ## Global FX: the finishing touch

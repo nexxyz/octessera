@@ -66,9 +66,8 @@ customisation leaves SSH switched off until you turn it on in the setup portal.
 1. Put the flashed card into the compute board.
 2. Keep the enclosure open for this first boot.
 3. Connect audio if you want to hear the first result.
-4. Power the instrument through the USB-C power breakout. Not through the
-   Raspberry Pi's own micro-USB power connector; see [safety and
-   power](safety-and-power.md).
+4. Power the instrument through the USB-C power breakout, as
+   [safety and power](safety-and-power.md#power-input) explains.
 5. Wait for the Octessera boot animation and then the normal menu.
 
 Nothing on the OLED, or flickering? Unplug, then check these in order:

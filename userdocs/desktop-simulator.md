@@ -22,27 +22,17 @@ happily next to the first one, and each keeps to its own saves.
 
 ## Make a first sound
 
-The shipped patch already has Layer 1 running `life` into a synth.
-
-1. Press **Space**. The shipped patch starts at 120 BPM: a beat on kick, clap
-   and open hat, a bass line, raindrops landing on a drum kit, and Layer 1's `life`
-   colony playing a dark synth with its own echo.
-2. Click a few tiles on the grid. They change Layer 1's colony, and the synth
-   line changes with it.
-3. Carry on with the [tutorial](README.md#4-make-music): faders, Play FX and
-   swapping behaviors.
+Press **Space**: the shipped patch starts playing. From there, follow [your
+first ten minutes](first-ten-minutes.md). Every step works here, with the keys
+below standing in for the panel.
 
 Side trip, the stereo field: hold **Ctrl** (the simulator's *Fn*) and click the
 second tile from the bottom in the right-hand grid column to open **Play Pan**.
 Each row is an instrument; click left, center or right on the synth's row (the
 bottom one) to move it across the stereo field. Press **Backspace** to leave.
 
-Auto Save is off here too: edits stay in memory until you use
-`System > Saves > Default > Save Patch` or save a named preset under
-`System > Saves > Library`.
-
 The sampler slot comes with the bundled sample library. To add your own WAVs,
-see [Samples](README.md#samples).
+see [Samples](samples.md).
 
 ## Keyboard and mouse
 
@@ -59,7 +49,7 @@ see [Samples](README.md#samples).
 | On-screen encoders and grid | The same, with the mouse |
 
 The keys are the same as for a [keyboard on the
-instrument](controls-cheat-sheet.md#usb-host-keyboard), and like there they
+instrument](controls-reference.md#usb-host-keyboard), and like there they
 count by position, so your layout doesn't matter. Left *Alt* won't wander off
 into a window menu while the simulator has focus, and the right *Alt*
 (*AltGr*) does nothing, even though Windows quietly sends a *Ctrl* press

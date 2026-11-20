@@ -16,7 +16,7 @@ The [desktop simulator](desktop-simulator.md) runs the same native engine as
 the hardware. It needs no PCB, board, OLED or soldering iron, so it's the
 cheapest way to find out whether you like this sort of thing.
 
-**Next:** [learn the controls](controls-cheat-sheet.md)
+**Next:** [your first ten minutes](first-ten-minutes.md)
 
 ## 2. Build the device
 
@@ -43,70 +43,16 @@ I'd go for the Orange.
 
 ## 4. Make music
 
-The shipped patch is wired up and ready. Layer 1 runs a `life` colony into a
-dark little synth with its own echo, Layer 2 a `sequencer` beat on sampled
-kick, clap and open hat, Layer 3 a `looper` into a kalimba and Layer 4 a bass
-line, at a straight 120 BPM. Layer 5 is a `twinkle` sky that sleeps until you wake it, and
-Layer 6 lets `raindrops` fall onto the synth drum kit, so a stray tom or rim
-shot lands wherever a drop hits the bottom row. Layers 3 to 6 play factory
-presets, so `Preset > Load` on any of those slots is a quick "what else could
-this be?".
-
-Before you start: turn *Main* to move through menus, click it to enter or
-confirm. The top menu has five areas:
-
-- **Build:** each layer's behavior, its settings and its seed.
-- **Link:** tempo, swing, and how tiles become notes (scanning, events, mapping).
-- **Shape:** instruments, FX buses and the global effects.
-- **Play:** the performance pages.
-- **System:** saves, recording, audio, connections, updates and shutdown.
-
-1. Press **Play** (or **Space** in the simulator).
-2. Hold *Shift* + *Fn* and press the fifth tile up in the left-hand column: the
-   stars on Layer 5 wake up and start chiming. Same again puts them back to
-   sleep.
-3. Hold **Fn** and press the sixth tile up in the right-hand column to open
-   **Faders**. The first five columns are the synth's cutoff, the kalimba's
-   decay, the bass's FM index, the reverb and the bitcrusher. The right-hand
-   column pokes the stars: the top tile reseeds them (*Shift* clears them), the
-   yellow ones below nudge Density, Birth Chance, Star Life, Fade Chance and
-   the step rate.
-4. *Shift* + *Fn* and the bottom right tile opens **Play FX**: hold a tile for
-   stutter, freeze, a filter sweep or a pitch jump on the top two rows, then a
-   tape stop, reverse, trance gate, dub throw, wash, riser or bitcrush below
-   them. Two at a time, one of each kind.
-5. In **Build**, draw a few tiles on Layer 1, or swap its behavior for `brain`
-   or `raindrops`. Then try
-   `Shape > Instruments > I3: Plucked fxb2 > Plucked > Preset > Load > Koto` and
-   `Shape > Instruments > I6: Drum direct > Drum > Kit > Load > Hand Perc`. (The
-   slot rows are named after their type and route, so yours may read slightly
-   differently if you've changed those.)
-
-**Save what you like.** Auto Save is off, so your edits live in memory until
-you save them: `System > Saves > Default > Save Patch`, or a named preset under
-`System > Saves > Library`. Reboot and Shutdown from the menu save a recovery
-copy first. Pulling the plug doesn't, and the last half hour of tinkering goes
-with it.
-
-If you've changed things and want the starting point back,
-`System > Maintenance > Reset > Factory Patch` restores it (it asks first).
-If it is the device settings (display, MIDI, USB, audio) you want back to factory, `Factory System`
-next to it does that and leaves your patches and presets alone.
-
-### Save, revert, switch off
-
-- **There's no undo.** An edit stays until you change it back or reload.
-- **Back to your last saved startup patch:** `System > Saves > Default > Load
-  Patch` (it asks first). Anything you haven't saved is gone, which is the
-  point.
-- **Switching off:** use `System > Shutdown` and confirm. It saves a recovery
-  copy, then the grid lights go out and the screen goes dark. Wait for that
-  before you pull the power.
+The shipped patch is wired up and ready. [Your first ten
+minutes](first-ten-minutes.md) walks you through it: press Play, touch the
+grid, wake the stars, ride the faders, change a sound and the tempo, then keep
+it or throw it away and switch off.
 
 Where to go next:
 
-- [Controls cheat sheet](controls-cheat-sheet.md): every button, combo and
-  grid mode.
+- [Controls cheat sheet](controls-cheat-sheet.md): the buttons and combos on
+  one page, with the [controls reference](controls-reference.md) for the fine
+  print.
 - [Behaviors and Play pages](behaviors-and-play.md): about 50 worlds and the
   performance pages.
 - [Sound and Link](sound-and-link.md): how tile changes become notes,
@@ -120,7 +66,9 @@ down before opening the case or moving wiring.
 
 ### Contents
 
-- **Playing:** [Controls cheat sheet](controls-cheat-sheet.md),
+- **Playing:** [First ten minutes](first-ten-minutes.md),
+  [Controls cheat sheet](controls-cheat-sheet.md),
+  [Controls reference](controls-reference.md),
   [Behaviors and Play pages](behaviors-and-play.md),
   [Sound and Link](sound-and-link.md), [Recording](recording.md),
   [Bluetooth keyboards and speakers](bluetooth.md),
@@ -153,140 +101,9 @@ down before opening the case or moving wiring.
 | Toast | A short message that pops up on the screen for a moment. |
 | Detent | One click of a knob as you turn it. |
 
-### Practical performance
+### Care and housekeeping
 
-These are planning targets for dense patches, not hard limits:
-
-| Board and Perf. Mode | Synth voices | Sample voices | Bus FX | Global FX |
-|---|---:|---:|---:|---:|
-| Raspberry, Latency | 32 | 16 | 8 | 2 |
-| Raspberry, Capacity | 48 | 32 | 8 | 2 |
-| Orange, Latency | 48 | 24 | 8 | 2 |
-| Orange, Capacity | 48 | 32 | 12 | 2 |
-
-Voice counts are totals across all eight instrument slots. Behaviors, samples
-and effects all eat into the headroom, and **System > Audio > Polyphony** can
-steal older voices as load rises. The menu will happily let you fill all
-twelve bus FX slots on either board; this table is the polite suggestion.
-The synth column comes from a load test with Polyphony off and the factory
-patch playing underneath: the Raspberry held 40 synth, FM and Plucked notes
-cleanly in Latency mode and started dropping out at 48; in Capacity mode, and on
-the Orange in both modes, it reached 64, the engine's synth voice limit, without
-a dropout. The table keeps about a quarter of that as headroom. The sample
-column is still an estimate.
-
-How quick does it feel? With `System > Audio > Perf. Mode` set to Latency, the
-audio buffering adds about 4 ms on the Orange and 9 ms on the Raspberry, plus a
-couple of milliseconds to read the pad. Capacity renders ahead so it can share
-the work across two cores, which brings the buffering to about 12 ms on the
-Orange and 17 ms on the Raspberry. That's fine for most playing, though you may
-feel it on fast finger drumming. Changing the mode restarts just the Octessera
-app, not the whole board: a few seconds of silence and you're back.
-
-### Playing in front of people
-
-The board images skip the operating system's daily package-list and
-manual-index jobs, plus a few other chores that do nothing useful on an
-instrument. They never installed anything here anyway, but on the Raspberry
-they made the audio stutter for a few seconds at a random time each day.
-
-A handful of useful housekeeping jobs still run on a timer: log rotation, SD
-card trim, temp-file cleanup and, on the Raspberry, a once-a-minute Wi-Fi
-health check. Each has been run during playback without disturbing the sound,
-but you can postpone them with **System > Live Show Mode > Start 48h** before
-a show:
-
-- It asks first, because it also switches Wi-Fi off. No SSH, no updates and no
-  Wi-Fi setup until it ends, and nothing on the network can poke the board
-  mid-song. Bluetooth keyboards and speakers keep working.
-- Housekeeping is postponed for 48 hours, and a reboot doesn't cancel that.
-  The jobs run at their next scheduled time afterwards.
-- Wi-Fi comes back by itself when the 48 hours are up. **End** finishes early
-  and brings Wi-Fi straight back.
-- A couple of tiny chores always keep running because things break without
-  them: saving the clock and, on the Orange, trimming the in-memory logs.
-
-To keep Wi-Fi off for good, set **System > Connections > Wi-Fi > Wi-Fi** to
-Off. It stays off through reboots until you switch it back On, which also
-means no SSH and no updates. Your saved network stays put, so it reconnects
-straight away when you turn it back on. It's a separate switch from Live Show
-Mode: a show still takes Wi-Fi down while it runs, and ending a show never
-turns Wi-Fi on if you'd switched it off. Opening the Setup Portal does turn it
-back on, since that's what you asked for.
-
-The Raspberry's four cores share one fairly slow memory bus, so anything heavy
-happening next to the music can cause crackles even when it runs on another
-core. Do maintenance before the show, not during it: updates, `apt` over SSH,
-copying big files onto the board. The Orange has a lot more memory headroom
-and shrugs most of this off, but the habit doesn't hurt.
-
-One more thing: don't run `apt upgrade` on the board. Octessera boots its own
-tuned kernel and device-tree setup, and a stock kernel or bootloader package
-sneaking in can leave you with a board that boots but makes no sound, or
-doesn't boot at all. The boards hold those packages so apt leaves them alone;
-please don't go fishing with `--allow-change-held-packages`. Octessera updates
-come through **System > Maintenance > Updates** or a fresh image.
-
-### Updates
-
-With Wi-Fi on, **System > Maintenance > Updates > Check** tells you whether a
-newer Octessera is out for your board. **Apply** downloads it, checks that the
-download arrived intact (if it didn't, nothing changes), and restarts the
-instrument on the new version. Give it a minute. If the new version doesn't
-come up properly, the board quietly switches back to the one you had, so a
-bad update costs you a restart, not an evening.
-
-**Rollback** goes back to the version you had before the last update, and
-pressing it again goes forward again. The board keeps those two versions and
-tidies away older ones. Each time the version changes, the board saves a copy
-of `system.json` (your settings) and `default.patch.json` (the startup patch)
-for the version you're leaving, so the switch also swaps those two files:
-
-| Action | Program | Settings and startup patch | Presets, samples, recordings |
-|---|---|---|---|
-| Update | Switches to the newer version | Carried over as they are | Untouched |
-| Rollback | Switches back to the previous version | Replaced by the copy saved when you left that version (if it has one); what you had on the newer version is kept aside | Untouched |
-| Rollback again (forward) | Switches to the newer version again | Replaced by the copy kept aside, but only if you haven't changed anything since the rollback; otherwise the changes you made on the older version stay | Untouched |
-
-So changes made while you're on the older version survive going forward, and
-settings you saved on the newer version come back only when you didn't touch
-the older version's. Presets you saved on the newer version stay on the card;
-the older one just won't open them. If a new version doesn't start, the board
-puts the old settings and startup patch back along with the old program.
-
-One honest caveat: pull the power during that minute of restarting and the
-board may wake up on the new version without having checked it. If that version
-then misbehaves, Rollback (or a fresh image) puts things right.
-
-Updates only replace the Octessera program itself and, as above, those two
-files. Your presets, samples and recordings stay where they are, and the
-operating system, kernel and boot setup only change when you flash a new image.
-
-### Samples
-
-The bundled library is about 300 WAV files from the attribution-free
-[stargate-sample-pack](https://github.com/stargatedaw/stargate-sample-pack).
-To add your own WAVs (up to about two minutes of 44.1 kHz stereo, or twice
-that in mono, so the little board doesn't run out of memory):
-
-| Where | Folder |
-|---|---|
-| Desktop, Windows | `%APPDATA%\octessera\samples` (the browser's `User data` favorite) |
-| Desktop, Linux | `~/.local/share/octessera/samples` |
-| Raspberry | `/home/pi/samples` (copy over SSH) |
-| Orange | `/var/lib/octessera/samples` |
-| OLED microSD card (SD2) | `octessera/samples` on the card |
-
-SD2 is the optional card in the OLED board; the compute board's boot card is
-SD1. Format it as FAT32 or exFAT and name the volume `OCTESSERA` exactly, or
-the instrument ignores it. You can swap the card while the instrument is on;
-give it a couple of seconds to show up. It appears in the sample browser as
-the `SD card` favorite.
-
-To copy files from a computer without pulling the card, use
-**System > Connections > SD Card 2 > Start Transfer** in USB Gadget mode
-(Raspberry) or on the Orange. USB audio, USB MIDI and recording need to be off
-first. Transfers are slow, about 0.75 MB/s, so a big sample pack is a good
-moment for a cup of tea. When you're done, eject the drive on the computer
-first, then press **Back** or click **Main** on the instrument to end the
-transfer. Don't pull the cable while files are still copying.
+- [Performance and live shows](performance-and-live.md): how many voices a
+  patch can hold, how quick it feels, and Live Show Mode.
+- [Updates](updates.md): Check, Apply and Rollback, and what each one keeps.
+- [Samples](samples.md): adding your own WAVs and using the second SD card.

@@ -41,9 +41,7 @@ image** (see [flash and first boot](flash-and-first-boot.md)) and **its own
 matching enclosure top** (see [enclosure](enclosure.md)).
 
 Read [safety and power](safety-and-power.md) before you handle power, a host
-cable or the enclosure. The short version: power the finished instrument only
-through the enclosure's USB-C power breakout, never through the Raspberry Pi's
-own micro-USB power connector.
+cable or the enclosure.
 
 ## 2. Parts and tools
 
@@ -297,7 +295,7 @@ tightening harder.
    is which.
 
 All good? Congratulations: you now own a small herd of musical world-bubbles.
-Head to the [user manual](../README.md#4-make-music) and make some noise.
+Head to the [user manual](../first-ten-minutes.md) and make some noise.
 
 If something is unclear or misbehaving, stop and check
 [troubleshooting](../troubleshooting.md) before carrying on.

@@ -4,10 +4,8 @@ Use this page after [flash and first boot](flash-and-first-boot.md), when you
 want to plug the instrument into a computer (as a USB audio/MIDI device) or plug
 a USB device, such as a keyboard, into the instrument.
 
-> **Power first:** Keep the instrument powered through the enclosure's USB-C
-> power breakout. A USB data cable is not a second power supply. Never connect
-> two power supplies, and never rely on a cable or adapter to prevent back-feed.
-> The details are in [safety and power](safety-and-power.md).
+> **Power first:** a USB data cable is not a second power supply. Read
+> [safety and power](safety-and-power.md#power-input) before you plug one in.
 
 ## Raspberry Pi
 
@@ -108,7 +106,7 @@ Audio simply waits and starts playing once one turns up.
 
 A USB keyboard can drive the instrument with the same controls as the
 hardware. The key map is in the [controls cheat
-sheet](../controls-cheat-sheet.md#usb-host-keyboard).
+sheet](../controls-reference.md#usb-host-keyboard).
 
 - **Where to plug it in:** on the Raspberry Pi, the USB role must be **Host**
   (see above). On the Orange Pi, use the one-dot port (USB1).
