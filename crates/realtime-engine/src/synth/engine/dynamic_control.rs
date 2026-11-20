@@ -2,8 +2,8 @@ use super::super::dsp_config::DspRuntimeConfig;
 use super::super::fx_param::{FxParamId, FxParamMutation};
 use super::super::fx_param_glide::fx_param_glide_frames;
 use super::super::scalar_param::{SampleBankParamId, ScalarMutation, SynthParamId};
-use super::bus_chain_owner::fx_kind_cost;
 use super::instrument_param_glide::InstrumentGlideParam as Glide;
+use super::prepared_control_prepare::prepare_fx_bus_slot;
 use super::*;
 use crate::synth::engine::render_plan::render_plan_fx_slot;
 
@@ -247,33 +247,8 @@ impl SynthEngine {
         fx_type: String,
         params: BTreeMap<String, Value>,
     ) {
-        if bus_index >= self.bus_chains.len() || slot_index >= BUS_SLOTS_PER_BUS {
-            return;
-        }
-        let config = FxBusSlotConfig::Config {
-            kind: fx_type,
-            params,
-        };
-        let render_plan = render_plan_fx_slot(&config);
-        let next_params = compile_fx_bus_params(&config);
-        let next_state = fx_bus_state_from_params(&next_params, self.sample_rate);
-        let retired_slot = self.bus_chains[bus_index].replace_slot(
-            slot_index,
-            next_params,
-            next_state,
-            fx_kind_cost(render_plan.kind),
-        );
-        if let Some(retired_slot) = retired_slot {
-            self.pending_render_retired
-                .bus_chains
-                .push(BusChainOwner::from_slot(
-                    bus_index,
-                    slot_index,
-                    retired_slot,
-                ));
-        }
-        self.render_plan
-            .install_bus_fx_slot(bus_index, slot_index, render_plan);
+        let prepared = prepare_fx_bus_slot(fx_type, params, self.sample_rate);
+        drop(self.apply_prepared_fx_bus_slot(bus_index, slot_index, prepared));
     }
 
     pub fn set_global_fx_slot(

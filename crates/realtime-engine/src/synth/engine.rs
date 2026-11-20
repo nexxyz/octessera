@@ -1,7 +1,7 @@
 use super::dsp_config::DspRuntimeConfig;
 use super::fx::{
-    fx_bus_state_from_params, master_fx_state_from_params, master_fx_state_matches_params,
-    process_master_fx_slot, FxBusState, MasterFxState,
+    master_fx_state_from_params, master_fx_state_matches_params, process_master_fx_slot,
+    FxBusState, MasterFxState,
 };
 use super::fx_param_glide::FxSlotGlides;
 use super::fx_params::{compile_fx_bus_params, FxBusParams};
