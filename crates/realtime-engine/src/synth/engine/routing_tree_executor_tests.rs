@@ -262,8 +262,8 @@ fn routing_tree_duck_sources_use_raw_instrument_and_pre_chain_bus_inputs() {
         raw_instrument_source
     );
     let (instrument_attack, bus_attack) = match (
-        tree.bus_chains[0].slot_params[0],
-        tree.bus_chains[0].slot_params[1],
+        tree.bus_mix.chains[0].slot_params[0],
+        tree.bus_mix.chains[0].slot_params[1],
     ) {
         (
             FxBusParams::Duck {
@@ -278,13 +278,13 @@ fn routing_tree_duck_sources_use_raw_instrument_and_pre_chain_bus_inputs() {
         _ => panic!("expected duck slots"),
     };
     assert_duck_env(
-        &tree.bus_chains[0].slot_state[0],
+        &tree.bus_mix.chains[0].slot_state[0],
         raw_instrument_source,
         instrument_attack,
         "instrument",
     );
     assert_duck_env(
-        &tree.bus_chains[0].slot_state[1],
+        &tree.bus_mix.chains[0].slot_state[1],
         raw_bus_source,
         bus_attack,
         "bus",
@@ -347,8 +347,8 @@ fn routing_tree_duck_post_sources_use_only_source_faders() {
     assert_eq!(actual_right[0], expected_right);
 
     let (instrument_attack, bus_attack) = match (
-        tree.bus_chains[0].slot_params[0],
-        tree.bus_chains[0].slot_params[1],
+        tree.bus_mix.chains[0].slot_params[0],
+        tree.bus_mix.chains[0].slot_params[1],
     ) {
         (
             FxBusParams::Duck {
@@ -363,13 +363,13 @@ fn routing_tree_duck_post_sources_use_only_source_faders() {
         _ => panic!("expected duck slots"),
     };
     assert_duck_env(
-        &tree.bus_chains[0].slot_state[0],
+        &tree.bus_mix.chains[0].slot_state[0],
         raw_instrument_source * 0.25,
         instrument_attack,
         "instrument post",
     );
     assert_duck_env(
-        &tree.bus_chains[0].slot_state[1],
+        &tree.bus_mix.chains[0].slot_state[1],
         raw_bus_source * 0.7,
         bus_attack,
         "bus post",

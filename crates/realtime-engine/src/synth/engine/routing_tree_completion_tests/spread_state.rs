@@ -24,7 +24,8 @@ pub(super) fn bus_output_spread_state_signature(
     engine: &SynthEngine,
 ) -> BusOutputSpreadStateSignature {
     engine
-        .bus_output_spread_state
+        .bus_mix
+        .output_spread_state
         .iter()
         .enumerate()
         .map(|(bus, state)| {

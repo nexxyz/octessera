@@ -9,12 +9,12 @@ pub(super) fn valid_render_plan(engine: &SynthEngine, plan: &RoutingTreePlan) ->
     if plan.generation != expected.generation
         || !plan.same_structure(&expected)
         || plan.component_count > ROUTING_NODE_COUNT
-        || engine.bus_chains.len() > BUS_COUNT
-        || engine.render_plan.bus_fx_slots.len() != engine.bus_chains.len()
-        || engine.bus_pan_pos.len() != engine.bus_chains.len()
-        || engine.bus_pan_gains_cache.len() != engine.bus_chains.len()
-        || engine.bus_volume.len() != engine.bus_chains.len()
-        || engine.bus_output_spread_state.len() != engine.bus_chains.len()
+        || engine.bus_mix.chains.len() > BUS_COUNT
+        || engine.render_plan.bus_fx_slots.len() != engine.bus_mix.chains.len()
+        || engine.bus_mix.pan_pos.len() != engine.bus_mix.chains.len()
+        || engine.bus_mix.pan_gains.len() != engine.bus_mix.chains.len()
+        || engine.bus_mix.volume.len() != engine.bus_mix.chains.len()
+        || engine.bus_mix.output_spread_state.len() != engine.bus_mix.chains.len()
     {
         return false;
     }
@@ -29,12 +29,12 @@ pub(super) fn valid_render_plan(engine: &SynthEngine, plan: &RoutingTreePlan) ->
         match (topology.route, engine.slot_route[slot]) {
             (RenderPlanRoute::Direct, 0) => {}
             (RenderPlanRoute::Bus(bus), route)
-                if route == bus + 1 && bus < engine.bus_chains.len() => {}
+                if route == bus + 1 && bus < engine.bus_mix.chains.len() => {}
             _ => return false,
         }
     }
-    for bus in 0..engine.bus_chains.len() {
-        let owner = &engine.bus_chains[bus];
+    for bus in 0..engine.bus_mix.chains.len() {
+        let owner = &engine.bus_mix.chains[bus];
         if owner.logical_bus_id != bus {
             return false;
         }
@@ -48,7 +48,7 @@ pub(super) fn valid_render_plan(engine: &SynthEngine, plan: &RoutingTreePlan) ->
                 return false;
             }
             if let FxBusParams::Duck { source, .. } = owner.slot_params[slot] {
-                if !valid_duck_source(source, engine.bus_chains.len()) {
+                if !valid_duck_source(source, engine.bus_mix.chains.len()) {
                     return false;
                 }
             }

@@ -38,13 +38,7 @@ pub struct PreparedInstrumentsConfig {
     pub(super) render_plan: RenderPlan,
     pub(super) pan_positions: usize,
     pub(super) master_volume: f32,
-    pub(super) bus_pan_pos: Vec<usize>,
-    pub(super) bus_pan_gains_cache: Vec<(f32, f32)>,
-    pub(super) bus_volume: Vec<f32>,
-    pub(super) bus_chains: Vec<BusChainOwner>,
-    pub(super) bus_output_spread_state: Vec<FxBusOutputSpreadState>,
-    pub(super) bus_mono_scratch: Vec<f32>,
-    pub(super) bus_mono_snapshot: Vec<f32>,
+    pub(super) bus_mix: BusMixState,
     pub(super) master_slot_params: Vec<FxBusParams>,
     pub(super) master_slot_state: Vec<MasterFxState>,
     pub(super) master_active_slot_indices: Vec<usize>,
@@ -109,24 +103,15 @@ pub fn prepare_instruments_config(
         .take(INSTRUMENT_SLOT_COUNT)
         .map(prepare_instrument_slot)
         .collect();
-    let bus = prepare_bus_mixer_state(config.mixer.as_ref(), pan_positions, sample_rate);
+    let bus_mix = prepare_bus_mixer_state(config.mixer.as_ref(), pan_positions, sample_rate);
     let (master_slot_params, master_slot_state, master_active_slot_indices) =
         prepare_master_mixer_state(config.mixer.as_ref());
-    let bus_count = bus.chains.len();
     PreparedInstrumentsConfig {
         slots,
         render_plan,
         pan_positions,
         master_volume: (config.master_volume / 100.0).clamp(0.0, 1.0),
-        bus_pan_pos: bus.pan_pos,
-        bus_pan_gains_cache: bus.pan_gains,
-        bus_volume: bus.volumes,
-        bus_chains: bus.chains,
-        bus_output_spread_state: (0..bus_count)
-            .map(|_| FxBusOutputSpreadState::new(sample_rate))
-            .collect(),
-        bus_mono_scratch: vec![0.0; bus_count],
-        bus_mono_snapshot: vec![0.0; bus_count],
+        bus_mix,
         master_slot_params,
         master_slot_state,
         master_active_slot_indices,
@@ -226,31 +211,25 @@ pub fn prepare_global_fx_slot(
     }
 }
 
-struct PreparedBusMixerState {
-    pan_pos: Vec<usize>,
-    pan_gains: Vec<(f32, f32)>,
-    volumes: Vec<f32>,
-    chains: Vec<BusChainOwner>,
-}
-
 fn prepare_bus_mixer_state(
     mixer: Option<&MixerConfig>,
     pan_positions: usize,
     sample_rate: u32,
-) -> PreparedBusMixerState {
+) -> BusMixState {
     let Some(mixer) = mixer else {
-        return PreparedBusMixerState {
-            pan_pos: Vec::new(),
-            pan_gains: Vec::new(),
-            volumes: Vec::new(),
-            chains: Vec::new(),
-        };
+        return BusMixState::default();
     };
-    let mut output = PreparedBusMixerState {
-        pan_pos: Vec::with_capacity(mixer.buses.len()),
-        pan_gains: Vec::with_capacity(mixer.buses.len()),
-        volumes: Vec::with_capacity(mixer.buses.len()),
-        chains: Vec::with_capacity(mixer.buses.len()),
+    let bus_count = mixer.buses.len();
+    let mut output = BusMixState {
+        chains: Vec::with_capacity(bus_count),
+        pan_pos: Vec::with_capacity(bus_count),
+        pan_gains: Vec::with_capacity(bus_count),
+        volume: Vec::with_capacity(bus_count),
+        output_spread_state: (0..bus_count)
+            .map(|_| FxBusOutputSpreadState::new(sample_rate))
+            .collect(),
+        mono_scratch: vec![0.0; bus_count],
+        mono_snapshot: vec![0.0; bus_count],
     };
     for (bus_idx, bus) in mixer.buses.iter().enumerate() {
         let pan_pos = bus.pan_pos.min(pan_positions - 1);
@@ -258,9 +237,7 @@ fn prepare_bus_mixer_state(
         output
             .pan_gains
             .push(super::pan_law::pan_gains(pan_pos, pan_positions));
-        output
-            .volumes
-            .push((bus.volume_pct / 100.0).clamp(0.0, 1.0));
+        output.volume.push((bus.volume_pct / 100.0).clamp(0.0, 1.0));
         let cfgs = bus_slot_configs(bus);
         let params: [FxBusParams; BUS_SLOTS_PER_BUS] =
             std::array::from_fn(|index| compile_fx_bus_params(&cfgs[index]));

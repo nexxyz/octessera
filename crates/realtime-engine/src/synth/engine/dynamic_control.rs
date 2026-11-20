@@ -13,7 +13,7 @@ mod pluck_param_control;
 impl SynthEngine {
     pub fn set_dsp_config(&mut self, config: DspRuntimeConfig) {
         if self.dsp_config.bus_idle_threshold != config.bus_idle_threshold {
-            for chain in &mut self.bus_chains {
+            for chain in &mut self.bus_mix.chains {
                 chain.reset_quiet();
             }
         }
@@ -71,14 +71,14 @@ impl SynthEngine {
         if self.routing_tree_rejects_control_mutation() {
             return ScalarMutation::Rejected;
         }
-        if bus_index >= self.bus_pan_pos.len() {
+        if bus_index >= self.bus_mix.pan_pos.len() {
             return ScalarMutation::Rejected;
         }
         let mut mutation = ScalarMutation::Unchanged;
         if let Some(pan_pos) = pan_pos {
             let normalized_pan = pan_pos.min(self.pan_positions - 1);
-            if self.bus_pan_pos[bus_index] != normalized_pan {
-                self.bus_pan_pos[bus_index] = normalized_pan;
+            if self.bus_mix.pan_pos[bus_index] != normalized_pan {
+                self.bus_mix.pan_pos[bus_index] = normalized_pan;
                 self.ramp_bus_pan(bus_index, pan_gains(normalized_pan, self.pan_positions));
                 mutation = combine_mutation(mutation, ScalarMutation::Changed);
             }
@@ -269,12 +269,13 @@ impl SynthEngine {
     ) -> FxParamMutation {
         #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some()
-            && (self.routing_tree_source_event_sample_clock.is_none() || self.bus_chains.is_empty())
+            && (self.routing_tree_source_event_sample_clock.is_none()
+                || self.bus_mix.chains.is_empty())
         {
             self.reject_routing_tree_mutation_for_control();
             return FxParamMutation::Rejected;
         }
-        let Some(chain) = self.bus_chains.get_mut(bus_index) else {
+        let Some(chain) = self.bus_mix.chains.get_mut(bus_index) else {
             return FxParamMutation::Rejected;
         };
         let glide_frames = fx_param_glide_frames(self.sample_rate);

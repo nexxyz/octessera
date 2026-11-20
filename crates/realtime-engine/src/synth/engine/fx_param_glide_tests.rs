@@ -41,7 +41,7 @@ fn render(engine: &mut SynthEngine, frames: usize) {
 }
 
 fn bus_mix(engine: &SynthEngine) -> f32 {
-    match engine.bus_chains[0].slot_params[0] {
+    match engine.bus_mix.chains[0].slot_params[0] {
         FxBusParams::Delay { mix, .. } => mix,
         _ => panic!("delay"),
     }

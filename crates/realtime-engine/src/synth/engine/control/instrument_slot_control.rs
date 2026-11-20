@@ -106,7 +106,7 @@ impl SynthEngine {
     }
 
     pub(in crate::synth::engine) fn refresh_routed_bus_slot_count(&mut self) {
-        let bus_count = self.bus_pan_pos.len();
+        let bus_count = self.bus_mix.pan_pos.len();
         self.routed_bus_slot_count = self
             .slot_route
             .iter()

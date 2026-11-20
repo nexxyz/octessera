@@ -95,7 +95,7 @@ impl SynthEngine {
 
     pub(super) fn routing_tree_prepared_audio_allowed(&self, config: &PreparedAudioConfig) -> bool {
         self.routing_tree_source_event_sample_clock.is_some()
-            && config.instruments.bus_chains.len() <= BUS_COUNT
+            && config.instruments.bus_mix.chains.len() <= BUS_COUNT
     }
 
     pub(super) fn routing_tree_prepared_instruments_allowed(
@@ -103,7 +103,7 @@ impl SynthEngine {
         config: &PreparedInstrumentsConfig,
     ) -> bool {
         self.routing_tree_source_event_sample_clock.is_some()
-            && config.bus_chains.len() <= BUS_COUNT
+            && config.bus_mix.chains.len() <= BUS_COUNT
     }
 
     pub(super) fn routing_tree_prepared_instrument_slot_allowed(
@@ -168,8 +168,8 @@ impl SynthEngine {
         let Some(assignment) = self.routing_tree_assignment else {
             return;
         };
-        for bus in 0..self.bus_chains.len() {
-            self.bus_chains[bus].assigned_worker = assignment.worker_for_bus(bus);
+        for bus in 0..self.bus_mix.chains.len() {
+            self.bus_mix.chains[bus].assigned_worker = assignment.worker_for_bus(bus);
         }
     }
 }

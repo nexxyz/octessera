@@ -253,9 +253,9 @@ fn valid_owner_pair(
         && can_install_source_partition_bundle(engine, first.parity)
         && can_install_source_partition_bundle(engine, second.parity)
         && source_partitions_vacant(engine)
-        && engine.bus_chains.is_empty()
-        && engine.bus_pan_pos.len() <= super::super::types::BUS_COUNT
-        && valid_bus_carrier_pair(first, second, engine.bus_pan_pos.len())
+        && engine.bus_mix.chains.is_empty()
+        && engine.bus_mix.pan_pos.len() <= super::super::types::BUS_COUNT
+        && valid_bus_carrier_pair(first, second, engine.bus_mix.pan_pos.len())
 }
 
 fn valid_bus_carrier_pair(first: &OwnerEnvelope, second: &OwnerEnvelope, bus_count: usize) -> bool {
@@ -301,7 +301,7 @@ fn install_bus_chain_owners_after_check(
 ) {
     for carrier in carriers.iter_mut().flatten() {
         if let Some(owner) = carrier.owner.take() {
-            engine.bus_chains.push(owner);
+            engine.bus_mix.chains.push(owner);
         }
     }
 }
@@ -310,11 +310,11 @@ fn take_bus_chain_owners(
     engine: &mut SynthEngine,
     carriers: &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
 ) -> bool {
-    if engine.bus_chains.len() > super::super::types::BUS_COUNT {
+    if engine.bus_mix.chains.len() > super::super::types::BUS_COUNT {
         return false;
     }
     let mut seen = [false; super::super::types::BUS_COUNT];
-    if engine.bus_chains.iter().any(|owner| {
+    if engine.bus_mix.chains.iter().any(|owner| {
         let Some(seen) = seen.get_mut(owner.logical_bus_id) else {
             return true;
         };
@@ -326,7 +326,7 @@ fn take_bus_chain_owners(
     }) {
         return false;
     }
-    let mut owners = std::mem::take(&mut engine.bus_chains);
+    let mut owners = std::mem::take(&mut engine.bus_mix.chains);
     for owner in owners.drain(..) {
         let logical_bus_id = owner.logical_bus_id;
         let carrier = carriers[logical_bus_id]
@@ -335,7 +335,7 @@ fn take_bus_chain_owners(
         debug_assert!(carrier.owner.is_none());
         carrier.owner = Some(owner);
     }
-    engine.bus_chains = owners;
+    engine.bus_mix.chains = owners;
     true
 }
 

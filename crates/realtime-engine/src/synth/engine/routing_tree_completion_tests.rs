@@ -234,10 +234,10 @@ fn routing_tree_inline_parity_tracks_bus_hold_expiry_inside_quantum() {
     let mut inline_right = vec![0.0; 128];
     let mut inline_out = vec![0.0; 256];
     inline.render_interleaved_block(128, &mut inline_left, &mut inline_right, &mut inline_out);
-    inline.bus_chains[0].render_hold_frames = 64;
+    inline.bus_mix.chains[0].render_hold_frames = 64;
     assert!(runtime
         .with_controls_ready(&mut routed, |engine| {
-            engine.bus_chains[0].render_hold_frames = 64;
+            engine.bus_mix.chains[0].render_hold_frames = 64;
         })
         .is_some());
 

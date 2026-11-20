@@ -163,7 +163,7 @@ impl RoutingTreeWorkerContext {
         engine: &SynthEngine,
         assignment: &RoutingTreeAssignment,
     ) -> Option<Self> {
-        let bus_count = engine.bus_pan_pos.len();
+        let bus_count = engine.bus_mix.pan_pos.len();
         if bus_count > BUS_COUNT
             || assignment.plan != RoutingTreePlan::from_render_plan(&engine.render_plan)
         {
@@ -185,13 +185,14 @@ impl RoutingTreeWorkerContext {
             slot_pan_gains: engine.slot_pan_gains,
             bus_pan_gains: std::array::from_fn(|bus| {
                 engine
-                    .bus_pan_gains_cache
+                    .bus_mix
+                    .pan_gains
                     .get(bus)
                     .copied()
                     .unwrap_or((1.0, 1.0))
             }),
             bus_volume: std::array::from_fn(|bus| {
-                engine.bus_volume.get(bus).copied().unwrap_or(1.0)
+                engine.bus_mix.volume.get(bus).copied().unwrap_or(1.0)
             }),
             mixer_gain_ramps: engine.mixer_gain_ramps,
             bus_count,

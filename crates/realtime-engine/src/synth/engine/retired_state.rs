@@ -60,13 +60,7 @@ pub struct RetiredAudioState {
     pub(super) sample_voices: RetiredSampleVoices,
     pub(super) render_plan: Option<RenderPlan>,
     pub(super) prepared_slots: Vec<PreparedInstrumentSlot>,
-    pub(super) bus_chains: Vec<BusChainOwner>,
-    pub(super) bus_pan_pos: Vec<usize>,
-    pub(super) bus_pan_gains_cache: Vec<(f32, f32)>,
-    pub(super) bus_volume: Vec<f32>,
-    pub(super) bus_output_spread_state: Vec<FxBusOutputSpreadState>,
-    pub(super) bus_mono_scratch: Vec<f32>,
-    pub(super) bus_mono_snapshot: Vec<f32>,
+    pub(super) bus_mix: BusMixState,
     pub(super) master_slot_params: Vec<FxBusParams>,
     pub(super) master_slot_state: Vec<MasterFxState>,
     pub(super) master_active_slot_indices: Vec<usize>,
@@ -85,13 +79,7 @@ impl Default for RetiredAudioState {
             sample_voices: RetiredSampleVoices::default(),
             render_plan: None,
             prepared_slots: Vec::new(),
-            bus_chains: Vec::new(),
-            bus_pan_pos: Vec::new(),
-            bus_pan_gains_cache: Vec::new(),
-            bus_volume: Vec::new(),
-            bus_output_spread_state: Vec::new(),
-            bus_mono_scratch: Vec::new(),
-            bus_mono_snapshot: Vec::new(),
+            bus_mix: BusMixState::default(),
             master_slot_params: Vec::new(),
             master_slot_state: Vec::new(),
             master_active_slot_indices: Vec::new(),
@@ -111,13 +99,7 @@ impl RetiredAudioState {
             && self.sample_voices.is_empty()
             && self.render_plan.is_none()
             && self.prepared_slots.is_empty()
-            && self.bus_chains.is_empty()
-            && self.bus_pan_pos.is_empty()
-            && self.bus_pan_gains_cache.is_empty()
-            && self.bus_volume.is_empty()
-            && self.bus_output_spread_state.is_empty()
-            && self.bus_mono_scratch.is_empty()
-            && self.bus_mono_snapshot.is_empty()
+            && self.bus_mix.is_empty()
             && self.master_slot_params.is_empty()
             && self.master_slot_state.is_empty()
             && self.master_active_slot_indices.is_empty()

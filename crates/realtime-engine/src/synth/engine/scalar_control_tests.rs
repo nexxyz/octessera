@@ -155,19 +155,19 @@ fn master_and_mixer_scalar_updates_handle_invalid_partial_fields() {
     );
     assert_eq!(engine.slot_volume[0], initial_instrument_volume);
 
-    let initial_bus_volume = engine.bus_volume[0];
+    let initial_bus_volume = engine.bus_mix.volume[0];
     assert_eq!(
         engine.set_fx_bus_mixer(0, Some(4), Some(f32::INFINITY)),
         ScalarMutation::Changed
     );
-    assert_eq!(engine.bus_volume[0], initial_bus_volume);
-    assert_eq!(engine.bus_pan_pos[0], 4);
-    let bus_gains = engine.bus_pan_gains_cache[0];
+    assert_eq!(engine.bus_mix.volume[0], initial_bus_volume);
+    assert_eq!(engine.bus_mix.pan_pos[0], 4);
+    let bus_gains = engine.bus_mix.pan_gains[0];
     assert_eq!(
         engine.set_fx_bus_mixer(0, None, Some(f32::NAN)),
         ScalarMutation::Rejected
     );
-    assert_eq!(engine.bus_pan_gains_cache[0], bus_gains);
+    assert_eq!(engine.bus_mix.pan_gains[0], bus_gains);
     assert_eq!(
         engine.set_fx_bus_mixer(0, None, Some(35.0)),
         ScalarMutation::Changed

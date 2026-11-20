@@ -181,7 +181,7 @@ pub(super) fn preflight_owner_state(
     second: &RoutingTreeOwnerData,
 ) -> bool {
     let result = super::source_worker_transfer::source_partitions_vacant(engine)
-        && engine.bus_chains.is_empty()
+        && engine.bus_mix.chains.is_empty()
         && engine.preview_sample_voices.iter().all(Option::is_none)
         && owner_state_matches(first, 0, assignment)
         && owner_state_matches(second, 1, assignment)
@@ -373,7 +373,7 @@ pub(super) fn sync_routing_tree_spread_states_to_engine(
         let Some(state) = carrier.routing_tree_spread_state.as_mut() else {
             return false;
         };
-        if let Some(engine_state) = engine.bus_output_spread_state.get_mut(bus) {
+        if let Some(engine_state) = engine.bus_mix.output_spread_state.get_mut(bus) {
             std::mem::swap(state, engine_state);
         } else if carrier.owner.is_some() {
             return false;

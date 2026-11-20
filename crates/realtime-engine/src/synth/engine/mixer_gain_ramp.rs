@@ -189,8 +189,8 @@ impl SynthEngine {
     pub(super) fn bus_volume_target(&self, bus: usize) -> f32 {
         let ramps = &self.mixer_gain_ramps;
         match ramps.bus_volume.get(bus) {
-            Some(ramp) => ramp.target_or(self.bus_volume[bus], ramps.len),
-            None => self.bus_volume[bus],
+            Some(ramp) => ramp.target_or(self.bus_mix.volume[bus], ramps.len),
+            None => self.bus_mix.volume[bus],
         }
     }
 
@@ -222,8 +222,8 @@ impl SynthEngine {
     pub(super) fn ramp_bus_volume(&mut self, bus: usize, target: f32) {
         let ramps = &mut self.mixer_gain_ramps;
         match ramps.bus_volume.get_mut(bus) {
-            Some(ramp) => ramp.start(&mut self.bus_volume[bus], target, ramps.len),
-            None => self.bus_volume[bus] = target,
+            Some(ramp) => ramp.start(&mut self.bus_mix.volume[bus], target, ramps.len),
+            None => self.bus_mix.volume[bus] = target,
         }
         ramps.refresh_mix_active();
     }
@@ -231,8 +231,8 @@ impl SynthEngine {
     pub(super) fn ramp_bus_pan(&mut self, bus: usize, target: (f32, f32)) {
         let ramps = &mut self.mixer_gain_ramps;
         match ramps.bus_pan.get_mut(bus) {
-            Some(ramp) => start_pair(ramp, &mut self.bus_pan_gains_cache[bus], target, ramps.len),
-            None => self.bus_pan_gains_cache[bus] = target,
+            Some(ramp) => start_pair(ramp, &mut self.bus_mix.pan_gains[bus], target, ramps.len),
+            None => self.bus_mix.pan_gains[bus] = target,
         }
         ramps.refresh_mix_active();
     }
@@ -256,10 +256,10 @@ impl SynthEngine {
         for (ramp, pan) in ramps.slot_pan.iter_mut().zip(&mut self.slot_pan_gains) {
             advance_pair(ramp, pan, frames, len);
         }
-        for (ramp, volume) in ramps.bus_volume.iter_mut().zip(&mut self.bus_volume) {
+        for (ramp, volume) in ramps.bus_volume.iter_mut().zip(&mut self.bus_mix.volume) {
             ramp.advance(volume, frames, len);
         }
-        for (ramp, pan) in ramps.bus_pan.iter_mut().zip(&mut self.bus_pan_gains_cache) {
+        for (ramp, pan) in ramps.bus_pan.iter_mut().zip(&mut self.bus_mix.pan_gains) {
             advance_pair(ramp, pan, frames, len);
         }
         ramps.refresh_mix_active();
@@ -284,10 +284,10 @@ impl SynthEngine {
         for (ramp, pan) in ramps.slot_pan.iter_mut().zip(&mut self.slot_pan_gains) {
             finish_pair(ramp, pan, len);
         }
-        for (ramp, volume) in ramps.bus_volume.iter_mut().zip(&mut self.bus_volume) {
+        for (ramp, volume) in ramps.bus_volume.iter_mut().zip(&mut self.bus_mix.volume) {
             ramp.finish(volume, len);
         }
-        for (ramp, pan) in ramps.bus_pan.iter_mut().zip(&mut self.bus_pan_gains_cache) {
+        for (ramp, pan) in ramps.bus_pan.iter_mut().zip(&mut self.bus_mix.pan_gains) {
             finish_pair(ramp, pan, len);
         }
         ramps.master_active = false;

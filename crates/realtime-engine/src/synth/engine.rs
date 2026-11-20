@@ -20,6 +20,7 @@ mod block_slot_scratch;
 mod bus_chain_owner;
 #[cfg(test)]
 mod bus_chain_owner_tests;
+mod bus_mix_state;
 #[cfg(test)]
 mod bus_momentary_tail_tests;
 mod construction;
@@ -213,6 +214,7 @@ pub use source_worker_retirement::SourceWorkerRetirement;
 use block_slot_scratch::BlockSlotScratch;
 pub use bus_chain_owner::BUS_CHAIN_SLOT_COST_UNITS;
 use bus_chain_owner::{BusChainFrameOutput, BusChainOwner};
+use bus_mix_state::BusMixState;
 use control::MOMENTARY_FX_CAPACITY;
 #[cfg(test)]
 use live_pitch_shift::PITCH_FILL_FRAMES;
@@ -224,7 +226,6 @@ use momentary_fx_state::{MomentaryFxKind, MomentaryFxState};
 use pan_law::{pan_gains, pan_gains_float};
 use render_plan::RenderPlan;
 use render_plan::{slot_route, InstrumentKind};
-use render_routing::FxBusOutputSpreadState;
 #[cfg(feature = "routing-tree-executor")]
 use routing_tree_executor::RoutingTreeAssignment;
 #[cfg(test)]
@@ -259,13 +260,7 @@ pub struct SynthEngine {
     slot_pan_pos: [usize; INSTRUMENT_SLOT_COUNT],
     slot_pan_gains: [(f32, f32); INSTRUMENT_SLOT_COUNT],
     slot_volume: [f32; INSTRUMENT_SLOT_COUNT],
-    bus_pan_pos: Vec<usize>,
-    bus_pan_gains_cache: Vec<(f32, f32)>,
-    bus_volume: Vec<f32>,
-    bus_mono_scratch: Vec<f32>,
-    bus_mono_snapshot: Vec<f32>,
-    bus_output_spread_state: Vec<FxBusOutputSpreadState>,
-    bus_chains: Vec<BusChainOwner>,
+    bus_mix: BusMixState,
     active_bus_activity_count: usize,
     routed_bus_slot_count: usize,
     master_slot_params: Vec<FxBusParams>,
@@ -375,7 +370,8 @@ impl SynthEngine {
                 .count(),
             active_momentary_fx: self.momentary_fx.len(),
             active_bus_fx_slots: self
-                .bus_chains
+                .bus_mix
+                .chains
                 .iter()
                 .map(|chain| chain.active_slot_count)
                 .sum(),
@@ -393,7 +389,8 @@ impl SynthEngine {
             && self.momentary_fx.is_empty()
             && self.active_bus_activity_count == 0
             && self
-                .bus_chains
+                .bus_mix
+                .chains
                 .iter()
                 .all(|chain| chain.assigned_worker.is_none())
             && self.master_activity_frames == 0
@@ -420,7 +417,7 @@ impl SynthEngine {
             .preview_sample_voices
             .iter()
             .all(Option::is_none)
-            && self.pending_render_retired.bus_chains.is_empty()
+            && self.pending_render_retired.bus_mix.chains.is_empty()
             && self
                 .pending_render_retired
                 .displaced_momentary_fx

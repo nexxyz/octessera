@@ -277,8 +277,8 @@ pub(super) fn assert_routing_tree_matches_reference(
         reference.active_bus_activity_count
     );
     assert_eq!(
-        format!("{:?}", tree.bus_chains),
-        format!("{:?}", reference.bus_chains)
+        format!("{:?}", tree.bus_mix.chains),
+        format!("{:?}", reference.bus_mix.chains)
     );
     assert_momentary_state_matches(tree, reference);
 }
@@ -301,9 +301,9 @@ pub(super) fn engine_state_signature(engine: &SynthEngine) -> String {
         engine.active_sample_slots,
         format!("{:?}", engine.preview_sample_voices),
         bus_chains,
-        format!("{:?}", engine.bus_output_spread_state),
-        engine.bus_mono_scratch,
-        engine.bus_mono_snapshot,
+        format!("{:?}", engine.bus_mix.output_spread_state),
+        engine.bus_mix.mono_scratch,
+        engine.bus_mix.mono_snapshot,
         engine.master_slot_params,
         format!("{:?}", engine.master_slot_state),
         engine.master_active_slot_indices,
@@ -319,7 +319,8 @@ pub(super) fn engine_state_signature(engine: &SynthEngine) -> String {
 
 pub(super) fn bus_chain_state(engine: &SynthEngine) -> Vec<String> {
     engine
-        .bus_chains
+        .bus_mix
+        .chains
         .iter()
         .map(|chain| {
             format!(

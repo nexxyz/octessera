@@ -5,16 +5,16 @@ use super::super::fx_param::{FxParamId, FxParamMutation};
 fn scalar_mutation_preserves_render_and_state_identity_without_allocation() {
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(scalar_config());
-    engine.bus_chains[0].assigned_worker = Some(1);
-    engine.bus_chains[0].quiet_frames = 17;
-    engine.bus_chains[0].render_hold_frames = 23;
-    if let FxBusState::Delay { buf, idx, .. } = &mut engine.bus_chains[0].slot_state[0] {
+    engine.bus_mix.chains[0].assigned_worker = Some(1);
+    engine.bus_mix.chains[0].quiet_frames = 17;
+    engine.bus_mix.chains[0].render_hold_frames = 23;
+    if let FxBusState::Delay { buf, idx, .. } = &mut engine.bus_mix.chains[0].slot_state[0] {
         *idx = 3;
         buf[3] = 0.25;
     } else {
         panic!("prepared delay state");
     }
-    if let FxBusState::Tremolo { phase } = &mut engine.bus_chains[0].slot_state[1] {
+    if let FxBusState::Tremolo { phase } = &mut engine.bus_mix.chains[0].slot_state[1] {
         *phase = 0.37;
     } else {
         panic!("prepared tremolo state");
@@ -26,11 +26,11 @@ fn scalar_mutation_preserves_render_and_state_identity_without_allocation() {
     }
 
     let plan = engine.render_plan.clone();
-    let delay_ptr = match &engine.bus_chains[0].slot_state[0] {
+    let delay_ptr = match &engine.bus_mix.chains[0].slot_state[0] {
         FxBusState::Delay { buf, .. } => buf.as_ptr(),
         _ => unreachable!(),
     };
-    let phase = match engine.bus_chains[0].slot_state[1] {
+    let phase = match engine.bus_mix.chains[0].slot_state[1] {
         FxBusState::Tremolo { phase } => phase,
         _ => unreachable!(),
     };
@@ -39,10 +39,10 @@ fn scalar_mutation_preserves_render_and_state_identity_without_allocation() {
         _ => unreachable!(),
     };
     let owner = (
-        engine.bus_chains[0].quiet_frames,
-        engine.bus_chains[0].render_hold_frames,
-        engine.bus_chains[0].assigned_worker,
-        engine.bus_chains[0].active_slot_count,
+        engine.bus_mix.chains[0].quiet_frames,
+        engine.bus_mix.chains[0].render_hold_frames,
+        engine.bus_mix.chains[0].assigned_worker,
+        engine.bus_mix.chains[0].active_slot_count,
     );
     let ((), allocations, deallocations) =
         crate::synth::test_allocator::count_allocations_and_deallocations(|| {
@@ -81,23 +81,23 @@ fn scalar_mutation_preserves_render_and_state_identity_without_allocation() {
     assert_eq!(engine.render_plan, plan);
     assert_eq!(
         (
-            engine.bus_chains[0].quiet_frames,
-            engine.bus_chains[0].render_hold_frames,
-            engine.bus_chains[0].assigned_worker,
-            engine.bus_chains[0].active_slot_count,
+            engine.bus_mix.chains[0].quiet_frames,
+            engine.bus_mix.chains[0].render_hold_frames,
+            engine.bus_mix.chains[0].assigned_worker,
+            engine.bus_mix.chains[0].active_slot_count,
         ),
         owner
     );
     assert!(engine.pending_render_retired_is_empty());
     assert_eq!(
-        match &engine.bus_chains[0].slot_state[0] {
+        match &engine.bus_mix.chains[0].slot_state[0] {
             FxBusState::Delay { buf, idx, .. } => (buf.as_ptr(), *idx),
             _ => unreachable!(),
         },
         (delay_ptr, 3)
     );
     assert_eq!(
-        match engine.bus_chains[0].slot_state[1] {
+        match engine.bus_mix.chains[0].slot_state[1] {
             FxBusState::Tremolo { phase } => phase,
             _ => unreachable!(),
         },
@@ -110,9 +110,9 @@ fn scalar_mutation_preserves_render_and_state_identity_without_allocation() {
         },
         envelope
     );
-    assert_eq!(delay_feedback(&engine.bus_chains[0].slot_params[0]), 0.96);
-    assert_eq!(tremolo_rate(&engine.bus_chains[0].slot_params[1]), 40.0);
-    assert_eq!(saturator_mix(&engine.bus_chains[0].slot_params[2]), 0.98);
+    assert_eq!(delay_feedback(&engine.bus_mix.chains[0].slot_params[0]), 0.96);
+    assert_eq!(tremolo_rate(&engine.bus_mix.chains[0].slot_params[1]), 40.0);
+    assert_eq!(saturator_mix(&engine.bus_mix.chains[0].slot_params[2]), 0.98);
     assert_eq!(compressor_threshold(&engine.master_slot_params[0]), -39.0);
 }
 

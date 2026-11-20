@@ -16,13 +16,13 @@ fn rejected_routing_tree_bus_fx_retires_incoming_state() {
     );
 
     assert!(engine.take_routing_tree_rejection());
-    assert_eq!(retired.bus_chains.len(), 1);
+    assert_eq!(retired.bus_mix.chains.len(), 1);
     assert!(matches!(
-        &retired.bus_chains[0].slot_state[0],
+        &retired.bus_mix.chains[0].slot_state[0],
         FxBusState::Reverb { .. }
     ));
     assert!(matches!(
-        &engine.bus_chains[0].slot_state[0],
+        &engine.bus_mix.chains[0].slot_state[0],
         FxBusState::Delay { .. }
     ));
 }
@@ -39,8 +39,8 @@ fn oversized_routing_tree_prepared_bus_config_is_rejected_before_mutation() {
     let retired = install_prepared_config(&mut engine, oversized);
 
     assert!(engine.take_routing_tree_rejection());
-    assert_eq!(engine.bus_chains.len(), 1);
-    assert_eq!(retired.bus_chains.len(), BUS_COUNT + 1);
+    assert_eq!(engine.bus_mix.chains.len(), 1);
+    assert_eq!(retired.bus_mix.chains.len(), BUS_COUNT + 1);
 }
 
 #[test]

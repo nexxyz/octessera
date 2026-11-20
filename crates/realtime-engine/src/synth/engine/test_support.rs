@@ -32,7 +32,7 @@ impl SynthEngine {
         for slot in 0..INSTRUMENT_SLOT_COUNT {
             self.finish_instrument_param_glides(slot);
         }
-        for chain in &mut self.bus_chains {
+        for chain in &mut self.bus_mix.chains {
             chain.land_param_glides();
         }
         self.master_param_glides.land(&mut self.master_slot_params);
@@ -94,7 +94,7 @@ impl SynthEngine {
         bus: usize,
         slot: usize,
     ) -> Option<(usize, f32)> {
-        match self.bus_chains.get(bus)?.slot_state.get(slot)? {
+        match self.bus_mix.chains.get(bus)?.slot_state.get(slot)? {
             FxBusState::Delay { buf, idx, .. } => Some((*idx, buf.iter().map(|v| v.abs()).sum())),
             _ => None,
         }

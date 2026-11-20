@@ -65,14 +65,14 @@ fn delay_spread_before_downstream_mono_slot_widens_final_output() {
 fn auto_pan_produces_real_stereo_bus_output_without_changing_stored_pan() {
     let mut engine = auto_pan_sample_bus_engine();
     engine.note_on(0, 36, 127, 0);
-    let stored_pan = engine.bus_pan_pos[0];
+    let stored_pan = engine.bus_mix.pan_pos[0];
 
     let mut saw_difference = false;
     for _ in 0..64 {
         let (left, right) = engine.next_stereo_sample();
         saw_difference |= (left - right).abs() > 1.0e-6;
     }
-    assert_eq!(engine.bus_pan_pos[0], stored_pan);
+    assert_eq!(engine.bus_mix.pan_pos[0], stored_pan);
     assert!(saw_difference);
 }
 

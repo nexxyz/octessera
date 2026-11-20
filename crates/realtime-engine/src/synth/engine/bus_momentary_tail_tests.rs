@@ -61,7 +61,7 @@ fn render_block(engine: &mut SynthEngine) -> Vec<f32> {
 fn dub_throw_on_a_bus_keeps_echoing_and_ends_after_the_bus_input_stops() {
     let mut engine = bus_engine();
     let mut blocks = 0;
-    while engine.bus_chains[0].is_active()
+    while engine.bus_mix.chains[0].is_active()
         || engine.active_synth_slots.contains(&true)
         || blocks < 4
     {
@@ -116,7 +116,7 @@ fn routing_tree_dub_throw_on_an_idle_bus_matches_the_inline_render() {
                 "block {block} sample {frame}: {routed} vs {inline}"
             );
         }
-        if !inline.bus_chains[0].is_active() && !inline.active_synth_slots.contains(&true) {
+        if !inline.bus_mix.chains[0].is_active() && !inline.active_synth_slots.contains(&true) {
             echo_peak = inline_out
                 .iter()
                 .fold(echo_peak, |peak, sample| peak.max(sample.abs()));

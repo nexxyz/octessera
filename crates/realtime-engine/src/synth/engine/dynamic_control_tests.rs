@@ -31,14 +31,14 @@ fn dynamic_fx_bus_slot_accepts_third_slot_and_ignores_fourth() {
     });
 
     engine.set_fx_bus_slot(0, 2, "tremolo".into(), BTreeMap::new());
-    assert_eq!(engine.bus_chains[0].active_slot_count, 1);
+    assert_eq!(engine.bus_mix.chains[0].active_slot_count, 1);
     assert!(matches!(
-        engine.bus_chains[0].slot_params[2],
+        engine.bus_mix.chains[0].slot_params[2],
         FxBusParams::Tremolo { .. }
     ));
 
     engine.set_fx_bus_slot(0, 3, "delay".into(), BTreeMap::new());
-    assert_eq!(engine.bus_chains[0].active_slot_count, 1);
+    assert_eq!(engine.bus_mix.chains[0].active_slot_count, 1);
 }
 
 #[test]
@@ -160,7 +160,7 @@ fn duck_source_tap_change_preserves_plan_generation_and_state() {
         master_volume: 100.0,
     });
     let initial_plan = engine.render_plan.clone();
-    engine.bus_chains[0].slot_state[0] = FxBusState::Duck { env: 0.37 };
+    engine.bus_mix.chains[0].slot_state[0] = FxBusState::Duck { env: 0.37 };
 
     engine.set_fx_bus_slot(
         0,
@@ -175,9 +175,9 @@ fn duck_source_tap_change_preserves_plan_generation_and_state() {
     );
 
     assert_eq!(engine.render_plan, initial_plan);
-    assert_eq!(engine.bus_chains[0].active_slot_count, 1);
+    assert_eq!(engine.bus_mix.chains[0].active_slot_count, 1);
     assert!(matches!(
-        engine.bus_chains[0].slot_params[0],
+        engine.bus_mix.chains[0].slot_params[0],
         FxBusParams::Duck {
             source: DuckSource::Instrument(0),
             source_tap: DuckSourceTap::Post,
@@ -185,7 +185,7 @@ fn duck_source_tap_change_preserves_plan_generation_and_state() {
         }
     ));
     assert!(matches!(
-        engine.bus_chains[0].slot_state[0],
+        engine.bus_mix.chains[0].slot_state[0],
         FxBusState::Duck { env } if env.to_bits() == 0.37_f32.to_bits()
     ));
 }

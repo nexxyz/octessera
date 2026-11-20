@@ -178,7 +178,7 @@ fn four_buses_with_three_slots_match_inline_reference_at_supported_quanta() {
         let mut reference = SynthEngine::new(44_100);
         block.set_instruments(config.clone());
         reference.set_instruments(config);
-        assert_eq!(block.bus_chains.len(), 4);
+        assert_eq!(block.bus_mix.chains.len(), 4);
         assert_eq!(block.profile_snapshot().active_bus_fx_slots, 12);
         for slot in 0..4 {
             block.note_on(slot, 36 + slot, 100, 5_000);
@@ -210,7 +210,7 @@ fn profiler_keeps_dynamic_bus_capacity_above_generated_product_shape() {
         });
     let mut engine = SynthEngine::new(48_000);
     engine.set_instruments(config);
-    assert_eq!(engine.bus_chains.len(), 5);
+    assert_eq!(engine.bus_mix.chains.len(), 5);
     assert_eq!(engine.profile_snapshot().active_bus_fx_slots, 15);
 }
 
@@ -261,16 +261,16 @@ fn duck_reads_pre_chain_inputs_independently_of_bus_processing_order() {
 fn projected_assignment_is_sticky_and_ties_choose_worker_zero() {
     let mut engine = SynthEngine::new(48_000);
     engine.source_worker_load = Some(load([0, 0], [1, 1]));
-    engine.bus_chains = vec![test_owner(2), test_owner(2)];
+    engine.bus_mix.chains = vec![test_owner(2), test_owner(2)];
     assert_eq!(engine.choose_bus_worker(2), Some(0));
-    engine.bus_chains[0].assigned_worker = Some(0);
+    engine.bus_mix.chains[0].assigned_worker = Some(0);
     assert_eq!(engine.choose_bus_worker(2), Some(1));
 
     engine.observe_bus_chain(1, 1.0, 1.0);
-    assert_eq!(engine.bus_chains[1].assigned_worker, Some(1));
+    assert_eq!(engine.bus_mix.chains[1].assigned_worker, Some(1));
     engine.source_worker_load = Some(load([0, 0], [100, 1]));
     engine.observe_bus_chain(1, 1.0, 1.0);
-    assert_eq!(engine.bus_chains[1].assigned_worker, Some(1));
+    assert_eq!(engine.bus_mix.chains[1].assigned_worker, Some(1));
 }
 
 #[test]
@@ -319,14 +319,14 @@ fn slot_and_threshold_changes_reset_only_quiet_observation() {
     assert_eq!(owner.assigned_worker, Some(1));
 
     let mut engine = SynthEngine::new(48_000);
-    engine.bus_chains = vec![owner];
-    engine.bus_chains[0].quiet_frames = 9;
+    engine.bus_mix.chains = vec![owner];
+    engine.bus_mix.chains[0].quiet_frames = 9;
     engine.set_dsp_config(DspRuntimeConfig {
         worker_warning_threshold: super::super::dsp_config::WorkerWarningThreshold::Percent85,
         bus_idle_threshold: BusIdleThreshold::Exact,
     });
-    assert_eq!(engine.bus_chains[0].quiet_frames, 0);
-    assert_eq!(engine.bus_chains[0].assigned_worker, Some(1));
+    assert_eq!(engine.bus_mix.chains[0].quiet_frames, 0);
+    assert_eq!(engine.bus_mix.chains[0].assigned_worker, Some(1));
 }
 
 #[test]
@@ -387,13 +387,13 @@ fn prepared_full_and_single_replacements_retire_owner_state_without_callback_dro
     let config = four_bus_config();
     let mut engine = SynthEngine::new(44_100);
     engine.set_instruments(config.clone());
-    engine.bus_chains[0].assigned_worker = Some(1);
-    engine.bus_chains[0].quiet_frames = 7;
+    engine.bus_mix.chains[0].assigned_worker = Some(1);
+    engine.bus_mix.chains[0].quiet_frames = 7;
     let full_retired = engine
         .apply_prepared_instruments_config(prepare_instruments_config(config.clone(), 44_100));
-    assert_eq!(full_retired.bus_chains.len(), 4);
-    assert_eq!(engine.bus_chains[0].assigned_worker, Some(1));
-    assert_eq!(engine.bus_chains[0].quiet_frames, 7);
+    assert_eq!(full_retired.bus_mix.chains.len(), 4);
+    assert_eq!(engine.bus_mix.chains[0].assigned_worker, Some(1));
+    assert_eq!(engine.bus_mix.chains[0].quiet_frames, 7);
     drop(full_retired);
 
     let prepared = prepare_fx_bus_slot("reverb".into(), Default::default(), 44_100);
@@ -401,7 +401,7 @@ fn prepared_full_and_single_replacements_retire_owner_state_without_callback_dro
         crate::synth::test_allocator::count_allocations_and_deallocations(|| {
             engine.apply_prepared_fx_bus_slot(0, 0, prepared)
         });
-    assert_eq!(retired.bus_chains.len(), 1);
+    assert_eq!(retired.bus_mix.chains.len(), 1);
     assert_eq!(deallocations, 0);
     drop(retired);
 }

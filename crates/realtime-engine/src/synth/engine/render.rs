@@ -250,10 +250,10 @@ impl SynthEngine {
         for state in &mut self.master_slot_state {
             state.silence();
         }
-        for chain in &mut self.bus_chains {
+        for chain in &mut self.bus_mix.chains {
             chain.silence();
         }
-        for spread in &mut self.bus_output_spread_state {
+        for spread in &mut self.bus_mix.output_spread_state {
             spread.silence();
         }
         #[cfg(feature = "routing-tree-executor")]

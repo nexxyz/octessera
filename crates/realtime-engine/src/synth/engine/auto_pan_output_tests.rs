@@ -1,5 +1,5 @@
 use super::super::fx::fx_bus_state_from_params;
-use super::render_routing::render_bus_stereo_output;
+use super::render_routing::{render_bus_stereo_output, FxBusOutputSpreadState};
 use super::*;
 
 const SAMPLE_RATE: u32 = 48_000;

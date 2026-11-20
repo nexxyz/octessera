@@ -52,20 +52,24 @@ impl SynthEngine {
         self.routed_bus_slot_count > 0
             || self.active_bus_activity_count > 0
             || self
-                .bus_chains
+                .bus_mix
+                .chains
                 .iter()
                 .any(|chain| chain.assigned_worker.is_some())
     }
 
     pub(super) fn prepare_bus_buffers(&mut self) {
-        if self.bus_mono_scratch.len() != self.bus_chains.len() {
-            self.bus_mono_scratch.resize(self.bus_chains.len(), 0.0);
+        if self.bus_mix.mono_scratch.len() != self.bus_mix.chains.len() {
+            self.bus_mix
+                .mono_scratch
+                .resize(self.bus_mix.chains.len(), 0.0);
         } else {
-            self.bus_mono_scratch.fill(0.0);
+            self.bus_mix.mono_scratch.fill(0.0);
         }
-        if self.bus_mono_snapshot.len() != self.bus_mono_scratch.len() {
-            self.bus_mono_snapshot
-                .resize(self.bus_mono_scratch.len(), 0.0);
+        if self.bus_mix.mono_snapshot.len() != self.bus_mix.mono_scratch.len() {
+            self.bus_mix
+                .mono_snapshot
+                .resize(self.bus_mix.mono_scratch.len(), 0.0);
         }
     }
 
@@ -110,8 +114,8 @@ impl SynthEngine {
                 right += sample * gr;
             } else {
                 let bus = route - 1;
-                if bus < self.bus_mono_scratch.len() {
-                    self.bus_mono_scratch[bus] += sample;
+                if bus < self.bus_mix.mono_scratch.len() {
+                    self.bus_mix.mono_scratch[bus] += sample;
                 } else {
                     let (gl, gr) = self.slot_pan_gains[slot];
                     left += sample * gl;
@@ -129,12 +133,13 @@ impl SynthEngine {
         mut right: f32,
         tapped_bus: usize,
     ) -> (f32, f32) {
-        self.bus_mono_snapshot
-            .copy_from_slice(&self.bus_mono_scratch);
-        for bus_idx in 0..self.bus_chains.len() {
-            let bus_input = self.bus_mono_scratch[bus_idx];
+        self.bus_mix
+            .mono_snapshot
+            .copy_from_slice(&self.bus_mix.mono_scratch);
+        for bus_idx in 0..self.bus_mix.chains.len() {
+            let bus_input = self.bus_mix.mono_scratch[bus_idx];
             let bus_active =
-                self.signal_present_mono(bus_input) || self.bus_chains[bus_idx].is_active();
+                self.signal_present_mono(bus_input) || self.bus_mix.chains[bus_idx].is_active();
             if !bus_active {
                 self.observe_bus_chain(bus_idx, bus_input, 0.0);
                 let target = MomentaryFxTarget::FxBus { index: bus_idx };
@@ -152,15 +157,15 @@ impl SynthEngine {
             }
             let resolved_duck = std::array::from_fn(|slot| {
                 resolve_duck_source(
-                    self.bus_chains[bus_idx].slot_params[slot],
+                    self.bus_mix.chains[bus_idx].slot_params[slot],
                     slot_out,
                     &self.slot_volume,
-                    &self.bus_mono_snapshot,
-                    &self.bus_volume,
+                    &self.bus_mix.mono_snapshot,
+                    &self.bus_mix.volume,
                 )
             });
             let mut bus_output =
-                self.bus_chains[bus_idx].process(bus_input, &resolved_duck, self.sample_rate);
+                self.bus_mix.chains[bus_idx].process(bus_input, &resolved_duck, self.sample_rate);
             let chain_output = bus_output.mono;
             if TAP && bus_idx == tapped_bus {
                 self.tapped_bus_sample = chain_output;
@@ -168,7 +173,7 @@ impl SynthEngine {
             self.observe_bus_chain(bus_idx, bus_input, chain_output);
             let input_present = self.signal_present_mono(bus_input);
             let output_present = self.signal_present_mono(chain_output);
-            self.bus_chains[bus_idx].observe_render_hold(
+            self.bus_mix.chains[bus_idx].observe_render_hold(
                 input_present,
                 output_present,
                 self.fx_activity_hold_frames,
@@ -188,7 +193,8 @@ impl SynthEngine {
             right += bus_right;
         }
         self.active_bus_activity_count = self
-            .bus_chains
+            .bus_mix
+            .chains
             .iter()
             .filter(|chain| chain.is_active())
             .count();
@@ -201,17 +207,18 @@ impl SynthEngine {
         output: BusChainFrameOutput,
     ) -> (f32, f32) {
         let pan_gains = self.bus_mono_pan_gains(bus_idx);
-        let spread_state = &mut self.bus_output_spread_state[bus_idx];
+        let spread_state = &mut self.bus_mix.output_spread_state[bus_idx];
         render_bus_stereo_output(
             output,
             spread_state,
             pan_gains,
-            self.bus_volume.get(bus_idx).copied().unwrap_or(1.0),
+            self.bus_mix.volume.get(bus_idx).copied().unwrap_or(1.0),
         )
     }
 
     fn bus_mono_pan_gains(&self, bus_idx: usize) -> (f32, f32) {
-        self.bus_pan_gains_cache
+        self.bus_mix
+            .pan_gains
             .get(bus_idx)
             .copied()
             .unwrap_or_else(|| pan_gains(0, self.pan_positions))
@@ -219,22 +226,23 @@ impl SynthEngine {
 
     pub(super) fn observe_bus_chain(&mut self, bus_idx: usize, input: f32, output: f32) {
         let threshold = self.dsp_config.bus_idle_threshold;
-        let was_unassigned = self.bus_chains[bus_idx].assigned_worker.is_none();
-        self.bus_chains[bus_idx].observe(input, output, threshold, self.sample_rate);
+        let was_unassigned = self.bus_mix.chains[bus_idx].assigned_worker.is_none();
+        self.bus_mix.chains[bus_idx].observe(input, output, threshold, self.sample_rate);
         if was_unassigned
-            && self.bus_chains[bus_idx].assigned_worker.is_none()
-            && self.bus_chains[bus_idx].cost_units() > 0
+            && self.bus_mix.chains[bus_idx].assigned_worker.is_none()
+            && self.bus_mix.chains[bus_idx].cost_units() > 0
             && BusChainOwner::is_loud(input, output, threshold)
         {
-            if let Some(worker) = self.choose_bus_worker(self.bus_chains[bus_idx].cost_units()) {
-                self.bus_chains[bus_idx].assigned_worker = Some(worker);
+            if let Some(worker) = self.choose_bus_worker(self.bus_mix.chains[bus_idx].cost_units())
+            {
+                self.bus_mix.chains[bus_idx].assigned_worker = Some(worker);
             }
         }
     }
 
     pub(super) fn choose_bus_worker(&self, chain_cost: u16) -> Option<usize> {
         let mut active_cost_units = self.source_worker_active_cost_units();
-        for chain in &self.bus_chains {
+        for chain in &self.bus_mix.chains {
             let Some(worker) = chain.assigned_worker else {
                 continue;
             };

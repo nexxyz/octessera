@@ -15,7 +15,7 @@ pub(super) fn combine_bus_carriers(
 pub(super) fn take_bus_carriers(
     engine: &mut SynthEngine,
 ) -> [Option<BusChainCarrier>; super::super::types::BUS_COUNT] {
-    let mut owners = std::mem::take(&mut engine.bus_chains);
+    let mut owners = std::mem::take(&mut engine.bus_mix.chains);
     let mut carriers =
         std::array::from_fn(|logical_bus_id| Some(BusChainCarrier::new(logical_bus_id, None)));
     for owner in owners.drain(..) {
@@ -25,7 +25,7 @@ pub(super) fn take_bus_carriers(
             .expect("validated bus identity")
             .owner = Some(owner);
     }
-    engine.bus_chains = owners;
+    engine.bus_mix.chains = owners;
     carriers
 }
 
@@ -35,7 +35,7 @@ pub(super) fn restore_bus_carriers_to_engine(
 ) {
     for carrier in carriers.into_iter().flatten() {
         if let Some(owner) = carrier.owner {
-            engine.bus_chains.push(owner);
+            engine.bus_mix.chains.push(owner);
         }
     }
 }

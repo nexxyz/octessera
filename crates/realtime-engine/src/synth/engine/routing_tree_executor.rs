@@ -338,12 +338,13 @@ impl RoutingTreeBlockScratch {
             sample_counts,
             std::array::from_fn(|bus| {
                 engine
-                    .bus_chains
+                    .bus_mix
+                    .chains
                     .get(bus)
                     .map(BusChainOwner::cost_units)
                     .unwrap_or(0)
             }),
-            engine.bus_chains.len(),
+            engine.bus_mix.chains.len(),
         ) {
             return None;
         }

@@ -55,7 +55,8 @@ impl SynthEngine {
         };
         let instrument_kinds = std::array::from_fn(|slot| self.slot_kind[slot]);
         let bus_costs = std::array::from_fn(|bus| {
-            self.bus_chains
+            self.bus_mix
+                .chains
                 .get(bus)
                 .map(BusChainOwner::cost_units)
                 .unwrap_or(0)
@@ -67,7 +68,7 @@ impl SynthEngine {
                 synth_counts,
                 sample_counts,
                 bus_costs,
-                self.bus_chains.len(),
+                self.bus_mix.chains.len(),
             )
         {
             left[..frames].fill(0.0);
@@ -227,9 +228,10 @@ impl SynthEngine {
     ) -> bool {
         let bus_input_snapshot: [f32; BUS_COUNT] =
             std::array::from_fn(|bus| self.routing_tree_scratch.bus_input[bus][frame]);
-        for bus in 0..self.bus_chains.len() {
+        for bus in 0..self.bus_mix.chains.len() {
             let input = self.routing_tree_scratch.bus_input[bus][frame];
-            let bus_active = self.signal_present_mono(input) || self.bus_chains[bus].is_active();
+            let bus_active =
+                self.signal_present_mono(input) || self.bus_mix.chains[bus].is_active();
             if !bus_active {
                 self.observe_bus_chain(bus, input, 0.0);
                 let target = MomentaryFxTarget::FxBus { index: bus };
@@ -251,18 +253,18 @@ impl SynthEngine {
             }
             let resolved_duck = std::array::from_fn(|slot| {
                 resolve_duck_source(
-                    self.bus_chains[bus].slot_params[slot],
+                    self.bus_mix.chains[bus].slot_params[slot],
                     raw_slot_out,
                     &self.slot_volume,
                     &bus_input_snapshot,
-                    &self.bus_volume,
+                    &self.bus_mix.volume,
                 )
             });
-            let output = self.bus_chains[bus].process(input, &resolved_duck, self.sample_rate);
+            let output = self.bus_mix.chains[bus].process(input, &resolved_duck, self.sample_rate);
             self.observe_bus_chain(bus, input, output.mono);
             let input_present = self.signal_present_mono(input);
             let output_present = self.signal_present_mono(output.mono);
-            self.bus_chains[bus].observe_render_hold(
+            self.bus_mix.chains[bus].observe_render_hold(
                 input_present,
                 output_present,
                 self.fx_activity_hold_frames,
@@ -284,7 +286,8 @@ impl SynthEngine {
             self.routing_tree_scratch.worker_right[worker][frame] += right;
         }
         self.active_bus_activity_count = self
-            .bus_chains
+            .bus_mix
+            .chains
             .iter()
             .filter(|chain| chain.is_active())
             .count();
