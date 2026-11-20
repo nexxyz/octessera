@@ -3,7 +3,7 @@
 
 use super::aux_auto_map::{AuxBindingSource, ResolvedAuxSlot};
 use super::aux_hints::action_home_color;
-use super::construction_deferred::AUX_TURN_TOAST_HOLD;
+use super::construction::deferred::AUX_TURN_TOAST_HOLD;
 use super::performance_view::ViewVisual;
 use super::{AuxPriority, NativeRunner};
 use crate::native_menu::format_values::format_display_value;

@@ -1,19 +1,19 @@
-use super::play_fx_config::PlayFxConfig;
-use super::*;
+use super::super::play_fx_config::PlayFxConfig;
+use super::super::*;
 
-pub(super) struct NativeRunnerConstructionSeed {
+pub(in crate::native_runner) struct NativeRunnerConstructionSeed {
     pub(super) now: Instant,
-    pub(super) ui: NativeUiState,
+    pub(in crate::native_runner) ui: NativeUiState,
     pub(super) hdmi: NativeHdmiConfig,
     pub(super) global_sound: GlobalSoundConfig,
     pub(super) dsp_config: realtime_engine::synth::DspRuntimeConfig,
-    pub(super) audio_io: super::audio_io_settings::NativeAudioIoSettings,
+    pub(super) audio_io: super::super::audio_io_settings::NativeAudioIoSettings,
     pub(super) bpm: f64,
     pub(super) swing_a: u8,
     pub(super) swing_b: u8,
-    pub(super) sync_source: SyncSource,
+    pub(in crate::native_runner) sync_source: SyncSource,
     pub(super) algorithm_step_pulses: u32,
-    pub(super) instruments: Vec<NativeInstrumentSlot>,
+    pub(in crate::native_runner) instruments: Vec<NativeInstrumentSlot>,
     pub(super) sample_availability: Vec<Vec<NativeSampleAvailability>>,
     pub(super) fx_buses: Vec<NativeFxBus>,
     pub(super) global_fx_slots: Vec<String>,
@@ -26,7 +26,7 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) aux_bindings: Vec<Option<NativeAuxBinding>>,
     pub(super) shift_aux_bindings: Vec<Option<NativeAuxBinding>>,
     pub(super) sample_favourite_dirs: Vec<String>,
-    pub(super) sample_builtin_favourite_dirs: Vec<String>,
+    pub(in crate::native_runner) sample_builtin_favourite_dirs: Vec<String>,
     pub(super) preset_names: Vec<String>,
     pub(super) midi_outputs: Vec<MidiPort>,
     pub(super) midi_inputs: Vec<MidiPort>,
@@ -40,11 +40,15 @@ pub(super) struct NativeRunnerConstructionSeed {
     pub(super) auto_save_default: bool,
     pub(super) rolling_backups: bool,
     pub(super) input_events_while_paused: bool,
-    pub(super) active_layer_index: usize,
+    pub(in crate::native_runner) active_layer_index: usize,
 }
 
 impl NativeRunnerConstructionSeed {
-    pub(super) fn new(config: &NativeRunnerConfig, ui: NativeUiState, now: Instant) -> Self {
+    pub(in crate::native_runner) fn new(
+        config: &NativeRunnerConfig,
+        ui: NativeUiState,
+        now: Instant,
+    ) -> Self {
         Self {
             now,
             ui,
@@ -56,7 +60,7 @@ impl NativeRunnerConstructionSeed {
             },
             global_sound: config.global_sound.clone(),
             dsp_config: realtime_engine::synth::DspRuntimeConfig::default(),
-            audio_io: super::audio_io_settings::NativeAudioIoSettings::new(config),
+            audio_io: super::super::audio_io_settings::NativeAudioIoSettings::new(config),
             bpm: config.bpm,
             swing_a: config.swing_a.clamp(1, 7),
             swing_b: config.swing_b.clamp(1, 7),

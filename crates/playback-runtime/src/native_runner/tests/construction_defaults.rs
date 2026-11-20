@@ -1,4 +1,4 @@
-use super::super::construction_seed::NativeRunnerConstructionSeed;
+use super::super::construction::seed::NativeRunnerConstructionSeed;
 use super::*;
 use crate::native_menu::NativeMenuValue;
 

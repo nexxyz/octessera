@@ -1,7 +1,7 @@
-use super::*;
+use super::super::*;
 
 impl NativeRunner {
-    pub(super) fn build_engine(
+    pub(in crate::native_runner) fn build_engine(
         behavior: NativeBehavior,
         behavior_config: Value,
         interpretation_profile: InterpretationProfile,
@@ -22,7 +22,10 @@ impl NativeRunner {
         })
     }
 
-    pub(super) fn rebuild_engine(&mut self, behavior: NativeBehavior) -> Result<(), String> {
+    pub(in crate::native_runner) fn rebuild_engine(
+        &mut self,
+        behavior: NativeBehavior,
+    ) -> Result<(), String> {
         let behavior_id = behavior.id().to_string();
         let config = if behavior_id == self.active_behavior().id() {
             self.active_layer().behavior_config.clone()
@@ -42,7 +45,7 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn reset_transport_position(&mut self) {
+    pub(in crate::native_runner) fn reset_transport_position(&mut self) {
         self.clear_lfo_audio();
         self.drain_all_layer_notes();
         self.transport.pending_resync = false;
@@ -68,7 +71,7 @@ impl NativeRunner {
         self.trigger_probability_rng = TRIGGER_PROBABILITY_RNG_INITIAL_SEED;
     }
 
-    pub(super) fn sync_engine_runtime_config(&mut self) {
+    pub(in crate::native_runner) fn sync_engine_runtime_config(&mut self) {
         #[cfg(test)]
         {
             self.engine_runtime_sync_calls = self.engine_runtime_sync_calls.saturating_add(1);
