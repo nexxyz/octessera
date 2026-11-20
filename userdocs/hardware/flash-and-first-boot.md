@@ -71,8 +71,15 @@ customisation leaves SSH switched off until you turn it on in the setup portal.
    power](safety-and-power.md).
 5. Wait for the Octessera boot animation and then the normal menu.
 
-Nothing on the OLED, or flickering? Unplug and check [troubleshooting](../troubleshooting.md)
-before trying again.
+Nothing on the OLED, or flickering? Unplug, then check these in order:
+
+1. The image matches the board (a Raspberry image on an Orange won't start,
+   and vice versa) and the card is pushed all the way into the compute board.
+2. Power comes in through the USB-C power breakout, as in step 4 above.
+3. The OLED's cable is seated at both ends.
+
+Still nothing? If the OLED shows a message, [troubleshooting](../troubleshooting.md)
+has it by name.
 
 ## 4. Configure Wi-Fi and access
 
