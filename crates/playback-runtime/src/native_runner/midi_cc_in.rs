@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
 pub(super) const MIDI_CC_SLOT_COUNT: usize = 8;
+const RESET_ALL_CONTROLLERS: u8 = 121;
 const LEARN_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone, Debug, PartialEq)]
@@ -98,6 +99,10 @@ impl NativeRunner {
         if !self.midi.enabled {
             return self.messages_without_snapshot();
         }
+        if change.controller == RESET_ALL_CONTROLLERS {
+            self.reset_midi_cc_sources(&change);
+            return self.messages_without_snapshot();
+        }
         if let Some(learn) = self.midi_cc_learn.take() {
             self.learn_midi_cc(learn.slot, change);
             return self.messages_with_snapshot();
@@ -115,6 +120,24 @@ impl NativeRunner {
             }
         }
         self.messages_without_snapshot()
+    }
+
+    /// Reset All Controllers drops the latched values of the slots listening on its channel.
+    fn reset_midi_cc_sources(&mut self, reset: &MidiControlChange) {
+        let mut changed = false;
+        for slot in 0..MIDI_CC_SLOT_COUNT {
+            let mapping = &mut self.midi_cc_mappings[slot];
+            let channel_heard = mapping.channel == 0 || mapping.channel == reset.channel + 1;
+            if channel_heard && mapping.last_value.take().is_some() {
+                let source = ModulationSourceId::midi_cc(slot).expect("validated MIDI CC slot");
+                changed |= self.clear_runtime_source_input(source);
+            }
+        }
+        if changed {
+            if let Err(error) = self.process_dirty_modulation_step(true) {
+                self.show_modulation_unavailable(&error);
+            }
+        }
     }
 
     pub(super) fn start_midi_cc_learn(&mut self, slot: usize) {

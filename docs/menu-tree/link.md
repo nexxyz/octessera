@@ -195,6 +195,9 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 - `Learn` takes the number and channel of the next incoming CC (`CC1: learned CC 74 ch 1`). Back or
   10 s without a CC cancels it (`Learn canceled`); with MIDI Active off it only shows
   `Learn: MIDI is off`.
+- CC 121 (Reset All Controllers) is never a source and Learn ignores it. It drops the held value of
+  every slot listening on its channel (`any` slots hear every channel), so those targets return to
+  their patch values like after Stop; other channels' slots keep theirs.
 - Hosts pass Control Change (`0xB0`-`0xBF`) next to clock, Start, Continue and Stop; notes and other
   messages stay out. A drain handles its realtime bytes first, then applies only the latest value
   per channel and CC number.

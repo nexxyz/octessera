@@ -1186,7 +1186,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   timing never advance LFOs or process unrelated held sources.
 - Modulation sources, in their stable order: layer X/Y slots, Play X/Y, the eight Link LFOs, then
   the eight MIDI CC In slots. A CC slot holds its last `value / 127` like a held XY position; a
-  loaded patch starts with none ([link.md](menu-tree/link.md#midi-cc-in)). Play Faders are not
+  loaded patch starts with none, and CC 121 (Reset All Controllers) drops the held values of the slots on its
+  channel ([link.md](menu-tree/link.md#midi-cc-in)). Play Faders are not
   sources: a press sets its target like a menu edit ([play.md](menu-tree/play.md#faders)).
 - Layer X/Y, Play XY, LFO, and MIDI CC In assignments are staged through the native claim
   validator. An exclusive target may have one layer/Play/CC claim, and an LFO may never claim one. A rejected

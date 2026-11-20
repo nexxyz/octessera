@@ -239,3 +239,40 @@ fn mappings_round_trip_through_a_saved_patch_and_load_without_input() {
     send_cc_bytes(&mut loaded, &[[0xBF, 74, 0]]);
     assert_eq!(velocity(&loaded), 120, "inverted: CC 0 gives Range Max");
 }
+
+#[test]
+fn reset_all_controllers_restores_the_patch_value_on_its_channel_only() {
+    let mut runner = midi_runner();
+    map_velocity_to_cc1(&mut runner);
+    runner.midi_cc_mappings[0].channel = 3;
+    let base = velocity(&runner);
+
+    send_cc_bytes(&mut runner, &[[0xB2, 1, 0]]);
+    assert_eq!(velocity(&runner), 0);
+    send_cc_bytes(&mut runner, &[[0xB0, 121, 0]]);
+    assert_eq!(velocity(&runner), 0, "another channel's reset is ignored");
+    send_cc_bytes(&mut runner, &[[0xB2, 121, 0]]);
+    assert_eq!(velocity(&runner), base);
+    assert_eq!(runner.midi_cc_mappings[0].last_value, None);
+
+    runner.midi_cc_mappings[0].channel = 0;
+    send_cc_bytes(&mut runner, &[[0xBF, 1, 127]]);
+    assert_eq!(velocity(&runner), 200);
+    send_cc_bytes(&mut runner, &[[0xB5, 121, 0]]);
+    assert_eq!(
+        velocity(&runner),
+        base,
+        "an any-channel slot hears every reset"
+    );
+}
+
+#[test]
+fn learn_ignores_reset_all_controllers() {
+    let mut runner = midi_runner();
+    press_key(&mut runner, "midiCc.2.learn");
+    send_cc_bytes(&mut runner, &[[0xB4, 121, 0]]);
+    assert!(runner.midi_cc_learn.is_some());
+    assert_eq!(runner.midi_cc_mappings[2].cc, 3);
+    send_cc_bytes(&mut runner, &[[0xB4, 74, 9]]);
+    assert_eq!(runner.midi_cc_mappings[2].cc, 74);
+}

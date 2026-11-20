@@ -167,7 +167,9 @@ with a `keys` layer on the grid.
   around.
 - The parameter stays where the knob left it. The mappings are saved with the
   patch, but a freshly loaded patch keeps its saved values until you touch a
-  knob, so nothing jumps on load.
+  knob, so nothing jumps on load. If your controller has a "reset all
+  controllers" button (it sends CC 121), pressing it lets go of the knobs on its
+  channel and the parameters slide back to the patch values.
 - Switch-like parameters (on/off, a choice from a list) take one driver at a
   time. If an XY slot or another CC already has one, you get `Already on another control. Clear that first.`
 
