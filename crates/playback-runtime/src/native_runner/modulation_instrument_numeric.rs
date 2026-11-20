@@ -1,5 +1,6 @@
 use super::{
-    cutoff_display_to_hz, set_json_path_number, NativeInstrumentSlot, Value, PAN_POSITION_COUNT,
+    cutoff_display_to_hz, set_json_path_number, synth_numeric_field, NativeInstrumentSlot, Value,
+    PAN_POSITION_COUNT,
 };
 
 pub(super) fn apply_instrument_numeric_binding_value(
@@ -86,101 +87,16 @@ pub(super) fn apply_instrument_numeric_binding_value(
             &["filter", "resonance"],
             value.round().clamp(0.0, 255.0),
         ),
-        "synth.osc1.octave" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["osc1", "octave"],
-            value.round().clamp(-2.0, 2.0),
-        ),
-        "synth.osc1.levelPct" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["osc1", "levelPct"],
-            value.round().clamp(0.0, 100.0),
-        ),
-        "synth.osc1.detuneCents" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["osc1", "detuneCents"],
-            value.round().clamp(-50.0, 50.0),
-        ),
-        "synth.osc1.pulseWidthPct" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["osc1", "pulseWidthPct"],
-            value.round().clamp(5.0, 95.0),
-        ),
-        "synth.osc2.octave" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["osc2", "octave"],
-            value.round().clamp(-2.0, 2.0),
-        ),
-        "synth.osc2.levelPct" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["osc2", "levelPct"],
-            value.round().clamp(0.0, 100.0),
-        ),
-        "synth.osc2.detuneCents" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["osc2", "detuneCents"],
-            value.round().clamp(-50.0, 50.0),
-        ),
-        "synth.osc2.pulseWidthPct" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["osc2", "pulseWidthPct"],
-            value.round().clamp(5.0, 95.0),
-        ),
-        "synth.filter.envAmountPct" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["filter", "envAmountPct"],
-            value.round().clamp(-100.0, 100.0),
-        ),
-        "synth.filter.keyTrackingPct" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["filter", "keyTrackingPct"],
-            value.round().clamp(0.0, 100.0),
-        ),
-        "synth.amp.velocitySensitivityPct" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["amp", "velocitySensitivityPct"],
-            value.round().clamp(0.0, 100.0),
-        ),
-        "synth.ampEnv.attackMs" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["ampEnv", "attackMs"],
-            value.round().clamp(0.0, 5000.0),
-        ),
-        "synth.ampEnv.decayMs" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["ampEnv", "decayMs"],
-            value.round().clamp(0.0, 5000.0),
-        ),
-        "synth.ampEnv.sustainPct" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["ampEnv", "sustainPct"],
-            value.round().clamp(0.0, 100.0),
-        ),
-        "synth.ampEnv.releaseMs" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["ampEnv", "releaseMs"],
-            value.round().clamp(0.0, 10000.0),
-        ),
-        "synth.filterEnv.attackMs" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["filterEnv", "attackMs"],
-            value.round().clamp(0.0, 5000.0),
-        ),
-        "synth.filterEnv.decayMs" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["filterEnv", "decayMs"],
-            value.round().clamp(0.0, 5000.0),
-        ),
-        "synth.filterEnv.sustainPct" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["filterEnv", "sustainPct"],
-            value.round().clamp(0.0, 100.0),
-        ),
-        "synth.filterEnv.releaseMs" => set_json_path_number(
-            &mut instrument.synth_config,
-            &["filterEnv", "releaseMs"],
-            value.round().clamp(0.0, 10000.0),
-        ),
+        field if field.starts_with("synth.") => {
+            let Some((path, min, max)) = synth_numeric_field(field) else {
+                return false;
+            };
+            set_json_path_number(
+                &mut instrument.synth_config,
+                path,
+                value.round().clamp(f64::from(min), f64::from(max)),
+            );
+        }
         "sample.tuneSemis" => instrument.sample_tune_semis = value.round().clamp(-24.0, 24.0) as i8,
         "sample.amp.gainPct" => instrument.sample_gain_pct = value.round().clamp(0.0, 100.0) as u8,
         "sample.amp.velocitySensitivityPct" => {

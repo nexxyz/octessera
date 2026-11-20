@@ -1,5 +1,6 @@
 use super::super::{
-    cutoff_hz_to_display, menu_apply_fast_instruments, synth_i32_at, NativeInstrumentSlot, Value,
+    cutoff_hz_to_display, menu_apply_fast_instruments, synth_i32_at, synth_scalar_field,
+    NativeInstrumentSlot, Value,
 };
 
 pub(super) fn instrument_numeric_value(
@@ -40,22 +41,19 @@ pub(super) fn instrument_numeric_value(
             stored
         });
     }
+    if let Some((path, _, _)) = synth_scalar_field(field) {
+        return match path {
+            ["osc1" | "osc2", _] => json_number(&instrument.synth_config, path),
+            [_, param] => Some(f64::from(synth_i32_at(
+                instrument,
+                path,
+                missing_synth_base(param),
+            ))),
+            _ => None,
+        };
+    }
     let value = match field {
         "synth.amp.gainPct" => f64::from(instrument.synth_gain_pct),
-        "synth.osc1.levelPct" => json_number(&instrument.synth_config, &["osc1", "levelPct"])?,
-        "synth.osc1.detuneCents" => {
-            json_number(&instrument.synth_config, &["osc1", "detuneCents"])?
-        }
-        "synth.osc1.pulseWidthPct" => {
-            json_number(&instrument.synth_config, &["osc1", "pulseWidthPct"])?
-        }
-        "synth.osc2.levelPct" => json_number(&instrument.synth_config, &["osc2", "levelPct"])?,
-        "synth.osc2.detuneCents" => {
-            json_number(&instrument.synth_config, &["osc2", "detuneCents"])?
-        }
-        "synth.osc2.pulseWidthPct" => {
-            json_number(&instrument.synth_config, &["osc2", "pulseWidthPct"])?
-        }
         "synth.filter.cutoffHz" => f64::from(cutoff_hz_to_display(synth_i32_at(
             instrument,
             &["filter", "cutoffHz"],
@@ -63,37 +61,6 @@ pub(super) fn instrument_numeric_value(
         ))),
         "synth.filter.resonance" => {
             f64::from(synth_i32_at(instrument, &["filter", "resonance"], 32))
-        }
-        "synth.filter.envAmountPct" => {
-            f64::from(synth_i32_at(instrument, &["filter", "envAmountPct"], 0))
-        }
-        "synth.filter.keyTrackingPct" => {
-            f64::from(synth_i32_at(instrument, &["filter", "keyTrackingPct"], 0))
-        }
-        "synth.amp.velocitySensitivityPct" => f64::from(synth_i32_at(
-            instrument,
-            &["amp", "velocitySensitivityPct"],
-            100,
-        )),
-        "synth.ampEnv.attackMs" => f64::from(synth_i32_at(instrument, &["ampEnv", "attackMs"], 10)),
-        "synth.ampEnv.decayMs" => f64::from(synth_i32_at(instrument, &["ampEnv", "decayMs"], 100)),
-        "synth.ampEnv.sustainPct" => {
-            f64::from(synth_i32_at(instrument, &["ampEnv", "sustainPct"], 80))
-        }
-        "synth.ampEnv.releaseMs" => {
-            f64::from(synth_i32_at(instrument, &["ampEnv", "releaseMs"], 300))
-        }
-        "synth.filterEnv.attackMs" => {
-            f64::from(synth_i32_at(instrument, &["filterEnv", "attackMs"], 10))
-        }
-        "synth.filterEnv.decayMs" => {
-            f64::from(synth_i32_at(instrument, &["filterEnv", "decayMs"], 100))
-        }
-        "synth.filterEnv.sustainPct" => {
-            f64::from(synth_i32_at(instrument, &["filterEnv", "sustainPct"], 80))
-        }
-        "synth.filterEnv.releaseMs" => {
-            f64::from(synth_i32_at(instrument, &["filterEnv", "releaseMs"], 300))
         }
         "sample.tuneSemis" => f64::from(instrument.sample_tune_semis),
         "sample.amp.gainPct" => f64::from(instrument.sample_gain_pct),
@@ -129,6 +96,19 @@ pub(super) fn instrument_numeric_value(
         _ => return None,
     };
     Some(value)
+}
+
+/// What a filter, amp or envelope modulation centers on when the saved synth config leaves
+/// the row out.
+fn missing_synth_base(param: &str) -> i32 {
+    match param {
+        "velocitySensitivityPct" => 100,
+        "attackMs" => 10,
+        "decayMs" => 100,
+        "sustainPct" => 80,
+        "releaseMs" => 300,
+        _ => 0,
+    }
 }
 
 fn json_number(value: &Value, path: &[&str]) -> Option<f64> {

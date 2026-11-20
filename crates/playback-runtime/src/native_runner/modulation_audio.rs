@@ -226,66 +226,25 @@ pub(super) fn instrument_modulation_audio_command(
                 value: value.clamp(f64::from(min), f64::from(max)) as f32,
             })
         }
-        "synth.osc1.levelPct" | "synth.osc2.levelPct" | "synth.amp.gainPct" => {
-            Some(RuntimeAudioCommand::SetSynthParam {
-                instrument_slot: index,
-                generation: 0,
-                path: field.into(),
-                value: value.clamp(0.0, 100.0) as f32,
-            })
-        }
-        "synth.osc1.detuneCents" | "synth.osc2.detuneCents" => {
-            Some(RuntimeAudioCommand::SetSynthParam {
-                instrument_slot: index,
-                generation: 0,
-                path: field.into(),
-                value: value.clamp(-50.0, 50.0) as f32,
-            })
-        }
-        "synth.osc1.pulseWidthPct" | "synth.osc2.pulseWidthPct" => {
-            Some(RuntimeAudioCommand::SetSynthParam {
-                instrument_slot: index,
-                generation: 0,
-                path: field.into(),
-                value: value.clamp(5.0, 95.0) as f32,
-            })
-        }
+        "synth.amp.gainPct" => Some(RuntimeAudioCommand::SetSynthParam {
+            instrument_slot: index,
+            generation: 0,
+            path: field.into(),
+            value: value.clamp(0.0, 100.0) as f32,
+        }),
         "synth.filter.resonance" => Some(RuntimeAudioCommand::SetSynthParam {
             instrument_slot: index,
             generation: 0,
             path: field.into(),
             value: value.clamp(0.0, 255.0) as f32,
         }),
-        "synth.filter.envAmountPct" => Some(RuntimeAudioCommand::SetSynthParam {
-            instrument_slot: index,
-            generation: 0,
-            path: field.into(),
-            value: value.clamp(-100.0, 100.0) as f32,
-        }),
-        "synth.filter.keyTrackingPct"
-        | "synth.amp.velocitySensitivityPct"
-        | "synth.ampEnv.sustainPct"
-        | "synth.filterEnv.sustainPct" => Some(RuntimeAudioCommand::SetSynthParam {
-            instrument_slot: index,
-            generation: 0,
-            path: field.into(),
-            value: value.clamp(0.0, 100.0) as f32,
-        }),
-        "synth.ampEnv.attackMs"
-        | "synth.ampEnv.decayMs"
-        | "synth.filterEnv.attackMs"
-        | "synth.filterEnv.decayMs" => Some(RuntimeAudioCommand::SetSynthParam {
-            instrument_slot: index,
-            generation: 0,
-            path: field.into(),
-            value: value.clamp(0.0, 5000.0) as f32,
-        }),
-        "synth.ampEnv.releaseMs" | "synth.filterEnv.releaseMs" => {
+        field if field.starts_with("synth.") => {
+            let (_, min, max) = super::synth_scalar_field(field)?;
             Some(RuntimeAudioCommand::SetSynthParam {
                 instrument_slot: index,
                 generation: 0,
                 path: field.into(),
-                value: value.clamp(0.0, 10000.0) as f32,
+                value: value.clamp(f64::from(min), f64::from(max)) as f32,
             })
         }
         "sample.filter.cutoffHz" => Some(RuntimeAudioCommand::SetSampleBankParam {

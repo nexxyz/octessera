@@ -203,10 +203,15 @@ pub(super) const SYNTH_NUMERIC_FIELDS: &[(&str, &[&str], (i32, i32))] = &[
 /// The JSON path and range of a synth row the engine takes as a scalar param
 /// (`synth.osc1.levelPct`); an octave change rebuilds the slot instead.
 pub(super) fn synth_scalar_field(suffix: &str) -> Option<(&'static [&'static str], i32, i32)> {
-    let field = suffix.strip_prefix("synth.")?;
-    if field.ends_with(".octave") {
+    if suffix.ends_with(".octave") {
         return None;
     }
+    synth_numeric_field(suffix)
+}
+
+/// The JSON path and range of any plain numeric synth row (`synth.osc1.octave` included).
+pub(super) fn synth_numeric_field(suffix: &str) -> Option<(&'static [&'static str], i32, i32)> {
+    let field = suffix.strip_prefix("synth.")?;
     SYNTH_NUMERIC_FIELDS
         .iter()
         .find(|(name, ..)| *name == field)
