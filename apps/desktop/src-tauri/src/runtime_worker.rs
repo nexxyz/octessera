@@ -324,6 +324,7 @@ pub(crate) fn load_startup_stores(
             effects: vec![
                 playback_runtime::RuntimePlatformEffect::StoreLoadSystem,
                 playback_runtime::RuntimePlatformEffect::StoreLoadDefault,
+                playback_runtime::RuntimePlatformEffect::StoreListPresets,
                 playback_runtime::RuntimePlatformEffect::MidiListOutputsRequest,
                 playback_runtime::RuntimePlatformEffect::MidiListInputsRequest,
             ],

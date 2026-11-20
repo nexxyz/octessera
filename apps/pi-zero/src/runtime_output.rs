@@ -40,6 +40,7 @@ pub(crate) fn initialize_host_state<H: PiRuntimeHost>(
             effects: vec![
                 RuntimePlatformEffect::StoreLoadSystem,
                 RuntimePlatformEffect::StoreLoadDefault,
+                RuntimePlatformEffect::StoreListPresets,
                 RuntimePlatformEffect::MidiListOutputsRequest,
                 RuntimePlatformEffect::MidiListInputsRequest,
             ],
