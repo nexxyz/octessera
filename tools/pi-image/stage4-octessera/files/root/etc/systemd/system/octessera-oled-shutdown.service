@@ -1,14 +1,17 @@
 [Unit]
 Description=octessera Late OLED Shutdown
+DefaultDependencies=no
+Before=local-fs-pre.target
+Conflicts=shutdown.target
 
 [Service]
 Type=oneshot
 ExecStart=/bin/true
-ExecStop=/bin/sh -c 'sleep 4; /usr/local/bin/octessera-pi --oled-off-once || true'
+ExecStop=/bin/sh -c 'sync; /usr/local/bin/octessera-pi --oled-off-once || true'
 RemainAfterExit=yes
 TimeoutStopSec=8
 StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=sysinit.target

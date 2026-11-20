@@ -184,7 +184,7 @@ ln -sf ../octessera-performance-governor.service \
 ln -sf ../octessera-sd-card.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-sd-card.service"
 ln -sf ../octessera-oled-shutdown.service \
-    "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-oled-shutdown.service"
+    "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/octessera-oled-shutdown.service"
 ln -sf ../octessera-boot-splash.service \
     "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service"
 ln -sf ../octessera-network-health.timer \

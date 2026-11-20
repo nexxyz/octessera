@@ -33,7 +33,11 @@ for required_line in \
     'User=octessera-runtime' \
     'Group=octessera-runtime' \
     'ProtectSystem=strict' \
-    'ReadWritePaths=/run/octessera-boot' \
+    'ReadWritePaths=-/run/octessera-boot' \
+    'DefaultDependencies=no' \
+    'Before=local-fs-pre.target' \
+    'Conflicts=shutdown.target' \
+    'WantedBy=sysinit.target' \
     'DevicePolicy=closed' \
     'DeviceAllow=/dev/spidev1.0 rw' \
     'DeviceAllow=/dev/gpiochip1 rw'; do
@@ -49,19 +53,19 @@ octessera_reject_file_match 'Orange suspend service must use the runtime account
 
 if command -v systemd-analyze >/dev/null 2>&1; then
     systemd_work="$(mktemp -d)"
-    mkdir -p "$systemd_work/etc/systemd/system/multi-user.target.wants" "$systemd_work/usr/local/sbin"
+    mkdir -p "$systemd_work/etc/systemd/system/multi-user.target.wants" "$systemd_work/etc/systemd/system/sysinit.target.wants" "$systemd_work/usr/local/sbin"
     cp "$boot_service" "$systemd_work/etc/systemd/system/octessera-orange-boot-splash.service"
     cp "$shutdown_service" "$systemd_work/etc/systemd/system/octessera-orange-oled-shutdown.service"
     cp "$suspend_service" "$systemd_work/etc/systemd/system/octessera-orange-oled-suspend.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-boot-splash.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-oled-shutdown.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-oled-suspend.service"
-    ln -s ../octessera-orange-oled-shutdown.service "$systemd_work/etc/systemd/system/multi-user.target.wants/octessera-orange-oled-shutdown.service"
+    ln -s ../octessera-orange-oled-shutdown.service "$systemd_work/etc/systemd/system/sysinit.target.wants/octessera-orange-oled-shutdown.service"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/usr/local/sbin/octessera-orange-oled-logo"
     chmod 0755 "$systemd_work/usr/local/sbin/octessera-orange-oled-logo"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/usr/local/sbin/octessera-orange-oled-suspend"
     chmod 0755 "$systemd_work/usr/local/sbin/octessera-orange-oled-suspend"
-    for unit in local-fs.target sysinit.target multi-user.target sleep.target; do
+    for unit in local-fs.target local-fs-pre.target shutdown.target sysinit.target multi-user.target sleep.target; do
         printf '%s\n' '[Unit]' "Description=$unit" > "$systemd_work/etc/systemd/system/$unit"
     done
     for unit in systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service octessera.service; do
