@@ -95,6 +95,64 @@ fn musical_fifo_is_exact_under_latest_flood() {
 }
 
 #[test]
+fn a_musical_queue_full_of_note_ons_still_takes_note_offs_and_tile_releases() {
+    let (sender, mut receiver) = event_queue();
+    let note_on = |note| EngineEvent::NoteOn {
+        instrument_slot: 0,
+        note,
+        velocity: 100,
+        duration_ms: 86_400_000,
+        at: None,
+    };
+    for note in 0..MUSICAL_QUEUE_CAPACITY {
+        sender.send(note_on((note % 128) as u8)).unwrap();
+    }
+    assert!(sender.send(note_on(60)).unwrap_err().is_full());
+    assert!(sender
+        .send(EngineEvent::TileHit {
+            instrument_slot: 1,
+            voice: 0,
+            tile: 3,
+            pitch_cents: 0,
+            velocity: 100,
+            at: None,
+        })
+        .unwrap_err()
+        .is_full());
+
+    for note in 0..16 {
+        sender
+            .send(EngineEvent::NoteOff {
+                instrument_slot: 0,
+                note,
+                at: None,
+            })
+            .unwrap();
+    }
+    sender
+        .send(EngineEvent::TileHit {
+            instrument_slot: 1,
+            voice: 0,
+            tile: 3,
+            pitch_cents: 0,
+            velocity: 0,
+            at: None,
+        })
+        .unwrap();
+
+    let received = std::iter::from_fn(|| receiver.try_recv().ok()).collect::<Vec<_>>();
+    assert_eq!(received.len(), MUSICAL_QUEUE_CAPACITY + 17);
+    assert!(matches!(
+        received[MUSICAL_QUEUE_CAPACITY],
+        EngineEvent::NoteOff { note: 0, .. }
+    ));
+    assert!(matches!(
+        received.last(),
+        Some(EngineEvent::TileHit { velocity: 0, .. })
+    ));
+}
+
+#[test]
 fn structural_queue_is_bounded_and_reports_full() {
     let (sender, _receiver) = event_queue();
     for _ in 0..STRUCTURAL_QUEUE_CAPACITY {

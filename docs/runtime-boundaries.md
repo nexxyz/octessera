@@ -219,7 +219,7 @@ Musical events may carry an `at` instant: `EngineSource` maps it to an output fr
 
 ### Control lanes
 
-The engine separates one atomic emergency fence, an exact ordered musical queue, a bounded structural-owner queue, one latest preview, and fixed latest-value cells for master, DSP, mixer, Synth, FM, Plucked, Drum-kit, Sampler, persistent-FX, and epoch-keyed momentary controls. The callback applies at most 32 latest cells and 256 total control work units, performs at most one retirement-producing owner mutation, and never allocates, blocks, spins, or destroys retired/source-owned heap state.
+The engine separates one atomic emergency fence, an exact ordered musical queue whose last 128 slots only note-offs and tile releases may take, a bounded structural-owner queue, one latest preview, and fixed latest-value cells for master, DSP, mixer, Synth, FM, Plucked, Drum-kit, Sampler, persistent-FX, and epoch-keyed momentary controls. The callback applies at most 32 latest cells and 256 total control work units, performs at most one retirement-producing owner mutation, and never allocates, blocks, spins, or destroys retired/source-owned heap state.
 
 ### Parameter smoothing
 

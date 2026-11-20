@@ -62,6 +62,16 @@ impl EngineEventSender {
     }
 
     fn send_queued(&self, event: EngineEvent, queue: QueueKind) -> Result<(), QueueSendError> {
+        let release = matches!(
+            event,
+            EngineEvent::NoteOff { .. } | EngineEvent::TileHit { velocity: 0, .. }
+        );
+        if queue == QueueKind::Musical
+            && !release
+            && self.musical_tx.len() >= MUSICAL_QUEUE_CAPACITY
+        {
+            return Err(QueueSendError::full(queue));
+        }
         let sequence = self.next_sequence.fetch_add(1, Ordering::Relaxed);
         let send_result = match queue {
             QueueKind::Musical => self.musical_tx.try_send(SequencedEvent { sequence, event }),

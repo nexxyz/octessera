@@ -10,6 +10,9 @@ use std::sync::Arc;
 mod sender;
 
 pub const MUSICAL_QUEUE_CAPACITY: usize = 512;
+/// Musical slots past `MUSICAL_QUEUE_CAPACITY` that only note-offs and tile releases may take,
+/// so a queue full of note-ons cannot lose the release of a held note.
+const MUSICAL_RELEASE_RESERVE: usize = 128;
 pub const STRUCTURAL_QUEUE_CAPACITY: usize = 64;
 const PREVIEW_QUEUE_CAPACITY: usize = 1;
 const NO_EMERGENCY_SEQUENCE: u64 = u64::MAX;
@@ -50,7 +53,7 @@ pub struct EngineEventReceiver {
 }
 
 pub fn event_queue() -> (EngineEventSender, EngineEventReceiver) {
-    let (musical_tx, musical_rx) = bounded(MUSICAL_QUEUE_CAPACITY);
+    let (musical_tx, musical_rx) = bounded(MUSICAL_QUEUE_CAPACITY + MUSICAL_RELEASE_RESERVE);
     let (structural_tx, structural_rx) = bounded(STRUCTURAL_QUEUE_CAPACITY);
     let (preview_tx, preview_rx) = bounded(PREVIEW_QUEUE_CAPACITY);
     let receiver_alive = Arc::new(AtomicBool::new(true));
