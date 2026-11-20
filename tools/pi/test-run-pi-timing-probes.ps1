@@ -76,3 +76,4 @@ Assert-NotContains $profile "--timing-probe-wake-intervals-ms"
 Assert-Fails @{ Mode = "RuntimeOnly"; PrintOnly = $true } "missing mandatory"
 
 Write-Output "Raspberry timing-probe wake interval wrapper checks passed"
+exit 0
