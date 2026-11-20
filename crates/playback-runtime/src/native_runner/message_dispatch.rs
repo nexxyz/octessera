@@ -53,6 +53,8 @@ impl NativeRunner {
             &message,
             HostMessage::TransportPulseStep { .. }
                 | HostMessage::MidiRealtimeClock { .. }
+                | HostMessage::MidiNote { .. }
+                | HostMessage::MidiControlChange { .. }
                 | HostMessage::DeviceInput { .. }
         );
         // The clock bytes behind an external Start are stamped from their arrival, so the
