@@ -30,7 +30,7 @@ pub fn render_oled_frame_into(input: &OledPresentationInput, frame: &mut [u8]) {
         if is_concise_runtime_error_presentation(error) {
             render_menu_frame(frame, input);
         } else {
-            render_runtime_error_frame(frame, input, error);
+            render_runtime_error_frame(frame, error);
         }
         return;
     }
@@ -61,21 +61,12 @@ fn render_menu_frame(frame: &mut [u8], input: &OledPresentationInput) {
     draw_footer(frame, input);
 }
 
-fn render_runtime_error_frame(
-    frame: &mut [u8],
-    input: &OledPresentationInput,
-    error: &OledRuntimeErrorMetadata,
-) {
+fn render_runtime_error_frame(frame: &mut [u8], error: &OledRuntimeErrorMetadata) {
     let warning = rgb565(palette::MAGENTA);
     let dim_warning = rgb565(dim(palette::MAGENTA, 6));
     let text = rgb565(palette::GRAY);
-    let screen = runtime_error_screen(error, None);
-    // The runner words a save failure with the preset's name; the metadata alone does not carry it.
-    let lines = if input.display.title == screen.title && !input.display.lines.is_empty() {
-        input.display.lines.clone()
-    } else {
-        runtime_error_rows(&screen.text, error.operation.as_deref()).into()
-    };
+    let screen = runtime_error_screen(error);
+    let lines = runtime_error_rows(&screen.text, error.operation.as_deref());
     fill_rect(frame, 0, 0, 128, 128, dim_warning);
     fill_rect(frame, 4, 4, 120, 120, rgb565(palette::BLACK));
     fill_rect(frame, 8, 8, 112, 18, warning);

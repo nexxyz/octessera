@@ -40,7 +40,8 @@ impl DesktopPlaybackHostAdapter {
                                 RuntimeErrorCode::OperationFailed,
                                 RuntimeOperation::StoreSavePreset,
                                 Some(format!("Save {name} failed: preset already exists")),
-                            ),
+                            )
+                            .with_preset_name(Some(name.clone())),
                         },
                     }]);
                 }

@@ -181,8 +181,11 @@ pub(crate) fn submit_manual_save(
         }
         manual @ NativeManualSaveRequest::Preset { .. } => {
             let snapshot = runner.capture_config_snapshot();
-            let request = playback
+            let mut request = playback
                 .next_native_store_request(RuntimeOperation::StoreSavePreset, snapshot.revision());
+            if let NativeManualSaveRequest::Preset { name, .. } = &manual {
+                request = request.with_preset_name(name.clone());
+            }
             submit_native_preset(service, runner, request, snapshot, manual)
         }
     }
@@ -252,6 +255,7 @@ pub(crate) fn failure(
                 request.operation().clone(),
                 Some(message),
             )
+            .with_preset_name(request.preset_name().map(str::to_owned))
             .with_identity(Some(request.request_id().into()), Some(request.revision())),
         }
         .with_identity(request.request_id().into(), Some(request.revision())),

@@ -50,8 +50,6 @@ pub(super) struct NativePendingState {
     pub(super) patch_load_after_save: Option<crate::protocol::RuntimePlatformEffect>,
     pub(super) system_reset_pending: bool,
     pub(super) native_preset_write: Option<NativePendingPresetWrite>,
-    /// The preset a failed native save was writing, for the error screen that follows.
-    pub(super) failed_preset_name: Option<String>,
     pub(super) pending_aux_turn_toast: Option<PendingNativeToast>,
     pub(super) pending_menu_apply: Option<PendingMenuApply>,
     pub(super) suppress_snapshot_response: bool,

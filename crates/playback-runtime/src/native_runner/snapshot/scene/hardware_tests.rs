@@ -216,6 +216,7 @@ fn hardware_oled_off_and_error_leave_grid_and_hdmi_live() {
         code: Some("operation_failed".into()),
         operation: Some("runtime_dispatch".into()),
         message: Some("Keep playing".into()),
+        preset_name: None,
     };
     runner.display.help_popup = Some(NativeHelpPopup {
         title: "Help".into(),

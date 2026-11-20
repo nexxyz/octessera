@@ -92,8 +92,11 @@ fn enqueue_preset(
     manual: NativeManualSaveRequest,
 ) -> NativeStoreRequest {
     let snapshot = runner.capture_config_snapshot();
-    let request =
+    let mut request =
         playback.next_native_store_request(RuntimeOperation::StoreSavePreset, snapshot.revision());
+    if let NativeManualSaveRequest::Preset { name, .. } = &manual {
+        request = request.with_preset_name(name.clone());
+    }
     assert!(submit_native_preset(service, runner, request.clone(), snapshot, manual).is_none());
     request
 }
@@ -400,4 +403,19 @@ fn restore_generation_cancels_queued_preset_rename_before_projection_or_delete()
     );
     assert!(!store.join("patches/Target.json").exists());
     cleanup(root);
+}
+
+#[test]
+fn a_failed_preset_save_names_its_preset_in_the_error_facts() {
+    let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
+    let request = playback
+        .next_native_store_request(RuntimeOperation::StoreSavePreset, 3)
+        .with_preset_name("Pad Wash".into());
+    let playback_runtime::HostMessage::RuntimeResult { result } =
+        failure(&request, "disk full".into())
+    else {
+        panic!("a failure is a runtime result");
+    };
+    let facts = result.error_facts().unwrap();
+    assert_eq!(facts.preset_name.as_deref(), Some("Pad Wash"));
 }

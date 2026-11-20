@@ -20,6 +20,8 @@ mod audio_tests;
 #[cfg(test)]
 mod musical_event_range_tests;
 #[cfg(test)]
+mod runtime_error_tests;
+#[cfg(test)]
 mod setup_portal_tests;
 #[cfg(test)]
 mod tests;

@@ -329,6 +329,7 @@ fn worker_emits_typed_fault_over_fresh_trusted_snapshot() {
         request_id: Some("audio-request".into()),
         revision: Some(9),
         message: Some("queue full".into()),
+        preset_name: None,
     });
     let fresh = runner
         .send(HostMessage::TransportPulseStep {

@@ -73,6 +73,7 @@ fn runtime_errors_decorate_presentations_and_preserve_last_good_state() {
         request_id: Some("load-default-1".into()),
         revision: Some(4),
         message: Some("disk full".into()),
+        preset_name: None,
     };
     runtime
         .ingest_runner_messages(

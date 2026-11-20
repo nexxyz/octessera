@@ -308,7 +308,8 @@ fn native_failure(request: &NativeStoreRequest, message: String) -> RuntimeStore
             playback_runtime::RuntimeErrorCode::OperationFailed,
             request.operation().clone(),
             Some(message),
-        ),
+        )
+        .with_preset_name(request.preset_name().map(str::to_owned)),
     }
 }
 
@@ -340,6 +341,7 @@ fn native_preset_worker_result(
                     RuntimeOperation::StoreSavePreset,
                     Some(message),
                 )
+                .with_preset_name(write.request.preset_name().map(str::to_owned))
                 .with_identity(
                     Some(write.request.request_id().into()),
                     Some(write.request.revision()),

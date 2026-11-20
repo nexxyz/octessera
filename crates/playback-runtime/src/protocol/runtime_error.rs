@@ -121,6 +121,12 @@ pub struct RuntimeErrorMetadata {
     pub revision: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "presetName"
+    )]
+    pub preset_name: Option<String>,
 }
 
 impl RuntimeErrorMetadata {
@@ -139,6 +145,7 @@ impl RuntimeErrorMetadata {
             request_id: None,
             revision: None,
             message,
+            preset_name: None,
         }
     }
 
@@ -208,6 +215,12 @@ pub struct RuntimeErrorFacts {
     pub revision: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "presetName"
+    )]
+    pub preset_name: Option<String>,
 }
 
 impl RuntimeErrorFacts {
@@ -224,6 +237,7 @@ impl RuntimeErrorFacts {
             request_id: None,
             revision: None,
             message,
+            preset_name: None,
         }
     }
 
@@ -251,6 +265,12 @@ impl RuntimeErrorFacts {
         self
     }
 
+    /// The preset a failed save was writing, so the error screen can name it.
+    pub fn with_preset_name(mut self, preset_name: Option<String>) -> Self {
+        self.preset_name = preset_name;
+        self
+    }
+
     pub fn into_metadata(self, recovery: RuntimeRecovery) -> RuntimeErrorMetadata {
         RuntimeErrorMetadata {
             domain: self.domain,
@@ -260,6 +280,7 @@ impl RuntimeErrorFacts {
             request_id: self.request_id,
             revision: self.revision,
             message: self.message,
+            preset_name: self.preset_name,
         }
     }
 }

@@ -19,15 +19,11 @@ pub struct ErrorScreen {
     pub text: String,
 }
 
-/// `preset_name` is the preset a failed save was writing, when the runner knows it.
-pub fn runtime_error_screen(
-    error: &OledRuntimeErrorMetadata,
-    preset_name: Option<&str>,
-) -> ErrorScreen {
+pub fn runtime_error_screen(error: &OledRuntimeErrorMetadata) -> ErrorScreen {
     let code = error.code.as_deref().unwrap_or_default();
     let message = error.message.as_deref().unwrap_or_default();
     let (title, text) = match error.operation.as_deref().unwrap_or_default() {
-        "store_save_preset" => preset_save_failure(message, preset_name),
+        "store_save_preset" => preset_save_failure(message, error.preset_name.as_deref()),
         "store_save_default" | "store_save_recovery" => (
             "CAN'T SAVE",
             save_failure("Your patch was not saved.", code),

@@ -427,6 +427,7 @@ fn runtime_error_metadata_json_uses_stable_typed_fields() {
             request_id: Some("req-7".into()),
             revision: Some(3),
             message: Some("disk full".into()),
+            preset_name: None,
         }),
     };
 

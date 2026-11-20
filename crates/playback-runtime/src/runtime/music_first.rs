@@ -7,6 +7,7 @@ pub struct NativeStoreRequest {
     operation: RuntimeOperation,
     request_id: String,
     revision: u64,
+    preset_name: Option<String>,
 }
 
 impl NativeStoreRequest {
@@ -20,6 +21,16 @@ impl NativeStoreRequest {
 
     pub fn revision(&self) -> u64 {
         self.revision
+    }
+
+    /// Names the preset a save writes, so a failure can say which one.
+    pub fn with_preset_name(mut self, name: String) -> Self {
+        self.preset_name = Some(name);
+        self
+    }
+
+    pub fn preset_name(&self) -> Option<&str> {
+        self.preset_name.as_deref()
     }
 }
 
@@ -39,6 +50,7 @@ impl PlaybackRuntime {
             operation,
             request_id,
             revision,
+            preset_name: None,
         }
     }
 }

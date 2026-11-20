@@ -254,6 +254,7 @@ fn oled_error_metadata(error: &RuntimeErrorMetadata) -> OledRuntimeErrorMetadata
         code: Some(error_code_name(&error.code).into()),
         operation: Some(error_operation_name(&error.operation).into()),
         message: error.message.clone(),
+        preset_name: error.preset_name.clone(),
     }
 }
 

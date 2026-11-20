@@ -19,6 +19,7 @@ fn metadata(
         code: code.map(str::to_owned),
         operation: operation.map(str::to_owned),
         message: message.map(str::to_owned),
+        preset_name: None,
     }
 }
 
@@ -156,13 +157,17 @@ fn producer_corpus() -> [(&'static str, OledRuntimeErrorMetadata); 11] {
 }
 
 fn screen_of(error: &OledRuntimeErrorMetadata, preset_name: Option<&str>) -> (String, String) {
-    let screen = runtime_error_screen(error, preset_name);
+    let error = OledRuntimeErrorMetadata {
+        preset_name: preset_name.map(str::to_owned),
+        ..error.clone()
+    };
+    let screen = runtime_error_screen(&error);
     (screen.title.to_owned(), screen.text)
 }
 
 fn rows_of(error: &OledRuntimeErrorMetadata) -> [String; ERROR_ROW_COUNT] {
     runtime_error_rows(
-        &runtime_error_screen(error, None).text,
+        &runtime_error_screen(error).text,
         error.operation.as_deref(),
     )
 }

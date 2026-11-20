@@ -327,6 +327,7 @@ fn off_beats_errors_and_splash_while_errors_beat_splash() {
         code: Some("not_found".into()),
         operation: Some("audio_command".into()),
         message: Some("sample not found".into()),
+        preset_name: None,
     };
     let mut input = base();
     input.display.splash = OledSplash::Boot;

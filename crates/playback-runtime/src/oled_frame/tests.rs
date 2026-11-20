@@ -122,9 +122,10 @@ fn runtime_error_operation_row_shows_unsupported_glyphs_as_question_marks() {
         code: Some("not_found".into()),
         operation: Some("Ω_/x-y.wav".into()),
         message: Some("sample not found".into()),
+        preset_name: None,
     });
     let error = input.runtime_error.as_ref().unwrap();
-    let screen = runtime_error_screen(error, None);
+    let screen = runtime_error_screen(error);
     assert_eq!(screen.title, "SAMPLE TROUBLE");
     assert_eq!(
         runtime_error_rows(&screen.text, error.operation.as_deref())[5],
@@ -245,6 +246,7 @@ fn full_runtime_error() -> OledPresentationInput {
         code: Some("not_found".into()),
         operation: Some("audio_command".into()),
         message: Some("sample not found".into()),
+        preset_name: None,
     });
     input
 }
@@ -261,6 +263,7 @@ fn concise_midi_error() -> OledPresentationInput {
         code: Some("operation_failed".into()),
         operation: Some("midi_list_inputs".into()),
         message: Some("MIDI unavailable".into()),
+        preset_name: None,
     });
     input
 }

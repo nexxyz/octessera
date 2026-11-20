@@ -54,7 +54,8 @@ impl NativeRunner {
                 let native_preset_ignored = matches!(
                     &native_preset_action,
                     Some(
-                        NativePresetResultAction::Ignore | NativePresetResultAction::MissingCatalog
+                        NativePresetResultAction::Ignore
+                            | NativePresetResultAction::MissingCatalog(_)
                     )
                 );
                 let pending_default_revision = self.pending_default_write_revision();
@@ -74,14 +75,15 @@ impl NativeRunner {
                         self.finish_native_preset_write(write);
                         Ok(())
                     }
-                    Some(NativePresetResultAction::MissingCatalog) => self
+                    Some(NativePresetResultAction::MissingCatalog(name)) => self
                         .apply_error_presentation_result(RuntimeStoreResult::RuntimeFailure {
                             error: crate::RuntimeErrorFacts::new(
                                 crate::RuntimeErrorDomain::Storage,
                                 crate::RuntimeErrorCode::OperationFailed,
                                 crate::RuntimeOperation::StoreSavePreset,
                                 Some("native preset catalog unavailable".into()),
-                            ),
+                            )
+                            .with_preset_name(Some(name)),
                         }),
                     Some(NativePresetResultAction::Ignore) => Ok(()),
                     None if operation == crate::protocol::RuntimeOperation::StoreSaveDefault

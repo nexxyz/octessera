@@ -96,9 +96,8 @@ impl NativeRunner {
                     if error.operation == crate::RuntimeOperation::SetupPortal {
                         self.display.setup_portal = None;
                     }
-                    let preset_name = self.pending.failed_preset_name.take();
                     self.display.runtime_error_presentation =
-                        Some(runtime_error_presentation(&error, preset_name.as_deref()));
+                        Some(runtime_error_presentation(&error));
                 }
                 self.show_instruments_rows(&changed_instruments);
             }
@@ -110,13 +109,13 @@ impl NativeRunner {
 
 pub(super) fn runtime_error_presentation(
     error: &crate::protocol::RuntimeErrorFacts,
-    preset_name: Option<&str>,
 ) -> NativeRuntimeErrorPresentation {
     let metadata = crate::oled_frame::OledRuntimeErrorMetadata {
         domain: Some(enum_text(&error.domain)),
         code: Some(enum_text(&error.code)),
         operation: Some(enum_text(&error.operation)),
         message: error.message.clone(),
+        preset_name: error.preset_name.clone(),
     };
     eprintln!(
         "runtime error: domain={} code={} operation={} message={}",
@@ -125,7 +124,7 @@ pub(super) fn runtime_error_presentation(
         enum_text(&error.operation),
         error.message.as_deref().unwrap_or("-"),
     );
-    let screen = crate::oled_frame::runtime_error_screen(&metadata, preset_name);
+    let screen = crate::oled_frame::runtime_error_screen(&metadata);
     NativeRuntimeErrorPresentation {
         title: screen.title.into(),
         lines: crate::oled_frame::runtime_error_rows(&screen.text, metadata.operation.as_deref())

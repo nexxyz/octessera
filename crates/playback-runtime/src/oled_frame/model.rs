@@ -364,4 +364,5 @@ pub struct OledRuntimeErrorMetadata {
     pub code: Option<String>,
     pub operation: Option<String>,
     pub message: Option<String>,
+    pub preset_name: Option<String>,
 }

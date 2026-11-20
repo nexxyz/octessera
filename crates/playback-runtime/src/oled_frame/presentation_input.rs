@@ -72,6 +72,8 @@ struct OledErrorDto {
     operation: Option<String>,
     #[serde(default)]
     message: Option<String>,
+    #[serde(default, rename = "presetName")]
+    preset_name: Option<String>,
 }
 
 pub(crate) fn presentation_input_from_snapshot(
@@ -101,6 +103,7 @@ pub(crate) fn presentation_input_from_snapshot(
             code: error.code,
             operation: error.operation,
             message: error.message,
+            preset_name: error.preset_name,
         });
 
     let scroll = match (

@@ -69,6 +69,7 @@ fn typed_oled_preserves_menu_scroll_and_separate_runtime_error_metadata() {
         code: Some("operation_failed".into()),
         operation: Some("runtime_dispatch".into()),
         message: Some("Keep playing".into()),
+        preset_name: None,
     };
     let typed = runner
         .capture_presentation_scene(false)
