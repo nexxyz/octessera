@@ -33,6 +33,7 @@ mod platform_service_load_admission;
 mod platform_service_setup_portal;
 mod platform_service_store;
 mod platform_service_worker;
+mod platform_update_lane;
 mod system_info;
 pub(crate) use pi_pending_persistence::PendingPiPersistence;
 pub use platform_job::{PlatformJob, PlatformJobKind};

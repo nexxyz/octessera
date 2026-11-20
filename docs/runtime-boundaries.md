@@ -66,7 +66,7 @@ Unnamed threads have no `Builder::name`.
 | rppal encoder interrupts (unnamed, Raspberry; one each for A, B and the switch of every encoder) | rppal `set_async_interrupt`, from `octessera-hal` `encoder_gpio.rs` | `HardwareEvent` out | pin dropped with its `EncoderGpio` | inherited |
 | rppal Seesaw INT interrupt (unnamed, Raspberry) | rppal `set_async_interrupt`, from `octessera-hal` `seesaw_interrupt.rs` | edge signal to the Seesaw worker | pin dropped with its `SeesawInterrupt` | inherited |
 | platform worker (unnamed) | `platform_service/platform_service_worker.rs` | `PlatformWorkItem` in, platform result lane out | job channel closes | nice 10, CPU0 |
-| `octessera-device-update` | `platform_service/platform_service_worker.rs` | platform result lane | after its one update job | nice 10, CPU0 |
+| `octessera-device-update` | `platform_service/platform_update_lane.rs`, started by the first update job | update job channel in (one job at a time; a request while one runs is refused), platform result lane out | update job channel closes with the platform worker | nice 10, CPU0 |
 | `octessera-setup-portal` | `setup_portal_worker.rs` | platform result lane | stop flag | inherited |
 | `octessera-user-data-transfer` | `user_data_transfer/session.rs` | TCP listener, shared transfer state | stop flag; `stop` joins | inherited |
 | `octessera-user-data-restore` | `user_data_transfer/restore_worker.rs` | shared transfer state | after its one restore | inherited |

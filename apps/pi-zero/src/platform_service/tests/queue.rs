@@ -179,3 +179,80 @@ fn a_running_update_does_not_hold_back_store_jobs() {
     let _ = std::fs::remove_dir_all(root);
     assert!(found, "the update result must still arrive");
 }
+
+fn wait_for_update_status(service: &PiPlatformService, id: &str) -> Option<(bool, String)> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    while std::time::Instant::now() < deadline {
+        for message in service.drain_results(4) {
+            if let HostMessage::RuntimeResult {
+                result:
+                    RuntimeStoreResult::Identified {
+                        request_id, result, ..
+                    },
+            } = message
+            {
+                if let RuntimeStoreResult::DeviceUpdateStatus { ok, message } = *result {
+                    if request_id == id {
+                        return Some((ok, message));
+                    }
+                }
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    None
+}
+
+#[test]
+fn an_update_request_while_one_runs_is_refused_and_the_worker_takes_the_next() {
+    let root = crate::test_temp_dir::unique_temp_path("octessera-platform-update-busy");
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let service = PiPlatformService::new_with_update_executor(
+        root.join("store"),
+        root.join("samples"),
+        Arc::new(HeldUpdate {
+            release: Mutex::new(release_rx),
+        }),
+    );
+    let update = |effect, kind, id: &str| {
+        service
+            .enqueue(PlatformJob::new(
+                RuntimePlatformRequest::new(effect, id.into(), None),
+                kind,
+            ))
+            .unwrap();
+    };
+    use playback_runtime::RuntimePlatformEffect;
+    update(
+        RuntimePlatformEffect::UpdateCheck,
+        PlatformJobKind::UpdateCheck,
+        "running",
+    );
+    update(
+        RuntimePlatformEffect::UpdateApply,
+        PlatformJobKind::UpdateApply,
+        "overlapping",
+    );
+    assert_eq!(
+        wait_for_update_status(&service, "overlapping"),
+        Some((false, "Update already running".into()))
+    );
+
+    release_tx.send(()).unwrap();
+    assert!(matches!(
+        wait_for_update_status(&service, "running"),
+        Some((false, message)) if message.contains("held update released")
+    ));
+    release_tx.send(()).unwrap();
+    update(
+        RuntimePlatformEffect::Rollback,
+        PlatformJobKind::Rollback,
+        "next",
+    );
+    let next = wait_for_update_status(&service, "next");
+    let _ = std::fs::remove_dir_all(root);
+    assert!(
+        matches!(next, Some((false, message)) if message.contains("held update released")),
+        "the next update must run once the first is done"
+    );
+}

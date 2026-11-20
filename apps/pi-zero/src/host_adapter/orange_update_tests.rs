@@ -63,10 +63,14 @@ fn orange_update_effects_use_the_native_updater_worker() {
         executor.clone(),
     );
 
-    for (effect, request_id) in [
-        (RuntimePlatformEffect::UpdateCheck, "orange-check"),
-        (RuntimePlatformEffect::UpdateApply, "orange-apply"),
-        (RuntimePlatformEffect::Rollback, "orange-rollback"),
+    for (effect, request_id, action) in [
+        (RuntimePlatformEffect::UpdateCheck, "orange-check", "check"),
+        (RuntimePlatformEffect::UpdateApply, "orange-apply", "apply"),
+        (
+            RuntimePlatformEffect::Rollback,
+            "orange-rollback",
+            "rollback",
+        ),
     ] {
         let response = adapter
             .handle_platform_effect(&RuntimePlatformRequest::new(
@@ -76,46 +80,34 @@ fn orange_update_effects_use_the_native_updater_worker() {
             ))
             .unwrap();
         assert!(response.is_empty());
-    }
-    assert!(!adapter.shutdown_pending());
+        assert!(!adapter.shutdown_pending());
 
-    let deadline = std::time::Instant::now() + Duration::from_secs(5);
-    let mut results = Vec::new();
-    while results.len() < 3 && std::time::Instant::now() < deadline {
-        results.extend(adapter.drain_platform_results(8));
-        std::thread::sleep(Duration::from_millis(5));
-    }
-    let mut calls = executor.calls();
-    calls.sort();
-    assert_eq!(calls, vec!["apply", "check", "rollback"]);
-    assert_eq!(results.len(), 3);
-    for (expected_request_id, action) in [
-        ("orange-check", "check"),
-        ("orange-apply", "apply"),
-        ("orange-rollback", "rollback"),
-    ] {
-        let found = results.iter().any(|message| {
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let mut results = Vec::new();
+        while results.is_empty() && std::time::Instant::now() < deadline {
+            results.extend(adapter.drain_platform_results(8));
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(
             matches!(
-                message,
-                HostMessage::RuntimeResult {
+                results.as_slice(),
+                [HostMessage::RuntimeResult {
                     result: RuntimeStoreResult::Identified {
                         result,
-                        request_id,
+                        request_id: found_id,
                         revision: Some(7),
                     },
-                } if request_id == expected_request_id
+                }] if found_id == request_id
                     && matches!(
                         result.as_ref(),
                         RuntimeStoreResult::DeviceUpdateStatus { ok: true, message }
                             if message == &format!("Orange update {action} scheduled")
                     )
-            )
-        });
-        assert!(
-            found,
-            "missing Orange update result for {expected_request_id}"
+            ),
+            "missing Orange update result for {request_id}: {results:?}"
         );
     }
+    assert_eq!(executor.calls(), vec!["check", "apply", "rollback"]);
 
     drop(adapter);
     let _ = std::fs::remove_dir_all(root);

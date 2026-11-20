@@ -29,7 +29,7 @@ pub(super) fn spawn(context: PlatformWorkerContext) {
 
 /// Store jobs share the app's CPU with the runtime loop. At its priority, the rolling backup's
 /// validate, serialize and write held dispatches off for up to 2.5 ms.
-fn lower_priority() {
+pub(super) fn lower_priority() {
     #[cfg(target_os = "linux")]
     // SAFETY: setpriority takes integers only; who 0 names the calling thread.
     unsafe {
@@ -49,6 +49,7 @@ fn run(context: PlatformWorkerContext) {
         update_executor,
         device_apply,
     } = context;
+    let mut update_lane = super::platform_update_lane::UpdateLane::default();
     while let Ok(item) = jobs.recv() {
         let job = match item {
             PlatformWorkItem::Legacy(job) => job,
@@ -125,7 +126,7 @@ fn run(context: PlatformWorkerContext) {
             job.kind,
             PlatformJobKind::UpdateCheck | PlatformJobKind::UpdateApply | PlatformJobKind::Rollback
         ) {
-            spawn_update_job(&store_dir, &samples_dir, job, &results, &update_executor);
+            update_lane.dispatch(&store_dir, &samples_dir, job, &results, &update_executor);
             continue;
         }
         let result = if let PlatformJobKind::ApplyDeviceConfig {
@@ -185,48 +186,6 @@ fn run(context: PlatformWorkerContext) {
         {
             break;
         }
-    }
-}
-
-/// Update helpers download releases, so they run beside the store worker and saves never wait
-/// for the network; the helper's own lock keeps concurrent update actions apart.
-fn spawn_update_job(
-    store_dir: &Path,
-    samples_dir: &Path,
-    job: PlatformJob,
-    results: &Arc<PlatformResultLane>,
-    update_executor: &Arc<dyn device_update::UpdateExecutor>,
-) {
-    let store_dir = store_dir.to_path_buf();
-    let samples_dir = samples_dir.to_path_buf();
-    let results = results.clone();
-    let update_executor = update_executor.clone();
-    let request = job.request.clone();
-    let spawned = thread::Builder::new()
-        .name("octessera-device-update".into())
-        .spawn({
-            let results = results.clone();
-            move || {
-                lower_priority();
-                let result = platform_service_executor::handle_job(
-                    &store_dir,
-                    &samples_dir,
-                    job,
-                    update_executor.as_ref(),
-                );
-                let _ = results.send_platform(PlatformResult::Legacy(HostMessage::RuntimeResult {
-                    result,
-                }));
-            }
-        });
-    if let Err(error) = spawned {
-        let result = RuntimeStoreResult::RuntimeFailure {
-            error: request.failure_facts(format!("device update could not start: {error}")),
-        }
-        .with_identity(request.request_id.clone(), request.revision);
-        let _ = results.send_platform(PlatformResult::Legacy(HostMessage::RuntimeResult {
-            result,
-        }));
     }
 }
 

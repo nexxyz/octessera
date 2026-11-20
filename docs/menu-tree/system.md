@@ -527,6 +527,8 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   stops before anything changes), and replies `Installing v<version>; Octessera restarts in a
   moment`. Rollback replies `Going back to v<version>; ...`, or `No previous release to go back to`.
   Both refuse while a development build drop-in is active.
+- One update action runs at a time. Check, Apply or Rollback while another is still running
+  replies `Update already running` and does nothing.
 - The switch then restarts the runtime. If it is not active with its readiness marker within
   60 seconds, the previous release comes back automatically. The device keeps the current and the
   previous release and removes older ones.
