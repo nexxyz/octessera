@@ -1,6 +1,6 @@
 import type { DeviceInput } from '@octessera/device-contracts';
 import { AUX_ENCODER_COUNT } from '@octessera/device-contracts';
-import { useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import type { SimulatorSnapshot } from '../runtime/types';
 import type { EncoderId } from './appHooks';
 import { OledDisplay } from './OledDisplay';
@@ -144,25 +144,33 @@ function Dial({
     state: { id: EncoderId; y: number; acc: number } | null,
   ) => void;
 }) {
+  const dialRef = useRef<HTMLDivElement>(null);
   const wheelPending = useRef(0);
+  useEffect(() => {
+    const dial = dialRef.current;
+    if (!dial) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const { turns, pending } = wheelTurns(
+        wheelPending.current,
+        event.deltaY,
+        event.deltaMode,
+      );
+      wheelPending.current = pending;
+      const delta = turns > 0 ? 1 : -1;
+      for (let i = 0; i < Math.abs(turns); i += 1)
+        dispatch({ type: 'encoder_turn', delta, id });
+    };
+    dial.addEventListener('wheel', onWheel, { passive: false });
+    return () => dial.removeEventListener('wheel', onWheel);
+  }, [dispatch, id]);
   return (
     <div
+      ref={dialRef}
       className="encoder-dial"
       onMouseDown={(event) => {
         event.preventDefault();
         setDialDrag({ id, y: event.clientY, acc: 0 });
-      }}
-      onWheel={(event) => {
-        event.preventDefault();
-        const { turns, pending } = wheelTurns(
-          wheelPending.current,
-          event.deltaY,
-          event.deltaMode,
-        );
-        wheelPending.current = pending;
-        const delta = turns > 0 ? 1 : -1;
-        for (let i = 0; i < Math.abs(turns); i += 1)
-          dispatch({ type: 'encoder_turn', delta, id });
       }}
     >
       <div className="encoder-ring" aria-hidden="true">
