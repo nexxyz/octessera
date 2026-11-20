@@ -1,12 +1,9 @@
 use platform_core::AUX_ENCODER_COUNT;
 use playback_runtime::HostMessage;
 use serde_json::json;
-#[cfg(feature = "native-audio")]
 use std::sync::{mpsc, Arc};
-#[cfg(feature = "native-audio")]
 use std::time::Instant;
 
-#[cfg(feature = "native-audio")]
 pub enum MidiMessage {
     Realtime {
         bytes: Vec<u8>,
@@ -98,7 +95,6 @@ pub fn neokey_message(key: u8, pressed: bool) -> Option<HostMessage> {
 }
 
 /// Clock, Start, Continue, Stop and Control Change pass; notes and everything else stay out.
-#[cfg(feature = "native-audio")]
 pub fn midi_input_message(bytes: &[u8]) -> Option<MidiMessage> {
     if bytes
         .iter()
@@ -112,11 +108,9 @@ pub fn midi_input_message(bytes: &[u8]) -> Option<MidiMessage> {
     playback_runtime::MidiControlChange::parse(bytes).map(MidiMessage::ControlChange)
 }
 
-#[cfg(feature = "native-audio")]
 pub(crate) type MidiInputHandler = Arc<dyn Fn(Vec<u8>) + Send + Sync>;
 
 /// The MIDI input callback the host adapter calls, and the receiver the runtime loop drains.
-#[cfg(feature = "native-audio")]
 pub(crate) fn midi_input_channel() -> (MidiInputHandler, mpsc::Receiver<MidiMessage>) {
     let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {
@@ -167,7 +161,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "native-audio")]
     #[test]
     fn the_midi_filter_passes_realtime_and_control_changes_but_drops_notes() {
         assert!(midi_input_message(&[0x90, 60, 100]).is_none());

@@ -1,7 +1,5 @@
-#[cfg(any(test, feature = "native-audio"))]
 use playback_runtime::AudioOptimization;
 use playback_runtime::{AudioOutputSet, UsbDataRole};
-#[cfg(any(test, feature = "native-audio"))]
 use serde::Deserialize;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
@@ -80,7 +78,6 @@ pub(crate) fn read_audio_optimization_from_system_config(
     parse_audio_optimization(&payload)
 }
 
-#[cfg(feature = "native-audio")]
 pub(crate) fn read_boot_runtime_config(
     store_dir: &Path,
 ) -> Result<(UsbRuntimeConfig, AudioOptimization), UsbConfigError> {
@@ -91,7 +88,6 @@ pub(crate) fn read_boot_runtime_config(
     ))
 }
 
-#[cfg(any(test, feature = "native-audio"))]
 pub(crate) fn parse_audio_optimization(
     payload: &serde_json::Value,
 ) -> Result<AudioOptimization, UsbConfigError> {

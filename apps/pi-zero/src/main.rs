@@ -6,27 +6,16 @@ mod render_loop;
 mod render_loop_queue;
 mod seesaw_io;
 
-#[cfg(feature = "native-audio")]
 mod audio;
-#[cfg(feature = "native-audio")]
 mod audio_config_parse;
-#[cfg(feature = "native-audio")]
 mod audio_engine_owner;
-#[cfg(feature = "native-audio")]
 mod audio_event;
-#[cfg(feature = "native-audio")]
 mod audio_priority;
-#[cfg(feature = "native-audio")]
 mod audio_recording;
-#[cfg(feature = "native-audio")]
 mod audio_replay;
-#[cfg(feature = "native-audio")]
 mod audio_route;
-#[cfg(feature = "native-audio")]
 mod audio_stream_health;
-#[cfg(feature = "native-audio")]
 mod autoaux_menu;
-#[cfg(feature = "native-audio")]
 mod autoaux_sequence;
 mod bluetooth;
 mod boot_oled_handoff;
@@ -48,22 +37,15 @@ mod hardware_runtime_scheduler;
 mod hardware_test;
 #[cfg(any(board_raspberry, board_host))]
 mod hardware_test_noise;
-#[cfg(feature = "native-audio")]
 mod hdmi_connector;
 mod host_adapter;
-#[cfg(feature = "native-audio")]
 mod host_audio_command;
-#[cfg(feature = "native-audio")]
 mod host_audio_prep;
-#[cfg(feature = "native-audio")]
 mod host_power_lifecycle;
-#[cfg(feature = "native-audio")]
 mod initial_audio_prep;
-#[cfg(feature = "native-audio")]
 mod input;
 mod keyboard_capture;
 mod main_paths;
-#[cfg(feature = "external-midi")]
 mod midi_host;
 mod native_scene_pump;
 mod normal_menu;
@@ -77,7 +59,6 @@ mod orange_oled_suspend;
 mod orange_oled_suspend_policy;
 #[cfg(board_orange)]
 mod orange_reboot;
-#[cfg(feature = "native-audio")]
 mod pi_boot_config;
 mod pi_host_core;
 #[cfg(test)]
@@ -94,11 +75,8 @@ mod raspberry_startup;
 #[cfg(any(board_raspberry, board_host))]
 mod rpi_oled_handoff_runtime;
 mod runtime_dispatch;
-#[cfg(feature = "native-audio")]
 mod runtime_init;
-#[cfg(feature = "native-audio")]
 mod runtime_loop;
-#[cfg(feature = "native-audio")]
 mod runtime_output;
 mod runtime_thread;
 mod sample_browser;
@@ -106,11 +84,8 @@ mod setup_portal;
 mod setup_portal_files;
 mod setup_portal_paths;
 mod setup_portal_worker;
-#[cfg(feature = "native-audio")]
 mod show_hold;
-#[cfg(feature = "native-audio")]
 mod shutdown_signal;
-#[cfg(feature = "native-audio")]
 mod store_fault;
 #[cfg(test)]
 mod test_temp_dir;
@@ -123,9 +98,7 @@ mod ui_profile;
 #[cfg(any(board_raspberry, board_host))]
 #[cfg(test)]
 mod update_menu_fixture_tests;
-#[cfg(feature = "native-audio")]
 mod usb_config;
-#[cfg(feature = "native-audio")]
 mod usb_config_validation;
 mod user_data_archive;
 mod user_data_restore;
@@ -139,7 +112,6 @@ use raspberry_startup as board_startup;
 
 use octessera_pi::board_profile;
 
-#[cfg(feature = "native-audio")]
 fn pin_normal_startup_thread() {
     if let Err(error) = audio_priority::pin_main_thread_to_cpu0() {
         eprintln!("Normal startup CPU affinity failed: {error}");
@@ -158,7 +130,6 @@ fn main() -> std::process::ExitCode {
     if let Some(exit) = board_startup::run_utility_mode(utility_mode) {
         return exit;
     }
-    #[cfg(feature = "native-audio")]
     pin_normal_startup_thread();
     #[cfg(all(target_os = "linux", not(board_host)))]
     {
