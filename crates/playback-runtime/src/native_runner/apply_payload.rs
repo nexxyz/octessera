@@ -298,3 +298,8 @@ impl NativeRunner {
         self.sample_favourite_dirs = runtime.sample_favourite_dirs.clone().unwrap_or_default();
     }
 }
+
+pub(super) mod instrument_values;
+mod layers;
+mod mixer_values;
+mod runtime;

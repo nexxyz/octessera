@@ -1,17 +1,17 @@
 use crate::native_menu::HOME_VISUALS;
 use crate::protocol::RuntimePlatformEffect;
 
-use super::apply_payload_instrument_values::apply_instrument_payload;
-use super::apply_payload_mixer_values::apply_mixer_payload;
-use super::aux_binding_payload_apply::apply_aux_bindings_payload;
-use super::play_pages::{ActivePlayMode, PlayMode};
-use super::system_scalars::{
+use super::super::aux_binding_payload_apply::apply_aux_bindings_payload;
+use super::super::play_pages::{ActivePlayMode, PlayMode};
+use super::super::system_scalars::{
     DISPLAY_BRIGHTNESS, LED_BRIGHTNESS_PCT, MASTER_VOLUME_PCT, SCREEN_TIMER_SECONDS,
 };
-use super::{
+use super::super::{
     json, velocity_curve_from_id, AudioOutputSet, AuxPriority, InstrumentDto, NativeRunner,
     RuntimeConfigDto, SyncSource, Value, VoiceStealingMode,
 };
+use super::instrument_values::apply_instrument_payload;
+use super::mixer_values::apply_mixer_payload;
 
 impl NativeRunner {
     pub(super) fn apply_instruments_payload(&mut self, instruments: &[InstrumentDto]) {
@@ -99,7 +99,10 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn apply_system_sound_payload(&mut self, runtime: &RuntimeConfigDto) {
+    pub(in crate::native_runner) fn apply_system_sound_payload(
+        &mut self,
+        runtime: &RuntimeConfigDto,
+    ) {
         if let Some(master) = runtime.master_volume {
             self.display.ui.master_volume = master.min(MASTER_VOLUME_PCT.1 as u8);
         }
@@ -115,7 +118,7 @@ impl NativeRunner {
         self.apply_runtime_transport_payload(runtime);
     }
 
-    pub(super) fn apply_display_payload(&mut self, runtime: &RuntimeConfigDto) {
+    pub(in crate::native_runner) fn apply_display_payload(&mut self, runtime: &RuntimeConfigDto) {
         let ui = &mut self.display.ui;
         if let Some(value) = runtime.ghost_tiles {
             ui.ghost_tiles = value;
@@ -184,13 +187,19 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_runtime_input_payload(&mut self, runtime: &RuntimeConfigDto) {
+    pub(in crate::native_runner) fn apply_runtime_input_payload(
+        &mut self,
+        runtime: &RuntimeConfigDto,
+    ) {
         if let Some(value) = runtime.input_events_while_paused {
             self.input_events_while_paused = value;
         }
     }
 
-    pub(super) fn apply_aux_mapping_payload(&mut self, runtime: &RuntimeConfigDto) {
+    pub(in crate::native_runner) fn apply_aux_mapping_payload(
+        &mut self,
+        runtime: &RuntimeConfigDto,
+    ) {
         if let Some(value) = runtime.aux_auto_map_enabled {
             self.aux_auto_map_enabled = value;
         }
@@ -235,7 +244,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_midi_payload(&mut self, runtime: &RuntimeConfigDto) {
+    pub(in crate::native_runner) fn apply_midi_payload(&mut self, runtime: &RuntimeConfigDto) {
         let Some(midi) = &runtime.midi else {
             return;
         };
@@ -250,7 +259,7 @@ impl NativeRunner {
         self.queue_midi_selection_effects();
     }
 
-    pub(super) fn apply_usb_payload(&mut self, runtime: &RuntimeConfigDto) {
+    pub(in crate::native_runner) fn apply_usb_payload(&mut self, runtime: &RuntimeConfigDto) {
         if let Some(outputs) = &runtime.audio_outputs {
             if let (Some(dac), Some(usb), Some(hdmi)) = (outputs.dac, outputs.usb, outputs.hdmi) {
                 if let Ok(outputs) = AudioOutputSet::from_flags(dac, usb, hdmi) {
@@ -268,7 +277,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_recording_payload(&mut self, runtime: &RuntimeConfigDto) {
+    pub(in crate::native_runner) fn apply_recording_payload(&mut self, runtime: &RuntimeConfigDto) {
         if let Some(value) = runtime
             .recording
             .as_ref()

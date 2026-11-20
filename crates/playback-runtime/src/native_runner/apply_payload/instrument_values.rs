@@ -1,4 +1,4 @@
-use super::{
+use super::super::{
     sanitize_pan_position_payload, InstrumentDto, InstrumentType, NativeInstrumentSlot,
     NativeSampleAssignment, NativeSamplePlayback, NativeTileStamp, SampleDto, SampleSlotDto,
     TileStampDto, GRID_HEIGHT, GRID_WIDTH, SAMPLE_SLOT_COUNT,
@@ -7,7 +7,7 @@ use crate::native_menu::{SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT};
 use platform_core::NoteBehavior;
 use serde_json::json;
 
-pub(super) fn apply_instrument_payload(
+pub(in crate::native_runner) fn apply_instrument_payload(
     slot: &InstrumentDto,
     instrument: &mut NativeInstrumentSlot,
 ) {

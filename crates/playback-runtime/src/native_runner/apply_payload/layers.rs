@@ -1,5 +1,5 @@
-use super::link_payload_apply::apply_link_payload;
-use super::{
+use super::super::link_payload_apply::apply_link_payload;
+use super::super::{
     apply_trigger_probability_map_payload, note_unit_to_pulses, param_binding_from_payload,
     param_mods_from_payload, BuildDto, LayerDto, NativeParamBinding, NativeRunner, ParamBindingDto,
     RuntimeConfigDto, Value, GLOBAL_LFO_COUNT, GRID_HEIGHT,
@@ -12,7 +12,7 @@ impl NativeRunner {
         runtime: &RuntimeConfigDto,
     ) -> Result<(), String> {
         if let Some(seed) = runtime.random_seed {
-            self.random_seed = seed.clamp(1, super::random_streams::MAX_RANDOM_SEED);
+            self.random_seed = seed.clamp(1, super::super::random_streams::MAX_RANDOM_SEED);
         }
         for (index, layer) in runtime
             .layers
@@ -80,7 +80,7 @@ fn apply_layer_identity_payload(runner: &mut NativeRunner, index: usize, layer: 
         slot.auto_name = auto_name;
     }
     if slot.auto_name {
-        slot.name = super::behavior_menu::behavior_display_label(&slot.behavior_id);
+        slot.name = super::super::behavior_menu::behavior_display_label(&slot.behavior_id);
         return;
     }
     if let Some(name) = &layer.name {
@@ -167,7 +167,8 @@ fn apply_global_link_lfos_payload(runner: &mut NativeRunner, runtime: &RuntimeCo
         lfo.phase_pulses = 0;
         lfo.enabled = payload.enabled.unwrap_or(false);
         lfo.target = binding_from_dto(&payload.target).filter(|binding| {
-            binding.kind == "number" && super::modulation::is_live_link_lfo_target(&binding.key)
+            binding.kind == "number"
+                && super::super::modulation::is_live_link_lfo_target(&binding.key)
         });
         if lfo.target.is_none() {
             lfo.enabled = false;
@@ -198,6 +199,6 @@ fn apply_global_xy_binding_payload(runner: &mut NativeRunner, runtime: &RuntimeC
         runner.xy.invert_y = invert;
     }
     if let Some(smoothing_ms) = xy.smoothing_ms {
-        runner.xy.smoothing_ms = super::normalize_xy_smoothing_ms(u64::from(smoothing_ms));
+        runner.xy.smoothing_ms = super::super::normalize_xy_smoothing_ms(u64::from(smoothing_ms));
     }
 }
