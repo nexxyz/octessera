@@ -205,6 +205,7 @@ h2 { margin-bottom: 0.65rem; }
 .choice input { margin: 0; }
 .field-subsection { min-width: 0; }
 .field-subsection[hidden] { display: none; }
+.ssh-advanced > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 .grid-2 { display: grid; gap: 0.9rem; }
 .password-hint { margin: -0.45rem 0 0.9rem; }
 .submit-row { display: flex; justify-content: flex-end; margin-top: 1.15rem; }

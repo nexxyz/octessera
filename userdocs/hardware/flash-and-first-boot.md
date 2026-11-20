@@ -114,12 +114,14 @@ On a phone or computer:
    type its name.
 4. Set the local device password, at least 8 characters. The page tells you
    which account it is for: `pi` on the Raspberry Pi, `octessera` on the Orange
-   Pi. You need it even if you switch SSH off.
+   Pi. You only need it for maintenance, but the page always asks for it, so
+   write it down.
 5. Choose how you want SSH:
-   - **SSH key (recommended):** paste your public key; password login stays
-     off.
-   - **SSH password:** SSH accepts the local device password from step 4.
+   - **SSH password** (the default): SSH accepts the local device password
+     from step 4.
    - **No SSH setup:** remote access stays off.
+   - **SSH key**, under **Advanced:** paste your public key; password login
+     stays off.
 6. Optionally enter a device name (hostname). Leave it blank to keep the current
    one: `octessera-rpi` on the Raspberry Pi or `octessera-opi` on the Orange Pi
    on a fresh card.

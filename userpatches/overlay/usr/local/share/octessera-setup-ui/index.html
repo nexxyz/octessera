@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <title>Octessera setup</title>
-    <link rel="stylesheet" href="/css/styles.css?v=2" />
+    <link rel="stylesheet" href="/css/styles.css?v=3" />
   </head>
   <body>
     <main class="shell">
@@ -60,7 +60,7 @@
             <div class="field-header">
               <span id="localPasswordTitle">Local device password for user <code>octessera</code></span>
             </div>
-            <p class="muted">This password is used at the device’s local console and for attended sudo commands. It is required even when SSH is disabled.</p>
+            <p class="muted">You only need it for maintenance, at the device’s own console or over SSH, but it is always required here. Write it down somewhere safe.</p>
             <div class="grid-2">
               <label class="field">
                 <span>Password</span>
@@ -78,12 +78,7 @@
             <span>SSH access</span>
             <div class="choice-group" role="radiogroup" aria-label="SSH mode">
               <label class="choice ssh-choice is-selected">
-                <input class="network-radio" type="radio" name="sshMode" value="key" checked />
-                <span class="network-radio-mark" aria-hidden="true"></span>
-                <span class="network-copy">SSH key (recommended)</span>
-              </label>
-              <label class="choice ssh-choice">
-                <input class="network-radio" type="radio" name="sshMode" value="password" />
+                <input class="network-radio" type="radio" name="sshMode" value="password" checked />
                 <span class="network-radio-mark" aria-hidden="true"></span>
                 <span class="network-copy">SSH password</span>
               </label>
@@ -94,15 +89,26 @@
               </label>
             </div>
 
-            <div id="sshKeyFields" class="field-subsection">
-              <label class="field">
-                <span>Public key</span>
-                <textarea id="sshPublicKey" rows="5" spellcheck="false" placeholder="ssh-ed25519 AAAA..."></textarea>
-              </label>
-              <p class="muted">SSH key access only; password login stays disabled.</p>
-            </div>
+            <details class="ssh-advanced">
+              <summary>Advanced</summary>
+              <div class="choice-group" role="radiogroup" aria-label="Advanced SSH mode">
+                <label class="choice ssh-choice">
+                  <input class="network-radio" type="radio" name="sshMode" value="key" />
+                  <span class="network-radio-mark" aria-hidden="true"></span>
+                  <span class="network-copy">SSH key</span>
+                </label>
+              </div>
 
-            <p id="passwordAccessHint" class="muted" hidden>SSH password access uses the local device password above.</p>
+              <div id="sshKeyFields" class="field-subsection" hidden>
+                <label class="field">
+                  <span>Public key</span>
+                  <textarea id="sshPublicKey" rows="5" spellcheck="false" placeholder="Paste the contents of your .pub file"></textarea>
+                </label>
+                <p class="muted">Only this key can log in; password login stays off.</p>
+              </div>
+            </details>
+
+            <p id="passwordAccessHint" class="muted">SSH logs in with the local device password above.</p>
             <p id="noneAccessHint" class="muted" hidden>Remote access stays disabled while the local device password remains available.</p>
           </div>
 
@@ -126,6 +132,6 @@
       </section>
     </main>
 
-    <script type="module" src="/js/app.js?v=4"></script>
+    <script type="module" src="/js/app.js?v=5"></script>
   </body>
 </html>

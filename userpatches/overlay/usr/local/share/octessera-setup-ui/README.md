@@ -9,7 +9,7 @@ Static UI for the one-page branded dark Wi-Fi setup portal.
   open checkbox for hidden networks
 - Its Wi-Fi password (none for open networks)
 - Local device password and confirmation; it is required even when SSH is disabled
-- SSH key, SSH password, or none
+- SSH password (the default) or none, with SSH key under Advanced
 - Optional hostname
 - Apply
 
@@ -57,8 +57,7 @@ digits) otherwise. `wifiHidden` is a boolean: `true` joins the typed SSID
 The local device password is set for the board account even when `sshMode` is
 `none`. Key mode installs the public key and keeps SSH password login disabled.
 Password mode enables SSH password login using the same local device password.
-None mode keeps SSH disabled while leaving the local console and attended sudo
-password available.
+None mode keeps SSH disabled; the password still works at the local console.
 
 ## `/country` request body
 

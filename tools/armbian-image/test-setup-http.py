@@ -171,7 +171,7 @@ for index, path in enumerate(COORDINATORS):
         assert status == 400
         status, body, location, content = get(port, "/")
         assert status == 200 and body == "text/html; charset=utf-8" and b"<title>Octessera setup</title>" in content and location is None
-        status, body, _, content = get(port, "/js/app.js?v=4")
+        status, body, _, content = get(port, "/js/app.js?v=5")
         assert status == 200 and body == "text/javascript; charset=utf-8" and b"const API" in content
         status, body, _, content = get(port, "/networks")
         assert status == 200 and body == "application/json" and json.loads(content) == NETWORKS

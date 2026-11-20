@@ -55,7 +55,7 @@ const state = {
   wifiCountry: 'US',
   accountPassword: '',
   accountPasswordConfirm: '',
-  sshMode: 'key',
+  sshMode: 'password',
   sshPublicKey: '',
 };
 
