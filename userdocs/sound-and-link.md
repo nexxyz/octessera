@@ -200,9 +200,15 @@ wander in by accident.
   its Link would play that note from (after Play Transpose). Drum, Sampler and
   MIDI Drum slots use a tile stamped with the voice, sample or note you hit
   instead. If two tiles fit, the one lowest on the grid wins (leftmost if they
-  share a row).
-  A note no tile can play still sounds, it just isn't recorded. The loop picks
-  it up on the next pass; you already heard it this time round.
+  share a row). A note no tile can play still sounds, it just isn't recorded.
+  The loop picks it up on the next pass; you already heard it this time round.
+- **The Looper keeps the tile, not the note.** On replay the tile goes through
+  the layer's Link as it is then, like a grid press would. So:
+  - how hard you hit the key isn't kept; the mapping sets the velocity;
+  - with a chord note set or Arp on the layer, one recorded key comes back as
+    the whole chord or arpeggio;
+  - change the scale or the mapping later and the recording follows it to the
+    new notes. Handy, or a happy accident, depending on the day.
 - Not in the mood? `System > MIDI > Notes In` off ignores the keys and keeps
   the knobs. It's a device setting, so it stays put when you load a patch.
 

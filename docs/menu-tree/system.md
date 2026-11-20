@@ -294,7 +294,10 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   Play Transpose); a Drum, Sampler or MIDI Drum slot uses its lowest-index tile stamped with the voice, sample
   slot or note the key played, and records a drum hit's release at once. The press lands on the step now
   sounding (step 1 while stopped) and plays from the next pass on, and a release in that same step moves to the next one.
-  A note no tile plays still sounds but is not recorded. Off ignores incoming notes. It is a System setting, not saved with patches.
+  A note no tile plays still sounds but is not recorded. The Looper keeps only the tile: replay
+  plays it through the layer's mapping at that moment, so the played velocity is not kept, a chord
+  note set or Arp on the layer replays one key as its chord or arpeggio, and a later scale or
+  mapping change re-pitches the recording. Off ignores incoming notes. It is a System setting, not saved with patches.
 - `MIDI Host` lists `MIDI Out` then `MIDI In`. Each starts with `Disconnect`, followed by one action
   per detected port. A pick or Disconnect saves System as soon as the host reports the new port,
   like any other System preference and whether or not `Auto Save` is on; port IDs stay local.
