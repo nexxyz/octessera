@@ -107,6 +107,14 @@ anything on that board you want to keep.
      -H "X-Octessera-Transfer-Code: $CODE" "$URL/restore"
    ```
 
+   On Windows, in PowerShell or Command Prompt, with your own address and code
+   filled in (keep the quotes around the `@` file name; PowerShell has its own
+   plans for a bare `@`):
+
+   ```bat
+   curl.exe -f -X POST --data-binary "@octessera-user-data.oct" -H "X-Octessera-Transfer-Code: <code>" "http://<board-ip>:8081/restore"
+   ```
+
 4. The upload only prepares the restore. When the OLED asks, click *Main* to
    apply it or press *Back* to cancel. While it runs, the OLED shows
    `Restoring...` and `Please wait`, and other input is blocked.
