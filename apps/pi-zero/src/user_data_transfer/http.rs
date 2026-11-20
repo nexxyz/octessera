@@ -282,6 +282,10 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             .map_err(io_error)?;
         copy_request_body(stream, &mut file, length, &inner.stop)?;
         file.sync_all().map_err(io_error)?;
+        let _staging = inner
+            .stage_gate
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         user_data_archive::stage_archive(&upload_path, &stage_root)
     })();
     let _ = fs::remove_file(&upload_path);

@@ -2,6 +2,8 @@ use super::restore_tests::{restore_archive, restore_request, restore_service};
 use super::*;
 use playback_runtime::{RuntimePlatformEffect, RuntimePlatformRequest};
 use std::fs;
+use std::io::{Read, Write};
+use std::net::TcpStream;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -34,11 +36,7 @@ pub(super) fn wait_for_received_upload(store: &Path, length: u64) {
                     .to_string_lossy()
                     .starts_with(".user-data-upload-")
             })
-            .any(|entry| {
-                entry
-                    .metadata()
-                    .is_ok_and(|metadata| metadata.len() == length)
-            });
+            .any(|entry| fs::metadata(entry.path()).is_ok_and(|metadata| metadata.len() == length));
         if received {
             return;
         }
@@ -71,7 +69,7 @@ fn closing_during_an_upload_never_arms_a_restore() {
     let original = fs::read(store.join("system.json")).unwrap();
     let archive = restore_archive(&service, false);
     let length = archive.len() as u64;
-    let store_guard = service.inner.store_lock.lock().unwrap();
+    let store_guard = service.inner.stage_gate.lock().unwrap();
     let uploader = {
         let service = service.clone();
         thread::spawn(move || restore_request(&service, "POST", "/restore", &code, &archive))
@@ -98,7 +96,7 @@ fn reopening_while_an_upload_still_finishes_reports_still_closing() {
     let store = service.inner.store_dir.clone();
     let archive = restore_archive(&service, false);
     let length = archive.len() as u64;
-    let store_guard = service.inner.store_lock.lock().unwrap();
+    let store_guard = service.inner.stage_gate.lock().unwrap();
     let uploader = {
         let service = service.clone();
         thread::spawn(move || restore_request(&service, "POST", "/restore", &code, &archive))
@@ -115,6 +113,40 @@ fn reopening_while_an_upload_still_finishes_reports_still_closing() {
     wait_for_server_exit(&service);
     service.start().unwrap();
     assert!(service.test_code().is_some());
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn closing_during_a_mid_body_upload_aborts_it_and_allows_reopening() {
+    let (service, root) = restore_service("close-mid-body");
+    service.start().unwrap();
+    let endpoint = service.test_endpoint().unwrap();
+    let code = service.test_code().unwrap();
+    let store = service.inner.store_dir.clone();
+    let mut stream = TcpStream::connect(endpoint).unwrap();
+    write!(
+        stream,
+        "POST /restore HTTP/1.1\r\nHost: {endpoint}\r\nX-Octessera-Transfer-Code: {code}\r\nContent-Length: 1000000\r\n\r\n"
+    )
+    .unwrap();
+    stream.write_all(&[0; 16 * 1024]).unwrap();
+    wait_for_received_upload(&store, 16 * 1024);
+
+    let started = Instant::now();
+    service.close(&close_request());
+    assert!(started.elapsed() < Duration::from_secs(2));
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let mut response = Vec::new();
+    let _ = stream.read_to_end(&mut response);
+
+    assert!(!response.starts_with(b"HTTP/1.1 202"));
+    assert!(!service.confirm_pending_restore(true));
+    wait_for_server_exit(&service);
+    assert!(transfer_entries(&store).is_empty());
+    service.start().unwrap();
     service.stop();
     let _ = fs::remove_dir_all(root);
 }

@@ -93,7 +93,7 @@ fn staging_that_finishes_after_close_never_arms_and_reopen_never_waits_for_it() 
     let code = service.test_code().unwrap();
     let archive = restore_archive(&service, false);
     let length = archive.len() as u64;
-    let store_guard = service.inner.store_lock.lock().unwrap();
+    let store_guard = service.inner.stage_gate.lock().unwrap();
     let uploader = {
         let service = service.clone();
         let code = code.clone();
