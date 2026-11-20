@@ -128,8 +128,10 @@ export function createRuntimeConnection(
   function takeDirectReply(
     reply: RuntimeMessagesBatch,
   ): RuntimeRunnerMessage[] {
-    directReplySeq = Math.max(directReplySeq, reply.seq);
-    applyStaleOledFrames(asyncBatchSuppression.takeQueuedThrough(reply.seq));
+    if (reply.messages.some((message) => message.type === 'snapshot')) {
+      directReplySeq = Math.max(directReplySeq, reply.seq);
+      applyStaleOledFrames(asyncBatchSuppression.takeQueuedThrough(reply.seq));
+    }
     asyncBatchSuppression.rememberDirectResponse(reply.messages);
     return reply.messages;
   }

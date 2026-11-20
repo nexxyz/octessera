@@ -363,3 +363,28 @@ test('desktop NeoKey basis-point scaling matches normal and dimmed brightness', 
     }
   }
 });
+
+test('a direct reply without a snapshot keeps queued async batches until they apply', async () => {
+  let emitAsync: (
+    seq: number,
+    messages: RuntimeRunnerMessage[],
+  ) => void = () => {};
+  let release: () => void = () => {};
+  const runtime = createSimulatorRuntime(new FakeScheduler(), {
+    runtimeDispatch: () =>
+      new Promise((resolve) => {
+        release = () => resolve({ seq: 5, messages: [] });
+      }),
+    asyncRuntimeBatchListener: (handler) => {
+      emitAsync = handler;
+    },
+  });
+  runtime.dispatch({ type: 'grid_press', x: 1, y: 1 });
+  const queued = snapshotMessage();
+  queued.snapshot.display.title = 'Queued';
+  emitAsync(3, [queued]);
+  release();
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  assert.equal(runtime.getSnapshot().frame.display.title, 'Queued');
+});
