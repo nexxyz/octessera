@@ -38,6 +38,7 @@ run_pre_push_checks() {
   run_check "pnpm format:check" corepack pnpm run format:check
   run_check "pnpm quality:test" corepack pnpm run quality:test
   run_check "pnpm capabilities:test" corepack pnpm run capabilities:test
+  run_check "pnpm config:test" corepack pnpm run config:test
   run_check "pnpm test:coverage" corepack pnpm run test:coverage
   run_check "cargo fmt" cargo fmt --all --check
   run_check "repository integrity fixtures" bash ./tools/quality/test-repository-integrity.sh

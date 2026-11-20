@@ -17,8 +17,9 @@ function Invoke-PrintOnly {
       $arguments += @("-$key", [string]$Parameters[$key])
     }
   }
-  $output = @(& (Join-Path $PSHOME "powershell.exe") @arguments 2>&1)
-  if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "PrintOnly failed." }
+  $ErrorActionPreference = "Continue"
+  $output = @(& (Get-Process -Id $PID).Path @arguments 2>&1)
+  if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "PrintOnly failed: $(($output | ForEach-Object { [string]$_ }) -join ' ')" }
   ($output | ForEach-Object { [string]$_ }) -join "`n"
 }
 
