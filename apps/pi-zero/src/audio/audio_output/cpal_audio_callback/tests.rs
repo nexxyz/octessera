@@ -22,7 +22,6 @@ struct CountingAllocator;
 
 // SAFETY: every method forwards its arguments unchanged to System's allocator.
 unsafe impl GlobalAlloc for CountingAllocator {
-    // SAFETY: the caller's layout guarantees pass straight to System.alloc.
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let pointer = System.alloc(layout);
         COUNTING_ENABLED.with(|enabled| {
@@ -33,7 +32,6 @@ unsafe impl GlobalAlloc for CountingAllocator {
         pointer
     }
 
-    // SAFETY: the caller's pointer came from System with this layout.
     unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
         COUNTING_ENABLED.with(|enabled| {
             if enabled.get() {
@@ -43,7 +41,6 @@ unsafe impl GlobalAlloc for CountingAllocator {
         System.dealloc(pointer, layout);
     }
 
-    // SAFETY: the caller's pointer, layout and size guarantees pass straight to System.realloc.
     unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let pointer = System.realloc(pointer, layout, new_size);
         COUNTING_ENABLED.with(|enabled| {
