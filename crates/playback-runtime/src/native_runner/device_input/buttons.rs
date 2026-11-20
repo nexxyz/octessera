@@ -1,8 +1,8 @@
-use super::play_pages::ActivePlayMode;
+use super::super::play_pages::ActivePlayMode;
 use crate::native_menu::{NativeMenuAction, NativeMenuPressResult};
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect};
 
-use super::NativeRunner;
+use super::super::NativeRunner;
 
 impl NativeRunner {
     pub(super) fn handle_encoder_press_input(
@@ -87,7 +87,7 @@ impl NativeRunner {
                             Some("MIDI In") => {
                                 effects.push(RuntimePlatformEffect::MidiListInputsRequest)
                             }
-                            Some(super::bluetooth::PAIR_NEW_LABEL) => {
+                            Some(super::super::bluetooth::PAIR_NEW_LABEL) => {
                                 effects.push(self.start_bluetooth_scan());
                             }
                             _ => {}
@@ -105,7 +105,7 @@ impl NativeRunner {
                         if editing {
                             if selected_group_key
                                 .as_deref()
-                                .is_some_and(super::restart_settings::is_restart_setting)
+                                .is_some_and(super::super::restart_settings::is_restart_setting)
                             {
                                 self.restart_settings.begin_edit(&self.config_payload());
                             } else if selected_group_key.is_some() {
@@ -122,7 +122,7 @@ impl NativeRunner {
                 if let Some(key) = selected_group_key.as_deref() {
                     self.apply_menu_key_at_edit_end(key)?;
                     self.finish_restart_sensitive_edit(key);
-                    if !super::restart_settings::is_restart_setting(key) {
+                    if !super::super::restart_settings::is_restart_setting(key) {
                         self.finish_system_parameter_edit(key);
                     }
                 } else {
@@ -187,7 +187,7 @@ impl NativeRunner {
             if let Some(key) = editing_key {
                 self.apply_menu_key_at_edit_end(&key)?;
                 self.finish_restart_sensitive_edit(&key);
-                if !super::restart_settings::is_restart_setting(&key) {
+                if !super::super::restart_settings::is_restart_setting(&key) {
                     self.finish_system_parameter_edit(&key);
                 }
             }
