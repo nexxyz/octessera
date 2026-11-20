@@ -23,7 +23,7 @@ pub fn profile_requested() -> bool {
     {
         explicit_argument
     }
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     {
         profile_requested_value(
             explicit_argument,
@@ -33,7 +33,7 @@ pub fn profile_requested() -> bool {
     }
 }
 
-#[cfg(any(board_raspberry, board_host, test))]
+#[cfg(any(board_not_orange, test))]
 fn profile_requested_value(
     explicit_argument: bool,
     environment_value: Option<&str>,
@@ -162,7 +162,7 @@ fn select_scenarios(
 
 #[cfg(test)]
 mod tests {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     #[test]
     fn raspberry_profile_request_keeps_environment_trigger() {
         assert!(super::profile_requested_value(false, Some("true"), true));

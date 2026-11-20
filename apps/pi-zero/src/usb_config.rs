@@ -187,7 +187,7 @@ pub(crate) fn parse_usb_runtime_config(
 
 #[cfg(test)]
 mod audio_optimization_tests;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod role_tests;
 
 #[cfg(test)]

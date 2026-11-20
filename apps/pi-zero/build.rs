@@ -11,6 +11,7 @@ fn main() {
         ("board_orange", orange),
         ("board_raspberry", raspberry),
         ("board_host", !orange && !raspberry),
+        ("board_not_orange", !orange),
     ] {
         println!("cargo::rustc-check-cfg=cfg({alias})");
         if active {

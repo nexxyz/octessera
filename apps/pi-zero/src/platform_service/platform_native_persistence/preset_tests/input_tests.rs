@@ -1,4 +1,4 @@
-#![cfg(any(board_raspberry, board_host))]
+#![cfg(board_not_orange)]
 
 use super::*;
 use playback_runtime::{RunnerMessage, RuntimePlatformEffect, RuntimeTransportState};

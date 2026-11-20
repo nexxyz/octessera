@@ -16,7 +16,7 @@ fn clean_command() -> Command {
     command
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn normal_metadata_mode_does_not_enter_hardware_runtime() {
     let output = clean_command()

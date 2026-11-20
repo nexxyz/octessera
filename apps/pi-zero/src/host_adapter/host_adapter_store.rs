@@ -2,7 +2,7 @@ use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use std::time::{Duration, Instant};
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod load_admission_tests;
 
 impl PiHostAdapter {

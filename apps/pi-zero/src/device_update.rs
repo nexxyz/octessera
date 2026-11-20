@@ -4,15 +4,15 @@ use std::process::{Command, Output};
 
 #[cfg(board_orange)]
 mod orange_update_broker;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 mod raspberry_update_command;
 #[cfg(board_orange)]
 pub(super) use orange_update_broker::production_executor;
 #[cfg(board_orange)]
 use orange_update_broker::update_command;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(super) use raspberry_update_command::production_executor;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use raspberry_update_command::update_command;
 
 const MAX_UPDATE_OUTPUT_CHARS: usize = 512;

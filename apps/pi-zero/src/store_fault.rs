@@ -235,7 +235,7 @@ fn shut_down() -> Result<(), String> {
             outcome => Err(format!("power request {outcome:?}")),
         }
     }
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     {
         crate::raspberry_power::power_off()
     }

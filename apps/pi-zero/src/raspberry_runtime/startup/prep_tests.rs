@@ -105,7 +105,7 @@ fn pi_v1_persisted_startup_sleep_remains_due_after_scheduler_creation() {
     let _ = std::fs::remove_dir_all(root);
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn pi_prepared_startup_seeds_static_recording_from_the_acknowledged_menu() {
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-prepared-oled-recording");
@@ -149,7 +149,7 @@ fn pi_prepared_startup_seeds_static_recording_from_the_acknowledged_menu() {
     let _ = std::fs::remove_dir_all(root);
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn pi_prepared_startup_write_failure_keeps_recording_seed_and_ready_marker_absent() {
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-prepared-oled-failure");
@@ -173,7 +173,7 @@ fn pi_prepared_startup_write_failure_keeps_recording_seed_and_ready_marker_absen
     let _ = std::fs::remove_dir_all(root);
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn pi_startup_presents_missing_samples_over_the_first_menu_frame() {
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-startup-missing-samples");
@@ -193,7 +193,7 @@ fn pi_startup_presents_missing_samples_over_the_first_menu_frame() {
     let _ = std::fs::remove_dir_all(root);
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn repository_samples() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../samples")
@@ -201,7 +201,7 @@ fn repository_samples() -> std::path::PathBuf {
         .unwrap()
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn prepared_runtime(
     audio: crate::audio::AudioService,
     root: &std::path::Path,
@@ -256,7 +256,7 @@ fn prepared_runtime(
     }
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn render_worker() -> RenderWorker {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     RenderWorker::spawn(HardwareRenderTargets {
@@ -267,7 +267,7 @@ fn render_worker() -> RenderWorker {
     })
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn avi_video_payloads(path: &std::path::Path) -> Vec<Vec<u8>> {
     let bytes = std::fs::read(path).unwrap();
     let list = bytes

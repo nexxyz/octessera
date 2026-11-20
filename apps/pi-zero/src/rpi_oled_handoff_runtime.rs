@@ -32,7 +32,7 @@ pub(crate) fn run(
             return;
         }
     };
-    #[cfg(all(test, any(board_raspberry, board_host)))]
+    #[cfg(all(test, board_not_orange))]
     let oled = render::test_oled_output::real_oled_output(oled);
     let render_worker = RenderWorker::spawn(HardwareRenderTargets {
         oled,

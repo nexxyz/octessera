@@ -1,5 +1,5 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+#[cfg_attr(board_not_orange, allow(dead_code))]
 pub(crate) enum OledOwnershipStage {
     PrepareRelease,
     PrepareCommit,

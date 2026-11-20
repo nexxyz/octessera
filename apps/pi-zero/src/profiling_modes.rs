@@ -9,7 +9,7 @@ pub(crate) fn run_requested() {
     }
 }
 
-#[cfg(all(feature = "profiling", any(board_raspberry, board_host)))]
+#[cfg(all(feature = "profiling", board_not_orange))]
 pub(crate) fn run_requested() {
     use crate::{dsp_profile, exit_code, timing_probe};
     if dsp_profile::profile_requested() {
@@ -25,7 +25,7 @@ pub(crate) fn run_requested() {
     let flagged = std::env::args()
         .skip(1)
         .any(|arg| matches!(arg.as_str(), "--profile-dsp" | "--timing-probe"));
-    let dsp_profile = cfg!(any(board_raspberry, board_host))
+    let dsp_profile = cfg!(board_not_orange)
         && std::env::var("OCTESSERA_PI_PROFILE_DSP").is_ok_and(|value| {
             matches!(
                 value.trim().to_ascii_lowercase().as_str(),

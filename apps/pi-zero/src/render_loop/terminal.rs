@@ -76,13 +76,13 @@ impl RenderWorker {
         }
     }
 
-    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+    #[cfg_attr(board_not_orange, allow(dead_code))]
     pub(crate) fn is_terminated(&self) -> bool {
         self.worker.lock().map_or(true, |worker| worker.is_none())
     }
 
     #[cfg(test)]
-    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+    #[cfg_attr(board_not_orange, allow(dead_code))]
     pub(crate) fn terminated_for_test() -> Self {
         Self {
             state: Arc::new((Mutex::new(Default::default()), Condvar::new())),

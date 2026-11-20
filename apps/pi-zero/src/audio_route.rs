@@ -124,7 +124,7 @@ pub(crate) fn status(registry: &AudioRouteRegistry, sink: AudioSink) -> AudioRou
         .unwrap_or(AudioRouteStatus::Faulted)
 }
 
-#[cfg(any(test, board_raspberry, board_host))]
+#[cfg(any(test, board_not_orange))]
 pub(crate) fn readiness(
     _outputs: AudioOutputSet,
     registry: &AudioRouteRegistry,

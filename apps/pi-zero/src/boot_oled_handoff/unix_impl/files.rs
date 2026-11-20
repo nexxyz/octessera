@@ -11,12 +11,12 @@ use atomic::atomic_write;
 pub(crate) use atomic::{inject_atomic_failure, AtomicFailure};
 
 mod directory;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(super) use directory::cleanup_temporary_files;
 #[cfg(test)]
 pub(super) use directory::current_boot_id;
 pub(super) use directory::HandoffDirectory;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 pub(super) use directory::RuntimeIdentity;
 use directory::{create_named, io_error, open_named, unlink_named, validate_metadata};
 
@@ -227,11 +227,11 @@ fn open_validated_named(
 mod contract;
 #[cfg(test)]
 pub(super) use contract::parse_fatal;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 pub(crate) use contract::parse_status_for_test;
 pub(super) use contract::{parse_status, parse_stop, valid_boot_id, valid_request_id};
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(super) fn cleanup_previous_state(directory: &HandoffDirectory) -> Result<(), String> {
     for (name, mode, max) in [
         (STATUS_NAME, STATUS_MODE, MAX_STATUS_BYTES),

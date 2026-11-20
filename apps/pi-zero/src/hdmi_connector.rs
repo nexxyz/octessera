@@ -61,7 +61,7 @@ fn fixed_connector_name() -> &'static str {
     {
         "card0-HDMI-A-1"
     }
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     {
         "card0-HDMI-A-1"
     }
@@ -80,7 +80,7 @@ mod tests {
         HdmiConnectorProbe::from_root(root)
     }
 
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     #[test]
     fn raspberry_profile_pins_card0_connector() {
         assert_eq!(fixed_connector_name(), "card0-HDMI-A-1");

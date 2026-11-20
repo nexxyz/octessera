@@ -193,7 +193,7 @@ fn restore_barrier_cancels_native_default_snapshot_waiting_in_worker() {
 }
 
 #[test]
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn native_default_registration_rejection_does_not_queue_or_replace_default() {
     use playback_runtime::{
         NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, RuntimeOperation,
@@ -251,7 +251,7 @@ fn native_default_registration_rejection_does_not_queue_or_replace_default() {
 }
 
 #[test]
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn native_default_queue_rejection_clears_pending_and_allows_retry() {
     use playback_runtime::{
         NativeRunner, NativeRunnerConfig, PlaybackRuntime, RuntimeConfig, RuntimeOperation,
@@ -383,7 +383,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
     let _ = std::fs::remove_dir_all(root);
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn native_default_test_adapter() -> (
     std::path::PathBuf,
     Vec<u8>,
@@ -413,7 +413,7 @@ fn native_default_test_adapter() -> (
     (root, original_bytes, adapter)
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn next_native_default_request(
     playback: &mut playback_runtime::PlaybackRuntime,
     runner: &playback_runtime::NativeRunner,
@@ -429,7 +429,7 @@ fn next_native_default_request(
     (request, snapshot)
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn dispatch_result(
     playback: &mut playback_runtime::PlaybackRuntime,
     runner: &mut playback_runtime::NativeRunner,

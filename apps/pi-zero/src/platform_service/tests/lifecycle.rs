@@ -113,7 +113,7 @@ fn set_mode(path: &Path, mode: u32) {
     }
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn usb_storage_start_reports_waiting_until_host_configures_gadget() {
     let udc_root = crate::test_temp_dir::unique_temp_path("octessera-usb-storage-udc");

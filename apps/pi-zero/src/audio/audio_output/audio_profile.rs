@@ -4,7 +4,7 @@ use std::time::Duration;
 /// Lead time between a pulse and its sequenced output: the smallest delay that logged no late
 /// timed events in 2-minute board sweeps (2026-10-29) plus about 1 ms for rarer stragglers.
 pub(crate) fn sequenced_output_delay(optimization: AudioOptimization) -> Duration {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     let micros = match optimization {
         AudioOptimization::Latency => 8_800,
         AudioOptimization::Capacity => 17_000,
@@ -17,14 +17,14 @@ pub(crate) fn sequenced_output_delay(optimization: AudioOptimization) -> Duratio
     Duration::from_micros(micros)
 }
 
-#[cfg(all(any(board_raspberry, board_host), feature = "profiling"))]
+#[cfg(all(board_not_orange, feature = "profiling"))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct AudioProfileGeometry {
     pub(crate) output_buffer_frames: u32,
     pub(crate) internal_block_frames: usize,
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct RaspberryAudioProfile {
     pub(super) optimization: AudioOptimization,
@@ -34,7 +34,7 @@ pub(crate) struct RaspberryAudioProfile {
     pub(super) lookahead_frames: usize,
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 impl RaspberryAudioProfile {
     pub(crate) fn from_optimization(optimization: AudioOptimization) -> Self {
         match optimization {

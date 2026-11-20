@@ -1,5 +1,5 @@
 use super::audio_output_open::AudioConstructionConfig;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use super::cpal_audio_output::build_cpal_mirror_stream;
 #[cfg(board_orange)]
 use super::cpal_audio_output::build_orange_cpal_mirror_stream;
@@ -185,7 +185,7 @@ fn open(
 ) -> Result<ManagedStream, RouteOpenError> {
     let health = AudioStreamHealth::optional(format!("{sink:?}"));
     let built = match construction {
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         AudioConstructionConfig::Raspberry(profile) => {
             build_cpal_mirror_stream(profile.output_buffer_frames, sink, consumer, health.clone())
         }

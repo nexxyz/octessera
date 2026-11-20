@@ -122,5 +122,5 @@ pub(crate) fn publish_initial_scene(
     Ok(revision)
 }
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod tests;

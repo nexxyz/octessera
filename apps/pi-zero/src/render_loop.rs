@@ -32,7 +32,7 @@ use worker::take_next_command;
 
 const SHUTDOWN_ACK_TIMEOUT: Duration = Duration::from_millis(750);
 const INITIAL_RENDER_ACK_TIMEOUT: Duration = Duration::from_millis(750);
-#[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+#[cfg_attr(board_not_orange, allow(dead_code))]
 const OWNERSHIP_ACK_TIMEOUT: Duration = Duration::from_secs(2);
 #[derive(Clone)]
 pub struct RenderWorker {
@@ -41,7 +41,7 @@ pub struct RenderWorker {
 }
 
 impl RenderWorker {
-    #[cfg(all(test, any(board_raspberry, board_host)))]
+    #[cfg(all(test, board_not_orange))]
     pub(crate) fn block_next_native_scene_for_test(
         &self,
     ) -> (mpsc::Receiver<()>, mpsc::Sender<()>) {
@@ -216,7 +216,7 @@ impl RenderWorker {
         result
     }
 
-    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+    #[cfg_attr(board_not_orange, allow(dead_code))]
     pub(crate) fn ownership_stage(&self, stage: OledOwnershipStage) -> Result<(), String> {
         let (ack_tx, ack_rx) = mpsc::channel();
         let cancellation = Arc::new(AtomicBool::new(false));
@@ -284,7 +284,7 @@ impl crate::orange_oled_suspend_policy::RenderOwnershipControl for RenderWorker 
     }
 }
 
-#[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+#[cfg_attr(board_not_orange, allow(dead_code))]
 fn cancel_ownership(cancellation: &AtomicBool) {
     cancellation.store(true, Ordering::Release);
 }

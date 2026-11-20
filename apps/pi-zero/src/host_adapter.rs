@@ -75,7 +75,7 @@ impl PiHostAdapter {
         self.core.take_transfer_status()
     }
 
-    #[cfg(all(any(board_raspberry, board_host), any(test, feature = "profiling")))]
+    #[cfg(all(board_not_orange, any(test, feature = "profiling")))]
     pub fn new<T: Into<AudioOutputSet>>(
         audio: Option<AudioService>,
         store_dir: PathBuf,
@@ -234,9 +234,9 @@ fn usb_sd_transfer_unavailable(request: &RuntimePlatformRequest) -> HostMessage 
 }
 
 impl crate::timing_input::TimingHost for PiHostAdapter {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     const STUDY_BOARD: &'static str = "Raspberry";
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     const REPORT_PREFIX: &'static str = "raspberry-autoaux";
     #[cfg(board_orange)]
     const STUDY_BOARD: &'static str = "Orange";
@@ -394,9 +394,9 @@ mod orange_system_store_tests;
 mod orange_tests;
 #[cfg(all(test, board_orange))]
 mod orange_update_tests;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod power_tests;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod system_store_tests;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod tests;

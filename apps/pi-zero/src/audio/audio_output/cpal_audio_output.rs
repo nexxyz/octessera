@@ -1,6 +1,6 @@
 #[cfg(board_orange)]
 use super::audio_profile::OrangeAudioProfile;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use super::audio_profile::RaspberryAudioProfile;
 use super::audio_stream_lifecycle::{
     AudioStreamBuildError, AudioStreamLifecycle, AudioStreamShutdownError,
@@ -16,7 +16,7 @@ use crate::audio_route::RouteOpenError;
 use crate::audio_stream_health::AudioStreamHealth;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{BufferSize, SampleFormat, Stream, StreamConfig};
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use realtime_engine::synth::DEFAULT_AUDIO_SAMPLE_RATE;
 use rodio_engine_source::{
     AudioLoadStatusSender, EngineEventReceiver, EngineSource, EngineSourceWorkerShutdownOwner,
@@ -24,7 +24,7 @@ use rodio_engine_source::{
 };
 
 mod cpal_audio_mirror;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(super) use cpal_audio_mirror::build_cpal_mirror_stream;
 #[cfg(board_orange)]
 pub(super) use cpal_audio_mirror::build_orange_cpal_mirror_stream;
@@ -129,7 +129,7 @@ pub(super) fn build_engine_source(
     Ok(source)
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(super) fn probe_cpal_sink(sink: AudioSink) -> Result<(), RouteOpenError> {
     ensure_connector(sink)?;
     let device = cpal::alsa_exact_output_device(raspberry_pcm_name(sink))
@@ -151,7 +151,7 @@ pub(super) fn probe_cpal_sink(sink: AudioSink) -> Result<(), RouteOpenError> {
     Ok(())
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(super) fn build_cpal_stream(
     engine_rx: EngineEventReceiver,
     profile: RaspberryAudioProfile,
@@ -255,7 +255,7 @@ pub(super) fn probe_cpal_sink(sink: AudioSink) -> Result<(), RouteOpenError> {
     crate::orange_audio::select_orange_stream_config(&device).map(|_| ())
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn select_output_device(
     host: &cpal::Host,
     sink: AudioSink,
@@ -266,7 +266,7 @@ fn select_output_device(
         .map_err(|error| RouteOpenError::Fault(error.to_string()))
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn raspberry_pcm_name(sink: AudioSink) -> &'static str {
     let outputs = octessera_hal::board_profiles::RASPBERRY_PI_ZERO_2W.alsa_outputs;
     match sink {
@@ -377,7 +377,7 @@ fn ensure_connector(sink: AudioSink) -> Result<(), RouteOpenError> {
     Ok(())
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(super) fn map_default_config_error(error: cpal::DefaultStreamConfigError) -> RouteOpenError {
     match error {
         cpal::DefaultStreamConfigError::DeviceNotAvailable => RouteOpenError::Disconnected,

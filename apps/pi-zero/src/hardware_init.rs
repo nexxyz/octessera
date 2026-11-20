@@ -1,4 +1,4 @@
-#![cfg(any(board_raspberry, board_host))]
+#![cfg(board_not_orange)]
 
 use octessera_hal::{
     encoder_gpio::HardwareEvent, EncoderGpio, I2CBus, I2sDac, NeoKey, NeoTrellis, OledSsd1351,

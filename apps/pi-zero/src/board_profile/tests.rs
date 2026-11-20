@@ -1,8 +1,8 @@
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use super::BINARY_NAME;
 use super::{BoardComposition, BOARD_COMPOSITION, BOARD_PROFILE_ID};
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn raspberry_composition_uses_canonical_profile() {
     assert_eq!(BOARD_COMPOSITION, BoardComposition::RaspberryPiZero2w);

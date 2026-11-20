@@ -1,9 +1,9 @@
 #[cfg(board_orange)]
 use super::audio_profile::OrangeAudioProfile;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use super::audio_profile::RaspberryAudioProfile;
 use super::audio_stream_lifecycle::{AudioStreamShutdownError, AudioStreamShutdownReport};
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use super::cpal_audio_output::build_cpal_stream;
 #[cfg(board_orange)]
 use super::cpal_audio_output::build_orange_cpal_stream;
@@ -25,7 +25,7 @@ use rodio_engine_source::{
 use std::time::Duration;
 
 pub(super) const CALLBACK_SCHEDULING_STARTUP_TIMEOUT: Duration = Duration::from_millis(250);
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 const USB_AUDIO_STARTUP_FAULT_GRACE: Duration = Duration::from_millis(250);
 
 pub(crate) struct OpenedAudioSink {
@@ -38,14 +38,14 @@ pub(crate) struct OpenedAudioSink {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum AudioConstructionConfig {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     Raspberry(RaspberryAudioProfile),
     #[cfg(board_orange)]
     Orange(OrangeAudioProfile),
 }
 
 impl AudioConstructionConfig {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     pub(super) const fn raspberry(profile: RaspberryAudioProfile) -> Self {
         Self::Raspberry(profile)
     }
@@ -77,7 +77,7 @@ pub(super) fn source_execution_mode(
     sink: AudioSink,
     config: AudioConstructionConfig,
 ) -> AudioSourceExecutionMode {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     if sink == AudioSink::Jack
         && matches!(
             config,
@@ -105,7 +105,7 @@ pub(super) fn source_execution_mode(
     AudioSourceExecutionMode::Inline
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(super) fn open_audio_sink(
     config: AudioConstructionConfig,
     sink: AudioSink,

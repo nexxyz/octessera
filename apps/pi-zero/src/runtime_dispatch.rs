@@ -1,5 +1,5 @@
 use crate::host_adapter::PiHostAdapter;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 use playback_runtime::{CoreRunner, HostAdapter, RunnerMessage};
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use std::time::Instant;
@@ -9,7 +9,7 @@ pub(crate) use crate::runtime_output::process_runtime_output;
 const PLATFORM_RESULT_BUDGET: usize = 4;
 
 impl crate::runtime_output::PiRuntimeHost for PiHostAdapter {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     const PREP_BOARD: crate::initial_audio_prep::InitialAudioPrepBoard =
         crate::initial_audio_prep::InitialAudioPrepBoard::Pi;
     #[cfg(board_orange)]
@@ -128,14 +128,14 @@ pub fn handle_deferred_host_work(
     Ok(())
 }
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod duck_slot_tests;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod native_autosave_tests;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod patch_load_repeat_tests;
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
     playback: &mut PlaybackRuntime,
     runner: &mut R,
@@ -151,7 +151,7 @@ fn dispatch_and_ingest<R: CoreRunner, H: HostAdapter>(
         .map(|_| ())
 }
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod tests {
     use super::*;
     use crate::runtime_output::observe_snapshot_messages;

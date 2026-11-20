@@ -1,11 +1,11 @@
 use crate::audio_engine_owner::AudioEngineOwner;
 use crate::audio_recording::RecordingServices;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use crate::audio_route::readiness as route_readiness;
 #[cfg(board_orange)]
 use crate::audio_route::status as route_status;
 use crate::audio_route::{AudioRouteRegistry, SelectedOutputs};
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) use crate::audio_stream_health::AudioStreamHealth;
 use media_recording::OledIngress;
 mod audio_defaults;
@@ -71,7 +71,7 @@ pub struct AudioService {
     pub(crate) generations: Arc<Mutex<AudioGenerationState>>,
     route_registry: AudioRouteRegistry,
     selected_outputs: Arc<SelectedOutputs>,
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     required_jack_health: Option<AudioStreamHealth>,
     prep_result_rx: Arc<Mutex<Receiver<HostMessage>>>,
     recorder: Arc<Mutex<RecordingServices>>,
@@ -307,7 +307,7 @@ impl AudioService {
     }
 
     pub(crate) fn ensure_route_readiness(&self) -> Result<(), String> {
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         if self.required_jack_health.as_ref().is_some_and(|health| {
             health.runtime_status() != crate::audio_stream_health::AudioStreamStatus::Healthy
         }) {
@@ -321,7 +321,7 @@ impl AudioService {
         }
         #[cfg(board_orange)]
         let result = Ok(());
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         let result = route_readiness(self.audio_outputs(), &self.route_registry);
         result
     }
@@ -335,7 +335,7 @@ impl AudioService {
         self.selected_outputs.set(outputs);
     }
 
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     pub(crate) fn required_jack_failed(&self) -> bool {
         self.required_jack_health.as_ref().is_some_and(|health| {
             health.runtime_status() == crate::audio_stream_health::AudioStreamStatus::Terminal
@@ -349,9 +349,9 @@ impl AudioService {
     }
 }
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 pub(crate) use tests::test_service_with_prep_result_sender;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 pub(crate) use tests::test_service_with_prep_worker;
 #[cfg(all(test, board_orange))]
 pub(crate) use tests::{test_service, test_service_with_outputs, test_service_with_prep_sender};

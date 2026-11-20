@@ -67,7 +67,7 @@ fn locked_existing_target_returns_identified_write_failure_without_deleting_sour
 }
 
 #[test]
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn source_delete_failure_keeps_both_presets_and_reports_partial_cleanup() {
     let (service, root) = service_and_root("rename-cleanup-failure");
     let store = root.join("store");

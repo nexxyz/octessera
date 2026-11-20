@@ -21,11 +21,11 @@ impl BoardComposition {
 #[cfg(board_orange)]
 pub const BOARD_COMPOSITION: BoardComposition = BoardComposition::OrangePiZero2w;
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub const BOARD_COMPOSITION: BoardComposition = BoardComposition::RaspberryPiZero2w;
 
 pub const BOARD_PROFILE_ID: &str = BOARD_COMPOSITION.profile_id();
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub const BINARY_NAME: &str = "octessera-pi";
 
 #[cfg(board_orange)]
@@ -66,7 +66,7 @@ fn validate_runtime_profile_value(expected: Option<&str>) -> Result<(), String> 
     let expected = expected.ok_or_else(|| {
         format!("OCTESSERA_EXPECTED_BOARD_PROFILE must be set to {BOARD_PROFILE_ID}")
     })?;
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     let Some(expected) = expected
     else {
         return Ok(());
@@ -79,7 +79,7 @@ fn validate_runtime_profile_value(expected: Option<&str>) -> Result<(), String> 
     Ok(())
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub fn print_build_metadata() {
     println!(
         "{}",
@@ -93,7 +93,7 @@ pub fn print_build_metadata() {
     );
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub fn metadata_requested() -> bool {
     std::env::args()
         .skip(1)

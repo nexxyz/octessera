@@ -1,4 +1,4 @@
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -15,13 +15,13 @@ pub(crate) fn default_store_dir() -> PathBuf {
     configured_dir(STORE_DIR_ENV, "presets")
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) fn ensure_runtime_dirs(store_dir: &Path, samples_dir: &Path) {
     let _ = std::fs::create_dir_all(samples_dir);
     let _ = std::fs::create_dir_all(store_dir);
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) fn ensure_samples_dir(samples_dir: &Path) -> Result<(), String> {
     std::fs::create_dir_all(samples_dir)
         .map_err(|error| format!("Pi samples directory is not usable: {error}"))?;
@@ -61,7 +61,7 @@ fn configured_media_dir(_environment_variable: &str, _raspberry: &str, orange: &
     PathBuf::from(orange)
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn configured_media_dir(environment_variable: &str, raspberry: &str, _orange: &str) -> PathBuf {
     configured_media_dir_from(
         std::env::var_os(environment_variable).map(PathBuf::from),
@@ -69,7 +69,7 @@ fn configured_media_dir(environment_variable: &str, raspberry: &str, _orange: &s
     )
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn configured_media_dir_from(configured: Option<PathBuf>, raspberry: &str) -> PathBuf {
     configured.unwrap_or_else(|| PathBuf::from(raspberry))
 }
@@ -99,9 +99,9 @@ fn home_dir() -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     use super::configured_media_dir_from;
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     use super::ensure_samples_dir;
     use super::{configured_dir_from, SAMPLES_DIR_ENV, STORE_DIR_ENV};
     #[cfg(board_orange)]
@@ -142,7 +142,7 @@ mod tests {
         );
     }
 
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     #[test]
     fn raspberry_media_roots_preserve_the_existing_absolute_paths() {
         assert_eq!(
@@ -172,7 +172,7 @@ mod tests {
         );
     }
 
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     #[test]
     fn sample_root_creation_failure_is_returned() {
         let root = crate::test_temp_dir::unique_temp_path("octessera-pi-samples-root");

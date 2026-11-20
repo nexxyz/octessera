@@ -2,12 +2,12 @@ use super::*;
 use std::fs::File;
 use std::path::Path;
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 mod animator;
 mod files;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 use animator::animator_start_at;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) use animator::{animator_start, AnimatorHandoff};
 use files::*;
 
@@ -30,13 +30,13 @@ pub(crate) struct NativeOledGuard {
     first_menu_rendered: bool,
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) struct UtilityOledLock {
     _directory: HandoffDirectory,
     _lock: File,
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) fn utility_lock() -> Result<UtilityOledLock, String> {
     let directory = HandoffDirectory::open_existing_at(Path::new(HANDOFF_ROOT))?;
     directory.validate_entries()?;
@@ -48,7 +48,7 @@ pub(crate) fn utility_lock() -> Result<UtilityOledLock, String> {
     })
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) fn native_attach() -> Result<NativeOledGuard, String> {
     native_attach_at(Path::new(HANDOFF_ROOT))
 }
@@ -218,7 +218,7 @@ impl NativeOledGuard {
         result
     }
 
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     pub(crate) fn mark_failed(&self) {
         if let Err(error) = self.mark_failed_result() {
             eprintln!("OLED handoff failure-state publication failed: {error}");
@@ -235,7 +235,7 @@ impl NativeOledGuard {
             };
             self.publish_fatal_then_failed(code)
         }
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         {
             self.write_failed_status()
         }
@@ -300,7 +300,7 @@ impl NativeOledGuard {
     }
 }
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod tests;
 
 #[cfg(all(test, board_orange))]

@@ -26,7 +26,7 @@ pub(crate) struct AudioStreamHealth {
     state: Arc<Mutex<AudioStreamHealthState>>,
     callback_terminal: Arc<AtomicBool>,
     worker_health: Arc<AtomicU8>,
-    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+    #[cfg_attr(board_not_orange, allow(dead_code))]
     worker_terminal_logged: Arc<AtomicBool>,
 }
 
@@ -75,7 +75,7 @@ impl AudioStreamHealth {
             .unwrap_or(AudioStreamStatus::Terminal)
     }
 
-    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+    #[cfg_attr(board_not_orange, allow(dead_code))]
     pub(crate) fn runtime_status(&self) -> AudioStreamStatus {
         if self.worker_health().is_terminal() {
             AudioStreamStatus::Terminal
@@ -109,7 +109,7 @@ impl AudioStreamHealth {
         SourceWorkerHealth::from_u8(self.worker_health.load(Ordering::Acquire))
     }
 
-    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+    #[cfg_attr(board_not_orange, allow(dead_code))]
     pub(crate) fn log_worker_terminal_once(&self) -> Option<SourceWorkerHealth> {
         let health = self.worker_health();
         if health.is_terminal() && !self.worker_terminal_logged.swap(true, Ordering::AcqRel) {
@@ -130,7 +130,7 @@ impl AudioStreamHealth {
         operation()
     }
 
-    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+    #[cfg_attr(board_not_orange, allow(dead_code))]
     pub(crate) fn external_is_terminal(&self) -> bool {
         self.external_status() == AudioStreamStatus::Terminal
     }
@@ -146,7 +146,7 @@ impl AudioStreamHealth {
         }
     }
 
-    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
+    #[cfg_attr(board_not_orange, allow(dead_code))]
     pub(crate) fn mark_terminal(&self) {
         self.callback_terminal.store(true, Ordering::Release);
         if let Ok(mut state) = self.state.lock() {

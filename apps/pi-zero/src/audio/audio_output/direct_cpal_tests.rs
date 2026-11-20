@@ -1,7 +1,7 @@
 use super::audio_output_open::{source_execution_mode, AudioConstructionConfig};
 #[cfg(board_orange)]
 use super::audio_profile::OrangeAudioProfile;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use super::audio_profile::RaspberryAudioProfile;
 use super::cpal_audio_output::{
     build_engine_source, AudioSourceExecutionMode, EngineSourceOptions, StreamBuildOptions,
@@ -57,7 +57,7 @@ pub(super) fn latency_config() -> AudioConstructionConfig {
     let latency = playback_runtime::AudioOptimization::Latency;
     #[cfg(board_orange)]
     let config = AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(latency));
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     let config =
         AudioConstructionConfig::raspberry(RaspberryAudioProfile::from_optimization(latency));
     config
@@ -122,7 +122,7 @@ fn cpal_uses_routing_tree_only_for_capacity_jack() {
     let config = AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(
         playback_runtime::AudioOptimization::Capacity,
     ));
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     let config = AudioConstructionConfig::raspberry(RaspberryAudioProfile::from_optimization(
         playback_runtime::AudioOptimization::Latency,
     ));
@@ -131,7 +131,7 @@ fn cpal_uses_routing_tree_only_for_capacity_jack() {
         source_execution_mode(AudioSink::Jack, config),
         AudioSourceExecutionMode::RoutingTree
     );
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     assert_eq!(
         source_execution_mode(AudioSink::Jack, config),
         AudioSourceExecutionMode::Inline

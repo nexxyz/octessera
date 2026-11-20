@@ -16,10 +16,10 @@ mod ownership_control;
 mod ownership_decision;
 mod sleep_leds;
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 pub(crate) mod test_oled_output;
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 pub(crate) type OledRenderOutput = test_oled_output::TestOledOutput;
 #[cfg(any(not(test), board_orange))]
 pub(crate) type OledRenderOutput = OledSsd1351;
@@ -28,7 +28,7 @@ pub(crate) const OLED_FRAME_BYTES: usize = 128 * 128 * 2;
 #[cfg(test)]
 use oled::glyph_rows;
 pub(crate) use oled_output::retry_oled_if_due;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 use oled_output::OledRenderDevice;
 pub(crate) use oled_ownership::{
     handle_stage, restore, restore_after_dropped_ack, OledOwnershipStage, OledOwnershipState,
@@ -68,21 +68,21 @@ pub(super) struct OledOutputState {
     pub(super) physical_revision: u64,
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 const SPLASH_BOOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/splash_boot.rgb565"));
 const SPLASH_SLEEP_SHUTDOWN: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/splash_sleep_shutdown.rgb565"));
 const SLEEP_DIM_SCALE: f32 = 0.08;
 const MIN_SLEEP_DIM_SCALE: f32 = 0.04;
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) fn shutdown_splash_base_frame() -> Vec<u8> {
     SPLASH_SLEEP_SHUTDOWN.to_vec()
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 mod boot_sweep;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 pub(crate) use boot_sweep::{
     boot_sweep_base_frame, boot_sweep_bottom_row_origin, boot_sweep_deadline_offset_ns,
     boot_sweep_frame, boot_sweep_frame_from, boot_sweep_frames, logical_to_physical_bottom,
@@ -91,12 +91,12 @@ pub(crate) use boot_sweep::{
     BOOT_SWEEP_REST_CHECK_NS, BOOT_SWEEP_REST_NS, BOOT_SWEEP_SEPARATOR_COLOR,
     BOOT_SWEEP_SEPARATOR_WIDTH, BOOT_SWEEP_TRAIN_WIDTH,
 };
-#[cfg(all(not(test), any(board_raspberry, board_host)))]
+#[cfg(all(not(test), board_not_orange))]
 pub(crate) use boot_sweep::{
     boot_sweep_base_frame, boot_sweep_frames, BOOT_SWEEP_CYCLE_NS, BOOT_SWEEP_FRAMES,
     BOOT_SWEEP_REST_CHECK_NS, BOOT_SWEEP_REST_NS,
 };
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) use boot_sweep::{boot_sweep_deadline, render_boot_splash};
 
 pub struct HardwareRenderTargets {
@@ -282,7 +282,7 @@ pub(super) fn rgb565(rgb: [u8; 3]) -> u16 {
     ((u16::from(rgb[0]) & 0xF8) << 8) | ((u16::from(rgb[1]) & 0xFC) << 3) | (u16::from(rgb[2]) >> 3)
 }
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod boot_sweep_tests;
 #[cfg(test)]
 mod hdmi_cache_tests;

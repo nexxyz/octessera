@@ -73,7 +73,7 @@ pub(crate) fn parse_status(bytes: &[u8]) -> Result<HandoffStatus, String> {
     })
 }
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 pub(crate) fn parse_status_for_test(value: &serde_json::Value) -> Result<HandoffStatus, String> {
     parse_status(&serde_json::to_vec(value).map_err(|error| error.to_string())?)
 }

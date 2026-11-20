@@ -137,7 +137,7 @@ fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
     {
         run_orange_storage_command(action)
     }
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     {
         let unit = format!(
             "octessera-usb-storage@{}.service",
@@ -229,7 +229,7 @@ fn parse_orange_storage_response(action: &str, response: &[u8]) -> RuntimeStoreR
     store_error(format!("USB SD2 transfer {action} rejected: {error}"))
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(super) fn usb_storage_message(action: &str, udc_root: &Path) -> String {
     if action != "storage-start" {
         return "USB SD2 transfer stopped".into();

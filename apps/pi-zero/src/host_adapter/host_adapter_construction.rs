@@ -1,10 +1,10 @@
 use super::*;
 use crate::midi_host::MidiHost;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 use crate::usb_config::UsbAudioOut;
 
 impl PiHostAdapter {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     pub(crate) fn new_with_data_role<T: Into<AudioOutputSet>>(
         audio: Option<AudioService>,
         store_dir: PathBuf,
@@ -26,7 +26,7 @@ impl PiHostAdapter {
         )
     }
 
-    #[cfg(all(any(board_raspberry, board_host), any(test, feature = "profiling")))]
+    #[cfg(all(board_not_orange, any(test, feature = "profiling")))]
     pub(super) fn with_platform_service(
         audio: Option<AudioService>,
         samples_dir: PathBuf,
@@ -81,7 +81,7 @@ impl PiHostAdapter {
         }
     }
 
-    #[cfg(all(test, any(board_raspberry, board_host)))]
+    #[cfg(all(test, board_not_orange))]
     pub(crate) fn new_with_update_executor(
         audio: Option<AudioService>,
         store_dir: PathBuf,
@@ -106,7 +106,7 @@ impl PiHostAdapter {
         )
     }
 
-    #[cfg(all(test, any(unix, windows), any(board_raspberry, board_host)))]
+    #[cfg(all(test, any(unix, windows), board_not_orange))]
     pub(crate) fn new_with_setup_environment(
         audio: Option<AudioService>,
         store_dir: PathBuf,

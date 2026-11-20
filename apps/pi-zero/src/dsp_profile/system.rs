@@ -1,4 +1,4 @@
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use std::process::Command;
 
 pub fn profile_system_output() -> Vec<(String, String)> {
@@ -6,13 +6,13 @@ pub fn profile_system_output() -> Vec<(String, String)> {
     {
         orange_system_output()
     }
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     {
         vcgencmd_output()
     }
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn vcgencmd_output() -> Vec<(String, String)> {
     ["measure_temp", "get_throttled"]
         .into_iter()
@@ -62,7 +62,7 @@ fn read_mem_available() -> Option<String> {
         .map(str::to_string)
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn run_command(program: &str, args: &[&str]) -> Option<String> {
     let output = Command::new(program).args(args).output().ok()?;
     if !output.status.success() {

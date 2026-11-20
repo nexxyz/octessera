@@ -153,7 +153,7 @@ impl TimingInput {
         }))
     }
 
-    #[cfg(all(test, any(board_raspberry, board_host)))]
+    #[cfg(all(test, board_not_orange))]
     pub(crate) fn for_test(sequence: AutoAuxSequence, starting_cutoff: u16) -> Self {
         Self {
             sequence,

@@ -74,7 +74,7 @@ impl AudioService {
         self.start_recording_audio_oled_with_seed(max_minutes, seed)
     }
 
-    #[cfg(all(test, any(board_raspberry, board_host)))]
+    #[cfg(all(test, board_not_orange))]
     pub(crate) fn latest_led_colors(&self) -> Option<LedColors> {
         *self.accepted_leds.read().unwrap()
     }

@@ -264,7 +264,7 @@ pub(super) fn unlink_named(directory: &HandoffDirectory, name: &str) -> Result<(
     Ok(())
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(in crate::boot_oled_handoff::unix_impl) fn cleanup_temporary_files(
     directory: &HandoffDirectory,
 ) -> Result<(), String> {

@@ -48,13 +48,13 @@ impl AudioManager {
             AudioSink::Jack,
             crate::audio_route::AudioRouteStatus::Active,
         );
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         let required_jack_health = Some(jack.health.clone());
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         let streams = vec![*jack
             ._stream
             .expect("Raspberry audio stream must be present")];
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         engine.attach(jack.engine_tx.expect("Jack engine event sender"))?;
         #[cfg(board_orange)]
         let streams = Vec::new();
@@ -72,7 +72,7 @@ impl AudioManager {
             prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
             route_registry: route_registry.clone(),
             selected_outputs: selected_outputs.clone(),
-            #[cfg(any(board_raspberry, board_host))]
+            #[cfg(board_not_orange)]
             required_jack_health: required_jack_health.clone(),
             recorder,
             mix_taps: mix_taps.clone(),

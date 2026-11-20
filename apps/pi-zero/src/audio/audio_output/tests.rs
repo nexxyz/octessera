@@ -13,7 +13,7 @@ fn scheduler_labels_preserve_sink_identity() {
     assert_eq!(super::AudioSink::Usb.scheduler_label(), "USB");
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn raspberry_cpal_errors_preserve_route_classification() {
     assert_eq!(
@@ -44,7 +44,7 @@ fn raspberry_cpal_errors_preserve_route_classification() {
     );
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn raspberry_audio_manager_rejects_missing_jack_before_device_access() {
     let outputs = playback_runtime::AudioOutputSet::from_flags(false, true, false).unwrap();
@@ -54,7 +54,7 @@ fn raspberry_audio_manager_rejects_missing_jack_before_device_access() {
     }
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn raspberry_dsp_profiles_select_the_authoritative_audio_geometry() {
     let latency = super::audio_profile::RaspberryAudioProfile::from_optimization(
@@ -74,7 +74,7 @@ fn raspberry_dsp_profiles_select_the_authoritative_audio_geometry() {
     assert_eq!(capacity.lookahead_frames, 256);
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn raspberry_timing_probe_profile_applies_only_requested_geometry_overrides() {
     let profile =

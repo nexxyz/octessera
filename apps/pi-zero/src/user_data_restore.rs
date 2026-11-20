@@ -20,7 +20,7 @@ pub(super) use transaction::{replace_trees_with_faults, FaultInjection};
 /// pre-restore archive and the new and old trees while they swap.
 #[cfg(board_orange)]
 pub(crate) const STAGING_DIR_NAME: &str = "restore";
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) const STAGING_DIR_NAME: &str = ".octessera-restore";
 
 /// The live folders a restore replaces.

@@ -2,7 +2,7 @@
 use super::orange_worker::{
     seesaw_startup_status, SeesawStartupStatus, SEESAW_SHUTDOWN_TIMEOUT, SEESAW_STARTUP_TIMEOUT,
 };
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use super::raspberry_worker::{seesaw_worker_has_stalled, SEESAW_STALL_TIMEOUT};
 use super::*;
 
@@ -47,7 +47,7 @@ fn fake_output(grid_failures: usize, key_failures: usize) -> FakeLedOutput {
     }
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn seesaw_worker_health_stalls_at_timeout_without_progress() {
     let start = Instant::now();
@@ -68,7 +68,7 @@ fn seesaw_worker_health_stalls_at_timeout_without_progress() {
     ));
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 #[test]
 fn seesaw_worker_progress_resets_the_stall_deadline() {
     let start = Instant::now();

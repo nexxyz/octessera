@@ -109,7 +109,7 @@ fn parse_mode_value(value: Option<&str>) -> Result<HandoffMode, String> {
     }
 }
 
-#[cfg(any(unix, all(test, any(board_raspberry, board_host))))]
+#[cfg(any(unix, all(test, board_not_orange)))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HandoffPhase {
     Animating,
@@ -120,7 +120,7 @@ pub(crate) enum HandoffPhase {
     Failed,
 }
 
-#[cfg(any(unix, all(test, any(board_raspberry, board_host))))]
+#[cfg(any(unix, all(test, board_not_orange)))]
 impl HandoffPhase {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
@@ -216,13 +216,13 @@ pub(crate) use unix_impl::native_attach_after_startup_clear;
 pub(crate) use unix_impl::native_guard_for_test;
 #[cfg(all(unix, board_orange))]
 pub(crate) use unix_impl::publish_startup_fatal;
-#[cfg(all(unix, any(board_raspberry, board_host)))]
+#[cfg(all(unix, board_not_orange))]
 pub(crate) use unix_impl::AnimatorHandoff;
 #[cfg(all(unix, board_orange))]
 pub(crate) use unix_impl::NativeOledGuard;
-#[cfg(all(unix, any(board_raspberry, board_host)))]
+#[cfg(all(unix, board_not_orange))]
 pub(crate) use unix_impl::{animator_start, utility_lock};
-#[cfg(all(unix, any(board_raspberry, board_host)))]
+#[cfg(all(unix, board_not_orange))]
 pub(crate) use unix_impl::{native_attach, NativeOledGuard};
 
 #[cfg(all(not(unix), board_host))]
@@ -295,11 +295,11 @@ impl NativeOledGuard {
     pub(crate) fn mark_failed_result(&self) -> Result<(), String> {
         Err("OLED boot handoff requires Unix file locking".into())
     }
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     pub(crate) fn mark_failed(&self) {}
 }
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod tests {
     use super::*;
 

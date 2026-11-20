@@ -25,7 +25,7 @@ mod orange_audio_manager;
 mod orange_audio_recovery;
 #[cfg(all(test, board_orange))]
 mod orange_audio_recovery_tests;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use audio_output_open::open_audio_sink;
 #[cfg(board_orange)]
 use audio_output_open::open_orange_audio_sink;
@@ -33,11 +33,11 @@ use audio_output_open::recordings_dir;
 use audio_output_open::screen_recordings_dir;
 use audio_output_open::{AudioConstructionConfig, AudioSinkOpener};
 pub(crate) use audio_profile::sequenced_output_delay;
-#[cfg(all(any(board_raspberry, board_host), feature = "profiling"))]
+#[cfg(all(board_not_orange, feature = "profiling"))]
 pub(crate) use audio_profile::AudioProfileGeometry;
 #[cfg(board_orange)]
 pub(super) use audio_profile::OrangeAudioProfile;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) use audio_profile::RaspberryAudioProfile;
 use cpal_audio_output::probe_cpal_sink;
 use cpal_audio_output::BuiltAudioStream;
@@ -120,7 +120,7 @@ pub(crate) struct MixTaps {
 pub(crate) type MixTapState = Arc<RwLock<MixTaps>>;
 
 impl AudioManager {
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     pub fn new<T: Into<AudioOutputSet>>(
         optimization: playback_runtime::AudioOptimization,
         outputs: T,
@@ -131,7 +131,7 @@ impl AudioManager {
         )
     }
 
-    #[cfg(all(any(board_raspberry, board_host), feature = "profiling"))]
+    #[cfg(all(board_not_orange, feature = "profiling"))]
     pub(crate) fn new_timing_probe<T: Into<AudioOutputSet>>(
         output_buffer_frames: Option<u32>,
         internal_block_frames: Option<usize>,
@@ -143,7 +143,7 @@ impl AudioManager {
         Self::new_raspberry_profile(profile, outputs).map(|manager| (manager, geometry))
     }
 
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     fn new_raspberry_profile<T: Into<AudioOutputSet>>(
         profile: RaspberryAudioProfile,
         outputs: T,

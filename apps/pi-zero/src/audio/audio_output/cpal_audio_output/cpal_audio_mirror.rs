@@ -13,10 +13,10 @@ use cpal::BufferSize;
 use cpal::{SampleFormat, StreamConfig};
 use rodio_engine_source::PcmMirrorConsumer;
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use super::select_output_device;
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) fn build_cpal_mirror_stream(
     output_buffer_frames: u32,
     sink: AudioSink,

@@ -280,5 +280,5 @@ mod timing_evidence_tests {
 
 #[cfg(all(test, board_orange))]
 mod orange_tests;
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 mod raspberry_tests;

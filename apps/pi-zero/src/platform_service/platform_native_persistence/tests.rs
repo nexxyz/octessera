@@ -1,24 +1,24 @@
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use super::*;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use crate::host_adapter::PiHostAdapter;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use crate::usb_config::UsbAudioOut;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use playback_runtime::NativeRunnerConfig;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use playback_runtime::{
     HostMessage, PlaybackRuntime, RuntimeConfig, RuntimePlatformEffect, RuntimePlatformRequest,
     RuntimeStoreResult,
 };
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use serde_json::json;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use std::sync::mpsc;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 use std::time::{Duration, Instant};
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn adapter() -> (PiHostAdapter, std::path::PathBuf) {
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-native-save");
     let adapter = PiHostAdapter::new(
@@ -49,13 +49,13 @@ fn adapter() -> (PiHostAdapter, std::path::PathBuf) {
     (adapter, root)
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn cleanup(root: std::path::PathBuf) {
     let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_retry() {
     use playback_runtime::RuntimeOperation;
 
@@ -218,7 +218,7 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
 }
 
 #[test]
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn playing_manual_default_save_queues_before_worker_serialization_and_reloads() {
     use playback_runtime::RuntimeTransportState;
 

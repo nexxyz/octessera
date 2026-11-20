@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 #[cfg(board_orange)]
 pub(crate) use orange_worker::spawn_interrupt;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 pub(crate) use raspberry_worker::spawn_interrupt;
 
 /// After a failed Seesaw transaction, leave the bus alone instead of retrying into a busy device.
@@ -221,7 +221,7 @@ fn spawn(
             thread::sleep(Duration::from_millis(2));
         }
     });
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     let _ = worker;
 
     SeesawIo {
@@ -304,7 +304,7 @@ fn scan_inputs(
 
 #[cfg(board_orange)]
 mod orange_worker;
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 mod raspberry_worker;
 mod scan_schedule;
 mod setup_refresh;

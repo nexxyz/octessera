@@ -128,7 +128,7 @@ fn cleanup(root: PathBuf) {
     let _ = std::fs::remove_dir_all(root);
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 fn refresh_preset_catalog(
     host: &mut crate::host_adapter::PiHostAdapter,
     playback: &mut PlaybackRuntime,

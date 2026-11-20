@@ -45,7 +45,7 @@ impl HardwareFault {
         }
     }
 
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     pub(crate) fn is_empty(&self) -> bool {
         self.failures.is_empty()
     }
@@ -78,7 +78,7 @@ impl HardwareFault {
     }
 
     pub(crate) fn open_wake_encoders(&mut self) {
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         let opened = crate::hardware_init::init_encoders().map_err(|fault| fault.summary());
         #[cfg(board_orange)]
         let opened = crate::orange_runtime::init_encoders();
@@ -91,7 +91,7 @@ impl HardwareFault {
     }
 
     pub(crate) fn adopt_boot_handoff_oled(&mut self) {
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         let attached = crate::boot_oled_handoff::native_attach();
         #[cfg(board_orange)]
         let attached = crate::boot_oled_handoff::native_attach_after_startup_clear();
@@ -124,7 +124,7 @@ impl HardwareFault {
         self.wake.as_ref().map(|wake| &wake.events)
     }
 
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     fn failure_names(&self) -> String {
         self.failures
             .iter()
@@ -133,7 +133,7 @@ impl HardwareFault {
             .join(",")
     }
 
-    #[cfg(any(board_raspberry, board_host))]
+    #[cfg(board_not_orange)]
     pub(crate) fn summary(&self) -> String {
         self.failures
             .iter()
@@ -149,7 +149,7 @@ pub(crate) fn run_hardware_fault_mode(mut fault: Box<HardwareFault>, boot_handof
         eprintln!("entering audio fault mode; restarting to retry in {AUDIO_RETRY_AFTER:?}");
     } else {
         eprintln!("entering hardware fault mode; service will stay alive until reboot");
-        #[cfg(any(board_raspberry, board_host))]
+        #[cfg(board_not_orange)]
         bus_lines::record(&fault.failure_names());
     }
     if boot_handoff && fault.oled.is_none() {
@@ -364,7 +364,7 @@ fn trellis_fault_frame(lit: bool) -> [[u8; 3]; 64] {
     frame
 }
 
-#[cfg(any(board_raspberry, board_host))]
+#[cfg(board_not_orange)]
 mod bus_lines;
 #[cfg(test)]
 mod tests;

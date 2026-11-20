@@ -24,7 +24,7 @@ pub(crate) fn validate_pi_audio_outputs_payload(payload: &serde_json::Value) -> 
     Ok(())
 }
 
-#[cfg(all(test, any(board_raspberry, board_host)))]
+#[cfg(all(test, board_not_orange))]
 pub(crate) fn validate_raspberry_usb_payload(payload: &serde_json::Value) -> Result<(), String> {
     crate::usb_config::parse_usb_runtime_config(payload)
         .map(|_| ())
