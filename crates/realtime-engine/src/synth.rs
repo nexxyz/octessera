@@ -90,6 +90,7 @@ mod test_allocator {
 
     struct CountingAllocator;
 
+    // SAFETY: every method forwards unchanged to `System` with the caller's layout and pointer, so `System`'s allocator contract holds; counting only touches thread-local Cells.
     unsafe impl GlobalAlloc for CountingAllocator {
         unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
             let pointer = System.alloc(layout);
