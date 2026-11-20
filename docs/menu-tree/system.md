@@ -356,9 +356,9 @@ changed edit saves System like any other System preference, shows `Applying...`,
 - `Open Portal` stops and resets playback, clears note state, and sends MIDI panic/all-notes-off
   cleanup. Playback never auto-resumes. It emits the typed setup portal effect, and opening the
   portal switches the Wi-Fi setting back on and removes the switch file before the radio comes on.
-- The modal reports `starting`, `portal_ready` with `Octessera Setup <4-char code>`,
-  `Pass: <passphrase>` and `192.168.42.1` for 10 minutes, `finalizing`, `succeeded`, `stopped`
-  (after `Stop hotspot`), `failed`, `timed_out`, or desktop `unsupported`. The modal ranks after
+- The modal reports `starting`, `portal_ready` with `Join Wi-Fi on phone:` then `Octessera Setup <4-char code>`,
+  `Pass: <passphrase>` and `Open 192.168.42.1` for 10 minutes, `finalizing`, `succeeded`, `stopped`
+  (after `Stop hotspot`), `failed` (`Setup failed` / `Wrong Wi-Fi password?` / `Close, then try again.`), `timed_out`, or desktop `unsupported`. The modal ranks after
   confirmation dialogs and ahead of system info and help.
 - While the hotspot starts or runs, the card's action row is `Stop hotspot`; Main or Back closes the
   card and emits `SetupPortalClose` once, which ends the portal (an unfinished join is abandoned and

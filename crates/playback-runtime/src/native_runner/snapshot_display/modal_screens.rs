@@ -78,7 +78,7 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
         RuntimeSetupPortalPhase::PortalReady => (
             "Wi-Fi Setup".to_string(),
             [
-                Some("Hotspot:".into()),
+                Some("Join Wi-Fi on phone:".into()),
                 Some(format!(
                     "Octessera Setup {}",
                     state.status.portal_suffix.as_deref().unwrap_or("----")
@@ -127,7 +127,11 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
         }
         RuntimeSetupPortalPhase::Failed => (
             "Wi-Fi Setup".to_string(),
-            vec!["Setup failed".into(), "Check the device status".into()],
+            vec![
+                "Setup failed".into(),
+                "Wrong Wi-Fi password?".into(),
+                "Close, then try again.".into(),
+            ],
             "Close",
         ),
         RuntimeSetupPortalPhase::TimedOut => (

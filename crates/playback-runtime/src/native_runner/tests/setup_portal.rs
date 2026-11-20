@@ -130,7 +130,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
         (
             RuntimeSetupPortalPhase::PortalReady,
             vec![
-                "Hotspot:",
+                "Join Wi-Fi on phone:",
                 "Octessera Setup 1a2f",
                 "Pass: MWmw-MWmw",
                 "Open 192.168.42.1",
@@ -153,7 +153,12 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
         ),
         (
             RuntimeSetupPortalPhase::Failed,
-            vec!["Setup failed", "Check the device status", "Close"],
+            vec![
+                "Setup failed",
+                "Wrong Wi-Fi password?",
+                "Close, then try again.",
+                "Close",
+            ],
         ),
         (
             RuntimeSetupPortalPhase::Stopped,
