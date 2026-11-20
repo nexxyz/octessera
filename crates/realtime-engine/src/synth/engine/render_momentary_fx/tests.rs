@@ -361,3 +361,40 @@ fn finished_momentary_state_waits_in_place_while_retired_slots_are_full() {
     assert!(states.is_empty());
     assert_eq!(retired[1].as_ref().map(|fx| fx.id.as_str()), Some("filter"));
 }
+
+#[test]
+fn finished_freeze_waiting_in_place_passes_the_dry_signal() {
+    let target = MomentaryFxTarget::Global;
+    let mut retired: [Option<MomentaryFxState>; super::control::MOMENTARY_FX_CAPACITY] =
+        std::array::from_fn(|index| {
+            Some(new_fx(
+                &format!("old{index}"),
+                MomentaryFxKind::Freeze,
+                target,
+            ))
+        });
+    let mut params = freeze_params(100.0);
+    params.insert("releaseMs".to_string(), json!(5.0));
+    let mut states = vec![MomentaryFxState::new(
+        "freeze".to_string(),
+        MomentaryFxKind::Freeze,
+        &params,
+        target,
+        SAMPLE_RATE,
+    )];
+    for (left, right) in controlled_input() {
+        process_momentary_fx_states(&mut states, target, left, right, Some(&mut retired));
+    }
+    assert!(!states[0].stop());
+    while !(states[0].releasing && states[0].voice.finished()) {
+        process_momentary_fx_states(&mut states, target, 0.0, 0.0, Some(&mut retired));
+    }
+
+    for _ in 0..RENDER_FRAMES {
+        assert_eq!(
+            process_momentary_fx_states(&mut states, target, 0.25, -0.25, Some(&mut retired)),
+            (0.25, -0.25)
+        );
+    }
+    assert_eq!(states.len(), 1);
+}

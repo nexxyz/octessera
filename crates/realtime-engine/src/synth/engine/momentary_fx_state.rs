@@ -85,6 +85,11 @@ impl MomentaryFxState {
         self.retire_fade.is_some_and(|fade| fade.value() <= 0.0)
     }
 
+    /// Done with its sound; it passes the signal through until a retired slot is free.
+    pub(super) fn completed(&self) -> bool {
+        self.retire_faded() || self.releasing && self.voice.finished()
+    }
+
     /// The release of a press: true when the effect ends at once instead of fading out.
     pub(super) fn stop(&mut self) -> bool {
         match &mut self.voice {

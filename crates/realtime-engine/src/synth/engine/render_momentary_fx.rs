@@ -64,7 +64,7 @@ pub(super) fn process_momentary_fx_states(
     for index in (0..states.len()).rev() {
         let completed = {
             let fx = &states[index];
-            fx.target == target && (fx.retire_faded() || fx.releasing && fx.voice.finished())
+            fx.target == target && fx.completed()
         };
         if !completed {
             continue;
@@ -90,7 +90,7 @@ fn process_momentary_fx_state(
     left: f32,
     right: f32,
 ) -> Option<(f32, f32)> {
-    if fx.target != target {
+    if fx.target != target || fx.completed() {
         return None;
     }
     let (wet_l, wet_r) = fx.voice.process(left, right);
