@@ -78,8 +78,8 @@ fn a_midi_drum_slot_records_its_lowest_tile_stamped_with_the_note() {
     assert_eq!(
         runner.layers[0].engine.serialized_state().unwrap()["steps"],
         json!([
-            [{ "tile": tile, "kind": "release" }],
             [{ "tile": tile, "kind": "press" }],
+            [{ "tile": tile, "kind": "release" }],
         ])
     );
 

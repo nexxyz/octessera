@@ -320,10 +320,10 @@ fn an_overdubbing_looper_for_the_slot_records_the_lowest_tile_that_plays_the_not
     assert_eq!(
         runner.layers[0].engine.serialized_state().unwrap()["steps"],
         json!([
-            [{ "tile": lowest, "kind": "release" }],
             [{ "tile": lowest, "kind": "press" }],
+            [{ "tile": lowest, "kind": "release" }],
         ]),
-        "the press lands on the step now sounding, a release in that same step on the next"
+        "right after Play the press lands on step 1 and its release on step 2"
     );
     let replayed = (0..16)
         .flat_map(|_| {
@@ -410,8 +410,8 @@ fn a_drum_slot_records_its_lowest_tile_stamped_with_the_voice() {
     assert_eq!(
         runner.layers[0].engine.serialized_state().unwrap()["steps"],
         json!([
-            [{ "tile": 6, "kind": "release" }],
             [{ "tile": 6, "kind": "press" }],
+            [{ "tile": 6, "kind": "release" }],
         ]),
         "a drum hit records its press and release at once"
     );

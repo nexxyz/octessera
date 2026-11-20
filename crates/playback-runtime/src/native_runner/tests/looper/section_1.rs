@@ -52,13 +52,11 @@ pub(crate) fn looper_overdub_records_release_and_replays_each_loop() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(!runner.active_engine().model().unwrap().tiles[index]);
-
-    pulse_step(&mut runner);
     assert!(
-        runner.active_engine().model().unwrap().tiles[index],
-        "the next pass replays the press"
+        !runner.active_engine().model().unwrap().tiles[index],
+        "the press already sounded live, so step 1 skips it once"
     );
+
     pulse_step(&mut runner);
     assert!(!runner.active_engine().model().unwrap().tiles[index]);
     pulse_step(&mut runner);
@@ -81,6 +79,7 @@ pub(crate) fn looper_clear_loop_action_releases_playback_tiles_and_marks_dirty()
             request_snapshot: None,
         })
         .unwrap();
+    pulse_step(&mut runner);
     pulse_step(&mut runner);
     let index = platform_core::grid_index(2, 3);
     assert!(runner.active_engine().model().unwrap().tiles[index]);
@@ -142,7 +141,7 @@ pub(crate) fn looper_length_edit_keeps_recorded_sequence() {
         })
         .unwrap();
     let before = runner.active_engine().serialized_state().unwrap();
-    assert_eq!(before["steps"][1].as_array().unwrap().len(), 1);
+    assert_eq!(before["steps"][0].as_array().unwrap().len(), 1);
 
     runner.menu.open_labels(&["Build", "L1: looper"]);
     runner.menu.select_label("Length");
@@ -169,7 +168,7 @@ pub(crate) fn looper_length_edit_keeps_recorded_sequence() {
     assert_eq!(runner.active_layer().behavior_config["lengthSteps"], 3);
     let state = runner.active_engine().serialized_state().unwrap();
     assert_eq!(state["steps"].as_array().unwrap().len(), 3);
-    assert_eq!(state["steps"][1].as_array().unwrap().len(), 1);
+    assert_eq!(state["steps"][0].as_array().unwrap().len(), 1);
 }
 
 #[test]

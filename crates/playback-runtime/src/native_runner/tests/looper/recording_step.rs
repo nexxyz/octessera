@@ -159,3 +159,46 @@ fn a_tap_while_stopped_lands_on_the_step_the_playhead_waits_on() {
         );
     }
 }
+
+fn press_play(runner: &mut NativeRunner) {
+    runner.send(HostMessage::TransportStop).unwrap();
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
+}
+
+#[test]
+fn a_tap_right_after_play_lands_on_step_one_or_two_not_the_last_step() {
+    let notes = tile_notes();
+    for (late, keyboard) in [(false, false), (false, true), (true, false), (true, true)] {
+        let mut runner = playing_looper();
+        let tile = tile_index(keyboard, &notes);
+        press_play(&mut runner);
+        if late {
+            pulses(&mut runner, 6);
+        }
+
+        tap(&mut runner, keyboard, notes[0]);
+
+        let (press_step, release_step) = if late { (1, 0) } else { (0, 1) };
+        let mut expected = json!([[], []]);
+        expected[press_step] = json!([{ "tile": tile, "kind": "press" }]);
+        expected[release_step] = json!([{ "tile": tile, "kind": "release" }]);
+        assert_eq!(steps(&runner), expected, "late {late}, keyboard {keyboard}");
+        let first_pass = note_ons(&pulses(&mut runner, if late { 6 } else { 12 }))
+            + note_ons(&pulses(&mut runner, 12));
+        assert_eq!(
+            first_pass, 0,
+            "late {late}, keyboard {keyboard}: no double hit"
+        );
+        let next_pass = note_ons(&pulses(&mut runner, 12)) + note_ons(&pulses(&mut runner, 12));
+        assert_eq!(
+            next_pass, 1,
+            "late {late}, keyboard {keyboard}: the next pass plays it"
+        );
+    }
+}

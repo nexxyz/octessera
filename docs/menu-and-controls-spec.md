@@ -1394,7 +1394,8 @@ Input events:
   keyboard notes record by one rule. While playing, an event goes to the nearest step: in the first
   half of a step, that step (it already sounded live, so it plays from the next pass); in the
   second half, the next step, which skips that event once on this pass so it does not hit twice.
-  Stopped or paused, it goes to the step the playhead waits on, which single-stepping moves. A
+  Right after Play, step 1 counts as the sounding step. Stopped or paused, it goes to the step the
+  playhead waits on, which single-stepping moves. A
   release that would share its press's step goes one step later, so a short note survives. Only the
   tiles are saved; the skip mark is runtime state. Its Length setting is
   only the loop window (1-64 steps): lowering it keeps the recorded steps past the window, which

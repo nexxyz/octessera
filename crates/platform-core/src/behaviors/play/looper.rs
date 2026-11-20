@@ -33,6 +33,9 @@ pub struct LooperState {
     pub mode: LooperMode,
     #[serde(skip)]
     skip_once: [SkipOnce; SKIP_ONCE_SLOTS],
+    /// False from a transport reset until the first step plays.
+    #[serde(skip)]
+    ticked: bool,
 }
 
 /// Whether the looper records presses into its loop or only plays it back.
@@ -95,6 +98,7 @@ pub fn looper_init(config: Value) -> Result<LooperState, String> {
         length_steps,
         mode: normalize_mode(config.mode.as_deref()),
         skip_once: Default::default(),
+        ticked: false,
     })
 }
 
@@ -157,6 +161,7 @@ pub fn looper_on_tick(mut state: LooperState, _context: &mut BehaviorContext) ->
         trigger_types,
         playback_tiles,
         step_index: (state.step_index + 1) % state.length_steps.max(1),
+        ticked: true,
         ..state
     }
 }
@@ -164,6 +169,7 @@ pub fn looper_on_tick(mut state: LooperState, _context: &mut BehaviorContext) ->
 pub(crate) fn reset_transport_phase(state: &mut LooperState) {
     let previous = state.tiles.clone();
     state.step_index = 0;
+    state.ticked = false;
     state.skip_once = Default::default();
     state.playback_tiles.fill(false);
     state.tiles = state.held_tiles.clone();
@@ -229,6 +235,7 @@ pub fn looper_deserialize(data: Value) -> Result<LooperState, String> {
         length_steps,
         mode: normalize_mode(saved.mode.as_deref()),
         skip_once: Default::default(),
+        ticked: false,
     })
 }
 
@@ -281,15 +288,23 @@ pub(crate) fn record_outside_tile(
 /// sounding now in its first half, and the next step in its second half, which then skips the
 /// event once on this pass because it already sounded live. While stopped it is the step the
 /// playhead waits on. A release that would share a step with its press goes one step later, so
-/// a short note still sounds.
+/// a short note still sounds. From Play until the first tick, step 1 counts as sounding; its
+/// tick is still to come, so it skips the event once too.
 fn record_event(state: &mut LooperState, event: LooperEvent, phase: StepPhase) {
     let length = state.length_steps.clamp(1, state.steps.len().max(1));
     let next = state.step_index % length;
-    let mut step = match phase {
-        StepPhase::FirstHalf => (next + length - 1) % length,
-        StepPhase::SecondHalf | StepPhase::Stopped => next,
+    let sounding = if state.ticked {
+        (next + length - 1) % length
+    } else {
+        next
     };
-    let mut ahead = phase == StepPhase::SecondHalf;
+    let mut step = match phase {
+        StepPhase::FirstHalf => sounding,
+        StepPhase::SecondHalf => (sounding + 1) % length,
+        StepPhase::Stopped => next,
+    };
+    let mut ahead =
+        phase == StepPhase::SecondHalf || (phase == StepPhase::FirstHalf && !state.ticked);
     let pressed_here = |events: &Vec<LooperEvent>| {
         events
             .iter()
@@ -346,6 +361,7 @@ fn clear_loop(state: LooperState) -> LooperState {
         steps: vec![Vec::new(); state.length_steps],
         step_index: 0,
         skip_once: Default::default(),
+        ticked: false,
         ..state
     }
 }
