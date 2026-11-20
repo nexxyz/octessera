@@ -243,3 +243,83 @@ fn mixer_gain_ramps_render_the_same_on_the_routing_tree_workers() {
         );
     }
 }
+
+const BUS_FX_TYPES: [&str; 16] = [
+    "tremolo",
+    "delay",
+    "vibrato",
+    "chorus",
+    "flanger",
+    "filter_lfo",
+    "wah",
+    "reverb",
+    "glitch",
+    "auto_pan",
+    "saturator",
+    "distortion",
+    "bitcrusher",
+    "compressor",
+    "eq",
+    "vinyl",
+];
+
+const MASTER_FX_TYPES: [&str; 5] = ["saturator", "distortion", "compressor", "eq", "vinyl"];
+
+fn assert_fx_config_renders_the_same(config: &InstrumentsConfig, label: &str) {
+    let mut routed = SynthEngine::new(RATE);
+    let mut inline = SynthEngine::new(RATE);
+    for engine in [&mut routed, &mut inline] {
+        engine.set_instruments(config.clone());
+        for slot in 0..config.instruments.len() as u8 {
+            engine.note_on(slot, 60 + slot * 7, 100, 3_000);
+        }
+    }
+    assert_worker_render_matches_inline(&mut routed, &mut inline, 40, label, |_, _, _| {});
+}
+
+#[test]
+fn every_bus_fx_type_renders_the_same_on_the_routing_tree_workers() {
+    for fx_type in BUS_FX_TYPES {
+        let mut config = one_instrument_config("synth", "fx_bus_1");
+        config.mixer.as_mut().unwrap().buses[0].slots = vec![FxBusSlotConfig::Kind(fx_type.into())];
+        assert_fx_config_renders_the_same(&config, &format!("bus {fx_type}"));
+    }
+}
+
+#[test]
+fn duck_renders_the_same_on_the_routing_tree_workers() {
+    for source in ["I2", "B2"] {
+        let mut config = one_instrument_config("synth", "fx_bus_1");
+        let mut source_slot = config.instruments[0].clone();
+        source_slot.mixer.as_mut().unwrap().route = MixerRoute::FxBus(1);
+        config.instruments.push(source_slot);
+        let mixer = config.mixer.as_mut().unwrap();
+        mixer.buses[0].slots = vec![FxBusSlotConfig::Config {
+            kind: "duck".into(),
+            params: [
+                ("source".into(), Value::from(source)),
+                ("amountPct".into(), Value::from(80.0)),
+            ]
+            .into_iter()
+            .collect(),
+        }];
+        mixer.buses.push(FxBusConfig {
+            slots: vec![FxBusSlotConfig::Kind("delay".into())],
+            ..FxBusConfig::default()
+        });
+        assert_fx_config_renders_the_same(&config, &format!("duck from {source}"));
+    }
+}
+
+#[test]
+fn every_master_fx_type_renders_the_same_on_the_routing_tree_workers() {
+    for fx_type in MASTER_FX_TYPES {
+        for route in ["direct", "fx_bus_1"] {
+            let mut config = one_instrument_config("synth", route);
+            config.mixer.as_mut().unwrap().master = Some(MasterFxConfig {
+                slots: vec![FxBusSlotConfig::Kind(fx_type.into())],
+            });
+            assert_fx_config_renders_the_same(&config, &format!("master {fx_type} via {route}"));
+        }
+    }
+}
