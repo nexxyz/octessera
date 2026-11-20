@@ -310,8 +310,6 @@ link_aux_click_sample_group	Menu > Link > Aux Mappings > Aux * > *Clk: * > Sampl
 link_aux_click_fx_group	Menu > Link > Aux Mappings > Aux * > *Clk: * > Actions		group	Actions	Map FX enters Play FX map-to-grid with the current FX settings; Reset Behavior re-initializes the active layer.	Pick one to bind it to this Aux click.
 link_mappings_x_slot_group	Menu > Link > L*: * > Mappings > X Axis > Slot *		group	X Slot	Selects which parameter this X-axis modulation slot controls.	The browser is shared with Play X/Y target selection so available targets stay consistent.
 link_mappings_y_slot_group	Menu > Link > L*: * > Mappings > Y Axis > Slot *		group	Y Slot	Selects which parameter this Y-axis modulation slot controls.	The browser is shared with Play X/Y target selection so available targets stay consistent.
-link_mappings_param_none	*	action:param_mod_set_target	action	(none)	Clears this slot, so it moves nothing.	Invert stays as it is for the next target.
-link_mappings_aux_turn_none	*	action:aux_turn_set_target	action	Clear Aux Turn	Clears the selected aux encoder turn binding.	Any existing aux click binding for that encoder is preserved.
 link_mappings_aux_click_none	*	action:aux_click_set_target	action	Clear Aux Click	Clears the selected aux encoder click binding.	Any existing aux turn binding for that encoder is preserved.
 link_mappings_x_invert_1	*	key:layers.*.paramMods.x.0.invert	bool	Slot 1 Invert	Flips Slot 1: the left edge gives high values, the right edge low ones.	
 link_mappings_x_invert_2	*	key:layers.*.paramMods.x.1.invert	bool	Slot 2 Invert	Flips Slot 2: the left edge gives high values, the right edge low ones.	
@@ -339,7 +337,7 @@ notes_group	Menu > System > Notes		group	Notes	Controls note duration and global
 audio_group	Menu > System > Audio		group	Audio	Controls master volume, supported audio outputs, performance mode, polyphony, and engine thresholds.	Board output mirrors stay separate from external MIDI instruments.
 master_vol	Menu > System > Audio > Master Vol	key:masterVolume	number	Master Vol	Sets overall output volume scaling.	Use this for final level trim without changing patch balance.
 tones_stealing_mode	Menu > System > Audio > Polyphony	key:sound.voiceStealingMode	enum	Polyphony	How many voices play at once: a fixed 12 or 16, none for no cap, or soft, bal or hard to adapt to the load.	Old voices go first.
-audio_optimization	Menu > System > Audio > Perf. Mode	key:sound.optimizeFor	enum	Perf. Mode	Latency: quickest response, about 6-8 ms press to sound. Capacity: renders ahead on two cores, about 13-15 ms.	The OLED uses compact Lat/Cap labels; the setting applies after an app restart and does not change voice or FX limits.
+audio_optimization	Menu > System > Audio > Perf. Mode	key:sound.optimizeFor	enum	Perf. Mode	Latency: quickest response, about 6-8 ms press to sound. Capacity: renders ahead on two cores, about 13-15 ms.	The OLED uses compact labels, Lat and Cap; the setting applies after an app restart and does not change voice or FX limits.
 presets_group	Menu > System > Saves		group	Saves	Save, load and manage your patches.	Default is what starts up; Library holds your named presets.
 default_save	System > Saves > Default > Save Patch	action:default_save	action	Save Patch	Stores the current musical patch as the startup patch.	Device settings stay on this instrument.
 default_load	System > Saves > Default > Load Patch	action:default_load	action	Load Patch	Loads your saved default patch.	Device settings stay as they are.
@@ -676,7 +674,6 @@ native_behavior_select_vines	*	action:behavior_select:vines	action	Vines	Grows t
 native_behavior_select_pong	*	action:behavior_select:pong	action	Pong	Two CPU paddles rally a ball across the grid.	The ball plays a note on every step; after a miss it serves again from the middle.
 native_behavior_select_blockout	*	action:behavior_select:blockout	action	Blockout	A CPU paddle knocks a ball into a rainbow wall of blocks.	Each break plays an On event, and a cleared row drops a fresh one on top.
 native_navigate_back	*	action:navigate_back	action	Back	Returns to the parent browser level.	Use it like the hardware Back button when browsing synthetic folders.
-native_param_bind	*	action:param_bind	action	Bind Parameter	Puts this setting on the control you are picking for.	A setting another control already owns cannot be taken; you get a toast.
 native_binding_group_behavior_params	*	key:binding.group.behavior_params	group	Behavior Params	Targets from the selected layer's behavior settings.	Choose these to let modulation steer the active world-bubble itself.
 native_binding_group_link	*	key:binding.group.link	group	Link	Tempo and Link settings.	Bind these for tempo-aware moves.
 native_binding_group_shape	*	key:binding.group.shape	group	Shape Targets	Instrument, mixer, FX, and voice-shaping targets.	This is where modulation reaches the sound-making machinery.

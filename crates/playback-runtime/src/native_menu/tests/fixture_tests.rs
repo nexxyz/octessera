@@ -182,12 +182,29 @@ pub(crate) fn representative_help_configs() -> Vec<NativeMenuConfig> {
         configs.push(cfg);
     }
 
-    for fx_type in ["stutter", "freeze", "filter_sweep", "pitch_shift"] {
+    for fx_type in crate::native_runner::play_fx::config::play_fx_types() {
         let mut cfg = config();
         cfg.play_mode = PlayMode::Fx;
         cfg.play_fx_type = fx_type.into();
         configs.push(cfg);
     }
+
+    let mut hardware_rows = config();
+    hardware_rows.board = true;
+    hardware_rows.audio_optimization_capacity_available = true;
+    hardware_rows.usb_data_role_available = true;
+    hardware_rows.hdmi_mode = crate::NativeHdmiMode::CycleBehaviors;
+    configs.push(hardware_rows);
+
+    let mut looping_sample = config();
+    looping_sample.instrument_types[0] = InstrumentType::Sampler;
+    looping_sample.instrument_sample_playback[0].loop_mode = "forward";
+    configs.push(looping_sample);
+
+    let mut third_slot_duck = config();
+    third_slot_duck.fx_buses[0].slot3_type = "duck".into();
+    third_slot_duck.fx_buses[0].slot3_params = serde_json::json!({});
+    configs.push(third_slot_duck);
 
     configs
 }
