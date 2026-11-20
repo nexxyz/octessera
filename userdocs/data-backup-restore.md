@@ -126,7 +126,7 @@ replacements.
 A restore leaves the SD2 card alone: whatever is on it stays there, and it
 stays mounted.
 
-Never pull the power or either microSD card during a transfer or restore.
+Never pull the power or either microSD card during a transfer or restore. If the power does go mid-restore, the board finishes the swap at the next start, so you end up with the restored data and your old data stays in the pre-restore archive.
 
 ## What the backup doesn't carry
 

@@ -51,6 +51,7 @@ pub(crate) fn run_normal_startup() {
     println!("octessera - Pi native runtime");
 
     let store_dir = default_store_dir();
+    crate::user_data_restore::finish_interrupted_restore_at_boot();
     let boot_handoff = handoff_mode == boot_oled_handoff::HandoffMode::V1;
     let (usb_config, audio_optimization) =
         store_fault::read_boot_runtime_config_or_restore(&store_dir, boot_handoff);

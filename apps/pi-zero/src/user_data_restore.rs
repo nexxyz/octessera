@@ -5,10 +5,12 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 mod filesystem;
+mod recovery;
 mod store_tree;
 mod transaction;
 use filesystem::remove_tree_within;
 pub(crate) use filesystem::{Filesystems, LiveFilesystems};
+pub(crate) use recovery::finish_interrupted_restore_at_boot;
 use store_tree::{build_store_tree, keep_unarchived_patches};
 #[cfg(test)]
 pub(super) use transaction::{replace_trees_with_faults, FaultInjection};
