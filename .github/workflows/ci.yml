@@ -314,8 +314,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends cpio device-tree-compiler initramfs-tools shellcheck zstd
-          bash -n tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/pi/provision/provision.sh tools/orange-pi/input-routing-provision.sh tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-usb-gadget tools/pi-image/test-usb-gadget.sh
-          bash -n tools/pi/provision/test-provision.sh tools/pi/provision/test-provision-role-cases.sh tools/pi/provision/test-provision-host-isolation.sh
+          for script in tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/orange-pi/input-routing-provision.sh; do bash -n "$script"; done
           bash tools/pi/test-board-profile.sh
           python3 tools/pi-image/test-board-profile.py
           bash tools/armbian-image/test-orange-storage-lifecycle.sh

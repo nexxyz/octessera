@@ -180,6 +180,10 @@ done
 run_case shell-syntax
 printf '#!/usr/bin/env bash\nif true; then\n' >"$TMP/fixture-shell-syntax/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-broken"
 
+# Class 5b: shell-syntax drift in a POSIX sh script whose shebang carries an option.
+run_case sh-syntax
+printf '#!/bin/sh -e\nif true; then\n' >"$TMP/fixture-sh-syntax/tools/pi-image/stage4-octessera/files/root/usr/local/sbin/octessera-broken"
+
 # Apply each drift and assert the gate fails with exactly the expected class.
 assert_gate "$TMP/fixture-stale-assets" 1 "stale-assets drift detected" stale-assets
 assert_gate "$TMP/fixture-assets" 1 "assets drift detected" stale-assets
@@ -191,6 +195,7 @@ assert_gate "$TMP/fixture-legal" 1 "legal drift detected" legal
 assert_gate "$TMP/fixture-links" 1 "links drift detected" links
 assert_gate "$TMP/fixture-quality" 1 "quality drift detected" quality
 assert_gate "$TMP/fixture-shell-syntax" 1 "shell-syntax drift detected" shell-syntax
+assert_gate "$TMP/fixture-sh-syntax" 1 "sh-syntax drift detected" shell-syntax
 
 echo
 echo "repository-integrity fixtures: $passes passed, $failures failed"

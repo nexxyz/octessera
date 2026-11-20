@@ -39,6 +39,7 @@ userpatches/kernel/**/*.patch text eol=lf whitespace=-blank-at-eol,-space-before
 /.githooks/* text eol=lf
 /Dockerfile.pi-zero text eol=lf
 /tools/**/*.py text eol=lf
+/userpatches/**/*.py text eol=lf
 /tools/device-update/octessera-update text eol=lf
 /tools/storage/octessera-* text eol=lf
 /tools/pi-image/stage3-octessera-kernel/files/root/usr/local/sbin/* text eol=lf

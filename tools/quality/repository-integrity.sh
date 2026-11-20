@@ -23,7 +23,7 @@ Deterministic repository integrity gate with five independently addressable chec
   legal         Lockfile-hash and checksum inventories are fresh.
   links         Internal Markdown links and anchors resolve.
   quality       Code quality regression thresholds hold.
-  shell-syntax  Board image shell scripts parse with bash -n.
+  shell-syntax  Board image shell scripts parse with sh -n or bash -n, as their shebang says.
 
 Exit code 0 when all enabled classes pass, 1 when any class fails.
 EOF
@@ -84,14 +84,18 @@ check_quality() {
 }
 
 check_shell_syntax() {
-  local script first failed=0
+  local script first shell failed=0
   while IFS= read -r -d '' script; do
-    if [[ "$script" != *.sh ]]; then
-      first=
-      IFS= read -r first <"$script" || true
-      [[ "$first" =~ ^#!.*(/|env\ )(ba)?sh$ ]] || continue
+    first=
+    IFS= read -r first <"$script" || true
+    if [[ "$first" =~ ^#!.*(/|env\ )(ba)?sh(\ .*)?$ ]]; then
+      shell="${BASH_REMATCH[2]}sh"
+    elif [[ "$script" == *.sh ]]; then
+      shell=bash
+    else
+      continue
     fi
-    bash -n "$script" || failed=1
+    "$shell" -n "$script" || failed=1
   done < <(find "$root/userpatches" "$root/tools/pi-image" "$root/tools/armbian-image" "$root/tools/pi/provision" -type f -print0 2>/dev/null)
   return "$failed"
 }
