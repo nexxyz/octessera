@@ -42,7 +42,7 @@ where
     let path = store_dir.join(HANDOFF_FILE);
     store_files::write_json_atomically(
         &path,
-        &serde_json::json!({ "port": port, "token": token }),
+        &serde_json::json!({ "port": port, "token": token, "pid": std::process::id() }),
     )?;
     std::thread::Builder::new()
         .name("octessera-instance-handoff".to_string())
@@ -69,23 +69,49 @@ fn serve(stream: &TcpStream, token: &str, show: &impl Fn()) {
     let _ = (&*stream).write_all(b"ok\n");
 }
 
+struct Handoff {
+    port: u16,
+    token: String,
+    pid: Option<u32>,
+}
+
+fn read_handoff(store_dir: &Path) -> Option<Handoff> {
+    let text = std::fs::read_to_string(store_dir.join(HANDOFF_FILE)).ok()?;
+    let value = serde_json::from_str::<serde_json::Value>(&text).ok()?;
+    Some(Handoff {
+        port: u16::try_from(value["port"].as_u64()?).ok()?,
+        token: value["token"].as_str()?.to_string(),
+        pid: value["pid"]
+            .as_u64()
+            .and_then(|pid| u32::try_from(pid).ok()),
+    })
+}
+
+/// Windows only lets the foreground process hand the foreground right on; this process is it
+/// at launch, so it grants the running instance the right before asking it to focus.
+#[cfg(windows)]
+fn allow_foreground(pid: Option<u32>) {
+    const ASFW_ANY: u32 = u32::MAX;
+    #[link(name = "user32")]
+    extern "system" {
+        fn AllowSetForegroundWindow(process_id: u32) -> i32;
+    }
+    // SAFETY: plain Win32 call taking a process id by value.
+    unsafe {
+        AllowSetForegroundWindow(pid.unwrap_or(ASFW_ANY));
+    }
+}
+
+#[cfg(not(windows))]
+fn allow_foreground(_pid: Option<u32>) {}
+
 /// True when the running instance on this store acknowledged the request to show itself.
 pub(crate) fn request_show(store_dir: &Path) -> bool {
-    let Ok(text) = std::fs::read_to_string(store_dir.join(HANDOFF_FILE)) else {
-        return false;
-    };
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
-        return false;
-    };
-    let (Some(port), Some(token)) = (
-        value["port"]
-            .as_u64()
-            .and_then(|port| u16::try_from(port).ok()),
-        value["token"].as_str(),
-    ) else {
+    let Some(Handoff { port, token, pid }) = read_handoff(store_dir) else {
         return false;
     };
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
+    allow_foreground(pid);
     let Ok(mut stream) = TcpStream::connect_timeout(&address, IO_TIMEOUT) else {
         return false;
     };
@@ -150,6 +176,15 @@ mod tests {
 
         assert!(reply.is_empty());
         assert_eq!(shown.load(Ordering::SeqCst), 0);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_port_file_carries_the_listening_pid() {
+        let dir = temp_dir("pid");
+        let (_port, _shown) = counting_listener(&dir);
+        let handoff = read_handoff(&dir).expect("port file");
+        assert_eq!(handoff.pid, Some(std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
