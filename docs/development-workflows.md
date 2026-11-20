@@ -26,6 +26,17 @@ owns detailed production image, service, storage, audio, USB, and updater
 contracts. The technical workbench/hardware-gate procedure remains in
 [`orange-pi-armbian-bringup.md`](../hardware/docs/orange-pi-armbian-bringup.md).
 
+## Prerequisites
+
+- Rust through [rustup](https://rustup.rs/); `rust-toolchain.toml` pins the toolchain, components, and the
+  `aarch64-unknown-linux-gnu` target, so rustup installs them on first use.
+- Node 20 (what CI uses) with corepack; `corepack pnpm install` fetches the pnpm version pinned in
+  `package.json`.
+- On Linux, `pkg-config` and `libasound2-dev` for the ALSA audio crates (`sudo apt-get install -y pkg-config libasound2-dev`, as CI does).
+- WSL2 with Docker for the Pi cross-builds and the pre-push hook's Linux Pi host tests; the hook step
+  skips with a warning when they are missing.
+- PowerShell for the board tools under `tools/pi/`, `tools/orange-pi/`, and `tools/board-dev/`.
+
 ## Install and documentation checks
 
 ```bash
