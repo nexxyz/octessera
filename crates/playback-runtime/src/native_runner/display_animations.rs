@@ -1,5 +1,5 @@
-use super::snapshot_display::DisplaySnapshot;
-use super::snapshot_scene::{oled_bar_input, oled_body_input, oled_scroll_input};
+use super::snapshot::display::DisplaySnapshot;
+use super::snapshot::scene::{oled_bar_input, oled_body_input, oled_scroll_input};
 use crate::oled_frame::{
     OledAnimationInput, OledBodyAnimation, OledBodyFrom, OledDisplayInput, OledDisplayLayout,
     OledFont, OledSignalView, OledToastSlide,

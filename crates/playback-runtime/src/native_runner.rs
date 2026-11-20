@@ -228,13 +228,6 @@ mod setup_portal_state;
 mod setup_system_results;
 mod signal_view;
 mod snapshot;
-mod snapshot_audio_settings;
-mod snapshot_display;
-mod snapshot_leds;
-mod snapshot_messages;
-mod snapshot_scene;
-#[cfg(test)]
-mod snapshot_scene_tests;
 mod state_instrument_types;
 mod state_link;
 mod state_types;
@@ -279,7 +272,7 @@ pub use persistence_intent::NativePersistenceIntent;
 pub(crate) use retired_config_keys::without_retired_keys;
 pub use runner_config::NativeRunnerConfig;
 pub use signal_view::set_signal_analysis_worker_start;
-pub use snapshot_scene::{
+pub use snapshot::scene::{
     NativeControlButtonPresentation, NativeGridPresentation, NativeHardwarePresentation,
     NativeHdmiMode, NativeHdmiPresentation, NativeLedPresentation, PresentationScene,
 };

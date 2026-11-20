@@ -162,7 +162,7 @@ impl NativeConfigSnapshot {
                 "bluetooth": { "enabled": self.bluetooth_enabled, "audio": self.bluetooth_audio },
                 "wifi": { "enabled": self.wifi_enabled },
                 "instruments": self.instruments.iter().map(instrument_audio_payload).collect::<Vec<_>>(),
-                "mixer": super::snapshot_audio_settings::mixer_payload(
+                "mixer": super::snapshot::audio_settings::mixer_payload(
                     &self.fx_buses,
                     &self.global_fx_slots,
                     &self.global_fx_params,

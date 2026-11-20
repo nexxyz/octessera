@@ -4,7 +4,7 @@
 
 use super::play_pages::{play_mode_label, ActivePlayMode};
 use super::signal_view::VisualKind;
-use super::snapshot_display::DisplaySnapshot;
+use super::snapshot::display::DisplaySnapshot;
 use super::{DeviceInput, NativeRunner};
 use crate::native_menu::{NativeMenuHelpTarget, PlatformAction};
 use crate::oled_frame::OledDisplayLayout;

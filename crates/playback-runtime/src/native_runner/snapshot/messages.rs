@@ -1,11 +1,14 @@
 use crate::protocol::{RunnerMessage, RuntimePlatformEffect, RuntimeStatus, RuntimeStatusState};
 
-use super::algorithm::LinkRoutingInput;
-use super::restart_settings::DefaultSaveScope;
-use super::{NativeOledMode, NativeRunner};
+use super::super::algorithm::LinkRoutingInput;
+use super::super::restart_settings::DefaultSaveScope;
+use super::super::{NativeOledMode, NativeRunner};
 
 impl NativeRunner {
-    pub(super) fn append_music_first_audio_commands(&mut self, messages: &mut Vec<RunnerMessage>) {
+    pub(in crate::native_runner) fn append_music_first_audio_commands(
+        &mut self,
+        messages: &mut Vec<RunnerMessage>,
+    ) {
         if !self.pending.presentation_deferred {
             return;
         }
@@ -17,7 +20,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn status(&self) -> RuntimeStatus {
+    pub(in crate::native_runner) fn status(&self) -> RuntimeStatus {
         RuntimeStatus {
             state: RuntimeStatusState::Running,
             transport: self.transport.transport.clone(),
@@ -36,7 +39,7 @@ impl NativeRunner {
             .observe_transport(&self.transport.transport);
         self.display.transients.advance(now);
         if self.pending.presentation_deferred
-            && self.transport.transport == super::RuntimeTransportState::Playing
+            && self.transport.transport == super::super::RuntimeTransportState::Playing
         {
             if !self.pending.suppress_snapshot_response {
                 self.display.transients.mark_presentation_due();
@@ -49,9 +52,11 @@ impl NativeRunner {
         self.messages_with_snapshot_response()
     }
 
-    pub(super) fn clock_status_messages(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    pub(in crate::native_runner) fn clock_status_messages(
+        &mut self,
+    ) -> Result<Vec<RunnerMessage>, String> {
         if self.pending.presentation_deferred
-            && self.transport.transport == super::RuntimeTransportState::Playing
+            && self.transport.transport == super::super::RuntimeTransportState::Playing
         {
             self.display
                 .transients
@@ -64,7 +69,9 @@ impl NativeRunner {
         self.messages_with_snapshot()
     }
 
-    pub(super) fn messages_with_forced_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    pub(in crate::native_runner) fn messages_with_forced_snapshot(
+        &mut self,
+    ) -> Result<Vec<RunnerMessage>, String> {
         let suppress_snapshot_response = self.pending.suppress_snapshot_response;
         self.pending.suppress_snapshot_response = false;
         let result = self.messages_with_snapshot_response();
@@ -74,7 +81,7 @@ impl NativeRunner {
 
     fn messages_with_snapshot_response(&mut self) -> Result<Vec<RunnerMessage>, String> {
         if self.pending.presentation_deferred
-            && self.transport.transport == super::RuntimeTransportState::Playing
+            && self.transport.transport == super::super::RuntimeTransportState::Playing
         {
             self.display.transients.mark_presentation_due();
             return self.messages_without_presentation();
@@ -86,7 +93,7 @@ impl NativeRunner {
         self.display.transients.advance(now);
         self.advance_oled_sleep_state();
         if self.display.oled_mode == NativeOledMode::Splash
-            && self.display.oled_splash_text == super::OLED_STARTUP_SPLASH_KEY
+            && self.display.oled_splash_text == super::super::OLED_STARTUP_SPLASH_KEY
         {
             self.display.startup_splash_presented = true;
         }
@@ -121,7 +128,9 @@ impl NativeRunner {
         Ok(messages)
     }
 
-    pub(super) fn pending_persistence_effects(&mut self) -> (Vec<RuntimePlatformEffect>, bool) {
+    pub(in crate::native_runner) fn pending_persistence_effects(
+        &mut self,
+    ) -> (Vec<RuntimePlatformEffect>, bool) {
         if self.pending.external_autosave_deferred {
             return (Vec::new(), false);
         }
@@ -148,7 +157,7 @@ impl NativeRunner {
             && !autosave_pending
             && !save_pending;
         let payload = if autosave_due || backup_due {
-            match super::system_persistence::SystemPersistenceState::patch_document(self) {
+            match super::super::system_persistence::SystemPersistenceState::patch_document(self) {
                 Ok(payload) => Some(payload),
                 Err(error) => {
                     let operation = if autosave_due {
@@ -183,9 +192,11 @@ impl NativeRunner {
         (effects, false)
     }
 
-    pub(super) fn messages_without_snapshot(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    pub(in crate::native_runner) fn messages_without_snapshot(
+        &mut self,
+    ) -> Result<Vec<RunnerMessage>, String> {
         if self.pending.presentation_deferred
-            && self.transport.transport == super::RuntimeTransportState::Playing
+            && self.transport.transport == super::super::RuntimeTransportState::Playing
         {
             return self.messages_without_presentation();
         }
@@ -195,7 +206,7 @@ impl NativeRunner {
         Ok(messages)
     }
 
-    pub(super) fn append_snapshot_and_status(
+    pub(in crate::native_runner) fn append_snapshot_and_status(
         &mut self,
         messages: &mut Vec<RunnerMessage>,
         requested: bool,
@@ -203,7 +214,7 @@ impl NativeRunner {
         let now = self.display.transients.now();
         self.display.transients.advance(now);
         if self.pending.presentation_deferred
-            && self.transport.transport == super::RuntimeTransportState::Playing
+            && self.transport.transport == super::super::RuntimeTransportState::Playing
         {
             if requested {
                 self.display.transients.mark_presentation_due();
@@ -227,7 +238,9 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn messages_without_presentation(&mut self) -> Result<Vec<RunnerMessage>, String> {
+    pub(in crate::native_runner) fn messages_without_presentation(
+        &mut self,
+    ) -> Result<Vec<RunnerMessage>, String> {
         self.queue_audio_config_if_changed();
         let mut messages = self.drain_pending_output();
         messages.push(RunnerMessage::RuntimeStatus {
@@ -253,7 +266,10 @@ impl NativeRunner {
         messages
     }
 
-    pub(super) fn append_pending_transpose_note_offs(&mut self, messages: &mut Vec<RunnerMessage>) {
+    pub(in crate::native_runner) fn append_pending_transpose_note_offs(
+        &mut self,
+        messages: &mut Vec<RunnerMessage>,
+    ) {
         let events = std::mem::take(&mut self.transpose.pending_note_offs);
         if !events.audio.is_empty() {
             messages.push(RunnerMessage::MusicalEvents {
@@ -278,7 +294,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn messages_with_effects(
+    pub(in crate::native_runner) fn messages_with_effects(
         &mut self,
         effects: Vec<RuntimePlatformEffect>,
     ) -> Result<Vec<RunnerMessage>, String> {
@@ -299,7 +315,7 @@ impl NativeRunner {
         Ok(messages)
     }
 
-    pub(super) fn messages_with_input_result(
+    pub(in crate::native_runner) fn messages_with_input_result(
         &mut self,
         result: platform_core::NativeInputResult,
     ) -> Result<Vec<RunnerMessage>, String> {
@@ -307,7 +323,7 @@ impl NativeRunner {
     }
 
     /// Routes an input result of `layer_index` through that layer's Link, active or not.
-    pub(super) fn messages_with_layer_input_result(
+    pub(in crate::native_runner) fn messages_with_layer_input_result(
         &mut self,
         layer_index: usize,
         result: platform_core::NativeInputResult,
@@ -346,9 +362,9 @@ impl NativeRunner {
         Ok(messages)
     }
 
-    pub(super) fn messages_with_routed_events(
+    pub(in crate::native_runner) fn messages_with_routed_events(
         &mut self,
-        events: super::RoutedMusicalEvents,
+        events: super::super::RoutedMusicalEvents,
     ) -> Result<Vec<RunnerMessage>, String> {
         self.track_emitted_route_notes(self.active_layer_index, &events);
         let mut messages = Vec::new();

@@ -29,8 +29,10 @@ fn selected_item_snapshot_presents_the_same_selected_line_as_the_full_menu() {
                 let full = runner.menu.snapshot();
                 let selected = runner.menu.selected_item_snapshot();
                 assert_eq!(
-                    super::super::snapshot_display::selected_menu_presentation_line(&runner, &full),
-                    super::super::snapshot_display::selected_menu_presentation_line(
+                    super::super::snapshot::display::selected_menu_presentation_line(
+                        &runner, &full
+                    ),
+                    super::super::snapshot::display::selected_menu_presentation_line(
                         &runner, &selected
                     ),
                     "{path:?} editing={editing}"

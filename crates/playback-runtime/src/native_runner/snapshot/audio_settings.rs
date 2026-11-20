@@ -1,4 +1,4 @@
-use super::{
+use super::super::{
     fx_slot_payload_with_params, instrument_audio_payload, json, NativeFxBus, NativeInstrumentSlot,
     NativeRunner, Value, PAN_POSITION_COUNT,
 };
@@ -16,7 +16,11 @@ pub(super) fn audio_payload(
     })
 }
 
-pub(super) fn mixer_payload(buses: &[NativeFxBus], slots: &[String], params: &[Value]) -> Value {
+pub(in crate::native_runner) fn mixer_payload(
+    buses: &[NativeFxBus],
+    slots: &[String],
+    params: &[Value],
+) -> Value {
     json!({
         "buses": buses.iter().map(|bus| json!({
             "name": bus.name,
@@ -35,11 +39,11 @@ pub(super) fn mixer_payload(buses: &[NativeFxBus], slots: &[String], params: &[V
 }
 
 impl NativeRunner {
-    pub(super) fn instrument_audio_config(&self, index: usize) -> Option<Value> {
+    pub(in crate::native_runner) fn instrument_audio_config(&self, index: usize) -> Option<Value> {
         self.instruments.get(index).map(instrument_audio_payload)
     }
 
-    pub(super) fn audio_snapshot_payload(&self) -> Value {
+    pub(in crate::native_runner) fn audio_snapshot_payload(&self) -> Value {
         audio_payload(
             &self.instruments,
             &self.fx_buses,

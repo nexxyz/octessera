@@ -1,4 +1,4 @@
-use super::snapshot_leds::base_led_snapshot;
+use self::leds::base_led_snapshot;
 use super::{display_index, NativeHdmiMode, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
 
 impl NativeRunner {
@@ -206,3 +206,11 @@ mod tests {
         assert_eq!(runner.pending_display_scene_generation(), None);
     }
 }
+
+pub(super) mod audio_settings;
+pub(super) mod display;
+mod leds;
+mod messages;
+pub(super) mod scene;
+#[cfg(test)]
+mod scene_tests;

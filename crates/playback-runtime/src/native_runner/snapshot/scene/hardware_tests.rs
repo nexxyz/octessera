@@ -1,4 +1,4 @@
-use super::super::{NativeConfirmDialog, NativeHelpPopup, NativeRuntimeErrorPresentation};
+use super::super::super::{NativeConfirmDialog, NativeHelpPopup, NativeRuntimeErrorPresentation};
 use super::*;
 use crate::native_menu::NativeMenuAction;
 use crate::oled_frame::{presentation_input_from_snapshot, render_oled_frame};
@@ -6,10 +6,10 @@ use serde_json::json;
 
 fn shipped_runner() -> NativeRunner {
     let payload: Value = serde_json::from_str(include_str!(
-        "../../../../../config/generated/pi/default.json"
+        "../../../../../../config/generated/pi/default.json"
     ))
     .unwrap();
-    let mut runner = NativeRunner::new(super::super::NativeRunnerConfig::default()).unwrap();
+    let mut runner = NativeRunner::new(super::super::super::NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
     runner
@@ -136,7 +136,8 @@ fn shipped_default_modes_preserve_native_pixels_and_source() {
         assert_eq!(hardware.leds.brightness, 25);
         assert_eq!(hardware.neo_key.brightness, 35);
         assert!(!hardware.leds.off);
-        let alive = (super::super::GRID_HEIGHT - 1 - 1) * super::super::GRID_WIDTH + 2;
+        let alive =
+            (super::super::super::GRID_HEIGHT - 1 - 1) * super::super::super::GRID_WIDTH + 2;
         assert_eq!(
             &hardware.leds.grid.rgb[alive * 3..alive * 3 + 3],
             &[255, 255, 0]
@@ -165,7 +166,8 @@ fn shipped_default_modes_preserve_native_pixels_and_source() {
     let cycled = verify_hardware(&runner, OledPresentationMetrics::default(), None);
     assert_eq!(cycled.hdmi.source_layer_index, 1);
     assert_eq!(cycled.hdmi.source_behavior_id, "sequencer");
-    let sequencer_tile = (super::super::GRID_HEIGHT - 1 - 1) * super::super::GRID_WIDTH + 2;
+    let sequencer_tile =
+        (super::super::super::GRID_HEIGHT - 1 - 1) * super::super::super::GRID_WIDTH + 2;
     assert!(cycled.hdmi.grid.active[sequencer_tile]);
     assert_eq!(
         &cycled.hdmi.grid.rgb[sequencer_tile * 3..sequencer_tile * 3 + 3],

@@ -1,6 +1,6 @@
 use super::menu_apply_fast::value_changed;
 use super::performance_view::ViewVisual;
-use super::snapshot_display::DisplaySnapshot;
+use super::snapshot::display::DisplaySnapshot;
 use super::{NativeRunner, RuntimeTransportState};
 use crate::oled_frame::{
     OledSignalArea, OledSignalView, OledSignalVisual, SIGNAL_BAND_HEIGHT, SIGNAL_BODY_HEIGHT,

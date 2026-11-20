@@ -1,4 +1,4 @@
-use super::snapshot_display::DisplaySnapshot;
+use super::snapshot::display::DisplaySnapshot;
 use super::{DeviceInput, NativeRunner, OLED_BODY_ROWS};
 use crate::native_menu::NativeBluetoothRows;
 use crate::oled_frame::OledDisplayLayout;

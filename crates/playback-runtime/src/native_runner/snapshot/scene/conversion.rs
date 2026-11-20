@@ -1,5 +1,5 @@
 use super::{HdmiScene, PresentationScene};
-use crate::native_runner::snapshot_audio_settings::audio_payload;
+use crate::native_runner::snapshot::audio_settings::audio_payload;
 use crate::native_runner::{
     json, RuntimeTransportState, SyncSource, Value, GRID_HEIGHT, GRID_WIDTH,
 };
@@ -64,7 +64,7 @@ impl PresentationScene {
                 "sound": {
                     "noteLengthMs": sound.note_length_ms,
                     "velocityScalePct": sound.velocity_scale_pct,
-                    "velocityCurve": super::super::velocity_curve_id(sound.velocity_curve),
+                    "velocityCurve": super::super::super::velocity_curve_id(sound.velocity_curve),
                     "voiceStealingMode": self.voice_stealing_mode
                 },
                 "ghostTiles": ui.ghost_tiles,

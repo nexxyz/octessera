@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_runner::snapshot_display::DisplayScrollMetadata;
+use crate::native_runner::snapshot::display::DisplayScrollMetadata;
 
 const MS: Duration = Duration::from_millis(1);
 

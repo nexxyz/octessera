@@ -1,4 +1,4 @@
-use super::*;
+use super::super::*;
 
 fn converted_scene(runner: &NativeRunner, audio: bool) -> Value {
     let scene = runner.capture_presentation_scene(audio).unwrap();
@@ -29,8 +29,10 @@ fn assert_typed_oled_matches_legacy(runner: &NativeRunner) {
 #[test]
 fn numeric_bars_carry_fill_or_marker_style_on_every_bar_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let payload: Value =
-        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    let payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
     for (key, fraction, style) in [
@@ -95,8 +97,10 @@ fn typed_oled_preserves_menu_scroll_and_separate_runtime_error_metadata() {
 
 #[test]
 fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
-    let payload: Value =
-        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    let payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
@@ -191,8 +195,10 @@ fn shipped_default_scene_preserves_native_menu_and_transient_contract() {
 #[test]
 fn audio_bearing_scene_captures_fast_aux_value_without_revision_change() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let payload: Value =
-        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    let payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
     for pressed in [true, false] {
@@ -291,8 +297,10 @@ fn due_scene_preserves_audio_config_inclusion_and_queue_revision() {
 #[test]
 fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let payload: Value =
-        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    let payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
     let model = runner.active_engine().model().unwrap();
@@ -407,8 +415,10 @@ fn scene_keeps_display_priority_hdmi_modes_and_sleep_snapshot_shape() {
 #[test]
 fn scene_capture_and_conversion_walltime_diagnostic() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let payload: Value =
-        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+    let payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
     runner.apply_config_payload(payload).unwrap();
     let _ = runner
         .capture_presentation_scene(true)

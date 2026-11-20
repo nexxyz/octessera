@@ -3,7 +3,7 @@
 use crate::native_runner::InstrumentType;
 
 use super::led_color::LedColor;
-use super::snapshot_display::DisplaySnapshot;
+use super::snapshot::display::DisplaySnapshot;
 use super::{display_index, NativeRunner, RuntimeTransportState, GRID_HEIGHT, GRID_WIDTH};
 use crate::oled_frame::OledDisplayLayout;
 use crate::protocol::RunnerMessage;

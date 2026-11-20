@@ -1,5 +1,5 @@
-use super::toast_text::clip_display_line;
-use super::{NativeRunner, OLED_BODY_ROWS};
+use super::super::toast_text::clip_display_line;
+use super::super::{NativeRunner, OLED_BODY_ROWS};
 use crate::native_menu::{
     NativeMenuBarValue, NativeMenuRow, NativeMenuRowKind, NativeMenuSnapshot,
 };
@@ -19,22 +19,22 @@ const DISPLAY_LINE_WIDTH: usize = 28;
 const SELECTED_LINE_SCROLL_TICKS_PER_CHAR: usize = 4;
 const SELECTED_LINE_SCROLL_GAP: [char; 3] = [' ', ' ', ' '];
 
-pub(super) struct DisplaySnapshot {
-    pub(super) body_layout: OledDisplayLayout,
-    pub(super) title: String,
-    pub(super) lines: Vec<String>,
-    pub(super) colors: Vec<u16>,
-    pub(super) bar_values: Vec<Option<NativeMenuBarValue>>,
-    pub(super) full_lines: Vec<Option<String>>,
-    pub(super) rows: Vec<Option<OledMenuRowInput>>,
-    pub(super) scroll: Option<DisplayScrollMetadata>,
-    pub(super) selected_row: Option<usize>,
+pub(in crate::native_runner) struct DisplaySnapshot {
+    pub(in crate::native_runner) body_layout: OledDisplayLayout,
+    pub(in crate::native_runner) title: String,
+    pub(in crate::native_runner) lines: Vec<String>,
+    pub(in crate::native_runner) colors: Vec<u16>,
+    pub(in crate::native_runner) bar_values: Vec<Option<NativeMenuBarValue>>,
+    pub(in crate::native_runner) full_lines: Vec<Option<String>>,
+    pub(in crate::native_runner) rows: Vec<Option<OledMenuRowInput>>,
+    pub(in crate::native_runner) scroll: Option<DisplayScrollMetadata>,
+    pub(in crate::native_runner) selected_row: Option<usize>,
 }
 
-pub(super) struct DisplayScrollMetadata {
-    pub(super) scroll_offset: usize,
-    pub(super) total_rows: usize,
-    pub(super) visible_rows: usize,
+pub(in crate::native_runner) struct DisplayScrollMetadata {
+    pub(in crate::native_runner) scroll_offset: usize,
+    pub(in crate::native_runner) total_rows: usize,
+    pub(in crate::native_runner) visible_rows: usize,
 }
 
 impl NativeRunner {
@@ -72,7 +72,7 @@ impl NativeRunner {
         } else if let Some(test) = &self.display.hardware_test {
             test.display()
         } else if let Some(pairing) = self.bluetooth.pairing() {
-            super::bluetooth::bluetooth_pairing_display(pairing)
+            super::super::bluetooth::bluetooth_pairing_display(pairing)
         } else if let Some(help) = &self.display.help_popup {
             help_popup_display(help)
         } else if let Some(view) = self.shown_full_screen_signal() {
@@ -215,7 +215,7 @@ fn scroll_selected_label(display: &mut DisplaySnapshot, ticks: usize, font: Oled
 }
 
 /// Whether the selected menu row's label is too wide for its slot, so it scrolls.
-pub(super) fn selected_menu_label_overflows(
+pub(in crate::native_runner) fn selected_menu_label_overflows(
     runner: &NativeRunner,
     menu: &NativeMenuSnapshot,
 ) -> bool {
@@ -291,7 +291,7 @@ fn menu_display(
     }
 }
 
-pub(super) fn selected_menu_presentation_line(
+pub(in crate::native_runner) fn selected_menu_presentation_line(
     runner: &NativeRunner,
     menu: &NativeMenuSnapshot,
 ) -> Option<String> {

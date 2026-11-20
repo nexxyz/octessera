@@ -1,4 +1,4 @@
-use super::snapshot_display::{selected_menu_label_overflows, selected_menu_presentation_line};
+use super::snapshot::display::{selected_menu_label_overflows, selected_menu_presentation_line};
 use super::toast_text::next_toast_scroll_step;
 use super::{NativeOledMode, NativeRunner};
 use std::time::{Duration, Instant};

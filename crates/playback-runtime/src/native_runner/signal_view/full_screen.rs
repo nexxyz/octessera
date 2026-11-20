@@ -1,4 +1,4 @@
-use super::super::snapshot_display::DisplaySnapshot;
+use super::super::snapshot::display::DisplaySnapshot;
 use super::super::{DeviceInput, NativeRunner};
 use super::VisualKind;
 use crate::native_menu::NativeMenuModel;

@@ -1,15 +1,15 @@
-use super::grid_assign::GridAssign;
-use super::snapshot::display_active_tiles;
-use super::snapshot_leds::base_led_snapshot;
-use super::toast_text::scrolled_toast;
-use super::{
+use super::super::grid_assign::GridAssign;
+use super::super::snapshot::display_active_tiles;
+use super::super::toast_text::scrolled_toast;
+use super::super::{
     display_transients::DisplayTransientPresentation, GridInteraction, NativeFxBus,
     NativeInstrumentSlot, NativeOledMode, NativeRunner, NativeTransportState, NativeUiState, Value,
     GRID_HEIGHT, GRID_WIDTH,
 };
+use super::leds::base_led_snapshot;
 use crate::native_menu::NativeMenuBarValue;
 use crate::native_runner::display_animations::AnimationFrame;
-use crate::native_runner::snapshot_display::{DisplayScrollMetadata, DisplaySnapshot};
+use crate::native_runner::snapshot::display::{DisplayScrollMetadata, DisplaySnapshot};
 use crate::native_runner::AuxPriority;
 use crate::oled_frame::{
     OledAnimationInput, OledAuxHints, OledAuxView, OledBarInput, OledBarStyle, OledDisplayInput,
@@ -64,8 +64,8 @@ pub struct PresentationScene {
     active_tiles: Vec<bool>,
     hdmi: HdmiScene,
     transport: NativeTransportState,
-    play_mode: super::PlayMode,
-    active_play_mode: super::ActivePlayMode,
+    play_mode: super::super::PlayMode,
+    active_play_mode: super::super::ActivePlayMode,
     momentary_grid: bool,
     ui: NativeUiState,
     sound: GlobalSoundConfig,
@@ -98,7 +98,7 @@ pub struct PresentationScene {
 }
 
 impl NativeRunner {
-    pub(super) fn capture_presentation_scene(
+    pub(in crate::native_runner) fn capture_presentation_scene(
         &self,
         include_audio_config: bool,
     ) -> Result<PresentationScene, String> {
@@ -306,14 +306,14 @@ impl PresentationScene {
             selected_row: display.selected_row,
             transport: OledTransportInput {
                 icon: match self.transport.transport {
-                    super::RuntimeTransportState::Playing => OledTransportIcon::Play,
-                    super::RuntimeTransportState::Paused => OledTransportIcon::Pause,
-                    super::RuntimeTransportState::Stopped => OledTransportIcon::Stop,
+                    super::super::RuntimeTransportState::Playing => OledTransportIcon::Play,
+                    super::super::RuntimeTransportState::Paused => OledTransportIcon::Pause,
+                    super::super::RuntimeTransportState::Stopped => OledTransportIcon::Stop,
                 },
                 flash: match self.transient.transport_flash {
-                    super::TransportFlash::None => OledTransportFlash::None,
-                    super::TransportFlash::Beat => OledTransportFlash::Beat,
-                    super::TransportFlash::Measure => OledTransportFlash::Measure,
+                    super::super::TransportFlash::None => OledTransportFlash::None,
+                    super::super::TransportFlash::Beat => OledTransportFlash::Beat,
+                    super::super::TransportFlash::Measure => OledTransportFlash::Measure,
                 },
             },
             event_dot_level: self.transient.event_dot_level,
@@ -337,7 +337,7 @@ impl PresentationScene {
 }
 
 /// The body parts of a display as the OLED renderer takes them.
-pub(super) fn oled_body_input(
+pub(in crate::native_runner) fn oled_body_input(
     display: &DisplaySnapshot,
     title_color: u16,
     editing: bool,
@@ -363,7 +363,7 @@ pub(super) fn oled_body_input(
     }
 }
 
-pub(super) fn oled_bar_input(bar: &NativeMenuBarValue) -> OledBarInput {
+pub(in crate::native_runner) fn oled_bar_input(bar: &NativeMenuBarValue) -> OledBarInput {
     OledBarInput {
         fraction: f32::from(bar.frac_pct) / 100.0,
         style: if bar.style.as_deref() == Some("marker") {
@@ -374,7 +374,9 @@ pub(super) fn oled_bar_input(bar: &NativeMenuBarValue) -> OledBarInput {
     }
 }
 
-pub(super) fn oled_scroll_input(scroll: &DisplayScrollMetadata) -> OledScrollInput {
+pub(in crate::native_runner) fn oled_scroll_input(
+    scroll: &DisplayScrollMetadata,
+) -> OledScrollInput {
     OledScrollInput {
         offset: scroll.scroll_offset,
         total_rows: scroll.total_rows,
