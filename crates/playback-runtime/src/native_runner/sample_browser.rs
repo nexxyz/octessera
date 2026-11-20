@@ -7,6 +7,7 @@ use super::{
     parent_dir, parse_sample_choose_slots, same_sample_path, NativeRunner, NativeSampleBrowser,
 };
 
+mod results;
 mod sample_availability;
 
 impl NativeRunner {

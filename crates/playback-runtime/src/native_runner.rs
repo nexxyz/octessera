@@ -177,7 +177,6 @@ mod runtime_config;
 mod runtime_io;
 mod sample_assignment_payload;
 mod sample_browser;
-mod sample_browser_results;
 mod sample_paths;
 mod scan_overlay;
 mod setup_portal_state;

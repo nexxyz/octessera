@@ -3,10 +3,10 @@ use std::time::Duration;
 use crate::native_menu::{NativeMenuAction, NativeMenuSnapshot, PlatformAction};
 use crate::protocol::RuntimeStoreResult;
 
-use super::{NativeRunner, NativeSampleBrowser};
+use super::super::{NativeRunner, NativeSampleBrowser};
 
 impl NativeRunner {
-    pub(super) fn apply_sample_browser_result(
+    pub(in crate::native_runner) fn apply_sample_browser_result(
         &mut self,
         result: RuntimeStoreResult,
     ) -> Result<(), String> {
@@ -65,7 +65,10 @@ impl NativeRunner {
     }
 
     /// The selected browser row when it is the file whose preview is sounding.
-    pub(super) fn sounding_preview_row(&self, menu: &NativeMenuSnapshot) -> Option<usize> {
+    pub(in crate::native_runner) fn sounding_preview_row(
+        &self,
+        menu: &NativeMenuSnapshot,
+    ) -> Option<usize> {
         let now = self.display.transients.now();
         let sounding = self.display.transients.sounding_sample_preview(now)?;
         let row = menu.selected_row?;
