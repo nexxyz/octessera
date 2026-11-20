@@ -212,6 +212,7 @@ pub(super) fn refresh_synth_voice_render_cache(
     voice.render_revision = render_revision;
 }
 
+#[cfg(test)]
 pub(super) fn render_synth_voice_sample_precomputed(
     sample_rate: u32,
     mods: InstrumentMod,
@@ -334,6 +335,7 @@ pub(super) fn shape_synth_voice_block_sample(
 
 /// Single-frame dispatch; block rendering picks one of these per voice instead (see
 /// `synth_voice_render`), so each instrument gets its own compiled loop.
+#[cfg(test)]
 fn source_sample(
     cfg: &SynthVoiceRenderConfig,
     v: &mut Voice,

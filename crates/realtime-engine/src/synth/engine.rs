@@ -67,6 +67,7 @@ mod render_momentary_fx;
 mod render_plan;
 mod render_routing;
 mod render_samples;
+#[cfg(test)]
 mod render_synth;
 #[cfg(test)]
 mod render_synth_block_tests;
@@ -308,6 +309,7 @@ pub struct SynthEngine {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
+#[cfg(test)]
 pub(super) struct SlotFrameOutput {
     pub sample: f32,
     pub active: bool,

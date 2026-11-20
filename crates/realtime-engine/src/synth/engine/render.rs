@@ -23,27 +23,11 @@ impl SynthEngine {
     }
 
     pub fn next_stereo_sample(&mut self) -> (f32, f32) {
-        self.serial_frame_graph()
-    }
-
-    fn serial_frame_graph(&mut self) -> (f32, f32) {
-        if !self.voice_pools_home() {
-            return (0.0, 0.0);
-        }
-        let mut slot_out = [0.0_f32; INSTRUMENT_SLOT_COUNT];
-        let sample_active = self.render_sample_voices(&mut slot_out);
-        let (preview, preview_active) = self.render_preview_sample_voices();
-        let synth_active = self.render_synth_voices(&mut slot_out);
-        let output = self.finish_serial_frame::<false>(
-            slot_out,
-            sample_active,
-            preview,
-            preview_active,
-            synth_active,
-            0,
-        );
-        self.recover_from_nonfinite_output();
-        output
+        let (mut left, mut right) = ([0.0], [0.0]);
+        let prepared = self.block_slot_scratch.prepare_output(1);
+        debug_assert!(prepared);
+        self.block_slot_frame_graph(1, &mut left, &mut right);
+        (left[0], right[0])
     }
 
     /// One frame's mix down to the master output; with `TAP` it also keeps `tapped_bus`'s
