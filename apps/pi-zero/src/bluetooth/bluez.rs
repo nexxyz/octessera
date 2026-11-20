@@ -11,6 +11,7 @@ const BLUEZ: &str = "org.bluez";
 const ADAPTER_PATH: &str = "/org/bluez/hci0";
 const ADAPTER_IFACE: &str = "org.bluez.Adapter1";
 const DEVICE_IFACE: &str = "org.bluez.Device1";
+const ALREADY_EXISTS: &str = "org.bluez.Error.AlreadyExists";
 const AGENT_PATH: &str = "/org/octessera/bluetooth/agent";
 
 type Properties = HashMap<String, OwnedValue>;
@@ -128,7 +129,11 @@ fn connect_device(connection: &Connection, address: &str) -> Result<(), String> 
 fn pair_device(connection: &Connection, address: &str) -> Result<(), String> {
     let device = device(connection, address)?;
     if let Err(failure) = device.call_method("Pair", &()) {
-        if !failure.to_string().contains("AlreadyExists") {
+        let already_paired = matches!(
+            &failure,
+            zbus::Error::MethodError(name, _, _) if name.as_str() == ALREADY_EXISTS
+        );
+        if !already_paired {
             return Err(error(failure));
         }
     }
