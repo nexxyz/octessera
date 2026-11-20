@@ -104,37 +104,31 @@ impl SynthEngine {
         left_out: &mut [f32],
         right_out: &mut [f32],
     ) {
-        if !self.voice_pools_home() {
+        let Some(mut executor) = self.block_slot_scratch.inline_source_executor.take() else {
+            left_out[..frames].fill(0.0);
+            right_out[..frames].fill(0.0);
+            return;
+        };
+        if !self.voice_pools_home() || !executor.prepare(frames) {
+            self.block_slot_scratch.inline_source_executor = Some(executor);
             left_out[..frames].fill(0.0);
             right_out[..frames].fill(0.0);
             return;
         }
         self.advance_instrument_param_glides(frames);
-        {
-            let scratch = &mut self.block_slot_scratch;
-            let executor = scratch
-                .inline_source_executor
-                .as_mut()
-                .expect("inline source executor");
-            assert!(executor.prepare(frames));
-            executor.render_sample_sources(
-                frames,
-                &mut self.sample_voice_pool,
-                SampleSourceContext {
-                    sample_rate: self.sample_rate,
-                },
-                SourceRenderOutput {
-                    slot_out: &mut scratch.sample_slot_out,
-                    slot_active: &mut scratch.sample_active,
-                    active_slots: &mut self.active_sample_slots,
-                },
-            );
-        }
         let scratch = &mut self.block_slot_scratch;
-        let executor = scratch
-            .inline_source_executor
-            .as_mut()
-            .expect("inline source executor");
+        executor.render_sample_sources(
+            frames,
+            &mut self.sample_voice_pool,
+            SampleSourceContext {
+                sample_rate: self.sample_rate,
+            },
+            SourceRenderOutput {
+                slot_out: &mut scratch.sample_slot_out,
+                slot_active: &mut scratch.sample_active,
+                active_slots: &mut self.active_sample_slots,
+            },
+        );
         executor.render_synth_sources(
             frames,
             self.sample_clock,
@@ -153,6 +147,7 @@ impl SynthEngine {
                 active_slots: &mut self.active_synth_slots,
             },
         );
+        scratch.inline_source_executor = Some(executor);
         let signal = self.signal_tap.selected();
         if let Some(SignalSource::Instrument(slot)) = signal {
             let scratch = &self.block_slot_scratch;

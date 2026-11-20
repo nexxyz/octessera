@@ -1,5 +1,7 @@
 use super::super::super::fx_param::{apply_fx_param, FxParamId, FxParamMutation};
-use super::super::super::fx_params::{DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams};
+use super::super::super::fx_params::{
+    DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams, ModDelayKind,
+};
 
 #[test]
 fn fx_param_ids_match_the_exact_camel_case_bridge_names() {
@@ -138,6 +140,7 @@ fn fx_param_bits(params: FxBusParams) -> FxParamBits {
             bits.floats[3] = spread.to_bits();
         }
         FxBusParams::ModDelay {
+            kind,
             rate_hz,
             depth_ms,
             base_ms,
@@ -145,6 +148,11 @@ fn fx_param_bits(params: FxBusParams) -> FxParamBits {
             mix,
         } => {
             bits.variant = 3;
+            bits.integers[0] = match kind {
+                ModDelayKind::Vibrato => 0,
+                ModDelayKind::Chorus => 1,
+                ModDelayKind::Flanger => 2,
+            };
             bits.floats[0] = rate_hz.to_bits();
             bits.floats[1] = depth_ms.to_bits();
             bits.floats[2] = base_ms.to_bits();
@@ -333,6 +341,7 @@ fn representative_params() -> [FxBusParams; 15] {
             spread: 0.4,
         },
         FxBusParams::ModDelay {
+            kind: ModDelayKind::Chorus,
             rate_hz: 1.0,
             depth_ms: 4.0,
             base_ms: 8.0,

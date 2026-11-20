@@ -50,6 +50,13 @@ impl FxKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) enum ModDelayKind {
+    Vibrato,
+    Chorus,
+    Flanger,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum FilterLfoKind {
     FilterLfo,
     Wah,
@@ -81,6 +88,7 @@ pub(super) enum FxBusParams {
         spread: f32,
     },
     ModDelay {
+        kind: ModDelayKind,
         rate_hz: f32,
         depth_ms: f32,
         base_ms: f32,
@@ -169,9 +177,9 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
             mix: ranged("mixPct", FxParamId::MixPct),
             spread: ranged("spreadPct", FxParamId::SpreadPct),
         },
-        FxKind::Vibrato => mod_delay(cfg, ranged, 6.0, 8.0),
-        FxKind::Chorus => mod_delay(cfg, ranged, 14.0, 22.0),
-        FxKind::Flanger => mod_delay(cfg, ranged, 2.0, 3.0),
+        FxKind::Vibrato => mod_delay(cfg, ranged, ModDelayKind::Vibrato, 6.0, 8.0),
+        FxKind::Chorus => mod_delay(cfg, ranged, ModDelayKind::Chorus, 14.0, 22.0),
+        FxKind::Flanger => mod_delay(cfg, ranged, ModDelayKind::Flanger, 2.0, 3.0),
         FxKind::FilterLfo => filter_lfo(ranged, FilterLfoKind::FilterLfo),
         FxKind::Wah => filter_lfo(ranged, FilterLfoKind::Wah),
         FxKind::Reverb => FxBusParams::Reverb {
@@ -238,10 +246,12 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
 fn mod_delay(
     cfg: &FxBusSlotConfig,
     ranged: impl Fn(&str, FxParamId) -> f32,
+    kind: ModDelayKind,
     depth_ms: f32,
     base_ms: f32,
 ) -> FxBusParams {
     FxBusParams::ModDelay {
+        kind,
         rate_hz: ranged("rateHz", FxParamId::RateHz),
         depth_ms: param_f32(cfg, "depthMs", depth_ms).clamp(0.0, 40.0),
         base_ms: param_f32(cfg, "baseMs", base_ms).clamp(0.1, 80.0),

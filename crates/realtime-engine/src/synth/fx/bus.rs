@@ -31,6 +31,7 @@ pub(in crate::synth) fn process_fx_bus_slot(
             base_ms,
             feedback,
             mix,
+            kind: _,
         } => process_mod_delay(
             state,
             input,

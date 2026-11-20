@@ -271,3 +271,17 @@ fn pluck_parameter_ids_are_closed_and_new_values_are_bounded() {
         ScalarMutation::Unchanged
     );
 }
+
+#[test]
+fn pluck_dispersion_that_cannot_be_tuned_plays_the_plain_string_instead_of_panicking() {
+    let config = PluckConfig {
+        dispersion_pct: 100,
+        ..PluckConfig::default()
+    };
+    let mut state = PluckState::note_on(30_000.0, 48_000, 127, 100, config.into());
+    let mut ring = [0.0; RING_LEN];
+
+    assert_eq!(state.dispersion_coefficient, 0.0);
+    assert_eq!(state.delay, 3);
+    assert!((0..64).all(|_| state.next(&mut ring).is_finite()));
+}

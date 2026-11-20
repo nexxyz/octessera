@@ -29,12 +29,21 @@ impl SynthVoicePool {
         }
     }
 
+    #[cfg(any(test, feature = "routing-tree-executor"))]
     pub(super) fn take_partition(&mut self, parity: usize) -> Option<Box<SynthVoicePartition>> {
         let partition = self.partitions.get_mut(parity)?.as_mut()?;
         partition.rebuild_render_lanes(&self.lane_slots);
         self.partitions[parity].take()
     }
 
+    /// A home partition with its render lanes rebuilt, rendered where it lives.
+    pub(super) fn render_partition(&mut self, parity: usize) -> Option<&mut SynthVoicePartition> {
+        let partition = self.partitions.get_mut(parity)?.as_deref_mut()?;
+        partition.rebuild_render_lanes(&self.lane_slots);
+        Some(partition)
+    }
+
+    #[cfg(test)]
     pub(super) fn install_partition(
         &mut self,
         parity: usize,

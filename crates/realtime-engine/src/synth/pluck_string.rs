@@ -82,25 +82,28 @@ impl PluckState {
             ..Self::off()
         };
         state.update_coefficients(freq_hz, settings.decay_ms, settings.brightness_pct);
-        let pick_delay = if settings.dispersion_pct == 0.0 {
-            let delay = (sample_rate as f32 / freq_hz - 0.5).clamp(3.0, (RING_LEN - 2) as f32);
-            let integer = delay.floor() as usize;
-            state.delay = integer;
-            state.fraction = delay - integer as f32;
-            delay
+        let tuning = if settings.dispersion_pct == 0.0 {
+            None
         } else {
-            let tuning = super::pluck_dispersion::tune(
+            super::pluck_dispersion::tune(
                 freq_hz as f64,
                 sample_rate as f64,
                 state.loss as f64,
                 state.brightness as f64,
                 settings.dispersion_pct as f64,
             )
-            .expect("MIDI Plucked tuning must fit the delay ring");
+        };
+        let pick_delay = if let Some(tuning) = tuning {
             state.delay = tuning.delay;
             state.fraction = tuning.fraction;
             state.dispersion_coefficient = tuning.coefficient;
             state.delay as f32 + state.fraction
+        } else {
+            let delay = (sample_rate as f32 / freq_hz - 0.5).clamp(3.0, (RING_LEN - 2) as f32);
+            let integer = delay.floor() as usize;
+            state.delay = integer;
+            state.fraction = delay - integer as f32;
+            delay
         };
         state.pick_offset = ((pick_delay * settings.pick_position_pct.clamp(5.0, 50.0) / 100.0)
             .round() as usize)

@@ -99,7 +99,15 @@ impl MomentaryFxState {
                 PitchStopAction::Ignore => return false,
                 PitchStopAction::Release => {}
             },
-            _ => self.voice.release(),
+            MomentaryFxVoice::Freeze(_)
+            | MomentaryFxVoice::FilterSweep(_)
+            | MomentaryFxVoice::TapeStop(_)
+            | MomentaryFxVoice::Reverse(_)
+            | MomentaryFxVoice::TranceGate(_)
+            | MomentaryFxVoice::DubThrow(_)
+            | MomentaryFxVoice::Wash(_)
+            | MomentaryFxVoice::HpRiser(_)
+            | MomentaryFxVoice::Crush(_) => self.voice.release(),
         }
         self.releasing = true;
         false

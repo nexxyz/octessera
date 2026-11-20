@@ -1,6 +1,7 @@
 use super::*;
 use crate::synth::fx::algorithms::REVERB_COMB_LENGTHS;
 use crate::synth::fx::fx_bus_state_from_params;
+use crate::synth::fx_params::ModDelayKind;
 
 const SAMPLE_RATE: u32 = 48_000;
 
@@ -75,6 +76,7 @@ fn a_delay_between_two_frames_splits_the_impulse_between_them() {
 fn mod_delay_without_depth_is_a_fixed_delay_at_the_base_time() {
     let (feedback, mix) = (0.3, 0.5);
     let params = FxBusParams::ModDelay {
+        kind: ModDelayKind::Chorus,
         rate_hz: 0.8,
         depth_ms: 0.0,
         base_ms: 5.0,
@@ -93,6 +95,7 @@ fn mod_delay_without_depth_is_a_fixed_delay_at_the_base_time() {
 fn vibrato_delay_time_follows_the_lfo_between_base_and_base_plus_depth() {
     let (rate_hz, base_ms, depth_ms) = (5.0, 2.0, 4.0);
     let params = FxBusParams::ModDelay {
+        kind: ModDelayKind::Vibrato,
         rate_hz,
         depth_ms,
         base_ms,

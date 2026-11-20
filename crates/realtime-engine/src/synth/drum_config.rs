@@ -47,7 +47,7 @@ impl DrumSound {
             Self::Snare => (3.0, 25.0),
             Self::LowTom => (8.0, 70.0),
             Self::HighTom => (6.0, 50.0),
-            _ => (0.0, 0.0),
+            Self::ClosedHat | Self::OpenHat | Self::Clap | Self::Rim => (0.0, 0.0),
         }
     }
 

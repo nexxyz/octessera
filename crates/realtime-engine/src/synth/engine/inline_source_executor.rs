@@ -58,18 +58,17 @@ impl InlineSourceExecutor {
     ) {
         let mut sum = SlotBlockSum::new(output.slot_out);
         for parity in 0..VOICE_PARTITION_COUNT {
-            let Some(mut partition) = pool.take_partition(parity) else {
+            let Some(partition) = pool.render_partition(parity) else {
                 continue;
             };
             sum_synth_partition(
-                &mut partition,
+                partition,
                 frames,
                 base_sample_clock,
                 &context,
                 &mut self.voice_block,
                 &mut sum,
             );
-            assert!(pool.install_partition(parity, partition).is_ok());
         }
         for slot in 0..INSTRUMENT_SLOT_COUNT {
             pool.compact_slot_lanes(slot);
@@ -91,17 +90,16 @@ impl InlineSourceExecutor {
     ) {
         let mut sum = SlotBlockSum::new(output.slot_out);
         for parity in 0..VOICE_PARTITION_COUNT {
-            let Some(mut partition) = pool.take_partition(parity) else {
+            let Some(partition) = pool.render_partition(parity) else {
                 continue;
             };
             sum_sample_partition(
-                &mut partition,
+                partition,
                 frames,
                 context.sample_rate,
                 &mut self.voice_block,
                 &mut sum,
             );
-            assert!(pool.install_partition(parity, partition).is_ok());
         }
         for slot in 0..INSTRUMENT_SLOT_COUNT {
             pool.compact_slot_lanes(slot);

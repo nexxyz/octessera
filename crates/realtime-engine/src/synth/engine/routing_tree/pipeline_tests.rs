@@ -194,6 +194,38 @@ fn routing_tree_worker_exit_latches_terminal_health() {
 }
 
 #[test]
+fn routing_tree_missing_output_spares_latch_a_fault_and_render_silence() {
+    let (mut engine, lifecycle, mut runtime) = start_runtime();
+    engine.note_on(0, 60, 100, 500);
+    assert_eq!(
+        render_block(&mut engine, &mut runtime),
+        SourceWorkerRenderDisposition::Fresh
+    );
+    runtime.drop_routing_output_spares_for_test();
+
+    let mut left = vec![0.0; 128];
+    let mut right = vec![0.0; 128];
+    let mut out = vec![1.0; 256];
+    assert_eq!(
+        engine.render_interleaved_block_with_source_runtime(
+            &mut runtime,
+            128,
+            &mut left,
+            &mut right,
+            &mut out
+        ),
+        SourceWorkerRenderDisposition::Fatal
+    );
+    assert!(out.iter().all(|sample| *sample == 0.0));
+    assert_eq!(
+        runtime.health_snapshot().status,
+        SourceWorkerHealth::CompletionFailed
+    );
+
+    shutdown(lifecycle, runtime);
+}
+
+#[test]
 fn routing_tree_completion_disconnect_latches_terminal_health() {
     let (mut engine, lifecycle, mut runtime) = start_runtime();
     assert_eq!(

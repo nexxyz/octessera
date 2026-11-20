@@ -87,7 +87,12 @@ impl InstrumentGlideParam {
             Self::FmIndex => (0.0, 4.0),
             Self::FmVelocityToIndex | Self::FmModShape | Self::FmModMix => (0.0, 1.0),
             Self::PluckDecay => (100.0, 5_000.0),
-            _ => (0.0, 100.0),
+            Self::Osc1Level
+            | Self::Osc2Level
+            | Self::AmpGain
+            | Self::AmpVelocitySensitivity
+            | Self::FilterKeyTracking
+            | Self::PluckBrightness => (0.0, 100.0),
         }
     }
 

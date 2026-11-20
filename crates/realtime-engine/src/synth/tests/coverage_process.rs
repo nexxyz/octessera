@@ -3,7 +3,9 @@ use super::super::fx::{
     master_fx_state_matches_params, process_fx_bus_slot, process_master_fx_slot, FxBusState,
     MasterFxState,
 };
-use super::super::fx_params::{DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams};
+use super::super::fx_params::{
+    DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams, ModDelayKind,
+};
 
 #[test]
 fn fx_state_factories_and_matchers_cover_supported_variants() {
@@ -20,6 +22,7 @@ fn fx_state_factories_and_matchers_cover_supported_variants() {
             spread: 0.0,
         },
         FxBusParams::ModDelay {
+            kind: ModDelayKind::Chorus,
             rate_hz: 0.5,
             depth_ms: 3.0,
             base_ms: 8.0,
@@ -175,6 +178,7 @@ fn process_fx_paths_stay_finite_across_bus_and_master_slots() {
             spread: 0.0,
         },
         FxBusParams::ModDelay {
+            kind: ModDelayKind::Chorus,
             rate_hz: 0.7,
             depth_ms: 4.0,
             base_ms: 8.0,

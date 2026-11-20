@@ -1,4 +1,4 @@
-use super::fx_params::{FilterLfoKind, FxBusParams, FxKind};
+use super::fx_params::{FilterLfoKind, FxBusParams, FxKind, ModDelayKind};
 use serde::{Deserialize, Serialize};
 
 pub use super::scalar_param::ScalarMutation as FxParamMutation;
@@ -160,13 +160,23 @@ pub(super) fn clamp_fx_param(id: FxParamId, (min, max, _): (f32, f32, f32), valu
     }
 }
 
-const fn ranged_fx_kind(params: &FxBusParams) -> FxKind {
+pub(super) const fn ranged_fx_kind(params: &FxBusParams) -> FxKind {
     match params {
         FxBusParams::None => FxKind::None,
         FxBusParams::Tremolo { .. } => FxKind::Tremolo,
         FxBusParams::Delay { .. } => FxKind::Delay,
-        // Vibrato, Chorus and Flanger share every range; only their defaults differ.
-        FxBusParams::ModDelay { .. } => FxKind::Chorus,
+        FxBusParams::ModDelay {
+            kind: ModDelayKind::Vibrato,
+            ..
+        } => FxKind::Vibrato,
+        FxBusParams::ModDelay {
+            kind: ModDelayKind::Chorus,
+            ..
+        } => FxKind::Chorus,
+        FxBusParams::ModDelay {
+            kind: ModDelayKind::Flanger,
+            ..
+        } => FxKind::Flanger,
         FxBusParams::FilterLfo {
             kind: FilterLfoKind::FilterLfo,
             ..

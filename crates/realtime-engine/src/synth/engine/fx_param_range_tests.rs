@@ -1,4 +1,6 @@
-use super::super::super::fx_param::{apply_fx_param, fx_param_range, FxParamId, FxParamMutation};
+use super::super::super::fx_param::{
+    apply_fx_param, fx_param_range, ranged_fx_kind, FxParamId, FxParamMutation,
+};
 use super::super::super::fx_params::{compile_fx_bus_params, FxKind};
 use super::super::super::types::FxBusSlotConfig;
 
@@ -143,5 +145,14 @@ fn compile_and_live_apply_share_every_range() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn compiled_params_keep_the_kind_their_ranges_come_from() {
+    for kind_name in KINDS {
+        let kind = FxKind::parse(kind_name).unwrap();
+        let params = compile_fx_bus_params(&FxBusSlotConfig::Kind(kind_name.into()));
+        assert_eq!(ranged_fx_kind(&params), kind, "{kind_name}");
     }
 }

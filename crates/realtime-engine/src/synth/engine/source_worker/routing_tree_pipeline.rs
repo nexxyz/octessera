@@ -102,10 +102,10 @@ impl SourceWorkerRuntime {
             return self.routing_tree_failure_disposition();
         }
         engine.advance_dispatched_mix_gain_ramps(frames);
-        let outputs = self
-            .routing_output_spares
-            .as_ref()
-            .expect("routing-tree output spares");
+        let Some(outputs) = self.routing_output_spares.as_ref() else {
+            self.latch_invalid_block();
+            return SourceWorkerRenderDisposition::Fatal;
+        };
         let Some(_output_stamp) = self.routing_output_stamp else {
             self.latch_completion_failure(0b11);
             return SourceWorkerRenderDisposition::Fatal;
@@ -272,19 +272,19 @@ impl SourceWorkerRuntime {
             self.latch_completion_failure(0b11);
             return None;
         }
+        let Some(spares) = self.routing_output_spares.as_mut() else {
+            first.return_fault();
+            second.return_fault();
+            self.latch_completion_failure(0b11);
+            return None;
+        };
         std::mem::swap(
             &mut first.owner.as_mut()?.routing_tree.as_mut()?.output,
-            &mut self
-                .routing_output_spares
-                .as_mut()
-                .expect("routing-tree output spares")[0],
+            &mut spares[0],
         );
         std::mem::swap(
             &mut second.owner.as_mut()?.routing_tree.as_mut()?.output,
-            &mut self
-                .routing_output_spares
-                .as_mut()
-                .expect("routing-tree output spares")[1],
+            &mut spares[1],
         );
         first.return_home();
         second.return_home();

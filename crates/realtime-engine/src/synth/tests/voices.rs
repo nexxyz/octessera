@@ -147,9 +147,14 @@ fn cc_updates_mod_slots_without_all_notes_off_semantics() {
 }
 
 #[test]
-fn note_on_clamps_slot_and_velocity() {
+fn note_on_rejects_a_slot_past_the_last_and_keeps_a_zero_velocity_note() {
     let mut engine = SynthEngine::new(48_000);
     engine.note_on(200, 60, 0, 1_000);
+    assert_eq!(
+        engine.active_voice_count_for_slot(INSTRUMENT_SLOT_COUNT - 1),
+        0
+    );
+    engine.note_on(INSTRUMENT_SLOT_COUNT as u8 - 1, 60, 0, 1_000);
     assert_eq!(
         engine.active_voice_count_for_slot(INSTRUMENT_SLOT_COUNT - 1),
         1

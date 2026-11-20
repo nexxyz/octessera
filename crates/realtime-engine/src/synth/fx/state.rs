@@ -195,7 +195,18 @@ pub(in crate::synth) fn master_fx_state_from_params(params: &FxBusParams) -> Mas
             right: Box::new(EqChannelState::new()),
         },
         FxBusParams::Vinyl { .. } => MasterFxState::Vinyl(VinylState::new()),
-        _ => MasterFxState::None,
+        FxBusParams::None
+        | FxBusParams::Saturator { .. }
+        | FxBusParams::Distortion { .. }
+        | FxBusParams::Tremolo { .. }
+        | FxBusParams::Delay { .. }
+        | FxBusParams::ModDelay { .. }
+        | FxBusParams::FilterLfo { .. }
+        | FxBusParams::Reverb { .. }
+        | FxBusParams::Glitch { .. }
+        | FxBusParams::AutoPan { .. }
+        | FxBusParams::Duck { .. }
+        | FxBusParams::Bitcrusher { .. } => MasterFxState::None,
     }
 }
 

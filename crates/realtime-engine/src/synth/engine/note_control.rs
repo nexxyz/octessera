@@ -162,7 +162,12 @@ impl SynthEngine {
                 }
                 self.sample_voice_on(slot, usize::from(voice), Some(tile), pitch_cents, velocity);
             }
-            _ => {}
+            InstrumentKind::Drum
+            | InstrumentKind::Synth
+            | InstrumentKind::Fm
+            | InstrumentKind::Pluck
+            | InstrumentKind::Midi
+            | InstrumentKind::None => {}
         }
     }
 
@@ -174,6 +179,10 @@ impl SynthEngine {
         duration_ms: u32,
         drum: Option<(DrumVoiceConfig, i16)>,
     ) {
+        let slot = usize::from(instrument_slot);
+        if slot >= INSTRUMENT_SLOT_COUNT {
+            return;
+        }
         #[cfg(feature = "routing-tree-executor")]
         if self.routing_tree_assignment.is_some() {
             self.routing_tree_mark_note_event();
@@ -181,7 +190,6 @@ impl SynthEngine {
         if !self.voice_pools_home() {
             return;
         }
-        let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
         let event_sample_clock =
             self.event_block_sample_clock() + u64::from(self.event_frame_offset);
         if self.slot_kind[slot] == InstrumentKind::Sample && drum.is_none() {
@@ -364,8 +372,8 @@ impl SynthEngine {
     }
 
     pub fn cc(&mut self, instrument_slot: u8, controller: u8, value: u8) {
-        let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
-        if self.slot_kind[slot] == InstrumentKind::None {
+        let slot = usize::from(instrument_slot);
+        if slot >= INSTRUMENT_SLOT_COUNT || self.slot_kind[slot] == InstrumentKind::None {
             return;
         }
         if controller == 74 {
@@ -376,10 +384,10 @@ impl SynthEngine {
     }
 
     pub fn note_off(&mut self, instrument_slot: u8, midi_note: u8) {
-        if !self.voice_pools_home() {
+        let slot = usize::from(instrument_slot);
+        if slot >= INSTRUMENT_SLOT_COUNT || !self.voice_pools_home() {
             return;
         }
-        let slot = (instrument_slot as usize).min(INSTRUMENT_SLOT_COUNT - 1);
         if self.slot_kind[slot] == InstrumentKind::Drum {
             return;
         }

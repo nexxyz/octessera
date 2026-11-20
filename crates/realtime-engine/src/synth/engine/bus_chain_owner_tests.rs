@@ -1,6 +1,8 @@
 use super::super::dsp_config::{BusIdleThreshold, DspRuntimeConfig};
 use super::super::fx::{fx_bus_state_from_params, process_fx_bus_slot, FxBusState};
-use super::super::fx_params::{DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams, FxKind};
+use super::super::fx_params::{
+    DuckSource, DuckSourceTap, FilterLfoKind, FxBusParams, FxKind, ModDelayKind,
+};
 use super::super::types::{
     default_synth_config, FxBusConfig, FxBusSlotConfig, InstrumentMixerConfig,
     InstrumentSlotConfig, InstrumentsConfig, MixerConfig, BUS_SLOTS_PER_BUS, DEFAULT_PAN_POSITIONS,
@@ -68,6 +70,7 @@ fn every_persistent_fx_owner_path_is_bit_exact_to_the_slot_kernel() {
             spread: 0.7,
         },
         FxBusParams::ModDelay {
+            kind: ModDelayKind::Chorus,
             rate_hz: 0.5,
             depth_ms: 3.0,
             base_ms: 8.0,

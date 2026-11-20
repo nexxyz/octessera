@@ -12,6 +12,10 @@ impl SourceWorkerRuntime {
             .map(|output| (output.left[frame], output.right[frame]))
     }
 
+    pub(crate) fn drop_routing_output_spares_for_test(&mut self) {
+        self.routing_output_spares = None;
+    }
+
     pub(crate) fn collect_wait_for_test(&mut self, engine: &mut SynthEngine) -> bool {
         self.collect_routing_tree_or_recovery(engine, true)
     }

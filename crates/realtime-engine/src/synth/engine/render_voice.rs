@@ -162,7 +162,9 @@ pub(super) fn refresh_synth_voice_render_cache(
             (voice.freq_hz * effective_ratio / sample_rate as f32).clamp(0.0, 0.5),
         ),
         VoiceSource::Pluck { .. } | VoiceSource::Drum => (0.0, 0.0),
-        _ => cfg.osc_increments(voice.freq_hz, sample_rate),
+        VoiceSource::Synth | VoiceSource::Disabled => {
+            cfg.osc_increments(voice.freq_hz, sample_rate)
+        }
     };
     voice.osc1_inc = osc1_inc;
     voice.osc2_inc = osc2_inc;

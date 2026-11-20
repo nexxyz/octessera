@@ -1,5 +1,5 @@
 use super::super::super::fx_param::{apply_fx_param, FxParamId, FxParamMutation};
-use super::super::super::fx_params::FxBusParams;
+use super::super::super::fx_params::{FxBusParams, ModDelayKind};
 
 #[test]
 fn fx_param_id_is_a_closed_camel_case_whitelist() {
@@ -46,6 +46,7 @@ fn every_whitelisted_fx_param_has_owned_clamping_and_compatibility() {
     assert_rejected(&mut delay, FxParamId::RateHz);
 
     let mut mod_delay = FxBusParams::ModDelay {
+        kind: ModDelayKind::Chorus,
         rate_hz: 1.0,
         depth_ms: 4.0,
         base_ms: 8.0,

@@ -1,4 +1,6 @@
-use super::super::super::fx_params::{DuckSource, FilterLfoKind, FxBusParams, FxKind};
+use super::super::super::fx_params::{
+    DuckSource, FilterLfoKind, FxBusParams, FxKind, ModDelayKind,
+};
 use super::super::super::types::{BUS_COUNT, BUS_SLOTS_PER_BUS, INSTRUMENT_SLOT_COUNT};
 use super::super::render_plan::RenderPlanRoute;
 use super::super::SynthEngine;
@@ -114,9 +116,28 @@ fn fx_slot_matches(kind: FxKind, duck_source: Option<DuckSource>, params: FxBusP
         | (FxKind::Eq, None, FxBusParams::Eq { .. })
         | (FxKind::Vinyl, None, FxBusParams::Vinyl { .. }) => true,
         (
-            FxKind::Vibrato | FxKind::Chorus | FxKind::Flanger,
+            FxKind::Vibrato,
             None,
-            FxBusParams::ModDelay { .. },
+            FxBusParams::ModDelay {
+                kind: ModDelayKind::Vibrato,
+                ..
+            },
+        )
+        | (
+            FxKind::Chorus,
+            None,
+            FxBusParams::ModDelay {
+                kind: ModDelayKind::Chorus,
+                ..
+            },
+        )
+        | (
+            FxKind::Flanger,
+            None,
+            FxBusParams::ModDelay {
+                kind: ModDelayKind::Flanger,
+                ..
+            },
         ) => true,
         (
             FxKind::FilterLfo,

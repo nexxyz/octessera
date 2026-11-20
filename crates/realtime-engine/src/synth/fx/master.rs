@@ -92,6 +92,14 @@ pub(in crate::synth) fn process_master_fx_slot(
                 sample_rate,
             )
         }
-        _ => (left, right),
+        FxBusParams::Tremolo { .. }
+        | FxBusParams::Delay { .. }
+        | FxBusParams::ModDelay { .. }
+        | FxBusParams::FilterLfo { .. }
+        | FxBusParams::Reverb { .. }
+        | FxBusParams::Glitch { .. }
+        | FxBusParams::AutoPan { .. }
+        | FxBusParams::Duck { .. }
+        | FxBusParams::Bitcrusher { .. } => (left, right),
     }
 }

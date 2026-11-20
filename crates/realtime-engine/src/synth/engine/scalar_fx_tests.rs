@@ -1,5 +1,6 @@
 use super::super::fx::{fx_bus_state_from_params, FxBusState, MasterFxState};
 use super::super::fx_param::{FxParamId, FxParamMutation};
+use super::super::fx_params::ModDelayKind;
 
 #[test]
 fn scalar_mutation_preserves_render_and_state_identity_without_allocation() {
@@ -189,6 +190,7 @@ fn prepared_delay_geometry_grows_and_declines_without_callback_resize() {
     assert_geometry_replacement(large, small, true);
 
     let small = FxBusParams::ModDelay {
+        kind: ModDelayKind::Chorus,
         rate_hz: 0.8,
         depth_ms: 4.0,
         base_ms: 8.0,
@@ -196,6 +198,7 @@ fn prepared_delay_geometry_grows_and_declines_without_callback_resize() {
         mix: 0.3,
     };
     let large = FxBusParams::ModDelay {
+        kind: ModDelayKind::Chorus,
         rate_hz: 0.8,
         depth_ms: 20.0,
         base_ms: 30.0,
