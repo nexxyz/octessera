@@ -1,8 +1,8 @@
-use super::menu_apply_fast::value_changed;
-use super::{
+use super::super::{
     set_json_path_number, set_json_path_string, value_i32_at, value_string_at,
     NativeInstrumentSlot, NativeRunner,
 };
+use super::fast::value_changed;
 use crate::native_menu::{
     NativeMenuModel, NativeSamplePlayback, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
 };

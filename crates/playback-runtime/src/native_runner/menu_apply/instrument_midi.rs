@@ -1,4 +1,4 @@
-use super::{NativeInstrumentSlot, NativeMenuModel};
+use super::super::{NativeInstrumentSlot, NativeMenuModel};
 
 pub(super) fn apply_midi_menu_fields(
     menu: &NativeMenuModel,

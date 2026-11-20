@@ -1,4 +1,4 @@
-use super::NativeRunner;
+use super::super::NativeRunner;
 
 impl NativeRunner {
     pub(super) fn apply_behavior_config_menu_key_fast(&mut self, key: &str) -> Option<bool> {

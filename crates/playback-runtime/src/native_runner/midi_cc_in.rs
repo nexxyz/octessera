@@ -224,11 +224,11 @@ impl NativeRunner {
             "cc" => {
                 let cc = u8::try_from(self.menu.number_for_key(key)?.clamp(0, 127))
                     .expect("clamped CC fits u8");
-                super::menu_apply_fast::value_changed(&mut self.midi_cc_mappings[slot].cc, cc)
+                super::menu_apply::fast::value_changed(&mut self.midi_cc_mappings[slot].cc, cc)
             }
             "channel" => {
                 let channel = channel_from_menu(&self.menu.value_for_key(key)?);
-                super::menu_apply_fast::value_changed(
+                super::menu_apply::fast::value_changed(
                     &mut self.midi_cc_mappings[slot].channel,
                     channel,
                 )

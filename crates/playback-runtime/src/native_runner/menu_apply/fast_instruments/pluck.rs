@@ -1,4 +1,4 @@
-use super::super::{
+use super::super::super::{
     cutoff_display_to_hz, cutoff_hz_to_display, set_json_path_number, set_json_path_string,
     value_i32_at, value_string_at, NativeRunner,
 };
@@ -50,7 +50,7 @@ pub(super) fn apply_pluck_menu_key(
     Some(true)
 }
 
-pub(in super::super) fn numeric_field(field: &str) -> Option<(&[&str], i32, i32)> {
+pub(in crate::native_runner) fn numeric_field(field: &str) -> Option<(&[&str], i32, i32)> {
     let (path, range): (&[&str], (i32, i32)) = match field {
         "decayMs" => (&["decayMs"], (100, 5000)),
         "brightnessPct" => (&["brightnessPct"], (0, 100)),

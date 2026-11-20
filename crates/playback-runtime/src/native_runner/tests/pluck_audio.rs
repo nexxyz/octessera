@@ -149,7 +149,7 @@ fn pluck_scalar_paths_and_ranges_match_dsp_typed_ids() {
             "{path}"
         );
         assert_eq!(
-            super::super::menu_apply_fast_instruments::pluck::numeric_field(suffix)
+            super::super::menu_apply::fast_instruments::pluck::numeric_field(suffix)
                 .map(|(_, low, high)| (low, high)),
             Some((min, max))
         );

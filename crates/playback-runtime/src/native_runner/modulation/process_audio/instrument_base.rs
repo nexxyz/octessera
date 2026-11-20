@@ -1,5 +1,5 @@
 use super::super::super::{
-    cutoff_hz_to_display, menu_apply_fast_instruments, synth_i32_at, synth_scalar_field,
+    cutoff_hz_to_display, menu_apply::fast_instruments, synth_i32_at, synth_scalar_field,
     NativeInstrumentSlot, Value,
 };
 
@@ -8,7 +8,7 @@ pub(super) fn instrument_numeric_value(
     field: &str,
 ) -> Option<f64> {
     if let Some(field) = field.strip_prefix("fm.") {
-        let (path, _, _) = menu_apply_fast_instruments::fm::numeric_field(field)?;
+        let (path, _, _) = fast_instruments::fm::numeric_field(field)?;
         let stored = json_number(&instrument.fm_config, path)?;
         return Some(if field == "filter.cutoffHz" {
             f64::from(cutoff_hz_to_display(stored as i32))
@@ -17,7 +17,7 @@ pub(super) fn instrument_numeric_value(
         });
     }
     if let Some(field) = field.strip_prefix("pluck.") {
-        let (path, _, _) = menu_apply_fast_instruments::pluck::numeric_field(field)?;
+        let (path, _, _) = fast_instruments::pluck::numeric_field(field)?;
         let stored = json_number(&instrument.pluck_config, path)?;
         return Some(if field == "filter.cutoffHz" {
             f64::from(cutoff_hz_to_display(stored as i32))

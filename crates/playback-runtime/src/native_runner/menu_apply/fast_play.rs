@@ -1,6 +1,6 @@
-use super::menu_apply_fast::value_changed;
-use super::play_pages::{ActivePlayMode, PlayMode};
-use super::NativeRunner;
+use super::super::play_pages::{ActivePlayMode, PlayMode};
+use super::super::NativeRunner;
+use super::fast::value_changed;
 
 impl NativeRunner {
     pub(super) fn fast_xy_release_menu_key(&mut self) -> bool {
@@ -20,7 +20,7 @@ impl NativeRunner {
         let Some(value) = self.menu.number_for_key("play.xy.smoothingMs") else {
             return false;
         };
-        let value = super::normalize_xy_smoothing_ms(value.max(0) as u64);
+        let value = super::super::normalize_xy_smoothing_ms(value.max(0) as u64);
         if value_changed(&mut self.xy.smoothing_ms, value) {
             if self.set_xy_smoothing_ms_at(u64::from(value), std::time::Instant::now()) {
                 if let Err(error) = self.process_dirty_modulation_step(false) {

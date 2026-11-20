@@ -1,11 +1,11 @@
 use crate::timing_units::note_unit_to_pulses;
 
-use super::NativeRunner;
+use super::super::NativeRunner;
 
 impl NativeRunner {
     pub(super) fn apply_layer_menu_key_fast(&mut self, key: &str) -> Option<bool> {
         let rest = key.strip_prefix("layers.")?;
-        let (index, suffix) = super::menu_apply_fast_values::parse_indexed_key(rest)?;
+        let (index, suffix) = super::fast_values::parse_indexed_key(rest)?;
         match suffix {
             "algorithmStep" => Some(self.fast_layer_algorithm_step_key(index, key)),
             "autoName" => Some(self.fast_layer_auto_name_key(index, key)),
@@ -48,8 +48,8 @@ impl NativeRunner {
         }
         if auto_name {
             let previous_label = format!("L{}: {}", index + 1, layer.name);
-            let label = super::behavior_menu::behavior_display_label(&layer.behavior_id);
-            if super::menu_apply_fast::value_changed(&mut layer.name, label) {
+            let label = super::super::behavior_menu::behavior_display_label(&layer.behavior_id);
+            if super::fast::value_changed(&mut layer.name, label) {
                 changed = true;
                 self.update_layer_menu_label(index, Some(&previous_label));
             }

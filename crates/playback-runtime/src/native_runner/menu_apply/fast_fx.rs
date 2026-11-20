@@ -1,6 +1,6 @@
-use super::menu_apply_fast_values::parse_indexed_key;
-use super::play_fx_config::PlayFxConfig;
-use super::NativeRunner;
+use super::super::play_fx_config::PlayFxConfig;
+use super::super::NativeRunner;
+use super::fast_values::parse_indexed_key;
 use crate::native_menu::FX_BUSES_LABEL;
 
 impl NativeRunner {
@@ -30,7 +30,7 @@ impl NativeRunner {
         true
     }
 
-    pub(super) fn apply_deferred_menu_key_fast(&mut self, key: &str) -> bool {
+    pub(in crate::native_runner) fn apply_deferred_menu_key_fast(&mut self, key: &str) -> bool {
         if self.apply_deferred_text_key(key) {
             return true;
         }

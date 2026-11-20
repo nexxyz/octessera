@@ -23,7 +23,7 @@ pub(in crate::native_runner) fn apply_instrument_numeric_binding_value(
         }
         field if field.starts_with("fm.") => {
             let Some((path, min, max)) =
-                super::super::menu_apply_fast_instruments::fm::numeric_field(&field[3..])
+                super::super::menu_apply::fast_instruments::fm::numeric_field(&field[3..])
             else {
                 return false;
             };
@@ -37,7 +37,7 @@ pub(in crate::native_runner) fn apply_instrument_numeric_binding_value(
         }
         field if field.starts_with("pluck.") => {
             let Some((path, min, max)) =
-                super::super::menu_apply_fast_instruments::pluck::numeric_field(&field[6..])
+                super::super::menu_apply::fast_instruments::pluck::numeric_field(&field[6..])
             else {
                 return false;
             };

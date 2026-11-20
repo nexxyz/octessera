@@ -220,7 +220,7 @@ pub(in crate::native_runner) fn materialize_endpoint(
             let bus = runner.fx_buses.get(*bus_index)?;
             let (fx_type, persistent) = bus.slot(*slot)?;
             let mut params =
-                super::super::menu_apply_fast_fx_bus::audio_params_for_fx(fx_type, persistent);
+                super::super::menu_apply::fast_fx_bus::audio_params_for_fx(fx_type, persistent);
             let prefix = format!("mixer.buses.{bus_index}.slot{}.params.", slot + 1);
             for (key, value) in values {
                 if let Some(field) = key.strip_prefix(&prefix) {
@@ -242,7 +242,7 @@ pub(in crate::native_runner) fn materialize_endpoint(
             let fx_type = runner.global_fx_slots.get(*slot)?;
             let persistent = runner.global_fx_params.get(*slot)?;
             let mut params =
-                super::super::menu_apply_fast_fx_bus::audio_params_for_fx(fx_type, persistent);
+                super::super::menu_apply::fast_fx_bus::audio_params_for_fx(fx_type, persistent);
             let prefix = format!("mixer.master.slots.{slot}.params.");
             for (key, value) in values {
                 if let Some(field) = key.strip_prefix(&prefix) {

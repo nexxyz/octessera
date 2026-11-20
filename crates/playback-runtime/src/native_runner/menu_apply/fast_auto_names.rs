@@ -1,5 +1,5 @@
-use super::menu_apply_fast_values::parse_indexed_key;
-use super::{derive_bus_name, derive_instrument_name, NativeRunner};
+use super::super::{derive_bus_name, derive_instrument_name, NativeRunner};
+use super::fast_values::parse_indexed_key;
 use crate::native_menu::FX_BUSES_LABEL;
 
 impl NativeRunner {

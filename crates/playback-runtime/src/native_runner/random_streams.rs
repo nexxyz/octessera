@@ -1,4 +1,4 @@
-use super::menu_apply_fast_values::parse_indexed_key;
+use super::menu_apply::fast_values::parse_indexed_key;
 use super::{NativeRunner, Value, LAYER_COUNT};
 use platform_core::{stream_seed, RANDOM_DOMAIN_BUILD, RANDOM_DOMAIN_LINK};
 

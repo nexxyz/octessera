@@ -1,12 +1,12 @@
-use super::play_fx_config::{play_fx_param_specs, PlayFxConfig};
-use super::{
+use super::super::play_fx_config::{play_fx_param_specs, PlayFxConfig};
+use super::super::{
     apply_value_lane_menu_state, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
     set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, set_wire_from_menu,
     ArpMode, ArpSource, NativeLinkLayer, NativeRunner, RangeMode, ScanAxis, ScanDirection,
     ScanMode, TriggerAction, TriggerProbabilityMode,
 };
 impl NativeRunner {
-    pub(super) fn apply_play_fx_menu_state(&mut self) -> bool {
+    pub(in crate::native_runner) fn apply_play_fx_menu_state(&mut self) -> bool {
         let before = self.play_fx_selected.clone();
         let fx_type = self
             .menu
@@ -112,7 +112,7 @@ fn changed_set_u16(
 
 pub(super) fn apply_link_scan_and_mapping_menu_state(
     menu: &crate::native_menu::NativeMenuModel,
-    layer: &mut super::NativeLinkLayer,
+    layer: &mut super::super::NativeLinkLayer,
     prefix: &str,
 ) -> bool {
     let mut changed = false;
@@ -271,7 +271,7 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
 
 pub(super) fn apply_link_probability_and_pitch_menu_state(
     menu: &crate::native_menu::NativeMenuModel,
-    layer: &mut super::NativeLinkLayer,
+    layer: &mut super::super::NativeLinkLayer,
     prefix: &str,
 ) -> bool {
     let mut changed = false;
@@ -330,7 +330,7 @@ pub(super) fn apply_link_probability_and_pitch_menu_state(
 
 pub(super) fn apply_link_axis_menu_state(
     menu: &crate::native_menu::NativeMenuModel,
-    layer: &mut super::NativeLinkLayer,
+    layer: &mut super::super::NativeLinkLayer,
     prefix: &str,
     axis: &str,
 ) -> bool {
@@ -406,8 +406,8 @@ pub(super) fn apply_link_axis_menu_state(
 }
 
 pub(super) fn apply_link_lfo_slot_menu_state(
-    menu: &super::NativeMenuModel,
-    lfo: &mut super::NativeLinkLfo,
+    menu: &super::super::NativeMenuModel,
+    lfo: &mut super::super::NativeLinkLfo,
     prefix: &str,
 ) -> bool {
     let mut changed = false;
@@ -419,7 +419,7 @@ pub(super) fn apply_link_lfo_slot_menu_state(
     if lfo
         .target
         .as_ref()
-        .is_some_and(|target| !super::modulation::is_live_link_lfo_target(&target.key))
+        .is_some_and(|target| !super::super::modulation::is_live_link_lfo_target(&target.key))
     {
         lfo.target = None;
         lfo.enabled = false;

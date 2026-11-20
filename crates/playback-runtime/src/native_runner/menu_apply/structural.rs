@@ -1,5 +1,5 @@
-use super::grid_assign::GridAssign;
-use super::{derive_instrument_name, InstrumentType, MixerRoute, NativeRunner};
+use super::super::grid_assign::GridAssign;
+use super::super::{derive_instrument_name, InstrumentType, MixerRoute, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn commit_behavior_structural_draft(&mut self) -> Result<(), String> {
@@ -20,7 +20,10 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn select_behavior(&mut self, behavior_id: &str) -> Result<(), String> {
+    pub(in crate::native_runner) fn select_behavior(
+        &mut self,
+        behavior_id: &str,
+    ) -> Result<(), String> {
         let previous_layer_label = self
             .layers
             .get(self.active_layer_index)
@@ -36,7 +39,7 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn select_layer_behavior(
+    pub(in crate::native_runner) fn select_layer_behavior(
         &mut self,
         layer_index: usize,
         behavior_id: &str,
@@ -95,7 +98,7 @@ impl NativeRunner {
             .replace_group_children_containing_direct_key("behaviorId", &children);
     }
 
-    pub(super) fn update_layer_build_menu_items(&mut self, layer_index: usize) {
+    pub(in crate::native_runner) fn update_layer_build_menu_items(&mut self, layer_index: usize) {
         let Some(layer) = self.layers.get(layer_index) else {
             return;
         };
@@ -159,7 +162,11 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn set_instrument_route(&mut self, index: usize, route: MixerRoute) -> bool {
+    pub(in crate::native_runner) fn set_instrument_route(
+        &mut self,
+        index: usize,
+        route: MixerRoute,
+    ) -> bool {
         let Some(instrument) = self.instruments.get_mut(index) else {
             return false;
         };

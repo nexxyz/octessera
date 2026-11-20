@@ -2,12 +2,12 @@ use crate::native_runner::InstrumentType;
 use crate::protocol::RuntimeAudioCommand;
 use platform_core::NoteBehavior;
 
-use super::menu_apply_fast_values::*;
-use super::NativeRunner;
+use super::super::NativeRunner;
+use super::fast_values::*;
 
 mod drum;
-pub(super) mod fm;
-pub(super) mod pluck;
+pub(in crate::native_runner) mod fm;
+pub(in crate::native_runner) mod pluck;
 
 impl NativeRunner {
     pub(super) fn apply_instrument_menu_key_fast(&mut self, key: &str) -> Option<bool> {
@@ -84,7 +84,7 @@ impl NativeRunner {
             suffix if suffix.starts_with("sample.") => {
                 return Some(self.fast_full_instrument_sample_key(index, key));
             }
-            suffix if super::synth_scalar_field(suffix).is_some() => {
+            suffix if super::super::synth_scalar_field(suffix).is_some() => {
                 self.fast_instrument_synth_number_key(index, number_value, suffix)
             }
             suffix if suffix.starts_with("synth.") => {
@@ -127,9 +127,7 @@ impl NativeRunner {
             let Some(instrument) = self.instruments.get_mut(index) else {
                 return false;
             };
-            super::menu_apply_instrument_synth::apply_synth_menu_fields(
-                &self.menu, index, instrument,
-            )
+            super::instrument_synth::apply_synth_menu_fields(&self.menu, index, instrument)
         };
         if changed {
             self.commit_full_configuration_runtime_plan();
@@ -166,9 +164,8 @@ impl NativeRunner {
                 return false;
             };
             let route = (instrument.midi_enabled, instrument.midi_channel);
-            let changed = super::menu_apply_instrument_midi::apply_midi_menu_fields(
-                &self.menu, index, instrument,
-            );
+            let changed =
+                super::instrument_midi::apply_midi_menu_fields(&self.menu, index, instrument);
             (
                 changed,
                 route != (instrument.midi_enabled, instrument.midi_channel),
@@ -207,7 +204,11 @@ impl NativeRunner {
         command_value.is_some()
     }
 
-    pub(super) fn fast_instrument_pan_key(&mut self, index: usize, value: Option<i32>) -> bool {
+    pub(in crate::native_runner) fn fast_instrument_pan_key(
+        &mut self,
+        index: usize,
+        value: Option<i32>,
+    ) -> bool {
         let Some(value) = value else {
             return false;
         };
@@ -234,7 +235,7 @@ impl NativeRunner {
         index: usize,
         value: Option<i32>,
         path: &'static str,
-        apply: fn(i32, &mut super::NativeInstrumentSlot) -> Option<f32>,
+        apply: fn(i32, &mut super::super::NativeInstrumentSlot) -> Option<f32>,
     ) -> bool {
         let Some(value) = value else {
             return false;
@@ -263,7 +264,7 @@ impl NativeRunner {
         command_path: &str,
     ) -> bool {
         let (Some(value), Some((json_path, min, max))) =
-            (value, super::synth_scalar_field(command_path))
+            (value, super::super::synth_scalar_field(command_path))
         else {
             return false;
         };
@@ -289,7 +290,7 @@ impl NativeRunner {
         index: usize,
         value: Option<i32>,
         path: &'static str,
-        apply: fn(i32, &mut super::NativeInstrumentSlot) -> Option<f32>,
+        apply: fn(i32, &mut super::super::NativeInstrumentSlot) -> Option<f32>,
     ) -> bool {
         let Some(value) = value else {
             return false;
@@ -312,7 +313,7 @@ impl NativeRunner {
     }
 
     /// Sends slot `index` its whole audio config; false when the slot has none.
-    pub(super) fn queue_instrument_slot_config(&mut self, index: usize) -> bool {
+    pub(in crate::native_runner) fn queue_instrument_slot_config(&mut self, index: usize) -> bool {
         let Some(config) = self.instrument_audio_config(index) else {
             return false;
         };
@@ -324,9 +325,9 @@ impl NativeRunner {
         true
     }
 
-    pub(super) fn queue_audio_command(&mut self, command: RuntimeAudioCommand) {
+    pub(in crate::native_runner) fn queue_audio_command(&mut self, command: RuntimeAudioCommand) {
         self.enqueue_configuration_runtime_plan(
-            super::ConfigurationRuntimePlan::dynamic_audio_command(command),
+            super::super::ConfigurationRuntimePlan::dynamic_audio_command(command),
         );
     }
 }

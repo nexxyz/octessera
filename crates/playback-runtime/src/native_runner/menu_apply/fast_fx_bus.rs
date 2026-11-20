@@ -1,4 +1,4 @@
-use super::menu_apply_fast_values::parse_indexed_key;
+use super::fast_values::parse_indexed_key;
 use crate::delay_timing::{
     nearest_note_for_ms, normalized_delay_params, note_ms, strip_delay_timing_metadata,
 };
@@ -9,7 +9,7 @@ use crate::protocol::RuntimeAudioCommand;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-use super::{derive_bus_name, fx_default_params, NativeRunner, PAN_POSITION_COUNT};
+use super::super::{derive_bus_name, fx_default_params, NativeRunner, PAN_POSITION_COUNT};
 
 impl NativeRunner {
     pub(super) fn apply_fx_menu_key_fast(&mut self, key: &str) -> Option<bool> {
@@ -133,7 +133,9 @@ impl NativeRunner {
         }
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
-            if let Some(param) = super::modulation::audio::realtime_safe_fx_param_id(param_path) {
+            if let Some(param) =
+                super::super::modulation::audio::realtime_safe_fx_param_id(param_path)
+            {
                 if let Some(value) = params.get(param_path).and_then(Value::as_f64) {
                     self.queue_audio_command(RuntimeAudioCommand::SetFxBusParam {
                         bus_index,
@@ -255,7 +257,9 @@ impl NativeRunner {
         let params = value_object_to_map(params);
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
-            if let Some(param) = super::modulation::audio::realtime_safe_fx_param_id(param_path) {
+            if let Some(param) =
+                super::super::modulation::audio::realtime_safe_fx_param_id(param_path)
+            {
                 if let Some(value) = params.get(param_path).and_then(Value::as_f64) {
                     self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxParam {
                         slot_index,
@@ -324,7 +328,7 @@ impl NativeRunner {
     fn menu_value_for_audio_param(&self, key: &str) -> Value {
         if let Some(number) = self.menu.number_for_key(key) {
             let param = key.rsplit('.').next().unwrap_or(key);
-            return super::fx_param_codec::display_to_storage(param, f64::from(number));
+            return super::super::fx_param_codec::display_to_storage(param, f64::from(number));
         }
         self.menu
             .value_for_key(key)
@@ -348,7 +352,7 @@ impl NativeRunner {
         );
     }
 
-    pub(super) fn current_menu_bpm(&self) -> u16 {
+    pub(in crate::native_runner) fn current_menu_bpm(&self) -> u16 {
         crate::delay_timing::visible_bpm_u16(self.transport.bpm)
     }
 }
@@ -387,7 +391,10 @@ fn apply_fx_param_value(params: &mut Value, param_path: &str, value: Value, bpm:
     set_json_leaf(params, param_path, value).is_some()
 }
 
-pub(super) fn audio_params_for_fx(fx_type: &str, params: &Value) -> BTreeMap<String, Value> {
+pub(in crate::native_runner) fn audio_params_for_fx(
+    fx_type: &str,
+    params: &Value,
+) -> BTreeMap<String, Value> {
     if fx_type == "delay" {
         strip_delay_timing_metadata(params).into_iter().collect()
     } else {

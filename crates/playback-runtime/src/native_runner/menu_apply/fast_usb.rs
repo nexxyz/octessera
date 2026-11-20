@@ -1,6 +1,6 @@
-use super::menu_apply_fast::value_changed;
-use super::midi_results::midi_port_rows;
-use super::{AudioOutputSet, NativeRunner, UsbDataRole};
+use super::super::midi_results::midi_port_rows;
+use super::super::{AudioOutputSet, NativeRunner, UsbDataRole};
+use super::fast::value_changed;
 
 impl NativeRunner {
     pub(super) fn fast_usb_midi_out_menu_key(&mut self) -> bool {

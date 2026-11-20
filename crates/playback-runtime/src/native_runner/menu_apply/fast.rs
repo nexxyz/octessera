@@ -1,10 +1,13 @@
 use std::time::{Duration, Instant};
 
-pub(super) use super::menu_apply_fast_structural::structural_draft_key;
-use super::NativeRunner;
+use super::super::NativeRunner;
+pub(super) use super::fast_structural::structural_draft_key;
 
 impl NativeRunner {
-    pub(super) fn apply_or_schedule_menu_key(&mut self, key: &str) -> Result<(), String> {
+    pub(in crate::native_runner) fn apply_or_schedule_menu_key(
+        &mut self,
+        key: &str,
+    ) -> Result<(), String> {
         let started = menu_key_profile_enabled().then(Instant::now);
         let result = self.apply_or_schedule_menu_key_inner(key);
         if let Some(started) = started {
@@ -48,7 +51,7 @@ impl NativeRunner {
             || structural_draft_key(key)
     }
 
-    pub(super) fn apply_menu_key_fast(&mut self, key: &str) -> bool {
+    pub(in crate::native_runner) fn apply_menu_key_fast(&mut self, key: &str) -> bool {
         if key == "play.fx.type" {
             return self.fast_play_fx_type_key(key);
         }
@@ -88,12 +91,12 @@ impl NativeRunner {
         self.apply_instrument_menu_key_fast(key).unwrap_or(false)
     }
 
-    pub(super) fn show_instrument_identity_rows(&mut self, index: usize) {
+    pub(in crate::native_runner) fn show_instrument_identity_rows(&mut self, index: usize) {
         let config = self.menu_config();
         self.menu.show_instrument_identity(&config, index);
     }
 
-    pub(super) fn show_instruments_rows(&mut self, slots: &[usize]) {
+    pub(in crate::native_runner) fn show_instruments_rows(&mut self, slots: &[usize]) {
         if slots.is_empty() {
             return;
         }
@@ -145,7 +148,7 @@ fn log_menu_key_duration(stage: &str, key: &str, duration: Duration) {
     }
 }
 
-pub(super) fn value_changed<T: PartialEq>(target: &mut T, value: T) -> bool {
+pub(in crate::native_runner) fn value_changed<T: PartialEq>(target: &mut T, value: T) -> bool {
     if *target == value {
         false
     } else {

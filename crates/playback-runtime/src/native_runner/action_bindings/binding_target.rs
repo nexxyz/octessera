@@ -1,4 +1,4 @@
-use super::super::menu_apply_fast::value_changed;
+use super::super::menu_apply::fast::value_changed;
 use super::super::midi_cc_in::midi_cc_target_slot;
 use super::super::modulation::source::{ModulationAxis, ModulationSourceId};
 use super::super::play_pages::faders::fader_target_side;

@@ -192,7 +192,7 @@ pub(in crate::native_runner) fn instrument_modulation_audio_command(
         }),
         field if field.starts_with("pluck.") => {
             let (_, min, max) =
-                super::super::menu_apply_fast_instruments::pluck::numeric_field(&field[6..])?;
+                super::super::menu_apply::fast_instruments::pluck::numeric_field(&field[6..])?;
             Some(RuntimeAudioCommand::SetPluckParam {
                 instrument_slot: index,
                 generation: 0,
@@ -219,7 +219,7 @@ pub(in crate::native_runner) fn instrument_modulation_audio_command(
         | "fm.filterEnv.sustainPct"
         | "fm.filterEnv.releaseMs" => {
             let (_, min, max) =
-                super::super::menu_apply_fast_instruments::fm::numeric_field(&field[3..])?;
+                super::super::menu_apply::fast_instruments::fm::numeric_field(&field[3..])?;
             Some(RuntimeAudioCommand::SetFmParam {
                 instrument_slot: index,
                 generation: 0,

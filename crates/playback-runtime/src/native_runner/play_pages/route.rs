@@ -3,7 +3,7 @@ use realtime_engine::synth::MixerRoute;
 use serde_json::Value;
 
 use super::super::led_color::LedColor;
-use super::super::menu_apply_fast_fx_bus::audio_params_for_fx;
+use super::super::menu_apply::fast_fx_bus::audio_params_for_fx;
 use super::super::{NativeRunner, BUS_COUNT, GLOBAL_FX_SLOT_COUNT, GRID_WIDTH, INSTRUMENT_COUNT};
 use crate::protocol::RuntimeAudioCommand;
 

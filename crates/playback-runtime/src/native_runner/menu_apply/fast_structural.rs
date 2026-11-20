@@ -1,4 +1,4 @@
-use super::{menu_apply_fast_values::parse_indexed_key, NativeRunner};
+use super::super::{menu_apply::fast_values::parse_indexed_key, NativeRunner};
 
 pub(super) fn structural_draft_key(key: &str) -> bool {
     if key == "behaviorId" {

@@ -75,7 +75,7 @@ impl NativeRunner {
             return false;
         };
         layer.auto_name
-            && super::menu_apply_fast::value_changed(
+            && self::fast::value_changed(
                 &mut layer.name,
                 super::behavior_menu::behavior_display_label(behavior_id),
             )
@@ -91,3 +91,24 @@ impl NativeRunner {
         self.active_engine_mut().set_interpretation_profile(profile);
     }
 }
+
+pub(super) mod fast;
+mod fast_audio;
+mod fast_auto_names;
+mod fast_behavior;
+mod fast_bindings;
+mod fast_fx;
+pub(super) mod fast_fx_bus;
+pub(super) mod fast_instruments;
+mod fast_layers;
+mod fast_link;
+mod fast_play;
+mod fast_runtime;
+mod fast_structural;
+mod fast_usb;
+pub(super) mod fast_values;
+mod instrument_midi;
+mod instrument_sampler;
+mod instrument_synth;
+mod link_fx;
+mod structural;

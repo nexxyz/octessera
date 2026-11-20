@@ -1,5 +1,5 @@
-use super::menu_apply_fast::value_changed;
-use super::{AudioOptimization, NativeRunner};
+use super::super::{AudioOptimization, NativeRunner};
+use super::fast::value_changed;
 
 impl NativeRunner {
     pub(super) fn fast_audio_optimization_menu_key(&mut self) -> bool {
@@ -13,7 +13,10 @@ impl NativeRunner {
         handled
     }
 
-    pub(super) fn apply_audio_optimization_menu_value(&mut self, value: &str) -> (bool, bool) {
+    pub(in crate::native_runner) fn apply_audio_optimization_menu_value(
+        &mut self,
+        value: &str,
+    ) -> (bool, bool) {
         let Some(optimization) = AudioOptimization::from_wire_name(value) else {
             return (false, false);
         };

@@ -1,13 +1,13 @@
-use super::{cutoff_display_to_hz, set_json_path_number, PAN_POSITION_COUNT};
+use super::super::{cutoff_display_to_hz, set_json_path_number, PAN_POSITION_COUNT};
 
-pub(super) fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {
+pub(in crate::native_runner) fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {
     let (index, suffix) = value.split_once('.')?;
     Some((index.parse().ok()?, suffix))
 }
 
 pub(super) fn fast_instrument_volume(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> bool {
     let value = value.clamp(0, 100) as u8;
     if instrument.volume == value {
@@ -20,7 +20,7 @@ pub(super) fn fast_instrument_volume(
 
 pub(super) fn fast_instrument_pan(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> bool {
     let value = value.clamp(0, i32::from(PAN_POSITION_COUNT - 1)) as u8;
     if instrument.pan_pos == value {
@@ -33,7 +33,7 @@ pub(super) fn fast_instrument_pan(
 
 pub(super) fn fast_instrument_synth_gain(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> Option<f32> {
     let value = value.clamp(0, 100) as u8;
     if instrument.synth_gain_pct == value {
@@ -51,11 +51,11 @@ pub(super) fn fast_instrument_synth_gain(
 
 pub(super) fn fast_instrument_filter_cutoff(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> Option<f32> {
     let display = value.clamp(0, 255);
     let cutoff = cutoff_display_to_hz(display) as u16;
-    if super::synth_filter_cutoff(instrument) == cutoff {
+    if super::super::synth_filter_cutoff(instrument) == cutoff {
         None
     } else {
         set_json_path_number(
@@ -69,10 +69,10 @@ pub(super) fn fast_instrument_filter_cutoff(
 
 pub(super) fn fast_instrument_filter_resonance(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> Option<f32> {
     let value = value.clamp(0, 255) as u8;
-    if super::synth_filter_resonance(instrument) == value {
+    if super::super::synth_filter_resonance(instrument) == value {
         None
     } else {
         set_json_path_number(
@@ -86,13 +86,13 @@ pub(super) fn fast_instrument_filter_resonance(
 
 pub(super) fn fast_instrument_synth_number(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
     path: &[&str],
     min: i32,
     max: i32,
 ) -> Option<f32> {
     let value = value.clamp(min, max);
-    if super::synth_i32_at(instrument, path, i32::MIN) == value {
+    if super::super::synth_i32_at(instrument, path, i32::MIN) == value {
         None
     } else {
         set_json_path_number(&mut instrument.synth_config, path, f64::from(value));
@@ -102,7 +102,7 @@ pub(super) fn fast_instrument_synth_number(
 
 pub(super) fn fast_sample_tune(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> Option<f32> {
     let value = value.clamp(-24, 24) as i8;
     if instrument.sample_tune_semis == value {
@@ -115,7 +115,7 @@ pub(super) fn fast_sample_tune(
 
 pub(super) fn fast_sample_gain(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> Option<f32> {
     let value = value.clamp(0, 100) as u8;
     if instrument.sample_gain_pct == value {
@@ -128,7 +128,7 @@ pub(super) fn fast_sample_gain(
 
 pub(super) fn fast_sample_velocity_sensitivity(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> Option<f32> {
     let value = value.clamp(0, 100) as u8;
     if instrument.sample_amp_velocity_sensitivity_pct == value {
@@ -141,7 +141,7 @@ pub(super) fn fast_sample_velocity_sensitivity(
 
 pub(super) fn fast_sample_filter_cutoff(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> Option<f32> {
     let display = value.clamp(0, 255);
     let cutoff = cutoff_display_to_hz(display) as u16;
@@ -164,7 +164,7 @@ pub(super) fn fast_sample_filter_cutoff(
 
 pub(super) fn fast_sample_filter_resonance(
     value: i32,
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
 ) -> Option<f32> {
     let value = value.clamp(0, 255) as u8;
     if instrument

@@ -1,4 +1,4 @@
-use super::menu_apply_fast::value_changed;
+use super::menu_apply::fast::value_changed;
 use super::performance_view::ViewVisual;
 use super::snapshot::display::DisplaySnapshot;
 use super::{NativeRunner, RuntimeTransportState};

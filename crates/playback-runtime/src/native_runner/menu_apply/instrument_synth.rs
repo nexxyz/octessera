@@ -1,4 +1,4 @@
-use super::{
+use super::super::{
     cutoff_display_to_hz, cutoff_hz_to_display, set_json_path_number, set_json_path_string,
     synth_filter_cutoff, synth_filter_resonance, synth_i32_at, synth_string_at,
     NativeInstrumentSlot, SYNTH_NUMERIC_FIELDS,

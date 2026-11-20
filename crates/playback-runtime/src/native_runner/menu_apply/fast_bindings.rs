@@ -1,4 +1,4 @@
-use super::{param_binding_spec_from_native, NativeRunner};
+use super::super::{param_binding_spec_from_native, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn apply_binding_range_key_fast(&mut self, key: &str) -> bool {
@@ -18,7 +18,7 @@ impl NativeRunner {
         true
     }
 
-    pub(super) fn show_param_binding_target(&mut self, target: &str) {
+    pub(in crate::native_runner) fn show_param_binding_target(&mut self, target: &str) {
         let binding = self
             .param_binding_target_mut(target)
             .map(|binding| param_binding_spec_from_native(binding));

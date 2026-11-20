@@ -1,16 +1,19 @@
-use super::play_pages::PlayMode;
-use super::NativeHdmiMode;
+use super::super::play_pages::PlayMode;
+use super::super::NativeHdmiMode;
 use crate::protocol::RuntimeAudioCommand;
 
-use super::menu_apply_fast::value_changed;
-use super::system_scalars::{LED_BRIGHTNESS_PCT, SCREEN_TIMER_SECONDS};
-use super::{AudioOutputSet, AuxPriority, MidiSendInstruments, NativeRunner};
+use super::super::system_scalars::{LED_BRIGHTNESS_PCT, SCREEN_TIMER_SECONDS};
+use super::super::{AudioOutputSet, AuxPriority, MidiSendInstruments, NativeRunner};
+use super::fast::value_changed;
 use realtime_engine::synth::{
     BusIdleThreshold, DspRuntimeConfig, VoiceStealingMode, WorkerWarningThreshold,
 };
 
 impl NativeRunner {
-    pub(super) fn apply_runtime_menu_key_fast(&mut self, key: &str) -> Option<bool> {
+    pub(in crate::native_runner) fn apply_runtime_menu_key_fast(
+        &mut self,
+        key: &str,
+    ) -> Option<bool> {
         match key {
             "transport.bpm" => Some(self.fast_bpm_menu_key()),
             "transport.swingA" | "transport.swingB" => Some(self.fast_swing_menu_key(key)),
@@ -379,7 +382,7 @@ impl NativeRunner {
         let Some(value) = self.menu.value_for_key(key) else {
             return false;
         };
-        let value = super::velocity_curve_from_id(&value);
+        let value = super::super::velocity_curve_from_id(&value);
         if value_changed(&mut self.global_sound.velocity_curve, value) {
             self.sync_engine_runtime_config();
             self.mark_fast_autosave_dirty();
