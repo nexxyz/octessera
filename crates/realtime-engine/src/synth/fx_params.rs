@@ -1,13 +1,5 @@
+use super::fx_param::{clamp_fx_param, fx_param_range, FxParamId};
 use super::types::FxBusSlotConfig;
-
-const DUCK_THRESHOLD_MIN: f32 = 0.0;
-const DUCK_THRESHOLD_MAX: f32 = 1.0;
-const DUCK_AMOUNT_MIN: f32 = 0.0;
-const DUCK_AMOUNT_MAX: f32 = 100.0;
-const DUCK_ATTACK_MS_MIN: f32 = 1.0;
-const DUCK_ATTACK_MS_MAX: f32 = 500.0;
-const DUCK_RELEASE_MS_MIN: f32 = 1.0;
-const DUCK_RELEASE_MS_MAX: f32 = 5000.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum FxKind {
@@ -163,118 +155,114 @@ pub(super) enum FxBusParams {
 }
 
 pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
-    match FxKind::parse(cfg.kind_str()).unwrap_or(FxKind::None) {
+    let kind = FxKind::parse(cfg.kind_str()).unwrap_or(FxKind::None);
+    let ranged = |key: &str, id: FxParamId| ranged_param(cfg, kind, key, id);
+    match kind {
         FxKind::None => FxBusParams::None,
         FxKind::Tremolo => FxBusParams::Tremolo {
-            rate_hz: param_f32(cfg, "rateHz", 4.0).clamp(0.05, 40.0),
-            depth: pct(cfg, "depthPct", 60.0),
+            rate_hz: ranged("rateHz", FxParamId::RateHz),
+            depth: ranged("depthPct", FxParamId::DepthPct),
         },
         FxKind::Delay => FxBusParams::Delay {
             time_ms: param_f32(cfg, "timeMs", 250.0).clamp(1.0, 2000.0),
-            feedback: param_f32(cfg, "feedback", 0.35).clamp(0.0, 0.98),
-            mix: pct(cfg, "mixPct", 35.0),
-            spread: pct(cfg, "spreadPct", 0.0),
+            feedback: ranged("feedback", FxParamId::Feedback),
+            mix: ranged("mixPct", FxParamId::MixPct),
+            spread: ranged("spreadPct", FxParamId::SpreadPct),
         },
-        FxKind::Vibrato => mod_delay(cfg, 6.0, 8.0, 0.0, 100.0),
-        FxKind::Chorus => mod_delay(cfg, 14.0, 22.0, 0.0, 45.0),
-        FxKind::Flanger => mod_delay(cfg, 2.0, 3.0, 0.35, 45.0),
-        FxKind::FilterLfo => filter_lfo(cfg, FilterLfoKind::FilterLfo, 0.5, 1600.0, 1.0),
-        FxKind::Wah => filter_lfo(cfg, FilterLfoKind::Wah, 1.2, 900.0, 6.0),
+        FxKind::Vibrato => mod_delay(cfg, ranged, 6.0, 8.0),
+        FxKind::Chorus => mod_delay(cfg, ranged, 14.0, 22.0),
+        FxKind::Flanger => mod_delay(cfg, ranged, 2.0, 3.0),
+        FxKind::FilterLfo => filter_lfo(ranged, FilterLfoKind::FilterLfo),
+        FxKind::Wah => filter_lfo(ranged, FilterLfoKind::Wah),
         FxKind::Reverb => FxBusParams::Reverb {
-            mix: pct(cfg, "mixPct", 30.0),
-            decay: param_f32(cfg, "decay", 0.72).clamp(0.0, 0.995),
-            damp: param_f32(cfg, "damp", 0.35).clamp(0.0, 0.98),
+            mix: ranged("mixPct", FxParamId::MixPct),
+            decay: ranged("decay", FxParamId::Decay),
+            damp: ranged("damp", FxParamId::Damp),
         },
         FxKind::Glitch => FxBusParams::Glitch {
-            chance: pct(cfg, "chancePct", 8.0),
-            slice_ms: param_f32(cfg, "sliceMs", 80.0).clamp(5.0, 500.0),
-            mix: pct(cfg, "mixPct", 100.0),
+            chance: ranged("chancePct", FxParamId::ChancePct),
+            slice_ms: ranged("sliceMs", FxParamId::SliceMs),
+            mix: ranged("mixPct", FxParamId::MixPct),
         },
         FxKind::AutoPan => FxBusParams::AutoPan {
-            rate_hz: param_f32(cfg, "rateHz", 0.5).clamp(0.02, 20.0),
-            depth: pct(cfg, "depthPct", 100.0),
+            rate_hz: ranged("rateHz", FxParamId::RateHz),
+            depth: ranged("depthPct", FxParamId::DepthPct),
         },
         FxKind::Duck => FxBusParams::Duck {
             source: duck_source_from_config(cfg),
             source_tap: duck_source_tap_from_config(cfg),
-            threshold: param_f32(cfg, "threshold", 0.08)
-                .clamp(DUCK_THRESHOLD_MIN, DUCK_THRESHOLD_MAX),
-            amount: param_f32(cfg, "amountPct", 60.0).clamp(DUCK_AMOUNT_MIN, DUCK_AMOUNT_MAX)
-                / 100.0,
-            attack_ms: param_f32(cfg, "attackMs", 8.0)
-                .clamp(DUCK_ATTACK_MS_MIN, DUCK_ATTACK_MS_MAX),
-            release_ms: param_f32(cfg, "releaseMs", 160.0)
-                .clamp(DUCK_RELEASE_MS_MIN, DUCK_RELEASE_MS_MAX),
+            threshold: ranged("threshold", FxParamId::Threshold),
+            amount: ranged("amountPct", FxParamId::AmountPct),
+            attack_ms: ranged("attackMs", FxParamId::AttackMs),
+            release_ms: ranged("releaseMs", FxParamId::ReleaseMs),
         },
         FxKind::Saturator => FxBusParams::Saturator {
-            drive: param_f32(cfg, "drive", 1.8).clamp(0.0, 20.0),
-            mix: pct(cfg, "mixPct", 100.0),
+            drive: ranged("drive", FxParamId::Drive),
+            mix: ranged("mixPct", FxParamId::MixPct),
         },
         FxKind::Distortion => FxBusParams::Distortion {
-            drive: param_f32(cfg, "drive", 2.5).clamp(0.0, 50.0),
-            clip: param_f32(cfg, "clip", 0.6).clamp(0.05, 2.0),
-            mix: pct(cfg, "mixPct", 100.0),
+            drive: ranged("drive", FxParamId::Drive),
+            clip: ranged("clip", FxParamId::Clip),
+            mix: ranged("mixPct", FxParamId::MixPct),
         },
         FxKind::Bitcrusher => FxBusParams::Bitcrusher {
-            rate_div: param_f32(cfg, "rateDiv", 4.0).round().clamp(1.0, 128.0) as u32,
-            bits: param_f32(cfg, "bits", 6.0).round().clamp(1.0, 16.0) as u32,
-            mix: pct(cfg, "mixPct", 100.0),
+            rate_div: ranged("rateDiv", FxParamId::RateDiv).round() as u32,
+            bits: ranged("bits", FxParamId::Bits).round() as u32,
+            mix: ranged("mixPct", FxParamId::MixPct),
         },
         FxKind::Compressor => FxBusParams::Compressor {
-            threshold_db: param_f32(cfg, "thresholdDb", -24.0).clamp(-60.0, 0.0),
-            ratio: param_f32(cfg, "ratio", 4.0).clamp(1.0, 20.0),
-            attack_ms: param_f32(cfg, "attackMs", 10.0).clamp(0.1, 200.0),
-            release_ms: param_f32(cfg, "releaseMs", 100.0).clamp(1.0, 2000.0),
-            makeup_db: param_f32(cfg, "makeupDb", 0.0).clamp(0.0, 24.0),
-            mix: pct(cfg, "mixPct", 100.0),
+            threshold_db: ranged("thresholdDb", FxParamId::ThresholdDb),
+            ratio: ranged("ratio", FxParamId::Ratio),
+            attack_ms: ranged("attackMs", FxParamId::AttackMs),
+            release_ms: ranged("releaseMs", FxParamId::ReleaseMs),
+            makeup_db: ranged("makeupDb", FxParamId::MakeupDb),
+            mix: ranged("mixPct", FxParamId::MixPct),
         },
         FxKind::Eq => FxBusParams::Eq {
-            low_gain_db: param_f32(cfg, "lowGainDb", 0.0).clamp(-12.0, 12.0),
-            mid_gain_db: param_f32(cfg, "midGainDb", 0.0).clamp(-12.0, 12.0),
-            mid_freq_hz: param_f32(cfg, "midFreqHz", 1000.0).clamp(40.0, 8000.0),
-            mid_q: param_f32(cfg, "midQ", 1.0).clamp(0.25, 20.0),
-            high_gain_db: param_f32(cfg, "highGainDb", 0.0).clamp(-12.0, 12.0),
-            mix: pct(cfg, "mixPct", 100.0),
+            low_gain_db: ranged("lowGainDb", FxParamId::LowGainDb),
+            mid_gain_db: ranged("midGainDb", FxParamId::MidGainDb),
+            mid_freq_hz: ranged("midFreqHz", FxParamId::MidFreqHz),
+            mid_q: ranged("midQ", FxParamId::MidQ),
+            high_gain_db: ranged("highGainDb", FxParamId::HighGainDb),
+            mix: ranged("mixPct", FxParamId::MixPct),
         },
         FxKind::Vinyl => FxBusParams::Vinyl {
-            saturation: pct(cfg, "saturationPct", 15.0),
-            crackle: pct(cfg, "cracklePct", 8.0),
-            warp_depth: pct(cfg, "warpDepthPct", 5.0),
-            mix: pct(cfg, "mixPct", 100.0),
+            saturation: ranged("saturationPct", FxParamId::SaturationPct),
+            crackle: ranged("cracklePct", FxParamId::CracklePct),
+            warp_depth: ranged("warpDepthPct", FxParamId::WarpDepthPct),
+            mix: ranged("mixPct", FxParamId::MixPct),
         },
     }
 }
 
 fn mod_delay(
     cfg: &FxBusSlotConfig,
+    ranged: impl Fn(&str, FxParamId) -> f32,
     depth_ms: f32,
     base_ms: f32,
-    feedback: f32,
-    mix_pct: f32,
 ) -> FxBusParams {
     FxBusParams::ModDelay {
-        rate_hz: param_f32(cfg, "rateHz", 0.8).clamp(0.02, 20.0),
+        rate_hz: ranged("rateHz", FxParamId::RateHz),
         depth_ms: param_f32(cfg, "depthMs", depth_ms).clamp(0.0, 40.0),
         base_ms: param_f32(cfg, "baseMs", base_ms).clamp(0.1, 80.0),
-        feedback: param_f32(cfg, "feedback", feedback).clamp(-0.95, 0.95),
-        mix: pct(cfg, "mixPct", mix_pct),
+        feedback: ranged("feedback", FxParamId::Feedback),
+        mix: ranged("mixPct", FxParamId::MixPct),
     }
 }
 
-fn filter_lfo(
-    cfg: &FxBusSlotConfig,
-    kind: FilterLfoKind,
-    rate_hz: f32,
-    center_hz: f32,
-    q: f32,
-) -> FxBusParams {
+fn filter_lfo(ranged: impl Fn(&str, FxParamId) -> f32, kind: FilterLfoKind) -> FxBusParams {
     FxBusParams::FilterLfo {
         kind,
-        rate_hz: param_f32(cfg, "rateHz", rate_hz).clamp(0.02, 20.0),
-        depth: pct(cfg, "depthPct", 70.0),
-        center_hz: param_f32(cfg, "centerHz", center_hz).clamp(40.0, 12_000.0),
-        q: param_f32(cfg, "q", q).clamp(0.25, 20.0),
+        rate_hz: ranged("rateHz", FxParamId::RateHz),
+        depth: ranged("depthPct", FxParamId::DepthPct),
+        center_hz: ranged("centerHz", FxParamId::CenterHz),
+        q: ranged("q", FxParamId::Q),
     }
+}
+
+fn ranged_param(cfg: &FxBusSlotConfig, kind: FxKind, key: &str, id: FxParamId) -> f32 {
+    let range = fx_param_range(kind, id).expect("every compiled FX param has a range");
+    clamp_fx_param(id, range, param_f32(cfg, key, range.2))
 }
 
 pub(super) fn parse_duck_source(source: &str) -> DuckSource {
@@ -312,10 +300,6 @@ pub(super) fn duck_source_tap_from_config(cfg: &FxBusSlotConfig) -> DuckSourceTa
         Some("post") => DuckSourceTap::Post,
         _ => DuckSourceTap::Pre,
     }
-}
-
-fn pct(cfg: &FxBusSlotConfig, key: &str, fallback: f32) -> f32 {
-    (param_f32(cfg, key, fallback) / 100.0).clamp(0.0, 1.0)
 }
 
 fn param_f32(cfg: &FxBusSlotConfig, key: &str, fallback: f32) -> f32 {

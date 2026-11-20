@@ -316,3 +316,7 @@ mod fx_param_tests {
 mod fx_param_contract_tests {
     include!("fx_param_contract_tests.rs");
 }
+
+mod fx_param_range_tests {
+    include!("fx_param_range_tests.rs");
+}
