@@ -51,6 +51,15 @@ shot lands wherever a drop hits the bottom row. Layers 3 to 6 play factory
 presets, so `Preset > Load` on any of those slots is a quick "what else could
 this be?".
 
+Before you start: turn *Main* to move through menus, click it to enter or
+confirm. The top menu has five areas:
+
+- **Build:** each layer's behavior, its settings and its seed.
+- **Link:** tempo, swing, and how tiles become notes (scanning, events, mapping).
+- **Shape:** instruments, FX buses and the global effects.
+- **Play:** the performance pages.
+- **System:** saves, recording, audio, connections, updates and shutdown.
+
 1. Press **Play** (or **Space** in the simulator).
 2. Hold *Shift* + *Fn* and press the fifth tile up in the left-hand column: the
    stars on Layer 5 wake up and start chiming. Same again puts them back to
@@ -80,6 +89,16 @@ with it.
 
 If you've changed things and want the starting point back,
 `System > Maintenance > Reset > Load Factory` restores it (it asks first).
+
+### Save, revert, switch off
+
+- **There's no undo.** An edit stays until you change it back or reload.
+- **Back to your last saved startup patch:** `System > Saves > Default > Load
+  Patch` (it asks first). Anything you haven't saved is gone, which is the
+  point.
+- **Switching off:** use `System > Shutdown` and confirm. It saves a recovery
+  copy, then the grid lights go out and the screen goes dark. Wait for that
+  before you pull the power.
 
 Where to go next:
 
