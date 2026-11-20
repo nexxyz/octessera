@@ -54,7 +54,7 @@ pub(crate) fn changing_behavior_keeps_menu_location() {
         .iter()
         .any(|line| line.as_str().unwrap_or("") == "  Beh.: keys >"));
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let _ = runner.flush_deferred_menu_apply().unwrap();
     let flushed = runner
         .send(HostMessage::DeviceInput {

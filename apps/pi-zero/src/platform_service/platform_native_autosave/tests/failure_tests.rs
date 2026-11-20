@@ -47,7 +47,7 @@ fn queue_failure_returns_an_identified_error_without_retrying() {
                     format!("autosave-fill-{index}"),
                     None,
                 ),
-                PlatformJobKind::TestBarrier {
+                PlatformJobKind::QueueBarrier {
                     completed: completed_tx,
                 },
             ))

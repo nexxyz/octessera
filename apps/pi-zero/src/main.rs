@@ -108,6 +108,8 @@ mod setup_portal_worker;
 #[cfg(feature = "native-audio")]
 mod show_hold;
 #[cfg(feature = "native-audio")]
+mod shutdown_signal;
+#[cfg(feature = "native-audio")]
 mod store_fault;
 #[cfg(test)]
 mod test_temp_dir;

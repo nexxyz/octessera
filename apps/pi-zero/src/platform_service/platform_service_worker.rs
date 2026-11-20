@@ -110,8 +110,7 @@ fn run(context: PlatformWorkerContext) {
                 continue;
             }
         };
-        #[cfg(test)]
-        if let PlatformJobKind::TestBarrier { completed } = &job.kind {
+        if let PlatformJobKind::QueueBarrier { completed } = &job.kind {
             let _ = completed.send(());
             continue;
         }

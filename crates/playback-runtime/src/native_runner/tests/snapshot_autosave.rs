@@ -102,7 +102,7 @@ pub(crate) fn native_menu_edit_emits_deferred_auto_save_when_enabled() {
             )
     )));
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let messages = runner.flush_deferred_menu_apply().unwrap();
     let saved_payload = messages
         .iter()
@@ -222,7 +222,7 @@ pub(crate) fn text_edit_turns_are_deferred_until_flush_or_exit() {
             ))
     )));
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner.flush_deferred_menu_apply().unwrap();
 
     assert_eq!(runner.layers[0].name, "lifea");
@@ -245,7 +245,7 @@ pub(crate) fn deferred_text_edit_survives_leaving_name_row_before_flush() {
     runner.menu.back();
     runner.menu.back();
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner.flush_deferred_menu_apply().unwrap();
 
     assert_eq!(runner.layers[0].name, "lifea");
@@ -266,7 +266,7 @@ pub(crate) fn deferred_instrument_name_edit_survives_leaving_row() {
 
     assert_eq!(runner.instruments[0].name, "Synth");
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner.flush_deferred_menu_apply().unwrap();
 
     assert_eq!(runner.instruments[0].name, "tynth");
@@ -291,7 +291,7 @@ pub(crate) fn deferred_bus_name_edit_survives_leaving_row() {
 
     assert_eq!(runner.fx_buses[0].name, "Delay+Duck");
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner.flush_deferred_menu_apply().unwrap();
 
     assert_eq!(runner.fx_buses[0].name, "eelay+Duck");

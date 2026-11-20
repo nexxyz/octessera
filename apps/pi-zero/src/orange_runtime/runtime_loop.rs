@@ -170,8 +170,4 @@ impl BoardLoop for OrangeBoardLoop<'_> {
     ) -> bool {
         adapter.shutdown_pending()
     }
-
-    fn interrupted(&self) -> bool {
-        signal::interrupted()
-    }
 }

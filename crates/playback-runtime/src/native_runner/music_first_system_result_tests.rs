@@ -63,7 +63,7 @@ fn system_store_result_handoff_preserves_due_patch_persistence_intent() {
             &mut runner,
             json!({ "type": "encoder_press", "id": "main" }),
         );
-        runner.make_deferred_menu_apply_due_for_test();
+        runner.make_deferred_work_due_now();
         let final_tick = Instant::now() + Duration::from_secs(1);
         let intent = runner.persistence_intent_at(final_tick).unwrap();
         assert!(intent.default_eligible());

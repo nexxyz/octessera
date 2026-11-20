@@ -8,7 +8,7 @@ pub(crate) fn behavior_selection_applies_immediately() {
 
     assert_eq!(runner.active_behavior().id(), "keys");
     assert_eq!(runner.layers[0].behavior_id, "keys");
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let messages = runner.flush_deferred_menu_apply().unwrap();
     assert_deferred_autosave_payload(&messages);
     assert!(messages.iter().any(|message| matches!(

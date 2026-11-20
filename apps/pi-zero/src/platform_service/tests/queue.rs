@@ -150,7 +150,7 @@ fn a_running_update_does_not_hold_back_store_jobs() {
                 playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
                 "after-update",
             ),
-            PlatformJobKind::TestBarrier {
+            PlatformJobKind::QueueBarrier {
                 completed: completed_tx,
             },
         ))

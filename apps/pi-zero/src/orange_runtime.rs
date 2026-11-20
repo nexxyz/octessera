@@ -22,7 +22,6 @@ use std::time::Instant;
 mod handoff;
 mod lifecycle;
 mod runtime_loop;
-pub(crate) mod signal;
 mod startup;
 pub(crate) use crate::runtime_output::{process_runtime_output, wait_for_initial_audio_prep};
 pub(crate) use runtime_loop::run_prepared_runtime;
@@ -42,7 +41,7 @@ fn startup_failure(mode: HandoffMode, code: StartupFatalCode, error: impl Into<S
 }
 
 fn enter_hardware_fault_mode(fault: HardwareFault) -> ! {
-    signal::restore_default_handlers();
+    crate::shutdown_signal::restore_default_handlers();
     crate::hardware_fault::run_hardware_fault_mode(Box::new(fault), true)
 }
 
@@ -79,7 +78,7 @@ pub fn run() -> Result<(), String> {
     let mut candidate_readiness = CandidateReadiness::from_env();
     crate::board_profile::validate_runtime_profile()?;
     let handoff_mode = crate::boot_oled_handoff::mode_from_env()?;
-    signal::install_signal_handlers().map_err(|error| {
+    crate::shutdown_signal::install_signal_handlers().map_err(|error| {
         startup_failure(
             handoff_mode,
             StartupFatalCode::StartupFailed,

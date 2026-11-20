@@ -1,7 +1,6 @@
 use playback_runtime::RuntimePlatformRequest;
 #[cfg(test)]
 use std::sync::mpsc::Receiver;
-#[cfg(test)]
 use std::sync::mpsc::SyncSender;
 
 pub struct PlatformJob {
@@ -45,8 +44,7 @@ pub enum PlatformJobKind {
     UpdateApply,
     Rollback,
     SystemInfo,
-    #[cfg(test)]
-    TestBarrier {
+    QueueBarrier {
         completed: SyncSender<()>,
     },
     #[cfg(test)]

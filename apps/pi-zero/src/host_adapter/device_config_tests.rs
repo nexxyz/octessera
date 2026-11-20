@@ -62,7 +62,7 @@ fn apply(adapter: &mut PiHostAdapter, payload: &serde_json::Value) -> RuntimeSto
     adapter
         .core
         .platform_service
-        .enqueue_test_barrier()
+        .enqueue_barrier()
         .unwrap()
         .recv_timeout(Duration::from_secs(2))
         .unwrap();

@@ -166,7 +166,7 @@ fn refresh_preset_catalog(
 fn wait_for_worker_queue(service: &crate::platform_service::PiPlatformService) {
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
-        match service.enqueue_test_barrier() {
+        match service.enqueue_barrier() {
             Ok(barrier) => {
                 barrier.recv_timeout(Duration::from_secs(1)).unwrap();
                 return;
@@ -282,7 +282,7 @@ fn preset_queue_rejection_and_restore_generation_never_delete_rename_source() {
                     format!("preset-fill-{index}"),
                     None,
                 ),
-                crate::platform_service::PlatformJobKind::TestBarrier {
+                crate::platform_service::PlatformJobKind::QueueBarrier {
                     completed: mpsc::sync_channel(1).0,
                 },
             ))
@@ -377,7 +377,7 @@ fn restore_generation_cancels_queued_preset_rename_before_projection_or_delete()
     service.invalidate_store_writes_for_test();
     drop(store_guard);
     service
-        .enqueue_test_barrier()
+        .enqueue_barrier()
         .unwrap()
         .recv_timeout(Duration::from_secs(1))
         .unwrap();

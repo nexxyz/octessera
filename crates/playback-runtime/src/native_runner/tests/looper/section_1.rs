@@ -203,7 +203,7 @@ pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     assert_eq!(mode, "play");
     assert_eq!(step_index, 1);
     assert_eq!(snapshot_from(&messages)["display"]["toast"], "Looper: Play");
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     assert_deferred_save(&runner.flush_deferred_menu_apply().unwrap());
     let state_after = runner.active_engine().serialized_state().unwrap();
     assert_eq!(state_after["steps"][1].as_array().unwrap().len(), 1);

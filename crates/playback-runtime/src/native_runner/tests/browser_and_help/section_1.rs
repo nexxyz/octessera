@@ -111,7 +111,7 @@ pub(crate) fn sample_browser_opens_lists_and_picks_sample() {
     assert_eq!(snapshot["display"]["title"], "../I1: Sampler/Sampler");
     let selected_row = snapshot["selectedRow"].as_u64().expect("selected row") as usize;
     assert_eq!(snapshot["display"]["lines"][selected_row], "  S1 Browse >");
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let autosave = runner.flush_deferred_menu_apply().unwrap();
     assert!(autosave.iter().any(|message| matches!(
         message,

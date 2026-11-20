@@ -113,7 +113,7 @@ fn apply_autosave_at(
     runner: &mut NativeRunner,
     now: Instant,
 ) -> Vec<HostMessage> {
-    flush_due_native_persistence(pending, service, playback, runner, now)
+    flush_due_native_persistence(pending, service, playback, runner, now, false)
 }
 
 #[test]

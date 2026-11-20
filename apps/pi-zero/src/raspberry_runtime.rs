@@ -54,6 +54,9 @@ fn run_scheduler(
     render_worker: RenderWorker,
     initial_rendered_revision: u64,
 ) {
+    if let Err(error) = crate::shutdown_signal::install_signal_handlers() {
+        eprintln!("pi shutdown signal handler startup failed: {error}");
+    }
     crate::runtime_thread::run_on_runtime_thread(move || {
         scheduler_loop(prepared, render_worker, initial_rendered_revision)
     });

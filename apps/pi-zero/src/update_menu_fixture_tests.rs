@@ -205,7 +205,7 @@ impl UpdateMenuFixture {
             .adapter
             .core
             .platform_service
-            .enqueue_test_barrier()
+            .enqueue_barrier()
             .unwrap();
         if completed.recv_timeout(SERVICE_BARRIER_TIMEOUT).is_err() {
             panic!(

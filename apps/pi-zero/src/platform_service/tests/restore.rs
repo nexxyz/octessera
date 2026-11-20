@@ -78,7 +78,7 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
         Some(restored_documents.patch.clone())
     );
     release_tx.send(()).unwrap();
-    let barrier = service.enqueue_test_barrier().unwrap();
+    let barrier = service.enqueue_barrier().unwrap();
     barrier.recv_timeout(Duration::from_secs(1)).unwrap();
     let results = service.drain_results(8);
     assert_eq!(
@@ -141,7 +141,7 @@ fn restore_barrier_cancels_store_writes_already_waiting_in_worker() {
             },
         ))
         .unwrap();
-    let barrier = service.enqueue_test_barrier().unwrap();
+    let barrier = service.enqueue_barrier().unwrap();
     barrier.recv_timeout(Duration::from_secs(1)).unwrap();
     assert_eq!(
         load_json(&store.join("default.patch.json")).unwrap(),
@@ -170,7 +170,7 @@ fn restore_barrier_cancels_native_default_snapshot_waiting_in_worker() {
     service.store_write_barrier.invalidate();
     drop(store_guard);
 
-    let barrier = service.enqueue_test_barrier().unwrap();
+    let barrier = service.enqueue_barrier().unwrap();
     barrier.recv_timeout(Duration::from_secs(1)).unwrap();
     let result = service
         .drain_platform_results(4)
@@ -234,7 +234,7 @@ fn native_default_registration_rejection_does_not_queue_or_replace_default() {
     adapter
         .core
         .platform_service
-        .enqueue_test_barrier()
+        .enqueue_barrier()
         .unwrap()
         .recv_timeout(Duration::from_secs(1))
         .unwrap();
@@ -291,7 +291,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
                     format!("queued-{index}"),
                     None,
                 ),
-                PlatformJobKind::TestBarrier {
+                PlatformJobKind::QueueBarrier {
                     completed: mpsc::sync_channel(1).0,
                 },
             ))
@@ -323,7 +323,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
     release_tx.send(()).unwrap();
     let barrier_deadline = Instant::now() + Duration::from_secs(2);
     loop {
-        match adapter.core.platform_service.enqueue_test_barrier() {
+        match adapter.core.platform_service.enqueue_barrier() {
             Ok(barrier) => {
                 barrier.recv_timeout(Duration::from_secs(1)).unwrap();
                 break;

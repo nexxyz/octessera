@@ -78,6 +78,16 @@ impl PendingPiPersistence {
         self.pending = (native.default_eligible || native.backup_eligible).then_some(native);
     }
 
+    pub(super) fn make_default_due(&mut self, now: Instant) {
+        if let Some(native) = self
+            .pending
+            .as_mut()
+            .filter(|native| native.default_eligible)
+        {
+            native.default_due_at = Some(now);
+        }
+    }
+
     pub(super) fn due_native(&self, now: Instant) -> Option<NativePiSave> {
         let native = self.pending?;
         let default_due =

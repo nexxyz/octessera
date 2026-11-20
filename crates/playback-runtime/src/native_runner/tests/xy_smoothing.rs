@@ -357,7 +357,7 @@ pub(crate) fn xy_smoothing_quantized_steps_dirty_only_changed_persistent_values(
     assert!(runner.fast_autosave_marks > first_step_marks);
     assert_eq!(runner.instruments[0].volume, 100);
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let messages = runner.flush_deferred_menu_apply().unwrap();
     assert!(messages.iter().any(|message| matches!(
         message,

@@ -1,6 +1,8 @@
 use crate::host_adapter::PiHostAdapter;
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
-use std::time::Instant;
+use std::time::{Duration, Instant};
+
+const QUEUED_STORE_JOBS_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 mod load_admission_tests;
@@ -11,8 +13,16 @@ impl PiHostAdapter {
         playback: &mut PlaybackRuntime,
         runner: &mut NativeRunner,
         now: Instant,
+        skip_coalescing: bool,
     ) -> Vec<HostMessage> {
-        self.core.flush_native_persistence_at(playback, runner, now)
+        self.core
+            .flush_native_persistence_at(playback, runner, now, skip_coalescing)
+    }
+
+    pub(crate) fn wait_for_queued_store_jobs(&self) -> Result<(), String> {
+        self.core
+            .platform_service
+            .wait_for_queued_jobs(QUEUED_STORE_JOBS_TIMEOUT)
     }
 
     pub(crate) fn take_manual_save(

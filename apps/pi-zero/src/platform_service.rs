@@ -9,7 +9,8 @@ use crate::user_data_transfer::{
 };
 use playback_runtime::{
     HostMessage, NativeManualSaveRequest, NativeStoreRequest, RuntimeOperation,
-    RuntimePlatformRequest, RuntimeSetupPortalDisposition, RuntimeStoreResult,
+    RuntimePlatformEffect, RuntimePlatformRequest, RuntimeSetupPortalDisposition,
+    RuntimeStoreResult,
 };
 use std::collections::VecDeque;
 #[cfg(test)]
@@ -18,6 +19,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 mod pi_pending_persistence;
 mod platform_job;
 pub(crate) mod platform_native_autosave;
@@ -30,8 +32,6 @@ mod platform_service_executor;
 mod platform_service_load_admission;
 mod platform_service_setup_portal;
 mod platform_service_store;
-#[cfg(test)]
-mod platform_service_test_support;
 mod platform_service_worker;
 mod system_info;
 pub(crate) use pi_pending_persistence::PendingPiPersistence;
@@ -289,6 +289,29 @@ impl PiPlatformService {
                     TrySendError::Disconnected(_) => "pi platform service stopped".to_string(),
                 }
             })
+    }
+
+    pub(crate) fn enqueue_barrier(&self) -> Result<Receiver<()>, String> {
+        let (completed_tx, completed_rx) = mpsc::sync_channel(0);
+        let request = RuntimePlatformRequest::new(
+            RuntimePlatformEffect::SystemInfoRequest,
+            "queue-barrier".into(),
+            None,
+        );
+        self.enqueue(PlatformJob::new(
+            request,
+            PlatformJobKind::QueueBarrier {
+                completed: completed_tx,
+            },
+        ))?;
+        Ok(completed_rx)
+    }
+
+    /// Returns once the worker has finished every job queued before this call.
+    pub(crate) fn wait_for_queued_jobs(&self, timeout: Duration) -> Result<(), String> {
+        self.enqueue_barrier()?
+            .recv_timeout(timeout)
+            .map_err(|error| format!("queued store jobs did not finish: {error}"))
     }
 
     pub(crate) fn handle_transfer_input(&self, input: &serde_json::Value) -> bool {

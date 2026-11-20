@@ -170,7 +170,7 @@ pub(super) fn pick_sample_for_selected_slot(runner: &mut NativeRunner) {
             .as_deref(),
         Some("8")
     );
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());
 }
 

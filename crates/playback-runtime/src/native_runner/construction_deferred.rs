@@ -184,16 +184,6 @@ impl NativeRunner {
     }
 
     #[cfg(test)]
-    pub(super) fn make_deferred_menu_apply_due_for_test(&mut self) {
-        if let Some(pending) = &mut self.pending.pending_menu_apply {
-            pending.due_at = Instant::now();
-        }
-        if self.pending.pending_autosave_payload_due_at.is_some() {
-            self.pending.pending_autosave_payload_due_at = Some(Instant::now());
-        }
-    }
-
-    #[cfg(test)]
     pub(super) fn set_toast_for_test(&mut self, message: &str) {
         self.show_toast(message);
     }

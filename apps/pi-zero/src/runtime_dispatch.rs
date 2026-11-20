@@ -110,7 +110,7 @@ pub fn handle_deferred_host_work(
     if adapter.shutdown_pending() {
         return Ok(());
     }
-    for result in adapter.flush_native_persistence_at(playback, runner, Instant::now()) {
+    for result in adapter.flush_native_persistence_at(playback, runner, Instant::now(), false) {
         if let Some(evidence) = adapter.timing_evidence.as_mut() {
             evidence.record_host_message(&result);
         }

@@ -202,7 +202,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
             ))
     )));
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let flushed = runner.flush_deferred_menu_apply().unwrap();
     let saves = flushed
         .iter()

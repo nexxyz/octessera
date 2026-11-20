@@ -205,7 +205,7 @@ pub(crate) fn instrument_type_turn_applies_immediately() {
     assert_eq!(runner.audio_revisions.revision, 0);
     assert_no_audio_commands(&messages);
     assert_no_store_save_default(&messages);
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());
 }
 
@@ -345,6 +345,6 @@ pub(crate) fn instrument_route_turn_applies_immediately() {
     assert!(snapshot.lines.iter().any(|line| line == "  Pan Pos C"));
     assert_eq!(runner.instruments[0].route, MixerRoute::Direct);
     assert_eq!(runner.audio_revisions.revision, 2);
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     assert_deferred_autosave_payload(&runner.flush_deferred_menu_apply().unwrap());
 }

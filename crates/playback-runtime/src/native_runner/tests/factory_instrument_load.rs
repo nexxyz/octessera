@@ -130,7 +130,7 @@ fn factory_load_confirm_replaces_one_slot_only_and_schedules_autosave() {
                 .into(),
         };
         assert_eq!(loaded, value, "{key}");
-        runner.make_deferred_menu_apply_due_for_test();
+        runner.make_deferred_work_due_now();
         let saved = runner.flush_deferred_menu_apply().unwrap();
         assert!(saved.iter().any(|message| matches!(message, RunnerMessage::PlatformEffects { effects } if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { mode, .. } if matches!(mode, Some(crate::DefaultSaveMode::Deferred)))))));
     }

@@ -57,7 +57,7 @@ fn wait_for_result(adapter: &PiHostAdapter) -> Vec<HostMessage> {
     adapter
         .core
         .platform_service
-        .enqueue_test_barrier()
+        .enqueue_barrier()
         .unwrap()
         .recv_timeout(Duration::from_secs(1))
         .unwrap();

@@ -1,12 +1,15 @@
 //! The ordinary reboot/shutdown lifecycle on the shared host: save, silence,
-//! show the terminal frame, then hand the board its power command.
+//! show the terminal frame, then hand the board its power command. A
+//! termination signal instead writes the pending autosave before the app exits.
 
 use crate::host_adapter::PiHostAdapter;
 use crate::power_lifecycle::{
     PowerAction, PowerLifecycle, PowerLifecycleCallbacks, PowerLifecycleResult,
 };
 use crate::render_loop::RenderWorker;
+use crate::runtime_dispatch::{dispatch_runtime_message, handle_deferred_host_work};
 use playback_runtime::{HostAdapter, NativeRunner, PlaybackRuntime};
+use std::time::Instant;
 
 pub(crate) fn run_ordinary_power_lifecycle(
     playback: &PlaybackRuntime,
@@ -24,6 +27,30 @@ pub(crate) fn run_ordinary_power_lifecycle(
         submit_power,
     };
     PowerLifecycle::default().execute(action, &mut callbacks)
+}
+
+/// Writes now what the coalesced autosave would have written later. Queued
+/// jobs finish first, so a default write already in flight frees its slot.
+pub(crate) fn save_pending_persistence_for_exit(
+    playback: &mut PlaybackRuntime,
+    runner: &mut NativeRunner,
+    adapter: &mut PiHostAdapter,
+) {
+    runner.make_deferred_work_due_now();
+    let result = adapter
+        .wait_for_queued_store_jobs()
+        .and_then(|()| handle_deferred_host_work(playback, runner, adapter))
+        .and_then(|()| {
+            for message in
+                adapter.flush_native_persistence_at(playback, runner, Instant::now(), true)
+            {
+                dispatch_runtime_message(playback, runner, adapter, message)?;
+            }
+            adapter.wait_for_queued_store_jobs()
+        });
+    if let Err(error) = result {
+        eprintln!("pi exit save failed: {error}");
+    }
 }
 
 /// Shows the current scene as the terminal frame before power goes away.

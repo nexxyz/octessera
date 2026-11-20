@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-pub(crate) static INTERRUPTED: AtomicBool = AtomicBool::new(false);
+static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
 pub(crate) fn install_signal_handlers() -> Result<(), String> {
@@ -9,7 +9,7 @@ pub(crate) fn install_signal_handlers() -> Result<(), String> {
         for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
             if libc::signal(signal, handler) == libc::SIG_ERR {
                 return Err(format!(
-                    "could not install Orange shutdown handler for signal {signal}"
+                    "could not install shutdown handler for signal {signal}"
                 ));
             }
         }
@@ -17,7 +17,7 @@ pub(crate) fn install_signal_handlers() -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn restore_default_handlers() {
     unsafe {
         for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
@@ -26,12 +26,12 @@ pub(crate) fn restore_default_handlers() {
     }
 }
 
-#[cfg(not(unix))]
+#[cfg(all(not(unix), feature = "hardware-orange-pi-zero-2w"))]
 pub(crate) fn restore_default_handlers() {}
 
 #[cfg(not(unix))]
 pub(crate) fn install_signal_handlers() -> Result<(), String> {
-    Err("Orange foreground candidate requires Unix signal handling".into())
+    Err("the runtime requires Unix signal handling".into())
 }
 
 pub(crate) fn interrupted() -> bool {

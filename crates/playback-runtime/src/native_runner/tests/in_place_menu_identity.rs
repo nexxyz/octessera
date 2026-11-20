@@ -46,7 +46,7 @@ fn rename(runner: &mut NativeRunner, key: &str) {
     let rebuilds = runner.menu.rebuild_count;
     enter_edit(runner, key);
     turn(runner, 2);
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner.flush_deferred_menu_apply().unwrap();
     assert_eq!(runner.menu.current_key(), Some(key));
     assert!(runner.menu.state.editing);
@@ -104,7 +104,7 @@ fn an_edit_to_another_key_lands_after_a_pending_layer_rename() {
     enter_edit(&mut runner, "layers.0.autoName");
     turn(&mut runner, 1);
     press(&mut runner);
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner.flush_deferred_menu_apply().unwrap();
 
     assert!(runner.layers[0].auto_name);

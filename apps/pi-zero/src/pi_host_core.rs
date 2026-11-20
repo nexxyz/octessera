@@ -146,6 +146,7 @@ impl PiHostCore {
         playback: &mut PlaybackRuntime,
         runner: &mut NativeRunner,
         now: Instant,
+        skip_coalescing: bool,
     ) -> Vec<HostMessage> {
         crate::platform_service::platform_native_autosave::flush_due_native_persistence(
             &mut self.pending_default_save,
@@ -153,6 +154,7 @@ impl PiHostCore {
             playback,
             runner,
             now,
+            skip_coalescing,
         )
     }
 

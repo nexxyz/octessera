@@ -115,8 +115,11 @@ pub(super) fn handle_job(
                 error: RuntimeSystemInfoError::unavailable(message),
             },
         },
+        PlatformJobKind::QueueBarrier { .. } => {
+            unreachable!("queue barrier is handled by worker")
+        }
         #[cfg(test)]
-        PlatformJobKind::TestBarrier { .. } | PlatformJobKind::TestGate { .. } => {
+        PlatformJobKind::TestGate { .. } => {
             unreachable!("test synchronization job is handled by worker")
         }
     };

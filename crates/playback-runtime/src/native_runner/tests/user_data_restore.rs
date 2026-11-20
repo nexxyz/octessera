@@ -71,7 +71,7 @@ fn pending_restart_runner() -> NativeRunner {
         &mut runner,
         json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
     );
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let messages = runner.flush_deferred_menu_apply().unwrap();
     assert!(has_default_save(
         &messages,

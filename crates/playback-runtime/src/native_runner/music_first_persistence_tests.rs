@@ -258,7 +258,7 @@ fn due_deferred_autosave_stays_dirty_until_separate_persistence_call() {
         })
         .unwrap();
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let due = runner
         .send_music_first(HostMessage::TransportPulseStep {
             pulses: 0,
@@ -298,7 +298,7 @@ fn due_music_first_save_follows_notes_without_snapshot_and_reloads_edited_value(
             request_snapshot: Some(false),
         })
         .unwrap();
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner.audio_revisions.revision += 1;
     let musical = runner
         .send_music_first(HostMessage::TransportPulseStep {
@@ -385,7 +385,7 @@ fn host_receives_due_audio_and_notes_before_explicit_save_serialization() {
             &mut host,
         )
         .unwrap();
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner.audio_revisions.revision += 1;
     let before_notes = host.musical_events.len();
     let before_audio = host.audio_commands.len();
@@ -418,7 +418,7 @@ fn failed_music_first_default_write_remains_dirty_and_reschedules_with_visible_e
     runner.auto_save_default = true;
     runner.rolling_backups = false;
     runner.mark_fast_autosave_dirty();
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner
         .send_music_first(HostMessage::TransportPulseStep {
             pulses: 0,
@@ -458,7 +458,7 @@ fn failed_music_first_default_write_remains_dirty_and_reschedules_with_visible_e
         runner.persistence_intent_at(retry_due).unwrap().revision(),
         revision
     );
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let retry = runner.flush_due_persistence_music_first().unwrap();
     assert!(retry.iter().any(|message| matches!(message, RunnerMessage::PlatformEffects { effects }
         if effects.iter().any(|effect| matches!(effect, RuntimePlatformEffect::StoreSaveDefault { .. })))));
@@ -469,7 +469,7 @@ fn shipped_backup_only_defaults_do_not_block_future_backups_with_stale_save_due(
     let mut runner = playing_default();
     assert!(!runner.auto_save_default);
     runner.mark_fast_autosave_dirty();
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     runner
         .send_music_first(HostMessage::TransportPulseStep {
             pulses: 0,

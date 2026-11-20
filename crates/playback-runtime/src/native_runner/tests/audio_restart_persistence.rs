@@ -272,7 +272,7 @@ fn restart_results_require_the_unique_identified_transaction() {
         })
         .unwrap();
     assert!(runner.restart_settings.has_pending_write());
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let messages = runner.flush_deferred_menu_apply().unwrap();
     assert!(!messages.iter().any(|message| matches!(
         message,
@@ -426,7 +426,7 @@ fn immediate_autosave_failure_rearms_the_normal_deferred_retry() {
     assert!(runner.menu.focus_item_key("transport.bpm"));
     let _ = press(&mut runner);
     let _ = turn(&mut runner, 1);
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let messages = runner.flush_deferred_menu_apply().unwrap();
     runtime
         .dispatch_runner_messages(messages, &mut runner, &mut host)
@@ -435,7 +435,7 @@ fn immediate_autosave_failure_rearms_the_normal_deferred_retry() {
     assert_eq!(host.default_save_calls, 1);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let retry = runner.flush_deferred_menu_apply().unwrap();
     assert_eq!(
         retry

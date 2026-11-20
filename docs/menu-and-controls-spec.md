@@ -1058,7 +1058,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Aux value changes become autosave-eligible after the native 150 ms edit debounce, counted from
   the first unsettled edit. Pi autosaves write the latest eligible revision two seconds after the
   first unsaved one, whether transport is playing or stopped; newer revisions do not move that
-  deadline, so continuous edits or modulation still save every few seconds.
+  deadline, so continuous edits or modulation still save every few seconds. Stopping
+  `octessera.service` writes a pending autosave immediately before the app exits.
 - The menu lives under [`Link > Aux Mappings`](menu-tree/link.md#aux-mappings).
 
 ### Auto-map

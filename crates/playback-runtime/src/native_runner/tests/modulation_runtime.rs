@@ -197,7 +197,7 @@ pub(crate) fn multi_target_grid_modulation_aggregates_revision_and_deferred_auto
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
     assert!(runner.pending.pending_save_revision.is_none());
 
-    runner.make_deferred_menu_apply_due_for_test();
+    runner.make_deferred_work_due_now();
     let messages = runner.flush_deferred_menu_apply().unwrap();
     assert_eq!(
         messages

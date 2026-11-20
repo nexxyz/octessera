@@ -20,6 +20,7 @@ pub(crate) fn flush_due_native_persistence(
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     now: Instant,
+    skip_coalescing: bool,
 ) -> Vec<HostMessage> {
     let generation = service.store_write_generation();
     let blocked = service.store_writes_blocked();
@@ -29,6 +30,9 @@ pub(crate) fn flush_due_native_persistence(
         runner.persistence_intent_at(now)
     };
     pending.observe_native(intent, now, generation, blocked);
+    if skip_coalescing {
+        pending.make_default_due(now);
+    }
     let Some(due) = pending.due_native(now) else {
         return Vec::new();
     };

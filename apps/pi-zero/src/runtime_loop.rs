@@ -24,6 +24,8 @@ const HARDWARE_EVENT_BUDGET: usize = 16;
 
 #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
 mod error_tests;
+#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+mod exit_save_tests;
 
 pub(crate) trait BoardLoop {
     /// Per-iteration audio upkeep; an error ends the loop as an audio fault.
@@ -44,7 +46,7 @@ pub(crate) trait BoardLoop {
     ) -> bool;
 
     fn interrupted(&self) -> bool {
-        false
+        crate::shutdown_signal::interrupted()
     }
 }
 
@@ -87,8 +89,9 @@ pub(crate) struct LoopInputs<'a> {
     pub(crate) encoder_rx: &'a mpsc::Receiver<HardwareEvent>,
 }
 
-/// Runs until a power request or interrupt ends it (`Ok`) or audio upkeep
-/// fails (`Err` with the fault).
+/// Runs until a power request or a termination signal ends it (`Ok`; the
+/// signal path writes the pending autosave first) or audio upkeep fails (`Err`
+/// with the fault).
 pub(crate) fn run_runtime_loop(
     state: &mut LoopState,
     playback: &mut PlaybackRuntime,
@@ -106,7 +109,13 @@ pub(crate) fn run_runtime_loop(
             .zip(last_loop_start)
             .map(|(loop_start, last)| loop_start.duration_since(last));
         last_loop_start = loop_start;
-        if board.interrupted() || advance(state, playback, runner, adapter, render_worker, board) {
+        if board.interrupted() {
+            crate::host_power_lifecycle::save_pending_persistence_for_exit(
+                playback, runner, adapter,
+            );
+            return Ok(());
+        }
+        if advance(state, playback, runner, adapter, render_worker, board) {
             return Ok(());
         }
         if let Err(error) = board.service_audio(playback, runner, adapter) {
