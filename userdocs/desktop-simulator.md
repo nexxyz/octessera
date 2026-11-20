@@ -24,14 +24,18 @@ happily next to the first one, and each keeps to its own saves.
 
 The shipped patch already has Layer 1 running `life` into a synth.
 
-1. In **Build**, stay on Layer 1 (or pick `brain` or `raindrops` for it).
-2. Click a few tiles on the grid.
-3. Press **Space** to start playback.
-4. Hold **Ctrl** (the simulator's *Fn*) and click the second tile from the
-   bottom in the right-hand grid column to open **Play Pan**. Each row is an
-   instrument; click left, center or right on the synth's row (the bottom one)
-   to move it across the stereo field.
-5. Press **Backspace** to leave Play Pan.
+1. Press **Space**. The shipped patch starts at 120 BPM: a beat on kick, clap
+   and open hat, a bass line, raindrops landing on a drum kit, and Layer 1's `life`
+   colony playing a dark synth with its own echo.
+2. Click a few tiles on the grid. They change Layer 1's colony, and the synth
+   line changes with it.
+3. Carry on with the [tutorial](README.md#4-make-music): faders, Play FX and
+   swapping behaviors.
+
+Side trip, the stereo field: hold **Ctrl** (the simulator's *Fn*) and click the
+second tile from the bottom in the right-hand grid column to open **Play Pan**.
+Each row is an instrument; click left, center or right on the synth's row (the
+bottom one) to move it across the stereo field. Press **Backspace** to leave.
 
 Auto Save is off here too: edits stay in memory until you use
 `System > Saves > Default > Save Patch` or save a named preset under
