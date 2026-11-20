@@ -135,34 +135,37 @@ impl RetiredAudioState {
 pub(super) fn store_retired_preview(
     slots: &mut [Option<PreviewSampleVoice>; PREVIEW_AUDITION_SLOTS],
     voice: PreviewSampleVoice,
-) {
-    let slot = slots
-        .iter_mut()
-        .find(|slot| slot.is_none())
-        .expect("retired preview capacity exceeded");
+) -> bool {
+    let Some(slot) = slots.iter_mut().find(|slot| slot.is_none()) else {
+        debug_assert!(false, "retired preview capacity exceeded");
+        return false;
+    };
     *slot = Some(voice);
+    true
 }
 
 pub(super) fn store_retired_preview_buffer(
     slots: &mut [Option<SampleBuffer>; PREVIEW_AUDITION_SLOTS],
     buffer: SampleBuffer,
-) {
-    let slot = slots
-        .iter_mut()
-        .find(|slot| slot.is_none())
-        .expect("retired preview buffer capacity exceeded");
+) -> bool {
+    let Some(slot) = slots.iter_mut().find(|slot| slot.is_none()) else {
+        debug_assert!(false, "retired preview buffer capacity exceeded");
+        return false;
+    };
     *slot = Some(buffer);
+    true
 }
 
 pub(super) fn store_retired_momentary(
     slots: &mut [Option<MomentaryFxState>; MOMENTARY_FX_CAPACITY],
     state: MomentaryFxState,
-) {
-    let slot = slots
-        .iter_mut()
-        .find(|slot| slot.is_none())
-        .expect("retired momentary FX capacity exceeded");
+) -> bool {
+    let Some(slot) = slots.iter_mut().find(|slot| slot.is_none()) else {
+        debug_assert!(false, "retired momentary FX capacity exceeded");
+        return false;
+    };
     *slot = Some(state);
+    true
 }
 
 pub(super) fn retire_momentary_states(
