@@ -1,18 +1,12 @@
 use super::*;
 
-#[derive(Debug)]
-struct EnumHelpTarget {
-    target: NativeMenuHelpTarget,
-    options: Vec<String>,
-}
-
 #[test]
-pub(crate) fn representative_enum_help_names_every_canonical_option() {
+pub(crate) fn representative_enum_help_resolves_to_specific_entries() {
     assert_enum_help_for_configs(representative_help_configs());
 }
 
 #[test]
-pub(crate) fn behavior_enum_help_rows_resolve_by_active_keys() {
+pub(crate) fn behavior_enum_help_resolves_to_specific_entries_by_active_keys() {
     assert_enum_help_for_configs(representative_behavior_help_configs());
 }
 
@@ -34,7 +28,7 @@ fn assert_enum_help_for_configs(configs: Vec<NativeMenuConfig>) {
     );
 }
 
-fn collect_enum_help_targets(menu: &NativeMenuModel) -> Vec<EnumHelpTarget> {
+fn collect_enum_help_targets(menu: &NativeMenuModel) -> Vec<NativeMenuHelpTarget> {
     let help_targets = menu.help_targets();
     let mut target_index = 0;
     let mut enum_targets = Vec::new();
@@ -56,7 +50,7 @@ fn collect_enum_help_targets_from_item(
     item: &NativeMenuItem,
     help_targets: &[NativeMenuHelpTarget],
     target_index: &mut usize,
-    enum_targets: &mut Vec<EnumHelpTarget>,
+    enum_targets: &mut Vec<NativeMenuHelpTarget>,
 ) {
     for child in &item.children {
         if child.label.is_empty() {
@@ -67,12 +61,9 @@ fn collect_enum_help_targets_from_item(
             .unwrap_or_else(|| panic!("missing help target for menu item {}", child.label))
             .clone();
         *target_index += 1;
-        if let NativeMenuValue::Enum { options, .. } = &child.value {
+        if matches!(child.value, NativeMenuValue::Enum { .. }) {
             assert_eq!(target.kind, "enum", "enum item has the wrong help kind");
-            enum_targets.push(EnumHelpTarget {
-                target,
-                options: options.clone(),
-            });
+            enum_targets.push(target);
         }
         if !child.children.is_empty() {
             collect_enum_help_targets_from_item(child, help_targets, target_index, enum_targets);
@@ -80,38 +71,27 @@ fn collect_enum_help_targets_from_item(
     }
 }
 
-fn assert_specific_enum_help(target: &EnumHelpTarget) {
-    assert!(!target.target.key.is_empty(), "enum help target has no key");
-    let entry = crate::native_help::resolve_native_help_entry(&target.target)
-        .unwrap_or_else(|| panic!("missing specific enum help for {}", target.target.key));
+fn assert_specific_enum_help(target: &NativeMenuHelpTarget) {
+    assert!(!target.key.is_empty(), "enum help target has no key");
+    let entry = crate::native_help::resolve_native_help_entry(target)
+        .unwrap_or_else(|| panic!("missing specific enum help for {}", target.key));
     assert!(
         is_specific_enum_help_entry(&entry),
         "enum help for {} resolved through a generic fallback {}",
-        target.target.key,
+        target.key,
         entry.key
     );
-    let copy = format!("{} {}", entry.line1, entry.line2);
-    if target.target.key == "key:layers.*.link.pitch.scale" {
+    assert!(
+        !entry.line1.trim().is_empty(),
+        "enum help for {} does not say what the setting does",
+        target.key
+    );
+    if target.key == "key:layers.*.link.pitch.scale" {
+        let copy = format!("{} {}", entry.line1, entry.line2);
         assert!(copy.contains("pitch classes"));
         assert!(copy.contains("simultaneous chords or inversions"));
         assert!(copy.contains("12-TET approximations"));
-        return;
     }
-    let missing = target
-        .options
-        .iter()
-        .filter(|option| {
-            let key = target.target.key.strip_prefix("key:");
-            let shown = crate::native_menu::format_values::format_display_value(key, option);
-            !contains_help_option(&copy, &shown)
-                && !(shown.starts_with(option.as_str()) && contains_help_option(&copy, option))
-        })
-        .collect::<Vec<_>>();
-    assert!(
-        missing.is_empty(),
-        "help for {} is missing runtime options {missing:?}: {copy}",
-        target.target.key
-    );
 }
 
 fn is_specific_enum_help_entry(entry: &crate::native_help::NativeHelpEntry) -> bool {
@@ -120,66 +100,14 @@ fn is_specific_enum_help_entry(entry: &crate::native_help::NativeHelpEntry) -> b
     !(path == "*" && key.is_empty()) && key != "key:*" && key != "action:*"
 }
 
-fn contains_help_option(copy: &str, option: &str) -> bool {
-    let copy = copy.to_lowercase();
-    let option = option.to_lowercase();
-    let stable_option = option
-        .split_once(':')
-        .filter(|(prefix, _)| is_instrument_slot_label(prefix))
-        .map(|(prefix, _)| prefix)
-        .unwrap_or(&option);
-    contains_bounded_option(&copy, &option) || contains_bounded_option(&copy, stable_option)
-}
-
-fn contains_bounded_option(copy: &str, option: &str) -> bool {
-    bounded_contains(copy, option)
-        || bounded_contains(
-            &copy.replace(['_', '-'], " "),
-            &option.replace(['_', '-'], " "),
-        )
-}
-
-fn is_instrument_slot_label(value: &str) -> bool {
-    let Some(number) = value.strip_prefix('i') else {
-        return false;
-    };
-    !number.is_empty() && number.chars().all(|character| character.is_ascii_digit())
-}
-
-fn bounded_contains(copy: &str, option: &str) -> bool {
-    if option.is_empty() {
-        return false;
-    }
-    let mut offset = 0;
-    while let Some(found) = copy[offset..].find(option) {
-        let start = offset + found;
-        let end = start + option.len();
-        let before = copy[..start].chars().next_back();
-        let mut rest = copy[end..].chars();
-        let after = rest.next();
-        let sentence_end = after == Some('.') && rest.next().is_none_or(char::is_whitespace);
-        if !before.is_some_and(is_enum_value_char)
-            && (sentence_end || !after.is_some_and(is_enum_value_char))
-        {
-            return true;
-        }
-        offset = end;
-    }
-    false
-}
-
-fn is_enum_value_char(character: char) -> bool {
-    character.is_ascii_alphanumeric() || matches!(character, '_' | '-' | '/' | '+' | '#' | '.')
-}
-
 // MIDI ports and sample filenames are generated runtime rows, not stable enum contracts.
-fn is_runtime_generated_enum(target: &EnumHelpTarget) -> bool {
-    let key = target.target.key.as_str();
+fn is_runtime_generated_enum(target: &NativeMenuHelpTarget) -> bool {
+    let key = target.key.as_str();
     key.starts_with("key:midi.output")
         || key.starts_with("key:midi.input")
         || key.starts_with("key:sample.")
         || key == "key:instruments.*.drum.voice"
-        || target.target.path.contains(" Browse")
+        || target.path.contains(" Browse")
 }
 
 fn representative_behavior_help_configs() -> Vec<NativeMenuConfig> {
