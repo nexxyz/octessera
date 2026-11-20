@@ -385,7 +385,7 @@ change; only the distance per detent does.
   note-off for every held keyboard note, forwarded ones included. Each overdubbing Looper whose
   Link Activate plays that slot records the note as a press and release of the lowest-index tile
   its current mapping plays as that note (for Drum, Sampler and MIDI Drum slots: stamped with that voice,
-  sample slot or note), without holding the tile, into the step sounding now (step 1 while stopped); notes no tile plays are not recorded. Off ignores incoming notes; CC In and Learn are unaffected either way. Full rules:
+  sample slot or note), without holding the tile, on the step a grid press would land on (see Input events below); notes no tile plays are not recorded. Off ignores incoming notes; CC In and Learn are unaffected either way. Full rules:
   [menu-tree/system.md](menu-tree/system.md#midi).
 - A timed MIDI note that starts again on the same channel before its note-off is due sends that
   note-off first, at the new note's time, and drops it from the schedule, so only the new note's own
@@ -1390,7 +1390,13 @@ Input events:
 
 - `DeviceInput` carries `grid_press` and `grid_release`. Behaviors that ignore `grid_release` do
   nothing with it. `keys` uses press→activate and release→deactivate; `looper` uses the same live
-  semantics and can overdub step-quantized press/release events into its loop. Its Length setting is
+  semantics and can overdub step-quantized press/release events into its loop. Grid presses and
+  keyboard notes record by one rule. While playing, an event goes to the nearest step: in the first
+  half of a step, that step (it already sounded live, so it plays from the next pass); in the
+  second half, the next step, which skips that event once on this pass so it does not hit twice.
+  Stopped or paused, it goes to the step the playhead waits on, which single-stepping moves. A
+  release that would share its press's step goes one step later, so a short note survives. Only the
+  tiles are saved; the skip mark is runtime state. Its Length setting is
   only the loop window (1-64 steps): lowering it keeps the recorded steps past the window, which
   neither play nor record, and raising it brings them back. Clear Loop erases all of them.
 - With immediate input-transition interpretation, `platform-core` runs grid changes from input

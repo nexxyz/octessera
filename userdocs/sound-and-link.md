@@ -201,7 +201,8 @@ wander in by accident.
   MIDI Drum slots use a tile stamped with the voice, sample or note you hit
   instead. If two tiles fit, the one lowest on the grid wins (leftmost if they
   share a row). A note no tile can play still sounds, it just isn't recorded.
-  The loop picks it up on the next pass; you already heard it this time round.
+  It lands on the same step a grid press would, the nearest one: see the
+  [looper](behaviors-and-play.md#full-behavior-catalog) row for how.
 - **The Looper keeps the tile, not the note.** On replay the tile goes through
   the layer's Link as it is then, like a grid press would. So:
   - how hard you hit the key isn't kept; the mapping sets the velocity;

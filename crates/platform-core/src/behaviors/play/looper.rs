@@ -1,6 +1,6 @@
 use crate::behavior::{
     BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput, GridInteraction,
-    TileTriggerType,
+    StepPhase, TileTriggerType,
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
@@ -11,6 +11,10 @@ use serde_json::Value;
 const DEFAULT_LENGTH_STEPS: usize = 16;
 const MAX_LENGTH_STEPS: usize = 64;
 const MAX_EVENTS_PER_STEP: usize = 128;
+const SKIP_ONCE_SLOTS: usize = 16;
+
+/// An event recorded into a step still to come on this pass, which already sounded live.
+type SkipOnce = Option<(u8, u8, LooperEventKind)>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LooperState {
@@ -27,6 +31,8 @@ pub struct LooperState {
     #[serde(rename = "lengthSteps")]
     pub length_steps: usize,
     pub mode: LooperMode,
+    #[serde(skip)]
+    skip_once: [SkipOnce; SKIP_ONCE_SLOTS],
 }
 
 /// Whether the looper records presses into its loop or only plays it back.
@@ -46,7 +52,7 @@ impl LooperMode {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LooperEvent {
     pub tile: usize,
     pub kind: LooperEventKind,
@@ -88,18 +94,22 @@ pub fn looper_init(config: Value) -> Result<LooperState, String> {
         step_index: 0,
         length_steps,
         mode: normalize_mode(config.mode.as_deref()),
+        skip_once: Default::default(),
     })
 }
 
 pub fn looper_on_input(
     state: LooperState,
     input: DeviceInput,
-    _context: &mut BehaviorContext,
+    context: &mut BehaviorContext,
 ) -> LooperState {
+    let phase = context.step_phase;
     match input {
-        DeviceInput::GridPress { x, y } => apply_grid_input(state, x, y, LooperEventKind::Press),
+        DeviceInput::GridPress { x, y } => {
+            apply_grid_input(state, x, y, LooperEventKind::Press, phase)
+        }
         DeviceInput::GridRelease { x, y } => {
-            apply_grid_input(state, x, y, LooperEventKind::Release)
+            apply_grid_input(state, x, y, LooperEventKind::Release, phase)
         }
         DeviceInput::BehaviorAction(action) if action.action_type == "clearLoop" => {
             clear_loop(state)
@@ -124,18 +134,21 @@ pub fn looper_on_input(
     }
 }
 
-pub fn looper_on_tick(state: LooperState, _context: &mut BehaviorContext) -> LooperState {
+pub fn looper_on_tick(mut state: LooperState, _context: &mut BehaviorContext) -> LooperState {
     let mut playback_tiles = state.playback_tiles.clone();
-    let step_events = state
-        .steps
-        .get(state.step_index)
-        .cloned()
-        .unwrap_or_default();
-    for event in step_events {
-        if event.tile >= TILE_COUNT {
+    let step = state.step_index;
+    for event in state.steps.get(step).into_iter().flatten() {
+        if event.tile >= TILE_COUNT || take_skip_once(&mut state.skip_once, step, event) {
             continue;
         }
         playback_tiles[event.tile] = matches!(event.kind, LooperEventKind::Press);
+    }
+    for slot in &mut state.skip_once {
+        if slot.is_some_and(|(marked, _, _)| {
+            usize::from(marked) == step || usize::from(marked) >= state.length_steps
+        }) {
+            *slot = None;
+        }
     }
     let tiles = combined_tiles(&state.held_tiles, &playback_tiles);
     let trigger_types = trigger_types_from_tiles(&state.tiles, &tiles);
@@ -151,6 +164,7 @@ pub fn looper_on_tick(state: LooperState, _context: &mut BehaviorContext) -> Loo
 pub(crate) fn reset_transport_phase(state: &mut LooperState) {
     let previous = state.tiles.clone();
     state.step_index = 0;
+    state.skip_once = Default::default();
     state.playback_tiles.fill(false);
     state.tiles = state.held_tiles.clone();
     state.trigger_types = trigger_types_from_tiles(&previous, &state.tiles);
@@ -214,76 +228,110 @@ pub fn looper_deserialize(data: Value) -> Result<LooperState, String> {
         step_index: saved.step_index.unwrap_or(0) % length_steps,
         length_steps,
         mode: normalize_mode(saved.mode.as_deref()),
+        skip_once: Default::default(),
     })
 }
 
-fn apply_grid_input(state: LooperState, x: usize, y: usize, kind: LooperEventKind) -> LooperState {
+fn apply_grid_input(
+    mut state: LooperState,
+    x: usize,
+    y: usize,
+    kind: LooperEventKind,
+    phase: StepPhase,
+) -> LooperState {
     if x >= GRID_WIDTH || y >= GRID_HEIGHT {
         return state;
     }
     let index = grid_index(x, y);
-    let mut held_tiles = state.held_tiles.clone();
-    held_tiles[index] = matches!(kind, LooperEventKind::Press);
-    let mut steps = state.steps.clone();
+    state.held_tiles[index] = matches!(kind, LooperEventKind::Press);
     if state.mode == LooperMode::Overdub {
-        let step_index = state.step_index.min(steps.len().saturating_sub(1));
-        if let Some(events) = steps.get_mut(step_index) {
-            if events.len() < MAX_EVENTS_PER_STEP {
-                events.push(LooperEvent { tile: index, kind });
-            }
-        }
+        record_event(&mut state, LooperEvent { tile: index, kind }, phase);
     }
-    let tiles = combined_tiles(&held_tiles, &state.playback_tiles);
+    let tiles = combined_tiles(&state.held_tiles, &state.playback_tiles);
     let trigger_types = trigger_types_from_tiles(&state.tiles, &tiles);
     LooperState {
         tiles,
         trigger_types,
-        held_tiles,
-        steps,
         ..state
     }
 }
 
 /// Records a press or release of `tile` played somewhere else, such as on a MIDI keyboard,
-/// while overdubbing. The note already sounded, so the tile is not held and the event goes to
-/// the step now sounding (step 1 while the transport is stopped): the loop plays it from the
-/// next pass on. A release in the same step as its press goes to the next step, so a short note
-/// still sounds. False when not recording.
+/// while overdubbing, at the same step a grid press would land on. The note already sounded,
+/// so the tile is not held. False when not recording.
 pub(crate) fn record_outside_tile(
     state: &mut LooperState,
     tile: usize,
     pressed: bool,
-    transport_running: bool,
+    phase: StepPhase,
 ) -> bool {
     if state.mode != LooperMode::Overdub || tile >= TILE_COUNT {
         return false;
     }
-    let length = state.length_steps.clamp(1, state.steps.len().max(1));
-    let mut step = if transport_running {
-        (state.step_index + length - 1) % length
-    } else {
-        0
-    };
     let kind = if pressed {
         LooperEventKind::Press
     } else {
         LooperEventKind::Release
     };
+    record_event(state, LooperEvent { tile, kind }, phase);
+    true
+}
+
+/// Puts an event played now on the nearest step. While the transport runs that is the step
+/// sounding now in its first half, and the next step in its second half, which then skips the
+/// event once on this pass because it already sounded live. While stopped it is the step the
+/// playhead waits on. A release that would share a step with its press goes one step later, so
+/// a short note still sounds.
+fn record_event(state: &mut LooperState, event: LooperEvent, phase: StepPhase) {
+    let length = state.length_steps.clamp(1, state.steps.len().max(1));
+    let next = state.step_index % length;
+    let mut step = match phase {
+        StepPhase::FirstHalf => (next + length - 1) % length,
+        StepPhase::SecondHalf | StepPhase::Stopped => next,
+    };
+    let mut ahead = phase == StepPhase::SecondHalf;
     let pressed_here = |events: &Vec<LooperEvent>| {
         events
             .iter()
             .rev()
-            .find(|event| event.tile == tile)
-            .is_some_and(|event| event.kind == LooperEventKind::Press)
+            .find(|recorded| recorded.tile == event.tile)
+            .is_some_and(|recorded| recorded.kind == LooperEventKind::Press)
     };
-    if !pressed && state.steps.get(step).is_some_and(pressed_here) {
+    if event.kind == LooperEventKind::Release && state.steps.get(step).is_some_and(pressed_here) {
         step = (step + 1) % length;
+        ahead = phase != StepPhase::Stopped;
     }
-    if let Some(events) = state.steps.get_mut(step) {
-        if events.len() < MAX_EVENTS_PER_STEP {
-            events.push(LooperEvent { tile, kind });
+    let Some(events) = state.steps.get_mut(step) else {
+        return;
+    };
+    if events.len() >= MAX_EVENTS_PER_STEP {
+        return;
+    }
+    events.push(event);
+    if ahead {
+        if let Some(slot) = state.skip_once.iter_mut().find(|slot| slot.is_none()) {
+            *slot = skip_mark(step, &event);
         }
     }
+}
+
+fn skip_mark(step: usize, event: &LooperEvent) -> SkipOnce {
+    Some((
+        u8::try_from(step).ok()?,
+        u8::try_from(event.tile).ok()?,
+        event.kind,
+    ))
+}
+
+/// True, and forgets the mark, when `event` on `step` already sounded live on this pass.
+fn take_skip_once(skip_once: &mut [SkipOnce], step: usize, event: &LooperEvent) -> bool {
+    let Some(slot) = skip_once
+        .iter_mut()
+        .find(|slot| slot.is_some() && **slot == skip_mark(step, event))
+    else {
+        return false;
+    };
+    *slot = None;
     true
 }
 
@@ -297,6 +345,7 @@ fn clear_loop(state: LooperState) -> LooperState {
         playback_tiles,
         steps: vec![Vec::new(); state.length_steps],
         step_index: 0,
+        skip_once: Default::default(),
         ..state
     }
 }

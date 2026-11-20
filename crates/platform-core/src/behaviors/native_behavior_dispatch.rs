@@ -1,7 +1,7 @@
 use super::{
     cellular, games, native_impl, pattern_music, play, NativeBehavior, NativeBehaviorState,
 };
-use crate::behavior::{BehaviorContext, BehaviorRenderModel, DeviceInput};
+use crate::behavior::{BehaviorContext, BehaviorRenderModel, DeviceInput, StepPhase};
 use serde_json::Value;
 
 impl NativeBehavior {
@@ -209,11 +209,11 @@ impl NativeBehaviorState {
         &mut self,
         tile: usize,
         pressed: bool,
-        transport_running: bool,
+        phase: StepPhase,
     ) -> bool {
         match self {
             NativeBehaviorState::Looper(state) => {
-                play::looper::record_outside_tile(state, tile, pressed, transport_running)
+                play::looper::record_outside_tile(state, tile, pressed, phase)
             }
             _ => false,
         }

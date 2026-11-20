@@ -72,11 +72,23 @@ pub struct BehaviorActionInput {
     pub action_type: String,
 }
 
+/// Where the transport is inside the layer's current step when an input arrives.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum StepPhase {
+    /// Stopped or paused: the playhead waits on a step.
+    #[default]
+    Stopped,
+    FirstHalf,
+    SecondHalf,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BehaviorContext {
     pub bpm: f32,
     #[serde(skip)]
     pub emitted_events: Vec<MusicalEvent>,
+    #[serde(skip)]
+    pub step_phase: StepPhase,
 }
 
 impl BehaviorContext {
@@ -84,6 +96,7 @@ impl BehaviorContext {
         Self {
             bpm,
             emitted_events: Vec::new(),
+            step_phase: StepPhase::Stopped,
         }
     }
 

@@ -14,7 +14,8 @@ mod transforms;
 
 pub use behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext,
-    BehaviorRenderModel, BehaviorRenderPalette, DeviceInput, GridInteraction, TileTriggerType,
+    BehaviorRenderModel, BehaviorRenderPalette, DeviceInput, GridInteraction, StepPhase,
+    TileTriggerType,
 };
 pub use behavior_random::{stream_seed, RANDOM_DOMAIN_BUILD, RANDOM_DOMAIN_LINK};
 pub use behaviors::{

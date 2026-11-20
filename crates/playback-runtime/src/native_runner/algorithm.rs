@@ -4,7 +4,7 @@ use super::{
     NativeRunner, RuntimeTransportState, ScanMode, SyncSource, TransportFlash, GRID_HEIGHT,
 };
 use crate::timing_units::{BAR_PULSES, BEAT_PULSES};
-use platform_core::DeviceInput;
+use platform_core::{DeviceInput, StepPhase};
 use swing::Swing;
 
 pub(super) use super::link_routing::LinkRoutingInput;
@@ -31,10 +31,12 @@ impl NativeRunner {
             && !self.input_events_while_paused;
         let bpm = self.transport.bpm as f32;
         let mut rng = self.probability_rng(layer_index);
+        let phase = self.layer_step_phase(layer_index);
         let layer = self
             .layers
             .get_mut(layer_index)
             .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?;
+        layer.engine.set_step_phase(phase);
         if paused {
             let model = layer.engine.on_input(input, bpm)?;
             return Ok(platform_core::NativeInputResult {
@@ -117,6 +119,24 @@ impl NativeRunner {
         let swing_lead = self.consume_swung_pulses();
         if swing_lead > 0 {
             self.accumulate_layer_pulses(swing_lead);
+        }
+    }
+
+    /// Where `index` is inside its current step: in which half while playing, else stopped.
+    pub(super) fn layer_step_phase(&self, index: usize) -> StepPhase {
+        if self.transport.transport != RuntimeTransportState::Playing {
+            return StepPhase::Stopped;
+        }
+        let elapsed = self
+            .transport
+            .layer_pulse_accumulators
+            .get(index)
+            .copied()
+            .unwrap_or(0);
+        if elapsed.saturating_mul(2) < self.step_pulses_for_layer(index) {
+            StepPhase::FirstHalf
+        } else {
+            StepPhase::SecondHalf
         }
     }
 

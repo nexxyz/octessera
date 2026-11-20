@@ -69,8 +69,18 @@ fn outside_notes_record_into_the_sounding_step_without_holding_the_tile() {
     state = looper_on_tick(state, &mut context);
     let tile = grid_index(1, 2);
 
-    assert!(record_outside_tile(&mut state, tile, true, true));
-    assert!(record_outside_tile(&mut state, tile, false, true));
+    assert!(record_outside_tile(
+        &mut state,
+        tile,
+        true,
+        StepPhase::FirstHalf
+    ));
+    assert!(record_outside_tile(
+        &mut state,
+        tile,
+        false,
+        StepPhase::FirstHalf
+    ));
     assert!(!state.held_tiles[tile] && !state.tiles[tile]);
     let press = LooperEvent {
         tile,
@@ -96,7 +106,12 @@ fn outside_notes_record_into_the_sounding_step_without_holding_the_tile() {
     assert_eq!(state.trigger_types[tile], TileTriggerType::Activate);
 
     state.mode = LooperMode::Play;
-    assert!(!record_outside_tile(&mut state, tile, true, true));
+    assert!(!record_outside_tile(
+        &mut state,
+        tile,
+        true,
+        StepPhase::FirstHalf
+    ));
 }
 
 #[test]
@@ -311,19 +326,117 @@ fn clear_loop_also_clears_steps_beyond_length() {
     assert!(state.steps.iter().all(Vec::is_empty));
 }
 
+fn press(tile: usize) -> LooperEvent {
+    LooperEvent {
+        tile,
+        kind: LooperEventKind::Press,
+    }
+}
+
+fn release(tile: usize) -> LooperEvent {
+    LooperEvent {
+        tile,
+        kind: LooperEventKind::Release,
+    }
+}
+
+fn phase_context(phase: StepPhase) -> BehaviorContext {
+    BehaviorContext {
+        step_phase: phase,
+        ..context()
+    }
+}
+
 #[test]
-fn outside_notes_recorded_while_stopped_land_on_step_one() {
+fn presses_while_stopped_land_on_the_step_the_playhead_waits_on() {
+    let mut context = context();
     let mut state =
         looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
-    let tile = grid_index(3, 4);
+    state = looper_on_tick(state, &mut context);
+    state = looper_on_tick(state, &mut context);
+    let (key, grid) = (grid_index(3, 4), grid_index(2, 2));
 
-    assert!(record_outside_tile(&mut state, tile, true, false));
+    assert!(record_outside_tile(
+        &mut state,
+        key,
+        true,
+        StepPhase::Stopped
+    ));
+    state = looper_on_input(state, DeviceInput::GridPress { x: 2, y: 2 }, &mut context);
 
-    assert_eq!(
-        state.steps[0],
-        vec![LooperEvent {
-            tile,
-            kind: LooperEventKind::Press,
-        }]
-    );
+    assert_eq!(state.steps[2], vec![press(key), press(grid)]);
+    state = looper_on_tick(state, &mut context);
+    assert!(state.tiles[key], "the next step plays it");
+}
+
+#[test]
+fn a_press_in_the_first_half_of_a_step_lands_on_that_step() {
+    for keyboard in [false, true] {
+        let mut context = phase_context(StepPhase::FirstHalf);
+        let mut state =
+            looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
+        state = looper_on_tick(state, &mut context);
+        let tile = grid_index(2, 2);
+        state = if keyboard {
+            record_outside_tile(&mut state, tile, true, StepPhase::FirstHalf);
+            record_outside_tile(&mut state, tile, false, StepPhase::FirstHalf);
+            state
+        } else {
+            let state = looper_on_input(state, DeviceInput::GridPress { x: 2, y: 2 }, &mut context);
+            looper_on_input(state, DeviceInput::GridRelease { x: 2, y: 2 }, &mut context)
+        };
+
+        assert_eq!(state.steps[0], vec![press(tile)], "keyboard {keyboard}");
+        assert_eq!(state.steps[1], vec![release(tile)], "keyboard {keyboard}");
+        for _ in 0..3 {
+            state = looper_on_tick(state, &mut context);
+            assert!(
+                !state.tiles[tile],
+                "keyboard {keyboard}: not replayed this pass"
+            );
+        }
+        state = looper_on_tick(state, &mut context);
+        assert!(
+            state.tiles[tile],
+            "keyboard {keyboard}: the next pass plays it"
+        );
+    }
+}
+
+#[test]
+fn a_press_in_the_second_half_lands_on_the_next_step_and_skips_it_once() {
+    for keyboard in [false, true] {
+        let mut context = phase_context(StepPhase::SecondHalf);
+        let mut state =
+            looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
+        state = looper_on_tick(state, &mut context);
+        let tile = grid_index(2, 2);
+        state = if keyboard {
+            record_outside_tile(&mut state, tile, true, StepPhase::SecondHalf);
+            record_outside_tile(&mut state, tile, false, StepPhase::SecondHalf);
+            state
+        } else {
+            let state = looper_on_input(state, DeviceInput::GridPress { x: 2, y: 2 }, &mut context);
+            looper_on_input(state, DeviceInput::GridRelease { x: 2, y: 2 }, &mut context)
+        };
+
+        assert_eq!(state.steps[1], vec![press(tile)], "keyboard {keyboard}");
+        assert_eq!(
+            state.steps[2],
+            vec![release(tile)],
+            "keyboard {keyboard}: the release stays after its press"
+        );
+        for _ in 0..4 {
+            state = looper_on_tick(state, &mut context);
+            assert!(!state.tiles[tile], "keyboard {keyboard}: no double hit");
+        }
+        state = looper_on_tick(state, &mut context);
+        assert!(
+            state.tiles[tile],
+            "keyboard {keyboard}: the next pass plays it"
+        );
+        assert_eq!(state.trigger_types[tile], TileTriggerType::Activate);
+        state = looper_on_tick(state, &mut context);
+        assert!(!state.tiles[tile], "keyboard {keyboard}: and releases it");
+    }
 }

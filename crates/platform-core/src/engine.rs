@@ -1,4 +1,4 @@
-use crate::behavior::{BehaviorContext, BehaviorRenderModel, DeviceInput};
+use crate::behavior::{BehaviorContext, BehaviorRenderModel, DeviceInput, StepPhase};
 use crate::behavior_random::LayerRandom;
 use crate::behaviors::{NativeBehavior, NativeBehaviorState};
 use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
@@ -61,6 +61,7 @@ pub struct NativeLayerEngine {
     tick: usize,
     held_notes: BTreeSet<HeldNote>,
     random: LayerRandom,
+    step_phase: StepPhase,
 }
 
 impl NativeLayerEngine {
@@ -96,6 +97,7 @@ impl NativeLayerEngine {
             tick: 0,
             held_notes: BTreeSet::new(),
             random: LayerRandom::new(config.random_seed),
+            step_phase: StepPhase::Stopped,
         })
     }
 
@@ -137,6 +139,7 @@ impl NativeLayerEngine {
             _ => TriggerMarkerAuthority::LegacyCompatible,
         };
         let mut context = BehaviorContext::new(bpm);
+        context.step_phase = self.step_phase;
         let behavior = self.behavior;
         let state = self.state.clone();
         self.state = self
@@ -321,15 +324,14 @@ impl NativeLayerEngine {
         activate_tile_for_note(&self.interpretation_profile, &self.mapping_config, note)
     }
 
+    /// Where the transport is inside this layer's step for the inputs that follow.
+    pub fn set_step_phase(&mut self, phase: StepPhase) {
+        self.step_phase = phase;
+    }
+
     /// Records a press or release of `tile` played elsewhere; false unless overdubbing.
-    pub fn record_outside_tile(
-        &mut self,
-        tile: usize,
-        pressed: bool,
-        transport_running: bool,
-    ) -> bool {
-        self.state
-            .record_outside_tile(tile, pressed, transport_running)
+    pub fn record_outside_tile(&mut self, tile: usize, pressed: bool, phase: StepPhase) -> bool {
+        self.state.record_outside_tile(tile, pressed, phase)
     }
 
     fn finalize_events(

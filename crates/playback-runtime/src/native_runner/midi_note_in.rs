@@ -6,7 +6,7 @@ use super::modulation::RoutedMusicalEvents;
 use super::{InstrumentType, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, LAYER_COUNT};
 use crate::protocol::{RunnerMessage, TileHit};
 use crate::runtime::MidiNote;
-use platform_core::{MusicalEvent, NoteBehavior};
+use platform_core::{MusicalEvent, NoteBehavior, StepPhase};
 use realtime_engine::synth::SAMPLE_SLOTS_PER_INSTRUMENT;
 use serde_json::Value;
 
@@ -158,7 +158,8 @@ impl NativeRunner {
     ) -> [Option<u8>; LAYER_COUNT] {
         let offsets: [i8; LAYER_COUNT] =
             std::array::from_fn(|layer| self.play_transpose_offset_for_layer(layer));
-        let running = self.transport.transport != crate::RuntimeTransportState::Stopped;
+        let phases: [StepPhase; LAYER_COUNT] =
+            std::array::from_fn(|layer| self.layer_step_phase(layer));
         let mut recorded = [None; LAYER_COUNT];
         for (layer_index, layer) in self.layers.iter_mut().enumerate().take(LAYER_COUNT) {
             if !layer.engine.records_outside_notes_for(slot) {
@@ -173,7 +174,10 @@ impl NativeRunner {
             else {
                 continue;
             };
-            if layer.engine.record_outside_tile(tile, true, running) {
+            if layer
+                .engine
+                .record_outside_tile(tile, true, phases[layer_index])
+            {
                 recorded[layer_index] = u8::try_from(tile).ok();
             }
         }
@@ -184,13 +188,14 @@ impl NativeRunner {
     }
 
     fn record_keyboard_release(&mut self, recorded_tiles: &[Option<u8>; LAYER_COUNT]) {
-        let running = self.transport.transport != crate::RuntimeTransportState::Stopped;
+        let phases: [StepPhase; LAYER_COUNT] =
+            std::array::from_fn(|layer| self.layer_step_phase(layer));
         let mut changed = false;
-        for (layer, tile) in self.layers.iter_mut().zip(recorded_tiles) {
+        for ((layer, tile), phase) in self.layers.iter_mut().zip(recorded_tiles).zip(phases) {
             if let Some(tile) = tile {
                 changed |= layer
                     .engine
-                    .record_outside_tile(usize::from(*tile), false, running);
+                    .record_outside_tile(usize::from(*tile), false, phase);
             }
         }
         if changed {

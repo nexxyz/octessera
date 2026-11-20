@@ -87,7 +87,7 @@ pub(crate) fn looper_length_edit_after_punch_keeps_recording_and_phase() {
     assert_eq!(runner.active_layer().behavior_config["mode"], "play");
     assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
     assert_eq!(state["steps"].as_array().unwrap().len(), 3);
-    assert_eq!(state["steps"][1].as_array().unwrap().len(), 1);
+    assert_eq!(state["steps"][0].as_array().unwrap().len(), 1);
 }
 
 #[test]
