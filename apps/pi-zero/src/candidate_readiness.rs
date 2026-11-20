@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::fs::{self, File, OpenOptions};
+use std::fs;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -113,42 +113,12 @@ fn unix_time_ms() -> Result<u64, String> {
 }
 
 fn atomic_write(path: &Path, content: &[u8]) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
-    let name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("candidate-ready.json");
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|error| error.to_string())?
-        .as_nanos();
-    let temporary = path.with_file_name(format!(".{name}.tmp-{}-{timestamp}", std::process::id()));
-    let result = (|| {
-        let mut options = OpenOptions::new();
-        options.write(true).create_new(true);
+    store_files::write_atomically(path, |file| {
         #[cfg(unix)]
-        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o644);
-        let mut file = options
-            .open(&temporary)
-            .map_err(|error| error.to_string())?;
-        #[cfg(unix)]
-        file.set_permissions(fs::Permissions::from_mode(0o644))
-            .map_err(|error| error.to_string())?;
-        file.write_all(content).map_err(|error| error.to_string())?;
-        file.sync_all().map_err(|error| error.to_string())?;
-        drop(file);
-        replace_file(&temporary, path)?;
-        if let Some(parent) = path.parent() {
-            let _ = File::open(parent).and_then(|directory| directory.sync_all());
-        }
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    result
+        file.set_permissions(fs::Permissions::from_mode(0o644))?;
+        file.write_all(content)
+    })
+    .map_err(|error| error.to_string())
 }
 
 fn remove_marker(path: &Path) {
@@ -156,41 +126,6 @@ fn remove_marker(path: &Path) {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => eprintln!("candidate readiness marker cleanup failed: {path:?}: {error}"),
-    }
-}
-
-#[cfg(not(windows))]
-fn replace_file(temporary: &Path, path: &Path) -> Result<(), String> {
-    fs::rename(temporary, path).map_err(|error| error.to_string())
-}
-
-#[cfg(windows)]
-fn replace_file(temporary: &Path, path: &Path) -> Result<(), String> {
-    use std::os::windows::ffi::OsStrExt;
-
-    extern "system" {
-        fn MoveFileExW(
-            existing_file_name: *const u16,
-            new_file_name: *const u16,
-            flags: u32,
-        ) -> i32;
-    }
-
-    let temporary = temporary
-        .as_os_str()
-        .encode_wide()
-        .chain([0])
-        .collect::<Vec<_>>();
-    let path = path
-        .as_os_str()
-        .encode_wide()
-        .chain([0])
-        .collect::<Vec<_>>();
-    let ok = unsafe { MoveFileExW(temporary.as_ptr(), path.as_ptr(), 0x1 | 0x8) };
-    if ok == 0 {
-        Err(std::io::Error::last_os_error().to_string())
-    } else {
-        Ok(())
     }
 }
 

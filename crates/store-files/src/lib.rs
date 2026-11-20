@@ -1,5 +1,5 @@
-use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::fs::{self, File};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -16,32 +16,46 @@ pub fn read_json_file(path: &Path) -> Result<Option<serde_json::Value>, String> 
 }
 
 pub fn write_json_atomically(path: &Path, payload: &serde_json::Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
     let content = serde_json::to_vec_pretty(payload).map_err(|e| e.to_string())?;
+    write_atomically(path, |file| file.write_all(&content)).map_err(|error| error.to_string())
+}
+
+/// Writes through a temp file in the same directory, syncs it, renames it over `path` and syncs
+/// the directory. The error keeps its kind and names the path.
+pub fn write_atomically(
+    path: &Path,
+    write: impl FnOnce(&mut File) -> io::Result<()>,
+) -> io::Result<()> {
+    write_atomically_inner(path, write)
+        .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))
+}
+
+fn write_atomically_inner(
+    path: &Path,
+    write: impl FnOnce(&mut File) -> io::Result<()>,
+) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(io::Error::other)?
+        .as_nanos();
     let tmp = path.with_file_name(format!(
-        ".{}.tmp-{}-{}",
+        ".{}.tmp-{}-{nanos}",
         path.file_name()
             .and_then(|name| name.to_str())
-            .unwrap_or("json"),
+            .unwrap_or("file"),
         std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|e| e.to_string())?
-            .as_nanos()
     ));
     let result = (|| {
-        let mut file = File::create(&tmp).map_err(|e| e.to_string())?;
-        file.write_all(&content).map_err(|e| e.to_string())?;
-        file.sync_all().map_err(|e| e.to_string())?;
+        let mut file = File::create(&tmp)?;
+        write(&mut file)?;
+        file.sync_all()?;
         drop(file);
         replace_file(&tmp, path)?;
         if let Some(parent) = path.parent() {
-            let _ = OpenOptions::new()
-                .read(true)
-                .open(parent)
-                .and_then(|dir| dir.sync_all());
+            let _ = File::open(parent).and_then(|dir| dir.sync_all());
         }
         Ok(())
     })();
@@ -117,12 +131,12 @@ fn backup_stamp(path: &Path) -> Option<u128> {
 }
 
 #[cfg(not(windows))]
-fn replace_file(tmp: &Path, path: &Path) -> Result<(), String> {
-    fs::rename(tmp, path).map_err(|e| e.to_string())
+fn replace_file(tmp: &Path, path: &Path) -> io::Result<()> {
+    fs::rename(tmp, path)
 }
 
 #[cfg(windows)]
-fn replace_file(tmp: &Path, path: &Path) -> Result<(), String> {
+fn replace_file(tmp: &Path, path: &Path) -> io::Result<()> {
     const MOVEFILE_REPLACE_EXISTING: u32 = 0x1;
     const MOVEFILE_WRITE_THROUGH: u32 = 0x8;
 
@@ -144,7 +158,7 @@ fn replace_file(tmp: &Path, path: &Path) -> Result<(), String> {
         )
     };
     if ok == 0 {
-        Err(std::io::Error::last_os_error().to_string())
+        Err(io::Error::last_os_error())
     } else {
         Ok(())
     }

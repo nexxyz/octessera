@@ -174,3 +174,18 @@ fn backups_are_listed_newest_first_by_their_number_not_their_text() {
     assert_eq!(names, ["bak-1000.json", "bak-999.json", "bak-20.json"]);
     let _ = fs::remove_dir_all(dir);
 }
+
+#[test]
+fn a_failed_atomic_write_names_the_path_and_leaves_no_temp_file() {
+    let dir = temp_dir("atomic-failure");
+    let path = dir.join("data.bin");
+    fs::write(&path, b"old").unwrap();
+
+    let error = write_atomically(&path, |_| Err(io::Error::other("boom"))).unwrap_err();
+
+    assert!(error.to_string().contains("data.bin"));
+    assert!(error.to_string().contains("boom"));
+    assert_eq!(fs::read(&path).unwrap(), b"old");
+    assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+    let _ = fs::remove_dir_all(dir);
+}

@@ -255,25 +255,13 @@ fn write_pre_restore_backup(
     for warning in &plan.warnings {
         eprintln!("Pre-restore backup: {warning}");
     }
-    let temp = backup_path.with_file_name(format!(
-        ".{}.tmp-{}",
-        backup_path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("backup"),
-        std::process::id()
-    ));
-    let result = (|| {
-        let mut file = File::create(&temp).map_err(io_error)?;
-        user_data_archive::write_archive(&plan, &mut file)?;
-        file.sync_all().map_err(io_error)?;
-        fs::rename(&temp, backup_path).map_err(io_error)?;
-        Ok::<_, String>(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(temp);
-    }
-    result.map(|()| !plan.warnings.is_empty())
+    store_files::write_atomically(backup_path, |file| {
+        user_data_archive::write_archive(&plan, file)
+            .map(|_| ())
+            .map_err(io::Error::other)
+    })
+    .map_err(user_data_archive::io_error)?;
+    Ok(!plan.warnings.is_empty())
 }
 
 fn build_samples_tree(
