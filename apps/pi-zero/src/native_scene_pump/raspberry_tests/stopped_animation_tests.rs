@@ -55,8 +55,9 @@ fn stopped_animation_steps_reach_the_oled_as_scene_captures_without_runtime_snap
         None,
     );
 
-    let settle_until = Instant::now() + Duration::from_millis(200);
-    while Instant::now() < settle_until {
+    while playback.last_snapshot_revision() == presented
+        || state.scheduler.snapshot_unpresented(&playback)
+    {
         advance(
             &mut state,
             &mut playback,
