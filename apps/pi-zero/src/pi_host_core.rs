@@ -22,6 +22,7 @@ pub(crate) struct PiHostCore {
     bluetooth: Option<BluetoothHandle>,
     bluetooth_enabled: Option<bool>,
     wifi_enabled: Option<bool>,
+    wifi_switch: bool,
 }
 
 impl PiHostCore {
@@ -32,14 +33,16 @@ impl PiHostCore {
             midi,
             recovery_save_status: None,
             keyboard_control: None,
-            bluetooth: if cfg!(test) {
-                None
-            } else {
-                BluetoothHandle::spawn_system()
-            },
+            bluetooth: None,
             bluetooth_enabled: None,
             wifi_enabled: None,
+            wifi_switch: false,
         }
+    }
+
+    pub(crate) fn attach_system_services(&mut self) {
+        self.bluetooth = BluetoothHandle::spawn_system();
+        self.wifi_switch = true;
     }
 
     pub(crate) fn set_keyboard_capture_control(&mut self, control: KeyboardCaptureControl) {
@@ -75,7 +78,7 @@ impl PiHostCore {
     /// Mirrors the System Wi-Fi setting into the board switch file once per change, including
     /// the first observation after startup so the file always matches the saved setting.
     pub(crate) fn observe_wifi_enabled(&mut self, enabled: bool) {
-        if self.wifi_enabled.replace(enabled) == Some(enabled) || cfg!(test) {
+        if self.wifi_enabled.replace(enabled) == Some(enabled) || !self.wifi_switch {
             return;
         }
         if let Err(error) = crate::show_hold::set_wifi_enabled(enabled) {

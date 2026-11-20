@@ -28,6 +28,23 @@ fn test_host(audio: crate::audio::AudioService) -> (PiHostAdapter, PathBuf) {
     (host, root)
 }
 
+pub(super) fn default_store_host(audio: crate::audio::AudioService) -> PiHostAdapter {
+    let root = crate::test_temp_dir::unique_temp_path("octessera-orange-runtime");
+    crate::pi_store_test_support::write_pair(
+        &root.join("presets"),
+        &serde_json::from_str(include_str!("../../../../config/generated/pi/default.json"))
+            .unwrap(),
+    );
+    PiHostAdapter::with_directories(
+        audio,
+        root.join("presets"),
+        root.join("samples"),
+        Arc::new(|_| {}),
+        false,
+    )
+    .unwrap()
+}
+
 #[test]
 fn orange_runtime_uses_shared_runtime_cadence() {
     assert_eq!(PLAYBACK_TICK.as_millis(), 8);
@@ -103,9 +120,7 @@ fn orange_prepare_runtime_preserves_audio_prep_for_startup_wait() {
         })
         .unwrap();
     let mut prepared = prepare_runtime(
-        audio,
-        Arc::new(|_| {}),
-        false,
+        default_store_host(audio),
         playback_runtime::AudioOptimization::Latency,
         true,
         None,
@@ -194,9 +209,7 @@ fn orange_startup_accepts_the_native_runner_initial_audio_result_shape() {
 fn orange_preparation_starts_with_a_canonical_normal_snapshot() {
     let (audio, _, _) = crate::audio::test_service();
     let prepared = prepare_runtime(
-        audio,
-        Arc::new(|_| {}),
-        false,
+        default_store_host(audio),
         playback_runtime::AudioOptimization::Latency,
         true,
         None,

@@ -60,6 +60,7 @@ pub(crate) fn prepare(config: RaspberryRuntimeConfig) -> Result<PreparedRuntime,
         audio_outputs,
         usb_data_role,
     );
+    adapter.core.attach_system_services();
     adapter
         .core
         .set_keyboard_capture_control(keyboard.control());

@@ -45,24 +45,21 @@ pub(crate) fn run(
         }
     };
     let keyboard = crate::keyboard_capture::KeyboardCapture::spawn(seesaw.input_tx.clone(), true);
-    let prepared = match prepare_runtime(
-        audio.service(),
-        midi_handler,
-        usb_config.midi_out_enabled,
-        audio_optimization,
-        true,
-        Some(keyboard.control()),
-    ) {
-        Ok(prepared) => prepared,
-        Err(error) => {
-            let _ = seesaw.shutdown();
-            return Err(startup_failure(
-                crate::boot_oled_handoff::HandoffMode::V1,
-                crate::boot_oled_handoff::StartupFatalCode::StartupFailed,
-                format!("Orange runtime preparation failed: {error}"),
-            ));
-        }
-    };
+    let prepared =
+        match PiHostAdapter::new(audio.service(), midi_handler, usb_config.midi_out_enabled)
+            .and_then(|host| {
+                prepare_runtime(host, audio_optimization, true, Some(keyboard.control()))
+            }) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                let _ = seesaw.shutdown();
+                return Err(startup_failure(
+                    crate::boot_oled_handoff::HandoffMode::V1,
+                    crate::boot_oled_handoff::StartupFatalCode::StartupFailed,
+                    format!("Orange runtime preparation failed: {error}"),
+                ));
+            }
+        };
     let handoff = match crate::boot_oled_handoff::native_attach_after_startup_clear() {
         Ok(handoff) => handoff,
         Err(error) => {

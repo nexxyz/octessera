@@ -59,9 +59,7 @@ impl OrangeStartupReadinessGate {
 }
 
 pub(crate) fn prepare_runtime(
-    audio: AudioService,
-    midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
-    usb_midi_out_enabled: bool,
+    mut host: PiHostAdapter,
     audio_optimization: AudioOptimization,
     skip_startup_splash: bool,
     keyboard_control: Option<crate::keyboard_capture::KeyboardCaptureControl>,
@@ -70,33 +68,6 @@ pub(crate) fn prepare_runtime(
     if skip_startup_splash {
         runner.skip_startup_splash();
     }
-    let mut host = if cfg!(test) {
-        static NEXT_TEST_STORE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let root = std::env::temp_dir().join(format!(
-            "octessera-orange-runtime-{}-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos(),
-            NEXT_TEST_STORE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
-        #[cfg(test)]
-        crate::pi_store_test_support::write_pair(
-            &root.join("presets"),
-            &serde_json::from_str(include_str!("../../../../config/generated/pi/default.json"))
-                .map_err(|error: serde_json::Error| error.to_string())?,
-        );
-        PiHostAdapter::with_directories(
-            audio,
-            root.join("presets"),
-            root.join("samples"),
-            midi_handler,
-            usb_midi_out_enabled,
-        )?
-    } else {
-        PiHostAdapter::new(audio, midi_handler, usb_midi_out_enabled)?
-    };
     if let Some(control) = keyboard_control {
         host.core.set_keyboard_capture_control(control);
     }
@@ -125,7 +96,6 @@ mod tests {
     use super::*;
     use crate::timing_input::is_awake_menu_snapshot;
     use serde_json::json;
-    use std::sync::Arc;
 
     #[test]
     fn awake_candidate_requires_both_zero_timers_and_lit_normal_menu() {
@@ -150,9 +120,7 @@ mod tests {
     fn orange_startup_builds_the_saved_patch_menu_once() {
         let (audio, _, _) = crate::audio::test_service();
         let prepared = prepare_runtime(
-            audio,
-            Arc::new(|_| {}),
-            false,
+            crate::orange_runtime::tests::default_store_host(audio),
             AudioOptimization::Latency,
             true,
             None,
@@ -169,9 +137,7 @@ mod tests {
     fn orange_startup_uses_canonical_builtin_sample_favourites() {
         let (audio, _, _) = crate::audio::test_service();
         let mut prepared = prepare_runtime(
-            audio,
-            Arc::new(|_| {}),
-            false,
+            crate::orange_runtime::tests::default_store_host(audio),
             AudioOptimization::Latency,
             true,
             None,

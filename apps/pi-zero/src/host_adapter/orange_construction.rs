@@ -12,13 +12,15 @@ impl PiHostAdapter {
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
         usb_midi_out_enabled: bool,
     ) -> Result<Self, String> {
-        Self::with_directories(
+        let mut host = Self::with_directories(
             audio,
             default_store_dir(),
             default_samples_dir(),
             midi_in_handler,
             usb_midi_out_enabled,
-        )
+        )?;
+        host.core.attach_system_services();
+        Ok(host)
     }
 
     pub(crate) fn with_directories(

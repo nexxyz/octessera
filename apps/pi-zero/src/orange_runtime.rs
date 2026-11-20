@@ -174,9 +174,7 @@ fn run_runtime(
         usb_midi_out_enabled,
     } = services;
     let prepared = prepare_runtime(
-        audio.clone(),
-        midi_handler,
-        usb_midi_out_enabled,
+        PiHostAdapter::new(audio.clone(), midi_handler, usb_midi_out_enabled)?,
         audio_optimization,
         true,
         Some(keyboard_control),
