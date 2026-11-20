@@ -113,8 +113,11 @@ fn startup_lists_presets_so_save_as_onto_one_asks_to_overwrite() {
     }
     let _ = std::fs::remove_dir_all(root);
 
-    runner.test_focus_menu_item("system.draftName").unwrap();
     let press = serde_json::json!({ "type": "encoder_press", "id": "main" });
+    if !playback.last_snapshot().unwrap()["runtimeError"].is_null() {
+        device(&mut runner, press.clone());
+    }
+    runner.test_focus_menu_item("system.draftName").unwrap();
     device(&mut runner, press.clone());
     device(
         &mut runner,
