@@ -31,6 +31,44 @@ are in [`board-profiles.md`](board-profiles.md).
   readiness; Raspberry load status and Jack fault) and what a power request
   does.
 
+## Board thread map
+
+`main` pins itself to CPU0 (affinity only, `audio_priority::pin_main_thread_to_cpu0`) before it
+spawns anything, so every thread below inherits CPU0 at normal priority unless the last column
+says otherwise. CPU placement and priorities apply on the boards only; host builds skip them.
+Unnamed threads have no `Builder::name`.
+
+| Thread | Spawned by | Channels | Stops | Priority / CPU |
+| --- | --- | --- | --- | --- |
+| `octessera-runtime` | `apps/pi-zero/src/runtime_thread.rs`, from both board startups | input `HostMessage` channel, platform result lane, audio control requests | runtime loop returns; `main` joins it | inherited CPU0; 8 MiB stack |
+| Jack callback (cpal) | cpal stream, `audio/audio_output/cpal_audio_output.rs` | engine event queue into `EngineSource` | stream dropped | `SCHED_FIFO` 70, CPU1, set on its first callback |
+| USB/HDMI mirror callback (cpal) | cpal mirror stream, `cpal_audio_output/cpal_audio_mirror.rs` | PCM mirror ring | stream dropped | `SCHED_FIFO` 60, CPU0 |
+| `oct-dsp-tree-0`, `oct-dsp-tree-1` | `realtime-engine` `source_worker_lifecycle/worker.rs` (routing tree, Capacity mode) | work and completion mailboxes | work channel closes at engine shutdown | `SCHED_FIFO` 70, CPU2 / CPU3 (`pi_worker_start_hook`) |
+| `oct-src-reaper` | `rodio-engine-source` `source_worker_reaper.rs` | bounded retired-audio and shutdown-envelope channels | after the shutdown envelope | inherited |
+| optional audio recovery (unnamed, USB and HDMI) | `audio/audio_output/audio_optional_recovery.rs` | `SelectedOutputs` change wait, PCM mirror producer | stop flag and join in `Drop` | inherited |
+| `octessera-audio-prep` | `host_audio_prep.rs` | `AudioControlRequest` in, `HostMessage` results out | request channel closes | CPU2/3, normal priority |
+| `octessera-wav-recorder`, `octessera-avi-recorder` | `media-recording` `service.rs` | recording tap chunks, OLED ingress | stop flag on stop or `Drop`; finishes the take | CPU2/3 (`with_worker_start`) |
+| `octessera-avi-repair` | `audio_recording.rs` `spawn_partial_take_repair` | none | after the last partial take | CPU2/3 |
+| `octessera-signal` | `playback-runtime` `native_runner/signal_view/analysis.rs` | mutex slot and condvar | stopped flag in `Drop`, seen within a second | `SCHED_IDLE`, CPU0 |
+| `octessera-midi-out` | `playback-runtime` `timed_midi_sender.rs`, created by `midi_host.rs` | mutex inbox and condvar | `Drop` marks it stopped | `SCHED_FIFO` 50, CPU0 |
+| `octessera-midi-connect` | `midi_host.rs` | connect commands in, connection events out | command channel closes | inherited |
+| midir input (midir) | midir, per connected input | input handler into the runtime | port closed | `SCHED_FIFO` 50, CPU0, on its first message |
+| render worker (unnamed) | `render_loop.rs` `RenderWorker::spawn` | mutex render state and condvar, acknowledgement channels | `RenderCommand::Shutdown` | inherited |
+| Seesaw worker (unnamed) | `seesaw_io.rs` | `HostMessage` input out, `SeesawCommand` in | Orange: shutdown request once the LEDs are dark; Raspberry: process lifetime | inherited |
+| Seesaw health monitor (unnamed, Raspberry) | `seesaw_io/raspberry_worker.rs` | scan generation counter | never; exits the process after a stalled scan | inherited |
+| `octessera-usb-keyboard` | `keyboard_capture/mod.rs` | `HostMessage` input out | stop flag and join on shutdown or `Drop` | inherited |
+| `orange-oled-suspend` (Orange) | `orange_oled_suspend.rs` | Unix socket, render worker handle | stop flag; `shutdown` joins | inherited |
+| `octessera-orange-<encoder>` (Orange) | `octessera-hal` `orange_encoder_gpio.rs` | `HardwareEvent` out | stop flag in `Drop` | inherited |
+| platform worker (unnamed) | `platform_service/platform_service_worker.rs` | `PlatformWorkItem` in, platform result lane out | job channel closes | nice 10, CPU0 |
+| `octessera-device-update` | `platform_service/platform_service_worker.rs` | platform result lane | after its one update job | nice 10, CPU0 |
+| `octessera-setup-portal` | `setup_portal_worker.rs` | platform result lane | stop flag | inherited |
+| `octessera-user-data-transfer` | `user_data_transfer/session.rs` | TCP listener, shared transfer state | stop flag; `stop` joins | inherited |
+| `octessera-user-data-restore` | `user_data_transfer/restore_worker.rs` | shared transfer state | after its one restore | inherited |
+| `octessera-bluetooth` | `bluetooth/mod.rs` | `WorkerEvent` in, `HostMessage` status out | event channel disconnects; holds its own sender, so in practice the process lifetime | inherited |
+| `octessera-bt-agent`, `octessera-bt-signals` | `bluetooth/bluez.rs` | D-Bus signal streams; signals forward `WorkerEvent::Changed` | signals: worker channel closes; agent: D-Bus connection ends | inherited |
+| pair / connect (unnamed, per request) | `bluetooth/bluez.rs` | `WorkerEvent` result out | after its one D-Bus call | inherited |
+| `octessera-bt-audio` | `bluetooth/monitor.rs` | recording chunks in | stop flag in `Drop` | `SCHED_OTHER`, nice 10, CPU2/3 |
+
 ## Layer Responsibilities
 
 - UI layer (`apps/desktop/src/`)
