@@ -25,6 +25,16 @@ the older version's. Presets you saved on the newer version stay on the card;
 the older one just won't open them. If a new version doesn't start, the board
 puts the old settings and startup patch back along with the old program.
 
+Updating straight from 0.8.14 is the one bumpy step. Your settings carry over,
+but a 0.8.14 startup patch doesn't load on the newer version, so instead of the
+menu the OLED says `CAN'T START` with **Restore factory** already picked. Press
+*Main* (twice if the screen has gone dark) within about a minute: the factory
+patch takes the old one's place, the old file stays beside it as
+`default.patch.json.broken-<date>`, and the instrument starts on the new
+version. Leave the screen alone and the update counts as failed after that
+minute, so the board goes back to 0.8.14 with everything as it was. From 0.8.15
+on, settings and startup patch both carry over.
+
 One honest caveat: pull the power during that minute of restarting and the
 board may wake up on the new version without having checked it. If that version
 then misbehaves, Rollback (or a fresh image) puts things right.

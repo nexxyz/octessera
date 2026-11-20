@@ -68,8 +68,9 @@ customisation leaves SSH switched off until you turn it on in the setup portal.
 3. Connect audio if you want to hear the first result.
 4. Power the instrument through the USB-C power breakout, as
    [safety and power](safety-and-power.md#power-input) explains.
-5. Wait for the Octessera boot animation and then the normal menu.
-   <!-- BOOT TIME: owner/hardware round fills in -->
+5. Wait for the Octessera boot animation and then the normal menu. From a cold
+   start the menu is ready after about 21 seconds on the Raspberry Pi Zero 2 W
+   and about 39 seconds on the Orange Pi Zero 2W.
 
 Nothing on the OLED, or flickering? Unplug, then check these in order:
 
