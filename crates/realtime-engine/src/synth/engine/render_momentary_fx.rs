@@ -66,10 +66,17 @@ pub(super) fn process_momentary_fx_states(
             let fx = &states[index];
             fx.target == target && (fx.retire_faded() || fx.releasing && fx.voice.finished())
         };
-        if completed {
-            let state = states.remove(index);
-            if let Some(retired) = retired.as_deref_mut() {
-                store_retired_momentary(retired, state);
+        if !completed {
+            continue;
+        }
+        match retired.as_deref_mut() {
+            Some(retired) => {
+                if retired.iter().any(Option::is_none) {
+                    store_retired_momentary(retired, states.remove(index));
+                }
+            }
+            None => {
+                states.remove(index);
             }
         }
     }

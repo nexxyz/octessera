@@ -332,3 +332,32 @@ fn controlled_input() -> Vec<(f32, f32)> {
         })
         .collect()
 }
+
+#[test]
+fn finished_momentary_state_waits_in_place_while_retired_slots_are_full() {
+    let target = MomentaryFxTarget::Global;
+    let mut retired: [Option<MomentaryFxState>; super::control::MOMENTARY_FX_CAPACITY] =
+        std::array::from_fn(|index| {
+            Some(new_fx(
+                &format!("old{index}"),
+                MomentaryFxKind::Freeze,
+                target,
+            ))
+        });
+    let mut states = vec![new_fx("filter", MomentaryFxKind::FilterSweep, target)];
+    states[0].begin_retire_fade(SAMPLE_RATE);
+
+    for _ in 0..RENDER_FRAMES {
+        process_momentary_fx_states(&mut states, target, 0.3, -0.2, Some(&mut retired));
+    }
+    assert!(states[0].retire_faded());
+    assert_eq!(
+        process_momentary_fx_states(&mut states, target, 0.3, -0.2, Some(&mut retired)),
+        (0.3, -0.2)
+    );
+
+    retired[1] = None;
+    process_momentary_fx_states(&mut states, target, 0.3, -0.2, Some(&mut retired));
+    assert!(states.is_empty());
+    assert_eq!(retired[1].as_ref().map(|fx| fx.id.as_str()), Some("filter"));
+}
