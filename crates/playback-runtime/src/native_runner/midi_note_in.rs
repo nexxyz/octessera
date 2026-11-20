@@ -148,6 +148,7 @@ impl NativeRunner {
                 | InstrumentType::Pluck
                 | InstrumentType::Midi
         );
+        let running = self.transport.transport != crate::RuntimeTransportState::Stopped;
         let mut recorded = [None; LAYER_COUNT];
         for (layer_index, layer) in self.layers.iter_mut().enumerate().take(LAYER_COUNT) {
             if !layer.engine.records_outside_notes_for(slot) {
@@ -168,7 +169,7 @@ impl NativeRunner {
             else {
                 continue;
             };
-            if layer.engine.record_outside_tile(tile, true) {
+            if layer.engine.record_outside_tile(tile, true, running) {
                 recorded[layer_index] = u8::try_from(tile).ok();
             }
         }
@@ -179,10 +180,13 @@ impl NativeRunner {
     }
 
     fn record_keyboard_release(&mut self, recorded_tiles: &[Option<u8>; LAYER_COUNT]) {
+        let running = self.transport.transport != crate::RuntimeTransportState::Stopped;
         let mut changed = false;
         for (layer, tile) in self.layers.iter_mut().zip(recorded_tiles) {
             if let Some(tile) = tile {
-                changed |= layer.engine.record_outside_tile(usize::from(*tile), false);
+                changed |= layer
+                    .engine
+                    .record_outside_tile(usize::from(*tile), false, running);
             }
         }
         if changed {

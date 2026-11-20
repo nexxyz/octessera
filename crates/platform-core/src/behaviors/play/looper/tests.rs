@@ -69,8 +69,8 @@ fn outside_notes_record_into_the_sounding_step_without_holding_the_tile() {
     state = looper_on_tick(state, &mut context);
     let tile = grid_index(1, 2);
 
-    assert!(record_outside_tile(&mut state, tile, true));
-    assert!(record_outside_tile(&mut state, tile, false));
+    assert!(record_outside_tile(&mut state, tile, true, true));
+    assert!(record_outside_tile(&mut state, tile, false, true));
     assert!(!state.held_tiles[tile] && !state.tiles[tile]);
     let press = LooperEvent {
         tile,
@@ -96,7 +96,7 @@ fn outside_notes_record_into_the_sounding_step_without_holding_the_tile() {
     assert_eq!(state.trigger_types[tile], TileTriggerType::Activate);
 
     state.mode = LooperMode::Play;
-    assert!(!record_outside_tile(&mut state, tile, true));
+    assert!(!record_outside_tile(&mut state, tile, true, true));
 }
 
 #[test]
@@ -309,4 +309,21 @@ fn clear_loop_also_clears_steps_beyond_length() {
         &mut context,
     );
     assert!(state.steps.iter().all(Vec::is_empty));
+}
+
+#[test]
+fn outside_notes_recorded_while_stopped_land_on_step_one() {
+    let mut state =
+        looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
+    let tile = grid_index(3, 4);
+
+    assert!(record_outside_tile(&mut state, tile, true, false));
+
+    assert_eq!(
+        state.steps[0],
+        vec![LooperEvent {
+            tile,
+            kind: LooperEventKind::Press,
+        }]
+    );
 }

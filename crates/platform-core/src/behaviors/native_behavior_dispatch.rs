@@ -205,10 +205,15 @@ impl NativeBehaviorState {
     }
 
     /// See `play::looper::record_outside_tile`; false for every other behavior.
-    pub(crate) fn record_outside_tile(&mut self, tile: usize, pressed: bool) -> bool {
+    pub(crate) fn record_outside_tile(
+        &mut self,
+        tile: usize,
+        pressed: bool,
+        transport_running: bool,
+    ) -> bool {
         match self {
             NativeBehaviorState::Looper(state) => {
-                play::looper::record_outside_tile(state, tile, pressed)
+                play::looper::record_outside_tile(state, tile, pressed, transport_running)
             }
             _ => false,
         }

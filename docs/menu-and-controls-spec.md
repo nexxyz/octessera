@@ -385,7 +385,7 @@ change; only the distance per detent does.
   note-off for every held keyboard note, forwarded ones included. Each overdubbing Looper whose
   Link Activate plays that slot records the note as a press and release of the lowest-index tile
   its current mapping plays as that note (for Drum and Sampler slots: stamped with that voice or
-  sample slot), without holding the tile; notes no tile plays are not recorded. Off ignores incoming notes; CC In and Learn are unaffected either way. Full rules:
+  sample slot), without holding the tile, into the step sounding now (step 1 while stopped); notes no tile plays are not recorded. Off ignores incoming notes; CC In and Learn are unaffected either way. Full rules:
   [menu-tree/system.md](menu-tree/system.md#midi).
 - A timed MIDI note that starts again on the same channel before its note-off is due sends that
   note-off first, at the new note's time, and drops it from the schedule, so only the new note's own

@@ -246,14 +246,24 @@ fn apply_grid_input(state: LooperState, x: usize, y: usize, kind: LooperEventKin
 
 /// Records a press or release of `tile` played somewhere else, such as on a MIDI keyboard,
 /// while overdubbing. The note already sounded, so the tile is not held and the event goes to
-/// the step now sounding: the loop plays it from the next pass on. A release in the same step
-/// as its press goes to the next step, so a short note still sounds. False when not recording.
-pub(crate) fn record_outside_tile(state: &mut LooperState, tile: usize, pressed: bool) -> bool {
+/// the step now sounding (step 1 while the transport is stopped): the loop plays it from the
+/// next pass on. A release in the same step as its press goes to the next step, so a short note
+/// still sounds. False when not recording.
+pub(crate) fn record_outside_tile(
+    state: &mut LooperState,
+    tile: usize,
+    pressed: bool,
+    transport_running: bool,
+) -> bool {
     if state.mode != LooperMode::Overdub || tile >= TILE_COUNT {
         return false;
     }
     let length = state.length_steps.clamp(1, state.steps.len().max(1));
-    let mut step = (state.step_index + length - 1) % length;
+    let mut step = if transport_running {
+        (state.step_index + length - 1) % length
+    } else {
+        0
+    };
     let kind = if pressed {
         LooperEventKind::Press
     } else {

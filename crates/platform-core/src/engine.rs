@@ -322,8 +322,14 @@ impl NativeLayerEngine {
     }
 
     /// Records a press or release of `tile` played elsewhere; false unless overdubbing.
-    pub fn record_outside_tile(&mut self, tile: usize, pressed: bool) -> bool {
-        self.state.record_outside_tile(tile, pressed)
+    pub fn record_outside_tile(
+        &mut self,
+        tile: usize,
+        pressed: bool,
+        transport_running: bool,
+    ) -> bool {
+        self.state
+            .record_outside_tile(tile, pressed, transport_running)
     }
 
     fn finalize_events(

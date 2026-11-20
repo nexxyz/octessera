@@ -292,7 +292,7 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   as a press and release of the lowest-index tile its current Link mapping plays as that note (after
   Play Transpose); a Drum or Sampler slot uses its lowest-index tile stamped with the voice or sample
   slot the key played, and records a drum hit's release at once. The press lands on the step now
-  sounding and plays from the next pass on, and a release in that same step moves to the next one.
+  sounding (step 1 while stopped) and plays from the next pass on, and a release in that same step moves to the next one.
   A note no tile plays still sounds but is not recorded. Off ignores incoming notes. It is a System setting, not saved with patches.
 - `MIDI Host` lists `MIDI Out` then `MIDI In`. Each starts with `Disconnect`, followed by one action
   per detected port. A pick or Disconnect saves System as soon as the host reports the new port,
