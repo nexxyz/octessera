@@ -204,7 +204,7 @@ impl NativeRunner {
                 Some(NativeManualSaveRequest::Default)
             )
         {
-            return Some("Still saving the Patch. Try again in a few seconds.");
+            return Some("Still saving your patch. Try again in a few seconds.");
         }
         if self.pending.native_preset_write.is_some()
             || matches!(
@@ -212,10 +212,10 @@ impl NativeRunner {
                 Some(NativeManualSaveRequest::Preset { .. })
             )
         {
-            return Some("Still saving the Preset. Try again in a few seconds.");
+            return Some("Still saving the preset. Try again in a few seconds.");
         }
         self.config_dirty.then_some(if self.auto_save_default {
-            "Still saving the Patch. Try again in a few seconds."
+            "Still saving your patch. Try again in a few seconds."
         } else {
             "Save or discard Patch before reboot"
         })
