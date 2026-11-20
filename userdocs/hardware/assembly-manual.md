@@ -201,6 +201,9 @@ Now put it together on the bench, case still off.
 Work through [flash and first boot](flash-and-first-boot.md) now, with
 everything still reachable. Before you close anything, check:
 
+- [ ] Run `System > Maintenance > Hardware Test` (it asks first). It walks you
+      through the grid LEDs, pads, keys, encoders and a test tone. Click *Main*
+      to move on; the pad and key steps can wait for the final check.
 - [ ] All four encoders turn and click.
 - [ ] The OLED is readable.
 - [ ] The NeoTrellis cable is seated at both ends, with the five signals matched
@@ -279,6 +282,8 @@ tightening harder.
 1. Put the compute board's boot microSD card back in, and the OLED microSD card
    if you use one.
 2. Connect power through the enclosure's USB-C opening and wait for the boot.
+   Then run `System > Maintenance > Hardware Test` again, this time letting it
+   see all 64 pads and the four keys (`Seen 64/64`).
 3. Check that the enclosure has not blocked any control or opening. If closing
    the case disturbed a connection, open it again and repeat the
    [flash and setup checks](#5-flash-and-setup).
