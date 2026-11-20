@@ -66,6 +66,8 @@ mod render;
 mod render_block_tests;
 mod render_momentary_fx;
 mod render_plan;
+#[cfg(test)]
+mod render_robustness_tests;
 mod render_routing;
 mod render_samples;
 #[cfg(test)]
