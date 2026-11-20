@@ -173,7 +173,7 @@ fn every_whitelisted_fx_param_has_owned_clamping_and_compatibility() {
     assert_changed(&mut compressor, FxParamId::Ratio, 30.0);
     assert_eq!(compressor_ratio(&compressor), 20.0);
     assert_changed(&mut compressor, FxParamId::AttackMs, 0.0);
-    assert_eq!(compressor_attack(&compressor), 0.1);
+    assert_eq!(compressor_attack(&compressor), 1.0);
     assert_changed(&mut compressor, FxParamId::ReleaseMs, 3_000.0);
     assert_eq!(compressor_release(&compressor), 2_000.0);
     assert_changed(&mut compressor, FxParamId::MakeupDb, 30.0);

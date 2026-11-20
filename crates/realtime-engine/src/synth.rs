@@ -54,6 +54,7 @@ pub use engine::{SourceWorkerLifecycle, SourceWorkerRuntime, SourceWorkerSetupEr
 pub use engine_event::EngineEvent;
 pub use fx::REVERB_COMB_LENGTHS;
 pub use fx_param::{FxParamId, FxParamMutation};
+pub use fx_params::fx_param_saved_range;
 pub use param_path_validation::{
     validate_fm_param_path, validate_fx_type, validate_momentary_fx_type,
     validate_pluck_param_path, validate_sample_bank_param_path, validate_synth_param_path,

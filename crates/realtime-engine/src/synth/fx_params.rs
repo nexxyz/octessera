@@ -1,5 +1,7 @@
 use super::fx_param::{clamp_fx_param, fx_param_range, FxParamId};
 use super::types::FxBusSlotConfig;
+use serde::de::IntoDeserializer;
+use serde::Deserialize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum FxKind {
@@ -172,14 +174,14 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
             depth: ranged("depthPct", FxParamId::DepthPct),
         },
         FxKind::Delay => FxBusParams::Delay {
-            time_ms: param_f32(cfg, "timeMs", 250.0).clamp(1.0, 2000.0),
+            time_ms: compiled_param(cfg, kind, "timeMs"),
             feedback: ranged("feedback", FxParamId::Feedback),
             mix: ranged("mixPct", FxParamId::MixPct),
             spread: ranged("spreadPct", FxParamId::SpreadPct),
         },
-        FxKind::Vibrato => mod_delay(cfg, ranged, ModDelayKind::Vibrato, 6.0, 8.0),
-        FxKind::Chorus => mod_delay(cfg, ranged, ModDelayKind::Chorus, 14.0, 22.0),
-        FxKind::Flanger => mod_delay(cfg, ranged, ModDelayKind::Flanger, 2.0, 3.0),
+        FxKind::Vibrato => mod_delay(cfg, ranged, ModDelayKind::Vibrato),
+        FxKind::Chorus => mod_delay(cfg, ranged, ModDelayKind::Chorus),
+        FxKind::Flanger => mod_delay(cfg, ranged, ModDelayKind::Flanger),
         FxKind::FilterLfo => filter_lfo(ranged, FilterLfoKind::FilterLfo),
         FxKind::Wah => filter_lfo(ranged, FilterLfoKind::Wah),
         FxKind::Reverb => FxBusParams::Reverb {
@@ -247,14 +249,17 @@ fn mod_delay(
     cfg: &FxBusSlotConfig,
     ranged: impl Fn(&str, FxParamId) -> f32,
     kind: ModDelayKind,
-    depth_ms: f32,
-    base_ms: f32,
 ) -> FxBusParams {
+    let fx_kind = match kind {
+        ModDelayKind::Vibrato => FxKind::Vibrato,
+        ModDelayKind::Chorus => FxKind::Chorus,
+        ModDelayKind::Flanger => FxKind::Flanger,
+    };
     FxBusParams::ModDelay {
         kind,
         rate_hz: ranged("rateHz", FxParamId::RateHz),
-        depth_ms: param_f32(cfg, "depthMs", depth_ms).clamp(0.0, 40.0),
-        base_ms: param_f32(cfg, "baseMs", base_ms).clamp(0.1, 80.0),
+        depth_ms: compiled_param(cfg, fx_kind, "depthMs"),
+        base_ms: compiled_param(cfg, fx_kind, "baseMs"),
         feedback: ranged("feedback", FxParamId::Feedback),
         mix: ranged("mixPct", FxParamId::MixPct),
     }
@@ -273,6 +278,37 @@ fn filter_lfo(ranged: impl Fn(&str, FxParamId) -> f32, kind: FilterLfoKind) -> F
 fn ranged_param(cfg: &FxBusSlotConfig, kind: FxKind, key: &str, id: FxParamId) -> f32 {
     let range = fx_param_range(kind, id).expect("every compiled FX param has a range");
     clamp_fx_param(id, range, param_f32(cfg, key, range.2))
+}
+
+fn compiled_param(cfg: &FxBusSlotConfig, kind: FxKind, key: &str) -> f32 {
+    let (min, max, default) =
+        compiled_param_range(kind, key).expect("every compiled FX param has a range");
+    param_f32(cfg, key, default).clamp(min, max)
+}
+
+/// `(min, max, default)` in saved units for one number parameter of an FX type, the table
+/// the menu's FX rows agree with; `None` when the type has no such parameter.
+pub fn fx_param_saved_range(kind: &str, key: &str) -> Option<(f32, f32, f32)> {
+    let kind = FxKind::parse(kind)?;
+    compiled_param_range(kind, key).or_else(|| {
+        let id: Result<FxParamId, serde::de::value::Error> =
+            FxParamId::deserialize(key.into_deserializer());
+        fx_param_range(kind, id.ok()?)
+    })
+}
+
+/// The ranges of the parameters a slot sets when it compiles and never moves live.
+fn compiled_param_range(kind: FxKind, key: &str) -> Option<(f32, f32, f32)> {
+    Some(match (kind, key) {
+        (FxKind::Delay, "timeMs") => (1.0, 2000.0, 250.0),
+        (FxKind::Vibrato, "depthMs") => (0.0, 40.0, 6.0),
+        (FxKind::Vibrato, "baseMs") => (0.1, 80.0, 8.0),
+        (FxKind::Chorus, "depthMs") => (0.0, 40.0, 14.0),
+        (FxKind::Chorus, "baseMs") => (0.1, 80.0, 22.0),
+        (FxKind::Flanger, "depthMs") => (0.0, 40.0, 2.0),
+        (FxKind::Flanger, "baseMs") => (0.1, 80.0, 3.0),
+        _ => return None,
+    })
 }
 
 pub(super) fn parse_duck_source(source: &str) -> DuckSource {

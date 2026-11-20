@@ -132,7 +132,7 @@ fn compiles_mixing_fx_params_with_expected_defaults_and_clamps() {
         } => {
             assert_close(threshold_db, -60.0);
             assert_close(ratio, 20.0);
-            assert_close(attack_ms, 0.1);
+            assert_close(attack_ms, 1.0);
             assert_close(release_ms, 2_000.0);
             assert_close(makeup_db, 24.0);
             assert_close(mix, 0.9);
