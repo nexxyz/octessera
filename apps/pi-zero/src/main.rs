@@ -1,3 +1,4 @@
+//! Native Pi app: adapts the shared runtime to the Raspberry Pi and Orange Pi hardware, audio, and OLED.
 #[cfg(feature = "hardware-orange-pi-zero-2w")]
 mod orange_runtime;
 mod render;

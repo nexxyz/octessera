@@ -1,3 +1,4 @@
+//! Realtime synth and sample rendering: voices, routing, FX buses, and the final stereo mix.
 mod simd;
 pub mod sine;
 

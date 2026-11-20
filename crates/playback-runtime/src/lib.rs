@@ -1,3 +1,4 @@
+//! Native runner and runtime protocol: menu model, transport and runtime status, snapshots, platform effects, and the host-facing runner contract.
 #![recursion_limit = "256"]
 
 mod deferred_default_save;
