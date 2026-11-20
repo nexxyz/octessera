@@ -7,9 +7,11 @@ use super::{InstrumentType, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_CO
 use crate::protocol::{RunnerMessage, TileHit};
 use crate::runtime::MidiNote;
 use platform_core::{MusicalEvent, NoteBehavior};
+use realtime_engine::synth::SAMPLE_SLOTS_PER_INSTRUMENT;
 use serde_json::Value;
 
-/// A Sampler plays its slots 1-8 on notes 36-43, as the audio engine reads a plain note.
+/// A Sampler plays its slots 1-8 on notes 36-43, as the audio engine reads a plain note; other
+/// notes play nothing.
 const SAMPLER_FIRST_NOTE: u8 = 36;
 
 /// A keyboard note still sounding, released by its note-off, Stop, Panic or a patch load.
@@ -67,8 +69,11 @@ impl NativeRunner {
                 Some(None)
             }
             InstrumentType::Sampler => {
+                let sample_slot = usize::from(note.note.wrapping_sub(SAMPLER_FIRST_NOTE));
+                if sample_slot >= SAMPLE_SLOTS_PER_INSTRUMENT {
+                    return;
+                }
                 routed.audio.push(on(slot, duration_ms));
-                let sample_slot = usize::from(note.note.saturating_sub(SAMPLER_FIRST_NOTE).min(7));
                 stamped_tile = Some(lowest_stamp(
                     instrument.sample_assignments.iter().filter_map(|stamp| {
                         (stamp.sample_slot == sample_slot).then_some((stamp.x, stamp.y))

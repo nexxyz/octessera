@@ -283,7 +283,7 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
 - `Notes In` (saved as `runtimeConfig.midi.notesIn`, default on) lets a keyboard on the MIDI input
   play the instrument slots live: channel 1..8 plays slot I1..I8, channels 9..16 are ignored. A
   note sounds at once with its own velocity, like a Keys press, not quantized to a step. Synth, FM,
-  Plucked and Sampler slots get the note itself (a Sampler plays slot 1..8 for notes 36..43); a
+  Plucked and Sampler slots get the note itself (a Sampler plays slot 1..8 for notes 36..43 and ignores other notes); a
   `hold` slot holds it until the key's note-off, a `oneshot` slot plays the Sound > Note Length and
   the key's note-off ends it early. A Drum slot plays the voice whose Sound has that GM note. A MIDI
   Inst. or MIDI Drum slot forwards the note to its own MIDI channel while it is enabled. Stop, Pause,

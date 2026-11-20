@@ -185,8 +185,8 @@ wander in by accident.
   plays its usual note length, and letting go early ends it early.
 - A Drum slot plays the voice whose Sound has that General MIDI note (kick 36,
   snare 38, closed hat 42 and so on), and a Sampler plays its slots 1 to 8 on
-  notes 36 to 43. Same numbers as Send MIDI, so a part recorded in a DAW comes
-  back the way it went out.
+  notes 36 to 43 (other keys stay quiet on a Sampler). Same numbers as Send
+  MIDI, so a part recorded in a DAW comes back the way it went out.
 - A `MIDI Inst.` or `MIDI Drum` slot passes the note on to its own channel on
   MIDI out, as long as it's enabled. Handy for playing outboard gear through
   Octessera without re-patching cables.

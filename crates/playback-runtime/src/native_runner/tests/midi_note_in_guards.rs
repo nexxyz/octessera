@@ -34,3 +34,20 @@ fn a_key_held_while_a_system_load_turns_notes_in_off_still_releases() {
     let messages = send_note(&mut runner, [0x90, 60, 100]);
     assert!(audio(&messages).is_empty(), "new notes stay ignored");
 }
+
+#[test]
+fn a_sampler_slot_plays_only_notes_36_to_43() {
+    let mut runner = keyboard_runner("keys");
+    runner.instruments[0].kind = InstrumentType::Sampler;
+
+    for outside in [35, 44, 100] {
+        let messages = send_note(&mut runner, [0x90, outside, 100]);
+        assert!(audio(&messages).is_empty(), "note {outside}: {messages:?}");
+        let messages = send_note(&mut runner, [0x80, outside, 0]);
+        assert!(audio(&messages).is_empty(), "note {outside}: {messages:?}");
+    }
+    for inside in [36, 43] {
+        let messages = send_note(&mut runner, [0x90, inside, 100]);
+        assert_eq!(audio(&messages).len(), 1, "note {inside}");
+    }
+}

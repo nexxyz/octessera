@@ -380,7 +380,7 @@ change; only the distance per detent does.
   platform: channel 1..8 plays I1..I8 at once, at the note's velocity, through the same live event
   path as a Keys press (never step-quantized); channels 9..16 are ignored. Internal slots sound
   through the audio engine (a Drum slot plays the voice whose Sound has that GM note, a Sampler
-  slot 1..8 for notes 36..43); an enabled MIDI Inst. or MIDI Drum slot forwards the note to its
+  slot 1..8 for notes 36..43, other notes nothing); an enabled MIDI Inst. or MIDI Drum slot forwards the note to its
   own MIDI channel. Stop, Pause, Panic, a patch load, MIDI Active off and Notes In off send a
   note-off for every held keyboard note, forwarded ones included. Each overdubbing Looper whose
   Link Activate plays that slot records the note as a press and release of the lowest-index tile
