@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 fn grid_projection_fixture() -> serde_json::Value {
     serde_json::from_str(include_str!(
-        "../../../../resources/grid-projection-v1.json"
+        "../../../../../resources/grid-projection-v1.json"
     ))
     .unwrap()
 }
