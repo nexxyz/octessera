@@ -1,4 +1,4 @@
-use super::{
+use super::super::{
     portable_patch_payload_for_save, portable_patch_projection, prepare_config_payload,
     prepare_patch_payload, validate_config_payload, Value, CONFIG_KIND,
 };

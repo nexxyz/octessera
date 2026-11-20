@@ -1,9 +1,9 @@
 use crate::protocol::RuntimeStoreResult;
 
-use super::NativeRunner;
+use super::super::NativeRunner;
 
 impl NativeRunner {
-    pub(super) fn apply_user_data_transfer_result(
+    pub(in crate::native_runner) fn apply_user_data_transfer_result(
         &mut self,
         result: RuntimeStoreResult,
     ) -> Result<(), String> {

@@ -1,9 +1,9 @@
 use crate::protocol::{RunnerMessage, RuntimeUserDataTransferPhase, RuntimeUserDataTransferStatus};
 
-use super::{DeviceInput, NativeRunner, NativeUserDataTransferState};
+use super::super::{DeviceInput, NativeRunner, NativeUserDataTransferState};
 
 impl NativeRunner {
-    pub(super) fn apply_user_data_transfer_status(
+    pub(in crate::native_runner) fn apply_user_data_transfer_status(
         &mut self,
         status: RuntimeUserDataTransferStatus,
         request_id: Option<String>,
@@ -33,7 +33,7 @@ impl NativeRunner {
         });
     }
 
-    pub(super) fn handle_user_data_transfer_modal_input(
+    pub(in crate::native_runner) fn handle_user_data_transfer_modal_input(
         &mut self,
         input: DeviceInput,
     ) -> Result<Vec<RunnerMessage>, String> {
@@ -52,7 +52,7 @@ impl NativeRunner {
             self.display.user_data_transfer = None;
             if should_close {
                 return self.messages_with_effects(vec![
-                    super::RuntimePlatformEffect::UserDataTransferClose,
+                    super::super::RuntimePlatformEffect::UserDataTransferClose,
                 ]);
             }
         } else if back_pressed {

@@ -1,11 +1,11 @@
 use crate::protocol::RuntimePlatformRequest;
 
-use super::{NativeRunner, RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus};
+use super::super::{NativeRunner, RuntimeUserDataRestorePhase, RuntimeUserDataRestoreStatus};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct NativeUserDataRestoreState {
-    pub(super) status: RuntimeUserDataRestoreStatus,
-    pub(super) request_id: Option<String>,
+pub(in crate::native_runner) struct NativeUserDataRestoreState {
+    pub(in crate::native_runner) status: RuntimeUserDataRestoreStatus,
+    pub(in crate::native_runner) request_id: Option<String>,
     pub(super) revision: Option<u64>,
     pub(super) rehydration_pending: bool,
     pub(super) patch_request_id: Option<String>,
@@ -15,7 +15,7 @@ pub(super) struct NativeUserDataRestoreState {
 }
 
 impl NativeRunner {
-    pub(super) fn apply_user_data_restore_status(
+    pub(in crate::native_runner) fn apply_user_data_restore_status(
         &mut self,
         status: RuntimeUserDataRestoreStatus,
         request_id: Option<String>,
@@ -78,11 +78,11 @@ impl NativeRunner {
         });
         if rehydration_pending {
             self.outbox
-                .push_platform_effect(super::RuntimePlatformEffect::StoreLoadSystem);
+                .push_platform_effect(super::super::RuntimePlatformEffect::StoreLoadSystem);
         }
     }
 
-    pub(super) fn user_data_restore_is_active(&self) -> bool {
+    pub(in crate::native_runner) fn user_data_restore_is_active(&self) -> bool {
         self.display
             .user_data_restore
             .as_ref()
@@ -92,14 +92,17 @@ impl NativeRunner {
             })
     }
 
-    pub(super) fn restore_rehydration_pending(&self) -> bool {
+    pub(in crate::native_runner) fn restore_rehydration_pending(&self) -> bool {
         self.display
             .user_data_restore
             .as_ref()
             .is_some_and(|restore| restore.rehydration_pending)
     }
 
-    pub(super) fn register_restore_patch_request(&mut self, request: &RuntimePlatformRequest) {
+    pub(in crate::native_runner) fn register_restore_patch_request(
+        &mut self,
+        request: &RuntimePlatformRequest,
+    ) {
         let Some(restore) = self.display.user_data_restore.as_mut() else {
             return;
         };
@@ -114,7 +117,7 @@ impl NativeRunner {
         restore.patch_revision = request.revision;
     }
 
-    pub(super) fn routes_restore_patch_result(
+    pub(in crate::native_runner) fn routes_restore_patch_result(
         &self,
         request_id: Option<&str>,
         revision: Option<u64>,
@@ -140,7 +143,7 @@ impl NativeRunner {
             })
     }
 
-    pub(super) fn accept_restore_patch_request(
+    pub(in crate::native_runner) fn accept_restore_patch_request(
         &mut self,
         request_id: &str,
         revision: Option<u64>,
@@ -159,19 +162,19 @@ impl NativeRunner {
         true
     }
 
-    pub(super) fn restore_blocks_config_writes(&self) -> bool {
+    pub(in crate::native_runner) fn restore_blocks_config_writes(&self) -> bool {
         self.user_data_restore_is_active() || self.restore_rehydration_pending()
     }
 
     /// The store refuses writes until the restored Patch is acknowledged, so a
     /// restored device change applies once rehydration finishes.
-    pub(super) fn defer_restored_device_apply(&mut self, device_changed: bool) {
+    pub(in crate::native_runner) fn defer_restored_device_apply(&mut self, device_changed: bool) {
         if let Some(restore) = self.display.user_data_restore.as_mut() {
             restore.device_apply_pending = device_changed;
         }
     }
 
-    pub(super) fn finish_restore_rehydration(&mut self) {
+    pub(in crate::native_runner) fn finish_restore_rehydration(&mut self) {
         let device_apply_pending = {
             let Some(restore) = self.display.user_data_restore.as_mut() else {
                 return;
@@ -184,7 +187,7 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn fail_restore_rehydration(&mut self) {
+    pub(in crate::native_runner) fn fail_restore_rehydration(&mut self) {
         {
             let Some(restore) = self.display.user_data_restore.as_mut() else {
                 return;
@@ -198,7 +201,7 @@ impl NativeRunner {
         self.abandon_pending_default_write();
     }
 
-    pub(super) fn fail_restore_patch_rehydration(&mut self) {
+    pub(in crate::native_runner) fn fail_restore_patch_rehydration(&mut self) {
         {
             let Some(restore) = self.display.user_data_restore.as_mut() else {
                 return;

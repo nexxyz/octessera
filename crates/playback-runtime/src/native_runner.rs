@@ -213,11 +213,7 @@ mod toast_text;
 mod trigger_probability;
 mod trigger_probability_payload;
 mod usb_data_role;
-mod user_data_patch_document;
-mod user_data_restore_results;
-mod user_data_restore_state;
-mod user_data_transfer_results;
-mod user_data_transfer_state;
+mod user_data;
 mod velocity_curve;
 mod xy_smoothing;
 
@@ -247,7 +243,7 @@ pub use snapshot::scene::{
 };
 pub(crate) use state_link::LaneCurve;
 pub use usb_data_role::UsbDataRole;
-pub(crate) use user_data_patch_document::{
+pub(crate) use user_data::patch_document::{
     apply_user_data_patch_payload, normalize_user_data_patch_payload,
     validate_user_data_config_payload,
 };
@@ -303,7 +299,7 @@ use system_info::*;
 pub(crate) use trigger_probability::TriggerProbabilityMode;
 use trigger_probability::{TileProbability, TileProbabilityMap};
 use trigger_probability_payload::*;
-use user_data_restore_state::*;
+use user_data::restore_state::*;
 use velocity_curve::*;
 use xy_smoothing::*;
 
