@@ -1,8 +1,8 @@
-use crate::event::EngineEvent;
 use crate::latest_controls::{LatestCandidate, LatestControls, LatestCursor};
 use crate::momentary_transport;
 use crate::queue_types::{is_latest_event, is_musical_event, QueueEventClass};
 pub use crate::queue_types::{QueueKind, QueueSendError};
+use crate::EngineEvent;
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;

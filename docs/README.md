@@ -28,7 +28,7 @@ Cargo workspace members, with their workspace dependencies:
 - `platform-core`: behaviors and grid core; builds on `platform-capabilities-build`.
 - `realtime-engine`: synth, FX, and mix; builds on `platform-capabilities-build`.
 - `playback-runtime`: native runner; uses `platform-core`, `realtime-engine`.
-- `rodio-engine-source`: engine audio source; uses `playback-runtime`, `realtime-engine`.
+- `rodio-engine-source`: engine audio source; uses `realtime-engine`.
 - `media-recording`, `store-files`: standalone.
 - `octessera-hal`: hardware access; uses `platform-core`.
 - `apps/desktop/src-tauri` and `apps/pi-zero` (`octessera-pi`): the hosts.

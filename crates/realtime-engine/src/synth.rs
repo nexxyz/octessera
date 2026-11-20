@@ -3,6 +3,7 @@ mod drum_config;
 mod drum_state;
 mod dsp_config;
 mod engine;
+mod engine_event;
 mod fx;
 mod fx_param;
 mod fx_param_glide;
@@ -50,6 +51,7 @@ pub use engine::{
 };
 #[cfg(feature = "routing-tree-executor")]
 pub use engine::{SourceWorkerLifecycle, SourceWorkerRuntime, SourceWorkerSetupError};
+pub use engine_event::EngineEvent;
 pub use fx::REVERB_COMB_LENGTHS;
 pub use fx_param::{FxParamId, FxParamMutation};
 pub use param_path_validation::{

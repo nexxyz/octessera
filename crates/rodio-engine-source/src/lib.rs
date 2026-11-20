@@ -1,6 +1,5 @@
 mod audio_quantum;
 mod control_drain;
-mod event;
 mod latest_control_encoding;
 mod latest_controls;
 mod latest_momentary;
@@ -11,7 +10,6 @@ mod profile_cache;
 mod queue;
 mod queue_types;
 mod retired_audio_backlog;
-mod runtime_audio_command;
 mod sample_decode;
 mod sample_decode_cache;
 mod source_factory;
@@ -26,7 +24,6 @@ use audio_quantum::audio_render_quantum_frames;
 #[cfg(test)]
 use audio_quantum::resolve_audio_render_quantum_frames;
 use crossbeam_channel::Sender;
-pub use event::EngineEvent;
 pub use pcm_mirror::{
     new_pcm_mirror, PcmMirrorConsumer, PcmMirrorPair, PcmMirrorProducer, PcmMirrorProducers,
     PCM_MIRROR_CAPACITY_FRAMES, PCM_MIRROR_TARGET_OCCUPANCY_FRAMES,
@@ -34,6 +31,7 @@ pub use pcm_mirror::{
 pub use persistent_output::PersistentOutputCounters;
 use persistent_output::{PreviousMasterQuantum, RefillResult};
 pub use queue::{event_queue, EngineEventReceiver, EngineEventSender, QueueKind, QueueSendError};
+pub use realtime_engine::synth::EngineEvent;
 #[cfg(feature = "routing-tree-executor")]
 use realtime_engine::synth::SynthProfileSnapshot;
 use realtime_engine::synth::{
@@ -45,9 +43,6 @@ use realtime_engine::synth::{
     SourceWorkerLifecycle, SourceWorkerSetupError, SourceWorkerStartHook,
 };
 use retired_audio_backlog::RetiredAudioBacklog;
-pub use runtime_audio_command::{
-    apply_runtime_audio_command, MomentaryFxTypes, RuntimeAudioCommandHost,
-};
 pub use sample_decode::{decode_sample_file, sample_too_long};
 pub use sample_decode_cache::{SampleDecodeCache, SampleDecodeCacheError};
 use source_state::{

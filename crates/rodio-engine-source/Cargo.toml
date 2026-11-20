@@ -14,11 +14,10 @@ routing-tree-executor = ["realtime-engine/routing-tree-executor"]
 [dependencies]
 crossbeam-channel = "0.5"
 hound = "3.5"
-playback-runtime = { path = "../playback-runtime" }
 realtime-engine = { path = "../realtime-engine" }
 rodio = "0.20"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 
 [dev-dependencies]
 realtime-engine = { path = "../realtime-engine", features = ["test-support"] }
+serde_json = "1"

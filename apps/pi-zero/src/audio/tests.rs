@@ -10,7 +10,7 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
     };
 
     let audio = test_service_for_sample_prep();
-    let mut momentary = rodio_engine_source::MomentaryFxTypes::new();
+    let mut momentary = playback_runtime::MomentaryFxTypes::new();
     let mut instruments = default_pi_instruments();
     instruments.instruments[0].kind = "fm".into();
     instruments.instruments[0].fm = Some(FmConfig::default());

@@ -1,6 +1,6 @@
-use crate::event::EngineEvent;
 use crate::latest_controls::LatestControls;
 use crate::queue_types::QueueSendError;
+use crate::EngineEvent;
 use realtime_engine::synth::PreparedMomentaryFxStart;
 
 pub(super) fn send_start(

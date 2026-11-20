@@ -40,7 +40,7 @@ pub struct PiHostAdapter {
     #[cfg(feature = "profiling")]
     pub(crate) note_sent_probe: Option<crate::timing_load::NoteSentProbe>,
     bluetooth_audio: Option<crate::bluetooth::BluetoothAudioMonitor>,
-    momentary_fx_types: rodio_engine_source::MomentaryFxTypes,
+    momentary_fx_types: playback_runtime::MomentaryFxTypes,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

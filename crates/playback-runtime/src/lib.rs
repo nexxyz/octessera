@@ -11,6 +11,7 @@ pub mod oled_frame;
 mod preset_name_policy;
 mod protocol;
 mod runtime;
+mod runtime_audio_command;
 #[cfg(any(test, feature = "test-support"))]
 pub mod scenario;
 mod timed_midi_sender;
@@ -48,6 +49,9 @@ pub use runtime::{
     CoreRunner, HostAdapter, MidiControlChange, MidiControlChangeBatch, NativeStoreRequest,
     PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,
     RuntimePresentationMetrics,
+};
+pub use runtime_audio_command::{
+    apply_runtime_audio_command, MomentaryFxTypes, RuntimeAudioCommandHost,
 };
 pub use timed_midi_sender::{MidiSink, TimedMidiSender};
 pub use user_data_bundle::apply_user_data_patch_and_preferences;

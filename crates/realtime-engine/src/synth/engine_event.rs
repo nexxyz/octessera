@@ -1,4 +1,4 @@
-use realtime_engine::synth::{
+use super::{
     DrumParamId, DspRuntimeConfig, FmParamId, FxParamId, PluckParamId, PreparedAudioConfig,
     PreparedFxBusSlot, PreparedGlobalFxSlot, PreparedInstrumentSlot, PreparedInstrumentsConfig,
     PreparedMomentaryFxStart, PreparedMomentaryFxUpdate, SampleBankConfig, SampleBankParamId,
