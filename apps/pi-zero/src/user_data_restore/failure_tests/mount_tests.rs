@@ -43,10 +43,8 @@ fn restore_on(
 ) -> Result<(), String> {
     super::super::restore(
         filesystems,
-        &fixture.store,
-        &fixture.samples,
-        &fixture.recordings,
-        &fixture.screen_recordings,
+        &std::sync::Mutex::new(()),
+        fixture.dirs(),
         session,
         fixture.staged(media_included),
     )

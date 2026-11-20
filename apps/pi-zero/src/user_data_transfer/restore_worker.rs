@@ -54,10 +54,12 @@ impl UserDataTransferService {
             .name("octessera-user-data-restore".into())
             .spawn(move || {
                 let result = (|| {
-                    let _guard = inner
-                        .store_lock
-                        .lock()
-                        .map_err(|_| "pi store is unavailable".to_string())?;
+                    drop(
+                        inner
+                            .store_lock
+                            .lock()
+                            .map_err(|_| "pi store is unavailable".to_string())?,
+                    );
                     let preflight = inner
                         .restore_preflight
                         .lock()
@@ -68,10 +70,13 @@ impl UserDataTransferService {
                     }
                     crate::user_data_restore::restore(
                         &crate::user_data_restore::LiveFilesystems,
-                        &inner.store_dir,
-                        &inner.samples_dir,
-                        &inner.recordings_dir,
-                        &inner.screen_recordings_dir,
+                        &inner.store_lock,
+                        crate::user_data_restore::UserDataDirs {
+                            store: &inner.store_dir,
+                            samples: &inner.samples_dir,
+                            recordings: &inner.recordings_dir,
+                            screen_recordings: &inner.screen_recordings_dir,
+                        },
                         &worker_session,
                         pending.staged,
                     )

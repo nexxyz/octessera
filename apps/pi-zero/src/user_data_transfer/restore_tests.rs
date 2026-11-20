@@ -80,6 +80,9 @@ pub(super) fn restore_request(
     .unwrap();
     stream.write_all(body).unwrap();
     stream.shutdown(Shutdown::Write).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
     let mut response = Vec::new();
     stream.read_to_end(&mut response).unwrap();
     let header_end = response
@@ -394,6 +397,22 @@ fn confirmation_publishes_blocking_status_before_store_worker_runs() {
     ));
     assert!(!service.handle_physical_input(&serde_json::json!({"type":"grid_press"})));
     drop(store_guard);
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn an_upload_is_staged_while_the_runtime_holds_the_store_for_a_save() {
+    let (service, root) = restore_service("upload-during-save");
+    service.start().unwrap();
+    let code = service.test_code().unwrap();
+    let archive = restore_archive(&service, false);
+    let saving = service.inner.store_lock.lock().unwrap();
+
+    let uploaded = restore_request(&service, "POST", "/restore", &code, &archive);
+
+    drop(saving);
+    assert_eq!(uploaded.0, 202);
     service.stop();
     let _ = fs::remove_dir_all(root);
 }

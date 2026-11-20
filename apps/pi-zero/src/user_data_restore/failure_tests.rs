@@ -100,13 +100,20 @@ impl Fixture {
         }
     }
 
+    fn dirs(&self) -> UserDataDirs<'_> {
+        UserDataDirs {
+            store: &self.store,
+            samples: &self.samples,
+            recordings: &self.recordings,
+            screen_recordings: &self.screen_recordings,
+        }
+    }
+
     fn restore(&self, session: &str, media_included: bool) -> Result<(), String> {
         super::restore(
             &LiveFilesystems,
-            &self.store,
-            &self.samples,
-            &self.recordings,
-            &self.screen_recordings,
+            &std::sync::Mutex::new(()),
+            self.dirs(),
             session,
             self.staged(media_included),
         )
@@ -383,10 +390,8 @@ fn restore_rehydrates_canonical_patch_preferences_and_patch_aux_bindings() {
 
     super::restore(
         &LiveFilesystems,
-        &fixture.store,
-        &fixture.samples,
-        &fixture.recordings,
-        &fixture.screen_recordings,
+        &std::sync::Mutex::new(()),
+        fixture.dirs(),
         "rehydrate-runtime-owned-config",
         staged,
     )

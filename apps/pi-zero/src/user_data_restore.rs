@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 mod filesystem;
 mod recovery;
@@ -22,15 +23,32 @@ pub(crate) const STAGING_DIR_NAME: &str = "restore";
 #[cfg(any(board_raspberry, board_host))]
 pub(crate) const STAGING_DIR_NAME: &str = ".octessera-restore";
 
+/// The live folders a restore replaces.
+#[derive(Clone, Copy)]
+pub(crate) struct UserDataDirs<'a> {
+    pub(crate) store: &'a Path,
+    pub(crate) samples: &'a Path,
+    pub(crate) recordings: &'a Path,
+    pub(crate) screen_recordings: &'a Path,
+}
+
+/// Holds `store_lock` only while the trees swap. The confirmed restore has already invalidated
+/// every store write, and the caller waited for the one in flight, so the live store does not
+/// change while the new trees are built from it; readers only need the lock against a half-swapped
+/// tree.
 pub(crate) fn restore(
     filesystems: &dyn Filesystems,
-    store_dir: &Path,
-    samples_dir: &Path,
-    recordings_dir: &Path,
-    screen_recordings_dir: &Path,
+    store_lock: &Mutex<()>,
+    live: UserDataDirs<'_>,
     session: &str,
     staged: StagedRestore,
 ) -> Result<(), String> {
+    let UserDataDirs {
+        store: store_dir,
+        samples: samples_dir,
+        recordings: recordings_dir,
+        screen_recordings: screen_recordings_dir,
+    } = live;
     let canonical = user_data_archive::canonical_defaults();
     let (target_system, target_patch) = read_target_pair(store_dir)?;
     let restored = playback_runtime::user_data_bundle::reconstruct_user_data_archive(
@@ -137,6 +155,9 @@ pub(crate) fn restore(
             ),
         ];
         sync_new_trees();
+        let _store_guard = store_lock
+            .lock()
+            .map_err(|_| "pi store is unavailable".to_string())?;
         transaction::replace_trees(filesystems, &trees, samples_dir)
     })();
     let rolled_back_cleanly = [

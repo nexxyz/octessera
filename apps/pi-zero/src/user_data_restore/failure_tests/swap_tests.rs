@@ -170,10 +170,8 @@ fn an_unwritable_folder_fails_the_restore_and_keeps_live_data() {
 
         let error = super::super::restore(
             &ReadOnlyDirs(vec![kit.clone()]),
-            &fixture.store,
-            &fixture.samples,
-            &fixture.recordings,
-            &fixture.screen_recordings,
+            &std::sync::Mutex::new(()),
+            fixture.dirs(),
             &session,
             fixture.staged(media_included),
         )
@@ -200,10 +198,8 @@ fn a_rolled_back_restore_keeps_earlier_archives_and_leaves_no_staging_behind() {
 
     let error = super::super::restore(
         &ReadOnlyDirs(vec![patches]),
-        &fixture.store,
-        &fixture.samples,
-        &fixture.recordings,
-        &fixture.screen_recordings,
+        &std::sync::Mutex::new(()),
+        fixture.dirs(),
         "swap-rollback",
         fixture.staged(true),
     )
