@@ -208,7 +208,14 @@ variants: `raspberry-pi-zero-2w` and `orange-pi-zero-2w`.
 Each ruled shelf support ends at `nominal_shelf_base_z`; the shelf begins
 `0.10 mm` below it. This positive-volume overlap is required for a watertight
 union. Do not replace it with a face-touching boolean. The shelves own Z support;
-replaceable closed-cell foam strips own XY retention.
+replaceable closed-cell foam strips own XY retention. The northeast shelf sits
+higher because the instrument's raised wave is inverted when it is loaded
+controls-down.
+
+The hard-wall clearance is nominally `+/-1.6 mm` in X and `+/-2.0 mm` in Y.
+The larger check-fit envelope leaves `+/-1.1 mm` in X and `+/-1.5 mm` in Y.
+These are CAD clearances, not measurements of a finished instrument or
+compressed foam.
 
 The deep tub uses a centered logo and floor orientation guide. The shallow lid
 rotates the canonical logo and wordmark solids together by 180 degrees. Deboss

@@ -20,21 +20,12 @@ force the latches. Their fit, wear, and fatigue still need physical print tests.
 
 ## Fit status
 
-The case is validated against the checked-in Raspberry Pi Zero 2 W and Orange
-Pi Zero 2W top-enclosure CAD. Placement is CAD-derived, not physically measured.
-The parameter-owned face-down transform rotates the top 180 degrees around Y,
-then translates it by `[250.8, 4.2, 42.0] mm`.
-
-Four wall-connected shelves provide Z support. Each continuous support overlaps
-its shelf by `0.10 mm`, avoiding a face-touch-only union. The northeast shelf is
-higher because the raised wave on the instrument is inverted when loaded
-controls-down. The floor guide shows the screen, encoders, NeoKeys, Trellis
-tiles, and loading orientation.
-
-The hard-wall clearance is nominally `+/-1.6 mm` in X and `+/-2.0 mm` in Y.
-The larger check-fit envelope leaves `+/-1.1 mm` in X and `+/-1.5 mm` in Y.
-These are CAD clearances, not measurements of a finished instrument or
-compressed foam.
+The case is checked in CAD against both enclosure tops, Raspberry and Orange,
+not against a printed instrument. Four corner shelves carry the instrument and
+foam strips keep it centered, so expect to tune the foam on your first fit.
+The guide on the tub floor shows which way round the instrument goes.
+The CAD numbers live in the [enclosure CAD
+workflow](../../hardware/enclosure/CAD_WORKFLOW.md#protective-case-check-fit-source).
 
 ### Foam retention
 

@@ -1,6 +1,9 @@
 # Octessera
 
-Octessera turns cellular automata into music you can play.
+An 8x8 light-up grid where small rule-based worlds play synths, drums and
+samples, and you steer them.
+
+<!-- PHOTO NEEDED: one photo of the finished instrument playing, plus a ~30-second clip with sound, right here under the opening line. -->
 
 It is a collection of small algorithmic musical world-bubbles. Set up a few
 systems, combine them, nudge them, anchor them with a little sequencing, and
@@ -10,7 +13,8 @@ you, and you decide which surprises to keep.
 ## Start here
 
 - [Try the simulator](userdocs/desktop-simulator.md): make a sound without
-  building any hardware.
+  building any hardware, then spend [your first ten
+  minutes](userdocs/first-ten-minutes.md) with it.
 - [Build the instrument](userdocs/hardware/assembly-manual.md): assemble a
   standalone Octessera around a Raspberry Pi Zero 2 W or an Orange Pi Zero 2W.
 

@@ -5,6 +5,11 @@ of algorithmic musical worlds: an 8x8 light-up grid, four keys, four knobs, a
 tiny OLED and a DAC, all driven by a Raspberry Pi Zero 2 W or an Orange Pi Zero
 2W.
 
+**Time and difficulty:** through-hole soldering only, no surface-mount parts,
+so a patient first-timer can do it. Plan an evening or two at the bench, plus
+the printer time for the enclosure.
+<!-- OWNER CHECK: confirm or adjust the time estimate above. -->
+
 The build goes in this order, and the order matters:
 
 1. [Pick a board and read the safety page](#1-safety-and-board-choice).
@@ -53,7 +58,7 @@ cable or the enclosure.
 | 4 | NeoTrellis 4x4 driver PCB | [Adafruit `3954`](https://www.adafruit.com/product/3954), Mouser `485-3954` | Four of them make the 8x8 grid. |
 | 4 | Silicone 4x4 keypad | [Adafruit `1611`](https://www.adafruit.com/product/1611), Mouser `485-1611` | One per NeoTrellis board. |
 | 1 | NeoKey 1x4 QT | [Adafruit `4980`](https://www.adafruit.com/product/4980), Mouser `485-4980` | Holds the four Cherry MX keys. |
-| 1 | Compute board | [Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) or Orange Pi Zero 2W | Choose one; buying new, I'd [pick the Orange](#1-safety-and-board-choice). |
+| 1 | Compute board | [Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) or [Orange Pi Zero 2W](http://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/details/Orange-Pi-Zero-2W.html) | Choose one; buying new, I'd [pick the Orange](#1-safety-and-board-choice). The Orange comes with several memory sizes; mine is the 2 GB one. |
 | 1 | Wi-Fi antenna (Orange Pi only, optional) | Orange Pi Zero 2W-compatible antenna | Connect it before final assembly. Fix it with non-conductive tape on a free PCB area where it cannot cover pads, touch exposed contacts, get pinched or strain its connector. |
 | 1 | SSD1351 OLED breakout with microSD holder | [Adafruit `1431`](https://www.adafruit.com/product/1431), Mouser `485-1431` | SPI display. Its microSD slot is the optional second card (SD2). |
 | 1 | PCM5102 I2S DAC | [Adafruit `6250`](https://www.adafruit.com/product/6250), Mouser `485-6250` | The 3.5mm line/headphone output. |
@@ -64,7 +69,7 @@ cable or the enclosure.
 | 1 | 1x5 right-angle male header, 2.54mm pitch | Any standard breakaway right-angle header | `J1`, the NeoTrellis connector. |
 | 1 | 5-wire female-to-female Dupont cable, about 10cm | Any 2.54mm female-to-female jumper set | Five adjacent leads for the NeoTrellis array. |
 | 25 pins | Straight male header, 2.54mm pitch | Any standard breakaway header strip | 20 pins join the four NeoTrellis boards; 5 make the connection point on the upper-left board. |
-| several | Low-profile female header/socket strips, 2.54mm pitch | [Round-pin socket strip](https://de.aliexpress.com/item/1005006673257121.html) or [round-pin socket strip](https://de.aliexpress.com/item/4001122376295.html) | Cut to length for the compute board, OLED, DAC, power breakout and NeoKey. Check the socket height before ordering. |
+| 85 pins | Low-profile female header/socket strips, 2.54mm pitch | [Round-pin socket strip](https://de.aliexpress.com/item/1005006673257121.html) or [round-pin socket strip](https://de.aliexpress.com/item/4001122376295.html) | Cut to length, as the PCB footprints count them: 2x20 for the compute board, 1x11 for the OLED, 1x8 plus 1x6 for the DAC, 1x8 for the power breakout and two 1x6 for the NeoKey. Check the socket height before ordering. |
 | 4 | Cherry MX-compatible key switches | [Cherry MX Black](https://www.amazon.de/-/en/CHERRY-Mechanical-Keyboard-Switches-without/dp/B0CBS4HJJR?th=1) or any MX-compatible switch | Fitted through the enclosure top into the NeoKey, after the case is closed. |
 | 1 | MicroSD card for the compute board | 16GB or larger recommended | Holds the board image. Raspberry and Orange images are different. |
 | 1 | USB-C power supply | Dedicated regulated 5V/4A supply for Raspberry Pi 4-class boards | A GeeekPi 20W 5V/4A supply works. Connect it only to the USB-C breakout. |
@@ -104,7 +109,10 @@ instead and does not need them.
 
 - Soldering iron and solder
 - Flush cutters
-- Multimeter
+- Multimeter, for one short-circuit check before first power
+- 2.5mm hex key for the M3 socket-head screws
+- A 3D printer and filament for the enclosure, or a friend or print service
+  with one
 - BalenaEtcher or another image flasher
 - Nice to have: heat-set insert tool, small screwdriver, pliers, tweezers,
   helping hands and a magnifier
@@ -137,6 +145,8 @@ and power](safety-and-power.md#static-heat-and-hands).
 
 ![Main PCB with encoders, sockets, J1 header and C1 fitted](images/assembly/soldered-pcb.jpg)
 
+<!-- PHOTO NEEDED: close-up of D1 fitted, showing the banded cathode at K/+5V. soldered-pcb.jpg shows no D1. -->
+
 This is one of my earlier boards, so its silkscreen still wears an old
 project name. Trust the labels on your own PCB.
 
@@ -155,10 +165,10 @@ address jumpers, because you set them from the back, where left and right swap.
 2. Turn the whole arrangement over as one piece. From here on, positions are as
    seen **from the bottom**.
 3. Solder 20 straight male header pins between neighboring boards to join them.
-4. Add 5 straight male header pins at the north end of the west (left) edge of
-   the board that is upper-left as seen from the play surface. Looking at the
-   bottom, that's the top end of the upper-right board's right-hand edge. This
-   is where the cable to `J1` connects.
+4. With the boards still face-down, solder 5 straight male header pins to the
+   top end of the right-hand edge of the top-right board. This is where the
+   cable to `J1` connects.
+   <!-- PHOTO NEEDED: the joined NeoTrellis boards face-down, with the 5 J1 header pins on the top-right board circled. -->
 5. Still looking at the bottom, solder the address jumpers:
 
    | Position (seen from the bottom) | Jumpers | Address |
@@ -172,6 +182,8 @@ address jumpers, because you set them from the back, where left and right swap.
    `0x2F`, lower-left `0x30` and lower-right `0x31`. See the [NeoTrellis
    address jumper photo](images/assembly/neotrellis-address-jumpers.jpg).
 
+   ![NeoTrellis address jumpers, seen from the bottom](images/assembly/neotrellis-address-jumpers.jpg)
+
 6. On the NeoKey, solder jumpers A0, A1, A2 and A3. Its address is `0x3F`. See
    the [NeoKey address jumper photo](images/assembly/neokey-address-jumpers.jpg).
 
@@ -179,19 +191,27 @@ address jumpers, because you set them from the back, where left and right swap.
 
 Now put it together on the bench, case still off.
 
-1. Plug the compute board, OLED, DAC, USB-C power breakout and NeoKey into their
+1. Before anything is plugged in, check `+5V` against `GND` with the
+   multimeter in diode mode: red probe on `D1`'s banded leg (`K/+5V`), black on
+   the other (`A/GND`). Open (`OL`), or a reading that climbs while `C1`
+   charges, is right. Near zero means a short; a diode drop of about 0.5 to
+   0.8 V means `D1` is the wrong way round. Fix either before you ever connect
+   power.
+2. Plug the compute board, OLED, DAC, USB-C power breakout and NeoKey into their
    sockets.
-2. Connect `J1` on the main PCB to the five-pin header on the upper-left
+3. Connect `J1` on the main PCB to the five-pin header on the upper-left
    NeoTrellis board with five female-to-female Dupont leads. Match `INT`,
    `VIN`, `GND`, `SCL` and `SDA` by their labels, using the [J1 pin
    reference](../../hardware/docs/pinout-and-connections.md#other-connections).
    Do not trust cable colors or assume the pin order is the same at both ends.
-3. Check orientation before power: on the NeoKey and the NeoTrellis connector,
+   <!-- PHOTO NEEDED: the J1 cable connected at both ends, labels visible. -->
+4. Check orientation before power: on the NeoKey and the NeoTrellis connector,
    `INT` must be on the south side.
-4. If your build has the optional Orange Pi antenna, connect it now and fix it
+   <!-- PHOTO NEEDED: the open assembly from above with every module plugged in, showing module orientation. -->
+5. If your build has the optional Orange Pi antenna, connect it now and fix it
    where it cannot touch contacts, cover pads or get pinched.
-5. Connect headphones, a speaker or a mixer to the DAC's audio output.
-6. Leave the case open and continue with [flash and first
+6. Connect headphones, a speaker or a mixer to the DAC's audio output.
+7. Leave the case open and continue with [flash and first
    boot](flash-and-first-boot.md).
 
 ## 5. Flash and setup
@@ -251,6 +271,7 @@ Then build it up:
 7. Push the remaining 18 top pins through the modules' mounting holes into the
    loose standoffs. Check that every module sits flat and its header is fully
    seated.
+   <!-- PHOTO NEEDED: side view of one standoff stack: pillar, module, top pin. -->
 8. Heat-set the eight M3 inserts into the wall pillars of the **empty top**,
    from its underside, and let it cool. Then lower the top onto the assembly
    west side first, so the ports find their openings, and then the east side.
@@ -295,6 +316,8 @@ tightening harder.
    is which.
 
 All good? Congratulations: you now own a small herd of musical world-bubbles.
+
+<!-- PHOTO NEEDED: the finished instrument, closed and powered, from above. -->
 Head to the [user manual](../first-ten-minutes.md) and make some noise.
 
 If something is unclear or misbehaving, stop and check
