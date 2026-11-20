@@ -278,7 +278,7 @@ mod timing_evidence_tests {
     }
 }
 
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, board_orange))]
 mod orange_tests;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod raspberry_tests;

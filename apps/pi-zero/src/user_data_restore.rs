@@ -17,9 +17,9 @@ pub(super) use transaction::{replace_trees_with_faults, FaultInjection};
 
 /// The runtime-owned folder next to the store, on the live folders' filesystem, that holds the
 /// pre-restore archive and the new and old trees while they swap.
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(crate) const STAGING_DIR_NAME: &str = "restore";
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) const STAGING_DIR_NAME: &str = ".octessera-restore";
 
 pub(crate) fn restore(

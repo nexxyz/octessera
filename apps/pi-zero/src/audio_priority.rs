@@ -2,39 +2,15 @@ use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-#[cfg(all(
-    target_os = "linux",
-    any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    )
-))]
+#[cfg(all(target_os = "linux", not(board_host)))]
 mod memory_lock;
 mod syscalls;
-#[cfg(all(
-    target_os = "linux",
-    any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    )
-))]
+#[cfg(all(target_os = "linux", not(board_host)))]
 mod timer_slack;
 
-#[cfg(all(
-    target_os = "linux",
-    any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    )
-))]
+#[cfg(all(target_os = "linux", not(board_host)))]
 pub(crate) use memory_lock::lock_process_memory;
-#[cfg(all(
-    target_os = "linux",
-    any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    )
-))]
+#[cfg(all(target_os = "linux", not(board_host)))]
 pub(crate) use timer_slack::tighten_timer_slack;
 
 #[cfg(test)]
@@ -47,11 +23,7 @@ pub(crate) const PI_MIRROR_CPU: usize = 0;
 pub(crate) const PI_JACK_CALLBACK_PRIORITY: i32 = 70;
 pub(crate) const PI_MIRROR_CALLBACK_PRIORITY: i32 = 60;
 
-#[cfg(any(
-    test,
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "hardware-raspberry-pi-zero-2w"
-))]
+#[cfg(any(test, board_orange, board_raspberry))]
 mod dsp_worker_scheduling;
 
 const STATE_PENDING: u8 = 0;
@@ -479,16 +451,9 @@ pub(crate) use syscalls::{
     InjectedSchedulingOutcomes, SchedulingSyscall,
 };
 
-#[cfg(any(
-    test,
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "hardware-raspberry-pi-zero-2w"
-))]
+#[cfg(any(test, board_orange, board_raspberry))]
 pub(crate) use dsp_worker_scheduling::pi_worker_start_hook;
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "hardware-raspberry-pi-zero-2w"
-))]
+#[cfg(not(board_host))]
 pub(crate) use dsp_worker_scheduling::{
     idle_signal_analysis_thread, pin_background_worker_to_dsp_cpus, pin_midi_thread,
 };

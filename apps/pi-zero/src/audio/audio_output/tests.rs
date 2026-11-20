@@ -1,10 +1,10 @@
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use crate::audio_engine_owner::AudioEngineOwner;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use crate::audio_replay::ReplayCache;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use media_recording::RecorderService;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use rodio_engine_source::event_queue;
 
 #[test]
@@ -13,7 +13,7 @@ fn scheduler_labels_preserve_sink_identity() {
     assert_eq!(super::AudioSink::Usb.scheduler_label(), "USB");
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn raspberry_cpal_errors_preserve_route_classification() {
     assert_eq!(
@@ -44,7 +44,7 @@ fn raspberry_cpal_errors_preserve_route_classification() {
     );
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn raspberry_audio_manager_rejects_missing_jack_before_device_access() {
     let outputs = playback_runtime::AudioOutputSet::from_flags(false, true, false).unwrap();
@@ -54,7 +54,7 @@ fn raspberry_audio_manager_rejects_missing_jack_before_device_access() {
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn raspberry_dsp_profiles_select_the_authoritative_audio_geometry() {
     let latency = super::audio_profile::RaspberryAudioProfile::from_optimization(
@@ -74,7 +74,7 @@ fn raspberry_dsp_profiles_select_the_authoritative_audio_geometry() {
     assert_eq!(capacity.lookahead_frames, 256);
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn raspberry_timing_probe_profile_applies_only_requested_geometry_overrides() {
     let profile =
@@ -89,7 +89,7 @@ fn raspberry_timing_probe_profile_applies_only_requested_geometry_overrides() {
     assert_eq!(clamped.internal_block_frames, 2_048);
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn orange_dsp_profiles_select_the_authoritative_audio_geometry() {
     let latency = super::audio_profile::OrangeAudioProfile::from_optimization(
@@ -109,7 +109,7 @@ fn orange_dsp_profiles_select_the_authoritative_audio_geometry() {
     assert_eq!(capacity.lookahead_frames, 128);
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn orange_audio_manager_rejects_missing_jack_before_device_access() {
     let outputs = playback_runtime::AudioOutputSet::from_flags(false, true, false).unwrap();
@@ -122,7 +122,7 @@ fn orange_audio_manager_rejects_missing_jack_before_device_access() {
     }
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn orange_render_quantum_uses_the_capability_default() {
     assert_eq!(
@@ -133,14 +133,14 @@ fn orange_render_quantum_uses_the_capability_default() {
     );
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn orange_scheduler_labels_identify_dac_and_uac2() {
     assert_eq!(super::AudioSink::Jack.scheduler_label(), "Jack");
     assert_eq!(super::AudioSink::Usb.scheduler_label(), "USB");
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn orange_required_controller_detaches_after_device_loss_without_opening_hardware() {
     let (tx, _rx) = event_queue();
@@ -170,7 +170,7 @@ fn orange_required_controller_detaches_after_device_loss_without_opening_hardwar
     assert!(!engine.is_attached());
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn orange_multiple_routes_record_samples_once_from_the_selected_owner() {
     let outputs = playback_runtime::AudioOutputSet::from_flags(true, true, true).unwrap();

@@ -19,11 +19,11 @@ const FX_LIMIT_BLOCKS: usize = 1_500;
 
 pub fn profile_requested() -> bool {
     let explicit_argument = std::env::args().skip(1).any(|arg| arg == "--profile-dsp");
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     {
         explicit_argument
     }
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     {
         profile_requested_value(
             explicit_argument,
@@ -33,7 +33,7 @@ pub fn profile_requested() -> bool {
     }
 }
 
-#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
+#[cfg(any(board_raspberry, board_host, test))]
 fn profile_requested_value(
     explicit_argument: bool,
     environment_value: Option<&str>,
@@ -162,7 +162,7 @@ fn select_scenarios(
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     #[test]
     fn raspberry_profile_request_keeps_environment_trigger() {
         assert!(super::profile_requested_value(false, Some("true"), true));
@@ -185,7 +185,7 @@ mod tests {
         assert!(super::select_scenarios(Vec::new(), Some(String::new())).is_err());
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     #[test]
     fn orange_profile_request_ignores_environment_trigger() {
         assert!(!super::profile_requested_value(false, Some("true"), false));

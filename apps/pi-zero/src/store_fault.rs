@@ -39,7 +39,7 @@ pub(crate) fn read_boot_runtime_config_or_restore(
 
 fn run_store_fault_mode(error: &str, store_dir: &Path, boot_handoff: bool) -> ! {
     eprintln!("saved settings won't load ({error}); showing the restore screen");
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     crate::shutdown_signal::restore_default_handlers();
     let mut devices = HardwareFault::new();
     if boot_handoff {
@@ -228,14 +228,14 @@ fn restore(store_dir: &Path, choice: Choice) -> Result<(), String> {
 }
 
 fn shut_down() -> Result<(), String> {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     {
         match crate::orange_reboot::request_shutdown() {
             crate::orange_reboot::OrangePowerRequestOutcome::Accepted => Ok(()),
             outcome => Err(format!("power request {outcome:?}")),
         }
     }
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     {
         crate::raspberry_power::power_off()
     }

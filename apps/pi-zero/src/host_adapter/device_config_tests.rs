@@ -133,7 +133,7 @@ fn a_failed_usb_step_keeps_the_saved_system_for_the_next_boot() {
     let _ = std::fs::remove_dir_all(root);
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn usb_role_switches_live_and_follows_the_keyboard_and_sd2_rules() {
     let (mut adapter, _audio, calls, root) = adapter("octessera-device-apply-role", Ok(()));
@@ -171,7 +171,7 @@ fn usb_role_switches_live_and_follows_the_keyboard_and_sd2_rules() {
     let _ = std::fs::remove_dir_all(root);
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn host_role_is_refused_before_saving_while_sd2_transfer_is_active() {
     let (mut adapter, _audio, calls, root) = adapter("octessera-device-apply-sd2", Ok(()));

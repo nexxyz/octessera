@@ -1,8 +1,8 @@
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use super::orange_worker::{
     seesaw_startup_status, SeesawStartupStatus, SEESAW_SHUTDOWN_TIMEOUT, SEESAW_STARTUP_TIMEOUT,
 };
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use super::raspberry_worker::{seesaw_worker_has_stalled, SEESAW_STALL_TIMEOUT};
 use super::*;
 
@@ -47,7 +47,7 @@ fn fake_output(grid_failures: usize, key_failures: usize) -> FakeLedOutput {
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn seesaw_worker_health_stalls_at_timeout_without_progress() {
     let start = Instant::now();
@@ -68,7 +68,7 @@ fn seesaw_worker_health_stalls_at_timeout_without_progress() {
     ));
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn seesaw_worker_progress_resets_the_stall_deadline() {
     let start = Instant::now();
@@ -98,7 +98,7 @@ fn seesaw_worker_progress_resets_the_stall_deadline() {
     ));
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn startup_gate_requires_both_input_scan_and_output_ack() {
     assert_eq!(
@@ -116,7 +116,7 @@ fn startup_gate_requires_both_input_scan_and_output_ack() {
     assert_eq!(SEESAW_STARTUP_TIMEOUT, Duration::from_millis(750));
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn dead_output_path_never_acknowledges_startup_frame() {
     let (command_tx, command_rx) = mpsc::channel();
@@ -211,7 +211,7 @@ fn shutdown_black_outputs_are_retryable() {
     assert_eq!(outputs.applied_key_valid, [true; 4]);
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn shutdown_black_cleanup_carries_a_bounded_deadline() {
     let (command_tx, command_rx) = mpsc::channel();

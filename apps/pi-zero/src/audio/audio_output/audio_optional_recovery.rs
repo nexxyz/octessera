@@ -1,7 +1,7 @@
 use super::audio_output_open::AudioConstructionConfig;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use super::cpal_audio_output::build_cpal_mirror_stream;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use super::cpal_audio_output::build_orange_cpal_mirror_stream;
 use super::AudioSink;
 use crate::audio_route::{
@@ -185,11 +185,11 @@ fn open(
 ) -> Result<ManagedStream, RouteOpenError> {
     let health = AudioStreamHealth::optional(format!("{sink:?}"));
     let built = match construction {
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        #[cfg(any(board_raspberry, board_host))]
         AudioConstructionConfig::Raspberry(profile) => {
             build_cpal_mirror_stream(profile.output_buffer_frames, sink, consumer, health.clone())
         }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        #[cfg(board_orange)]
         AudioConstructionConfig::Orange(profile) => {
             build_orange_cpal_mirror_stream(profile, sink, consumer, health.clone())
         }

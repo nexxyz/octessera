@@ -4,12 +4,12 @@ use super::platform_service_store::{
 use crate::device_update;
 use crate::sample_browser::sample_entries;
 use playback_runtime::{RuntimeStoreResult, RuntimeSystemInfoError};
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+#[cfg(all(board_orange, unix))]
 use std::io::{Read, Write};
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+#[cfg(all(board_orange, unix))]
 use std::os::unix::net::UnixStream;
 use std::path::Path;
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+#[cfg(all(board_orange, unix))]
 use std::time::Duration;
 
 use super::{system_info, PlatformJob, PlatformJobKind};
@@ -133,11 +133,11 @@ pub(super) fn handle_job(
 }
 
 fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     {
         run_orange_storage_command(action)
     }
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     {
         let unit = format!(
             "octessera-usb-storage@{}.service",
@@ -153,7 +153,7 @@ fn run_usb_storage_command(action: &str) -> RuntimeStoreResult {
     }
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 fn run_orange_storage_command(action: &str) -> RuntimeStoreResult {
     if !matches!(action, "storage-start" | "storage-stop") {
         return store_error("USB SD2 transfer requested an invalid fixed action".into());
@@ -193,7 +193,7 @@ fn run_orange_storage_command(action: &str) -> RuntimeStoreResult {
     store_error("Orange SD2 transfer requires the fixed Unix storage socket".into())
 }
 
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", unix))]
+#[cfg(all(board_orange, unix))]
 fn parse_orange_storage_response(action: &str, response: &[u8]) -> RuntimeStoreResult {
     let Ok(response) = std::str::from_utf8(response) else {
         return store_error("USB SD2 transfer response was not UTF-8".into());
@@ -229,7 +229,7 @@ fn parse_orange_storage_response(action: &str, response: &[u8]) -> RuntimeStoreR
     store_error(format!("USB SD2 transfer {action} rejected: {error}"))
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(super) fn usb_storage_message(action: &str, udc_root: &Path) -> String {
     if action != "storage-start" {
         return "USB SD2 transfer stopped".into();

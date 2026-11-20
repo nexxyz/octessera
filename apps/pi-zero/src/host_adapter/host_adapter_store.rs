@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 const QUEUED_STORE_JOBS_TIMEOUT: Duration = Duration::from_secs(5);
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod load_admission_tests;
 
 impl PiHostAdapter {

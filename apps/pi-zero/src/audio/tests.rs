@@ -90,7 +90,7 @@ fn host_fm_and_pluck_scalar_commands_reach_replay_for_later_sink() {
         .any(|event| matches!(event, EngineEvent::TileHit { .. })));
 }
 
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, board_orange))]
 pub(crate) fn test_service() -> (
     AudioService,
     Receiver<AudioControlRequest>,
@@ -122,7 +122,7 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
         route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
         selected_outputs: crate::audio_route::SelectedOutputs::new(AudioOutputSet::jack()),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        #[cfg(any(board_raspberry, board_host))]
         required_jack_health: None,
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
         recorder: Arc::new(Mutex::new(RecordingServices::new(
@@ -137,7 +137,7 @@ pub(crate) fn test_service_with_prep_result_sender() -> (AudioService, Sender<Ho
     (service, prep_result_tx)
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 pub(crate) fn test_service_with_prep_worker() -> AudioService {
     let (control_tx, control_rx) = std::sync::mpsc::sync_channel(32);
     let (prep_result_tx, prep_result_rx) = std::sync::mpsc::channel();
@@ -169,7 +169,7 @@ pub(crate) fn test_service_with_prep_worker() -> AudioService {
     service
 }
 
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, board_orange))]
 pub(crate) fn test_service_with_prep_sender() -> (
     AudioService,
     Receiver<AudioControlRequest>,
@@ -181,7 +181,7 @@ pub(crate) fn test_service_with_prep_sender() -> (
     )
 }
 
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, board_orange))]
 pub(crate) fn test_service_with_outputs(outputs: AudioOutputSet) -> AudioService {
     let (service, _, _, _) = test_service_with_recording_dir(
         std::env::temp_dir().join("octessera-orange-gate-recordings"),
@@ -227,7 +227,7 @@ pub(crate) fn test_service_with_recorder(
         generations: Arc::new(Mutex::new(AudioGenerationState::default())),
         route_registry: crate::audio_route::new_registry(AudioOutputSet::jack()),
         selected_outputs: crate::audio_route::SelectedOutputs::new(AudioOutputSet::jack()),
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        #[cfg(any(board_raspberry, board_host))]
         required_jack_health: None,
         prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
         recorder: Arc::new(Mutex::new(recorder)),
@@ -248,7 +248,7 @@ fn restore_preflight_finalizes_active_recording() {
     assert!(!service.is_recording().unwrap());
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn raspberry_optional_route_fault_does_not_block_jack_readiness() {
     let service = test_service_for_sample_prep();
@@ -267,7 +267,7 @@ fn raspberry_optional_route_fault_does_not_block_jack_readiness() {
     assert!(service.ensure_route_readiness().is_ok());
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn raspberry_required_jack_worker_terminal_health_reaches_runtime_fault_path() {
     for reason in [

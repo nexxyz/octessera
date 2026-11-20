@@ -1,18 +1,18 @@
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use std::process::Command;
 
 pub fn profile_system_output() -> Vec<(String, String)> {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     {
         orange_system_output()
     }
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     {
         vcgencmd_output()
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn vcgencmd_output() -> Vec<(String, String)> {
     ["measure_temp", "get_throttled"]
         .into_iter()
@@ -20,7 +20,7 @@ fn vcgencmd_output() -> Vec<(String, String)> {
         .collect()
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 fn orange_system_output() -> Vec<(String, String)> {
     let mut output = vec![(
         "board_profile".to_string(),
@@ -41,7 +41,7 @@ fn orange_system_output() -> Vec<(String, String)> {
     output
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 fn read_system_file(path: &str) -> Option<String> {
     std::fs::read_to_string(path)
         .ok()
@@ -49,7 +49,7 @@ fn read_system_file(path: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 fn read_mem_available() -> Option<String> {
     std::fs::read_to_string("/proc/meminfo")
         .ok()?
@@ -62,7 +62,7 @@ fn read_mem_available() -> Option<String> {
         .map(str::to_string)
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn run_command(program: &str, args: &[&str]) -> Option<String> {
     let output = Command::new(program).args(args).output().ok()?;
     if !output.status.success() {

@@ -158,10 +158,7 @@ pub(crate) fn spawn_partial_take_repair(dirs: [PathBuf; 2]) {
 }
 
 fn pin_writer_off_audio_core() {
-    #[cfg(any(
-        feature = "hardware-orange-pi-zero-2w",
-        feature = "hardware-raspberry-pi-zero-2w"
-    ))]
+    #[cfg(not(board_host))]
     crate::audio_priority::pin_background_worker_to_dsp_cpus();
 }
 

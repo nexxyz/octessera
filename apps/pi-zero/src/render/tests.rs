@@ -120,10 +120,7 @@ fn sleeping_animation_has_nonzero_rise_fall_expiry_and_tick_deadlines() {
     assert_eq!(expired.keys[key], [0; 3]);
 }
 
-#[cfg(not(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w"
-)))]
+#[cfg(board_host)]
 mod hardware_render_tests {
     use super::*;
     use crate::render_loop::test_scenes::test_scene;

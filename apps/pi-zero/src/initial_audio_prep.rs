@@ -2,27 +2,27 @@ use playback_runtime::{HostMessage, RuntimeErrorFacts, RuntimeOperation, Runtime
 
 #[derive(Clone, Copy)]
 pub(crate) enum InitialAudioPrepBoard {
-    #[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
+    #[cfg(any(board_raspberry, board_host, test))]
     Pi,
-    #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
+    #[cfg(any(board_orange, test))]
     Orange,
 }
 
 impl InitialAudioPrepBoard {
     fn failure_context(self) -> &'static str {
         match self {
-            #[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
+            #[cfg(any(board_raspberry, board_host, test))]
             Self::Pi => "initial Pi audio preparation failed",
-            #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
+            #[cfg(any(board_orange, test))]
             Self::Orange => "initial Orange audio preparation failed",
         }
     }
 
     pub(crate) fn timeout_message(self) -> &'static str {
         match self {
-            #[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), test))]
+            #[cfg(any(board_raspberry, board_host, test))]
             Self::Pi => "initial Pi audio preparation timed out",
-            #[cfg(any(feature = "hardware-orange-pi-zero-2w", test))]
+            #[cfg(any(board_orange, test))]
             Self::Orange => "initial Orange audio preparation timed out",
         }
     }

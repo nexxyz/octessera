@@ -1,7 +1,7 @@
 use super::audio_output_open::{source_execution_mode, AudioConstructionConfig};
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use super::audio_profile::OrangeAudioProfile;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use super::audio_profile::RaspberryAudioProfile;
 use super::cpal_audio_output::{
     build_engine_source, AudioSourceExecutionMode, EngineSourceOptions, StreamBuildOptions,
@@ -55,9 +55,9 @@ fn latency_jack_source_reports_output_clipping_on_the_load_status_channel() {
 
 pub(super) fn latency_config() -> AudioConstructionConfig {
     let latency = playback_runtime::AudioOptimization::Latency;
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     let config = AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(latency));
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     let config =
         AudioConstructionConfig::raspberry(RaspberryAudioProfile::from_optimization(latency));
     config
@@ -118,25 +118,25 @@ pub(super) fn play_clipping_latency_jack_source(load_tx: Option<AudioLoadStatusS
 
 #[test]
 fn cpal_uses_routing_tree_only_for_capacity_jack() {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     let config = AudioConstructionConfig::orange(OrangeAudioProfile::from_optimization(
         playback_runtime::AudioOptimization::Capacity,
     ));
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     let config = AudioConstructionConfig::raspberry(RaspberryAudioProfile::from_optimization(
         playback_runtime::AudioOptimization::Latency,
     ));
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     assert_eq!(
         source_execution_mode(AudioSink::Jack, config),
         AudioSourceExecutionMode::RoutingTree
     );
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     assert_eq!(
         source_execution_mode(AudioSink::Jack, config),
         AudioSourceExecutionMode::Inline
     );
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     assert_eq!(
         source_execution_mode(
             AudioSink::Jack,
@@ -154,7 +154,7 @@ fn cpal_uses_routing_tree_only_for_capacity_jack() {
     }
 }
 
-#[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+#[cfg(board_raspberry)]
 #[test]
 fn raspberry_capacity_uses_routing_tree_only_for_jack() {
     let config = AudioConstructionConfig::raspberry(RaspberryAudioProfile::from_optimization(

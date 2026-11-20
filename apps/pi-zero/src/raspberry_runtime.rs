@@ -30,7 +30,7 @@ pub(crate) struct RaspberryRuntimeConfig {
     pub(crate) audio_outputs: playback_runtime::AudioOutputSet,
     pub(crate) usb_data_role: playback_runtime::UsbDataRole,
     pub(crate) audio_optimization: AudioOptimization,
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    #[cfg(board_raspberry)]
     pub(crate) audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,
     pub(crate) midi_rx: mpsc::Receiver<MidiMessage>,
     pub(crate) input_rx: mpsc::Receiver<HostMessage>,
@@ -76,7 +76,7 @@ fn scheduler_loop(
         mut adapter,
         candidate_readiness: _,
         keyboard,
-        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        #[cfg(board_raspberry)]
         audio_load_rx,
     } = prepared;
     let timing = crate::timing_input::validate_startup(&playback).and_then(|auto_aux| {
@@ -98,7 +98,7 @@ fn scheduler_loop(
     let mut state = LoopState::new(scheduler, timing);
     let mut board = RaspberryBoardLoop {
         audio: adapter.audio_service(),
-        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        #[cfg(board_raspberry)]
         audio_load_rx,
     };
     let inputs = LoopInputs {
@@ -131,7 +131,7 @@ fn scheduler_loop(
 
 struct RaspberryBoardLoop {
     audio: Option<AudioService>,
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    #[cfg(board_raspberry)]
     audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,
 }
 
@@ -142,7 +142,7 @@ impl BoardLoop for RaspberryBoardLoop {
         _runner: &mut NativeRunner,
         _adapter: &mut PiHostAdapter,
     ) -> Result<(), String> {
-        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        #[cfg(board_raspberry)]
         if let Some(load_rx) = self.audio_load_rx.as_ref() {
             let output = crate::audio::drain_audio_load_status(load_rx, _playback, false);
             if let Err(error) = process_runtime_output(_playback, _runner, _adapter, output) {

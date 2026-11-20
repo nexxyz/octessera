@@ -21,7 +21,7 @@ const FATAL_NAME: &str = "fatal.json";
 const MAX_STATUS_BYTES: usize = 4096;
 #[cfg(unix)]
 const MAX_STOP_BYTES: usize = 1024;
-#[cfg(all(unix, any(test, feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(unix, any(test, board_orange)))]
 const MAX_FATAL_BYTES: usize = 256;
 #[cfg(unix)]
 const DIRECTORY_MODE: u32 = 0o750;
@@ -34,7 +34,7 @@ const STOP_MODE: u32 = 0o600;
 #[cfg(unix)]
 const FATAL_MODE: u32 = 0o600;
 
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(test, board_orange))]
 #[cfg_attr(not(unix), allow(dead_code))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum StartupFatalCode {
@@ -42,7 +42,7 @@ pub(crate) enum StartupFatalCode {
     StartupFailed,
 }
 
-#[cfg(all(unix, any(test, feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(unix, any(test, board_orange)))]
 impl StartupFatalCode {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
@@ -63,14 +63,14 @@ impl StartupFatalCode {
     }
 }
 
-#[cfg(all(unix, any(test, feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(unix, any(test, board_orange)))]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct StartupFatal {
     pub(crate) boot_id: String,
     pub(crate) code: StartupFatalCode,
 }
 
-#[cfg(all(unix, any(test, feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(unix, any(test, board_orange)))]
 impl StartupFatal {
     fn new(boot_id: String, code: StartupFatalCode) -> Self {
         Self { boot_id, code }
@@ -109,7 +109,7 @@ fn parse_mode_value(value: Option<&str>) -> Result<HandoffMode, String> {
     }
 }
 
-#[cfg(any(unix, all(test, not(feature = "hardware-orange-pi-zero-2w"))))]
+#[cfg(any(unix, all(test, any(board_raspberry, board_host))))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HandoffPhase {
     Animating,
@@ -120,7 +120,7 @@ pub(crate) enum HandoffPhase {
     Failed,
 }
 
-#[cfg(any(unix, all(test, not(feature = "hardware-orange-pi-zero-2w"))))]
+#[cfg(any(unix, all(test, any(board_raspberry, board_host))))]
 impl HandoffPhase {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
@@ -210,63 +210,56 @@ impl StopRequest {
 #[cfg(unix)]
 mod unix_impl;
 
-#[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(unix, board_orange))]
 pub(crate) use unix_impl::native_attach_after_startup_clear;
-#[cfg(all(
-    test,
-    unix,
-    not(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    ))
-))]
+#[cfg(all(test, unix, board_host))]
 pub(crate) use unix_impl::native_guard_for_test;
-#[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(unix, board_orange))]
 pub(crate) use unix_impl::publish_startup_fatal;
-#[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(unix, any(board_raspberry, board_host)))]
 pub(crate) use unix_impl::AnimatorHandoff;
-#[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(unix, board_orange))]
 pub(crate) use unix_impl::NativeOledGuard;
-#[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(unix, any(board_raspberry, board_host)))]
 pub(crate) use unix_impl::{animator_start, utility_lock};
-#[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(unix, any(board_raspberry, board_host)))]
 pub(crate) use unix_impl::{native_attach, NativeOledGuard};
 
-#[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(not(unix), board_host))]
 pub(crate) struct AnimatorHandoff;
 
 #[cfg(not(unix))]
 pub(crate) struct NativeOledGuard;
 
-#[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(not(unix), board_host))]
 pub(crate) struct UtilityOledLock;
 
-#[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(not(unix), board_host))]
 pub(crate) fn animator_start() -> Result<AnimatorHandoff, String> {
     Err("OLED boot handoff requires Unix file locking".into())
 }
 
-#[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(not(unix), board_host))]
 pub(crate) fn native_attach() -> Result<NativeOledGuard, String> {
     Err("OLED boot handoff requires Unix file locking".into())
 }
 
-#[cfg(all(not(unix), feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(not(unix), board_orange))]
 pub(crate) fn publish_startup_fatal(_code: StartupFatalCode) -> Result<(), String> {
     Err("OLED boot handoff requires Unix file locking".into())
 }
 
-#[cfg(all(not(unix), feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(not(unix), board_orange))]
 pub(crate) fn native_attach_after_startup_clear() -> Result<NativeOledGuard, String> {
     Err("OLED boot handoff requires Unix file locking".into())
 }
 
-#[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(not(unix), board_host))]
 pub(crate) fn utility_lock() -> Result<UtilityOledLock, String> {
     Err("OLED boot handoff requires Unix file locking".into())
 }
 
-#[cfg(all(not(unix), not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(not(unix), board_host))]
 impl AnimatorHandoff {
     pub(crate) fn stop_requested(&mut self) -> Result<bool, String> {
         Err("OLED boot handoff requires Unix file locking".into())
@@ -282,7 +275,7 @@ impl AnimatorHandoff {
 
 #[cfg(not(unix))]
 impl NativeOledGuard {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     pub(crate) fn mark_unavailable_and_failed(
         &self,
         _code: StartupFatalCode,
@@ -302,11 +295,11 @@ impl NativeOledGuard {
     pub(crate) fn mark_failed_result(&self) -> Result<(), String> {
         Err("OLED boot handoff requires Unix file locking".into())
     }
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     pub(crate) fn mark_failed(&self) {}
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod tests {
     use super::*;
 

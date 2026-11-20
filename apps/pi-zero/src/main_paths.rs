@@ -1,4 +1,4 @@
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -15,13 +15,13 @@ pub(crate) fn default_store_dir() -> PathBuf {
     configured_dir(STORE_DIR_ENV, "presets")
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) fn ensure_runtime_dirs(store_dir: &Path, samples_dir: &Path) {
     let _ = std::fs::create_dir_all(samples_dir);
     let _ = std::fs::create_dir_all(store_dir);
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) fn ensure_samples_dir(samples_dir: &Path) -> Result<(), String> {
     std::fs::create_dir_all(samples_dir)
         .map_err(|error| format!("Pi samples directory is not usable: {error}"))?;
@@ -56,12 +56,12 @@ pub(crate) fn default_screen_recordings_dir() -> PathBuf {
     )
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 fn configured_media_dir(_environment_variable: &str, _raspberry: &str, orange: &str) -> PathBuf {
     PathBuf::from(orange)
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn configured_media_dir(environment_variable: &str, raspberry: &str, _orange: &str) -> PathBuf {
     configured_media_dir_from(
         std::env::var_os(environment_variable).map(PathBuf::from),
@@ -69,7 +69,7 @@ fn configured_media_dir(environment_variable: &str, raspberry: &str, _orange: &s
     )
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn configured_media_dir_from(configured: Option<PathBuf>, raspberry: &str) -> PathBuf {
     configured.unwrap_or_else(|| PathBuf::from(raspberry))
 }
@@ -99,12 +99,12 @@ fn home_dir() -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     use super::configured_media_dir_from;
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     use super::ensure_samples_dir;
     use super::{configured_dir_from, SAMPLES_DIR_ENV, STORE_DIR_ENV};
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     use super::{default_recordings_dir, default_screen_recordings_dir};
     use std::path::PathBuf;
 
@@ -142,7 +142,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     #[test]
     fn raspberry_media_roots_preserve_the_existing_absolute_paths() {
         assert_eq!(
@@ -159,7 +159,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     #[test]
     fn orange_media_roots_are_explicitly_outside_protected_home() {
         assert_eq!(
@@ -172,7 +172,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     #[test]
     fn sample_root_creation_failure_is_returned() {
         let root = crate::test_temp_dir::unique_temp_path("octessera-pi-samples-root");

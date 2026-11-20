@@ -4,12 +4,12 @@ use std::time::Duration;
 /// Lead time between a pulse and its sequenced output: the smallest delay that logged no late
 /// timed events in 2-minute board sweeps (2026-10-29) plus about 1 ms for rarer stragglers.
 pub(crate) fn sequenced_output_delay(optimization: AudioOptimization) -> Duration {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     let micros = match optimization {
         AudioOptimization::Latency => 8_800,
         AudioOptimization::Capacity => 17_000,
     };
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     let micros = match optimization {
         AudioOptimization::Latency => 4_500,
         AudioOptimization::Capacity => 11_000,
@@ -17,14 +17,14 @@ pub(crate) fn sequenced_output_delay(optimization: AudioOptimization) -> Duratio
     Duration::from_micros(micros)
 }
 
-#[cfg(all(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
+#[cfg(all(any(board_raspberry, board_host), feature = "profiling"))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct AudioProfileGeometry {
     pub(crate) output_buffer_frames: u32,
     pub(crate) internal_block_frames: usize,
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct RaspberryAudioProfile {
     pub(super) optimization: AudioOptimization,
@@ -34,7 +34,7 @@ pub(crate) struct RaspberryAudioProfile {
     pub(super) lookahead_frames: usize,
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 impl RaspberryAudioProfile {
     pub(crate) fn from_optimization(optimization: AudioOptimization) -> Self {
         match optimization {
@@ -79,7 +79,7 @@ impl RaspberryAudioProfile {
     }
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct OrangeAudioProfile {
     pub(super) optimization: AudioOptimization,
@@ -89,7 +89,7 @@ pub(crate) struct OrangeAudioProfile {
     pub(super) lookahead_frames: usize,
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 impl OrangeAudioProfile {
     pub(crate) fn from_optimization(optimization: AudioOptimization) -> Self {
         match optimization {

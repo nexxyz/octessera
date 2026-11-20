@@ -124,7 +124,7 @@ pub(crate) fn status(registry: &AudioRouteRegistry, sink: AudioSink) -> AudioRou
         .unwrap_or(AudioRouteStatus::Faulted)
 }
 
-#[cfg(any(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(any(test, board_raspberry, board_host))]
 pub(crate) fn readiness(
     _outputs: AudioOutputSet,
     registry: &AudioRouteRegistry,

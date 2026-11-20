@@ -7,11 +7,7 @@ pub(crate) const ORANGE_WORKER_CPUS: [usize; 2] = DSP_WORKER_CPUS;
 #[cfg(test)]
 pub(crate) const ORANGE_WORKER_PRIORITY: i32 = DSP_WORKER_PRIORITY;
 
-#[cfg(any(
-    test,
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "hardware-raspberry-pi-zero-2w"
-))]
+#[cfg(any(test, board_orange, board_raspberry))]
 pub(crate) fn pi_worker_start_hook(parity: usize) -> Result<(), ()> {
     let Some(&cpu) = DSP_WORKER_CPUS.get(parity) else {
         return Err(());
@@ -31,10 +27,7 @@ pub(crate) fn pi_worker_start_hook(parity: usize) -> Result<(), ()> {
 // Background work (bulk sample decoding, the Bluetooth audio feeder) on CPU0
 // delays the audio interrupt's wakeup of the callback; keep it on the DSP
 // cores, where the realtime workers preempt it.
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "hardware-raspberry-pi-zero-2w"
-))]
+#[cfg(not(board_host))]
 pub(crate) fn pin_background_worker_to_dsp_cpus() {
     #[cfg(all(not(test), target_os = "linux"))]
     {
@@ -62,10 +55,7 @@ pub(crate) fn pin_background_worker_to_dsp_cpus() {
 // stamps each clock byte on arrival. Both share CPU0 with the runtime, away from the audio
 // callback (CPU1) and the DSP workers (CPU2/3), and stay below the CPU0 mirror callback so
 // MIDI never delays mirrored audio.
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "hardware-raspberry-pi-zero-2w"
-))]
+#[cfg(not(board_host))]
 pub(crate) fn pin_midi_thread(_role: &str) {
     #[cfg(not(test))]
     {
@@ -81,10 +71,7 @@ pub(crate) fn pin_midi_thread(_role: &str) {
 
 // The signal analysis worker shares CPU0 with the runtime and the render worker. SCHED_IDLE lets
 // either preempt it the moment they wake, so a slow picture only lowers its update rate.
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "hardware-raspberry-pi-zero-2w"
-))]
+#[cfg(not(board_host))]
 pub(crate) fn idle_signal_analysis_thread() {
     #[cfg(all(not(test), target_os = "linux"))]
     {

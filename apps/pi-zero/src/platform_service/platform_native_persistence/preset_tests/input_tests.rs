@@ -1,4 +1,4 @@
-#![cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#![cfg(any(board_raspberry, board_host))]
 
 use super::*;
 use playback_runtime::{RunnerMessage, RuntimePlatformEffect, RuntimeTransportState};

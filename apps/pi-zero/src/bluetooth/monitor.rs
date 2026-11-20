@@ -237,10 +237,7 @@ fn lower_priority() {
         libc::sched_setscheduler(0, libc::SCHED_OTHER, &param);
         libc::setpriority(libc::PRIO_PROCESS, 0, 10);
     }
-    #[cfg(any(
-        feature = "hardware-orange-pi-zero-2w",
-        feature = "hardware-raspberry-pi-zero-2w"
-    ))]
+    #[cfg(not(board_host))]
     crate::audio_priority::pin_background_worker_to_dsp_cpus();
 }
 

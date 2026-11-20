@@ -32,10 +32,7 @@ pub(crate) fn new_runtime(
         .and_then(|value| value.parse::<u64>().ok())
         .map_or(delay, std::time::Duration::from_micros);
     playback.set_sequenced_output_delay(delay);
-    #[cfg(any(
-        feature = "hardware-orange-pi-zero-2w",
-        feature = "hardware-raspberry-pi-zero-2w"
-    ))]
+    #[cfg(not(board_host))]
     playback_runtime::set_signal_analysis_worker_start(
         crate::audio_priority::idle_signal_analysis_thread,
     );
@@ -125,5 +122,5 @@ pub(crate) fn publish_initial_scene(
     Ok(revision)
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod tests;

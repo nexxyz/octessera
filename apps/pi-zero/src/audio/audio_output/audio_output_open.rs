@@ -1,11 +1,11 @@
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use super::audio_profile::OrangeAudioProfile;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use super::audio_profile::RaspberryAudioProfile;
 use super::audio_stream_lifecycle::{AudioStreamShutdownError, AudioStreamShutdownReport};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use super::cpal_audio_output::build_cpal_stream;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use super::cpal_audio_output::build_orange_cpal_stream;
 use super::cpal_audio_output::AudioSourceExecutionMode;
 use super::cpal_audio_output::BuiltAudioStream;
@@ -25,7 +25,7 @@ use rodio_engine_source::{
 use std::time::Duration;
 
 pub(super) const CALLBACK_SCHEDULING_STARTUP_TIMEOUT: Duration = Duration::from_millis(250);
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 const USB_AUDIO_STARTUP_FAULT_GRACE: Duration = Duration::from_millis(250);
 
 pub(crate) struct OpenedAudioSink {
@@ -38,28 +38,25 @@ pub(crate) struct OpenedAudioSink {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum AudioConstructionConfig {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     Raspberry(RaspberryAudioProfile),
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     Orange(OrangeAudioProfile),
 }
 
 impl AudioConstructionConfig {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     pub(super) const fn raspberry(profile: RaspberryAudioProfile) -> Self {
         Self::Raspberry(profile)
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     pub(super) const fn orange(profile: OrangeAudioProfile) -> Self {
         Self::Orange(profile)
     }
 }
 
-#[cfg(any(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "hardware-raspberry-pi-zero-2w"
-))]
+#[cfg(not(board_host))]
 pub(super) fn load_status_sender_for_sink(
     sink: AudioSink,
     load_tx: &AudioLoadStatusSender,
@@ -80,7 +77,7 @@ pub(super) fn source_execution_mode(
     sink: AudioSink,
     config: AudioConstructionConfig,
 ) -> AudioSourceExecutionMode {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     if sink == AudioSink::Jack
         && matches!(
             config,
@@ -90,10 +87,10 @@ pub(super) fn source_execution_mode(
             })
         )
     {
-        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        #[cfg(board_raspberry)]
         return AudioSourceExecutionMode::RoutingTree;
     }
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     if sink == AudioSink::Jack
         && matches!(
             config,
@@ -108,7 +105,7 @@ pub(super) fn source_execution_mode(
     AudioSourceExecutionMode::Inline
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(super) fn open_audio_sink(
     config: AudioConstructionConfig,
     sink: AudioSink,
@@ -198,7 +195,7 @@ pub(super) fn open_audio_sink(
     })
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(super) fn open_orange_audio_sink(
     config: AudioConstructionConfig,
     sink: AudioSink,
@@ -223,7 +220,7 @@ pub(super) fn open_orange_audio_sink(
     )
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(super) fn open_orange_audio_sink_with_health(
     config: AudioConstructionConfig,
     sink: AudioSink,

@@ -11,12 +11,12 @@ use atomic::atomic_write;
 pub(crate) use atomic::{inject_atomic_failure, AtomicFailure};
 
 mod directory;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(super) use directory::cleanup_temporary_files;
 #[cfg(test)]
 pub(super) use directory::current_boot_id;
 pub(super) use directory::HandoffDirectory;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 pub(super) use directory::RuntimeIdentity;
 use directory::{create_named, io_error, open_named, unlink_named, validate_metadata};
 
@@ -118,7 +118,7 @@ pub(super) fn write_status(
     .map(|_| ())
 }
 
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(test, board_orange))]
 pub(super) fn write_fatal(
     directory: &HandoffDirectory,
     fatal: &StartupFatal,
@@ -136,7 +136,7 @@ pub(super) fn write_fatal(
     .map(|_| ())
 }
 
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(test, board_orange))]
 pub(super) fn clear_fatal(directory: &HandoffDirectory) -> Result<(), String> {
     let Some(_file) = open_validated_named(directory, FATAL_NAME, FATAL_MODE)? else {
         return Ok(());
@@ -226,11 +226,11 @@ fn open_validated_named(
 mod contract;
 #[cfg(test)]
 pub(super) use contract::parse_fatal;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 pub(crate) use contract::parse_status_for_test;
 pub(super) use contract::{parse_status, parse_stop, valid_boot_id, valid_request_id};
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(super) fn cleanup_previous_state(directory: &HandoffDirectory) -> Result<(), String> {
     for (name, mode, max) in [
         (STATUS_NAME, STATUS_MODE, MAX_STATUS_BYTES),

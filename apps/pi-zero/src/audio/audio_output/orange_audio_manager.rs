@@ -1,6 +1,6 @@
 use super::{AudioManager, AudioSink, OrangeDacStatus};
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 impl AudioManager {
     pub(crate) fn recover_audio_if_due(&mut self) {
         if let Some(recovery) = self.orange_dac_recovery.as_mut() {

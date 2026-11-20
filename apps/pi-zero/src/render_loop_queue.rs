@@ -25,7 +25,7 @@ pub(crate) enum RenderCommand {
     Abort {
         ack: mpsc::Sender<Result<(), String>>,
     },
-    #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
+    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
     Ownership {
         stage: OledOwnershipStage,
         cancellation: Arc<AtomicBool>,

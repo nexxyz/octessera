@@ -47,7 +47,7 @@ pub(crate) use platform_service_dispatcher::{
 };
 #[cfg(test)]
 use platform_service_executor::handle_job;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[cfg(test)]
 use platform_service_executor::usb_storage_message;
 use platform_service_load_admission::LegacyPatchWrites;

@@ -1,4 +1,4 @@
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use super::AudioManager;
 use playback_runtime::{
     PlaybackRuntime, RuntimeIngest, RuntimePresentationMetrics, RuntimeTransportState,
@@ -9,7 +9,7 @@ use std::time::Instant;
 
 static MISSED_QUANTUM_SHOWN: AtomicBool = AtomicBool::new(false);
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 impl AudioManager {
     pub(crate) fn drain_audio_load_status(
         &mut self,

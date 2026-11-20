@@ -1,11 +1,11 @@
 use crate::audio_engine_owner::AudioEngineOwner;
 use crate::audio_recording::RecordingServices;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use crate::audio_route::readiness as route_readiness;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use crate::audio_route::status as route_status;
 use crate::audio_route::{AudioRouteRegistry, SelectedOutputs};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) use crate::audio_stream_health::AudioStreamHealth;
 use media_recording::OledIngress;
 mod audio_defaults;
@@ -15,15 +15,15 @@ mod audio_recording_service;
 mod late_timed_events;
 pub(crate) use audio_defaults::default_pi_instruments;
 use audio_error::{audio_queue_error, prep_queue_error};
-#[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+#[cfg(board_raspberry)]
 pub(crate) use audio_output::drain_audio_load_status;
 #[cfg(test)]
 pub(crate) use audio_output::MixTaps;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use audio_output::OrangeAudioProfile;
 pub(crate) use audio_output::{sequenced_output_delay, AudioManager, AudioSink, MixTapState};
 pub(crate) use late_timed_events::{late_timed_events_counter, LateTimedEventLog};
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use playback_runtime::AudioOptimization;
 use playback_runtime::AudioOutputSet;
 use playback_runtime::{HostMessage, RuntimeAdapterError};
@@ -71,7 +71,7 @@ pub struct AudioService {
     pub(crate) generations: Arc<Mutex<AudioGenerationState>>,
     route_registry: AudioRouteRegistry,
     selected_outputs: Arc<SelectedOutputs>,
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     required_jack_health: Option<AudioStreamHealth>,
     prep_result_rx: Arc<Mutex<Receiver<HostMessage>>>,
     recorder: Arc<Mutex<RecordingServices>>,
@@ -128,7 +128,7 @@ pub enum AudioControlRequest {
     },
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(crate) fn orange_profile(optimization: AudioOptimization) -> OrangeAudioProfile {
     OrangeAudioProfile::from_optimization(optimization)
 }
@@ -307,21 +307,21 @@ impl AudioService {
     }
 
     pub(crate) fn ensure_route_readiness(&self) -> Result<(), String> {
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        #[cfg(any(board_raspberry, board_host))]
         if self.required_jack_health.as_ref().is_some_and(|health| {
             health.runtime_status() != crate::audio_stream_health::AudioStreamStatus::Healthy
         }) {
             return Err("required Jack audio stream faulted".into());
         }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        #[cfg(board_orange)]
         if route_status(&self.route_registry, AudioSink::Jack)
             == crate::audio_route::AudioRouteStatus::Faulted
         {
             return Err("selected Jack audio route faulted".into());
         }
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        #[cfg(board_orange)]
         let result = Ok(());
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        #[cfg(any(board_raspberry, board_host))]
         let result = route_readiness(self.audio_outputs(), &self.route_registry);
         result
     }
@@ -335,7 +335,7 @@ impl AudioService {
         self.selected_outputs.set(outputs);
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     pub(crate) fn required_jack_failed(&self) -> bool {
         self.required_jack_health.as_ref().is_some_and(|health| {
             health.runtime_status() == crate::audio_stream_health::AudioStreamStatus::Terminal
@@ -349,11 +349,11 @@ impl AudioService {
     }
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 pub(crate) use tests::test_service_with_prep_result_sender;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 pub(crate) use tests::test_service_with_prep_worker;
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, board_orange))]
 pub(crate) use tests::{test_service, test_service_with_outputs, test_service_with_prep_sender};
 #[cfg(test)]
 pub(crate) use tests::{

@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 pub(crate) const APPLY_FAILED_MESSAGE: &str = "USB apply failed, reboot to apply";
 const SD2_PENDING_MESSAGE: &str = "Saved, applies when SD2 stops";
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 const HELPER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -87,7 +87,7 @@ fn status(ok: bool, message: &str) -> RuntimeStoreResult {
     }
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) fn production_usb_applier() -> UsbApplier {
     Arc::new(|change| match change {
         UsbChange::Gadget => run_unit("restart", "octessera-usb-gadget.service"),
@@ -98,7 +98,7 @@ pub(crate) fn production_usb_applier() -> UsbApplier {
     })
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(crate) fn production_usb_applier() -> UsbApplier {
     Arc::new(|change| match change {
         UsbChange::Gadget => match crate::orange_reboot::request_usb_gadget() {
@@ -109,7 +109,7 @@ pub(crate) fn production_usb_applier() -> UsbApplier {
     })
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 /// Root work runs as its own systemd unit: sudo from inside the app's service
 /// would inherit its narrow capability bounding set.
 pub(crate) fn run_unit(verb: &str, unit: &str) -> Result<(), String> {
@@ -118,7 +118,7 @@ pub(crate) fn run_unit(verb: &str, unit: &str) -> Result<(), String> {
     run_bounded(command, HELPER_TIMEOUT).map_err(|error| format!("{unit}: {error}"))
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn run_bounded(
     mut command: std::process::Command,
     timeout: std::time::Duration,
@@ -206,7 +206,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(root);
     }
 
-    #[cfg(all(unix, not(feature = "hardware-orange-pi-zero-2w")))]
+    #[cfg(all(unix, any(board_raspberry, board_host)))]
     #[test]
     fn a_hung_helper_is_killed_at_the_timeout() {
         let mut command = std::process::Command::new("sleep");

@@ -18,13 +18,7 @@ use std::time::Duration;
 
 #[cfg(feature = "profiling")]
 mod frame_stats;
-#[cfg(all(
-    test,
-    not(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    ))
-))]
+#[cfg(all(test, board_host))]
 mod hdmi_render_loop_tests;
 mod ownership;
 mod presentation;
@@ -38,7 +32,7 @@ use worker::take_next_command;
 
 const SHUTDOWN_ACK_TIMEOUT: Duration = Duration::from_millis(750);
 const INITIAL_RENDER_ACK_TIMEOUT: Duration = Duration::from_millis(750);
-#[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
+#[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
 const OWNERSHIP_ACK_TIMEOUT: Duration = Duration::from_secs(2);
 #[derive(Clone)]
 pub struct RenderWorker {
@@ -47,7 +41,7 @@ pub struct RenderWorker {
 }
 
 impl RenderWorker {
-    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+    #[cfg(all(test, any(board_raspberry, board_host)))]
     pub(crate) fn block_next_native_scene_for_test(
         &self,
     ) -> (mpsc::Receiver<()>, mpsc::Sender<()>) {
@@ -61,7 +55,7 @@ impl RenderWorker {
         (entered_rx, release_tx)
     }
 
-    #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(all(test, board_orange))]
     pub(crate) fn allow_native_scenes_for_test(&self) {
         self.state
             .0
@@ -77,7 +71,7 @@ impl RenderWorker {
     }
 
     #[cfg(test)]
-    #[cfg_attr(feature = "hardware-orange-pi-zero-2w", allow(dead_code))]
+    #[cfg_attr(board_orange, allow(dead_code))]
     pub(crate) fn fail_next_startup_oled_write_for_test(&self) {
         if let Ok(mut state) = self.state.0.lock() {
             state.fail_next_startup_oled_write = true;
@@ -222,7 +216,7 @@ impl RenderWorker {
         result
     }
 
-    #[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
+    #[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
     pub(crate) fn ownership_stage(&self, stage: OledOwnershipStage) -> Result<(), String> {
         let (ack_tx, ack_rx) = mpsc::channel();
         let cancellation = Arc::new(AtomicBool::new(false));
@@ -283,14 +277,14 @@ fn display_off_ack(result: Result<(), String>) -> Result<(), String> {
     result.map_err(|error| format!("OLED display-off failed: {error}"))
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 impl crate::orange_oled_suspend_policy::RenderOwnershipControl for RenderWorker {
     fn ownership_stage(&self, stage: OledOwnershipStage) -> Result<(), String> {
         RenderWorker::ownership_stage(self, stage)
     }
 }
 
-#[cfg_attr(not(feature = "hardware-orange-pi-zero-2w"), allow(dead_code))]
+#[cfg_attr(any(board_raspberry, board_host), allow(dead_code))]
 fn cancel_ownership(cancellation: &AtomicBool) {
     cancellation.store(true, Ordering::Release);
 }

@@ -67,7 +67,7 @@ fn locked_existing_target_returns_identified_write_failure_without_deleting_sour
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn source_delete_failure_keeps_both_presets_and_reports_partial_cleanup() {
     let (service, root) = service_and_root("rename-cleanup-failure");
     let store = root.join("store");

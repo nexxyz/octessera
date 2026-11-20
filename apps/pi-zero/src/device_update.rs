@@ -2,17 +2,17 @@ use playback_runtime::RuntimeStoreResult;
 use std::io;
 use std::process::{Command, Output};
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 mod orange_update_broker;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod raspberry_update_command;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(super) use orange_update_broker::production_executor;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use orange_update_broker::update_command;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(super) use raspberry_update_command::production_executor;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use raspberry_update_command::update_command;
 
 const MAX_UPDATE_OUTPUT_CHARS: usize = 512;

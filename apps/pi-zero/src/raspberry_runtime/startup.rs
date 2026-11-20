@@ -24,7 +24,7 @@ pub(crate) struct PreparedRuntime {
     pub(super) adapter: PiHostAdapter,
     pub(super) candidate_readiness: CandidateReadiness,
     pub(super) keyboard: crate::keyboard_capture::KeyboardCapture,
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    #[cfg(board_raspberry)]
     pub(super) audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,
 }
 
@@ -38,7 +38,7 @@ pub(crate) fn prepare(config: RaspberryRuntimeConfig) -> Result<PreparedRuntime,
         audio_outputs,
         usb_data_role,
         audio_optimization,
-        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        #[cfg(board_raspberry)]
         audio_load_rx,
         midi_rx,
         input_rx,
@@ -77,7 +77,7 @@ pub(crate) fn prepare(config: RaspberryRuntimeConfig) -> Result<PreparedRuntime,
         adapter,
         candidate_readiness: CandidateReadiness::from_env(),
         keyboard,
-        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        #[cfg(board_raspberry)]
         audio_load_rx,
     })
 }
@@ -251,7 +251,7 @@ mod tests {
                 "pi-route-readiness".into(),
             ),
             keyboard: crate::keyboard_capture::KeyboardCapture::spawn(input_tx, false),
-            #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+            #[cfg(board_raspberry)]
             audio_load_rx: None,
         };
 

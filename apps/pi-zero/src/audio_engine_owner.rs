@@ -68,7 +68,7 @@ impl AudioEngineOwner {
         Ok(())
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     pub(crate) fn detach(&self) {
         if let Ok(mut state) = self.state.lock() {
             state.tx = None;

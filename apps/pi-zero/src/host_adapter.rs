@@ -2,7 +2,7 @@ mod host_adapter_construction;
 mod host_adapter_device_config;
 mod host_adapter_recording;
 mod host_adapter_store;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 mod orange_construction;
 
 use crate::audio::AudioService;
@@ -75,10 +75,7 @@ impl PiHostAdapter {
         self.core.take_transfer_status()
     }
 
-    #[cfg(all(
-        not(feature = "hardware-orange-pi-zero-2w"),
-        any(test, feature = "profiling")
-    ))]
+    #[cfg(all(any(board_raspberry, board_host), any(test, feature = "profiling")))]
     pub fn new<T: Into<AudioOutputSet>>(
         audio: Option<AudioService>,
         store_dir: PathBuf,
@@ -235,13 +232,13 @@ fn usb_sd_transfer_unavailable(request: &RuntimePlatformRequest) -> HostMessage 
 }
 
 impl crate::timing_input::TimingHost for PiHostAdapter {
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     const STUDY_BOARD: &'static str = "Raspberry";
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     const REPORT_PREFIX: &'static str = "raspberry-autoaux";
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     const STUDY_BOARD: &'static str = "Orange";
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     const REPORT_PREFIX: &'static str = "orange-autoaux";
 
     fn timing_evidence(&mut self) -> &mut Option<crate::timing_input::TimingStudyEvidence> {
@@ -389,15 +386,15 @@ impl RuntimeOutputSink for PiHostAdapter {
 
 #[cfg(test)]
 mod device_config_tests;
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, board_orange))]
 mod orange_system_store_tests;
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, board_orange))]
 mod orange_tests;
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, board_orange))]
 mod orange_update_tests;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod power_tests;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod system_store_tests;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod tests;

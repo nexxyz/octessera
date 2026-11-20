@@ -26,10 +26,7 @@ pub fn spawn_audio_control_worker(
     std::thread::Builder::new()
         .name("octessera-audio-prep".into())
         .spawn(move || {
-            #[cfg(any(
-                feature = "hardware-orange-pi-zero-2w",
-                feature = "hardware-raspberry-pi-zero-2w"
-            ))]
+            #[cfg(not(board_host))]
             crate::audio_priority::pin_background_worker_to_dsp_cpus();
             audio_control_loop(rx, audio, result_tx)
         })

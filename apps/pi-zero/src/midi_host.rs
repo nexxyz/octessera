@@ -210,10 +210,7 @@ fn midi_sender_start_hook() {
 }
 
 fn place_midi_thread(_role: &str) {
-    #[cfg(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    ))]
+    #[cfg(not(board_host))]
     crate::audio_priority::pin_midi_thread(_role);
 }
 

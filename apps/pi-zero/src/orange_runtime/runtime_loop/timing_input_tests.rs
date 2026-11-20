@@ -1,4 +1,4 @@
-#![cfg(feature = "hardware-orange-pi-zero-2w")]
+#![cfg(board_orange)]
 
 use crate::autoaux_sequence::{
     Phase, BASELINE, PLATEAU, RAPID, SAVE_COMPLETION_TIMEOUT, TURN_INTERVAL,
@@ -177,7 +177,7 @@ fn identified_auto_save(revision: u64, ok: bool) -> RuntimeStoreResult {
     }
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn autoaux_setup_uses_stopped_native_menu_and_routes_cutoff_turns_through_host() {
     let _environment = valid_environment(Some(
@@ -217,7 +217,7 @@ fn autoaux_setup_uses_stopped_native_menu_and_routes_cutoff_turns_through_host()
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn autoaux_command_profile_ignores_runner_commands_rejected_by_host() {
     let _environment = valid_environment(Some(
@@ -255,7 +255,7 @@ fn autoaux_command_profile_ignores_runner_commands_rejected_by_host() {
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn autoaux_timing_waits_for_native_save_completion_after_the_burst() {
     let _environment = valid_environment(Some(
@@ -332,7 +332,7 @@ fn autoaux_timing_waits_for_native_save_completion_after_the_burst() {
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn autoaux_accepts_only_automatic_success_for_the_final_revision() {
     let _environment = valid_environment(Some(
@@ -393,7 +393,7 @@ fn autoaux_accepts_only_automatic_success_for_the_final_revision() {
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn autoaux_matching_failure_and_completion_timeout_are_errors() {
     let _environment = valid_environment(Some(
@@ -424,7 +424,7 @@ fn autoaux_matching_failure_and_completion_timeout_are_errors() {
     let _ = std::fs::remove_dir_all(fixture.root);
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn autoaux_refuses_missing_gates_wrong_focus_and_unbound_aux() {
     let missing = EnvironmentRestore::set(&[

@@ -1,24 +1,24 @@
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use super::*;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use crate::host_adapter::PiHostAdapter;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use crate::usb_config::UsbAudioOut;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use playback_runtime::NativeRunnerConfig;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use playback_runtime::{
     HostMessage, PlaybackRuntime, RuntimeConfig, RuntimePlatformEffect, RuntimePlatformRequest,
     RuntimeStoreResult,
 };
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use serde_json::json;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use std::sync::mpsc;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use std::time::{Duration, Instant};
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn adapter() -> (PiHostAdapter, std::path::PathBuf) {
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-native-save");
     let adapter = PiHostAdapter::new(
@@ -49,13 +49,13 @@ fn adapter() -> (PiHostAdapter, std::path::PathBuf) {
     (adapter, root)
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn cleanup(root: std::path::PathBuf) {
     let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_retry() {
     use playback_runtime::RuntimeOperation;
 
@@ -218,7 +218,7 @@ fn malformed_current_completions_clear_pending_and_stale_success_cannot_clear_re
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn playing_manual_default_save_queues_before_worker_serialization_and_reloads() {
     use playback_runtime::RuntimeTransportState;
 

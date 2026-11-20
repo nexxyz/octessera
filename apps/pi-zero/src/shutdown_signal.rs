@@ -17,7 +17,7 @@ pub(crate) fn install_signal_handlers() -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(all(unix, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(unix, board_orange))]
 pub(crate) fn restore_default_handlers() {
     unsafe {
         for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
@@ -26,7 +26,7 @@ pub(crate) fn restore_default_handlers() {
     }
 }
 
-#[cfg(all(not(unix), feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(not(unix), board_orange))]
 pub(crate) fn restore_default_handlers() {}
 
 #[cfg(not(unix))]

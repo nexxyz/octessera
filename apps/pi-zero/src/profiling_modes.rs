@@ -1,7 +1,7 @@
 //! Diagnostic run modes: the DSP profile, timing probes, and timing load ramp exist only in the
 //! instrumented `profiling` build. Production builds refuse their flags instead of starting up.
 
-#[cfg(all(feature = "profiling", feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(feature = "profiling", board_orange))]
 pub(crate) fn run_requested() {
     use crate::{dsp_profile, exit_code};
     if dsp_profile::profile_requested() {
@@ -9,7 +9,7 @@ pub(crate) fn run_requested() {
     }
 }
 
-#[cfg(all(feature = "profiling", not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(feature = "profiling", any(board_raspberry, board_host)))]
 pub(crate) fn run_requested() {
     use crate::{dsp_profile, exit_code, timing_probe};
     if dsp_profile::profile_requested() {
@@ -25,7 +25,7 @@ pub(crate) fn run_requested() {
     let flagged = std::env::args()
         .skip(1)
         .any(|arg| matches!(arg.as_str(), "--profile-dsp" | "--timing-probe"));
-    let dsp_profile = cfg!(not(feature = "hardware-orange-pi-zero-2w"))
+    let dsp_profile = cfg!(any(board_raspberry, board_host))
         && std::env::var("OCTESSERA_PI_PROFILE_DSP").is_ok_and(|value| {
             matches!(
                 value.trim().to_ascii_lowercase().as_str(),

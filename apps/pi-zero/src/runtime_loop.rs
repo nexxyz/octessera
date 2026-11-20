@@ -22,9 +22,9 @@ use std::time::{Duration, Instant};
 
 const HARDWARE_EVENT_BUDGET: usize = 16;
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod error_tests;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod exit_save_tests;
 
 pub(crate) trait BoardLoop {

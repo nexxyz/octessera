@@ -1,12 +1,6 @@
 use super::test_scenes::{test_scene, test_scene_command};
 use super::*;
-#[cfg(all(
-    unix,
-    not(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    ))
-))]
+#[cfg(all(unix, board_host))]
 use std::fs;
 use std::time::Instant;
 
@@ -23,10 +17,7 @@ fn rendered_state() -> Arc<(Mutex<RenderState>, Condvar)> {
     state
 }
 
-#[cfg(not(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w"
-)))]
+#[cfg(board_host)]
 fn spawn_fake_worker() -> (
     RenderWorker,
     mpsc::Receiver<crate::seesaw_io::SeesawCommand>,
@@ -61,10 +52,7 @@ fn shutdown_ack_timeout_is_bounded() {
 }
 
 #[test]
-#[cfg(not(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w"
-)))]
+#[cfg(board_host)]
 fn preserving_terminal_teardown_acknowledges_and_joins_worker() {
     let (worker, _seesaw_rx) = spawn_fake_worker();
 
@@ -89,10 +77,7 @@ fn native_scene_is_rejected_once_terminal_command_is_queued() {
 }
 
 #[test]
-#[cfg(not(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w"
-)))]
+#[cfg(board_host)]
 fn atomic_terminal_preempts_a_pending_scene() {
     let state = rendered_state();
     let (stale, stale_completion) = test_scene_command();
@@ -204,10 +189,7 @@ fn native_scene_publication_reports_a_pending_shutdown() {
 }
 
 #[test]
-#[cfg(not(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w"
-)))]
+#[cfg(board_host)]
 fn mark_failed_ack_succeeds_without_an_attached_handoff() {
     let (worker, _seesaw_rx) = spawn_fake_worker();
 
@@ -216,13 +198,7 @@ fn mark_failed_ack_succeeds_without_an_attached_handoff() {
 }
 
 #[test]
-#[cfg(all(
-    unix,
-    not(any(
-        feature = "hardware-raspberry-pi-zero-2w",
-        feature = "hardware-orange-pi-zero-2w"
-    ))
-))]
+#[cfg(all(unix, board_host))]
 fn mark_failed_ack_reports_failed_status_persistence() {
     let path = crate::test_temp_dir::unique_temp_path("octessera-render-failed");
     let handoff = crate::boot_oled_handoff::native_guard_for_test(&path).unwrap();
@@ -274,10 +250,7 @@ fn ownership_timeout_cancels_late_command_execution() {
 }
 
 #[test]
-#[cfg(not(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w"
-)))]
+#[cfg(board_host)]
 fn initial_scene_ack_is_current_and_cannot_be_reused() {
     let (worker, _seesaw_rx) = spawn_fake_worker();
     assert_eq!(

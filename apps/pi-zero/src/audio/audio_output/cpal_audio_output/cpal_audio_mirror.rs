@@ -8,15 +8,15 @@ use super::{
 };
 use crate::audio_stream_health::AudioStreamHealth;
 use cpal::traits::DeviceTrait;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use cpal::BufferSize;
 use cpal::{SampleFormat, StreamConfig};
 use rodio_engine_source::PcmMirrorConsumer;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use super::select_output_device;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) fn build_cpal_mirror_stream(
     output_buffer_frames: u32,
     sink: AudioSink,
@@ -48,7 +48,7 @@ pub(crate) fn build_cpal_mirror_stream(
     }
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(crate) fn build_orange_cpal_mirror_stream(
     profile: super::super::audio_profile::OrangeAudioProfile,
     sink: AudioSink,

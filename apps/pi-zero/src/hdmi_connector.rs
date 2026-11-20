@@ -57,11 +57,11 @@ impl HdmiConnectorProbe {
 }
 
 fn fixed_connector_name() -> &'static str {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     {
         "card0-HDMI-A-1"
     }
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     {
         "card0-HDMI-A-1"
     }
@@ -80,13 +80,13 @@ mod tests {
         HdmiConnectorProbe::from_root(root)
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     #[test]
     fn raspberry_profile_pins_card0_connector() {
         assert_eq!(fixed_connector_name(), "card0-HDMI-A-1");
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     #[test]
     fn orange_profile_pins_card0_connector() {
         assert_eq!(fixed_connector_name(), "card0-HDMI-A-1");

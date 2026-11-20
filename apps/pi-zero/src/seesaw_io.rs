@@ -4,14 +4,14 @@ use playback_runtime::HostMessage;
 use scan_schedule::ScanSchedule;
 use setup_refresh::{SeesawBoard, SetupRefresh};
 use std::sync::mpsc::{self, Receiver, Sender};
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(crate) use orange_worker::spawn_interrupt;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) use raspberry_worker::spawn_interrupt;
 
 /// After a failed Seesaw transaction, leave the bus alone instead of retrying into a busy device.
@@ -23,7 +23,7 @@ type ShutdownRequest = (Sender<Result<(), String>>, Instant);
 pub(crate) enum SeesawCommand {
     GridFrame([[u8; 3]; 64]),
     NeoKeyColors([[u8; 3]; 4]),
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     Shutdown {
         ack: Sender<Result<(), String>>,
         deadline: Instant,
@@ -34,7 +34,7 @@ pub(crate) struct SeesawIo {
     pub(crate) input_rx: Receiver<HostMessage>,
     pub(crate) input_tx: Sender<HostMessage>,
     pub(crate) command_tx: Sender<SeesawCommand>,
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     worker: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
 }
 
@@ -86,7 +86,7 @@ impl DesiredLedOutputs {
                     self.next_key_attempt_at = None;
                 }
             }
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            #[cfg(board_orange)]
             SeesawCommand::Shutdown { ack, deadline } => {
                 self.accept(SeesawCommand::GridFrame([[0; 3]; 64]));
                 self.accept(SeesawCommand::NeoKeyColors([[0; 3]; 4]));
@@ -221,14 +221,14 @@ fn spawn(
             thread::sleep(Duration::from_millis(2));
         }
     });
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     let _ = worker;
 
     SeesawIo {
         input_rx,
         input_tx,
         command_tx,
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        #[cfg(board_orange)]
         worker: Arc::new(Mutex::new(Some(worker))),
     }
 }
@@ -302,9 +302,9 @@ fn scan_inputs(
     Ok(found_input)
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 mod orange_worker;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod raspberry_worker;
 mod scan_schedule;
 mod setup_refresh;

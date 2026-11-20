@@ -1,4 +1,4 @@
-#![cfg(feature = "hardware-raspberry-pi-zero-2w")]
+#![cfg(board_raspberry)]
 
 use std::process::Command;
 

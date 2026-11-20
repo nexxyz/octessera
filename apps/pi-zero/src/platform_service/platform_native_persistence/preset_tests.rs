@@ -125,7 +125,7 @@ fn cleanup(root: PathBuf) {
     let _ = std::fs::remove_dir_all(root);
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn refresh_preset_catalog(
     host: &mut crate::host_adapter::PiHostAdapter,
     playback: &mut PlaybackRuntime,

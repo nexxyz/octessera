@@ -2,12 +2,12 @@ use super::*;
 use std::fs::File;
 use std::path::Path;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod animator;
 mod files;
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 use animator::animator_start_at;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) use animator::{animator_start, AnimatorHandoff};
 use files::*;
 
@@ -30,13 +30,13 @@ pub(crate) struct NativeOledGuard {
     first_menu_rendered: bool,
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) struct UtilityOledLock {
     _directory: HandoffDirectory,
     _lock: File,
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) fn utility_lock() -> Result<UtilityOledLock, String> {
     let directory = HandoffDirectory::open_existing_at(Path::new(HANDOFF_ROOT))?;
     directory.validate_entries()?;
@@ -48,29 +48,29 @@ pub(crate) fn utility_lock() -> Result<UtilityOledLock, String> {
     })
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub(crate) fn native_attach() -> Result<NativeOledGuard, String> {
     native_attach_at(Path::new(HANDOFF_ROOT))
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(crate) fn publish_startup_fatal(code: StartupFatalCode) -> Result<(), String> {
     publish_fatal_at(Path::new(HANDOFF_ROOT), code)
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub(crate) fn native_attach_after_startup_clear() -> Result<NativeOledGuard, String> {
     native_attach_after_startup_clear_at(Path::new(HANDOFF_ROOT))
 }
 
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(test, board_orange))]
 fn native_attach_after_startup_clear_at(path: &Path) -> Result<NativeOledGuard, String> {
     let guard = native_attach_at(path)?;
     guard.clear_fatal()?;
     Ok(guard)
 }
 
-#[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(test, board_orange))]
 fn publish_fatal_at(path: &Path, code: StartupFatalCode) -> Result<(), String> {
     let directory = HandoffDirectory::open_existing_at(path)?;
     directory.validate_entries()?;
@@ -146,7 +146,7 @@ fn native_attach_at(path: &Path) -> Result<NativeOledGuard, String> {
     })
 }
 
-#[cfg(all(test, not(feature = "hardware-raspberry-pi-zero-2w")))]
+#[cfg(all(test, any(board_orange, board_host)))]
 pub(crate) fn native_guard_for_test(path: &Path) -> Result<NativeOledGuard, String> {
     let directory = HandoffDirectory::open_runtime_at(path)?;
     let status = HandoffStatus::new(
@@ -218,7 +218,7 @@ impl NativeOledGuard {
         result
     }
 
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     pub(crate) fn mark_failed(&self) {
         if let Err(error) = self.mark_failed_result() {
             eprintln!("OLED handoff failure-state publication failed: {error}");
@@ -226,7 +226,7 @@ impl NativeOledGuard {
     }
 
     pub(crate) fn mark_failed_result(&self) -> Result<(), String> {
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        #[cfg(board_orange)]
         {
             let code = if self.initial_menu_acknowledged && !self.first_menu_rendered {
                 StartupFatalCode::StartupFailed
@@ -235,13 +235,13 @@ impl NativeOledGuard {
             };
             self.publish_fatal_then_failed(code)
         }
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        #[cfg(any(board_raspberry, board_host))]
         {
             self.write_failed_status()
         }
     }
 
-    #[cfg(any(test, feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(test, board_orange))]
     fn clear_fatal(&self) -> Result<(), String> {
         let _ = self
             .lease
@@ -251,7 +251,7 @@ impl NativeOledGuard {
         clear_fatal(&self.directory)
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     pub(crate) fn mark_unavailable_and_failed(&self, code: StartupFatalCode) -> Result<(), String> {
         self.publish_fatal_then_failed(code)
     }
@@ -273,7 +273,7 @@ impl NativeOledGuard {
         )
     }
 
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     fn publish_fatal_then_failed(&self, code: StartupFatalCode) -> Result<(), String> {
         let _ = self
             .lease
@@ -300,8 +300,8 @@ impl NativeOledGuard {
     }
 }
 
-#[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+#[cfg(all(test, any(board_raspberry, board_host)))]
 mod tests;
 
-#[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(all(test, board_orange))]
 mod orange_tests;

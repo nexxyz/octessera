@@ -7,7 +7,7 @@ use crate::power_lifecycle::{PowerAction, PowerLifecycleResult};
 use crate::render_loop::RenderWorker;
 use playback_runtime::{NativeRunner, PlaybackRuntime};
 
-#[cfg(all(test, feature = "hardware-raspberry-pi-zero-2w"))]
+#[cfg(all(test, board_raspberry))]
 mod tests;
 
 pub(crate) fn shutdown_if_requested(
@@ -57,7 +57,7 @@ fn power_pi_system(request: PowerRequest) -> Result<(), String> {
         crate::power_lifecycle::submit_app_restart();
         return Ok(());
     }
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    #[cfg(board_raspberry)]
     {
         let attempts = power_command_attempts(request);
         let mut errors = Vec::new();
@@ -70,13 +70,13 @@ fn power_pi_system(request: PowerRequest) -> Result<(), String> {
         }
         Err(errors.join("; "))
     }
-    #[cfg(not(feature = "hardware-raspberry-pi-zero-2w"))]
+    #[cfg(board_host)]
     {
         Err("power request is unavailable in this profile".into())
     }
 }
 
-#[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+#[cfg(board_raspberry)]
 fn power_command_attempts(
     request: PowerRequest,
 ) -> &'static [(&'static str, &'static [&'static str])] {

@@ -153,7 +153,7 @@ impl TimingInput {
         }))
     }
 
-    #[cfg(all(test, not(feature = "hardware-orange-pi-zero-2w")))]
+    #[cfg(all(test, any(board_raspberry, board_host)))]
     pub(crate) fn for_test(sequence: AutoAuxSequence, starting_cutoff: u16) -> Self {
         Self {
             sequence,

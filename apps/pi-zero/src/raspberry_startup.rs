@@ -85,9 +85,9 @@ pub(crate) fn run_normal_startup() {
             hardware_fault::run_hardware_fault_mode(Box::new(fault), boot_handoff);
         }
     };
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    #[cfg(board_raspberry)]
     let mut audio = audio;
-    #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+    #[cfg(board_raspberry)]
     let audio_load_rx = audio
         .as_mut()
         .and_then(AudioManager::take_load_status_receiver);
@@ -105,7 +105,7 @@ pub(crate) fn run_normal_startup() {
         audio_outputs: usb_config.audio_outputs,
         usb_data_role: usb_config.data_role,
         audio_optimization,
-        #[cfg(feature = "hardware-raspberry-pi-zero-2w")]
+        #[cfg(board_raspberry)]
         audio_load_rx,
         midi_rx,
         keyboard: seesaw_io.spawn_keyboard(usb_config.data_role),

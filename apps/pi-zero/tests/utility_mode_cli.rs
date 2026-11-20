@@ -16,7 +16,7 @@ fn clean_command() -> Command {
     command
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[test]
 fn normal_metadata_mode_does_not_enter_hardware_runtime() {
     let output = clean_command()
@@ -45,7 +45,7 @@ fn production_builds_refuse_profiling_modes() {
     }
 }
 
-#[cfg(all(feature = "hardware-orange-pi-zero-2w", feature = "profiling"))]
+#[cfg(all(board_orange, feature = "profiling"))]
 #[test]
 fn orange_normal_profile_utility_does_not_select_diagnostics() {
     let output = clean_command()
@@ -57,10 +57,7 @@ fn orange_normal_profile_utility_does_not_select_diagnostics() {
     assert!(String::from_utf8_lossy(&output.stdout).contains("board_profile,orange-pi-zero-2w"));
 }
 
-#[cfg(not(any(
-    feature = "hardware-raspberry-pi-zero-2w",
-    feature = "hardware-orange-pi-zero-2w"
-)))]
+#[cfg(board_host)]
 #[test]
 fn interactive_modes_are_rejected_together() {
     let output = clean_command()
@@ -72,7 +69,7 @@ fn interactive_modes_are_rejected_together() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("cannot be combined; choose one"));
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 #[test]
 fn orange_build_rejects_interactive_hardware_test_mode() {
     let output = Command::new(env!("CARGO_BIN_EXE_octessera-pi"))

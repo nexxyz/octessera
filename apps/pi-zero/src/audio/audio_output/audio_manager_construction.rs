@@ -12,10 +12,7 @@ impl AudioManager {
         require_jack_output(outputs)?;
         let (control_tx, control_rx) = mpsc::sync_channel::<AudioControlRequest>(32);
         let (prep_result_tx, prep_result_rx) = mpsc::channel::<HostMessage>();
-        #[cfg(any(
-            feature = "hardware-orange-pi-zero-2w",
-            feature = "hardware-raspberry-pi-zero-2w"
-        ))]
+        #[cfg(not(board_host))]
         let (load_tx, load_rx) = rodio_engine_source::audio_load_status_channel();
         let selected_outputs = SelectedOutputs::new(outputs);
         let side_producers = [new_pcm_mirror().producer, new_pcm_mirror().producer];
@@ -31,16 +28,10 @@ impl AudioManager {
         )));
         let mix_taps = Arc::new(RwLock::new(super::MixTaps::default()));
         let recording_oled = Arc::new(RwLock::new(None));
-        #[cfg(any(
-            feature = "hardware-orange-pi-zero-2w",
-            feature = "hardware-raspberry-pi-zero-2w"
-        ))]
+        #[cfg(not(board_host))]
         let jack_load_tx =
             super::audio_output_open::load_status_sender_for_sink(AudioSink::Jack, &load_tx);
-        #[cfg(not(any(
-            feature = "hardware-orange-pi-zero-2w",
-            feature = "hardware-raspberry-pi-zero-2w"
-        )))]
+        #[cfg(board_host)]
         let jack_load_tx = None;
         let jack = open_sink(
             construction,
@@ -57,15 +48,15 @@ impl AudioManager {
             AudioSink::Jack,
             crate::audio_route::AudioRouteStatus::Active,
         );
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        #[cfg(any(board_raspberry, board_host))]
         let required_jack_health = Some(jack.health.clone());
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        #[cfg(any(board_raspberry, board_host))]
         let streams = vec![*jack
             ._stream
             .expect("Raspberry audio stream must be present")];
-        #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+        #[cfg(any(board_raspberry, board_host))]
         engine.attach(jack.engine_tx.expect("Jack engine event sender"))?;
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        #[cfg(board_orange)]
         let streams = Vec::new();
         let service = AudioService {
             engine: engine.clone(),
@@ -81,7 +72,7 @@ impl AudioManager {
             prep_result_rx: Arc::new(Mutex::new(prep_result_rx)),
             route_registry: route_registry.clone(),
             selected_outputs: selected_outputs.clone(),
-            #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+            #[cfg(any(board_raspberry, board_host))]
             required_jack_health: required_jack_health.clone(),
             recorder,
             mix_taps: mix_taps.clone(),
@@ -103,9 +94,9 @@ impl AudioManager {
                 selected_outputs.clone(),
             )
         });
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        #[cfg(board_orange)]
         let AudioConstructionConfig::Orange(profile) = construction;
-        #[cfg(feature = "hardware-orange-pi-zero-2w")]
+        #[cfg(board_orange)]
         let orange_dac_recovery = Some(OrangeRecoveryController::new_required(
             jack,
             profile,
@@ -117,18 +108,15 @@ impl AudioManager {
             _streams: streams,
             service,
             _optional_recovery: optional_recovery,
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            #[cfg(board_orange)]
             route_registry,
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            #[cfg(board_orange)]
             orange_dac_recovery,
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            #[cfg(board_orange)]
             load_tx,
-            #[cfg(any(
-                feature = "hardware-orange-pi-zero-2w",
-                feature = "hardware-raspberry-pi-zero-2w"
-            ))]
+            #[cfg(not(board_host))]
             load_rx: Some(load_rx),
-            #[cfg(feature = "hardware-orange-pi-zero-2w")]
+            #[cfg(board_orange)]
             load_status_reset_pending: false,
         })
     }

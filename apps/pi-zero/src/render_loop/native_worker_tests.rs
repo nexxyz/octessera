@@ -1,23 +1,23 @@
 use super::*;
 use playback_runtime::{oled_frame::OledPresentationMetrics, NativeRunner, NativeRunnerConfig};
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use playback_runtime::{
     CoreRunner, HostAdapter, HostMessage, MusicalEvent, PlaybackRuntime, RuntimeAdapterError,
     RuntimeAudioCommand, RuntimeConfig, RuntimePlatformRequest, SyncSource, TileHit,
 };
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use std::sync::mpsc;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use std::time::Duration;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[derive(Default)]
 struct RecordingHost {
     musical_events: Vec<MusicalEvent>,
     audio_commands: Vec<RuntimeAudioCommand>,
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 impl HostAdapter for RecordingHost {
     fn handle_musical_event(
         &mut self,
@@ -91,7 +91,7 @@ fn native_latest_slot_supersedes_without_false_success() {
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn native_help_scene_supersedes_pending_ordinary_scene_with_failure_ack() {
     let worker = RenderWorker::terminated_for_test();
     worker.state.0.lock().unwrap().initial_scene_rendered = true;
@@ -143,7 +143,7 @@ fn native_help_scene_supersedes_pending_ordinary_scene_with_failure_ack() {
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn native_worker_returns_physically_accepted_typed_frame() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
@@ -168,7 +168,7 @@ fn native_worker_returns_physically_accepted_typed_frame() {
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn native_worker_sends_master_contrast_once_per_brightness_change() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let (oled, contrast_writes) =
@@ -205,7 +205,7 @@ fn native_worker_sends_master_contrast_once_per_brightness_change() {
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn unchanged_scene_generation_is_acknowledged_without_a_new_frame_revision() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {
@@ -283,7 +283,7 @@ fn unchanged_scene_generation_is_acknowledged_without_a_new_frame_revision() {
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn native_to_terminal_source_revision_collision_acknowledges_preserving_teardown() {
     let root = std::env::temp_dir().join(format!(
         "octessera-native-terminal-recording-{}",
@@ -323,7 +323,7 @@ fn native_to_terminal_source_revision_collision_acknowledges_preserving_teardown
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn worker_submits_accepted_native_frame_to_existing_audio_recording_ingress() {
     let root = std::env::temp_dir().join(format!(
         "octessera-native-render-recording-{}",
@@ -370,7 +370,7 @@ fn worker_submits_accepted_native_frame_to_existing_audio_recording_ingress() {
 }
 
 #[test]
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 fn blocked_worker_publishes_beat_onset_then_expiry_without_blocking_scene_submit() {
     let (seesaw_tx, _seesaw_rx) = mpsc::channel();
     let worker = RenderWorker::spawn(HardwareRenderTargets {

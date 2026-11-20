@@ -79,7 +79,7 @@ fn public_group_gid() -> Result<u32, String> {
     #[cfg(unix)]
     {
         use std::ffi::CString;
-        let name = if cfg!(feature = "hardware-orange-pi-zero-2w") {
+        let name = if cfg!(board_orange) {
             "octessera-runtime"
         } else {
             "pi"

@@ -105,7 +105,7 @@ impl UiProfiler {
         }
     }
 
-    #[cfg(all(test, feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(all(test, board_orange))]
     pub(crate) fn scene_capture_count_for_test(&self) -> u64 {
         self.scene_capture.count
     }
