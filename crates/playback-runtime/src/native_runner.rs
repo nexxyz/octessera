@@ -260,6 +260,7 @@ mod store_persistence_results;
 mod synth_config;
 mod system_info;
 mod system_persistence;
+pub(crate) mod system_scalars;
 #[cfg(any(test, feature = "test-support"))]
 mod test_support;
 mod toast_state;

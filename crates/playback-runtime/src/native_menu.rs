@@ -54,7 +54,6 @@ mod play_faders;
 mod sample_browser_menu;
 pub(crate) mod section_labels;
 mod system;
-pub(crate) use system::LED_BRIGHTNESS_PCT;
 mod system_aux;
 mod system_bluetooth;
 mod system_connections;

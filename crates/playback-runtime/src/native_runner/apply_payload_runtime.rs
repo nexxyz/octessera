@@ -5,6 +5,9 @@ use super::apply_payload_instrument_values::apply_instrument_payload;
 use super::apply_payload_mixer_values::apply_mixer_payload;
 use super::aux_binding_payload_apply::apply_aux_bindings_payload;
 use super::play_pages::{ActivePlayMode, PlayMode};
+use super::system_scalars::{
+    DISPLAY_BRIGHTNESS, LED_BRIGHTNESS_PCT, MASTER_VOLUME_PCT, SCREEN_TIMER_SECONDS,
+};
 use super::{
     json, velocity_curve_from_id, AudioOutputSet, AuxPriority, InstrumentDto, NativeRunner,
     RuntimeConfigDto, SyncSource, Value, VoiceStealingMode,
@@ -68,7 +71,7 @@ impl NativeRunner {
 
     fn apply_sound_payload(&mut self, runtime: &RuntimeConfigDto) -> Result<(), String> {
         if let Some(master) = runtime.master_volume {
-            self.display.ui.master_volume = master.min(100);
+            self.display.ui.master_volume = master.min(MASTER_VOLUME_PCT.1 as u8);
         }
         let Some(sound) = &runtime.sound else {
             return Ok(());
@@ -98,7 +101,7 @@ impl NativeRunner {
 
     pub(super) fn apply_system_sound_payload(&mut self, runtime: &RuntimeConfigDto) {
         if let Some(master) = runtime.master_volume {
-            self.display.ui.master_volume = master.min(100);
+            self.display.ui.master_volume = master.min(MASTER_VOLUME_PCT.1 as u8);
         }
         if let Some(sound) = &runtime.sound {
             self.audio_io.audio_optimization = sound.optimize_for;
@@ -124,21 +127,23 @@ impl NativeRunner {
             ui.aux_manual_hints = value;
         }
         if let Some(value) = runtime.display_brightness {
-            ui.display_brightness = value.clamp(1, 16);
+            ui.display_brightness =
+                value.clamp(DISPLAY_BRIGHTNESS.0 as u8, DISPLAY_BRIGHTNESS.1 as u8);
         }
         if let Some(value) = runtime.grid_brightness {
-            ui.grid_brightness = value.min(100);
+            ui.grid_brightness = value.min(LED_BRIGHTNESS_PCT.1 as u8);
         }
         if let Some(value) = runtime.button_brightness {
-            ui.button_brightness = value.min(100);
+            ui.button_brightness = value.min(LED_BRIGHTNESS_PCT.1 as u8);
         }
         self.apply_oled_style_payload(runtime);
         let ui = &mut self.display.ui;
+        let timer_max = SCREEN_TIMER_SECONDS.1 as u16;
         if let Some(value) = runtime.screen_sleep_seconds {
-            ui.screen_sleep_seconds = value.min(600);
+            ui.screen_sleep_seconds = value.min(timer_max);
         }
         if let Some(value) = runtime.dim_timer_seconds {
-            ui.dim_timer_seconds = value.min(600);
+            ui.dim_timer_seconds = value.min(timer_max);
         }
         if let Some(value) = runtime.auto_save_default {
             self.auto_save_default = value;

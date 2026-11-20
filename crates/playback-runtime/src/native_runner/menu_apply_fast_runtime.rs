@@ -3,6 +3,7 @@ use super::NativeHdmiMode;
 use crate::protocol::RuntimeAudioCommand;
 
 use super::menu_apply_fast::value_changed;
+use super::system_scalars::{LED_BRIGHTNESS_PCT, SCREEN_TIMER_SECONDS};
 use super::{AudioOutputSet, AuxPriority, MidiSendInstruments, NativeRunner};
 use realtime_engine::synth::{
     BusIdleThreshold, DspRuntimeConfig, VoiceStealingMode, WorkerWarningThreshold,
@@ -87,7 +88,7 @@ impl NativeRunner {
             "displayBrightness" => Some(self.fast_display_brightness_menu_key()),
             "buttonBrightness" => Some(self.fast_button_brightness_menu_key()),
             "gridBrightness" => Some(self.fast_number_menu_key(key, |runner, value| {
-                let value = value.clamp(10, 100) as u8;
+                let value = value.clamp(LED_BRIGHTNESS_PCT.0, LED_BRIGHTNESS_PCT.1) as u8;
                 value_changed(&mut runner.display.ui.grid_brightness, value)
             })),
             "numericDisplayMode" => Some(self.fast_string_menu_key(key, |runner, value| {
@@ -107,11 +108,11 @@ impl NativeRunner {
                 bool_changed(&mut runner.display.ui.perf_view_at_boot, value)
             })),
             "screenSleepSeconds" => Some(self.fast_number_menu_key(key, |runner, value| {
-                let value = value.clamp(0, 600) as u16;
+                let value = value.clamp(SCREEN_TIMER_SECONDS.0, SCREEN_TIMER_SECONDS.1) as u16;
                 value_changed(&mut runner.display.ui.screen_sleep_seconds, value)
             })),
             "dimTimerSeconds" => Some(self.fast_number_menu_key(key, |runner, value| {
-                let value = value.clamp(0, 600) as u16;
+                let value = value.clamp(SCREEN_TIMER_SECONDS.0, SCREEN_TIMER_SECONDS.1) as u16;
                 value_changed(&mut runner.display.ui.dim_timer_seconds, value)
             })),
             "ghostTiles" => Some(self.fast_bool_menu_key(key, |runner, value| {

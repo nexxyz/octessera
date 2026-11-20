@@ -2,6 +2,7 @@ use super::{
     action_item, bool_item, enum_item, enum_item_from_strings, group, number_item, selected_index,
     NativeMenuAction, NativeMenuConfig, NativeMenuItem, PlatformAction,
 };
+use crate::native_runner::system_scalars::MASTER_VOLUME_PCT;
 use crate::native_runner::{MidiSendInstruments, UsbDataRole};
 
 pub(super) const MIDI_HOST_LABEL: &str = "MIDI Host";
@@ -23,8 +24,8 @@ pub(super) fn audio_group(config: &NativeMenuConfig, host_role: bool) -> NativeM
         "Master Vol",
         "masterVolume",
         i32::from(config.master_volume),
-        0,
-        100,
+        MASTER_VOLUME_PCT.0,
+        MASTER_VOLUME_PCT.1,
         1,
     ));
     if config.audio_optimization_capacity_available {

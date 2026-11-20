@@ -1,3 +1,4 @@
+use super::system_scalars::system_scalar_keys;
 use serde_json::Value;
 
 const REQUIRED_RUNTIME_KEYS: &[&str] = &[
@@ -15,28 +16,8 @@ const REQUIRED_RUNTIME_KEYS: &[&str] = &[
     "hdmi",
     "instruments",
     "mixer",
-    "masterVolume",
     "sound",
     "dsp",
-    "ghostTiles",
-    "auxAutoHints",
-    "auxManualHints",
-    "inputEventsWhilePaused",
-    "numericDisplayMode",
-    "mainFont",
-    "smallFont",
-    "homeVisual",
-    "perfViewOnBack",
-    "perfViewAtBoot",
-    "dimTimerSeconds",
-    "screenSleepSeconds",
-    "displayBrightness",
-    "gridBrightness",
-    "buttonBrightness",
-    "autoSaveDefault",
-    "rollingBackups",
-    "auxAutoMapEnabled",
-    "auxPriority",
     "playMode",
     "auxBindings",
     "shiftAuxBindings",
@@ -85,6 +66,9 @@ const MIDI_DRUM_KEYS: &[&str] = &[
 
 pub(super) fn require_full_runtime_presence(runtime: &Value, context: &str) -> Result<(), String> {
     require_fields(runtime, REQUIRED_RUNTIME_KEYS, context)?;
+    for key in system_scalar_keys() {
+        require_fields(runtime, &[key], context)?;
+    }
     require_aux_banks(runtime, context)?;
     require_nested(runtime, "sound", SOUND_KEYS, context)?;
     require_nested(runtime, "midi", MIDI_KEYS, context)?;

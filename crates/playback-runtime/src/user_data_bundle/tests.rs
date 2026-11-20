@@ -310,3 +310,47 @@ fn bundle_encoding_is_deterministic_and_hashes_are_stable() {
         .iter()
         .all(|entry| entry.sha256.len() == 64 && entry.sha256.chars().all(|c| !c.is_uppercase())));
 }
+
+#[test]
+fn preference_projection_keeps_every_system_scalar() {
+    let defaults: Value = serde_json::from_str(include_str!(
+        "../../../../config/generated/desktop/default.json"
+    ))
+    .unwrap();
+    let runtime = defaults["runtimeConfig"].as_object().unwrap();
+    let keys = preferences::projection(runtime)
+        .into_keys()
+        .collect::<Vec<_>>();
+    assert_eq!(
+        keys,
+        [
+            "audioOutputs",
+            "autoSaveDefault",
+            "auxAutoHints",
+            "auxAutoMapEnabled",
+            "auxManualHints",
+            "auxPriority",
+            "bluetooth",
+            "buttonBrightness",
+            "dimTimerSeconds",
+            "displayBrightness",
+            "ghostTiles",
+            "gridBrightness",
+            "hdmi",
+            "homeVisual",
+            "inputEventsWhilePaused",
+            "mainFont",
+            "masterVolume",
+            "midi",
+            "numericDisplayMode",
+            "perfViewAtBoot",
+            "perfViewOnBack",
+            "recording",
+            "rollingBackups",
+            "screenSleepSeconds",
+            "smallFont",
+            "sound",
+            "usb",
+        ]
+    );
+}

@@ -1,6 +1,7 @@
 use super::modulation_keys::{
     parse_fx_bus_binding_key, parse_global_fx_binding_key, parse_link_binding_key,
 };
+use super::system_scalars::system_scalar;
 use super::*;
 
 pub(super) fn param_binding_payload(binding: Option<&NativeParamBinding>) -> Value {
@@ -275,22 +276,5 @@ pub(super) fn supported_aux_turn_key(key: &str) -> bool {
             || key.starts_with("recording.")
             || key.starts_with("screen")
             || key.ends_with("Brightness")
-            || matches!(
-                key,
-                "masterVolume"
-                    | "autoSaveDefault"
-                    | "rollingBackups"
-                    | "ghostTiles"
-                    | "auxAutoHints"
-                    | "auxManualHints"
-                    | "inputEventsWhilePaused"
-                    | "numericDisplayMode"
-                    | "mainFont"
-                    | "smallFont"
-                    | "homeVisual"
-                    | "perfViewOnBack"
-                    | "perfViewAtBoot"
-                    | "dimTimerSeconds"
-                    | "screenSleepSeconds"
-            ))
+            || system_scalar(key).is_some_and(|scalar| scalar.aux_turn))
 }

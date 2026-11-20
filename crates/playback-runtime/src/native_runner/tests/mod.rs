@@ -192,6 +192,7 @@ mod store;
 mod store_result_contracts;
 mod structural_draft;
 mod swing_timing;
+mod system_scalar_contract;
 mod transport_origins;
 mod transport_phase_resets;
 mod trigger_gates;

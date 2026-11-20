@@ -7,10 +7,10 @@ use super::{
     action_item, bool_item, enum_item, group, number_item, selected_index, NativeMenuAction,
     NativeMenuConfig, NativeMenuItem, PlatformAction,
 };
+use crate::native_runner::system_scalars::{
+    DISPLAY_BRIGHTNESS, LED_BRIGHTNESS_PCT, SCREEN_TIMER_SECONDS,
+};
 use crate::native_runner::AuxPriority;
-
-/// Grid and button LED brightness, in percent; the config validator uses the same range.
-pub(crate) const LED_BRIGHTNESS_PCT: (i32, i32) = (10, 100);
 
 pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> NativeMenuItem {
     let host_role = config.usb_data_role_available && config.usb_data_role.is_host();
@@ -147,24 +147,24 @@ fn display_group(config: &NativeMenuConfig) -> NativeMenuItem {
             "Dim Timer",
             "dimTimerSeconds",
             i32::from(config.dim_timer_seconds),
-            0,
-            600,
+            SCREEN_TIMER_SECONDS.0,
+            SCREEN_TIMER_SECONDS.1,
             10,
         ),
         number_item(
             "OLED Sleep",
             "screenSleepSeconds",
             i32::from(config.screen_sleep_seconds),
-            0,
-            600,
+            SCREEN_TIMER_SECONDS.0,
+            SCREEN_TIMER_SECONDS.1,
             10,
         ),
         number_item(
             "OLED Bright",
             "displayBrightness",
             i32::from(config.display_brightness),
-            1,
-            16,
+            DISPLAY_BRIGHTNESS.0,
+            DISPLAY_BRIGHTNESS.1,
             1,
         ),
         number_item(

@@ -1,5 +1,6 @@
 use super::canonical::{bool_value, number_value, signed_value, unsigned_value_range};
 use super::Value;
+use crate::native_runner::system_scalars::system_scalar;
 
 pub(super) fn walk_scalars(value: &Value, path: &str) -> Result<(), String> {
     if is_opaque_scalar_subtree(path) {
@@ -38,16 +39,12 @@ fn validate_scalar(key: &str, value: &Value, path: &str) -> Result<(), String> {
     if matches!(key, "path" | "turnKey") && !matches!(value, Value::Null | Value::String(_)) {
         return Err(format!("{path} must be a string or null"));
     }
+    if let Some((min, max)) = system_scalar(key).and_then(|scalar| scalar.range) {
+        return unsigned_range(value, path, min as u64, max as u64);
+    }
     match key {
         "revision" | "schemaVersion" => unsigned_value(value, path)?,
-        "masterVolume" => unsigned_range(value, path, 0, 100)?,
-        "gridBrightness" | "buttonBrightness" => {
-            let (min, max) = crate::native_menu::LED_BRIGHTNESS_PCT;
-            unsigned_range(value, path, min as u64, max as u64)?
-        }
-        "displayBrightness" => unsigned_range(value, path, 1, 16)?,
         "velocityScalePct" => unsigned_range(value, path, 0, 200)?,
-        "screenSleepSeconds" | "dimTimerSeconds" => unsigned_range(value, path, 0, 600)?,
         "swingA" | "swingB" => unsigned_range(value, path, 1, 7)?,
         "smoothingMs" => unsigned_value(value, path)?,
         "bpm" => number_value(value, path, 40.0, 240.0)?,

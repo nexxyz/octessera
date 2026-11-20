@@ -1,30 +1,9 @@
 use super::{UserPreferenceDelta, Value};
+use crate::native_runner::system_scalars::{system_scalar, system_scalar_keys};
 use crate::native_runner::validate_user_data_config_payload;
 use serde_json::Map;
 use std::collections::BTreeMap;
 
-const SCALARS: &[&str] = &[
-    "masterVolume",
-    "ghostTiles",
-    "auxAutoHints",
-    "auxManualHints",
-    "inputEventsWhilePaused",
-    "numericDisplayMode",
-    "mainFont",
-    "smallFont",
-    "homeVisual",
-    "perfViewOnBack",
-    "perfViewAtBoot",
-    "dimTimerSeconds",
-    "screenSleepSeconds",
-    "displayBrightness",
-    "gridBrightness",
-    "buttonBrightness",
-    "autoSaveDefault",
-    "rollingBackups",
-    "auxAutoMapEnabled",
-    "auxPriority",
-];
 const OBJECTS: &[(&str, &[&str])] = &[
     ("hdmi", &["mode", "showGridlines", "cycleMeasures"]),
     ("bluetooth", &["enabled", "audio"]),
@@ -47,9 +26,9 @@ const OBJECTS: &[(&str, &[&str])] = &[
 
 pub(super) fn projection(runtime: &Map<String, Value>) -> BTreeMap<String, Value> {
     let mut output = BTreeMap::new();
-    for key in SCALARS {
-        if let Some(value) = runtime.get(*key) {
-            output.insert((*key).into(), value.clone());
+    for key in system_scalar_keys() {
+        if let Some(value) = runtime.get(key) {
+            output.insert(key.into(), value.clone());
         }
     }
     for (key, fields) in OBJECTS {
@@ -88,7 +67,7 @@ pub(super) fn overlay_projection(system: &mut Value, restored: &Value) -> Result
 
 pub(super) fn shape(delta: &UserPreferenceDelta) -> Result<(), String> {
     for (key, value) in &delta.values {
-        if SCALARS.contains(&key.as_str()) {
+        if system_scalar(key).is_some() {
             if !value.is_boolean() && !value.is_number() && !value.is_string() {
                 return Err(format!("preferences.{key} has an invalid value"));
             }

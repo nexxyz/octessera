@@ -1,4 +1,5 @@
 use super::{AudioOptimization, InstrumentDto, LayerDto, MixerDto};
+use crate::native_runner::system_scalars::system_scalar_keys;
 use crate::native_runner::UsbDataRole;
 use realtime_engine::synth::DspRuntimeConfig;
 use serde::{Deserialize, Serialize};
@@ -381,37 +382,18 @@ impl RuntimeConfigDto {
         let Some(object) = value.as_object_mut() else {
             return Ok(value);
         };
-        for key in [
-            "masterVolume",
+        let device_objects = [
             "sampleFavouriteDirs",
             "hdmi",
             "bluetooth",
             "wifi",
-            "ghostTiles",
-            "auxAutoHints",
-            "auxManualHints",
-            "inputEventsWhilePaused",
-            "numericDisplayMode",
-            "mainFont",
-            "smallFont",
-            "homeVisual",
-            "perfViewOnBack",
-            "perfViewAtBoot",
-            "dimTimerSeconds",
-            "screenSleepSeconds",
-            "displayBrightness",
             "dsp",
-            "gridBrightness",
-            "buttonBrightness",
-            "autoSaveDefault",
-            "rollingBackups",
-            "auxAutoMapEnabled",
-            "auxPriority",
             "midi",
             "usb",
             "audioOutputs",
             "recording",
-        ] {
+        ];
+        for key in system_scalar_keys().chain(device_objects) {
             object.remove(key);
         }
         if let Some(sound) = object.get_mut("sound").and_then(Value::as_object_mut) {
