@@ -56,7 +56,7 @@ fn desktop_system_tree_has_exact_order() {
     );
     assert_eq!(
         group_labels(&desktop, "Maintenance > Reset"),
-        vec!["Load Empty", "Load Factory"]
+        vec!["Empty Patch", "Factory Patch"]
     );
     assert_eq!(
         group_labels(&desktop, "Display"),

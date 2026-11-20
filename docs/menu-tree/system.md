@@ -107,8 +107,8 @@ System
 │   ├── Backup / Restore: (action)       ← Raspberry and Orange
 │   ├── Hardware Test: (action)
 │   ├── Reset (group)
-│   │   ├── Load Empty: (action)
-│   │   └── Load Factory: (action)
+│   │   ├── Empty Patch: (action)
+│   │   └── Factory Patch: (action)
 │   └── Sys. Info: (action)
 ├── Panic: (action)
 ├── Basic Help: (action)
@@ -161,10 +161,10 @@ Raspberry Host
   Display: Ghost Tiles … Button Bright; HDMI Video
 
 Raspberry and Orange
-  Maintenance: Updates (Check, Apply, Rollback); Backup / Restore; Hardware Test; Reset (Load Empty, Load Factory); Sys. Info
+  Maintenance: Updates (Check, Apply, Rollback); Backup / Restore; Hardware Test; Reset (Empty Patch, Factory Patch); Sys. Info
 
 Desktop
-  Maintenance: Updates (Check); Hardware Test; Reset (Load Empty, Load Factory); Sys. Info
+  Maintenance: Updates (Check); Hardware Test; Reset (Empty Patch, Factory Patch); Sys. Info
 ```
 
 Raspberry Host hides USB Audio, USB MIDI, and SD Card 2 Start Transfer, but keeps HDMI Audio and
@@ -191,8 +191,8 @@ nothing changes until Confirm.
 | Updates > Apply | `Confirm Update` | `Apply the update now?` |
 | Updates > Rollback | `Confirm Rollback` | `Rollback to the previous release?` |
 | Hardware Test | `Confirm Hardware Test` | `Run the hardware test?` |
-| Reset > Load Empty | `Confirm Load Empty` | `Load an empty patch? Your current patch is replaced. Device settings stay.` |
-| Reset > Load Factory | `Confirm Factory` | `Load the factory patch? Your current patch is replaced. Device settings stay.` |
+| Reset > Empty Patch | `Confirm Load Empty` | `Load an empty patch? Your current patch is replaced. Device settings stay.` |
+| Reset > Factory Patch | `Confirm Factory` | `Load the factory patch? Your current patch is replaced. Device settings stay.` |
 | Panic | `Confirm MIDI` | `Send MIDI panic?` |
 | Reboot / Shutdown | `Confirm Reboot` / `Confirm Shutdown` | `Reboot Octessera?` / `Shut down Octessera?` |
 
@@ -531,7 +531,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
 
 ### Reset
 
-- `Load Empty` (`system.clearAll`) opens `Confirm Load Empty`; Cancel is a no-op. Confirm stops
+- `Empty Patch` (`system.clearAll`) opens `Confirm Load Empty`; Cancel is a no-op. Confirm stops
   playback with the usual MIDI panic/note-safety path, loads an empty `none`-behavior patch,
   regenerates the preset draft name, marks the patch dirty for autosave, and keeps device/user
   preferences: every `Display` row (ghost tiles, Auto Map, Aux Prio., Auto/Manual Hints, Num Style,
@@ -540,7 +540,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   the preset name list. `Notes` (Note Length 120 ms, Vel Scale 100, Vel Curve linear) and
   `Polyphony` (`auto-balanced`) return to their defaults. Aux bindings belong to the patch, so
   all of them are cleared.
-- `Load Factory` (`factory.load`) opens `Confirm Factory` / `Load the factory patch? Your current patch is replaced. Device settings stay.` and loads the
+- `Factory Patch` (`factory.load`) opens `Confirm Factory` / `Load the factory patch? Your current patch is replaced. Device settings stay.` and loads the
   factory payload on Confirm.
 
 ### Sys. Info

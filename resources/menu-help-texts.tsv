@@ -482,8 +482,8 @@ instrument_name	*	key:instruments.*.name	text	Instrument Name	Sets the user-visi
 bus_auto_name	*	key:mixer.buses.*.autoName	bool	Auto Label	When On, the FX bus label follows its generated default label.	Turn it Off before typing a custom bus label you want to keep.
 bus_name	*	key:mixer.buses.*.name	text	Bus Name	Sets the user-visible label for this FX bus.	Shown in routing menus and bus-related overlays when Auto Label is off.
 velocity_curve	*	key:sound.velocityCurve	enum	Vel Curve	linear keeps the scaled velocity proportional; soft compresses accents; hard increases contrast between quiet and loud hits.	The curve is applied globally after Link mapping and velocity scaling.
-factory_load_action	Menu > System > Maintenance > Reset > Load Factory	action:factory_load	action	Load Factory	Loads the factory patch.	A known good place to start from.
-system_clear_all_action	Menu > System > Maintenance > Reset > Load Empty	action:system_clear_all	action	Load Empty	Stops and loads an empty patch.	Device settings such as brightness, MIDI and favorites stay.
+factory_load_action	Menu > System > Maintenance > Reset > Factory Patch	action:factory_load	action	Factory Patch	Loads the factory patch.	A known good place to start from.
+system_clear_all_action	Menu > System > Maintenance > Reset > Empty Patch	action:system_clear_all	action	Empty Patch	Stops and loads an empty patch.	Device settings such as brightness, MIDI and favorites stay.
 synth_preset_group	Menu > Shape > Instruments > Instrument * > Synth > Preset		group	Synth Preset	Preset tools for this instrument slot's synth parameters.	Use Load to replace the slot's synth block with a named preset.
 synth_preset_load_group	Menu > Shape > Instruments > Instrument * > Synth > Preset > Load		group	Load Synth Preset	Eleven synth starting points, from Init to Zap.	Selecting a preset asks for confirmation before overwriting synth settings.
 synth_preset_load_init	Menu > Shape > Instruments > Instrument * > Synth > Preset > Load > Init	action:synth_preset_load:init	action	Init	The honest blank page: a saw and a square through a gentle lowpass.	Start here when you want to build a sound from scratch.

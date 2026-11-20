@@ -88,7 +88,7 @@ copy first. Pulling the plug doesn't, and the last half hour of tinkering goes
 with it.
 
 If you've changed things and want the starting point back,
-`System > Maintenance > Reset > Load Factory` restores it (it asks first).
+`System > Maintenance > Reset > Factory Patch` restores it (it asks first).
 
 ### Save, revert, switch off
 

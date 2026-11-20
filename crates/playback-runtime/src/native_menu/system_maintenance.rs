@@ -53,12 +53,12 @@ fn reset_group() -> NativeMenuItem {
         "Reset",
         vec![
             action_item(
-                "Load Empty",
+                "Empty Patch",
                 "system.clearAll",
                 NativeMenuAction::PlatformEffect(PlatformAction::SystemClearAll),
             ),
             action_item(
-                "Load Factory",
+                "Factory Patch",
                 "factory.load",
                 NativeMenuAction::PlatformEffect(PlatformAction::FactoryLoad),
             ),

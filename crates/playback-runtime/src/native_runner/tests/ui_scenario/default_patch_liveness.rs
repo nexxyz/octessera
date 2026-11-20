@@ -26,7 +26,7 @@ pub(super) fn run() {
     menu.open_group("System");
     menu.open_group("Maintenance");
     menu.open_group_exact("Reset");
-    menu.activate_action("Load Factory");
+    menu.activate_action("Factory Patch");
     menu.confirm("Confirm Factory");
     menu.back_to_root();
     if !device.layer_muted(L5) {

@@ -239,7 +239,7 @@ pub(crate) fn system_destructive_actions_are_grouped_and_ordered() {
     assert!(menu.focus_item_key("system.clearAll"));
     let snapshot = menu.snapshot();
     assert_eq!(snapshot.path, "/SYS/Maintenance/Reset");
-    assert!(snapshot.lines.iter().any(|line| line == " !Load Empty"));
+    assert!(snapshot.lines.iter().any(|line| line == " !Empty Patch"));
 
     assert!(menu.focus_item_key("system.reboot"));
     let snapshot = menu.snapshot();

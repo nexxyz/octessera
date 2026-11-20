@@ -27,7 +27,7 @@ The pre-push hook runs it too. The recipe lives in
 
 ### 1. Clear to an empty patch
 
-`System > Maintenance > Reset > Load Empty`, then `Confirm Load Empty`.
+`System > Maintenance > Reset > Empty Patch`, then `Confirm Load Empty`.
 
 ### 2. Build and paint
 

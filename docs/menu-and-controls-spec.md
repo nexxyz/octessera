@@ -35,7 +35,7 @@ Data sources the spec relies on:
   section counts, OLED size, pan positions). Generated TypeScript and Rust constants must match it.
 - Display palette: `resources/display-palette.json`. Generated TypeScript, CSS, and Rust constants
   must match it. See [Palette](#palette).
-- Shipped defaults, including the factory patch that `Load Factory` restores: `config/defaults/base.json`
+- Shipped defaults, including the factory patch that `Factory Patch` restores: `config/defaults/base.json`
   with the `desktop.json` and `pi.json` overrides. Run `corepack pnpm run config:generate` after
   editing them and `config:check` to verify; the generated files are outputs. The factory Life
   colony in L1 is pinned by `crates/playback-runtime/src/native_runner/tests/fixtures/factory_life_layer.json`.

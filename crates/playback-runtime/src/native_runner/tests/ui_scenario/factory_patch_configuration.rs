@@ -7,7 +7,7 @@ pub(super) fn clear_all_from_visible_ui(device: &mut DeviceDriver) {
     menu.open_group("System");
     menu.open_group("Maintenance");
     menu.open_group_exact("Reset");
-    menu.activate_action("Load Empty");
+    menu.activate_action("Empty Patch");
     menu.confirm("Confirm Load Empty");
     menu.back_to_root();
 }

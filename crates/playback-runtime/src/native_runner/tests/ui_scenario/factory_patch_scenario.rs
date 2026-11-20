@@ -5,7 +5,7 @@ use crate::{NativeRunner, NativeRunnerConfig, RuntimeStoreResult};
 use serde_json::{json, Value};
 
 const FACTORY_PATCH_SEQUENCE: &[&str] = &[
-    "System > Reset > Load Empty > Confirm Load Empty",
+    "System > Reset > Empty Patch > Confirm Load Empty",
     "Layer 1 double-line cross grid paint",
     "Layer 2 row-pattern grid paint",
     "Build L1 Life 16th no random spawn",
