@@ -1,7 +1,7 @@
 use super::device_config_apply::{board_runner, save_setting_payload};
 use super::midi_note_in::{
-    audio, keyboard_runner, midi, note_off, playing_looper, recorded_events, send_note, tile_notes,
-    NOTES_IN,
+    audio, keyboard_runner, midi, note_off, note_on, playing_looper, recorded_events, send_note,
+    tile_notes, NOTES_IN,
 };
 use super::*;
 use crate::native_runner::midi_drum::NativeMidiDrumTile;
@@ -133,33 +133,90 @@ fn recording_undoes_the_play_transpose_the_layer_plays_with() {
     }
 }
 
+/// I1 as a MIDI Inst. or MIDI Drum on channel 1, the slot's own default, with the keyboard on
+/// channel 1 too.
+fn echoing_runner(kind: InstrumentType, note: u8) -> (NativeRunner, std::time::Instant) {
+    let mut runner = playing_looper();
+    let instrument = &mut runner.instruments[0];
+    instrument.kind = kind;
+    instrument.midi_enabled = true;
+    instrument.midi_channel = 1;
+    instrument.midi_drum.settings.enabled = true;
+    instrument.midi_drum.settings.channel = 1;
+    instrument.midi_drum.assignments = vec![NativeMidiDrumTile {
+        x: 0,
+        y: 0,
+        note,
+        velocity: 100,
+    }];
+    let start = std::time::Instant::now();
+    runner.display.transients.set_test_now(start);
+    (runner, start)
+}
+
+fn at(runner: &mut NativeRunner, start: std::time::Instant, ms: u64) {
+    runner
+        .display
+        .transients
+        .set_test_now(start + std::time::Duration::from_millis(ms));
+}
+
 #[test]
-fn a_midi_slot_never_sends_a_note_back_out_on_the_channel_it_came_in_on() {
+fn a_keyboard_note_forwarded_on_its_own_channel_ignores_its_echo() {
     let note = tile_notes()[0];
     for kind in [InstrumentType::Midi, InstrumentType::MidiDrum] {
-        let mut runner = playing_looper();
-        let instrument = &mut runner.instruments[0];
-        instrument.kind = kind;
-        instrument.midi_enabled = true;
-        instrument.midi_channel = 1;
-        instrument.midi_drum.settings.enabled = true;
-        instrument.midi_drum.settings.channel = 1;
-        instrument.midi_drum.assignments = vec![NativeMidiDrumTile {
-            x: 0,
-            y: 0,
-            note,
-            velocity: 100,
-        }];
+        let (mut runner, start) = echoing_runner(kind, note);
 
         let messages = send_note(&mut runner, [0x90, note, 100]);
-        assert!(midi(&messages).is_empty(), "{kind:?}: {messages:?}");
+        assert_eq!(
+            midi(&messages),
+            vec![note_on(0, note, 100, None)],
+            "{kind:?}"
+        );
+        at(&mut runner, start, 10);
+        let echo = send_note(&mut runner, [0x90, note, 100]);
+        assert!(
+            midi(&echo).is_empty() && audio(&echo).is_empty(),
+            "{kind:?}"
+        );
+        assert_eq!(
+            recorded_events(&runner, 0).len(),
+            1,
+            "{kind:?}: echo not recorded"
+        );
+
+        at(&mut runner, start, 20);
         let messages = send_note(&mut runner, [0x80, note, 0]);
-        assert!(midi(&messages).is_empty(), "{kind:?}: {messages:?}");
-        assert!(recorded_events(&runner, 0).is_empty(), "{kind:?}");
-
-        runner.instruments[0].midi_channel = 2;
-        runner.instruments[0].midi_drum.settings.channel = 2;
-        let messages = send_note(&mut runner, [0x90, note, 100]);
-        assert_eq!(midi(&messages).len(), 1, "{kind:?} on another channel");
+        assert_eq!(midi(&messages), vec![note_off(0, note)], "{kind:?}");
+        at(&mut runner, start, 22);
+        send_note(&mut runner, [0x90, note, 90]);
+        at(&mut runner, start, 25);
+        let echo = send_note(&mut runner, [0x80, note, 0]);
+        assert!(
+            midi(&echo).is_empty(),
+            "{kind:?}: the echoed note-off leaves the key pressed again held"
+        );
+        let messages = send_note(&mut runner, [0x80, note, 0]);
+        assert_eq!(midi(&messages), vec![note_off(0, note)], "{kind:?}");
     }
+}
+
+#[test]
+fn the_same_note_after_the_echo_window_or_at_another_velocity_plays() {
+    let note = tile_notes()[0];
+    let (mut runner, start) = echoing_runner(InstrumentType::Midi, note);
+    send_note(&mut runner, [0x90, note, 100]);
+    send_note(&mut runner, [0x80, note, 0]);
+
+    at(&mut runner, start, 5);
+    let messages = send_note(&mut runner, [0x90, note, 99]);
+    assert_eq!(midi(&messages), vec![note_on(0, note, 99, None)]);
+    send_note(&mut runner, [0x80, note, 0]);
+
+    let (mut runner, start) = echoing_runner(InstrumentType::Midi, note);
+    send_note(&mut runner, [0x90, note, 100]);
+    send_note(&mut runner, [0x80, note, 0]);
+    at(&mut runner, start, 31);
+    let messages = send_note(&mut runner, [0x90, note, 100]);
+    assert_eq!(midi(&messages), vec![note_on(0, note, 100, None)]);
 }
