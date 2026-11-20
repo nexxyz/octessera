@@ -1,5 +1,5 @@
 //! Native Pi app: adapts the shared runtime to the Raspberry Pi and Orange Pi hardware, audio, and OLED.
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 mod orange_runtime;
 mod render;
 mod render_loop;
@@ -30,7 +30,7 @@ mod autoaux_menu;
 mod autoaux_sequence;
 mod bluetooth;
 mod boot_oled_handoff;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod boot_startup_delayed;
 mod candidate_readiness;
 mod device_apply;
@@ -41,12 +41,12 @@ mod dsp_profile;
 mod dsp_scenarios;
 mod encoder_queue;
 mod hardware_fault;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod hardware_init;
 mod hardware_runtime_scheduler;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod hardware_test;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod hardware_test_noise;
 #[cfg(feature = "native-audio")]
 mod hdmi_connector;
@@ -67,15 +67,15 @@ mod main_paths;
 mod midi_host;
 mod native_scene_pump;
 mod normal_menu;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod oled_utility;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 mod orange_audio;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 mod orange_oled_suspend;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 mod orange_oled_suspend_policy;
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 mod orange_reboot;
 #[cfg(feature = "native-audio")]
 mod pi_boot_config;
@@ -85,13 +85,13 @@ mod pi_store_test_support;
 mod platform_service;
 mod power_lifecycle;
 mod profiling_modes;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod raspberry_power;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod raspberry_runtime;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod raspberry_startup;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 mod rpi_oled_handoff_runtime;
 mod runtime_dispatch;
 #[cfg(feature = "native-audio")]
@@ -117,10 +117,10 @@ mod test_temp_dir;
 mod timing_input;
 #[cfg(feature = "profiling")]
 mod timing_load;
-#[cfg(all(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
+#[cfg(all(any(board_raspberry, board_host), feature = "profiling"))]
 mod timing_probe;
 mod ui_profile;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 #[cfg(test)]
 mod update_menu_fixture_tests;
 #[cfg(feature = "native-audio")]
@@ -132,9 +132,9 @@ mod user_data_restore;
 mod user_data_transfer;
 mod utility_mode;
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 use orange_runtime as board_startup;
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 use raspberry_startup as board_startup;
 
 use octessera_pi::board_profile;
@@ -160,13 +160,7 @@ fn main() -> std::process::ExitCode {
     }
     #[cfg(feature = "native-audio")]
     pin_normal_startup_thread();
-    #[cfg(all(
-        target_os = "linux",
-        any(
-            feature = "hardware-raspberry-pi-zero-2w",
-            feature = "hardware-orange-pi-zero-2w"
-        )
-    ))]
+    #[cfg(all(target_os = "linux", not(board_host)))]
     {
         audio_priority::lock_process_memory();
         audio_priority::tighten_timer_slack();
@@ -175,7 +169,7 @@ fn main() -> std::process::ExitCode {
     power_lifecycle::process_exit_code()
 }
 
-#[cfg(any(not(feature = "hardware-orange-pi-zero-2w"), feature = "profiling"))]
+#[cfg(any(board_raspberry, board_host, feature = "profiling"))]
 fn exit_code(success: bool) -> i32 {
     if success {
         0

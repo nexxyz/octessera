@@ -1,9 +1,6 @@
 use octessera_hal::board_profiles::{ORANGE_PI_ZERO_2W_ID, RASPBERRY_PI_ZERO_2W_ID};
 
-#[cfg(all(
-    feature = "hardware-orange-pi-zero-2w",
-    feature = "hardware-raspberry-pi-zero-2w"
-))]
+#[cfg(all(board_orange, board_raspberry))]
 compile_error!("Orange and Raspberry Pi app profiles are mutually exclusive");
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -21,17 +18,17 @@ impl BoardComposition {
     }
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 pub const BOARD_COMPOSITION: BoardComposition = BoardComposition::OrangePiZero2w;
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub const BOARD_COMPOSITION: BoardComposition = BoardComposition::RaspberryPiZero2w;
 
 pub const BOARD_PROFILE_ID: &str = BOARD_COMPOSITION.profile_id();
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub const BINARY_NAME: &str = "octessera-pi";
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 const fn same_profile_id(left: &str, right: &str) -> bool {
     let left = left.as_bytes();
     let right = right.as_bytes();
@@ -48,7 +45,7 @@ const fn same_profile_id(left: &str, right: &str) -> bool {
     true
 }
 
-#[cfg(feature = "hardware-orange-pi-zero-2w")]
+#[cfg(board_orange)]
 const _: () = assert!(
     same_profile_id(
         BOARD_PROFILE_ID,
@@ -65,11 +62,11 @@ pub fn validate_runtime_profile() -> Result<(), String> {
 }
 
 fn validate_runtime_profile_value(expected: Option<&str>) -> Result<(), String> {
-    #[cfg(feature = "hardware-orange-pi-zero-2w")]
+    #[cfg(board_orange)]
     let expected = expected.ok_or_else(|| {
         format!("OCTESSERA_EXPECTED_BOARD_PROFILE must be set to {BOARD_PROFILE_ID}")
     })?;
-    #[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+    #[cfg(any(board_raspberry, board_host))]
     let Some(expected) = expected
     else {
         return Ok(());
@@ -82,7 +79,7 @@ fn validate_runtime_profile_value(expected: Option<&str>) -> Result<(), String> 
     Ok(())
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub fn print_build_metadata() {
     println!(
         "{}",
@@ -96,7 +93,7 @@ pub fn print_build_metadata() {
     );
 }
 
-#[cfg(not(feature = "hardware-orange-pi-zero-2w"))]
+#[cfg(any(board_raspberry, board_host))]
 pub fn metadata_requested() -> bool {
     std::env::args()
         .skip(1)

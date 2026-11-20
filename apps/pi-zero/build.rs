@@ -5,6 +5,19 @@ use std::path::PathBuf;
 mod splash_assets;
 
 fn main() {
+    let orange = env::var_os("CARGO_FEATURE_HARDWARE_ORANGE_PI_ZERO_2W").is_some();
+    let raspberry = env::var_os("CARGO_FEATURE_HARDWARE_RASPBERRY_PI_ZERO_2W").is_some();
+    for (alias, active) in [
+        ("board_orange", orange),
+        ("board_raspberry", raspberry),
+        ("board_host", !orange && !raspberry),
+    ] {
+        println!("cargo::rustc-check-cfg=cfg({alias})");
+        if active {
+            println!("cargo::rustc-cfg={alias}");
+        }
+    }
+
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("manifest dir set"));
     let boot = manifest_dir.join("../../assets/octessera-pi-booting.png");
     let sleep_shutdown = manifest_dir.join("../../assets/octessera-pi-shutdown.png");
