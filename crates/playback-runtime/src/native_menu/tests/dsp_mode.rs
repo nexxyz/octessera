@@ -90,11 +90,10 @@ fn midi_and_sd2_help_describes_board_hierarchy_and_roles() {
         crate::native_help::resolve_native_help_entry(&usb_midi).expect("USB MIDI help entry");
     let usb_midi_copy = format!("{} {}", usb_midi_entry.line1, usb_midi_entry.line2).to_lowercase();
     for phrase in [
-        "bidirectional usb midi",
+        "send and receive midi",
         "right away",
-        "owns both input and output",
-        "routing takes precedence",
-        "host selections are retained",
+        "takes over from midi host",
+        "midi host picks come back",
     ] {
         assert!(
             usb_midi_copy.contains(phrase),
@@ -121,7 +120,7 @@ fn midi_and_sd2_help_describes_board_hierarchy_and_roles() {
     let usb_device_entry =
         crate::native_help::resolve_native_help_entry(&usb_device).expect("USB Device help entry");
     let usb_device_copy = format!("{} {}", usb_device_entry.line1, usb_device_entry.line2);
-    assert!(usb_device_copy.contains("computer-facing gadget interface"));
+    assert!(usb_device_copy.contains("computer on the USB port"));
 
     let sd2 = menu
         .help_targets()
@@ -132,12 +131,12 @@ fn midi_and_sd2_help_describes_board_hierarchy_and_roles() {
         crate::native_help::resolve_native_help_entry(&sd2).expect("SD Card 2 help entry");
     let sd2_copy = format!("{} {}", sd2_entry.line1, sd2_entry.line2).to_lowercase();
     for phrase in [
-        "second card",
-        "usb host",
+        "microsd card (sd2)",
+        "computer on the usb port",
         "usb audio",
-        "midi",
+        "usb midi",
         "recording",
-        "inactive",
+        "switch off",
     ] {
         assert!(sd2_copy.contains(phrase), "SD Card 2 help omitted {phrase}");
     }
