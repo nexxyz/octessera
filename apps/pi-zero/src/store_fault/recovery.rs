@@ -83,13 +83,13 @@ pub(crate) fn restore_factory_files(
     Ok(broken)
 }
 
-/// Keeps `system.json` as `system.json.pre-reset-<stamp>` and writes the factory System in its place.
+/// Copies `system.json` to `system.json.pre-reset-<stamp>` and atomically writes the factory System in its place.
 pub(crate) fn reset_system_file(
     store_dir: &Path,
     factory: &SystemPatchDocuments,
     stamp: &str,
 ) -> Result<(), String> {
-    store_files::keep_file_aside(store_dir, SYSTEM_FILE, "pre-reset", stamp)?;
+    store_files::copy_file_aside(store_dir, SYSTEM_FILE, "pre-reset", stamp)?;
     store_files::write_json_atomically(&store_dir.join(SYSTEM_FILE), &factory.system)
 }
 

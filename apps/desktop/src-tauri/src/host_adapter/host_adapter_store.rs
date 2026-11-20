@@ -54,7 +54,7 @@ impl DesktopPlaybackHostAdapter {
     fn reset_system_payload(&self) -> Result<serde_json::Value, String> {
         let system = crate::store_startup::factory_system_document()?;
         let stamp = playback_runtime::fresh_preset_name();
-        store_files::keep_file_aside(&self.store_dir, "system.json", "pre-reset", &stamp)?;
+        store_files::copy_file_aside(&self.store_dir, "system.json", "pre-reset", &stamp)?;
         write_json_atomically(&self.store_dir.join("system.json"), &system)?;
         Ok(system)
     }

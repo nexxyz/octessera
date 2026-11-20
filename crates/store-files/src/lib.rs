@@ -16,12 +16,31 @@ pub fn read_json_file(path: &Path) -> Result<Option<serde_json::Value>, String> 
 }
 
 /// Renames `dir/name` to `dir/<name>.<label>-<stamp>` (a numeric suffix keeps it from replacing an
-/// earlier one); a missing file is left alone.
+/// earlier one); a missing file is left alone. For broken files, which should leave their place.
 pub fn keep_file_aside(dir: &Path, name: &str, label: &str, stamp: &str) -> Result<(), String> {
     let path = dir.join(name);
     if !path.exists() {
         return Ok(());
     }
+    fs::rename(&path, free_kept_path(dir, name, label, stamp))
+        .map_err(|error| format!("could not keep {name}: {error}"))
+}
+
+/// Copies `dir/name` atomically to the same kept name as [`keep_file_aside`] and leaves the
+/// original in place, so a healthy file is never missing while its replacement is written.
+pub fn copy_file_aside(dir: &Path, name: &str, label: &str, stamp: &str) -> Result<(), String> {
+    let path = dir.join(name);
+    if !path.exists() {
+        return Ok(());
+    }
+    let content = fs::read(&path).map_err(|error| format!("could not keep {name}: {error}"))?;
+    write_atomically(&free_kept_path(dir, name, label, stamp), |file| {
+        file.write_all(&content)
+    })
+    .map_err(|error| format!("could not keep {name}: {error}"))
+}
+
+fn free_kept_path(dir: &Path, name: &str, label: &str, stamp: &str) -> PathBuf {
     let kept_name = format!("{name}.{label}-{stamp}");
     let mut kept = dir.join(&kept_name);
     let mut suffix = 1;
@@ -29,7 +48,7 @@ pub fn keep_file_aside(dir: &Path, name: &str, label: &str, stamp: &str) -> Resu
         kept = dir.join(format!("{kept_name}-{suffix}"));
         suffix += 1;
     }
-    fs::rename(&path, &kept).map_err(|error| format!("could not keep {name}: {error}"))
+    kept
 }
 
 pub fn write_json_atomically(path: &Path, payload: &serde_json::Value) -> Result<(), String> {

@@ -210,3 +210,28 @@ fn kept_aside_file_gets_a_free_name_and_a_missing_file_is_left_alone() {
         "one"
     );
 }
+
+#[test]
+fn copied_aside_file_keeps_the_original_in_place() {
+    let dir = temp_dir("copy-aside");
+    copy_file_aside(&dir, "system.json", "pre-reset", "t1").unwrap();
+    assert!(file_names(&dir).is_empty());
+
+    fs::write(dir.join("system.json"), "one").unwrap();
+    copy_file_aside(&dir, "system.json", "pre-reset", "t1").unwrap();
+    copy_file_aside(&dir, "system.json", "pre-reset", "t1").unwrap();
+
+    assert_eq!(
+        file_names(&dir),
+        vec![
+            "system.json",
+            "system.json.pre-reset-t1",
+            "system.json.pre-reset-t1-1"
+        ]
+    );
+    assert_eq!(fs::read_to_string(dir.join("system.json")).unwrap(), "one");
+    assert_eq!(
+        fs::read_to_string(dir.join("system.json.pre-reset-t1")).unwrap(),
+        "one"
+    );
+}
