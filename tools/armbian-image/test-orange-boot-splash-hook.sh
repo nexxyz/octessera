@@ -7,7 +7,7 @@ source "$root/tools/armbian-image/validation-assertions.sh"
 hook="$root/userpatches/overlay/etc/initramfs-tools/hooks/octessera-orange-boot-splash"
 premount_script="$root/userpatches/overlay/etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash"
 boot_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-boot-splash.service"
-shutdown_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service"
+shutdown_hook="$root/userpatches/overlay/usr/lib/systemd/system-shutdown/octessera-oled-off"
 suspend_service="$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-suspend.service"
 python313_files="$root/tools/armbian-image/fixtures/python313-initramfs-closure-files.txt"
 python313_fixture="$root/tools/armbian-image/fixtures/python313-initramfs-closure"
@@ -29,20 +29,15 @@ for required_line in \
     'DeviceAllow=/dev/gpiochip1 rw'; do
     grep -qFx "$required_line" "$boot_service" || { echo "Orange boot service is missing: $required_line" >&2; exit 1; }
 done
+[[ ! -e "$root/userpatches/overlay/etc/systemd/system/octessera-orange-oled-shutdown.service" ]] || { echo "Orange OLED must be blanked by the system-shutdown hook only." >&2; exit 1; }
+[[ -x "$shutdown_hook" ]] || { echo "Orange system-shutdown OLED hook must be executable." >&2; exit 1; }
+bash -n "$shutdown_hook"
 for required_line in \
-    'User=octessera-runtime' \
-    'Group=octessera-runtime' \
-    'ProtectSystem=strict' \
-    'ReadWritePaths=-/run/octessera-boot' \
-    'DefaultDependencies=no' \
-    'Before=local-fs-pre.target' \
-    'Conflicts=shutdown.target' \
-    'WantedBy=sysinit.target' \
-    'DevicePolicy=closed' \
-    'DeviceAllow=/dev/spidev1.0 rw' \
-    'DeviceAllow=/dev/gpiochip1 rw'; do
-    grep -qFx "$required_line" "$shutdown_service" || { echo "Orange shutdown service is missing: $required_line" >&2; exit 1; }
+    '    halt|poweroff|reboot) ;;' \
+    '/usr/bin/timeout 2 /usr/bin/python3 /usr/local/sbin/octessera-orange-oled-logo late-off >/dev/null 2>&1'; do
+    grep -qFx "$required_line" "$shutdown_hook" || { echo "Orange shutdown hook is missing: $required_line" >&2; exit 1; }
 done
+if grep -v '^#' "$shutdown_hook" | grep -Eq 'sync|tee|mount| >> |> /(etc|var|home|boot|opt|usr)'; then echo "Orange shutdown hook must not write to disk." >&2; exit 1; fi
 for required_line in \
     'User=octessera-runtime' \
     'RuntimeDirectoryMode=0700' \
@@ -55,12 +50,9 @@ if command -v systemd-analyze >/dev/null 2>&1; then
     systemd_work="$(mktemp -d)"
     mkdir -p "$systemd_work/etc/systemd/system/multi-user.target.wants" "$systemd_work/etc/systemd/system/sysinit.target.wants" "$systemd_work/usr/local/sbin"
     cp "$boot_service" "$systemd_work/etc/systemd/system/octessera-orange-boot-splash.service"
-    cp "$shutdown_service" "$systemd_work/etc/systemd/system/octessera-orange-oled-shutdown.service"
     cp "$suspend_service" "$systemd_work/etc/systemd/system/octessera-orange-oled-suspend.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-boot-splash.service"
-    chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-oled-shutdown.service"
     chmod 0644 "$systemd_work/etc/systemd/system/octessera-orange-oled-suspend.service"
-    ln -s ../octessera-orange-oled-shutdown.service "$systemd_work/etc/systemd/system/sysinit.target.wants/octessera-orange-oled-shutdown.service"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/usr/local/sbin/octessera-orange-oled-logo"
     chmod 0755 "$systemd_work/usr/local/sbin/octessera-orange-oled-logo"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/usr/local/sbin/octessera-orange-oled-suspend"
@@ -79,7 +71,7 @@ if command -v systemd-analyze >/dev/null 2>&1; then
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/bin/true"
     printf '%s\n' '#!/bin/sh' 'exit 0' > "$systemd_work/bin/sh"
     chmod 0755 "$systemd_work/bin/true" "$systemd_work/bin/sh"
-    systemd-analyze --root="$systemd_work" verify octessera-orange-boot-splash.service octessera-orange-oled-shutdown.service octessera-orange-oled-suspend.service
+    systemd-analyze --root="$systemd_work" verify octessera-orange-boot-splash.service octessera-orange-oled-suspend.service
     rm -rf "$systemd_work"
 fi
 bash -n "$hook"

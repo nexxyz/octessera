@@ -448,6 +448,8 @@ def run(kind):
     elif kind == "shutdown":
         drop_to_runtime()
         _run_utility(kind, _handoff_module.SHUTDOWN_LOCK_TIMEOUT_SECONDS)
+    elif kind == "late-off":
+        _run_off()
     elif kind == "off":
         drop_to_runtime()
         _run_utility(kind, _handoff_module.UTILITY_LOCK_TIMEOUT_SECONDS)
@@ -456,8 +458,8 @@ def run(kind):
 
 
 def parse_mode(args):
-    if len(args) != 1 or args[0] not in {"boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off"}:
-        raise ValueError("usage: octessera-orange-oled-logo boot-once|boot-static|boot-loop|resume|sleep|shutdown|off")
+    if len(args) != 1 or args[0] not in {"boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off", "late-off"}:
+        raise ValueError("usage: octessera-orange-oled-logo boot-once|boot-static|boot-loop|resume|sleep|shutdown|off|late-off")
     return args[0]
 
 

@@ -348,7 +348,7 @@ install_file 0440 "$IMAGE_ROOT/etc/sudoers.d/octessera-usb-role" /etc/sudoers.d/
 sudo install -d -m 0755 "$SERVICE_TARGET.d"
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera.service.d/audio-realtime.conf" "/etc/systemd/system/$SERVICE.d/audio-realtime.conf"
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-boot-splash.service" /etc/systemd/system/octessera-boot-splash.service
-install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-oled-shutdown.service" /etc/systemd/system/octessera-oled-shutdown.service
+install_file 0755 "$IMAGE_ROOT/usr/lib/systemd/system-shutdown/octessera-oled-off" /usr/lib/systemd/system-shutdown/octessera-oled-off
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-performance-governor.service" /etc/systemd/system/octessera-performance-governor.service
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-network-health.service" /etc/systemd/system/octessera-network-health.service
 install_file 0644 "$IMAGE_ROOT/etc/systemd/system/octessera-network-health.timer" /etc/systemd/system/octessera-network-health.timer
@@ -371,7 +371,7 @@ sudo sed -i 's/\r$//' \
     "$(target_path /etc/systemd/system/octessera-usb-gadget.service)" \
     "$(target_path /etc/systemd/system/octessera-update-switch@.service)" \
     "$(target_path /etc/systemd/system/octessera-boot-splash.service)" \
-    "$(target_path /etc/systemd/system/octessera-oled-shutdown.service)" \
+    "$(target_path /usr/lib/systemd/system-shutdown/octessera-oled-off)" \
     "$(target_path /etc/systemd/system/octessera-performance-governor.service)" \
     "$(target_path /etc/systemd/system/octessera-network-health.service)" \
     "$(target_path /etc/systemd/system/octessera-network-health.timer)" \
@@ -480,8 +480,8 @@ fi
 sudo systemctl enable octessera-usb-gadget.service >/dev/null
 sudo systemctl enable --now octessera-network-health.timer >/dev/null
 sudo systemctl enable --now octessera-show-hold.path octessera-show-hold.service >/dev/null
-sudo systemctl enable octessera-oled-shutdown.service >/dev/null
-sudo systemctl start octessera-oled-shutdown.service
+sudo systemctl disable --now octessera-oled-shutdown.service >/dev/null 2>&1 || true
+sudo rm -f "$(target_path /etc/systemd/system/octessera-oled-shutdown.service)"
 sudo systemctl enable octessera-performance-governor.service >/dev/null
 sudo systemctl start octessera-performance-governor.service
 sudo systemctl enable "$SERVICE" >/dev/null

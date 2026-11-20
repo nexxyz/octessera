@@ -15,6 +15,7 @@ const IN_BOTH = [
   "etc/systemd/system/octessera-update-switch@.service",
   "etc/systemd/system/octessera.service",
   "etc/tmpfiles.d/octessera-setup-request.conf",
+  "usr/lib/systemd/system-shutdown/octessera-oled-off",
   "usr/local/lib/octessera/setup_config.py",
   "usr/local/lib/octessera/setup_hotspot.py",
   "usr/local/lib/octessera/setup_http.py",
@@ -35,6 +36,7 @@ const MAY_DIFFER = new Set([
   "etc/systemd/system/octessera-show-hold.service",
   "etc/systemd/system/octessera.service",
   "etc/tmpfiles.d/octessera-setup-request.conf",
+  "usr/lib/systemd/system-shutdown/octessera-oled-off",
   "usr/local/sbin/octessera-show-hold-apply",
   "usr/local/share/octessera-setup-ui/index.html",
 ]);

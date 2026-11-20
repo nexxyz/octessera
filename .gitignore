@@ -48,6 +48,7 @@ apps/desktop/src-tauri/samples/
 tools/pi-image/stage4-octessera/files/root/usr/
 !tools/pi-image/stage4-octessera/files/root/usr/
 tools/pi-image/stage4-octessera/files/root/usr/*
+!tools/pi-image/stage4-octessera/files/root/usr/lib/
 !tools/pi-image/stage4-octessera/files/root/usr/local/
 tools/pi-image/stage4-octessera/files/root/usr/local/*
 !tools/pi-image/stage4-octessera/files/root/usr/local/bin/

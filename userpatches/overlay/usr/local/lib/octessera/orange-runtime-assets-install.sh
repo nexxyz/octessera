@@ -90,7 +90,7 @@ octessera_install_orange_runtime_assets() {
   install_overlay_file etc/initramfs-tools/hooks/octessera-orange-boot-splash /etc/initramfs-tools/hooks/octessera-orange-boot-splash 0755
   install_overlay_file etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash /etc/initramfs-tools/scripts/init-premount/octessera-orange-boot-splash 0755
   install_overlay_file etc/systemd/system/octessera-orange-boot-splash.service /etc/systemd/system/octessera-orange-boot-splash.service 0644
-  install_overlay_file etc/systemd/system/octessera-orange-oled-shutdown.service /etc/systemd/system/octessera-orange-oled-shutdown.service 0644
+  install_overlay_file usr/lib/systemd/system-shutdown/octessera-oled-off /usr/lib/systemd/system-shutdown/octessera-oled-off 0755
   install_overlay_file etc/systemd/system/octessera-orange-oled-suspend.service /etc/systemd/system/octessera-orange-oled-suspend.service 0644
   install_overlay_file usr/local/share/octessera-setup-ui/img/octessera-mark.svg /usr/share/octessera/oled/octessera-mark.svg 0644
   install_overlay_file usr/local/share/octessera-setup-ui/img/octessera-wordmark.svg /usr/share/octessera/oled/octessera-wordmark.svg 0644
@@ -130,6 +130,5 @@ octessera_enable_orange_runtime_services() {
   systemctl enable octessera-device-apply-reboot.socket >/dev/null
   systemctl enable octessera-provision-musical-default.service >/dev/null
   systemctl enable octessera-orange-boot-splash.service >/dev/null
-  systemctl enable octessera-orange-oled-shutdown.service >/dev/null
   systemctl enable octessera-orange-oled-suspend.service >/dev/null
 }

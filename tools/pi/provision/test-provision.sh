@@ -411,7 +411,7 @@ pass "default provisioning removes legacy animation inputs without rebuilding in
 run_provision default
 expect_rc "sc5" 0
 assert_log_contains "sc5" "systemctl.log" "enable --now octessera-network-health.timer"
-assert_log_contains "sc5" "systemctl.log" "enable octessera-oled-shutdown.service"
+assert_mode "sc5" "$FIXTURE/usr/lib/systemd/system-shutdown/octessera-oled-off" 755
 assert_log_contains "sc5" "systemctl.log" "enable octessera-performance-governor.service"
 assert_log_contains "sc5" "systemctl.log" "enable octessera.service"
 assert_log_contains "sc5" "systemctl.log" "enable octessera-boot-splash.service"

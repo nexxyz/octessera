@@ -60,11 +60,15 @@ fi
 printf '%s\n' 'pi ALL=(root) NOPASSWD: /usr/bin/systemctl start octessera-usb-storage@start.service, /usr/bin/systemctl start octessera-usb-storage@stop.service, /usr/bin/systemctl restart octessera-usb-gadget.service' | cmp -s - "$root/tools/pi-image/stage4-octessera/files/root/etc/sudoers.d/octessera-usb-storage"
 printf '%s\n' '[Unit]' 'Description=octessera USB SD2 transfer %i' 'After=octessera-usb-gadget.service' '' '[Service]' 'Type=oneshot' 'ExecStart=/usr/local/sbin/octessera-usb-gadget storage-%i' 'TimeoutStartSec=12s' | cmp -s - "$usb_storage_unit"
 grep -qF '"$ROOTFS_DIR/etc/systemd/system/octessera-usb-storage@.service"' "$setup_stage"
-oled_shutdown="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-oled-shutdown.service"
-for required_line in 'DefaultDependencies=no' 'Before=local-fs-pre.target' 'Conflicts=shutdown.target' 'WantedBy=sysinit.target'; do
-    grep -qFx "$required_line" "$oled_shutdown"
-done
-grep -qF 'sysinit.target.wants/octessera-oled-shutdown.service' "$setup_stage"
+oled_hook="$root/tools/pi-image/stage4-octessera/files/root/usr/lib/systemd/system-shutdown/octessera-oled-off"
+[[ ! -e "$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system/octessera-oled-shutdown.service" ]]
+[[ -x "$oled_hook" ]]
+bash -n "$oled_hook"
+grep -qF 'halt|poweroff|reboot) ;;' "$oled_hook"
+grep -qF '/usr/bin/timeout 2 /usr/local/bin/octessera-pi --oled-off-once' "$oled_hook"
+! grep -v '^#' "$oled_hook" | grep -Eq 'sync|tee|mount| >> |> /(etc|var|home|boot|opt|usr)'
+grep -qF 'install -D -m 0755' "$setup_stage"
+grep -qF 'usr/lib/systemd/system-shutdown/octessera-oled-off' "$setup_stage"
 grep -qF '"$IMAGE_ROOT/etc/systemd/system/octessera-usb-storage@.service" /etc/systemd/system/octessera-usb-storage@.service' "$root/tools/pi/provision/provision.sh"
 
 for required_line in \

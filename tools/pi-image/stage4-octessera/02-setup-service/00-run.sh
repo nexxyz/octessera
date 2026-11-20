@@ -130,9 +130,9 @@ install -D -m 0644 \
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/system/octessera-boot-splash.service" \
     "$ROOTFS_DIR/etc/systemd/system/octessera-boot-splash.service"
-install -D -m 0644 \
-    "$STAGE_FILES/root/etc/systemd/system/octessera-oled-shutdown.service" \
-    "$ROOTFS_DIR/etc/systemd/system/octessera-oled-shutdown.service"
+install -D -m 0755 \
+    "$STAGE_FILES/root/usr/lib/systemd/system-shutdown/octessera-oled-off" \
+    "$ROOTFS_DIR/usr/lib/systemd/system-shutdown/octessera-oled-off"
 install -D -m 0644 \
     "$STAGE_FILES/root/etc/systemd/journald.conf.d/10-octessera.conf" \
     "$ROOTFS_DIR/etc/systemd/journald.conf.d/10-octessera.conf"
@@ -183,8 +183,6 @@ ln -sf ../octessera-performance-governor.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-performance-governor.service"
 ln -sf ../octessera-sd-card.service \
     "$ROOTFS_DIR/etc/systemd/system/multi-user.target.wants/octessera-sd-card.service"
-ln -sf ../octessera-oled-shutdown.service \
-    "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/octessera-oled-shutdown.service"
 ln -sf ../octessera-boot-splash.service \
     "$ROOTFS_DIR/etc/systemd/system/sysinit.target.wants/octessera-boot-splash.service"
 ln -sf ../octessera-network-health.timer \

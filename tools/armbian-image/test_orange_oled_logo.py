@@ -238,7 +238,7 @@ except ValueError:
     pass
 else:
     raise AssertionError("status text starting at the right edge was accepted")
-assert [logo.parse_mode([mode]) for mode in ("boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off")] == ["boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off"]
+assert [logo.parse_mode([mode]) for mode in ("boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off", "late-off")] == ["boot-once", "boot-static", "boot-loop", "resume", "sleep", "shutdown", "off", "late-off"]
 for invalid in ([], ["boot"], ["boot-once", "sleep"], ["unknown"]):
     try:
         logo.parse_mode(invalid)

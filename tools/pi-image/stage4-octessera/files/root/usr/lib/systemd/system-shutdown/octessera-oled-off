@@ -1,0 +1,10 @@
+#!/bin/sh
+# systemd-shutdown runs this after every filesystem is unmounted or read-only.
+case "$1" in
+    halt|poweroff|reboot) ;;
+    *) exit 0 ;;
+esac
+echo "octessera: blanking OLED ($1)" > /dev/kmsg 2>/dev/null
+/usr/bin/timeout 2 /usr/local/bin/octessera-pi --oled-off-once >/dev/null 2>&1
+echo "octessera: OLED blanked, status $?" > /dev/kmsg 2>/dev/null
+exit 0

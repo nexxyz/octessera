@@ -48,7 +48,8 @@ ends.
 - Power down and unplug before moving wiring, reseating a module, or opening the
   case.
 - Don't pull the power while the instrument is saving. Use `System > Shutdown`
-  and wait for the screen to go dark first.
+  and wait for the screen to go dark first. The "Shutting down" screen stays lit
+  until the disk is finished, so dark really does mean done.
 
 ## USB data
 

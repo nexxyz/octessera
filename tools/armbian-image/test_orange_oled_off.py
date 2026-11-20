@@ -102,4 +102,11 @@ logo.drop_to_runtime = lambda: None
 logo.run("off")
 assert len(FakeOled.instances) == before
 
+before = len(FakeOled.instances)
+logo.Handoff = types.SimpleNamespace(utility_lock=lambda timeout: (_ for _ in ()).throw(AssertionError("late-off must not use the handoff lock")))
+logo.drop_to_runtime = lambda: (_ for _ in ()).throw(AssertionError("late-off runs as root"))
+logo.run("late-off")
+late_oled = FakeOled.instances[before]
+assert not late_oled.initialized and late_oled.commands == [(0xAE,)] and late_oled.close_args == [False]
+
 print("Orange OLED off utility lock, display-off command, and no-frame tests passed")
