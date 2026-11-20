@@ -1,14 +1,14 @@
 use std::time::Duration;
 
-use super::toast_text::toast_lifetime;
-use super::NativeRunner;
+use super::super::NativeRunner;
+use super::text::toast_lifetime;
 
 impl NativeRunner {
-    pub(super) fn reset_menu_scroll(&mut self) {
+    pub(in crate::native_runner) fn reset_menu_scroll(&mut self) {
         self.display.menu_scroll_offset = 0;
     }
 
-    pub(super) fn advance_toast_state(&mut self) {
+    pub(in crate::native_runner) fn advance_toast_state(&mut self) {
         let now = std::time::Instant::now();
         self.expire_midi_cc_learn(now);
         if self.display.toast.is_none()
@@ -57,7 +57,7 @@ impl NativeRunner {
 
     /// Whether the visible toast is an Aux turn toast that scrolls once and
     /// then stays at its rightmost position.
-    pub(super) fn toast_holds_at_end(&self) -> bool {
+    pub(in crate::native_runner) fn toast_holds_at_end(&self) -> bool {
         match (&self.display.toast, &self.display.held_toast_head) {
             (Some(toast), Some(head)) => toast.message.starts_with(head.as_str()),
             _ => false,

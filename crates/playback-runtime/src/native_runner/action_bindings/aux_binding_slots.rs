@@ -1,4 +1,4 @@
-use super::super::toast_text::bank_head;
+use super::super::toast::text::bank_head;
 use super::super::{aux_turn_binding_spec, NativeAuxBinding, NativeParamBinding, NativeRunner};
 
 impl NativeRunner {

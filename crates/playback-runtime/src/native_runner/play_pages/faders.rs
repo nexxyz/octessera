@@ -4,7 +4,7 @@ use super::super::action_bindings::BindingTarget;
 use super::super::led_color::LedColor;
 use super::super::menu_apply::fast_values::parse_indexed_key;
 use super::super::modulation::value::{binding_normalized, quantize_binding_value};
-use super::super::toast_text::bank_head;
+use super::super::toast::text::bank_head;
 use super::super::{
     aux_turn_binding_spec, param_binding_from_payload, param_binding_payload,
     param_binding_spec_from_native, NativeParamBinding, NativeRunner, GRID_HEIGHT, GRID_WIDTH,

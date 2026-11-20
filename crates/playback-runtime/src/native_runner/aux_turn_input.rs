@@ -1,4 +1,4 @@
-use super::toast_text::bank_head;
+use super::toast::text::bank_head;
 use super::NativeRunner;
 use crate::native_menu::format_values::format_display_value;
 use crate::native_menu::{NativeMenuItem, NativeMenuValue};

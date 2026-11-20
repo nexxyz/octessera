@@ -2,7 +2,7 @@ use crate::native_menu::{NativeMenuAction, PlatformAction};
 use crate::native_runner::InstrumentType;
 use crate::protocol::RunnerMessage;
 
-use super::toast_text::bank_head;
+use super::toast::text::bank_head;
 
 mod aux_binding_slots;
 mod binding_target;

@@ -1,4 +1,4 @@
-use super::super::toast_text::toast_lifetime;
+use super::super::toast::text::toast_lifetime;
 use super::super::*;
 
 pub(in crate::native_runner) const AUX_TURN_TOAST_HOLD: Duration = Duration::from_millis(1200);

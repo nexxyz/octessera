@@ -1,4 +1,4 @@
-use super::NativeToast;
+use super::super::NativeToast;
 use crate::oled_frame::TOAST_RECT;
 use std::time::{Duration, Instant};
 
@@ -8,7 +8,7 @@ pub(super) const TOAST_SCROLL_STEP: Duration = Duration::from_millis(200);
 pub(super) const TOAST_SCROLL_END_PAUSE: Duration = Duration::from_millis(800);
 
 /// A control's toast head in the Shift bank or not: `S+Clk-2` or `Clk-2`.
-pub(super) fn bank_head(shifted: bool, control: &str) -> String {
+pub(in crate::native_runner) fn bank_head(shifted: bool, control: &str) -> String {
     if shifted {
         format!("S+{control}")
     } else {
@@ -16,7 +16,7 @@ pub(super) fn bank_head(shifted: bool, control: &str) -> String {
     }
 }
 
-pub(super) fn clip_display_line(line: &str, width: usize) -> String {
+pub(in crate::native_runner) fn clip_display_line(line: &str, width: usize) -> String {
     let mut out = String::new();
     for ch in line.chars().take(width) {
         out.push(ch);
@@ -37,14 +37,17 @@ pub(super) fn toast_scroll_offset(message: &str, elapsed: Duration) -> usize {
 }
 
 /// When the toast window next moves, measured from the toast's start; `None` once its end shows.
-pub(super) fn next_toast_scroll_step(message: &str, elapsed: Duration) -> Option<Duration> {
+pub(in crate::native_runner) fn next_toast_scroll_step(
+    message: &str,
+    elapsed: Duration,
+) -> Option<Duration> {
     let offset = toast_scroll_offset(message, elapsed);
     (offset < toast_overflow(message))
         .then(|| TOAST_SCROLL_START_PAUSE + TOAST_SCROLL_STEP * (offset as u32 + 1))
 }
 
 /// How long a toast stays up: its whole scroll and end pause, and never less than `minimum`.
-pub(super) fn toast_lifetime(message: &str, minimum: Duration) -> Duration {
+pub(in crate::native_runner) fn toast_lifetime(message: &str, minimum: Duration) -> Duration {
     match toast_overflow(message) {
         0 => minimum,
         overflow => (TOAST_SCROLL_START_PAUSE
@@ -56,7 +59,11 @@ pub(super) fn toast_lifetime(message: &str, minimum: Duration) -> Duration {
 
 /// The visible toast window. An Aux turn toast (`at_end`) shows its end, the value, at once,
 /// behind `..` for the cut start (the OLED fonts have no ellipsis glyph).
-pub(super) fn scrolled_toast(toast: &NativeToast, now: Instant, at_end: bool) -> String {
+pub(in crate::native_runner) fn scrolled_toast(
+    toast: &NativeToast,
+    now: Instant,
+    at_end: bool,
+) -> String {
     let width = TOAST_RECT.columns();
     let chars = toast.message.chars().collect::<Vec<_>>();
     if chars.len() <= width {

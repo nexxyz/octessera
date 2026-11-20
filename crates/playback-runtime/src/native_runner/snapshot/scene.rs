@@ -1,6 +1,6 @@
 use super::super::grid_assign::GridAssign;
 use super::super::snapshot::display_active_tiles;
-use super::super::toast_text::scrolled_toast;
+use super::super::toast::text::scrolled_toast;
 use super::super::{
     display_transients::DisplayTransientPresentation, GridInteraction, NativeFxBus,
     NativeInstrumentSlot, NativeOledMode, NativeRunner, NativeTransportState, NativeUiState, Value,

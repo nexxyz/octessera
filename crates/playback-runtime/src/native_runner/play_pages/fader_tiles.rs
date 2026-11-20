@@ -5,7 +5,7 @@ use super::super::aux_binding_payload_apply::parse_aux_press_action;
 use super::super::grid_assign::GridAssign;
 use super::super::led_color::LedColor;
 use super::super::menu_apply::fast::value_changed;
-use super::super::toast_text::bank_head;
+use super::super::toast::text::bank_head;
 use super::super::{
     aux_turn_binding_spec, press_action_payload, supported_aux_turn_key, NativeParamBinding,
     NativeRunner, GRID_HEIGHT, GRID_WIDTH,

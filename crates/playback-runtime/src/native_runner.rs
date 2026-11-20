@@ -193,8 +193,7 @@ mod system_persistence;
 pub(crate) mod system_scalars;
 #[cfg(any(test, feature = "test-support"))]
 mod test_support;
-mod toast_state;
-mod toast_text;
+mod toast;
 mod trigger_probability;
 mod usb_data_role;
 mod user_data;

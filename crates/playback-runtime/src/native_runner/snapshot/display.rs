@@ -1,4 +1,4 @@
-use super::super::toast_text::clip_display_line;
+use super::super::toast::text::clip_display_line;
 use super::super::{NativeRunner, OLED_BODY_ROWS};
 use crate::native_menu::{
     NativeMenuBarValue, NativeMenuRow, NativeMenuRowKind, NativeMenuSnapshot,
