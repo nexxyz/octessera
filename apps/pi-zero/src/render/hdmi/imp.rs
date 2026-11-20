@@ -192,6 +192,7 @@ impl TtyHandle for LinuxTty {
 }
 
 fn ioctl(file: &File, request: libc::c_ulong, value: libc::c_ulong) -> io::Result<()> {
+    // SAFETY: the fd is owned by the borrowed `file`; these requests take an integer argument.
     let result = unsafe { libc::ioctl(file.as_raw_fd(), request, value) };
     if result < 0 {
         Err(io::Error::last_os_error())
@@ -203,6 +204,7 @@ fn ioctl(file: &File, request: libc::c_ulong, value: libc::c_ulong) -> io::Resul
 fn discover_geometry(file: &File, path: &str) -> Result<FramebufferGeometry, HdmiError> {
     let mut variable = FbVarScreenInfo::default();
     let mut fixed = FbFixScreenInfo::default();
+    // SAFETY: the fd is open; each struct is repr(C) and matches the kernel's layout.
     unsafe {
         if libc::ioctl(
             file.as_raw_fd(),
@@ -363,10 +365,12 @@ mod tests {
     #[test]
     fn tty_adapter_opens_write_only_and_close_on_exec() {
         let file = open_tty_file("/dev/null").unwrap();
+        // SAFETY: F_GETFL only reads flags of the fd owned by `file`.
         let status_flags = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETFL) };
         assert!(status_flags >= 0);
         assert_eq!(status_flags & libc::O_ACCMODE, libc::O_WRONLY);
 
+        // SAFETY: F_GETFD only reads flags of the fd owned by `file`.
         let descriptor_flags = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETFD) };
         assert!(descriptor_flags >= 0);
         assert_ne!(descriptor_flags & libc::FD_CLOEXEC, 0);

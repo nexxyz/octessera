@@ -31,10 +31,13 @@ pub(crate) fn pi_worker_start_hook(parity: usize) -> Result<(), ()> {
 pub(crate) fn pin_background_worker_to_dsp_cpus() {
     #[cfg(all(not(test), target_os = "linux"))]
     {
+        // SAFETY: cpu_set_t is a plain bit array, so all-zero bytes are a valid empty set.
         let mut mask = unsafe { std::mem::zeroed::<libc::cpu_set_t>() };
         for cpu in DSP_WORKER_CPUS {
+            // SAFETY: CPU_SET writes one bit of the owned local mask and bounds-checks `cpu`.
             unsafe { libc::CPU_SET(cpu, &mut mask) };
         }
+        // SAFETY: the calling thread is live and the size matches the borrowed local mask.
         let result = unsafe {
             libc::pthread_setaffinity_np(
                 libc::pthread_self(),
@@ -76,6 +79,7 @@ pub(crate) fn idle_signal_analysis_thread() {
     #[cfg(all(not(test), target_os = "linux"))]
     {
         let param = libc::sched_param { sched_priority: 0 };
+        // SAFETY: pid 0 names the calling thread and `param` outlives the call.
         if unsafe { libc::sched_setscheduler(0, libc::SCHED_IDLE, &param) } != 0 {
             eprintln!(
                 "signal analysis worker SCHED_IDLE failed: {}",

@@ -69,6 +69,7 @@ fn permissions(mode: u32) -> fs::Permissions {
 
 fn environment(directory: &TestDirectory) -> SetupPortalEnvironment {
     #[cfg(unix)]
+    // SAFETY: getegid has no preconditions and cannot fail.
     let status_group = unsafe { libc::getegid() };
     #[cfg(windows)]
     let status_group = 0;

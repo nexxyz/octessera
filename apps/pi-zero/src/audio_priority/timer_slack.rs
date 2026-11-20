@@ -2,6 +2,7 @@
 /// wakeups. The runtime and UI threads wait on timers every few milliseconds, so the process
 /// asks for 1 ns before it spawns them; new threads inherit the setting.
 pub(crate) fn tighten_timer_slack() {
+    // SAFETY: PR_SET_TIMERSLACK takes an integer and only changes this thread's slack.
     if unsafe { libc::prctl(libc::PR_SET_TIMERSLACK, 1 as libc::c_ulong) } != 0 {
         eprintln!("Timer slack unchanged: {}", std::io::Error::last_os_error());
     }

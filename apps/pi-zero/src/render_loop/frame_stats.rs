@@ -98,6 +98,7 @@ fn percentiles(values: &mut [u32]) -> String {
 
 #[cfg(target_os = "linux")]
 fn current_cpu() -> Option<usize> {
+    // SAFETY: sched_getcpu has no preconditions.
     usize::try_from(unsafe { libc::sched_getcpu() }).ok()
 }
 
@@ -112,6 +113,7 @@ fn thread_cpu_time() -> Option<Duration> {
         tv_sec: 0,
         tv_nsec: 0,
     };
+    // SAFETY: `time` is a writable local timespec for clock_gettime to fill.
     (unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut time) } == 0).then(|| {
         Duration::new(
             u64::try_from(time.tv_sec).unwrap_or(0),

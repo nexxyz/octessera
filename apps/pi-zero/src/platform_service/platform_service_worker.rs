@@ -31,6 +31,7 @@ pub(super) fn spawn(context: PlatformWorkerContext) {
 /// validate, serialize and write held dispatches off for up to 2.5 ms.
 fn lower_priority() {
     #[cfg(target_os = "linux")]
+    // SAFETY: setpriority takes integers only; who 0 names the calling thread.
     unsafe {
         libc::setpriority(libc::PRIO_PROCESS, 0, 10);
     }

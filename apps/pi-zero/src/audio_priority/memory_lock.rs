@@ -7,6 +7,7 @@
 /// `LimitMEMLOCK=infinity` for this.
 pub(crate) fn lock_process_memory() {
     let flags = libc::MCL_CURRENT | libc::MCL_FUTURE | libc::MCL_ONFAULT;
+    // SAFETY: mlockall only changes paging for this process and takes no pointers.
     if unsafe { libc::mlockall(flags) } != 0 {
         eprintln!(
             "Audio memory lock unavailable: {}",
@@ -21,6 +22,7 @@ pub(crate) fn lock_process_memory() {
         return;
     };
     for (start, len) in code_mappings(&maps, &exe.to_string_lossy()) {
+        // SAFETY: the range is one of our own read-only mappings; mlock only pins pages.
         if unsafe { libc::mlock(start as *const libc::c_void, len) } != 0 {
             eprintln!(
                 "Audio code preload incomplete: {}",

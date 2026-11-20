@@ -90,7 +90,9 @@ fn validate_request_parent(path: &Path) -> Result<(), SetupFileError> {
     {
         validate_directory_path(
             path,
+            // SAFETY: geteuid has no preconditions and cannot fail.
             Some(unsafe { libc::geteuid() }),
+            // SAFETY: getegid has no preconditions and cannot fail.
             Some((unsafe { libc::getegid() }, 0o700)),
         )
     }
@@ -109,10 +111,12 @@ fn open_new_file(path: &Path, mode: u32) -> Result<File, SetupFileError> {
             .map_err(|_| SetupFileError::Unsafe)?;
         let flags =
             libc::O_RDWR | libc::O_CREAT | libc::O_EXCL | libc::O_CLOEXEC | libc::O_NOFOLLOW;
+        // SAFETY: `path` is a NUL-terminated CString that outlives the call.
         let descriptor = unsafe { libc::open(path.as_ptr(), flags, mode as libc::mode_t) };
         if descriptor < 0 {
             return Err(classify_errno());
         }
+        // SAFETY: open returned a non-negative fd that nothing else owns.
         Ok(unsafe { File::from_raw_fd(descriptor) })
     }
     #[cfg(not(unix))]
@@ -131,6 +135,7 @@ fn set_file_mode(file: &File, mode: u32) -> Result<(), SetupFileError> {
     #[cfg(unix)]
     {
         use std::os::fd::AsRawFd;
+        // SAFETY: the fd is owned by the borrowed `file`, which stays open for the call.
         let result = unsafe { libc::fchmod(file.as_raw_fd(), mode as libc::mode_t) };
         if result != 0 {
             return Err(classify_errno());
@@ -158,6 +163,7 @@ fn valid_marker_metadata(metadata: SetupMetadata) -> bool {
 fn marker_owner_matches(metadata: SetupMetadata) -> bool {
     #[cfg(unix)]
     {
+        // SAFETY: geteuid has no preconditions and cannot fail.
         metadata.uid == Some(unsafe { libc::geteuid() })
     }
     #[cfg(not(unix))]
@@ -189,6 +195,7 @@ fn publish_marker_noreplace(source: &Path, destination: &Path) -> Result<(), Set
             .map_err(|_| SetupFileError::Unsafe)?;
         let destination = CString::new(destination.as_os_str().as_encoded_bytes())
             .map_err(|_| SetupFileError::Unsafe)?;
+        // SAFETY: both paths are NUL-terminated CStrings that outlive the call.
         let result = unsafe {
             libc::syscall(
                 libc::SYS_renameat2,
@@ -222,6 +229,7 @@ fn sync_directory(path: &Path) -> Result<(), SetupFileError> {
         use std::os::fd::FromRawFd;
         let path = CString::new(path.as_os_str().as_encoded_bytes())
             .map_err(|_| SetupFileError::Unsafe)?;
+        // SAFETY: `path` is a NUL-terminated CString that outlives the call.
         let descriptor = unsafe {
             libc::open(
                 path.as_ptr(),
@@ -231,6 +239,7 @@ fn sync_directory(path: &Path) -> Result<(), SetupFileError> {
         if descriptor < 0 {
             return Err(classify_errno());
         }
+        // SAFETY: open returned a non-negative fd that nothing else owns.
         let directory = unsafe { File::from_raw_fd(descriptor) };
         directory.sync_all().map_err(classify_io)
     }

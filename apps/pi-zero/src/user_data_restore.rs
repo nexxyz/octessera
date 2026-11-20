@@ -200,6 +200,7 @@ fn hold_sd_card_lock(path: &Path) -> Result<File, String> {
     #[cfg(unix)]
     {
         use std::os::fd::AsRawFd;
+        // SAFETY: the fd is owned by `file`, which stays open while the lock is held.
         if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
             return Err(format!(
                 "restore could not take the SD card lock: {}",

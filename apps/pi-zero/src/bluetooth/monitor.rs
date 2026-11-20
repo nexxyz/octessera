@@ -232,6 +232,7 @@ fn player_args(address: &str, sample_rate: u32) -> Vec<String> {
 /// cores, below every audio thread.
 fn lower_priority() {
     #[cfg(target_os = "linux")]
+    // SAFETY: pid 0 is the calling thread; `param` outlives the call.
     unsafe {
         let param = libc::sched_param { sched_priority: 0 };
         libc::sched_setscheduler(0, libc::SCHED_OTHER, &param);

@@ -4,6 +4,7 @@ static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
 pub(crate) fn install_signal_handlers() -> Result<(), String> {
+    // SAFETY: the handler only stores to an atomic, which is async-signal-safe.
     unsafe {
         let handler = interrupt_handler as *const () as libc::sighandler_t;
         for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
@@ -19,6 +20,7 @@ pub(crate) fn install_signal_handlers() -> Result<(), String> {
 
 #[cfg(all(unix, board_orange))]
 pub(crate) fn restore_default_handlers() {
+    // SAFETY: SIG_DFL is always a valid disposition for these signals.
     unsafe {
         for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
             libc::signal(signal, libc::SIG_DFL);

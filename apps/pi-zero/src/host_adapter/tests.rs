@@ -340,6 +340,7 @@ fn raspberry_power_request_requires_recovery_save_before_acceptance() {
 #[test]
 fn raspberry_adapter_supports_setup_portal_effect() {
     #[cfg(unix)]
+    // SAFETY: geteuid has no preconditions and cannot fail.
     if unsafe { libc::geteuid() } != 0 {
         return;
     }

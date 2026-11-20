@@ -32,6 +32,7 @@ impl SetupPortalEnvironment {
 
 #[cfg(all(test, unix))]
 fn test_owner_uid() -> u32 {
+    // SAFETY: geteuid has no preconditions and cannot fail.
     unsafe { libc::geteuid() }
 }
 
@@ -85,10 +86,12 @@ fn public_group_gid() -> Result<u32, String> {
             "pi"
         };
         let name = CString::new(name).map_err(|_| "setup portal group is invalid".to_string())?;
+        // SAFETY: `name` is a NUL-terminated CString that outlives the call.
         let group = unsafe { libc::getgrnam(name.as_ptr()) };
         if group.is_null() {
             return Err("setup portal group is unavailable".into());
         }
+        // SAFETY: `group` is non-null and read before any other getgr* call reuses it.
         Ok(unsafe { (*group).gr_gid })
     }
     #[cfg(not(unix))]

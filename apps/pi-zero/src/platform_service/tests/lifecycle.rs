@@ -4,6 +4,7 @@ use super::*;
 #[test]
 fn setup_portal_survives_shared_queue_saturation_and_publishes_status() {
     #[cfg(unix)]
+    // SAFETY: geteuid has no preconditions and cannot fail.
     if unsafe { libc::geteuid() } != 0 {
         return;
     }

@@ -37,6 +37,7 @@ pub(super) fn open_lock(directory: &HandoffDirectory, create: bool) -> Result<Fi
 
 pub(super) fn flock(file: &File, nonblocking: bool) -> Result<(), String> {
     let operation = libc::LOCK_EX | if nonblocking { libc::LOCK_NB } else { 0 };
+    // SAFETY: the fd is owned by the borrowed `file`, which stays open for the call.
     if unsafe { libc::flock(file.as_raw_fd(), operation) } == 0 {
         return Ok(());
     }

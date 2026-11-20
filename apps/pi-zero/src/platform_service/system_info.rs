@@ -95,6 +95,7 @@ fn interface_ipv4_candidates() -> Vec<InterfaceIpv4Candidate> {
     use std::ffi::CStr;
 
     let mut addresses = std::ptr::null_mut();
+    // SAFETY: `addresses` is a writable out-pointer that getifaddrs fills with a list freed below.
     if unsafe { libc::getifaddrs(&mut addresses) } != 0 {
         return Vec::new();
     }
@@ -102,6 +103,7 @@ fn interface_ipv4_candidates() -> Vec<InterfaceIpv4Candidate> {
     let mut candidates = Vec::new();
     let mut current = addresses;
     while !current.is_null() {
+        // SAFETY: `current` is a live getifaddrs node; nulls are skipped; AF_INET is sockaddr_in.
         unsafe {
             let interface = &*current;
             if !interface.ifa_name.is_null() && !interface.ifa_addr.is_null() {
@@ -127,6 +129,7 @@ fn interface_ipv4_candidates() -> Vec<InterfaceIpv4Candidate> {
             current = interface.ifa_next;
         }
     }
+    // SAFETY: `addresses` came from getifaddrs and is freed once, after the last read.
     unsafe { libc::freeifaddrs(addresses) };
     candidates
 }

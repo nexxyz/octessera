@@ -46,12 +46,14 @@ fn fill_cryptographic_random(bytes: &mut [u8]) -> Result<(), String> {
         use std::ffi::CString;
         let path =
             CString::new("/dev/urandom").map_err(|_| "random source is unavailable".to_string())?;
+        // SAFETY: `path` is a NUL-terminated CString that outlives the call.
         let descriptor = unsafe { libc::open(path.as_ptr(), libc::O_RDONLY | libc::O_CLOEXEC) };
         if descriptor < 0 {
             return Err("random source is unavailable".into());
         }
         let mut offset = 0;
         while offset < bytes.len() {
+            // SAFETY: the pointer and length cover the unfilled tail of `bytes`.
             let read = unsafe {
                 libc::read(
                     descriptor,
@@ -60,16 +62,19 @@ fn fill_cryptographic_random(bytes: &mut [u8]) -> Result<(), String> {
                 )
             };
             if read <= 0 {
+                // SAFETY: `descriptor` was opened above and is closed once on this path.
                 unsafe { libc::close(descriptor) };
                 return Err("random source is unavailable".into());
             }
             offset += read as usize;
         }
+        // SAFETY: `descriptor` was opened above and is closed once on this path.
         unsafe { libc::close(descriptor) };
         Ok(())
     }
     #[cfg(windows)]
     {
+        // SAFETY: the buffer is writable; flag 2 uses the system RNG without a handle.
         let status = unsafe {
             BCryptGenRandom(
                 std::ptr::null_mut(),

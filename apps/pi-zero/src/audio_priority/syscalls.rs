@@ -74,8 +74,11 @@ mod linux {
         requested_priority: i32,
     ) -> Result<CpuMask, SchedulingFailure> {
         let requested_mask = cpu_mask(requested_cpu);
+        // SAFETY: cpu_set_t is a plain bit array, so all-zero bytes are a valid empty set.
         let mut observed_mask = unsafe { std::mem::zeroed::<libc::cpu_set_t>() };
+        // SAFETY: pthread_self has no preconditions and always returns the calling thread.
         let thread = unsafe { libc::pthread_self() };
+        // SAFETY: `thread` is the live calling thread and the size matches the borrowed cpu_set_t.
         let result = unsafe {
             libc::pthread_setaffinity_np(thread, size_of::<libc::cpu_set_t>(), &requested_mask)
         };
@@ -90,6 +93,7 @@ mod linux {
                 0,
             ));
         }
+        // SAFETY: `thread` is the calling thread; `observed_mask` is a writable cpu_set_t.
         let result = unsafe {
             libc::pthread_getaffinity_np(thread, size_of::<libc::cpu_set_t>(), &mut observed_mask)
         };
@@ -127,7 +131,9 @@ mod linux {
         let params = libc::sched_param {
             sched_priority: requested_priority,
         };
+        // SAFETY: pthread_self has no preconditions and always returns the calling thread.
         let thread = unsafe { libc::pthread_self() };
+        // SAFETY: `thread` is the live calling thread and `params` outlives the call.
         let result = unsafe { libc::pthread_setschedparam(thread, libc::SCHED_FIFO, &params) };
         if result != 0 {
             return Err(failure(
@@ -142,6 +148,7 @@ mod linux {
         }
         let mut policy = 0;
         let mut observed_params = libc::sched_param { sched_priority: 0 };
+        // SAFETY: `thread` is the calling thread; both out-pointers are writable locals.
         let result =
             unsafe { libc::pthread_getschedparam(thread, &mut policy, &mut observed_params) };
         if result != 0 {
@@ -175,7 +182,9 @@ mod linux {
     }
 
     fn cpu_mask(cpu: usize) -> libc::cpu_set_t {
+        // SAFETY: cpu_set_t is a plain bit array, so all-zero bytes are a valid empty set.
         let mut mask = unsafe { std::mem::zeroed::<libc::cpu_set_t>() };
+        // SAFETY: both macros only touch the owned local mask; CPU_SET bounds-checks `cpu`.
         unsafe {
             libc::CPU_ZERO(&mut mask);
             libc::CPU_SET(cpu, &mut mask);

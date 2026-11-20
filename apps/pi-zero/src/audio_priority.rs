@@ -104,6 +104,7 @@ impl CpuMask {
     pub(crate) fn from_linux(set: &libc::cpu_set_t) -> Self {
         let mut mask = Self::empty();
         for cpu in 0..libc::CPU_SETSIZE as usize {
+            // SAFETY: CPU_ISSET only reads the borrowed set, and `cpu` stays below CPU_SETSIZE.
             if unsafe { libc::CPU_ISSET(cpu, set) } {
                 if cpu < u64::BITS as usize {
                     mask.bits[cpu / u64::BITS as usize] |= 1 << (cpu % u64::BITS as usize);

@@ -68,6 +68,7 @@ struct AtomicTemp<'a> {
 impl Drop for AtomicTemp<'_> {
     fn drop(&mut self) {
         if !self.committed {
+            // SAFETY: the borrowed directory fd outlives this guard; `name` is a CString.
             unsafe { libc::unlinkat(self.directory.fd(), self.name.as_ptr(), 0) };
         }
     }
@@ -102,6 +103,7 @@ pub(super) fn atomic_write(
     #[cfg(test)]
     maybe_fail(AtomicFailure::Rename, name)?;
     let rename_result = if no_replace {
+        // SAFETY: both names are CStrings and the directory fd is open for the call.
         unsafe {
             libc::syscall(
                 libc::SYS_renameat2,
@@ -113,6 +115,7 @@ pub(super) fn atomic_write(
             )
         }
     } else {
+        // SAFETY: both names are NUL-terminated CStrings and the directory fd is open for the call.
         unsafe { libc::renameat(directory.fd(), from.as_ptr(), directory.fd(), to.as_ptr()).into() }
     };
     if rename_result != 0 {

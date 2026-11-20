@@ -45,6 +45,7 @@ impl HandoffDirectory {
 
     fn open_at(path: &Path) -> Result<Self, String> {
         let path_c = c_string(path)?;
+        // SAFETY: `path_c` is a NUL-terminated CString that outlives the call.
         let fd = unsafe {
             libc::open(
                 path_c.as_ptr(),
@@ -57,9 +58,12 @@ impl HandoffDirectory {
                 io_error()
             ));
         }
+        // SAFETY: open returned a non-negative fd that nothing else owns.
         let file = unsafe { File::from_raw_fd(fd) };
         let identity = RuntimeIdentity {
+            // SAFETY: geteuid has no preconditions and cannot fail.
             uid: unsafe { libc::geteuid() },
+            // SAFETY: getegid has no preconditions and cannot fail.
             gid: unsafe { libc::getegid() },
             boot_id: current_boot_id()?,
         };
@@ -72,6 +76,7 @@ impl HandoffDirectory {
     }
 
     pub(in crate::boot_oled_handoff::unix_impl) fn validate_entries(&self) -> Result<(), String> {
+        // SAFETY: the fd belongs to the open handoff directory and stays open for this call.
         let duplicate = unsafe { libc::dup(self.fd()) };
         if duplicate < 0 {
             return Err(format!(
@@ -79,8 +84,10 @@ impl HandoffDirectory {
                 io_error()
             ));
         }
+        // SAFETY: `duplicate` is a fresh directory fd that the returned DIR takes over.
         let dir = unsafe { libc::fdopendir(duplicate) };
         if dir.is_null() {
+            // SAFETY: fdopendir failed, so `duplicate` is still ours and closed exactly once.
             unsafe { libc::close(duplicate) };
             return Err(format!(
                 "cannot inspect OLED handoff directory: {}",
@@ -89,10 +96,12 @@ impl HandoffDirectory {
         }
         let mut result = Ok(());
         loop {
+            // SAFETY: `dir` is a non-null DIR from fdopendir, closed only after the loop.
             let entry = unsafe { libc::readdir(dir) };
             if entry.is_null() {
                 break;
             }
+            // SAFETY: a non-null readdir entry has a NUL-terminated d_name until the next readdir.
             let name = unsafe { CStr::from_ptr((*entry).d_name.as_ptr()) }.to_string_lossy();
             if name == "." || name == ".." {
                 continue;
@@ -135,6 +144,7 @@ impl HandoffDirectory {
             result = Err(format!("unknown OLED handoff entry {name:?}"));
             break;
         }
+        // SAFETY: `dir` came from fdopendir and is closed exactly once, after its last readdir.
         unsafe { libc::closedir(dir) };
         result
     }
@@ -159,7 +169,9 @@ pub(super) fn validate_metadata(
     mode: u32,
     identity: &RuntimeIdentity,
 ) -> Result<(), String> {
+    // SAFETY: libc::stat is plain integers, so all-zero bytes are a valid value.
     let mut stat = unsafe { std::mem::zeroed::<libc::stat>() };
+    // SAFETY: the fd is owned by the borrowed `file` and `stat` is a writable local.
     if unsafe { libc::fstat(file.as_raw_fd(), &mut stat) } != 0 {
         return Err(format!("cannot stat OLED handoff entry: {}", io_error()));
     }
@@ -191,6 +203,7 @@ pub(super) fn open_named(
     flags: i32,
 ) -> std::io::Result<File> {
     let name = CString::new(name).expect("fixed handoff name");
+    // SAFETY: the directory fd is open for this call and `name` is a NUL-terminated CString.
     let fd = unsafe {
         libc::openat(
             directory.fd(),
@@ -201,6 +214,7 @@ pub(super) fn open_named(
     if fd < 0 {
         Err(std::io::Error::last_os_error())
     } else {
+        // SAFETY: openat returned a non-negative fd that nothing else owns.
         Ok(unsafe { File::from_raw_fd(fd) })
     }
 }
@@ -211,6 +225,7 @@ pub(super) fn create_named(
     mode: u32,
 ) -> Result<File, String> {
     let name_c = CString::new(name).expect("handoff name");
+    // SAFETY: the directory fd is open for this call and `name_c` is a NUL-terminated CString.
     let fd = unsafe {
         libc::openat(
             directory.fd(),
@@ -225,10 +240,13 @@ pub(super) fn create_named(
             io_error()
         ));
     }
+    // SAFETY: openat returned a non-negative fd that nothing else owns.
     let file = unsafe { File::from_raw_fd(fd) };
+    // SAFETY: the fd is owned by `file`, which is still open here.
     if unsafe { libc::fchmod(file.as_raw_fd(), mode) } != 0 {
         let error = io_error();
         drop(file);
+        // SAFETY: the directory fd is open and `name_c` is a NUL-terminated CString.
         let _ = unsafe { libc::unlinkat(directory.fd(), name_c.as_ptr(), 0) };
         return Err(format!(
             "cannot set OLED handoff entry {name} mode: {error}"
@@ -239,6 +257,7 @@ pub(super) fn create_named(
 
 pub(super) fn unlink_named(directory: &HandoffDirectory, name: &str) -> Result<(), String> {
     let name = CString::new(name).expect("handoff name");
+    // SAFETY: the directory fd is open and `name` is a NUL-terminated CString.
     if unsafe { libc::unlinkat(directory.fd(), name.as_ptr(), 0) } != 0 {
         return Err(format!("cannot remove OLED handoff entry: {}", io_error()));
     }
@@ -249,6 +268,7 @@ pub(super) fn unlink_named(directory: &HandoffDirectory, name: &str) -> Result<(
 pub(in crate::boot_oled_handoff::unix_impl) fn cleanup_temporary_files(
     directory: &HandoffDirectory,
 ) -> Result<(), String> {
+    // SAFETY: the fd belongs to the open handoff directory and stays open for this call.
     let duplicate = unsafe { libc::dup(directory.fd()) };
     if duplicate < 0 {
         return Err(format!(
@@ -256,8 +276,10 @@ pub(in crate::boot_oled_handoff::unix_impl) fn cleanup_temporary_files(
             io_error()
         ));
     }
+    // SAFETY: `duplicate` is a fresh directory fd that the returned DIR takes over.
     let dir = unsafe { libc::fdopendir(duplicate) };
     if dir.is_null() {
+        // SAFETY: fdopendir failed, so `duplicate` is still ours and closed exactly once.
         unsafe { libc::close(duplicate) };
         return Err(format!(
             "cannot inspect OLED handoff directory: {}",
@@ -266,15 +288,18 @@ pub(in crate::boot_oled_handoff::unix_impl) fn cleanup_temporary_files(
     }
     let mut names = Vec::new();
     loop {
+        // SAFETY: `dir` is a non-null DIR from fdopendir, closed only after the loop.
         let entry = unsafe { libc::readdir(dir) };
         if entry.is_null() {
             break;
         }
+        // SAFETY: a non-null readdir entry has a NUL-terminated d_name until the next readdir.
         let name = unsafe { CStr::from_ptr((*entry).d_name.as_ptr()) }.to_string_lossy();
         if atomic_temp_mode(&name).is_some() {
             names.push(name.into_owned());
         }
     }
+    // SAFETY: `dir` came from fdopendir and is closed exactly once, after its last readdir.
     unsafe { libc::closedir(dir) };
     for name in names {
         unlink_named(directory, &name)?;

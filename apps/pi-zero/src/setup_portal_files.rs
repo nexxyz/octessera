@@ -185,10 +185,12 @@ fn open_existing_file(path: &Path) -> Result<File, SetupFileError> {
         let path = CString::new(path.as_os_str().as_encoded_bytes())
             .map_err(|_| SetupFileError::Unsafe)?;
         let flags = libc::O_RDONLY | libc::O_CLOEXEC | libc::O_NOFOLLOW;
+        // SAFETY: `path` is a NUL-terminated CString that outlives the call.
         let descriptor = unsafe { libc::open(path.as_ptr(), flags) };
         if descriptor < 0 {
             return Err(classify_errno());
         }
+        // SAFETY: open returned a non-negative fd that nothing else owns.
         Ok(unsafe { File::from_raw_fd(descriptor) })
     }
     #[cfg(not(unix))]

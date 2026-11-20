@@ -83,10 +83,12 @@ fn available_space(path: &Path) -> Option<u64> {
     use std::ffi::CString;
     let path = CString::new(path.as_os_str().as_encoded_bytes()).ok()?;
     let mut stats = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    // SAFETY: `path` is a NUL-terminated CString and `stats` points to writable statvfs storage.
     let result = unsafe { libc::statvfs(path.as_ptr(), stats.as_mut_ptr()) };
     if result != 0 {
         return None;
     }
+    // SAFETY: statvfs returned 0, so it initialized every field of `stats`.
     let stats = unsafe { stats.assume_init() };
     Some(stats.f_bavail.saturating_mul(stats.f_frsize))
 }

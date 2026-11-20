@@ -7,6 +7,7 @@ pub(crate) fn interleave_stereo(left: &[f32], right: &[f32], out: &mut [f32]) {
 fn interleave_stereo_impl(left: &[f32], right: &[f32], out: &mut [f32]) {
     let chunks = left.len() / 4;
     if chunks > 0 {
+        // SAFETY: aarch64 always has NEON; inputs hold `chunks * 4` floats, `out` twice that.
         unsafe {
             interleave_stereo_neon(left.as_ptr(), right.as_ptr(), out.as_mut_ptr(), chunks);
         }
@@ -131,6 +132,7 @@ mod tests {
             let mut actual = vec![99.0; neon_frames * 2];
             let mut expected = vec![99.0; neon_frames * 2];
 
+            // SAFETY: aarch64 has NEON; inputs hold `chunks * 4` floats, `actual` twice that.
             unsafe {
                 super::interleave_stereo_neon(
                     left.as_ptr(),

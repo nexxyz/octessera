@@ -168,6 +168,7 @@ impl Filesystems for WatchesSdLock {
     fn is_writable_dir(&self, _: &Path) -> io::Result<bool> {
         use std::os::fd::AsRawFd;
         let probe = fs::File::open(&self.lock)?;
+        // SAFETY: the fd is owned by `probe`, which stays open for the call.
         if unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0 {
             self.free.set(self.free.get() + 1);
         } else {
@@ -201,6 +202,7 @@ fn restore_holds_the_sd_card_lock_while_it_builds_and_swaps() {
     use std::os::fd::AsRawFd;
     let after = fs::File::open(&lock).unwrap();
     assert_eq!(
+        // SAFETY: the fd is owned by `after`, which stays open for the call.
         unsafe { libc::flock(after.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
         0
     );

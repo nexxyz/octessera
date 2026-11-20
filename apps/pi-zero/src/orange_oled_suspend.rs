@@ -62,7 +62,9 @@ mod unix {
     fn bind_socket(path: &Path) -> Result<UnixListener, String> {
         if let Ok(metadata) = fs::symlink_metadata(path) {
             if !metadata.file_type().is_socket()
+                // SAFETY: geteuid has no preconditions and cannot fail.
                 || metadata.uid() != unsafe { libc::geteuid() }
+                // SAFETY: getegid has no preconditions and cannot fail.
                 || metadata.gid() != unsafe { libc::getegid() }
                 || metadata.mode() & 0o7777 != 0o600
             {
@@ -175,8 +177,10 @@ mod unix {
     fn validate_peer(stream: &UnixStream) -> Result<(), String> {
         #[cfg(target_os = "linux")]
         {
+            // SAFETY: ucred is three plain integers, so all-zero bytes are a valid value.
             let mut credential = unsafe { std::mem::zeroed::<libc::ucred>() };
             let mut length = std::mem::size_of_val(&credential) as libc::socklen_t;
+            // SAFETY: the socket fd is open; `credential`/`length` describe a writable ucred.
             let result = unsafe {
                 libc::getsockopt(
                     stream.as_raw_fd(),
@@ -188,7 +192,9 @@ mod unix {
             };
             if result != 0
                 || length != std::mem::size_of::<libc::ucred>() as libc::socklen_t
+                // SAFETY: geteuid has no preconditions and cannot fail.
                 || credential.uid != unsafe { libc::geteuid() }
+                // SAFETY: getegid has no preconditions and cannot fail.
                 || credential.gid != unsafe { libc::getegid() }
             {
                 return Err("OLED suspend socket peer is not the runtime user".into());

@@ -122,6 +122,7 @@ impl Filesystems for LiveFilesystems {
         use std::os::unix::ffi::OsStrExt;
         let path = std::ffi::CString::new(path.as_os_str().as_bytes())
             .map_err(|_| io::Error::other("path contains a NUL byte"))?;
+        // SAFETY: `path` is a NUL-terminated CString that outlives the call.
         if unsafe { libc::access(path.as_ptr(), libc::W_OK) } == 0 {
             return Ok(true);
         }

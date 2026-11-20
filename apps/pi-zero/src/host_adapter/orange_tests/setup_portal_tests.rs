@@ -10,6 +10,7 @@ use std::time::Duration;
 #[test]
 fn orange_adapter_supports_setup_portal_effect() {
     #[cfg(unix)]
+    // SAFETY: getegid has no preconditions and cannot fail.
     let status_group = unsafe { libc::getegid() };
     #[cfg(windows)]
     let status_group = 0;
