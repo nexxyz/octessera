@@ -93,6 +93,13 @@ impl NativeRunner {
                 let Some(channel) = instrument.midi_output_channel() else {
                     return;
                 };
+                if kind == InstrumentType::MidiDrum {
+                    stamped_tile = Some(lowest_stamp(
+                        instrument.midi_drum.assignments.iter().filter_map(|stamp| {
+                            (stamp.note == note.note).then_some((stamp.x, stamp.y))
+                        }),
+                    ));
+                }
                 routed.midi.push(on(channel, None));
                 self.transport.midi_channels_sounded |= 1 << channel;
                 Some(Some(channel))
@@ -135,7 +142,7 @@ impl NativeRunner {
         self.transpose.pending_note_offs.extend(released);
     }
 
-    /// A Drum or Sampler slot records on its lowest tile stamped with what the key played
+    /// A Drum, Sampler or MIDI Drum slot records on its lowest tile stamped with what the key played
     /// (`stamped_tile`); the other slots on the tile each Looper's mapping plays as the note.
     fn record_keyboard_press(
         &mut self,

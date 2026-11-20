@@ -194,9 +194,10 @@ wander in by accident.
   holding, notes passed on to MIDI out included, so nothing gets stuck.
 - **Recording into a Looper.** Every `looper` layer that is overdubbing and
   whose Link plays that slot records what you play as tile presses, on the tile
-  its Link would play that note from (after Play Transpose). Drum and Sampler
-  slots use a tile stamped with the voice or sample you hit instead. If two
-  tiles fit, the one lowest on the grid wins (leftmost if they share a row).
+  its Link would play that note from (after Play Transpose). Drum, Sampler and
+  MIDI Drum slots use a tile stamped with the voice, sample or note you hit
+  instead. If two tiles fit, the one lowest on the grid wins (leftmost if they
+  share a row).
   A note no tile can play still sounds, it just isn't recorded. The loop picks
   it up on the next pass; you already heard it this time round.
 - Not in the mood? `System > MIDI > Notes In` off ignores the keys and keeps

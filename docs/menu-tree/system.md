@@ -290,8 +290,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   Panic, a patch load, MIDI Active off and Notes In off release every held keyboard note, forwarded
   ones too. Every Looper layer that is overdubbing and whose Link plays that slot records the note
   as a press and release of the lowest-index tile its current Link mapping plays as that note (after
-  Play Transpose); a Drum or Sampler slot uses its lowest-index tile stamped with the voice or sample
-  slot the key played, and records a drum hit's release at once. The press lands on the step now
+  Play Transpose); a Drum, Sampler or MIDI Drum slot uses its lowest-index tile stamped with the voice, sample
+  slot or note the key played, and records a drum hit's release at once. The press lands on the step now
   sounding (step 1 while stopped) and plays from the next pass on, and a release in that same step moves to the next one.
   A note no tile plays still sounds but is not recorded. Off ignores incoming notes. It is a System setting, not saved with patches.
 - `MIDI Host` lists `MIDI Out` then `MIDI In`. Each starts with `Disconnect`, followed by one action
