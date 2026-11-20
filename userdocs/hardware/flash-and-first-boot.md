@@ -69,6 +69,7 @@ customisation leaves SSH switched off until you turn it on in the setup portal.
 4. Power the instrument through the USB-C power breakout, as
    [safety and power](safety-and-power.md#power-input) explains.
 5. Wait for the Octessera boot animation and then the normal menu.
+   <!-- BOOT TIME: owner/hardware round fills in -->
 
 Nothing on the OLED, or flickering? Unplug, then check these in order:
 
