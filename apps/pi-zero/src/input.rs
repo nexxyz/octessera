@@ -10,6 +10,7 @@ pub enum MidiMessage {
         received_at: Instant,
     },
     ControlChange(playback_runtime::MidiControlChange),
+    Note(playback_runtime::MidiNote),
 }
 
 pub fn encoder_input_id(index: usize) -> &'static str {
@@ -94,7 +95,7 @@ pub fn neokey_message(key: u8, pressed: bool) -> Option<HostMessage> {
     })
 }
 
-/// Clock, Start, Continue, Stop and Control Change pass; notes and everything else stay out.
+/// Clock, Start, Continue, Stop, Control Change and notes pass; everything else stays out.
 pub fn midi_input_message(bytes: &[u8]) -> Option<MidiMessage> {
     if bytes
         .iter()
@@ -105,7 +106,9 @@ pub fn midi_input_message(bytes: &[u8]) -> Option<MidiMessage> {
             received_at: Instant::now(),
         });
     }
-    playback_runtime::MidiControlChange::parse(bytes).map(MidiMessage::ControlChange)
+    playback_runtime::MidiControlChange::parse(bytes)
+        .map(MidiMessage::ControlChange)
+        .or_else(|| playback_runtime::MidiNote::parse(bytes).map(MidiMessage::Note))
 }
 
 pub(crate) type MidiInputHandler = Arc<dyn Fn(Vec<u8>) + Send + Sync>;
@@ -162,10 +165,17 @@ mod tests {
     }
 
     #[test]
-    fn the_midi_filter_passes_realtime_and_control_changes_but_drops_notes() {
-        assert!(midi_input_message(&[0x90, 60, 100]).is_none());
-        assert!(midi_input_message(&[0x80, 60, 0]).is_none());
+    fn the_midi_filter_passes_realtime_control_changes_and_notes() {
         assert!(midi_input_message(&[0xE0, 0, 64]).is_none());
+        assert!(midi_input_message(&[0xA0, 60, 64]).is_none());
+        let Some(MidiMessage::Note(note)) = midi_input_message(&[0x91, 60, 100]) else {
+            panic!("a Note On passes the filter");
+        };
+        assert_eq!((note.channel, note.note, note.velocity), (1, 60, 100));
+        let Some(MidiMessage::Note(note)) = midi_input_message(&[0x80, 60, 30]) else {
+            panic!("a Note Off passes the filter");
+        };
+        assert_eq!((note.channel, note.note, note.velocity), (0, 60, 0));
         assert!(matches!(
             midi_input_message(&[0xF8]),
             Some(MidiMessage::Realtime { .. })

@@ -100,6 +100,7 @@ impl NativeRunner {
         }
         self.drain_all_play_transpose_notes();
         self.release_all_remaining_owned_notes();
+        self.release_all_keyboard_notes();
     }
 
     pub(super) fn drain_layer_engine_notes(&mut self, layer_index: usize) {

@@ -61,6 +61,45 @@ fn overdub_records_and_replays_press_release_events() {
 }
 
 #[test]
+fn outside_notes_record_into_the_sounding_step_without_holding_the_tile() {
+    let mut context = context();
+    let mut state =
+        looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
+    state = looper_on_tick(state, &mut context);
+    state = looper_on_tick(state, &mut context);
+    let tile = grid_index(1, 2);
+
+    assert!(record_outside_tile(&mut state, tile, true));
+    assert!(record_outside_tile(&mut state, tile, false));
+    assert!(!state.held_tiles[tile] && !state.tiles[tile]);
+    let press = LooperEvent {
+        tile,
+        kind: LooperEventKind::Press,
+    };
+    let release = LooperEvent {
+        tile,
+        kind: LooperEventKind::Release,
+    };
+    assert_eq!(state.steps[1], vec![press]);
+    assert_eq!(
+        state.steps[2],
+        vec![release],
+        "a same-step release moves on"
+    );
+
+    for _ in 0..3 {
+        state = looper_on_tick(state, &mut context);
+        assert!(!state.tiles[tile], "this pass already sounded the note");
+    }
+    state = looper_on_tick(state, &mut context);
+    assert!(state.tiles[tile], "the next pass plays it");
+    assert_eq!(state.trigger_types[tile], TileTriggerType::Activate);
+
+    state.mode = LooperMode::Play;
+    assert!(!record_outside_tile(&mut state, tile, true));
+}
+
+#[test]
 fn clear_loop_preserves_live_holds_and_releases_playback_only_tiles() {
     let mut context = context();
     let mut state =

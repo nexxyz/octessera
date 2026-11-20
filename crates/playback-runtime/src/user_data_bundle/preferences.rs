@@ -16,6 +16,7 @@ const OBJECTS: &[(&str, &[&str])] = &[
             "clockInEnabled",
             "respondToStartStop",
             "sendInstruments",
+            "notesIn",
         ],
     ),
     ("usb", &["midiOutEnabled"]),

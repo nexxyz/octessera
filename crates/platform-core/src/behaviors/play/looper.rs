@@ -244,6 +244,39 @@ fn apply_grid_input(state: LooperState, x: usize, y: usize, kind: LooperEventKin
     }
 }
 
+/// Records a press or release of `tile` played somewhere else, such as on a MIDI keyboard,
+/// while overdubbing. The note already sounded, so the tile is not held and the event goes to
+/// the step now sounding: the loop plays it from the next pass on. A release in the same step
+/// as its press goes to the next step, so a short note still sounds. False when not recording.
+pub(crate) fn record_outside_tile(state: &mut LooperState, tile: usize, pressed: bool) -> bool {
+    if state.mode != LooperMode::Overdub || tile >= TILE_COUNT {
+        return false;
+    }
+    let length = state.length_steps.clamp(1, state.steps.len().max(1));
+    let mut step = (state.step_index + length - 1) % length;
+    let kind = if pressed {
+        LooperEventKind::Press
+    } else {
+        LooperEventKind::Release
+    };
+    let pressed_here = |events: &Vec<LooperEvent>| {
+        events
+            .iter()
+            .rev()
+            .find(|event| event.tile == tile)
+            .is_some_and(|event| event.kind == LooperEventKind::Press)
+    };
+    if !pressed && state.steps.get(step).is_some_and(pressed_here) {
+        step = (step + 1) % length;
+    }
+    if let Some(events) = state.steps.get_mut(step) {
+        if events.len() < MAX_EVENTS_PER_STEP {
+            events.push(LooperEvent { tile, kind });
+        }
+    }
+    true
+}
+
 fn clear_loop(state: LooperState) -> LooperState {
     let playback_tiles = vec![false; TILE_COUNT];
     let tiles = combined_tiles(&state.held_tiles, &playback_tiles);

@@ -196,3 +196,21 @@ impl NativeBehavior {
         }
     }
 }
+
+impl NativeBehaviorState {
+    /// True for a Looper that is overdubbing.
+    pub(crate) fn records_outside_tiles(&self) -> bool {
+        matches!(self, NativeBehaviorState::Looper(state)
+            if state.mode == play::looper::LooperMode::Overdub)
+    }
+
+    /// See `play::looper::record_outside_tile`; false for every other behavior.
+    pub(crate) fn record_outside_tile(&mut self, tile: usize, pressed: bool) -> bool {
+        match self {
+            NativeBehaviorState::Looper(state) => {
+                play::looper::record_outside_tile(state, tile, pressed)
+            }
+            _ => false,
+        }
+    }
+}

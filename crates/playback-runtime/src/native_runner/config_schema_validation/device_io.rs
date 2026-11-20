@@ -24,7 +24,12 @@ pub(super) fn validate_midi(runtime: &Map<String, Value>) -> Result<(), String> 
         path,
         &MidiSendInstruments::ALL.map(MidiSendInstruments::wire_name),
     )?;
-    for key in ["clockOutEnabled", "clockInEnabled", "respondToStartStop"] {
+    for key in [
+        "clockOutEnabled",
+        "clockInEnabled",
+        "respondToStartStop",
+        "notesIn",
+    ] {
         bool_field(midi, key, path)?;
     }
     Ok(())

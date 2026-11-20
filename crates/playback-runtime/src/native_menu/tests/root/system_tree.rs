@@ -32,7 +32,13 @@ fn desktop_system_tree_has_exact_order() {
     );
     assert_eq!(
         group_labels(&desktop, "MIDI"),
-        vec!["MIDI Active", "Send MIDI", "MIDI Host", "Sync / Clock"]
+        vec![
+            "MIDI Active",
+            "Send MIDI",
+            "Notes In",
+            "MIDI Host",
+            "Sync / Clock"
+        ]
     );
     assert_eq!(
         group_labels(&desktop, "MIDI > MIDI Host"),
@@ -139,6 +145,7 @@ fn orange_system_tree_has_exact_order() {
         vec![
             "MIDI Active",
             "Send MIDI",
+            "Notes In",
             "MIDI Host",
             "USB Device",
             "Sync / Clock"
@@ -213,7 +220,13 @@ fn raspberry_gadget_system_tree_has_exact_order() {
     );
     assert_eq!(
         group_labels(&raspberry_gadget, "MIDI"),
-        vec!["MIDI Active", "Send MIDI", "USB Device", "Sync / Clock"]
+        vec![
+            "MIDI Active",
+            "Send MIDI",
+            "Notes In",
+            "USB Device",
+            "Sync / Clock"
+        ]
     );
     assert_eq!(
         group_labels(&raspberry_gadget, "Audio"),
@@ -277,7 +290,13 @@ fn raspberry_host_system_tree_has_exact_order() {
     );
     assert_eq!(
         group_labels(&raspberry_host, "MIDI"),
-        vec!["MIDI Active", "Send MIDI", "MIDI Host", "Sync / Clock"]
+        vec![
+            "MIDI Active",
+            "Send MIDI",
+            "Notes In",
+            "MIDI Host",
+            "Sync / Clock"
+        ]
     );
     assert_eq!(
         group_labels(&raspberry_host, "MIDI > MIDI Host"),

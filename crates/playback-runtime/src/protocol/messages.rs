@@ -52,6 +52,12 @@ pub enum HostMessage {
         controller: u8,
         value: u8,
     },
+    /// A note from the selected MIDI In; `channel` is 0-15 and velocity 0 is a note-off.
+    MidiNote {
+        channel: u8,
+        note: u8,
+        velocity: u8,
+    },
     TransportStop,
     RuntimeResult {
         result: RuntimeStoreResult,

@@ -116,6 +116,7 @@ mod menu_value_apply;
 mod message_dispatch;
 mod midi_cc_in;
 mod midi_drum;
+mod midi_note_in;
 mod mix_mutes;
 mod modal_popups;
 mod modulation;
@@ -342,6 +343,7 @@ pub struct NativeRunner {
     link_lfos: [NativeLinkLfo; GLOBAL_LFO_COUNT],
     midi_cc_mappings: [midi_cc_in::NativeMidiCcMapping; midi_cc_in::MIDI_CC_SLOT_COUNT],
     midi_cc_learn: Option<midi_cc_in::MidiCcLearn>,
+    keyboard_notes: Vec<midi_note_in::HeldKeyboardNote>,
     faders: play_pages::faders::NativeFaders,
     modulation_process: ModulationProcessState,
     aux_bindings: Vec<Option<NativeAuxBinding>>,

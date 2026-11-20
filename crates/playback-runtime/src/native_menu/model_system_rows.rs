@@ -39,7 +39,12 @@ impl NativeMenuModel {
             } else {
                 usb_device_group(usb_midi_out_enabled)
             };
-            midi.children.insert(2.min(midi.children.len()), rows);
+            let after_notes_in = midi
+                .children
+                .iter()
+                .position(|item| has_key(item, "midi.notesIn"))
+                .map_or(midi.children.len(), |index| index + 1);
+            midi.children.insert(after_notes_in, rows);
         }
         if let Some(sd) = self.system_group_containing("usb.sdTransferStop") {
             sd.children

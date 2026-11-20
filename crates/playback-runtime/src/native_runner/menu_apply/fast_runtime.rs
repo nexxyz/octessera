@@ -28,6 +28,13 @@ impl NativeRunner {
             "midi.respondToStartStop" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.midi.respond_to_start_stop, value)
             })),
+            "midi.notesIn" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                let changed = bool_changed(&mut runner.midi.notes_in, value);
+                if changed && !value {
+                    runner.release_all_keyboard_notes();
+                }
+                changed
+            })),
             "midi.sendInstruments" => Some(self.fast_string_menu_key(key, |runner, value| {
                 MidiSendInstruments::from_wire_name(&value).is_some_and(|instruments| {
                     value_changed(&mut runner.midi.send_instruments, instruments)

@@ -130,10 +130,14 @@ pub fn run() {
             let midi_worker_tx = worker_tx.clone();
             std::thread::spawn(move || {
                 while let Ok((bytes, received_at)) = native_midi_rx.recv() {
-                    let command = match playback_runtime::MidiControlChange::parse(&bytes) {
-                        Some(change) => WorkerCommand::NativeMidiControlChange(change),
-                        None => WorkerCommand::NativeMidiRealtime(bytes, received_at),
-                    };
+                    let command =
+                        if let Some(change) = playback_runtime::MidiControlChange::parse(&bytes) {
+                            WorkerCommand::NativeMidiControlChange(change)
+                        } else if let Some(note) = playback_runtime::MidiNote::parse(&bytes) {
+                            WorkerCommand::NativeMidiNote(note)
+                        } else {
+                            WorkerCommand::NativeMidiRealtime(bytes, received_at)
+                        };
                     if midi_worker_tx.send(command).is_err() {
                         break;
                     }

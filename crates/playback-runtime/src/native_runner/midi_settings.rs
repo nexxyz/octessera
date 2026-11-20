@@ -2,7 +2,7 @@ use super::MidiDto;
 use serde::{Serialize, Serializer};
 
 /// The saved MIDI settings: MIDI on or off, the chosen ports, clock and start/stop sync, and
-/// which instruments send MIDI. The sync source is the transport's.
+/// which instruments send MIDI, and whether keyboard notes play the instruments. The sync source is the transport's.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct NativeMidiSettings {
     pub(super) enabled: bool,
@@ -12,6 +12,7 @@ pub(super) struct NativeMidiSettings {
     pub(super) clock_in_enabled: bool,
     pub(super) respond_to_start_stop: bool,
     pub(super) send_instruments: MidiSendInstruments,
+    pub(super) notes_in: bool,
 }
 
 /// Send MIDI: only the MIDI instruments, or every instrument's notes on its own channel too.
@@ -54,6 +55,7 @@ impl Default for NativeMidiSettings {
             clock_in_enabled: false,
             respond_to_start_stop: true,
             send_instruments: MidiSendInstruments::Midi,
+            notes_in: true,
         }
     }
 }
@@ -85,6 +87,9 @@ impl NativeMidiSettings {
             .and_then(MidiSendInstruments::from_wire_name)
         {
             self.send_instruments = instruments;
+        }
+        if let Some(notes_in) = midi.notes_in {
+            self.notes_in = notes_in;
         }
     }
 }

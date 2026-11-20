@@ -20,9 +20,9 @@ pub(crate) trait RuntimeOutputSink: HostAdapter {
     ) -> Result<(), String>;
 }
 
-/// Realtime bytes are handled as they arrive; Control Changes wait for the end of the drain
-/// and keep only the latest value per channel and controller, so a knob sweep cannot crowd
-/// clock pulses out of the tick.
+/// Realtime bytes and keyboard notes are handled as they arrive; Control Changes wait for the
+/// end of the drain and keep only the latest value per channel and controller, so a knob sweep
+/// cannot crowd clock pulses out of the tick.
 pub(crate) fn drain_midi_messages<A: HostAdapter + RuntimeOutputSink>(
     midi_rx: &Receiver<MidiMessage>,
     playback: &mut PlaybackRuntime,
@@ -50,6 +50,12 @@ pub(crate) fn drain_midi_messages<A: HostAdapter + RuntimeOutputSink>(
                 dispatch_midi_output(output, playback, runner, adapter, "realtime MIDI");
             }
             MidiMessage::ControlChange(change) => control_changes.push(change),
+            MidiMessage::Note(note) => {
+                realtime += 1;
+                let output =
+                    playback.dispatch_host_message_music_first(note.into(), runner, adapter);
+                dispatch_midi_output(output, playback, runner, adapter, "MIDI note");
+            }
         }
     }
     for change in control_changes {

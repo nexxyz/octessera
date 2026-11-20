@@ -164,6 +164,7 @@ pub(crate) fn audio_rows_follow_explicit_jack_policy_without_shifting_keys() {
         vec![
             "MIDI Active",
             "Send MIDI",
+            "Notes In",
             "MIDI Host",
             "USB Device",
             "Sync / Clock"

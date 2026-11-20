@@ -233,6 +233,7 @@ impl SystemPersistenceState {
                 "clockInEnabled": runner.midi.clock_in_enabled,
                 "respondToStartStop": runner.midi.respond_to_start_stop,
                 "sendInstruments": runner.midi.send_instruments,
+                "notesIn": runner.midi.notes_in,
             },
             "usb": {
                 "dataRole": runner.audio_io.usb_data_role,

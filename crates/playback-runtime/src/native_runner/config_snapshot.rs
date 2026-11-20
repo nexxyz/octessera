@@ -210,7 +210,8 @@ impl NativeConfigSnapshot {
                     "clockOutEnabled": self.midi.clock_out_enabled,
                     "clockInEnabled": self.midi.clock_in_enabled,
                     "respondToStartStop": self.midi.respond_to_start_stop,
-                    "sendInstruments": self.midi.send_instruments
+                    "sendInstruments": self.midi.send_instruments,
+                    "notesIn": self.midi.notes_in
                 },
                 "usb": {
                     "dataRole": self.audio_io.usb_data_role.as_str(),

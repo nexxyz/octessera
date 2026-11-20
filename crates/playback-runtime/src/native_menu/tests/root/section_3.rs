@@ -26,6 +26,7 @@ pub(crate) fn orange_shows_both_midi_host_and_usb_device_groups() {
         vec![
             "MIDI Active",
             "Send MIDI",
+            "Notes In",
             "MIDI Host",
             "USB Device",
             "Sync / Clock"

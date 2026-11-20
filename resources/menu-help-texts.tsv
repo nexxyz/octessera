@@ -687,6 +687,7 @@ native_binding_group_sound	*	key:binding.group.sound	group	Sound	Note length, ve
 native_param_clear	*	action:param_clear	action	(none)	Clears this control, so it moves nothing.	
 native_midi_enabled	Menu > System > MIDI > MIDI Active	key:midiEnabled	bool	MIDI Active	Switches all MIDI in and out on or off.	Pick the ports under MIDI Host.
 native_midi_send_instruments	Menu > System > MIDI > Send MIDI	key:midi.sendInstruments	enum	Send MIDI	MIDI inst.: only MIDI Inst. and MIDI Drum slots send MIDI. all inst.: the internal sounds send their notes too.	Internal slots send on channels 1 to 8; drums use GM notes.
+native_midi_notes_in	Menu > System > MIDI > Notes In	key:midi.notesIn	bool	Notes In	A keyboard on MIDI In plays the slots: channel 1 plays I1, up to channel 8 for I8.	Overdubbing Loopers on that slot record the notes as tiles.
 native_midi_sync	*	key:midiSyncMode	enum	Sync Mode	internal runs on Octessera's own clock; external follows incoming MIDI clock when Clock In is on.	Clock Out works either way.
 native_state_notes	*	key:layers.*.link.stateNotesEnabled	bool	State Notes	Plays lit tiles on every step, not only when they change.	Turn it off to hear only changes.
 native_lane_curve_x	*	key:layers.*.link.x.*.curve	enum	Curve	linear spreads values evenly; curve starts slow and rises late.	From and To stay the ends either way.

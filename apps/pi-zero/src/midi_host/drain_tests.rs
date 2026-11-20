@@ -83,3 +83,19 @@ fn control_changes_do_not_spend_the_realtime_budget_and_coalesce_per_drain() {
     assert!(matches!(rx.try_recv(), Ok(MidiMessage::Realtime { .. })));
     assert!(rx.try_recv().is_err());
 }
+
+#[test]
+fn keyboard_notes_dispatch_one_by_one_as_they_arrive() {
+    let (tx, rx) = mpsc::channel::<MidiMessage>();
+    for bytes in [[0x90, 60, 100], [0x90, 64, 90], [0x80, 60, 0]] {
+        tx.send(midi_input_message(&bytes).unwrap()).unwrap();
+    }
+    let mut playback = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut host = TestHost::default();
+
+    drain_midi_messages(&rx, &mut playback, &mut runner, &mut host);
+
+    assert_eq!(host.outputs, 3);
+    assert!(rx.try_recv().is_err());
+}

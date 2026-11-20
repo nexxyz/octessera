@@ -309,7 +309,12 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         "internal",
         "external",
     );
-    for field in ["clockOutEnabled", "clockInEnabled", "respondToStartStop"] {
+    for field in [
+        "clockOutEnabled",
+        "clockInEnabled",
+        "respondToStartStop",
+        "notesIn",
+    ] {
         source_runtime["midi"][field] = alternate_bool(&canonical_runtime["midi"][field]);
     }
     source_runtime["midi"]["sendInstruments"] =
@@ -401,6 +406,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
             "clockInEnabled",
             "respondToStartStop",
             "sendInstruments",
+            "notesIn",
         ])
     );
     assert_eq!(
@@ -412,6 +418,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
             "clockInEnabled",
             "respondToStartStop",
             "sendInstruments",
+            "notesIn",
         ])
     );
 
@@ -448,6 +455,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
         "clockInEnabled",
         "respondToStartStop",
         "sendInstruments",
+        "notesIn",
     ] {
         assert_eq!(
             applied["runtimeConfig"]["midi"][field],

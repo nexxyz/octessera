@@ -373,3 +373,57 @@ fn life_sized_degree_sweep_stays_inside_mapping_range_and_scale() {
         assert!(note_matches_scale(note, &validate_config(&config)));
     }
 }
+
+#[test]
+fn activate_tile_for_note_finds_the_lowest_tile_that_plays_the_note() {
+    use crate::interpretation::{
+        AxisStrategy, InterpretationEventProfile, InterpretationProfile,
+        InterpretationStateProfile, TickStrategy,
+    };
+    let profile = InterpretationProfile {
+        id: "inverse".into(),
+        event: InterpretationEventProfile { enabled: true },
+        state: InterpretationStateProfile {
+            enabled: false,
+            tick: TickStrategy::WholeGridTransitions,
+        },
+        x: AxisStrategy::ScaleStep { step: 1 },
+        y: AxisStrategy::ScaleStep { step: 3 },
+    };
+    let config = MappingConfig {
+        base_midi_note: 60,
+        starting_midi_note: 60,
+        max_midi_note: 72,
+        range_mode: RangeMode::Clamp,
+        scale: vec![0, 2, 4, 5, 7, 9, 11],
+        ..default_mapping_config()
+    };
+    let note_at = |x: usize, y: usize| {
+        let intent = TileTriggerIntent {
+            x,
+            y,
+            kind: TileTriggerKind::Activate,
+            degree: (x + 3 * y) as i32,
+        };
+        match map_intents_to_musical_events(&[intent], &config).events[0] {
+            MusicalEvent::NoteOn { note, .. } => note,
+            _ => unreachable!(),
+        }
+    };
+
+    assert_eq!(
+        activate_tile_for_note(&profile, &config, note_at(0, 0)),
+        Some(0)
+    );
+    assert_eq!(note_at(3, 0), note_at(0, 1));
+    assert_eq!(
+        activate_tile_for_note(&profile, &config, note_at(0, 1)),
+        Some(3),
+        "the lower of two tiles playing the same note"
+    );
+    assert_eq!(
+        activate_tile_for_note(&profile, &config, 61),
+        None,
+        "off the scale"
+    );
+}

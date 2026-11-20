@@ -51,6 +51,7 @@ System
 ├── MIDI (group)
 │   ├── MIDI Active: [on | off]
 │   ├── Send MIDI: [midi | all]          ← shown as MIDI inst. | all inst.; default midi
+│   ├── Notes In: [on | off]             default on
 │   ├── MIDI Host (group)                ← desktop, Orange, and Raspberry Host
 │   │   ├── MIDI Out (group)             ← Disconnect, then one action per detected output port
 │   │   └── MIDI In (group)              ← Disconnect, then one action per detected input port
@@ -140,24 +141,24 @@ Conditional branches:
 ```
 Desktop
   Audio: Master Vol; Polyphony; Engine (CPU Warn, Bus Idle)
-  MIDI: MIDI Active; Send MIDI; MIDI Host (MIDI Out, MIDI In); Sync / Clock
+  MIDI: MIDI Active; Send MIDI; Notes In; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Display: Ghost Tiles … Button Bright; no HDMI Video
 
 Orange
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn, Bus Idle)
-  MIDI: MIDI Active; Send MIDI; MIDI Host (MIDI Out, MIDI In); USB Device (USB MIDI); Sync / Clock
+  MIDI: MIDI Active; Send MIDI; Notes In; MIDI Host (MIDI Out, MIDI In); USB Device (USB MIDI); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer)
   Display: Ghost Tiles … Button Bright; HDMI Video (Mode; Bars per cycle when cycle-behaviors; Grid Lines)
 
 Raspberry Gadget
   Audio: USB Audio; HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn, Bus Idle)
-  MIDI: MIDI Active; Send MIDI; USB Device (USB MIDI); Sync / Clock
+  MIDI: MIDI Active; Send MIDI; Notes In; USB Device (USB MIDI); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Start Transfer, Stop Transfer); USB Role
   Display: Ghost Tiles … Button Bright; HDMI Video
 
 Raspberry Host
   Audio: HDMI Audio; Master Vol; Perf. Mode; Polyphony; Engine (CPU Warn, Bus Idle)
-  MIDI: MIDI Active; Send MIDI; MIDI Host (MIDI Out, MIDI In); Sync / Clock
+  MIDI: MIDI Active; Send MIDI; Notes In; MIDI Host (MIDI Out, MIDI In); Sync / Clock
   Connections: Wi-Fi (Wi-Fi, Setup Portal); Bluetooth; SD Card 2 (Stop Transfer); USB Role
   Display: Ghost Tiles … Button Bright; HDMI Video
 
@@ -279,6 +280,20 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   note-off for each internal note still held on MIDI out; MIDI Inst. and MIDI Drum notes are untouched. An
   instrument muted in Play Mix sends no copies, and muting it ends its held copies the same way. It
   is a System setting, not saved with patches.
+- `Notes In` (saved as `runtimeConfig.midi.notesIn`, default on) lets a keyboard on the MIDI input
+  play the instrument slots live: channel 1..8 plays slot I1..I8, channels 9..16 are ignored. A
+  note sounds at once with its own velocity, like a Keys press, not quantized to a step. Synth, FM,
+  Plucked and Sampler slots get the note itself (a Sampler plays slot 1..8 for notes 36..43); a
+  `hold` slot holds it until the key's note-off, a `oneshot` slot plays the Sound > Note Length and
+  the key's note-off ends it early. A Drum slot plays the voice whose Sound has that GM note. A MIDI
+  Inst. or MIDI Drum slot forwards the note to its own MIDI channel while it is enabled. Stop, Pause,
+  Panic, a patch load, MIDI Active off and Notes In off release every held keyboard note, forwarded
+  ones too. Every Looper layer that is overdubbing and whose Link plays that slot records the note
+  as a press and release of the lowest-index tile its current Link mapping plays as that note (after
+  Play Transpose); a Drum or Sampler slot uses its lowest-index tile stamped with the voice or sample
+  slot the key played, and records a drum hit's release at once. The press lands on the step now
+  sounding and plays from the next pass on, and a release in that same step moves to the next one.
+  A note no tile plays still sounds but is not recorded. Off ignores incoming notes. It is a System setting, not saved with patches.
 - `MIDI Host` lists `MIDI Out` then `MIDI In`. Each starts with `Disconnect`, followed by one action
   per detected port. A pick or Disconnect saves System as soon as the host reports the new port,
   like any other System preference and whether or not `Auto Save` is on; port IDs stay local.
@@ -287,7 +302,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   selections for use after USB MIDI is turned off. USB MIDI applies live: turning it on or off
   rebuilds the USB gadget, and the gadget MIDI port connects as soon as it appears.
 - General MIDI enable, ports, clock, and sync stay under `System > MIDI`. Incoming Control Changes
-  drive `Link > MIDI CC In` ([link.md](link.md#midi-cc-in)) under the same gate and port.
+  drive `Link > MIDI CC In` ([link.md](link.md#midi-cc-in)) and incoming notes drive `Notes In`,
+  both under the same gate and port.
 
 ## Restart-sensitive settings
 

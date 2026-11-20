@@ -317,6 +317,8 @@ pub struct MidiDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) send_instruments: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(in crate::native_runner) notes_in: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) channel: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) velocity: Option<u8>,

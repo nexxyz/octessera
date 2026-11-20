@@ -7,8 +7,8 @@ use std::sync::mpsc::Receiver;
 pub(super) const MAX_COMMANDS_PER_WAKE: usize = 16;
 pub(super) const RETAINED_RUNTIME_OUTBOX_BATCHES: usize = 64;
 
-/// MIDI realtime runs first, then the Control Changes of the batch (latest value per channel
-/// and controller), then everything else.
+/// MIDI realtime and keyboard notes run first in arrival order, then the Control Changes of
+/// the batch (latest value per channel and controller), then everything else.
 pub(super) fn queue_by_priority(
     command: WorkerCommand,
     realtime: &mut Vec<WorkerCommand>,
@@ -16,7 +16,9 @@ pub(super) fn queue_by_priority(
     normal: &mut VecDeque<WorkerCommand>,
 ) {
     match command {
-        WorkerCommand::NativeMidiRealtime(..) => realtime.push(command),
+        WorkerCommand::NativeMidiRealtime(..) | WorkerCommand::NativeMidiNote(..) => {
+            realtime.push(command);
+        }
         WorkerCommand::NativeMidiControlChange(change) => control_changes.push(change),
         _ => normal.push_back(command),
     }

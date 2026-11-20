@@ -109,6 +109,7 @@ pub struct NativeMenuConfig {
     pub midi_clock_in_enabled: bool,
     pub midi_respond_to_start_stop: bool,
     pub midi_send_instruments: MidiSendInstruments,
+    pub midi_notes_in: bool,
     pub audio_outputs: AudioOutputSet,
     pub board: bool,
     pub audio_optimization: AudioOptimization,

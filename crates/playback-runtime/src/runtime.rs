@@ -16,6 +16,7 @@ mod dispatch_profile;
 mod internal_note_mirror;
 mod midi;
 mod midi_cc_input;
+mod midi_note_input;
 mod midi_realtime_input;
 mod music_first;
 mod oled;
@@ -35,6 +36,7 @@ mod system_store_aux_tests;
 mod system_store_tests;
 
 pub use midi_cc_input::{MidiControlChange, MidiControlChangeBatch};
+pub use midi_note_input::MidiNote;
 pub use music_first::NativeStoreRequest;
 
 pub(super) const PPQN: f64 = 24.0;

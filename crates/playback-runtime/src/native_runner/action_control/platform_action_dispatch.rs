@@ -40,6 +40,7 @@ impl NativeRunner {
                 result => result,
             },
             PlatformAction::MidiPanic => {
+                self.release_all_keyboard_notes();
                 self.show_toast("MIDI panic sent");
                 self.platform_effect_for_action(&action)
             }

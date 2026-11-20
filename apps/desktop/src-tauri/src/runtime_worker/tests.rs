@@ -100,7 +100,7 @@ fn a_failing_command_does_not_drop_the_rest_of_its_batch_or_the_exit_flush() {
 }
 
 #[test]
-fn worker_command_priority_separates_midi_realtime_and_control_changes_from_normal_work() {
+fn worker_command_priority_separates_midi_realtime_notes_and_control_changes_from_normal_work() {
     let (dispatch_tx, _) = mpsc::channel();
     let mut realtime = Vec::new();
     let mut control_changes = playback_runtime::MidiControlChangeBatch::default();
@@ -128,10 +128,17 @@ fn worker_command_priority_separates_midi_realtime_and_control_changes_from_norm
         &mut control_changes,
         &mut normal,
     );
+    queue_by_priority(
+        WorkerCommand::NativeMidiNote(playback_runtime::MidiNote::parse(&[0x90, 60, 100]).unwrap()),
+        &mut realtime,
+        &mut control_changes,
+        &mut normal,
+    );
 
-    assert_eq!(realtime.len(), 1);
+    assert_eq!(realtime.len(), 2);
     assert_eq!(normal.len(), 1);
     assert!(matches!(realtime[0], WorkerCommand::NativeMidiRealtime(..)));
+    assert!(matches!(realtime[1], WorkerCommand::NativeMidiNote(..)));
     assert!(matches!(normal[0], WorkerCommand::Dispatch(_, _)));
     let control_changes = control_changes.into_iter().collect::<Vec<_>>();
     assert_eq!(control_changes.len(), 1);

@@ -266,6 +266,7 @@ fn message_label(message: &HostMessage) -> String {
             controller,
             ..
         } => format!("midi_cc:{channel}:{controller}"),
+        HostMessage::MidiNote { channel, note, .. } => format!("midi_note:{channel}:{note}"),
         HostMessage::RuntimeResult { .. } => "runtime_result".into(),
     }
 }

@@ -2,7 +2,7 @@
 //! the desktop worker dispatches a MIDI port's messages.
 use super::HeadlessSession;
 use playback_runtime::{
-    HostMessage, MidiControlChange, MidiPort, RuntimeDispatchInput, RuntimeStoreResult,
+    HostMessage, MidiControlChange, MidiNote, MidiPort, RuntimeDispatchInput, RuntimeStoreResult,
 };
 
 /// A MIDI out message with the transport pulse and audio frame it was sent at.
@@ -46,12 +46,15 @@ impl HeadlessSession {
         &self.midi_out
     }
 
-    /// One message from a MIDI input port: Control Changes as host messages, everything else
-    /// through the realtime path.
+    /// One message from a MIDI input port: Control Changes and notes as host messages,
+    /// everything else through the realtime path.
     pub fn midi_in(&mut self, bytes: &[u8]) -> Result<(), String> {
-        let output = match MidiControlChange::parse(bytes) {
-            Some(change) => self.playback.dispatch(
-                RuntimeDispatchInput::HostMessage(HostMessage::from(change)),
+        let message = MidiControlChange::parse(bytes)
+            .map(HostMessage::from)
+            .or_else(|| MidiNote::parse(bytes).map(HostMessage::from));
+        let output = match message {
+            Some(message) => self.playback.dispatch(
+                RuntimeDispatchInput::HostMessage(message),
                 &mut self.runner,
                 &mut self.adapter,
             )?,

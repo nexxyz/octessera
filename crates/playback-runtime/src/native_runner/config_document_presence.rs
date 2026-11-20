@@ -43,6 +43,7 @@ const MIDI_KEYS: &[&str] = &[
     "clockInEnabled",
     "respondToStartStop",
     "sendInstruments",
+    "notesIn",
 ];
 const USB_KEYS: &[&str] = &["dataRole", "midiOutEnabled"];
 const AUDIO_OUTPUT_KEYS: &[&str] = &["dac", "usb", "hdmi"];

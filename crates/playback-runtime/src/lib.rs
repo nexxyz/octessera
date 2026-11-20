@@ -46,8 +46,8 @@ pub use protocol::{
 };
 pub use realtime_engine::synth::{BusIdleThreshold, DspRuntimeConfig, WorkerWarningThreshold};
 pub use runtime::{
-    CoreRunner, HostAdapter, MidiControlChange, MidiControlChangeBatch, NativeStoreRequest,
-    PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,
+    CoreRunner, HostAdapter, MidiControlChange, MidiControlChangeBatch, MidiNote,
+    NativeStoreRequest, PlaybackRuntime, RuntimeConfig, RuntimeDispatchInput, RuntimeIngest,
     RuntimePresentationMetrics,
 };
 pub use runtime_audio_command::{

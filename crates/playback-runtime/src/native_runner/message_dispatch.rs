@@ -243,6 +243,15 @@ impl super::CoreRunner for NativeRunner {
                 controller,
                 value,
             }),
+            HostMessage::MidiNote {
+                channel,
+                note,
+                velocity,
+            } => self.send_midi_note(crate::runtime::MidiNote {
+                channel,
+                note,
+                velocity,
+            }),
             HostMessage::RuntimeResult { result } => {
                 let is_default_load =
                     result.operation() == crate::RuntimeOperation::StoreLoadDefault;

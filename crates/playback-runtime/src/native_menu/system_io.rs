@@ -107,6 +107,7 @@ pub(super) fn midi_group(
                 config.midi_send_instruments.wire_name(),
             ),
         ),
+        bool_item("Notes In", "midi.notesIn", config.midi_notes_in),
     ];
     if !config.usb_data_role_available || host_role {
         children.push(midi_host_group(&config.midi_outputs, &config.midi_inputs));

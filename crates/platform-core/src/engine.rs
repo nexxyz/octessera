@@ -6,7 +6,10 @@ use crate::interpretation::{
     interpret_grid_with_marker_authority, GridSnapshot, InterpretationProfile, TileTriggerIntent,
     TriggerMarkerAuthority,
 };
-use crate::mapping::{map_intents_to_musical_events, MappingConfig, MappingResult};
+use crate::mapping::{
+    activate_tile_for_note, map_intents_to_musical_events, MappingConfig, MappingResult,
+    TriggerAction,
+};
 use crate::transforms::{apply_global_sound, GlobalSoundConfig, NoteBehavior};
 use crate::MusicalEvent;
 use serde_json::Value;
@@ -303,6 +306,24 @@ impl NativeLayerEngine {
 
     pub fn mapping_config(&self) -> &MappingConfig {
         &self.mapping_config
+    }
+
+    /// True for an overdubbing Looper whose tile presses play instrument `channel`.
+    pub fn records_outside_notes_for(&self, channel: u8) -> bool {
+        let activate = &self.mapping_config.activate;
+        self.state.records_outside_tiles()
+            && activate.action == TriggerAction::NoteOn
+            && activate.channel.min(15) == channel
+    }
+
+    /// The lowest-index tile whose press this layer's mapping plays as `note`.
+    pub fn tile_for_note(&self, note: u8) -> Option<usize> {
+        activate_tile_for_note(&self.interpretation_profile, &self.mapping_config, note)
+    }
+
+    /// Records a press or release of `tile` played elsewhere; false unless overdubbing.
+    pub fn record_outside_tile(&mut self, tile: usize, pressed: bool) -> bool {
+        self.state.record_outside_tile(tile, pressed)
     }
 
     fn finalize_events(

@@ -1,5 +1,7 @@
 use crate::events::MusicalEvent;
-use crate::interpretation::{TileTriggerIntent, TileTriggerKind};
+use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
+use crate::interpretation::{InterpretationProfile, TileTriggerIntent, TileTriggerKind};
+use crate::interpretation_scan::compute_degree;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -175,6 +177,21 @@ pub fn map_intents_to_musical_events(
         intents: matched,
         event_intents,
     }
+}
+
+/// The lowest-index tile whose press `config` plays as `note`.
+pub(crate) fn activate_tile_for_note(
+    profile: &InterpretationProfile,
+    config: &MappingConfig,
+    note: u8,
+) -> Option<usize> {
+    let safe = validate_config(config);
+    let scale_notes = scale_notes_in_range(&safe);
+    (0..GRID_WIDTH * GRID_HEIGHT).find(|&index| {
+        let (x, y) = (index % GRID_WIDTH, index / GRID_WIDTH);
+        let degree = compute_degree(GRID_WIDTH, GRID_HEIGHT, x, y, profile);
+        note_from_degree(degree, &scale_notes, &safe) == i32::from(note)
+    })
 }
 
 fn target_for_kind(kind: TileTriggerKind, config: &MappingConfig) -> &TriggerTarget {

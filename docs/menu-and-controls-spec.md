@@ -376,6 +376,17 @@ change; only the distance per detent does.
   unaffected. Switching to `MIDI inst.` sends exact note-offs for the copied notes still held, and
   leaves MIDI Inst. and MIDI Drum notes alone. An instrument muted in Play Mix sends no copies;
   muting it sends the same exact note-offs for its held copies.
+- `System > MIDI > Notes In` (default on) lets incoming notes play the instrument slots on every
+  platform: channel 1..8 plays I1..I8 at once, at the note's velocity, through the same live event
+  path as a Keys press (never step-quantized); channels 9..16 are ignored. Internal slots sound
+  through the audio engine (a Drum slot plays the voice whose Sound has that GM note, a Sampler
+  slot 1..8 for notes 36..43); an enabled MIDI Inst. or MIDI Drum slot forwards the note to its
+  own MIDI channel. Stop, Pause, Panic, a patch load, MIDI Active off and Notes In off send a
+  note-off for every held keyboard note, forwarded ones included. Each overdubbing Looper whose
+  Link Activate plays that slot records the note as a press and release of the lowest-index tile
+  its current mapping plays as that note (for Drum and Sampler slots: stamped with that voice or
+  sample slot), without holding the tile; notes no tile plays are not recorded. Off ignores incoming notes; CC In and Learn are unaffected either way. Full rules:
+  [menu-tree/system.md](menu-tree/system.md#midi).
 - A timed MIDI note that starts again on the same channel before its note-off is due sends that
   note-off first, at the new note's time, and drops it from the schedule, so only the new note's own
   note-off ends it.
@@ -1305,7 +1316,7 @@ Some ownership decisions do not follow the menu headings:
 | Control or data | Owner | Note |
 | --- | --- | --- |
 | Build worlds, saved grids and Looper events; Link mappings, scale, probability, tempo and swing; Shape instruments, mixer and FX; persistent Play FX and XY | Musical patch | Held notes, transport phase and live gestures are never saved. |
-| System output route, global MIDI ports, sync and Send MIDI, USB roles, audio buffer/optimization, master volume, display/HDMI, Auto Save/Backups policy, recording limits | System settings | Device paths and ports stay local. A MIDI instrument's channel and note settings still travel with the patch. |
+| System output route, global MIDI ports, sync, Send MIDI and Notes In, USB roles, audio buffer/optimization, master volume, display/HDMI, Auto Save/Backups policy, recording limits | System settings | Device paths and ports stay local. A MIDI instrument's channel and note settings still travel with the patch. |
 | System → Notes (note length, velocity scale/curve) | Musical patch | Menu-location exception. |
 | System → Audio → Polyphony (`voiceStealingMode`) | Musical patch | Menu-location exception; moving it would change musical behavior. |
 | Link → Paused Events | System settings | Menu-location exception. |

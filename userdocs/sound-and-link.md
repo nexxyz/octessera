@@ -148,12 +148,8 @@ Tempo, swing and the LFOs live at the top of **Link**, not under a layer.
 **Link > MIDI CC In** has eight slots, **CC1** to **CC8**, that let the knobs
 and faders on a MIDI controller move parameters, much like the XY pad does.
 
-**Can a MIDI keyboard play the instruments?** No. Octessera listens to
-incoming MIDI for clock, start/stop and these CC knobs only, and ignores
-notes on every channel. The keyboard's knobs and faders work here, its keys
-don't. To play tiles from a keyboard, plug in a computer keyboard instead (see
-the [keyboard map](controls-reference.md#usb-host-keyboard)), or play live
-with a `keys` layer on the grid.
+A MIDI keyboard's knobs and faders work here, and its keys play the
+instruments; see [MIDI keyboards](#midi-keyboards-play-the-slots) below.
 
 - Switch on `System > MIDI > MIDI Active` and connect the controller under
   **MIDI In** (or plug a computer into USB MIDI). Clock and sync settings
@@ -172,6 +168,39 @@ with a `keys` layer on the grid.
   channel and the parameters slide back to the patch values.
 - Switch-like parameters (on/off, a choice from a list) take one driver at a
   time. If an XY slot or another CC already has one, you get `Already on another control. Clear that first.`
+
+### MIDI keyboards: play the slots
+
+Plug in a MIDI keyboard the same way (`System > MIDI > MIDI Active` on, the
+keyboard picked under **MIDI In**, or a computer on USB MIDI) and its keys play
+the instrument slots directly. The keyboard's MIDI channel picks the slot:
+channel 1 plays I1, channel 2 plays I2, up to channel 8 for I8. Channels 9 to
+16 are left alone, so a keyboard set to channel 10 for drums elsewhere won't
+wander in by accident.
+
+- Notes sound the moment you hit the key, as quick as a Keys tile, and they're
+  never nudged onto a step. How hard you play comes through, and the slot's
+  velocity sensitivity does the rest.
+- A `hold` slot keeps the note until you let go of the key. A `oneshot` slot
+  plays its usual note length, and letting go early ends it early.
+- A Drum slot plays the voice whose Sound has that General MIDI note (kick 36,
+  snare 38, closed hat 42 and so on), and a Sampler plays its slots 1 to 8 on
+  notes 36 to 43. Same numbers as Send MIDI, so a part recorded in a DAW comes
+  back the way it went out.
+- A `MIDI Inst.` or `MIDI Drum` slot passes the note on to its own channel on
+  MIDI out, as long as it's enabled. Handy for playing outboard gear through
+  Octessera without re-patching cables.
+- Stop, Pause, Panic and loading a patch let go of every key you're still
+  holding, notes passed on to MIDI out included, so nothing gets stuck.
+- **Recording into a Looper.** Every `looper` layer that is overdubbing and
+  whose Link plays that slot records what you play as tile presses, on the tile
+  its Link would play that note from (after Play Transpose). Drum and Sampler
+  slots use a tile stamped with the voice or sample you hit instead. If two
+  tiles fit, the one lowest on the grid wins (leftmost if they share a row).
+  A note no tile can play still sounds, it just isn't recorded. The loop picks
+  it up on the next pass; you already heard it this time round.
+- Not in the mood? `System > MIDI > Notes In` off ignores the keys and keeps
+  the knobs. It's a device setting, so it stays put when you load a patch.
 
 ## Shape: what it sounds like
 

@@ -75,6 +75,14 @@ impl RuntimeWorker {
                 )?;
                 self.emit_runtime_output(output)?;
             }
+            WorkerCommand::NativeMidiNote(note) => {
+                let output = self.playback.dispatch(
+                    playback_runtime::RuntimeDispatchInput::HostMessage(note.into()),
+                    &mut self.runner,
+                    &mut self.adapter,
+                )?;
+                self.emit_runtime_output(output)?;
+            }
             WorkerCommand::PresentationMetrics(metrics) => {
                 let output = self
                     .playback

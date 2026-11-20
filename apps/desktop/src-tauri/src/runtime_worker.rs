@@ -52,6 +52,7 @@ pub(crate) enum WorkerCommand {
     Dispatch(HostMessage, Sender<Result<DispatchReply, String>>),
     NativeMidiRealtime(Vec<u8>, Instant),
     NativeMidiControlChange(playback_runtime::MidiControlChange),
+    NativeMidiNote(playback_runtime::MidiNote),
     PresentationMetrics(RuntimePresentationMetrics),
     PrepareExit(Sender<()>),
 }

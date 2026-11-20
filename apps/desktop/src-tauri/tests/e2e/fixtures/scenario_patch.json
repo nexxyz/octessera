@@ -3657,6 +3657,7 @@
       "clockOutEnabled": false,
       "enabled": false,
       "inId": null,
+      "notesIn": true,
       "outId": null,
       "respondToStartStop": true,
       "sendInstruments": "midi",

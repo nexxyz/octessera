@@ -1,7 +1,8 @@
 //! MIDI through the headless stack: internal notes copied by Send MIDI `all inst.` (with I4
 //! made a Drum), their end on a Mix mute and on the switch back to `MIDI inst.`, a MIDI Drum's
 //! stamped notes, a MIDI CC In mapping swept from an input port, kept across Save Patch and a
-//! restart, and a CC Learn from the input port kept by Auto Save.
+//! restart, a CC Learn from the input port kept by Auto Save, and keyboard notes from the input
+//! port playing their slot.
 use crate::device_menu::{confirm, open, press_back, select, set_number, set_until, tap};
 use crate::support::{reload_differences, seed_scenario_store, session_root};
 use octessera_desktop_lib::headless::{HeadlessSession, PlayedMidi};
@@ -434,4 +435,33 @@ fn cc_learn_from_the_input_port_auto_saves() {
         session.render(256).unwrap();
         session.settle().unwrap();
     }
+}
+
+#[test]
+fn keyboard_notes_from_the_input_port_play_their_slot_live() {
+    let root = session_root("midi-keyboard");
+    let _ = std::fs::remove_dir_all(&root);
+    seed_scenario_store(&root);
+    let mut session = start(&root);
+    enable_midi(&mut session);
+    send_midi(&mut session, "all");
+    let before = session.midi_out().len();
+
+    session.midi_in(&[0x90, 60, 99]).unwrap();
+    session.midi_in(&[0x98, 62, 99]).unwrap();
+    session.midi_in(&[0x80, 60, 0]).unwrap();
+    for _ in 0..64 {
+        session.render(256).unwrap();
+    }
+    session.settle().unwrap();
+
+    let notes = session.midi_out()[before..]
+        .iter()
+        .filter_map(note_message)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        notes,
+        vec![(true, 1, 60, 99), (false, 1, 60, 0)],
+        "channel 1 plays the I1 synth (copied by Send MIDI), channel 9 is ignored"
+    );
 }
