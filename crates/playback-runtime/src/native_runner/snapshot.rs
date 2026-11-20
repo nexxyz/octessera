@@ -135,7 +135,7 @@ pub(super) fn display_active_tiles(tiles: &[bool]) -> Vec<bool> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{music_first_tests::playing_default, HostMessage, SyncSource};
+    use super::super::{music_first::tests::playing_default, HostMessage, SyncSource};
     use std::time::{Duration, Instant};
 
     #[test]

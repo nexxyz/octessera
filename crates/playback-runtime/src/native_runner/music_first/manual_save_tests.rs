@@ -1,4 +1,4 @@
-use super::*;
+use super::super::*;
 use crate::tests::support::FakeHost;
 
 fn dispatch(

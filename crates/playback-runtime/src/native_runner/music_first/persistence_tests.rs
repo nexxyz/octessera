@@ -1,5 +1,5 @@
-use super::music_first_tests::{assert_music_only, playing_default};
-use super::*;
+use super::super::*;
+use super::tests::{assert_music_only, playing_default};
 use crate::tests::support::FakeHost;
 use std::sync::Arc;
 
@@ -12,7 +12,7 @@ fn native_save_result_is_music_first_without_snapshot_or_payload_serialization()
     runner.mark_config_dirty();
     let revision = runner.config_revision;
     let worker_payload =
-        Arc::new(super::portable_patch_payload_for_save(&runner.config_payload()).unwrap());
+        Arc::new(super::super::portable_patch_payload_for_save(&runner.config_payload()).unwrap());
     assert!(runner.register_native_default_write("native-music-save", revision, true));
     assert!(runner.attach_native_default_write_payload(
         "native-music-save",
@@ -119,8 +119,9 @@ fn stale_unidentified_and_mismatched_native_default_successes_remain_synchronous
         runner.mark_config_dirty();
         let revision = runner.config_revision;
         let baseline = Arc::clone(&runner.restart_settings.persisted_default);
-        let worker_payload =
-            Arc::new(super::portable_patch_payload_for_save(&runner.config_payload()).unwrap());
+        let worker_payload = Arc::new(
+            super::super::portable_patch_payload_for_save(&runner.config_payload()).unwrap(),
+        );
         assert!(runner.register_native_default_write("native-current", revision, true));
         assert!(runner.attach_native_default_write_payload(
             "native-current",

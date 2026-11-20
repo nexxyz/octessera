@@ -1,8 +1,10 @@
-use super::*;
+use super::super::*;
 
-pub(super) fn playing_default() -> NativeRunner {
-    let payload: Value =
-        serde_json::from_str(include_str!("../../../../config/generated/pi/default.json")).unwrap();
+pub(in crate::native_runner) fn playing_default() -> NativeRunner {
+    let payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
     runner.skip_startup_splash();
@@ -18,7 +20,7 @@ pub(super) fn playing_default() -> NativeRunner {
     runner
 }
 
-pub(super) fn assert_music_only(messages: &[RunnerMessage]) {
+pub(in crate::native_runner) fn assert_music_only(messages: &[RunnerMessage]) {
     assert!(!messages.iter().any(|message| matches!(
         message,
         RunnerMessage::Snapshot { .. } | RunnerMessage::OledFrame { .. }

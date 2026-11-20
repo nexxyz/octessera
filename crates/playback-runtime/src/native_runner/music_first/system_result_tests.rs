@@ -1,5 +1,5 @@
-use super::music_first_tests::playing_default;
-use super::*;
+use super::super::*;
+use super::tests::playing_default;
 use crate::tests::support::FakeHost;
 use crate::{RuntimePlatformEffect, RuntimePlatformRequest};
 

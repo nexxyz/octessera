@@ -1,4 +1,4 @@
-use super::music_first_tests::playing_default;
+use super::music_first::tests::playing_default;
 use super::*;
 use crate::tests::support::FakeHost;
 use std::sync::Arc;

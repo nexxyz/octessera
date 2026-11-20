@@ -1,4 +1,4 @@
-use super::super::music_first_tests::playing_default;
+use super::super::music_first::tests::playing_default;
 use super::super::*;
 use crate::tests::support::FakeHost;
 use crate::{NativeStoreRequest, PlaybackRuntime, RuntimeIngest, RuntimeOperation};

@@ -1,5 +1,5 @@
-use super::music_first_tests::{assert_music_only, playing_default};
-use super::*;
+use super::super::*;
+use super::tests::{assert_music_only, playing_default};
 
 #[test]
 fn external_clock_resync_uses_music_first_only_while_already_playing() {

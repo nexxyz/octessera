@@ -1,4 +1,4 @@
-use super::music_first_tests::{assert_music_only, playing_default};
+use super::music_first::tests::{assert_music_only, playing_default};
 use super::*;
 use std::time::{Duration, Instant};
 

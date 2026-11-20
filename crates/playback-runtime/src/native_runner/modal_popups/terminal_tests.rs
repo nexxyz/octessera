@@ -1,4 +1,4 @@
-use super::super::music_first_tests::{assert_music_only, playing_default};
+use super::super::music_first::tests::{assert_music_only, playing_default};
 use crate::{HostMessage, RunnerMessage, RuntimePlatformEffect};
 use serde_json::json;
 
