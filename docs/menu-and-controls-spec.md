@@ -1399,7 +1399,9 @@ Input events:
 
 - `DeviceInput` carries `grid_press` and `grid_release`. Behaviors that ignore `grid_release` do
   nothing with it. `keys` uses press→activate and release→deactivate; `looper` uses the same live
-  semantics and can overdub step-quantized press/release events into its loop.
+  semantics and can overdub step-quantized press/release events into its loop. Its Length setting is
+  only the loop window (1-64 steps): lowering it keeps the recorded steps past the window, which
+  neither play nor record, and raising it brings them back. Clear Loop erases all of them.
 - With immediate input-transition interpretation, `platform-core` runs grid changes from input
   through the same Link/mapping pipeline as a tick and produces immediate musical events. `keys` and
   `looper` use this for finger-drumming response.

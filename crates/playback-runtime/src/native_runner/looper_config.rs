@@ -43,7 +43,7 @@ pub(super) fn looper_state_with_config(mut state: Value, config: &Value) -> Valu
     object.insert("lengthSteps".into(), json!(length_steps));
     let steps = object.entry("steps").or_insert_with(|| json!([]));
     if let Some(step_array) = steps.as_array_mut() {
-        step_array.truncate(length_steps);
+        step_array.truncate(64);
         while step_array.len() < length_steps {
             step_array.push(json!([]));
         }

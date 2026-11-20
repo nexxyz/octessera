@@ -58,7 +58,7 @@ in **Build**.
 | `none` | Human | Inactive layer, for when you want space or are setting up. |
 | `keys` | Human | Press a tile to play, release it to stop. Immediate and human. |
 | `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. It can hold up to 4x4 pages of 8x8: pick the page in view with Page X and Page Y, or let Advance turn the pages for you every few steps (stepping at 1/8, Advance 8 turns once a bar; a scanning layer steps at its Scan Unit). |
-| `looper` | Human | Records and replays grid presses and releases. Use Punch In/Out to overdub. |
+| `looper` | Human | Records and replays grid presses and releases. Use Punch In/Out to overdub. Length only sets the loop window, so shortening it hides steps instead of erasing them. |
 | `weave` | Human | Two interlaced melodic strands crossing the grid. Quick counterpoint-ish motion. |
 | `polyrhythm` | Rhythm | Lanes with different loop lengths shifting against each other. |
 | `breaks` | Rhythm | A rearranging breakbeat grid: kicks, cuts, gaps and glitchy fragments. |

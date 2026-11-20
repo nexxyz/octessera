@@ -276,7 +276,7 @@ fn normalize_length(length: usize) -> usize {
 }
 
 fn resize_steps(steps: &mut Vec<Vec<LooperEvent>>, length_steps: usize) {
-    steps.truncate(length_steps);
+    steps.truncate(MAX_LENGTH_STEPS);
     while steps.len() < length_steps {
         steps.push(Vec::new());
     }

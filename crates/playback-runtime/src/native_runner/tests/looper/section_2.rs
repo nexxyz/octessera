@@ -42,7 +42,7 @@ pub(crate) fn assert_deferred_save(messages: &[RunnerMessage]) {
 }
 
 #[test]
-pub(crate) fn looper_length_edit_after_punch_reinitializes_from_config() {
+pub(crate) fn looper_length_edit_after_punch_keeps_recording_and_phase() {
     let mut runner = looper_runner();
     pulse_step(&mut runner);
     runner
@@ -85,13 +85,13 @@ pub(crate) fn looper_length_edit_after_punch_reinitializes_from_config() {
 
     let state = runner.active_engine().serialized_state().unwrap();
     assert_eq!(runner.active_layer().behavior_config["mode"], "play");
-    assert_eq!(looper_mode_and_step(&runner), ("play".into(), 0));
+    assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
     assert_eq!(state["steps"].as_array().unwrap().len(), 3);
-    assert!(state["steps"][1].as_array().unwrap().is_empty());
+    assert_eq!(state["steps"][1].as_array().unwrap().len(), 1);
 }
 
 #[test]
-pub(crate) fn looper_length_edit_uses_config_defaults_when_mode_is_absent() {
+pub(crate) fn looper_length_edit_keeps_live_mode_when_config_has_none() {
     let mut runner = looper_runner();
     runner.layers[0]
         .behavior_config
@@ -132,5 +132,5 @@ pub(crate) fn looper_length_edit_uses_config_defaults_when_mode_is_absent() {
         })
         .unwrap();
 
-    assert_eq!(looper_mode_and_step(&runner), ("overdub".into(), 0));
+    assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
 }

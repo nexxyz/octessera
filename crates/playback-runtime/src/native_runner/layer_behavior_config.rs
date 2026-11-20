@@ -120,9 +120,9 @@ impl NativeRunner {
         } else {
             next_config.clone()
         };
-        // A sequencer's pattern is drawn by hand, so its settings (pages, view, advance) keep it;
-        // other behaviors re-initialise their world from the new settings.
-        let saved_state = (behavior_id == "sequencer")
+        // A sequencer's pattern and a looper's recording are made by hand, so their settings keep
+        // them; other behaviors re-initialise their world from the new settings.
+        let saved_state = matches!(behavior_id.as_str(), "sequencer" | "looper")
             .then(|| self.serialized_state_for_layer(layer_index).ok())
             .flatten()
             .filter(|state| !state.is_null());

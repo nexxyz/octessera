@@ -212,3 +212,62 @@ fn saved_looper_modes_load_and_save_back_unchanged() {
         assert_eq!(state.mode, LooperMode::Overdub);
     }
 }
+
+fn recorded_two_step_loop() -> LooperState {
+    let mut context = context();
+    let mut state =
+        looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
+    state = looper_on_input(state, DeviceInput::GridPress { x: 0, y: 0 }, &mut context);
+    for _ in 0..3 {
+        state = looper_on_tick(state, &mut context);
+    }
+    looper_on_input(state, DeviceInput::GridPress { x: 1, y: 1 }, &mut context)
+}
+
+fn with_length(state: &LooperState, length: usize) -> LooperState {
+    let mut saved = looper_serialize(state).unwrap();
+    saved["lengthSteps"] = serde_json::json!(length);
+    looper_deserialize(saved).unwrap()
+}
+
+#[test]
+fn lowering_length_keeps_steps_and_raising_restores_them() {
+    let state = recorded_two_step_loop();
+    assert_eq!(state.steps[3].len(), 1);
+    let shorter = with_length(&state, 2);
+    assert_eq!(shorter.length_steps, 2);
+    assert_eq!(shorter.steps[3].len(), 1);
+    let restored = with_length(&shorter, 4);
+    assert_eq!(restored.steps, state.steps);
+}
+
+#[test]
+fn playback_and_recording_stay_inside_the_length_window() {
+    let mut context = context();
+    let mut state = with_length(&recorded_two_step_loop(), 2);
+    let hidden = grid_index(1, 1);
+    for _ in 0..8 {
+        state = looper_on_tick(state, &mut context);
+        assert!(state.step_index < 2);
+        assert!(!state.playback_tiles[hidden]);
+    }
+    state = looper_on_input(state, DeviceInput::GridPress { x: 2, y: 2 }, &mut context);
+    assert!(state.steps[state.step_index]
+        .iter()
+        .any(|event| event.tile == grid_index(2, 2)));
+    assert_eq!(state.steps[3].len(), 1);
+}
+
+#[test]
+fn clear_loop_also_clears_steps_beyond_length() {
+    let mut context = context();
+    let state = with_length(&recorded_two_step_loop(), 2);
+    let state = looper_on_input(
+        state,
+        DeviceInput::BehaviorAction(crate::behavior::BehaviorActionInput {
+            action_type: "clearLoop".into(),
+        }),
+        &mut context,
+    );
+    assert!(state.steps.iter().all(Vec::is_empty));
+}
