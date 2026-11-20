@@ -8,6 +8,7 @@ import { ControlsPanel } from './ControlsPanel';
 import { GridMatrix } from './GridMatrix';
 import { useGridInteraction } from './appGridInteraction';
 import {
+  type EncoderId,
   useDialDragBindings,
   useKeyboardBindings,
   useRuntimeBindings,
@@ -15,7 +16,6 @@ import {
 import { RuntimeStatusToaster } from './RuntimeStatusToaster';
 
 const runtime = createSimulatorRuntime();
-type EncoderId = 'main' | `aux${number}`;
 const INITIAL_DIAL_PHASE = Object.fromEntries([
   ['main', 0],
   ...Array.from(

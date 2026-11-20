@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   createKeyboardMapper,
   shouldPreventKeyboardDefault,
@@ -7,7 +7,7 @@ import type { DeviceInput } from '@octessera/device-contracts';
 import type { createSimulatorRuntime } from '../runtime/simulatorRuntime';
 
 type AppRuntime = ReturnType<typeof createSimulatorRuntime>;
-type EncoderId = 'main' | `aux${number}`;
+export type EncoderId = 'main' | `aux${number}`;
 type AppSnapshot = ReturnType<AppRuntime['getSnapshot']>;
 
 export function useRuntimeBindings(
@@ -87,28 +87,32 @@ export function useDialDragBindings(
     magnitude: number,
   ) => void,
 ): void {
+  const dragRef = useRef(dialDrag);
+  const setDragRef = useRef(setDialDrag);
+  const turnRef = useRef(turnWithAcceleration);
+  dragRef.current = dialDrag;
+  setDragRef.current = setDialDrag;
+  turnRef.current = turnWithAcceleration;
+  const dragging = dialDrag !== null;
   useEffect(() => {
-    if (!dialDrag) return;
+    if (!dragging) return;
     const onMove = (event: MouseEvent) => {
-      const deltaY = dialDrag.y - event.clientY;
-      const nextAcc = dialDrag.acc + deltaY;
+      const drag = dragRef.current;
+      if (!drag) return;
+      const nextAcc = drag.acc + (drag.y - event.clientY);
       if (Math.abs(nextAcc) < 12) {
-        setDialDrag({ ...dialDrag, y: event.clientY, acc: nextAcc });
+        setDragRef.current({ ...drag, y: event.clientY, acc: nextAcc });
         return;
       }
-      turnWithAcceleration(
-        dialDrag.id,
-        nextAcc > 0 ? 1 : -1,
-        Math.abs(nextAcc),
-      );
-      setDialDrag({ ...dialDrag, y: event.clientY, acc: 0 });
+      turnRef.current(drag.id, nextAcc > 0 ? 1 : -1, Math.abs(nextAcc));
+      setDragRef.current({ ...drag, y: event.clientY, acc: 0 });
     };
-    const onUp = () => setDialDrag(null);
+    const onUp = () => setDragRef.current(null);
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [dialDrag, setDialDrag, turnWithAcceleration]);
+  }, [dragging]);
 }

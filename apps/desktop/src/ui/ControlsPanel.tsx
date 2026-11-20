@@ -2,9 +2,9 @@ import type { DeviceInput } from '@octessera/device-contracts';
 import { AUX_ENCODER_COUNT } from '@octessera/device-contracts';
 import { useRef, type CSSProperties } from 'react';
 import type { SimulatorSnapshot } from '../runtime/types';
+import type { EncoderId } from './appHooks';
 import { OledDisplay } from './OledDisplay';
 
-type EncoderId = 'main' | `aux${number}`;
 type ModifierKind = 'shift' | 'fn';
 
 const WHEEL_PIXELS_PER_TURN = 100;
