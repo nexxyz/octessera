@@ -20,6 +20,27 @@ the code. For playing or building the instrument, start with the
 - `assets/`: shared branding and device visual assets.
 - `userpatches/`: Armbian image overlays and device files; it stays at the root because Armbian consumes this conventional path.
 
+## Crate map
+
+Cargo workspace members, with their workspace dependencies:
+
+- `platform-capabilities-build`: build-time generator of capability constants for build scripts; no workspace dependencies.
+- `platform-core`: behaviors and grid core; builds on `platform-capabilities-build`.
+- `realtime-engine`: synth, FX, and mix; builds on `platform-capabilities-build`.
+- `playback-runtime`: native runner; uses `platform-core`, `realtime-engine`.
+- `rodio-engine-source`: engine audio source; uses `playback-runtime`, `realtime-engine`.
+- `media-recording`, `store-files`: standalone.
+- `octessera-hal`: hardware access; uses `platform-core`.
+- `apps/desktop/src-tauri` and `apps/pi-zero` (`octessera-pi`): the hosts.
+
+## Start here
+
+| I want to | Start at |
+|---|---|
+| Add a menu setting | [Menu and controls spec](menu-and-controls-spec.md#how-the-spec-is-split) (which file owns what, help text in `resources/menu-help-texts.tsv`), then [saved-key changes](development-workflows.md#saved-key-changes) if it is saved |
+| Add an FX type | `crates/playback-runtime/src/native_runner/fx_param_specs.rs` (registry), with the rows listed in [FX parameters](menu-tree/shape.md#fx-parameters) |
+| Build an image | [Image construction](workflows/image-construction.md) |
+
 ## Architecture and contracts
 
 - [Runtime boundaries](runtime-boundaries.md): ownership between the desktop
