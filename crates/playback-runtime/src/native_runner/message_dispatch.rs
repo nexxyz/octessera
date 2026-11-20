@@ -1,36 +1,45 @@
 use crate::protocol::{HostMessage, RunnerMessage, RuntimePlatformRequest, RuntimeStoreResult};
 use std::time::Instant;
 
-use super::{DeviceInput, NativeRunner, RuntimeTransportState};
+use super::{DeviceInput, NativePendingState, NativeRunner, RuntimeTransportState};
 
 impl NativeRunner {
+    pub(super) fn with_flag<T>(
+        &mut self,
+        flag: fn(&mut NativePendingState) -> &mut bool,
+        run: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let previous = std::mem::replace(flag(&mut self.pending), true);
+        let result = run(self);
+        *flag(&mut self.pending) = previous;
+        result
+    }
+
     pub(crate) fn send_system_store_result_music_first(
         &mut self,
         message: HostMessage,
     ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>), String> {
-        let was_deferred = self.pending.external_autosave_deferred;
-        self.pending.external_autosave_deferred = true;
-        let result = <Self as super::CoreRunner>::send_system_store_result(self, message);
-        self.pending.external_autosave_deferred = was_deferred;
-        result
+        self.with_flag(
+            |pending| &mut pending.external_autosave_deferred,
+            |runner| <Self as super::CoreRunner>::send_system_store_result(runner, message),
+        )
     }
 
     pub(crate) fn send_store_result_handoff_music_first(
         &mut self,
         message: HostMessage,
     ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>, bool), String> {
-        let was_deferred = self.pending.external_autosave_deferred;
-        self.pending.external_autosave_deferred = true;
-        let result = <Self as super::CoreRunner>::send_store_result_handoff(self, message);
-        self.pending.external_autosave_deferred = was_deferred;
-        result
+        self.with_flag(
+            |pending| &mut pending.external_autosave_deferred,
+            |runner| <Self as super::CoreRunner>::send_store_result_handoff(runner, message),
+        )
     }
 
     pub fn send_music_first(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
-        self.pending.external_autosave_deferred = true;
-        let result = self.send_music_first_scoped(message);
-        self.pending.external_autosave_deferred = false;
-        result
+        self.with_flag(
+            |pending| &mut pending.external_autosave_deferred,
+            |runner| runner.send_music_first_scoped(message),
+        )
     }
 
     fn send_music_first_scoped(
@@ -74,10 +83,11 @@ impl NativeRunner {
                 self.display.transients.mark_presentation_due();
             }
         }
-        self.pending.presentation_deferred = true;
-        let result = <Self as super::CoreRunner>::send(self, message);
-        self.pending.presentation_deferred = false;
-        result.map(order_terminal_presentation)
+        self.with_flag(
+            |pending| &mut pending.presentation_deferred,
+            |runner| <Self as super::CoreRunner>::send(runner, message),
+        )
+        .map(order_terminal_presentation)
     }
 
     pub(super) fn require_synchronous_action_presentation(&mut self) {
@@ -94,10 +104,10 @@ impl NativeRunner {
         if request_snapshot.unwrap_or(true) {
             return self.handle_device_input(input);
         }
-        self.pending.suppress_snapshot_response = true;
-        let messages = self.handle_device_input(input);
-        self.pending.suppress_snapshot_response = false;
-        messages
+        self.with_flag(
+            |pending| &mut pending.suppress_snapshot_response,
+            |runner| runner.handle_device_input(input),
+        )
     }
 
     fn send_presented_runtime_error_input(
