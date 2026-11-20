@@ -15,7 +15,7 @@ for the version you're leaving, so the switch also swaps those two files:
 
 | Action | Program | Settings and startup patch | Presets, samples, recordings |
 |---|---|---|---|
-| Update | Switches to the newer version | Carried over as they are | Untouched |
+| Update | Switches to the newer version | Carried over as they are; a setting new in that version starts at its default | Untouched |
 | Rollback | Switches back to the previous version | Replaced by the copy saved when you left that version (if it has one); what you had on the newer version is kept aside | Untouched |
 | Rollback again (forward) | Switches to the newer version again | Replaced by the copy kept aside, but only if you haven't changed anything since the rollback; otherwise the changes you made on the older version stay | Untouched |
 

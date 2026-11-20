@@ -150,12 +150,25 @@ changes to playback, menus, Link mapping, MIDI, instruments or FX.
 
 ## Saved-key changes
 
-The save loaders reject any key or value the current model does not know, so
-removing, renaming, or re-ranging a saved key can stop a board from booting its
-own store. Until a beta there are no concrete migrations: instead of teaching the
-loader old shapes, normalize the existing stores (both boards and this host's
-desktop store) to the new schema. Copy the board stores to `target/board-stores/`
-(they hold your music, so keep them out of the tree):
+The save loaders reject any key or value the current model does not know, and
+any required key a store lacks. A new saved key therefore gets an entry with its
+default in `native_runner/added_config_keys.rs`, and loading fills it in for every
+System or Patch saved before it existed (boards, desktop, the restore screen and
+user-data restore all compose through the same loader). A key that only needs to
+go gets an entry in `native_runner/retired_config_keys.rs`. Both lists keep their
+entries for good. `crates/playback-runtime/tests/fixtures/saved_stores/` keeps a
+store from each released version (add `system.json` and `default.patch.json` for
+every new release, split from that release's shipped defaults with its own
+`split_default_config`), and `cargo test -p playback-runtime --test
+saved_store_fixtures` loads them all. Only 0.8.14 keeps just its System: no 0.8.14
+patch loads.
+
+Removing a key a save still needs, renaming, or re-ranging a saved key can still
+stop a board from booting its own store. Until a beta there are no concrete
+migrations for those: instead of teaching the loader old shapes, normalize the
+existing stores (both boards and this host's desktop store) to the new schema.
+Copy the board stores to `target/board-stores/` (they hold your music, so keep
+them out of the tree):
 
 ```powershell
 $PiTarget = "pi@<PI_HOST>"; $OrangeTarget = "octessera@<ORANGE_HOST>"
@@ -217,10 +230,6 @@ installs `default.patch.json` with each file's owner and mode, checks that all t
 installed files hash the same as the split before restarting the boards, and prints that
 hash. Each device keeps its own `system.json`; `-IncludeSystem` installs the factory one
 too. `-WhatIf` stops after the compose.
-
-`native_runner/retired_config_keys.rs` stays as the mechanism for dropping
-retired keys on load once there are saves in other hands; until then it carries
-no entries, so do not add one instead of normalizing the stores.
 
 ## Pre-push hook
 

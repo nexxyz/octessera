@@ -45,6 +45,7 @@ use std::time::{Duration, Instant};
 mod action_bindings;
 mod action_control;
 mod action_platform_effects;
+mod added_config_keys;
 mod algorithm;
 mod apply_payload;
 mod apply_system_document;
@@ -200,6 +201,7 @@ mod velocity_curve;
 mod xy_smoothing;
 
 use crate::{clean_preset_name, fresh_preset_name};
+pub(crate) use added_config_keys::with_added_keys;
 pub use audio_optimization::AudioOptimization;
 pub(crate) use audio_outputs::strip_device_audio_fields;
 pub use audio_outputs::AudioOutputSet;

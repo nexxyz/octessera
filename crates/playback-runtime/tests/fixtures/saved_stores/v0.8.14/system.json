@@ -1,0 +1,75 @@
+{
+  "kind": "octessera.system",
+  "runtimeConfig": {
+    "audioOutputs": {
+      "dac": true,
+      "hdmi": false,
+      "usb": false
+    },
+    "autoSaveDefault": false,
+    "auxAutoHints": true,
+    "auxAutoMapEnabled": true,
+    "auxBindings": {
+      "aux1": null,
+      "aux2": null,
+      "aux3": null
+    },
+    "auxManualHints": true,
+    "auxPriority": "manual",
+    "bluetooth": {
+      "audio": false,
+      "enabled": false
+    },
+    "buttonBrightness": 35,
+    "dimTimerSeconds": 60,
+    "displayBrightness": 12,
+    "dsp": {
+      "busIdleThreshold": "-120",
+      "workerWarningThreshold": "85"
+    },
+    "ghostTiles": false,
+    "gridBrightness": 25,
+    "hdmi": {
+      "cycleMeasures": 4,
+      "mode": "live-grid",
+      "showGridlines": false
+    },
+    "homeVisual": "scope",
+    "inputEventsWhilePaused": true,
+    "mainFont": "octessera",
+    "masterVolume": 73,
+    "midi": {
+      "clockInEnabled": false,
+      "clockOutEnabled": false,
+      "enabled": false,
+      "inId": null,
+      "outId": null,
+      "respondToStartStop": true,
+      "syncMode": "internal"
+    },
+    "numericDisplayMode": "bar",
+    "recording": {
+      "maxMinutes": 10
+    },
+    "rollingBackups": true,
+    "sampleFavouriteDirs": [],
+    "screenSleepSeconds": 60,
+    "shiftAuxBindings": {
+      "aux1": null,
+      "aux2": null,
+      "aux3": null
+    },
+    "smallFont": "octessera",
+    "sound": {
+      "optimizeFor": "latency"
+    },
+    "usb": {
+      "dataRole": "gadget",
+      "midiOutEnabled": false
+    },
+    "wifi": {
+      "enabled": true
+    }
+  },
+  "schemaVersion": 1
+}

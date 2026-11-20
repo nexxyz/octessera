@@ -4,13 +4,13 @@ use super::config_document_presence::{
 use super::{
     device_config_payload_from_payload, local_patch_payload_for_save,
     portable_patch_payload_for_save, portable_patch_projection, prepare_config_payload,
-    validate_config_payload, validate_patch_fields, validate_patch_sample_paths,
+    validate_config_payload, validate_patch_fields, validate_patch_sample_paths, with_added_keys,
     without_retired_keys, ConfigDto, Value, CONFIG_KIND, CONFIG_SCHEMA_VERSION, GLOBAL_LFO_COUNT,
     GRID_HEIGHT, GRID_WIDTH, PATCH_KIND,
 };
 use serde_json::json;
 
-const SYSTEM_DOCUMENT_KIND: &str = "octessera.system";
+pub(super) const SYSTEM_DOCUMENT_KIND: &str = "octessera.system";
 const SYSTEM_DOCUMENT_VERSION: u64 = 1;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -171,8 +171,8 @@ fn compose_system_patch_documents_structure(
     system: &Value,
     patch: &Value,
 ) -> Result<Value, String> {
-    let system = &without_retired_keys(system);
-    let patch = &without_retired_keys(patch);
+    let system = &with_added_keys(&without_retired_keys(system));
+    let patch = &with_added_keys(&without_retired_keys(patch));
     let system_runtime =
         document_runtime(system, SYSTEM_DOCUMENT_KIND, SYSTEM_DOCUMENT_VERSION, false)?;
     let patch_runtime = document_runtime(patch, PATCH_KIND, CONFIG_SCHEMA_VERSION, true)?;
@@ -222,7 +222,7 @@ fn normalize_full_config(full_config: &Value) -> Result<Value, String> {
 }
 
 fn normalize_full_config_structure(full_config: &Value) -> Result<Value, String> {
-    let full_config = &without_retired_keys(full_config);
+    let full_config = &with_added_keys(&without_retired_keys(full_config));
     let runtime = full_config
         .get("runtimeConfig")
         .ok_or_else(|| "full config is missing runtimeConfig".to_string())?;
