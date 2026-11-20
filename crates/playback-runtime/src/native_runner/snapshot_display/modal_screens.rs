@@ -78,7 +78,7 @@ pub(super) fn setup_portal_display(state: &NativeSetupPortalState) -> DisplaySna
         RuntimeSetupPortalPhase::PortalReady => (
             "Wi-Fi Setup".to_string(),
             [
-                Some("Join Wi-Fi on phone:".into()),
+                Some("Join this Wi-Fi:".into()),
                 Some(format!(
                     "Octessera Setup {}",
                     state.status.portal_suffix.as_deref().unwrap_or("----")

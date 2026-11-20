@@ -475,7 +475,7 @@ fn modal_rows_and_setup_cards_highlight_their_final_action() {
     for lines in [
         &["Starting hotspot...", "> Hide"][..],
         &[
-            "Join Wi-Fi on phone:",
+            "Join this Wi-Fi:",
             "Octessera Setup 318d",
             "Data 192.168.42.1",
             "Port 8081",

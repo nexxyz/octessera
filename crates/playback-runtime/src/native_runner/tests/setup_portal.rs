@@ -130,7 +130,7 @@ pub(crate) fn portal_lifecycle_statuses_keep_compact_actionable_snapshots() {
         (
             RuntimeSetupPortalPhase::PortalReady,
             vec![
-                "Join Wi-Fi on phone:",
+                "Join this Wi-Fi:",
                 "Octessera Setup 1a2f",
                 "Pass: MWmw-MWmw",
                 "Open 192.168.42.1",
