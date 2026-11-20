@@ -384,9 +384,10 @@ fn a_full_disk_while_staging_media_reports_storage_full() {
 
     let error = copy_hashed(&mut payload, &mut FullDisk, 12).unwrap_err();
 
-    assert_eq!(error, "storage is full");
+    assert_eq!(error, ArchiveError::StorageFull);
+    assert_eq!(error.to_string(), "storage is full");
     assert_eq!(
-        io_error(io::Error::from(io::ErrorKind::PermissionDenied)),
+        io_error(io::Error::from(io::ErrorKind::PermissionDenied)).to_string(),
         "permission denied"
     );
 }

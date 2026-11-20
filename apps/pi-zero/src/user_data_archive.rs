@@ -7,6 +7,7 @@ use playback_runtime::{
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
@@ -175,7 +176,10 @@ pub(crate) fn archive_len(plan: &ExportPlan) -> Result<u64, String> {
     Ok(length)
 }
 
-pub(crate) fn write_archive<W: Write>(plan: &ExportPlan, writer: &mut W) -> Result<u64, String> {
+pub(crate) fn write_archive<W: Write>(
+    plan: &ExportPlan,
+    writer: &mut W,
+) -> Result<u64, ArchiveError> {
     let bundle = encode_user_data_bundle(&plan.bundle)?;
     let length = archive_len(plan)?;
     writer.write_all(MAGIC).map_err(io_error)?;
@@ -209,7 +213,7 @@ pub(crate) fn write_archive<W: Write>(plan: &ExportPlan, writer: &mut W) -> Resu
 pub(crate) fn stage_archive(
     archive_path: &Path,
     stage_root: &Path,
-) -> Result<StagedRestore, String> {
+) -> Result<StagedRestore, ArchiveError> {
     let size = fs::metadata(archive_path).map_err(io_error)?.len();
     if size > max_archive_bytes() {
         return Err("user-data archive exceeds its size limit".into());
@@ -333,7 +337,7 @@ fn copy_exact<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
     mut remaining: u64,
-) -> Result<(), String> {
+) -> Result<(), ArchiveError> {
     let mut buffer = [0; 16 * 1024];
     while remaining > 0 {
         let amount = (remaining as usize).min(buffer.len());
@@ -351,7 +355,7 @@ fn copy_hashed<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
     mut remaining: u64,
-) -> Result<String, String> {
+) -> Result<String, ArchiveError> {
     let mut hasher = Sha256::new();
     let mut buffer = [0; 16 * 1024];
     while remaining > 0 {
@@ -371,44 +375,77 @@ fn copy_hashed<R: Read, W: Write>(
         .collect())
 }
 
-fn write_u64<W: Write>(writer: &mut W, value: u64) -> Result<(), String> {
+fn write_u64<W: Write>(writer: &mut W, value: u64) -> Result<(), ArchiveError> {
     writer.write_all(&value.to_le_bytes()).map_err(io_error)
 }
 
-fn read_u8<R: Read>(reader: &mut R) -> Result<u8, String> {
+fn read_u8<R: Read>(reader: &mut R) -> Result<u8, ArchiveError> {
     let mut value = [0; 1];
     reader.read_exact(&mut value).map_err(io_error)?;
     Ok(value[0])
 }
 
-fn read_u16<R: Read>(reader: &mut R) -> Result<u16, String> {
+fn read_u16<R: Read>(reader: &mut R) -> Result<u16, ArchiveError> {
     let mut value = [0; 2];
     reader.read_exact(&mut value).map_err(io_error)?;
     Ok(u16::from_le_bytes(value))
 }
 
-fn read_u32<R: Read>(reader: &mut R) -> Result<u32, String> {
+fn read_u32<R: Read>(reader: &mut R) -> Result<u32, ArchiveError> {
     let mut value = [0; 4];
     reader.read_exact(&mut value).map_err(io_error)?;
     Ok(u32::from_le_bytes(value))
 }
 
-fn read_u64<R: Read>(reader: &mut R) -> Result<u64, String> {
+fn read_u64<R: Read>(reader: &mut R) -> Result<u64, ArchiveError> {
     let mut value = [0; 8];
     reader.read_exact(&mut value).map_err(io_error)?;
     Ok(u64::from_le_bytes(value))
 }
 
-pub(crate) const STORAGE_FULL: &str = "storage is full";
-
-pub(crate) fn io_error(error: io::Error) -> String {
-    if error.kind() == io::ErrorKind::StorageFull {
-        return STORAGE_FULL.into();
-    }
-    error.to_string()
+#[derive(Debug, PartialEq)]
+pub(crate) enum ArchiveError {
+    StorageFull,
+    Other(String),
 }
 
-fn validate_stage_directory(path: &Path) -> Result<(), String> {
+impl fmt::Display for ArchiveError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::StorageFull => formatter.write_str("storage is full"),
+            Self::Other(message) => formatter.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for ArchiveError {}
+
+impl From<String> for ArchiveError {
+    fn from(message: String) -> Self {
+        Self::Other(message)
+    }
+}
+
+impl From<&str> for ArchiveError {
+    fn from(message: &str) -> Self {
+        Self::Other(message.into())
+    }
+}
+
+impl From<ArchiveError> for String {
+    fn from(error: ArchiveError) -> Self {
+        error.to_string()
+    }
+}
+
+pub(crate) fn io_error(error: io::Error) -> ArchiveError {
+    if error.kind() == io::ErrorKind::StorageFull {
+        return ArchiveError::StorageFull;
+    }
+    ArchiveError::Other(error.to_string())
+}
+
+fn validate_stage_directory(path: &Path) -> Result<(), ArchiveError> {
     let metadata = fs::symlink_metadata(path).map_err(io_error)?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err("user-data staging path is unsafe".into());

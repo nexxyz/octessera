@@ -1,5 +1,5 @@
 use super::MAX_HEADER_BYTES;
-use crate::user_data_archive::io_error;
+use crate::user_data_archive::{io_error, ArchiveError};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -81,7 +81,7 @@ pub(super) fn copy_request_body(
     file: &mut File,
     mut length: u64,
     stop: &AtomicBool,
-) -> Result<(), String> {
+) -> Result<(), ArchiveError> {
     let mut buffer = [0; 16 * 1024];
     while length > 0 {
         if stop.load(Ordering::Acquire) {
