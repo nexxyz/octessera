@@ -468,27 +468,7 @@ jobs:
           rm -rf "$root"
       - name: Check files shared by both board images are identical
         run: |
-          stage4=tools/pi-image/stage4-octessera/files/root
-          for shared in \
-            etc/default/locale \
-            etc/profile.d/octessera-welcome.sh \
-            etc/systemd/system/octessera-setup-request.path \
-            etc/systemd/system/octessera-setup.service \
-            etc/systemd/system/octessera-show-hold.path \
-            etc/systemd/system/octessera-update-switch@.service \
-            usr/local/lib/octessera/setup_config.py \
-            usr/local/lib/octessera/setup_hotspot.py \
-            usr/local/lib/octessera/setup_http.py \
-            usr/local/lib/octessera/setup_status.py \
-            usr/local/lib/octessera/setup_wifi_join.py \
-            usr/local/sbin/octessera-setup \
-            usr/local/share/octessera-setup-ui/README.md \
-            usr/local/share/octessera-setup-ui/css/styles.css \
-            usr/local/share/octessera-setup-ui/img/octessera-mark.svg \
-            usr/local/share/octessera-setup-ui/img/octessera-wordmark.svg \
-            usr/local/share/octessera-setup-ui/js/app.js; do
-            cmp "$stage4/$shared" "userpatches/overlay/$shared"
-          done
+          node tools/quality/check-image-tree-parity.mjs
           for storage in octessera-orange-storage octessera-orange-storage-control octessera-sd-card; do
             cmp "tools/storage/$storage" "userpatches/overlay/usr/local/sbin/$storage"
           done

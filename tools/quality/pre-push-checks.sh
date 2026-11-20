@@ -42,6 +42,7 @@ run_pre_push_checks() {
   run_check "cargo fmt" cargo fmt --all --check
   run_check "repository integrity fixtures" bash ./tools/quality/test-repository-integrity.sh
   run_check "repository integrity gate" bash ./tools/quality/repository-integrity.sh
+  run_check "image tree parity" node ./tools/quality/check-image-tree-parity.mjs
   run_check "legal packaging tests" python3 -m unittest discover -s tools/legal -p 'test_*.py'
   run_check "cargo test" \
     cargo test --workspace --exclude octessera-desktop --exclude rodio-engine-source \

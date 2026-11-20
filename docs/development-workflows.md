@@ -214,7 +214,7 @@ lives in `tools/quality/pre-push-checks.sh`. The full profile runs lint,
 typecheck, format checks, the JS tests under coverage, `cargo fmt`, the
 repository integrity fixtures and gate (generated-output
 freshness, legal inventories, links, and the quality audit with its file-length limit), the `tools/legal`
-packaging tests, the remaining workspace and routing-tree-executor Rust tests,
+packaging tests, the Pi/Orange image-tree parity check, the remaining workspace and routing-tree-executor Rust tests,
 the [factory patch UI scenario](factory-patch-ui-scenario.md), Rust coverage
 (which runs the `platform-core`, `playback-runtime`, and `realtime-engine`
 tests), the Tauri build smoke, desktop tests, the desktop end-to-end
