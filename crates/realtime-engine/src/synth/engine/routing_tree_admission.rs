@@ -1,7 +1,6 @@
 use super::prepared_control_prepare::{
     PreparedAudioConfig, PreparedFxBusSlot, PreparedInstrumentSlot, PreparedInstrumentsConfig,
 };
-use super::render_plan::RenderPlan;
 use super::routing_tree_executor::{RoutingTreeAssignment, RoutingTreeBlockScratch};
 use super::routing_tree_plan::RoutingTreePlan;
 use super::routing_tree_worker::RoutingTreeOutputBlock;
@@ -97,11 +96,6 @@ impl SynthEngine {
     pub(super) fn routing_tree_prepared_audio_allowed(&self, config: &PreparedAudioConfig) -> bool {
         self.routing_tree_source_event_sample_clock.is_some()
             && config.instruments.bus_chains.len() <= BUS_COUNT
-    }
-
-    pub(super) fn routing_tree_render_plan_allowed(&self, plan: &RenderPlan) -> bool {
-        let _ = plan;
-        self.routing_tree_source_event_sample_clock.is_some()
     }
 
     pub(super) fn routing_tree_prepared_instruments_allowed(

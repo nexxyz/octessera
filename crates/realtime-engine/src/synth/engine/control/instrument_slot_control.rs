@@ -8,53 +8,6 @@ pub(in crate::synth::engine) struct NormalizedInstrumentMixer {
 }
 
 impl SynthEngine {
-    pub(super) fn apply_instrument_slot_config(&mut self, idx: usize, slot: InstrumentSlotConfig) {
-        let InstrumentSlotConfig {
-            kind,
-            synth,
-            fm,
-            pluck,
-            drum,
-            mixer,
-        } = slot;
-        let kind = parse_instrument_kind(&kind);
-        let (synth, render_config) = if kind == InstrumentKind::Fm {
-            let fm = fm.unwrap_or_default();
-            (
-                fm.common_voice_config(),
-                SynthVoiceRenderConfig::from_fm(fm),
-            )
-        } else if kind == InstrumentKind::Pluck {
-            let pluck = pluck.unwrap_or_default();
-            (
-                pluck.common_voice_config(),
-                SynthVoiceRenderConfig::from_pluck(pluck),
-            )
-        } else if kind == InstrumentKind::Drum {
-            let drum = drum.as_ref().cloned().unwrap_or_default();
-            (
-                drum.common_voice_config(),
-                SynthVoiceRenderConfig::from_drum(&drum),
-            )
-        } else {
-            (synth, SynthVoiceRenderConfig::from_config(synth))
-        };
-        let mixer = mixer.map(|mixer| NormalizedInstrumentMixer {
-            route: slot_route(mixer.route),
-            pan_pos: mixer.pan_pos.min(self.pan_positions - 1),
-            volume: (mixer.volume / 100.0).clamp(0.0, 1.0),
-        });
-        self.apply_normalized_instrument_slot(
-            idx,
-            kind,
-            synth,
-            render_config,
-            drum.as_ref()
-                .map_or_else(|| DrumConfig::default().voices, |config| config.voices),
-            mixer,
-        );
-    }
-
     pub(in crate::synth::engine) fn apply_normalized_instrument_slot(
         &mut self,
         idx: usize,
@@ -159,11 +112,5 @@ impl SynthEngine {
             .iter()
             .filter(|route| **route > 0 && **route <= bus_count)
             .count();
-    }
-
-    pub(super) fn refresh_slot_pan_gains(&mut self) {
-        for idx in 0..INSTRUMENT_SLOT_COUNT {
-            self.slot_pan_gains[idx] = pan_gains(self.slot_pan_pos[idx], self.pan_positions);
-        }
     }
 }

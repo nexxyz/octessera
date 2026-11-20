@@ -1,5 +1,4 @@
-use super::prepared_control_prepare::prepare_instruments_config;
-use super::render_plan::prepared_instrument_topology;
+use super::prepared_control_prepare::{prepare_instrument_slot_config, prepare_instruments_config};
 use super::retired_state::{store_retired_momentary, RetiredAudioState};
 use super::*;
 
@@ -69,43 +68,8 @@ impl SynthEngine {
     }
 
     pub fn set_instrument_slot(&mut self, index: usize, slot: InstrumentSlotConfig) {
-        if self.routing_tree_rejects_control_mutation() {
-            return;
-        }
-        if index >= INSTRUMENT_SLOT_COUNT {
-            #[cfg(feature = "routing-tree-executor")]
-            if self.routing_tree_assignment.is_some() {
-                self.reject_routing_tree_mutation_for_control();
-            }
-            return;
-        }
-        let render_plan = prepared_instrument_topology(&slot);
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some() {
-            let mut next_render_plan = self.render_plan.clone();
-            next_render_plan.install_instrument_slot(index, render_plan);
-            next_render_plan.normalize_routes();
-            if !self.routing_tree_render_plan_allowed(&next_render_plan) {
-                self.reject_routing_tree_mutation_for_control();
-                return;
-            }
-        }
-        self.finish_mixer_gain_ramps();
-        self.apply_instrument_slot_config(index, slot);
-        self.refresh_slot_pan_gains();
-        let mut render_plan = render_plan;
-        render_plan.route = render_plan.route.map(|route| match route {
-            super::render_plan::RenderPlanRoute::Bus(bus) if bus >= self.bus_chains.len() => {
-                super::render_plan::RenderPlanRoute::Direct
-            }
-            route => route,
-        });
-        self.render_plan.install_instrument_slot(index, render_plan);
-        self.refresh_routed_bus_slot_count();
-        #[cfg(feature = "routing-tree-executor")]
-        if self.routing_tree_assignment.is_some() {
-            let _ = self.refresh_routing_tree_assignment();
-        }
+        let prepared = prepare_instrument_slot_config(slot);
+        drop(self.apply_prepared_instrument_slot(index, prepared));
     }
 
     pub(super) fn refresh_master_active_slot_indices(&mut self) {
