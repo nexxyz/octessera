@@ -44,7 +44,7 @@ pub use platform::{
 };
 pub use results::{MidiPort, RuntimeStoreResult, SampleEntry};
 pub(crate) use runtime_error::{
-    is_midi_input_list_failure, MIDI_INPUTS_ERROR_LINE, MIDI_INPUTS_ERROR_TITLE,
+    enum_text, is_midi_input_list_failure, MIDI_INPUTS_ERROR_LINE, MIDI_INPUTS_ERROR_TITLE,
 };
 pub use runtime_error::{
     RuntimeAdapterError, RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts,

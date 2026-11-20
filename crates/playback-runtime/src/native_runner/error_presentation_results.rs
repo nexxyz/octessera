@@ -1,6 +1,6 @@
 use crate::protocol::{
-    is_midi_input_list_failure, RunnerMessage, RuntimeStoreResult, MIDI_INPUTS_ERROR_LINE,
-    MIDI_INPUTS_ERROR_TITLE,
+    enum_text, is_midi_input_list_failure, RunnerMessage, RuntimeStoreResult,
+    MIDI_INPUTS_ERROR_LINE, MIDI_INPUTS_ERROR_TITLE,
 };
 
 use super::{DeviceInput, NativeRunner, NativeRuntimeErrorPresentation};
@@ -117,13 +117,6 @@ pub(super) fn runtime_error_presentation(
         message: error.message.clone(),
         preset_name: error.preset_name.clone(),
     };
-    eprintln!(
-        "runtime error: domain={} code={} operation={} message={}",
-        enum_text(&error.domain),
-        enum_text(&error.code),
-        enum_text(&error.operation),
-        error.message.as_deref().unwrap_or("-"),
-    );
     let screen = crate::oled_frame::runtime_error_screen(&metadata);
     NativeRuntimeErrorPresentation {
         title: screen.title.into(),
@@ -131,12 +124,4 @@ pub(super) fn runtime_error_presentation(
             .into_iter()
             .collect(),
     }
-}
-
-fn enum_text<T: serde::Serialize>(value: &T) -> String {
-    serde_json::to_value(value)
-        .expect("runtime error enum serialization")
-        .as_str()
-        .expect("runtime error enum string")
-        .to_owned()
 }

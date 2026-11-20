@@ -127,6 +127,7 @@ impl PlaybackRuntime {
     }
 
     pub fn latch_error(&mut self, error: RuntimeErrorMetadata) {
+        eprintln!("{}", error.log_line());
         self.latched_errors
             .retain(|current| !same_error_identity(current, &error));
         self.latched_errors.push(error);

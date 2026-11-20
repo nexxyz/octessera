@@ -164,6 +164,16 @@ impl RuntimeErrorMetadata {
         )
     }
 
+    pub fn log_line(&self) -> String {
+        format!(
+            "runtime error: domain={} code={} operation={} message={}",
+            enum_text(&self.domain),
+            enum_text(&self.code),
+            enum_text(&self.operation),
+            self.message.as_deref().unwrap_or("-"),
+        )
+    }
+
     pub fn with_identity(mut self, request_id: Option<String>, revision: Option<u64>) -> Self {
         self.request_id = request_id;
         self.revision = revision;
@@ -193,6 +203,14 @@ impl RuntimeErrorMetadata {
 
 pub(crate) const MIDI_INPUTS_ERROR_TITLE: &str = "MIDI INPUTS";
 pub(crate) const MIDI_INPUTS_ERROR_LINE: &str = "MIDI unavailable";
+
+pub(crate) fn enum_text<T: Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .expect("runtime error enum serialization")
+        .as_str()
+        .expect("runtime error enum string")
+        .to_owned()
+}
 
 pub(crate) fn is_midi_input_list_failure(
     domain: &RuntimeErrorDomain,

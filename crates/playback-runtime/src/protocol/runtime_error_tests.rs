@@ -22,3 +22,23 @@ fn a_failed_preset_save_carries_the_preset_name_into_its_error_facts() {
         .preset_name
         .is_none());
 }
+
+#[test]
+fn a_latched_error_logs_its_domain_code_operation_and_full_message() {
+    let error = RuntimeErrorMetadata::new(
+        RuntimeErrorDomain::Audio,
+        RuntimeErrorCode::OperationFailed,
+        RuntimeOperation::AudioThread,
+        RuntimeRecovery::StopAndSilence,
+        Some("device lost".into()),
+    );
+    assert_eq!(
+        error.log_line(),
+        "runtime error: domain=audio code=operation_failed operation=audio_thread message=device lost"
+    );
+    let without_message = RuntimeErrorMetadata {
+        message: None,
+        ..error
+    };
+    assert!(without_message.log_line().ends_with("message=-"));
+}
