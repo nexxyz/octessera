@@ -225,7 +225,7 @@ fn mappings_round_trip_through_a_saved_patch_and_load_without_input() {
     assert_eq!(mapping.last_value, None);
     assert!(!loaded
         .modulation_process
-        .has_source(super::super::modulation_source::ModulationSourceId::midi_cc(0).unwrap()));
+        .has_source(super::super::modulation::source::ModulationSourceId::midi_cc(0).unwrap()));
     assert_eq!(loaded.menu.number_for_key("midiCc.0.cc"), Some(74));
     assert_eq!(
         loaded.menu.value_for_key("midiCc.0.channel").as_deref(),

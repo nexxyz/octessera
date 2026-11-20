@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_runner::modulation_sampler::{
+use crate::native_runner::modulation::sampler::{
     apply_sampler_assignments_for_instruments_routed, TransposedHeldNote,
 };
 

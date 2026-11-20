@@ -176,7 +176,7 @@ fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
         new_base
     );
 
-    assert!(!super::super::modulation_audio::is_live_link_lfo_target(
+    assert!(!super::super::modulation::audio::is_live_link_lfo_target(
         "instruments.0.pluck.pickPositionPct"
     ));
     assert!(runner
@@ -210,7 +210,7 @@ fn pluck_live_lfo_targets_recompose_as_scalars_without_ring_replacement_commands
     runner.transport.transport = RuntimeTransportState::Playing;
     for (field, min, max) in [("decayMs", 100.0, 5000.0), ("brightnessPct", 0.0, 100.0)] {
         let key = format!("instruments.0.pluck.{field}");
-        assert!(super::super::modulation_audio::is_live_link_lfo_target(
+        assert!(super::super::modulation::audio::is_live_link_lfo_target(
             &key
         ));
         runner.link_lfos[0].enabled = true;
@@ -247,7 +247,7 @@ fn pluck_live_lfo_targets_recompose_as_scalars_without_ring_replacement_commands
                 }
             )));
     }
-    assert!(!super::super::modulation_audio::is_live_link_lfo_target(
+    assert!(!super::super::modulation::audio::is_live_link_lfo_target(
         "instruments.0.pluck.pickPositionPct"
     ));
 }

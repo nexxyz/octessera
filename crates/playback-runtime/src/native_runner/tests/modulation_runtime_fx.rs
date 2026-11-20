@@ -1,6 +1,6 @@
 use super::*;
-use crate::native_runner::modulation_process::materialize_endpoint;
-use crate::native_runner::modulation_target::Endpoint;
+use crate::native_runner::modulation::process::materialize_endpoint;
+use crate::native_runner::modulation::target::Endpoint;
 use std::collections::BTreeMap;
 
 fn fx_binding(key: &str, min: f64, max: f64, step: f64) -> NativeParamBinding {

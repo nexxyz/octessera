@@ -1,6 +1,6 @@
-use super::super::drum_config::{drum_velocity_level, drum_voice_midi_note};
-use super::super::sample_assignment_payload::tile_offset;
-use super::super::{NativeInstrumentSlot, NativeSampleAssignment, GRID_WIDTH};
+use super::super::super::drum_config::{drum_velocity_level, drum_voice_midi_note};
+use super::super::super::sample_assignment_payload::tile_offset;
+use super::super::super::{NativeInstrumentSlot, NativeSampleAssignment, GRID_WIDTH};
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::TileTriggerIntent;
@@ -10,11 +10,11 @@ use serde_json::Value;
 /// Sampler slots 1..8 copy to MIDI out as C1..G1 (36..43) under Send MIDI: all inst.
 const SAMPLER_FIRST_MIDI_NOTE: u8 = 36;
 
-pub(in super::super) fn tile_index(x: usize, y: usize) -> u8 {
+pub(in crate::native_runner) fn tile_index(x: usize, y: usize) -> u8 {
     (y * GRID_WIDTH + x) as u8
 }
 
-pub(in super::super) fn drum_hit_for_intent(
+pub(in crate::native_runner) fn drum_hit_for_intent(
     instruments: &[NativeInstrumentSlot],
     slot: u8,
     intent: &TileTriggerIntent,
@@ -68,7 +68,7 @@ pub(in super::super) fn drum_hit_for_intent(
     })
 }
 
-pub(in super::super) fn sampler_hit_for_intent(
+pub(in crate::native_runner) fn sampler_hit_for_intent(
     instrument: &NativeInstrumentSlot,
     slot: u8,
     intent: &TileTriggerIntent,
@@ -94,7 +94,7 @@ pub(in super::super) fn sampler_hit_for_intent(
     })
 }
 
-pub(in super::super) fn sampler_release_for_intent(
+pub(in crate::native_runner) fn sampler_release_for_intent(
     instrument: &NativeInstrumentSlot,
     slot: u8,
     intent: &TileTriggerIntent,
@@ -107,7 +107,7 @@ pub(in super::super) fn sampler_release_for_intent(
     ))
 }
 
-pub(in super::super) fn tile_release(slot: u8, voice: u8, tile: u8) -> TileHit {
+pub(in crate::native_runner) fn tile_release(slot: u8, voice: u8, tile: u8) -> TileHit {
     TileHit {
         instrument_slot: slot,
         voice,
@@ -144,7 +144,7 @@ fn tile_pitch_cents(
     (semitones * 100 + i16::from(tune_cents)).clamp(-TILE_PITCH_CENTS_LIMIT, TILE_PITCH_CENTS_LIMIT)
 }
 
-pub(in super::super) fn scale_velocity(level_velocity: u8, source_velocity: u8) -> u8 {
+pub(in crate::native_runner) fn scale_velocity(level_velocity: u8, source_velocity: u8) -> u8 {
     (((u16::from(level_velocity) * u16::from(source_velocity.clamp(1, 127))) / 127).clamp(1, 127))
         as u8
 }

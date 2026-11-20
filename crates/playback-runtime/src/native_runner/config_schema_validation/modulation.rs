@@ -26,7 +26,7 @@ pub(super) fn validate_global_modulation(runtime: &Map<String, Value>) -> Result
                 .get("key")
                 .and_then(Value::as_str)
                 .ok_or_else(|| format!("{path}.target.key must be a string"))?;
-            if !super::super::modulation_audio::is_live_link_lfo_target(key) {
+            if !super::super::modulation::audio::is_live_link_lfo_target(key) {
                 return Err(format!("{path}.target is not additive and live-safe"));
             }
         }
@@ -138,8 +138,8 @@ fn claim_is_exclusive(value: &Value, claimed: &mut BTreeSet<String>) -> bool {
     let Some(key) = value.get("key").and_then(Value::as_str) else {
         return false;
     };
-    if super::super::modulation_target::classify_key(key)
-        .is_some_and(|(_, mode, _)| mode == super::super::modulation_target::TargetMode::Discrete)
+    if super::super::modulation::target::classify_key(key)
+        .is_some_and(|(_, mode, _)| mode == super::super::modulation::target::TargetMode::Discrete)
     {
         !claimed.insert(key.into())
     } else {

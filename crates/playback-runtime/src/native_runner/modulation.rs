@@ -1,16 +1,16 @@
-pub(crate) use super::modulation_audio::is_live_link_lfo_target;
-use super::modulation_fx::apply_play_fx_binding_value;
-use super::modulation_instrument::apply_instrument_binding_value;
-use super::modulation_keys::{
+pub(crate) use self::audio::is_live_link_lfo_target;
+use self::fx::apply_play_fx_binding_value;
+use self::instrument::apply_instrument_binding_value;
+use self::keys::{
     parse_fx_bus_binding_key, parse_global_fx_binding_key, parse_instrument_binding_key,
     parse_layer_behavior_config_binding_key, parse_link_binding_key,
 };
-use super::modulation_link::apply_link_binding_value;
-pub(super) use super::modulation_sampler::{
+use self::link::apply_link_binding_value;
+pub(super) use self::sampler::{
     apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents,
 };
-use super::modulation_source::{ModulationAxis, ModulationSourceId};
-use super::modulation_value::axis_norm;
+use self::source::{ModulationAxis, ModulationSourceId};
+use self::value::axis_norm;
 use super::{NativeParamBinding, NativeRunner, Value, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::TileTriggerIntent;
 
@@ -269,3 +269,21 @@ pub(super) fn param_mod_next_toggle_mode(
         "invert"
     }
 }
+
+pub(super) mod assignment_validation;
+pub(super) mod audio;
+mod fx;
+mod instrument;
+pub(super) mod instrument_numeric;
+pub(super) mod keys;
+pub(super) mod link;
+pub(super) mod process;
+mod process_application;
+pub(super) mod process_audio;
+mod process_sources;
+pub(super) mod process_values;
+pub(super) mod sampler;
+pub(super) mod source;
+pub(super) mod target;
+mod target_table;
+pub(super) mod value;

@@ -1,5 +1,5 @@
+use super::modulation::sampler::tile_release;
 use super::modulation::RoutedMusicalEvents;
-use super::modulation_sampler::tile_release;
 use super::NativeRunner;
 use crate::protocol::TileHit;
 use platform_core::MusicalEvent;

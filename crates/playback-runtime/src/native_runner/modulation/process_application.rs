@@ -1,8 +1,8 @@
-use super::modulation_keys::parse_layer_behavior_config_binding_key;
-use super::modulation_process::ModulationProcessState;
-use super::modulation_process_audio::queue_changed_instrument_commands;
-use super::modulation_target::Endpoint;
-use super::{NativeParamBinding, NativeRunner, Value};
+use super::super::{NativeParamBinding, NativeRunner, Value};
+use super::keys::parse_layer_behavior_config_binding_key;
+use super::process::ModulationProcessState;
+use super::process_audio::queue_changed_instrument_commands;
+use super::target::Endpoint;
 use crate::protocol::RuntimeAudioCommand;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -42,7 +42,7 @@ pub(super) fn apply_persistent_modulation_values(
                 "sound.noteLengthMs" | "sound.velocityScalePct"
             ) || key.starts_with("instruments.")
                 && key.ends_with(".noteBehavior");
-            refresh_active_link |= super::modulation_keys::parse_link_binding_key(key)
+            refresh_active_link |= super::keys::parse_link_binding_key(key)
                 .is_some_and(|(index, _)| index == runner.active_layer_index);
         }
     }
@@ -77,7 +77,7 @@ pub(super) fn apply_composed_audio_commands(
 ) {
     let mut composed_keys = BTreeSet::new();
     for endpoint in application.endpoints {
-        let Some(commands) = super::modulation_process_audio::materialize_endpoint_commands(
+        let Some(commands) = super::process_audio::materialize_endpoint_commands(
             runner,
             &endpoint,
             application.audio_values,

@@ -1,5 +1,5 @@
 use super::super::algorithm::LinkRoutingInput;
-use super::super::modulation_sampler::apply_sampler_assignments_for_instruments_routed;
+use super::super::modulation::sampler::apply_sampler_assignments_for_instruments_routed;
 use super::*;
 
 fn intent(x: usize, y: usize) -> platform_core::TileTriggerIntent {

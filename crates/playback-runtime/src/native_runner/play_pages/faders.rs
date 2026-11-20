@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use super::super::action_bindings::BindingTarget;
 use super::super::led_color::LedColor;
 use super::super::menu_apply_fast_values::parse_indexed_key;
-use super::super::modulation_value::{binding_normalized, quantize_binding_value};
+use super::super::modulation::value::{binding_normalized, quantize_binding_value};
 use super::super::toast_text::bank_head;
 use super::super::{
     aux_turn_binding_spec, param_binding_from_payload, param_binding_payload,

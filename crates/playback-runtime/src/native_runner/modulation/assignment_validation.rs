@@ -1,16 +1,16 @@
-use super::modulation_process::target_kind_for_binding;
-use super::modulation_source::{ModulationAxis, ModulationSourceId};
-use super::{NativeParamBinding, NativeRunner};
+use super::super::{NativeParamBinding, NativeRunner};
+use super::process::target_kind_for_binding;
+use super::source::{ModulationAxis, ModulationSourceId};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq)]
-pub(super) struct BindingChange {
-    pub(super) key: String,
-    pub(super) binding: Option<NativeParamBinding>,
+pub(in crate::native_runner) struct BindingChange {
+    pub(in crate::native_runner) key: String,
+    pub(in crate::native_runner) binding: Option<NativeParamBinding>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(super) enum BindingValidationError {
+pub(in crate::native_runner) enum BindingValidationError {
     UnsupportedTarget,
     KindMismatch,
     LfoTargetNotLive,
@@ -18,7 +18,7 @@ pub(super) enum BindingValidationError {
 }
 
 impl BindingValidationError {
-    pub(super) fn toast_message(&self) -> &'static str {
+    pub(in crate::native_runner) fn toast_message(&self) -> &'static str {
         match self {
             Self::UnsupportedTarget => "That setting can't be mapped.",
             Self::KindMismatch => "This control can't move that setting.",
@@ -28,7 +28,7 @@ impl BindingValidationError {
     }
 }
 
-pub(super) fn validate_binding_changes(
+pub(in crate::native_runner) fn validate_binding_changes(
     runner: &NativeRunner,
     changes: &[BindingChange],
 ) -> Result<(), BindingValidationError> {
@@ -39,13 +39,13 @@ pub(super) fn validate_binding_changes(
         };
         let (mode, kind) =
             target_kind_for_binding(&binding).map_err(|_| BindingValidationError::KindMismatch)?;
-        if mode == super::modulation_target::TargetMode::Discrete
+        if mode == super::target::TargetMode::Discrete
             && claims.insert(binding.key.clone(), source).is_some()
         {
             return Err(BindingValidationError::AssignmentClaim);
         }
         if source.is_global_lfo()
-            && (!super::modulation_audio::is_live_link_lfo_target(&binding.key) || kind != "number")
+            && (!super::audio::is_live_link_lfo_target(&binding.key) || kind != "number")
         {
             return Err(BindingValidationError::LfoTargetNotLive);
         }
@@ -53,8 +53,8 @@ pub(super) fn validate_binding_changes(
     Ok(())
 }
 
-pub(super) fn inert_sample_binding_key(key: &str) -> bool {
-    let Some((_, field)) = super::modulation_keys::parse_instrument_binding_key(key) else {
+pub(in crate::native_runner) fn inert_sample_binding_key(key: &str) -> bool {
+    let Some((_, field)) = super::keys::parse_instrument_binding_key(key) else {
         return false;
     };
     field.starts_with("sample.ampEnv.")

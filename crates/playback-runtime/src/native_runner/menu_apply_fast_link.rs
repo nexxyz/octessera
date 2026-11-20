@@ -1,5 +1,5 @@
 use super::action_bindings::BindingTarget;
-use super::modulation_source::ModulationAxis;
+use super::modulation::source::ModulationAxis;
 use super::{
     instrument_labels, link_layer_config, menu_apply_fast_values::parse_indexed_key, NativeRunner,
 };

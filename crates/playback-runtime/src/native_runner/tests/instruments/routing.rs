@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_runner::modulation_sampler::apply_sampler_assignments_for_instruments_routed;
+use crate::native_runner::modulation::sampler::apply_sampler_assignments_for_instruments_routed;
 
 #[test]
 pub(crate) fn synth_and_sampler_events_route_to_audio_while_midi_routes_to_midi() {

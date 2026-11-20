@@ -1,4 +1,4 @@
-use super::{fx_default_params, json, NativeParamBinding, Value};
+use super::super::{fx_default_params, json, NativeParamBinding, Value};
 
 pub(super) fn apply_string_value(target: &mut String, value: Value, allowed: &[&str]) -> bool {
     let Some(value) = value.as_str() else {
@@ -89,10 +89,12 @@ pub(super) fn apply_fx_param_binding_value(
         value
             .as_str()
             .filter(|value| {
-                super::config_schema_validation::is_valid_fx_string_param(fx_type, key, value)
+                super::super::config_schema_validation::is_valid_fx_string_param(
+                    fx_type, key, value,
+                )
             })
             .map(|value| json!(value))
-    } else if super::fx_param_specs::fx_param_spec(fx_type, key).is_some() {
+    } else if super::super::fx_param_specs::fx_param_spec(fx_type, key).is_some() {
         value
             .as_f64()
             .map(|value| fx_param_storage_value(key, value))
@@ -111,7 +113,7 @@ pub(super) fn apply_fx_param_binding_value(
 }
 
 pub(super) fn fx_param_storage_value(key: &str, value: f64) -> Value {
-    super::fx_param_codec::display_to_storage(key, value)
+    super::super::fx_param_codec::display_to_storage(key, value)
 }
 
 pub(super) fn axis_norm(index: usize, size: usize, invert: bool) -> f32 {
@@ -123,7 +125,10 @@ pub(super) fn axis_norm(index: usize, size: usize, invert: bool) -> f32 {
     }
 }
 
-pub(super) fn quantize_binding_value(norm: f32, binding: &NativeParamBinding) -> Value {
+pub(in crate::native_runner) fn quantize_binding_value(
+    norm: f32,
+    binding: &NativeParamBinding,
+) -> Value {
     let norm = norm.clamp(0.0, 1.0);
     if binding.kind == "enum" && !binding.options.is_empty() {
         let index = (norm * (binding.options.len().saturating_sub(1)) as f32).round() as usize;
@@ -146,7 +151,10 @@ pub(super) fn quantize_binding_value(norm: f32, binding: &NativeParamBinding) ->
 }
 
 /// Where `value` sits in `binding`'s range, `0.0` at Range Min and `1.0` at Range Max.
-pub(super) fn binding_normalized(value: f64, binding: &NativeParamBinding) -> f32 {
+pub(in crate::native_runner) fn binding_normalized(
+    value: f64,
+    binding: &NativeParamBinding,
+) -> f32 {
     let (min, max) = effective_numeric_range(
         binding,
         binding.min.unwrap_or(0.0),

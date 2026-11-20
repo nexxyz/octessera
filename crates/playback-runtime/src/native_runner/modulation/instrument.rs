@@ -1,11 +1,11 @@
-use super::{
+use super::super::{
     apply_instrument_numeric_binding_value, set_json_path_string, synth_string_at, value_string_at,
     InstrumentType, MixerRoute, Value, FILTER_TYPES, OSC_WAVEFORMS,
 };
 use platform_core::NoteBehavior;
 
 pub(super) fn apply_instrument_binding_value(
-    instrument: &mut super::NativeInstrumentSlot,
+    instrument: &mut super::super::NativeInstrumentSlot,
     field: &str,
     value: Value,
 ) -> bool {

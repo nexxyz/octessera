@@ -161,7 +161,7 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
     assert_eq!(runner.menu.rebuild_count, menu_rebuilds_before);
     assert!(runner
         .modulation_process
-        .has_source(crate::native_runner::modulation_source::ModulationSourceId::play_x()));
+        .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
     assert_eq!(
         runner
             .modulation_process

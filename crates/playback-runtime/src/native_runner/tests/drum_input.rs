@@ -186,7 +186,7 @@ fn stamped_drum_level_scales_velocity_and_follow_pitch_and_transpose_are_opt_in(
         { "x": 2, "y": 0, "voice": 2, "tuneSemis": 3, "tuneCents": 10, "level": "low" }
     ]);
     let route = |runner: &NativeRunner, transpose: i8, note: u8| {
-        super::super::modulation_sampler::apply_sampler_assignments_for_instruments_routed(
+        super::super::modulation::sampler::apply_sampler_assignments_for_instruments_routed(
             vec![MusicalEvent::NoteOn {
                 channel: 0,
                 note,

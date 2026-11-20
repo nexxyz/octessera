@@ -1,10 +1,10 @@
-pub(super) fn parse_link_binding_key(key: &str) -> Option<(usize, String)> {
+pub(in crate::native_runner) fn parse_link_binding_key(key: &str) -> Option<(usize, String)> {
     let rest = key.strip_prefix("layers.")?;
     let (index, field) = rest.split_once(".link.")?;
     Some((index.parse::<usize>().ok()?, field.into()))
 }
 
-pub(super) fn parse_fx_bus_binding_key(key: &str) -> Option<(usize, &str, &str)> {
+pub(in crate::native_runner) fn parse_fx_bus_binding_key(key: &str) -> Option<(usize, &str, &str)> {
     let rest = key.strip_prefix("mixer.buses.")?;
     let (index, field) = rest.split_once('.')?;
     let field = if let Some(field) = field.strip_prefix("slot1.") {
@@ -19,19 +19,21 @@ pub(super) fn parse_fx_bus_binding_key(key: &str) -> Option<(usize, &str, &str)>
     Some((index.parse::<usize>().ok()?, field.0, field.1))
 }
 
-pub(super) fn parse_global_fx_binding_key(key: &str) -> Option<(usize, &str)> {
+pub(in crate::native_runner) fn parse_global_fx_binding_key(key: &str) -> Option<(usize, &str)> {
     let rest = key.strip_prefix("mixer.master.slots.")?;
     let (index, field) = rest.split_once('.')?;
     Some((index.parse::<usize>().ok()?, field))
 }
 
-pub(super) fn parse_instrument_binding_key(key: &str) -> Option<(usize, &str)> {
+pub(in crate::native_runner) fn parse_instrument_binding_key(key: &str) -> Option<(usize, &str)> {
     let rest = key.strip_prefix("instruments.")?;
     let (index, field) = rest.split_once('.')?;
     Some((index.parse::<usize>().ok()?, field))
 }
 
-pub(super) fn parse_layer_behavior_config_binding_key(key: &str) -> Option<(usize, &str)> {
+pub(in crate::native_runner) fn parse_layer_behavior_config_binding_key(
+    key: &str,
+) -> Option<(usize, &str)> {
     let rest = key.strip_prefix("layers.")?;
     let (index, field) = rest.split_once(".build.behaviorConfig.")?;
     Some((index.parse::<usize>().ok()?, field))

@@ -1,4 +1,4 @@
-use super::{NativeParamBinding, NativeRunner, Value};
+use super::super::{NativeParamBinding, NativeRunner, Value};
 
 pub(super) fn canonical_binding_range(binding: &NativeParamBinding) -> Option<(f64, f64)> {
     let min = binding.min?;
@@ -19,10 +19,13 @@ pub(super) fn canonical_clamp(min: Option<f64>, max: Option<f64>, value: f64) ->
     }
 }
 
-pub(super) fn persistent_base_value(runner: &NativeRunner, binding: &NativeParamBinding) -> f64 {
-    super::modulation_process_audio::audio_base_value(runner, &binding.key)
+pub(in crate::native_runner) fn persistent_base_value(
+    runner: &NativeRunner,
+    binding: &NativeParamBinding,
+) -> f64 {
+    super::process_audio::audio_base_value(runner, &binding.key)
         .or_else(|| {
-            super::modulation_keys::parse_layer_behavior_config_binding_key(&binding.key).and_then(
+            super::keys::parse_layer_behavior_config_binding_key(&binding.key).and_then(
                 |(index, field)| {
                     runner
                         .layer_behavior_config(index)
@@ -63,8 +66,7 @@ pub(super) fn numeric_sample(
     normalized: f64,
 ) -> f64 {
     let Some((min, max)) = user_binding_range(binding) else {
-        return super::modulation_process_audio::audio_base_value(runner, &binding.key)
-            .unwrap_or(0.0);
+        return super::process_audio::audio_base_value(runner, &binding.key).unwrap_or(0.0);
     };
     (min + normalized.clamp(0.0, 1.0) * (max - min)).clamp(min, max)
 }

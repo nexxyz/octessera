@@ -1,25 +1,23 @@
-use super::modulation_audio::is_live_link_lfo_target;
-use super::modulation_keys::parse_layer_behavior_config_binding_key;
-use super::modulation_process_values::{
-    current_discrete_value, numeric_sample, persistent_base_value,
-};
-use super::modulation_source::ModulationSourceId;
-use super::{NativeParamBinding, NativeRunner, Value};
-use crate::native_runner::modulation_target::{
+use super::super::{NativeParamBinding, NativeRunner, Value};
+use super::audio::is_live_link_lfo_target;
+use super::keys::parse_layer_behavior_config_binding_key;
+use super::process_values::{current_discrete_value, numeric_sample, persistent_base_value};
+use super::source::ModulationSourceId;
+use crate::native_runner::modulation::target::{
     classify_key, Endpoint, TargetMode, TargetValueKind,
 };
 use crate::timing_units::lfo_period_pulses;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Default)]
-pub(super) struct ModulationProcessState {
+pub(in crate::native_runner) struct ModulationProcessState {
     pub(super) sources: BTreeMap<ModulationSourceId, HeldSource>,
     pub(super) source_keys: BTreeMap<String, BTreeSet<ModulationSourceId>>,
     pub(super) dirty_keys: BTreeSet<String>,
     pub(super) dirty_persistent_keys: BTreeSet<String>,
     pub(super) base_values: BTreeMap<String, f64>,
     pub(super) base_bindings: BTreeMap<String, NativeParamBinding>,
-    pub(super) base_discrete: BTreeMap<String, (NativeParamBinding, Value)>,
+    pub(in crate::native_runner) base_discrete: BTreeMap<String, (NativeParamBinding, Value)>,
     pub(super) audio_commands: BTreeMap<Endpoint, Vec<crate::protocol::RuntimeAudioCommand>>,
     pub(super) active_endpoints: BTreeSet<Endpoint>,
     active_keys: BTreeSet<String>,
@@ -94,7 +92,7 @@ impl ModulationProcessState {
     pub(super) fn set_lfo(
         &mut self,
         source: ModulationSourceId,
-        lfo: &super::NativeLinkLfo,
+        lfo: &super::super::NativeLinkLfo,
     ) -> Result<bool, String> {
         let Some(binding) = lfo.target.clone() else {
             return Ok(self.clear_source(source));
@@ -102,7 +100,7 @@ impl ModulationProcessState {
         if !lfo.enabled || !is_live_link_lfo_target(&binding.key) {
             return Ok(self.clear_source(source));
         }
-        let (min, max) = super::modulation_process_values::user_binding_range(&binding)
+        let (min, max) = super::process_values::user_binding_range(&binding)
             .ok_or_else(|| format!("LFO target `{}` has no numeric range", binding.key))?;
         let phase = f64::from(lfo.phase_pulses) / f64::from(lfo_period_pulses(&lfo.period).max(1));
         let mut delta = f64::from(realtime_engine::sine::sin_turns(phase as f32))
@@ -155,7 +153,7 @@ impl ModulationProcessState {
         }
     }
 
-    pub(super) fn has_source(&self, source: ModulationSourceId) -> bool {
+    pub(in crate::native_runner) fn has_source(&self, source: ModulationSourceId) -> bool {
         self.sources.contains_key(&source)
     }
 
@@ -223,7 +221,7 @@ impl ModulationProcessState {
         has_key
     }
 
-    pub(super) fn composed_discrete_value(&self, key: &str) -> Option<Value> {
+    pub(in crate::native_runner) fn composed_discrete_value(&self, key: &str) -> Option<Value> {
         self.source_keys
             .get(key)
             .into_iter()
@@ -231,10 +229,8 @@ impl ModulationProcessState {
             .filter_map(|source| self.sources.get(source))
             .filter_map(|held| match held.value {
                 HeldValue::DiscreteNormalized(normalized) => {
-                    let value = super::modulation_value::quantize_binding_value(
-                        normalized as f32,
-                        &held.binding,
-                    );
+                    let value =
+                        super::value::quantize_binding_value(normalized as f32, &held.binding);
                     Some(
                         if held.binding.kind == "number"
                             && value.as_f64().is_some_and(|value| value.fract() == 0.0)
@@ -250,7 +246,7 @@ impl ModulationProcessState {
             .next_back()
     }
 
-    pub(super) fn set_discrete_base(&mut self, key: &str, value: Value) {
+    pub(in crate::native_runner) fn set_discrete_base(&mut self, key: &str, value: Value) {
         if let Some((binding, _)) = self.base_discrete.get(key).cloned() {
             self.base_discrete.insert(key.into(), (binding, value));
             self.mark_key_active(key);
@@ -259,7 +255,7 @@ impl ModulationProcessState {
         self.dirty_persistent_keys.remove(key);
     }
 
-    pub(super) fn persistent_behavior_config_overrides(
+    pub(in crate::native_runner) fn persistent_behavior_config_overrides(
         &self,
         layer_index: usize,
     ) -> BTreeMap<String, Value> {
@@ -287,12 +283,12 @@ impl ModulationProcessState {
         for (index, lfo) in runner.link_lfos.iter().enumerate() {
             let source = ModulationSourceId::global_lfo(index)
                 .map_err(|error| format!("invalid global LFO source: {error:?}"))?;
-            if runner.transport.transport == super::RuntimeTransportState::Stopped {
+            if runner.transport.transport == super::super::RuntimeTransportState::Stopped {
                 changed |= self.clear_source(source);
                 continue;
             }
             let should_refresh = runner.transport.transport
-                == super::RuntimeTransportState::Playing
+                == super::super::RuntimeTransportState::Playing
                 || self.sources.get(&source).is_some_and(|held| {
                     lfo.target
                         .as_ref()

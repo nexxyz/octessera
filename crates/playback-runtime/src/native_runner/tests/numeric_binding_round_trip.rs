@@ -58,7 +58,7 @@ fn assert_binding_writes_what_the_menu_shows(
             invert: false,
         };
         let resting =
-            super::super::modulation_process_values::persistent_base_value(runner, &binding);
+            super::super::modulation::process_values::persistent_base_value(runner, &binding);
         assert!(
             (resting - f64::from(written)).abs() < 1e-6,
             "{key} rests at {resting} after writing {written}"
@@ -88,7 +88,7 @@ fn every_offered_instrument_target_writes_the_value_its_menu_row_shows() {
             let field = &binding.key["instruments.0.".len()..];
             let value = json!(binding.min.unwrap_or(0));
             if let Some(command) =
-                super::super::modulation_audio::instrument_modulation_audio_command(
+                super::super::modulation::audio::instrument_modulation_audio_command(
                     0, field, &value,
                 )
             {

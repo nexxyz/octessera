@@ -1,12 +1,12 @@
-use super::modulation_value::{
-    apply_bool_value, apply_i32_value, apply_string_value, apply_u8_enum_value, apply_u8_value,
-};
-use super::{
+use super::super::{
     ArpMode, ArpSource, LaneCurve, NativeLinkLayer, NativeValueLane, RangeMode, ScanAxis,
     ScanDirection, ScanMode, TriggerProbabilityMode, Value,
 };
+use super::value::{
+    apply_bool_value, apply_i32_value, apply_string_value, apply_u8_enum_value, apply_u8_value,
+};
 
-pub(super) fn apply_link_binding_value(
+pub(in crate::native_runner) fn apply_link_binding_value(
     layer: &mut NativeLinkLayer,
     field: &str,
     value: Value,

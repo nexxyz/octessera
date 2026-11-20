@@ -1,4 +1,4 @@
-use super::super::{
+use super::super::super::{
     cutoff_hz_to_display, menu_apply_fast_instruments, synth_i32_at, synth_scalar_field,
     NativeInstrumentSlot, Value,
 };
@@ -25,7 +25,8 @@ pub(super) fn instrument_numeric_value(
             stored
         });
     }
-    if let Some((voice, param, _, _)) = super::super::drum_config::voice_numeric_field(field) {
+    if let Some((voice, param, _, _)) = super::super::super::drum_config::voice_numeric_field(field)
+    {
         return instrument
             .drum_config
             .get("voices")?
@@ -33,7 +34,7 @@ pub(super) fn instrument_numeric_value(
             .get(param)?
             .as_f64();
     }
-    if let Some((path, _, _)) = super::super::drum_config::common_numeric_field(field) {
+    if let Some((path, _, _)) = super::super::super::drum_config::common_numeric_field(field) {
         let stored = json_number(&instrument.drum_config, path)?;
         return Some(if field == "drum.filter.cutoffHz" {
             f64::from(cutoff_hz_to_display(stored as i32))

@@ -1,5 +1,5 @@
 use super::action_bindings::BindingTarget;
-use super::modulation_source::ModulationSourceId;
+use super::modulation::source::ModulationSourceId;
 use super::{param_binding_from_payload, param_binding_payload, NativeParamBinding, NativeRunner};
 use crate::protocol::RunnerMessage;
 use crate::runtime::MidiControlChange;

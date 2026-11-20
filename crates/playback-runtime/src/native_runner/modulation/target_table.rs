@@ -1,4 +1,4 @@
-use super::modulation_target::TargetValueKind;
+use super::target::TargetValueKind;
 
 mod instrument_fields;
 use self::instrument_fields::{
@@ -6,7 +6,7 @@ use self::instrument_fields::{
 };
 
 pub(super) fn instrument_field_kind(field: &str) -> Option<(TargetValueKind, bool)> {
-    if super::drum_config::voice_numeric_field(field).is_some() {
+    if super::super::drum_config::voice_numeric_field(field).is_some() {
         return Some((TargetValueKind::Numeric, false));
     }
     let value_kind = if INSTRUMENT_ENUM_FIELDS.contains(&field) {

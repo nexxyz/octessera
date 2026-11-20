@@ -129,15 +129,15 @@ pub(crate) fn keyed_base_rebase_preserves_xy_source_and_clear_restores_new_base(
 pub(crate) fn dirty_key_recomposition_includes_all_contributors_for_that_key() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].volume = 50;
-    let source_a = crate::native_runner::modulation_source::ModulationSourceId::layer_axis(
+    let source_a = crate::native_runner::modulation::source::ModulationSourceId::layer_axis(
         0,
-        crate::native_runner::modulation_source::ModulationAxis::X,
+        crate::native_runner::modulation::source::ModulationAxis::X,
         0,
     )
     .unwrap();
-    let source_b = crate::native_runner::modulation_source::ModulationSourceId::layer_axis(
+    let source_b = crate::native_runner::modulation::source::ModulationSourceId::layer_axis(
         0,
-        crate::native_runner::modulation_source::ModulationAxis::X,
+        crate::native_runner::modulation::source::ModulationAxis::X,
         1,
     )
     .unwrap();

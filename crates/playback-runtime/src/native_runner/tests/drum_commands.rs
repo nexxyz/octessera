@@ -113,7 +113,7 @@ fn aux_and_xy_next_hit_voice_targets_emit_only_voice_scoped_scalars() {
     runner.drum_selected_voices[0] = 2;
     runner.menu.rebuild(runner.menu_config());
     runner.transport.transport = RuntimeTransportState::Playing;
-    assert!(!super::super::modulation_audio::is_live_link_lfo_target(
+    assert!(!super::super::modulation::audio::is_live_link_lfo_target(
         "instruments.0.drum.voices.2.tonePct"
     ));
     let other = runner.instruments[1].clone();

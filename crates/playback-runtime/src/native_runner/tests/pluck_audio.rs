@@ -45,7 +45,7 @@ fn pluck_outbox_scalar_serde_and_replacement_generation() {
 
 #[test]
 fn pluck_transposed_held_notes_keep_internal_slot_and_mixer_route() {
-    use crate::native_runner::modulation_sampler::apply_sampler_assignments_for_instruments_routed;
+    use crate::native_runner::modulation::sampler::apply_sampler_assignments_for_instruments_routed;
     use std::collections::BTreeMap;
 
     let mut instrument = NativeInstrumentSlot::new(0);
@@ -154,7 +154,7 @@ fn pluck_scalar_paths_and_ranges_match_dsp_typed_ids() {
             Some((min, max))
         );
         assert!(matches!(
-            super::super::modulation_audio::instrument_modulation_audio_command(
+            super::super::modulation::audio::instrument_modulation_audio_command(
                 0,
                 &path,
                 &json!(max)

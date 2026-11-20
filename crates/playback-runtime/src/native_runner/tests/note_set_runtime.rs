@@ -12,7 +12,7 @@ pub(crate) fn note_set_config_and_modulation_accept_new_ids_and_reject_unknown_i
 
     let mut layer = runner.layers[0].link.clone();
     assert!(
-        !crate::native_runner::modulation_link::apply_link_binding_value(
+        !crate::native_runner::modulation::link::apply_link_binding_value(
             &mut layer,
             "pitch.scale",
             json!("not_a_note_set")
@@ -93,7 +93,7 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
     runner.process_dirty_modulation_step(false).unwrap();
     assert!(runner
         .modulation_process
-        .has_source(crate::native_runner::modulation_source::ModulationSourceId::play_x()));
+        .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
 
     runner.link_arp.held_notes[0].push(LinkArpHeldNote {
         audio: true,
@@ -128,7 +128,7 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
     );
     assert!(runner
         .modulation_process
-        .has_source(crate::native_runner::modulation_source::ModulationSourceId::play_x()));
+        .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
     assert!(runner.link_arp.held_notes[0].is_empty());
     assert_eq!(runner.link_arp.rotating_phase[0], 0);
     assert_eq!(runner.link_arp.random_state, 123);

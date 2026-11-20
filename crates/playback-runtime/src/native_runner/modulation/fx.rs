@@ -1,12 +1,10 @@
-use super::modulation_value::{
-    apply_fx_param_binding_value, apply_fx_slot_type_value, apply_u8_value,
-};
-use super::play_fx_config::{is_play_fx_target, play_fx_types, PlayFxConfig};
-use super::{derive_bus_name, Value, PAN_POSITION_COUNT};
+use super::super::play_fx_config::{is_play_fx_target, play_fx_types, PlayFxConfig};
+use super::super::{derive_bus_name, Value, PAN_POSITION_COUNT};
+use super::value::{apply_fx_param_binding_value, apply_fx_slot_type_value, apply_u8_value};
 use crate::native_menu::{is_valid_fx_bus_slot_type, is_valid_global_fx_slot_type};
 
 pub(super) fn apply_fx_bus_binding_value(
-    bus: &mut super::NativeFxBus,
+    bus: &mut super::super::NativeFxBus,
     slot: &str,
     field: &str,
     value: Value,
@@ -17,7 +15,7 @@ pub(super) fn apply_fx_bus_binding_value(
         (slot, field) => {
             let Some((slot_type, params)) = slot
                 .strip_prefix("slot")
-                .and_then(super::NativeFxBus::slot_index)
+                .and_then(super::super::NativeFxBus::slot_index)
                 .and_then(|index| bus.slot_mut(index))
             else {
                 return false;

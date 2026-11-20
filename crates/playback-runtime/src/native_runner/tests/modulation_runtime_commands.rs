@@ -262,9 +262,9 @@ pub(crate) fn modulation_between_menu_steps_reaches_the_engine_unrounded_and_sav
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     assert_eq!(runner.instruments[0].kind, InstrumentType::Synth);
     let source = |lane| {
-        crate::native_runner::modulation_source::ModulationSourceId::layer_axis(
+        crate::native_runner::modulation::source::ModulationSourceId::layer_axis(
             0,
-            crate::native_runner::modulation_source::ModulationAxis::X,
+            crate::native_runner::modulation::source::ModulationAxis::X,
             lane,
         )
         .unwrap()
@@ -302,9 +302,9 @@ pub(crate) fn fx_modulation_between_menu_steps_reaches_the_engine_unrounded() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.fx_buses[0].slots[0].fx_type = "delay".into();
     runner.fx_buses[0].slots[0].params = json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
-    let source = crate::native_runner::modulation_source::ModulationSourceId::layer_axis(
+    let source = crate::native_runner::modulation::source::ModulationSourceId::layer_axis(
         0,
-        crate::native_runner::modulation_source::ModulationAxis::X,
+        crate::native_runner::modulation::source::ModulationAxis::X,
         0,
     )
     .unwrap();
@@ -332,9 +332,9 @@ pub(crate) fn a_binding_left_behind_by_an_fx_type_change_keeps_the_patch_saveabl
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.fx_buses[0].slots[0].fx_type = "delay".into();
     runner.fx_buses[0].slots[0].params = json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
-    let source = crate::native_runner::modulation_source::ModulationSourceId::layer_axis(
+    let source = crate::native_runner::modulation::source::ModulationSourceId::layer_axis(
         0,
-        crate::native_runner::modulation_source::ModulationAxis::X,
+        crate::native_runner::modulation::source::ModulationAxis::X,
         0,
     )
     .unwrap();

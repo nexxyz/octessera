@@ -1,9 +1,9 @@
-use super::{
+use super::super::{
     cutoff_display_to_hz, set_json_path_number, synth_numeric_field, NativeInstrumentSlot, Value,
     PAN_POSITION_COUNT,
 };
 
-pub(super) fn apply_instrument_numeric_binding_value(
+pub(in crate::native_runner) fn apply_instrument_numeric_binding_value(
     instrument: &mut NativeInstrumentSlot,
     field: &str,
     value: f64,
@@ -23,7 +23,7 @@ pub(super) fn apply_instrument_numeric_binding_value(
         }
         field if field.starts_with("fm.") => {
             let Some((path, min, max)) =
-                super::menu_apply_fast_instruments::fm::numeric_field(&field[3..])
+                super::super::menu_apply_fast_instruments::fm::numeric_field(&field[3..])
             else {
                 return false;
             };
@@ -37,7 +37,7 @@ pub(super) fn apply_instrument_numeric_binding_value(
         }
         field if field.starts_with("pluck.") => {
             let Some((path, min, max)) =
-                super::menu_apply_fast_instruments::pluck::numeric_field(&field[6..])
+                super::super::menu_apply_fast_instruments::pluck::numeric_field(&field[6..])
             else {
                 return false;
             };
@@ -50,7 +50,8 @@ pub(super) fn apply_instrument_numeric_binding_value(
             set_json_path_number(&mut instrument.pluck_config, path, f64::from(stored));
         }
         field if field.starts_with("drum.voices.") => {
-            let Some((voice, param, min, max)) = super::drum_config::voice_numeric_field(field)
+            let Some((voice, param, min, max)) =
+                super::super::drum_config::voice_numeric_field(field)
             else {
                 return false;
             };
@@ -63,10 +64,11 @@ pub(super) fn apply_instrument_numeric_binding_value(
                 return false;
             };
             selected[param] =
-                super::json!(value.round().clamp(f64::from(min), f64::from(max)) as i32);
+                super::super::json!(value.round().clamp(f64::from(min), f64::from(max)) as i32);
         }
         field if field.starts_with("drum.") => {
-            let Some((path, min, max)) = super::drum_config::common_numeric_field(field) else {
+            let Some((path, min, max)) = super::super::drum_config::common_numeric_field(field)
+            else {
                 return false;
             };
             let value = value.round().clamp(f64::from(min), f64::from(max)) as i32;

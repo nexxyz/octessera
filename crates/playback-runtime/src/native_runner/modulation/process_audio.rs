@@ -1,5 +1,5 @@
-use super::modulation_target::Endpoint;
-use super::{NativeParamBinding, NativeRunner, Value};
+use super::super::{NativeParamBinding, NativeRunner, Value};
+use super::target::Endpoint;
 use crate::native_runner::InstrumentType;
 use crate::protocol::RuntimeAudioCommand;
 use std::collections::{BTreeMap, BTreeSet};
@@ -17,11 +17,11 @@ pub(super) fn queue_changed_instrument_commands(
         if composed_keys.contains(key) {
             continue;
         }
-        let Some((index, field)) = super::modulation_keys::parse_instrument_binding_key(key) else {
+        let Some((index, field)) = super::keys::parse_instrument_binding_key(key) else {
             continue;
         };
         if !matches!(
-            super::modulation_target::classify_key(key),
+            super::target::classify_key(key),
             Some((_, _, Endpoint::InstrumentParameter { .. }))
         ) {
             continue;
@@ -83,7 +83,7 @@ pub(super) fn queue_changed_instrument_commands(
 }
 
 fn instrument_audio_command_for_kind(
-    instrument: &super::NativeInstrumentSlot,
+    instrument: &super::super::NativeInstrumentSlot,
     index: usize,
     field: &str,
     value: &Value,
@@ -96,11 +96,11 @@ fn instrument_audio_command_for_kind(
     {
         return None;
     }
-    super::modulation_audio::instrument_modulation_audio_command(index, field, value)
+    super::audio::instrument_modulation_audio_command(index, field, value)
 }
 
-pub(super) fn audio_base_value(runner: &NativeRunner, key: &str) -> Option<f64> {
-    if let Some((index, field)) = super::modulation_keys::parse_instrument_binding_key(key) {
+pub(in crate::native_runner) fn audio_base_value(runner: &NativeRunner, key: &str) -> Option<f64> {
+    if let Some((index, field)) = super::keys::parse_instrument_binding_key(key) {
         let instrument = runner.instruments.get(index)?;
         return match field {
             "mixer.volume" => Some(f64::from(instrument.volume)),
@@ -108,19 +108,20 @@ pub(super) fn audio_base_value(runner: &NativeRunner, key: &str) -> Option<f64> 
             _ => instrument_base::instrument_numeric_value(instrument, field),
         };
     }
-    if let Some((index, slot, field)) = super::modulation_keys::parse_fx_bus_binding_key(key) {
+    if let Some((index, slot, field)) = super::keys::parse_fx_bus_binding_key(key) {
         let bus = runner.fx_buses.get(index)?;
         return match (slot, field) {
             ("bus", "volume") => Some(f64::from(bus.volume_pct)),
             ("bus", "panPos") => Some(f64::from(bus.pan_pos)),
             (slot, field) => {
-                let (_, params) =
-                    bus.slot(super::NativeFxBus::slot_index(slot.strip_prefix("slot")?)?)?;
+                let (_, params) = bus.slot(super::super::NativeFxBus::slot_index(
+                    slot.strip_prefix("slot")?,
+                )?)?;
                 params
                     .get(field.strip_prefix("params.")?)
                     .and_then(Value::as_f64)
                     .map(|value| {
-                        super::fx_param_codec::storage_to_display(
+                        super::super::fx_param_codec::storage_to_display(
                             field.strip_prefix("params.").unwrap_or(field),
                             value,
                         )
@@ -128,16 +129,16 @@ pub(super) fn audio_base_value(runner: &NativeRunner, key: &str) -> Option<f64> 
             }
         };
     }
-    let (index, field) = super::modulation_keys::parse_global_fx_binding_key(key)?;
+    let (index, field) = super::keys::parse_global_fx_binding_key(key)?;
     let params = runner.global_fx_params.get(index)?;
     let field = field.strip_prefix("params.")?;
     params
         .get(field)
         .and_then(Value::as_f64)
-        .map(|value| super::fx_param_codec::storage_to_display(field, value))
+        .map(|value| super::super::fx_param_codec::storage_to_display(field, value))
 }
 
-pub(super) fn materialize_endpoint(
+pub(in crate::native_runner) fn materialize_endpoint(
     runner: &NativeRunner,
     endpoint: &Endpoint,
     values: &BTreeMap<String, f64>,
@@ -195,10 +196,10 @@ pub(super) fn materialize_endpoint(
         Endpoint::InstrumentParameter { index, field } => {
             let key = format!("instruments.{index}.{field}");
             if !matches!(
-                super::modulation_target::classify_key(&key),
+                super::target::classify_key(&key),
                 Some((
-                    super::modulation_target::TargetValueKind::Numeric,
-                    super::modulation_target::TargetMode::Numeric,
+                    super::target::TargetValueKind::Numeric,
+                    super::target::TargetMode::Numeric,
                     _
                 ))
             ) {
@@ -219,13 +220,13 @@ pub(super) fn materialize_endpoint(
             let bus = runner.fx_buses.get(*bus_index)?;
             let (fx_type, persistent) = bus.slot(*slot)?;
             let mut params =
-                super::menu_apply_fast_fx_bus::audio_params_for_fx(fx_type, persistent);
+                super::super::menu_apply_fast_fx_bus::audio_params_for_fx(fx_type, persistent);
             let prefix = format!("mixer.buses.{bus_index}.slot{}.params.", slot + 1);
             for (key, value) in values {
                 if let Some(field) = key.strip_prefix(&prefix) {
                     params.insert(
                         field.into(),
-                        super::fx_param_codec::display_to_storage(field, *value),
+                        super::super::fx_param_codec::display_to_storage(field, *value),
                     );
                 }
             }
@@ -241,13 +242,13 @@ pub(super) fn materialize_endpoint(
             let fx_type = runner.global_fx_slots.get(*slot)?;
             let persistent = runner.global_fx_params.get(*slot)?;
             let mut params =
-                super::menu_apply_fast_fx_bus::audio_params_for_fx(fx_type, persistent);
+                super::super::menu_apply_fast_fx_bus::audio_params_for_fx(fx_type, persistent);
             let prefix = format!("mixer.master.slots.{slot}.params.");
             for (key, value) in values {
                 if let Some(field) = key.strip_prefix(&prefix) {
                     params.insert(
                         field.into(),
-                        super::fx_param_codec::display_to_storage(field, *value),
+                        super::super::fx_param_codec::display_to_storage(field, *value),
                     );
                 }
             }
@@ -281,7 +282,7 @@ pub(super) fn materialize_endpoint_commands(
                     safe = false;
                     break;
                 };
-                let Some(param) = super::modulation_audio::realtime_safe_fx_param_id(field) else {
+                let Some(param) = super::audio::realtime_safe_fx_param_id(field) else {
                     safe = false;
                     break;
                 };
@@ -293,7 +294,7 @@ pub(super) fn materialize_endpoint_commands(
                     safe = false;
                     break;
                 };
-                let value = super::fx_param_codec::display_to_live_value(field, value);
+                let value = super::super::fx_param_codec::display_to_live_value(field, value);
                 commands.push(RuntimeAudioCommand::SetFxBusParam {
                     bus_index: *bus_index,
                     slot_index: *slot,
@@ -320,7 +321,7 @@ pub(super) fn materialize_endpoint_commands(
                     safe = false;
                     break;
                 };
-                let Some(param) = super::modulation_audio::realtime_safe_fx_param_id(field) else {
+                let Some(param) = super::audio::realtime_safe_fx_param_id(field) else {
                     safe = false;
                     break;
                 };
@@ -332,7 +333,7 @@ pub(super) fn materialize_endpoint_commands(
                     safe = false;
                     break;
                 };
-                let value = super::fx_param_codec::display_to_live_value(field, value);
+                let value = super::super::fx_param_codec::display_to_live_value(field, value);
                 commands.push(RuntimeAudioCommand::SetGlobalFxParam {
                     slot_index: *slot,
                     generation: 0,

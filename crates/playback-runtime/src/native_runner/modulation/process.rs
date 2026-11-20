@@ -1,17 +1,15 @@
-use super::modulation_process_application::{
+use super::super::{NativeParamBinding, NativeRunner, Value};
+use super::process_application::{
     apply_composed_audio_commands, apply_persistent_modulation_values,
 };
-use super::modulation_process_audio::audio_base_value;
+use super::process_audio::audio_base_value;
 #[cfg(test)]
-pub(super) use super::modulation_process_audio::materialize_endpoint;
-use super::modulation_process_sources::HeldValue;
-pub(super) use super::modulation_process_sources::ModulationProcessState;
-use super::modulation_process_values::{
-    canonical_clamp, persistent_base_value, stepped_binding_value,
-};
-use super::modulation_source::ModulationSourceId;
-use super::modulation_target::{classify_key, TargetMode, TargetValueKind};
-use super::{NativeParamBinding, NativeRunner, Value};
+pub(in crate::native_runner) use super::process_audio::materialize_endpoint;
+use super::process_sources::HeldValue;
+pub(in crate::native_runner) use super::process_sources::ModulationProcessState;
+use super::process_values::{canonical_clamp, persistent_base_value, stepped_binding_value};
+use super::source::ModulationSourceId;
+use super::target::{classify_key, TargetMode, TargetValueKind};
 use std::collections::{BTreeMap, BTreeSet};
 
 impl ModulationProcessState {
@@ -116,7 +114,7 @@ impl ModulationProcessState {
                 key,
                 (
                     binding.clone(),
-                    super::modulation_value::quantize_binding_value(normalized as f32, &binding),
+                    super::value::quantize_binding_value(normalized as f32, &binding),
                 ),
             );
         }
@@ -182,7 +180,7 @@ impl ModulationProcessState {
         apply_composed_audio_commands(
             self,
             runner,
-            super::modulation_process_application::ComposedAudioApplication {
+            super::process_application::ComposedAudioApplication {
                 endpoints,
                 active_endpoints: &active_endpoints,
                 transient_endpoints: &transient_endpoints,
@@ -276,7 +274,7 @@ pub(super) fn target_kind_for_binding(
 }
 
 impl NativeRunner {
-    pub(super) fn set_runtime_source_input(
+    pub(in crate::native_runner) fn set_runtime_source_input(
         &mut self,
         source: ModulationSourceId,
         binding: NativeParamBinding,
@@ -288,11 +286,17 @@ impl NativeRunner {
         changed
     }
 
-    pub(super) fn clear_runtime_source_input(&mut self, source: ModulationSourceId) -> bool {
+    pub(in crate::native_runner) fn clear_runtime_source_input(
+        &mut self,
+        source: ModulationSourceId,
+    ) -> bool {
         self.modulation_process.clear_source(source)
     }
 
-    pub(super) fn rebase_and_recompose_modulation_key(&mut self, key: &str) -> bool {
+    pub(in crate::native_runner) fn rebase_and_recompose_modulation_key(
+        &mut self,
+        key: &str,
+    ) -> bool {
         let mut state = std::mem::take(&mut self.modulation_process);
         let relevant = state.rebase_key(self, key);
         if relevant {
@@ -302,15 +306,15 @@ impl NativeRunner {
         relevant
     }
 
-    pub(super) fn refresh_xy_runtime_sources(&mut self) {
+    pub(in crate::native_runner) fn refresh_xy_runtime_sources(&mut self) {
         let _ = self.set_xy_runtime_sources([self.xy.touch.x, self.xy.touch.y]);
     }
 
-    pub(super) fn resample_xy_runtime_sources(&mut self) {
+    pub(in crate::native_runner) fn resample_xy_runtime_sources(&mut self) {
         let _ = self.resample_xy_runtime_sources_at(std::time::Instant::now(), false);
     }
 
-    pub(super) fn resample_xy_runtime_sources_at(
+    pub(in crate::native_runner) fn resample_xy_runtime_sources_at(
         &mut self,
         now: std::time::Instant,
         force: bool,
@@ -318,11 +322,17 @@ impl NativeRunner {
         self.retarget_xy_runtime_sources_at(now, force)
     }
 
-    pub(super) fn set_xy_runtime_sources(&mut self, normalized: [f32; 2]) -> bool {
+    pub(in crate::native_runner) fn set_xy_runtime_sources(
+        &mut self,
+        normalized: [f32; 2],
+    ) -> bool {
         self.set_xy_runtime_sources_with_force(normalized, false)
     }
 
-    pub(super) fn set_xy_runtime_sources_forced(&mut self, normalized: [f32; 2]) -> bool {
+    pub(in crate::native_runner) fn set_xy_runtime_sources_forced(
+        &mut self,
+        normalized: [f32; 2],
+    ) -> bool {
         self.set_xy_runtime_sources_with_force(normalized, true)
     }
 
@@ -354,16 +364,19 @@ impl NativeRunner {
     }
 
     #[cfg(test)]
-    pub(super) fn transient_lfo_overlay_for_key(&self, key: &str) -> bool {
+    pub(in crate::native_runner) fn transient_lfo_overlay_for_key(&self, key: &str) -> bool {
         self.modulation_process.overlay_for_key(key)
     }
 
     /// The edit itself applied; only its modulation could not be recomposed.
-    pub(super) fn show_modulation_unavailable(&mut self, error: &str) {
+    pub(in crate::native_runner) fn show_modulation_unavailable(&mut self, error: &str) {
         self.show_toast(format!("Modulation unavailable: {error}"));
     }
 
-    pub(super) fn process_modulation_step(&mut self, force: bool) -> Result<(), String> {
+    pub(in crate::native_runner) fn process_modulation_step(
+        &mut self,
+        force: bool,
+    ) -> Result<(), String> {
         #[cfg(test)]
         {
             self.modulation_process_calls = self.modulation_process_calls.saturating_add(1);
@@ -375,7 +388,7 @@ impl NativeRunner {
         Ok(())
     }
 
-    pub(super) fn process_dirty_modulation_step(
+    pub(in crate::native_runner) fn process_dirty_modulation_step(
         &mut self,
         mark_persistent_dirty: bool,
     ) -> Result<(), String> {
@@ -395,25 +408,31 @@ impl NativeRunner {
     }
 
     #[cfg(test)]
-    pub(super) fn recompose_lfo_audio(&mut self, force: bool) -> Result<(), String> {
+    pub(in crate::native_runner) fn recompose_lfo_audio(
+        &mut self,
+        force: bool,
+    ) -> Result<(), String> {
         self.process_modulation_step(force)
     }
 
-    pub(super) fn clear_lfo_audio(&mut self) {
+    pub(in crate::native_runner) fn clear_lfo_audio(&mut self) {
         let mut state = std::mem::take(&mut self.modulation_process);
         state.clear_lfo_audio(self);
         self.modulation_process = state;
     }
 
-    pub(super) fn clear_all_modulation_sources(&mut self) {
+    pub(in crate::native_runner) fn clear_all_modulation_sources(&mut self) {
         self.modulation_process.clear_all();
     }
 
-    pub(super) fn invalidate_lfo_audio_cache(&mut self) {
+    pub(in crate::native_runner) fn invalidate_lfo_audio_cache(&mut self) {
         self.modulation_process.invalidate_cache();
     }
 
-    pub(super) fn advance_global_lfo_audio(&mut self, pulses: u32) -> Result<(), String> {
+    pub(in crate::native_runner) fn advance_global_lfo_audio(
+        &mut self,
+        pulses: u32,
+    ) -> Result<(), String> {
         let mut phase_changed = false;
         for lfo in &mut self.link_lfos {
             let period = crate::timing_units::lfo_period_pulses(&lfo.period).max(1);

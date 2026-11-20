@@ -1,5 +1,5 @@
+use super::modulation::sampler::event_channel;
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
-use super::modulation_sampler::event_channel;
 use super::{ArpMode, DelayedRoutedEvents, LinkEventTiming, NativeRunner};
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;

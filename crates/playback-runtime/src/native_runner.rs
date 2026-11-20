@@ -21,9 +21,9 @@ use defaults::{
     fx_slot_payload_with_params,
 };
 use grid_assign::GridAssign;
-use modulation_keys::{parse_instrument_binding_key, parse_layer_behavior_config_binding_key};
+use modulation::keys::{parse_instrument_binding_key, parse_layer_behavior_config_binding_key};
 #[cfg(test)]
-use modulation_sampler::sampler_assignment_velocity;
+use modulation::sampler::sampler_assignment_velocity;
 use platform_core::{
     default_mapping_config, AxisStrategy, BehaviorActionInput, BehaviorConfigItem,
     BehaviorConfigItemType, DeviceInput, GlobalSoundConfig, GridInteraction, InterpretationProfile,
@@ -181,7 +181,7 @@ mod system_document_tests;
 #[cfg(test)]
 mod system_store_result_tests;
 mod tile_stamp;
-pub(crate) use modulation_audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
+pub(crate) use modulation::audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod aux_view;
 mod error_presentation_results;
 mod hardware_test;
@@ -191,23 +191,6 @@ mod link_payload_apply;
 mod midi_results;
 mod midi_settings;
 mod missing_samples;
-mod modulation_assignment_validation;
-mod modulation_audio;
-mod modulation_fx;
-mod modulation_instrument;
-mod modulation_instrument_numeric;
-mod modulation_keys;
-mod modulation_link;
-mod modulation_process;
-mod modulation_process_application;
-mod modulation_process_audio;
-mod modulation_process_sources;
-mod modulation_process_values;
-mod modulation_sampler;
-mod modulation_source;
-mod modulation_target;
-mod modulation_target_table;
-mod modulation_value;
 mod note_ownership;
 mod note_set_selection;
 mod oled_sleep;
@@ -338,9 +321,9 @@ use link_config::*;
 use link_payload::*;
 use local_patch_document::*;
 use menu_value_apply::*;
-use modulation_instrument_numeric::*;
-use modulation_process::ModulationProcessState;
-use modulation_sampler::RoutedMusicalEvents;
+use modulation::instrument_numeric::*;
+use modulation::process::ModulationProcessState;
+use modulation::sampler::RoutedMusicalEvents;
 use native_layer::NativeLayer;
 use outbox::NativeRunnerOutbox;
 use pan_position::*;

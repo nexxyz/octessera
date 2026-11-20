@@ -1,9 +1,9 @@
-use super::modulation_fx::{apply_fx_bus_binding_value, apply_global_fx_binding_value};
-use super::modulation_keys::{
+use super::super::{NativeRunner, Value};
+use super::fx::{apply_fx_bus_binding_value, apply_global_fx_binding_value};
+use super::keys::{
     parse_fx_bus_binding_key, parse_global_fx_binding_key, parse_instrument_binding_key,
 };
-use super::modulation_target::{classify_key, TargetMode, TargetValueKind};
-use super::{NativeRunner, Value};
+use super::target::{classify_key, TargetMode, TargetValueKind};
 use crate::protocol::RuntimeAudioCommand;
 use realtime_engine::synth::FxParamId;
 
@@ -94,7 +94,7 @@ pub(crate) fn is_live_link_lfo_target(key: &str) -> bool {
     })
 }
 
-pub(super) fn realtime_safe_fx_param_id(field: &str) -> Option<FxParamId> {
+pub(in crate::native_runner) fn realtime_safe_fx_param_id(field: &str) -> Option<FxParamId> {
     Some(match field {
         "amountPct" => FxParamId::AmountPct,
         "attackMs" => FxParamId::AttackMs,
@@ -130,13 +130,13 @@ pub(super) fn realtime_safe_fx_param_id(field: &str) -> Option<FxParamId> {
     })
 }
 
-pub(super) fn instrument_modulation_audio_command(
+pub(in crate::native_runner) fn instrument_modulation_audio_command(
     index: usize,
     field: &str,
     value: &Value,
 ) -> Option<RuntimeAudioCommand> {
     let value = value.as_f64()?;
-    if let Some((voice, param, min, max)) = super::drum_config::voice_numeric_field(field) {
+    if let Some((voice, param, min, max)) = super::super::drum_config::voice_numeric_field(field) {
         return Some(RuntimeAudioCommand::SetDrumParam {
             instrument_slot: index,
             voice: voice as u8,
@@ -145,9 +145,9 @@ pub(super) fn instrument_modulation_audio_command(
             value: value.round().clamp(f64::from(min), f64::from(max)) as f32,
         });
     }
-    if let Some((_, min, max)) = super::drum_config::common_numeric_field(field) {
+    if let Some((_, min, max)) = super::super::drum_config::common_numeric_field(field) {
         let stored = if field == "drum.filter.cutoffHz" {
-            super::cutoff_display_position_to_hz(value) as f32
+            super::super::cutoff_display_position_to_hz(value) as f32
         } else {
             value.clamp(f64::from(min), f64::from(max)) as f32
         };
@@ -176,23 +176,23 @@ pub(super) fn instrument_modulation_audio_command(
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: super::cutoff_display_position_to_hz(value) as f32,
+            value: super::super::cutoff_display_position_to_hz(value) as f32,
         }),
         "fm.filter.cutoffHz" => Some(RuntimeAudioCommand::SetFmParam {
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: super::cutoff_display_position_to_hz(value) as f32,
+            value: super::super::cutoff_display_position_to_hz(value) as f32,
         }),
         "pluck.filter.cutoffHz" => Some(RuntimeAudioCommand::SetPluckParam {
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: super::cutoff_display_position_to_hz(value) as f32,
+            value: super::super::cutoff_display_position_to_hz(value) as f32,
         }),
         field if field.starts_with("pluck.") => {
             let (_, min, max) =
-                super::menu_apply_fast_instruments::pluck::numeric_field(&field[6..])?;
+                super::super::menu_apply_fast_instruments::pluck::numeric_field(&field[6..])?;
             Some(RuntimeAudioCommand::SetPluckParam {
                 instrument_slot: index,
                 generation: 0,
@@ -218,7 +218,8 @@ pub(super) fn instrument_modulation_audio_command(
         | "fm.filterEnv.decayMs"
         | "fm.filterEnv.sustainPct"
         | "fm.filterEnv.releaseMs" => {
-            let (_, min, max) = super::menu_apply_fast_instruments::fm::numeric_field(&field[3..])?;
+            let (_, min, max) =
+                super::super::menu_apply_fast_instruments::fm::numeric_field(&field[3..])?;
             Some(RuntimeAudioCommand::SetFmParam {
                 instrument_slot: index,
                 generation: 0,
@@ -239,7 +240,7 @@ pub(super) fn instrument_modulation_audio_command(
             value: value.clamp(0.0, 255.0) as f32,
         }),
         field if field.starts_with("synth.") => {
-            let (_, min, max) = super::synth_scalar_field(field)?;
+            let (_, min, max) = super::super::synth_scalar_field(field)?;
             Some(RuntimeAudioCommand::SetSynthParam {
                 instrument_slot: index,
                 generation: 0,
@@ -251,7 +252,7 @@ pub(super) fn instrument_modulation_audio_command(
             instrument_slot: index,
             generation: 0,
             path: field.into(),
-            value: super::cutoff_display_position_to_hz(value) as f32,
+            value: super::super::cutoff_display_position_to_hz(value) as f32,
         }),
         "sample.filter.resonance" => Some(RuntimeAudioCommand::SetSampleBankParam {
             instrument_slot: index,

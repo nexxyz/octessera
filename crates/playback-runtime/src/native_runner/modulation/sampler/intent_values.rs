@@ -1,7 +1,7 @@
-use super::super::{LaneCurve, NativeLinkLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
+use super::super::super::{LaneCurve, NativeLinkLayer, NativeValueLane, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{MusicalEvent, TileTriggerIntent};
 
-pub(in super::super) fn cc_events_from_intent(
+pub(in crate::native_runner) fn cc_events_from_intent(
     intent: &TileTriggerIntent,
     sense: &NativeLinkLayer,
     channel: u8,
@@ -60,7 +60,7 @@ fn push_lane_cc(
     });
 }
 
-pub(in super::super) fn velocity_from_intent(
+pub(in crate::native_runner) fn velocity_from_intent(
     intent: &TileTriggerIntent,
     sense: &NativeLinkLayer,
 ) -> Option<u8> {
@@ -80,7 +80,11 @@ pub(in super::super) fn velocity_from_intent(
     )
 }
 
-pub(in super::super) fn value_from_lane(index: usize, size: usize, lane: &NativeValueLane) -> u8 {
+pub(in crate::native_runner) fn value_from_lane(
+    index: usize,
+    size: usize,
+    lane: &NativeValueLane,
+) -> u8 {
     let size = size.max(1);
     let shifted = ((index as i32 + lane.grid_offset).rem_euclid(size as i32)) as f32;
     let norm = (shifted / (size.saturating_sub(1).max(1) as f32)).clamp(0.0, 1.0);

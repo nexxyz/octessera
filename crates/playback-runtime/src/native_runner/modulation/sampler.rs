@@ -1,35 +1,35 @@
-use super::NativeLinkLayer;
+use super::super::NativeLinkLayer;
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, TileTriggerIntent};
 use std::collections::BTreeMap;
 
 mod tile_hits;
-pub(super) use tile_hits::{drum_hit_for_intent, tile_release};
+pub(in crate::native_runner) use tile_hits::{drum_hit_for_intent, tile_release};
 use tile_hits::{sampler_hit_for_intent, sampler_release_for_intent};
 mod intent_values;
 #[cfg(test)]
-pub(super) use intent_values::value_from_lane;
-pub(super) use intent_values::{cc_events_from_intent, velocity_from_intent};
+pub(in crate::native_runner) use intent_values::value_from_lane;
+pub(in crate::native_runner) use intent_values::{cc_events_from_intent, velocity_from_intent};
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub(super) struct RoutedMusicalEvents {
-    pub(super) audio: Vec<MusicalEvent>,
-    pub(super) midi: Vec<MusicalEvent>,
-    pub(super) tiles: Vec<TileHit>,
+pub(in crate::native_runner) struct RoutedMusicalEvents {
+    pub(in crate::native_runner) audio: Vec<MusicalEvent>,
+    pub(in crate::native_runner) midi: Vec<MusicalEvent>,
+    pub(in crate::native_runner) tiles: Vec<TileHit>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct TransposedHeldNote {
-    pub(super) routed_channel: u8,
-    pub(super) routed_note: u8,
-    pub(super) routed_to_midi: bool,
+pub(in crate::native_runner) struct TransposedHeldNote {
+    pub(in crate::native_runner) routed_channel: u8,
+    pub(in crate::native_runner) routed_note: u8,
+    pub(in crate::native_runner) routed_to_midi: bool,
     /// `(sample slot, tile)` when the held note is a sustained sampler tile.
-    pub(super) sampler_tile: Option<(u8, u8)>,
+    pub(in crate::native_runner) sampler_tile: Option<(u8, u8)>,
 }
 
 impl TransposedHeldNote {
-    pub(super) fn release_into(self, out: &mut RoutedMusicalEvents) {
+    pub(in crate::native_runner) fn release_into(self, out: &mut RoutedMusicalEvents) {
         if let Some((voice, tile)) = self.sampler_tile {
             out.tiles
                 .push(tile_hits::tile_release(self.routed_channel, voice, tile));
@@ -48,11 +48,11 @@ impl TransposedHeldNote {
 }
 
 impl RoutedMusicalEvents {
-    pub(super) fn is_empty(&self) -> bool {
+    pub(in crate::native_runner) fn is_empty(&self) -> bool {
         self.audio.is_empty() && self.midi.is_empty() && self.tiles.is_empty()
     }
 
-    pub(super) fn extend(&mut self, other: RoutedMusicalEvents) {
+    pub(in crate::native_runner) fn extend(&mut self, other: RoutedMusicalEvents) {
         self.audio.extend(other.audio);
         self.midi.extend(other.midi);
         self.tiles.extend(other.tiles);
@@ -60,11 +60,11 @@ impl RoutedMusicalEvents {
 }
 
 #[cfg(test)]
-pub(super) fn apply_sampler_assignments_for_instruments(
+pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments(
     events: Vec<MusicalEvent>,
     intents: &[TileTriggerIntent],
     mapped_event_offset: usize,
-    instruments: &[super::NativeInstrumentSlot],
+    instruments: &[super::super::NativeInstrumentSlot],
     sense: Option<&NativeLinkLayer>,
 ) -> Vec<MusicalEvent> {
     let routed = apply_sampler_assignments_for_instruments_routed(
@@ -79,11 +79,11 @@ pub(super) fn apply_sampler_assignments_for_instruments(
     routed.audio.into_iter().chain(routed.midi).collect()
 }
 
-pub(super) fn apply_sampler_assignments_for_instruments_routed(
+pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed(
     events: Vec<MusicalEvent>,
     intents: &[TileTriggerIntent],
     mapped_event_offset: usize,
-    instruments: &[super::NativeInstrumentSlot],
+    instruments: &[super::super::NativeInstrumentSlot],
     sense: Option<&NativeLinkLayer>,
     transpose_offset: i8,
     mut active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
@@ -238,7 +238,7 @@ fn prepare_note_on_with_intent(
     event: &mut MusicalEvent,
     intent: &TileTriggerIntent,
     sense: Option<&NativeLinkLayer>,
-    instruments: &[super::NativeInstrumentSlot],
+    instruments: &[super::super::NativeInstrumentSlot],
     transpose_offset: i8,
     active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
 ) -> bool {
@@ -299,7 +299,7 @@ fn prepare_note_on_with_intent(
 
 fn prepare_note_off_with_intent(
     event: &mut MusicalEvent,
-    instruments: &[super::NativeInstrumentSlot],
+    instruments: &[super::super::NativeInstrumentSlot],
     transpose_offset: i8,
     active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
     route: &mut InstrumentRoute,
@@ -352,7 +352,7 @@ enum InstrumentRoute {
 }
 
 fn instrument_route(
-    instruments: &[super::NativeInstrumentSlot],
+    instruments: &[super::super::NativeInstrumentSlot],
     slot_channel: u8,
 ) -> InstrumentRoute {
     let Some(instrument) = instruments.get(slot_channel as usize) else {
@@ -370,7 +370,7 @@ fn instrument_route(
 
 fn route_event_without_intent(
     mut event: MusicalEvent,
-    instruments: &[super::NativeInstrumentSlot],
+    instruments: &[super::super::NativeInstrumentSlot],
     audio: &mut Vec<MusicalEvent>,
     midi: &mut Vec<MusicalEvent>,
 ) {
@@ -398,7 +398,7 @@ fn route_event_without_intent(
 
 fn route_event_without_intent_with_held_transpose(
     event: MusicalEvent,
-    instruments: &[super::NativeInstrumentSlot],
+    instruments: &[super::super::NativeInstrumentSlot],
     out: &mut RoutedMusicalEvents,
     active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
 ) {
@@ -451,7 +451,7 @@ fn take_held_note(
     held_note
 }
 
-pub(super) fn event_channel(event: &MusicalEvent) -> u8 {
+pub(in crate::native_runner) fn event_channel(event: &MusicalEvent) -> u8 {
     match event {
         MusicalEvent::NoteOn { channel, .. }
         | MusicalEvent::NoteOff { channel, .. }
@@ -468,19 +468,19 @@ fn set_event_channel(event: &mut MusicalEvent, next_channel: u8) {
 }
 
 pub(super) fn midi_event_channel(
-    instruments: &[super::NativeInstrumentSlot],
+    instruments: &[super::super::NativeInstrumentSlot],
     slot_channel: u8,
 ) -> u8 {
     instruments
         .get(slot_channel as usize)
-        .and_then(super::NativeInstrumentSlot::midi_output_channel)
+        .and_then(super::super::NativeInstrumentSlot::midi_output_channel)
         .unwrap_or(slot_channel)
 }
 
-pub(super) fn sampler_assignment_velocity(
+pub(in crate::native_runner) fn sampler_assignment_velocity(
     source_velocity: u8,
-    assignment: &super::NativeSampleAssignment,
-    instrument: &super::NativeInstrumentSlot,
+    assignment: &super::super::NativeSampleAssignment,
+    instrument: &super::super::NativeInstrumentSlot,
 ) -> u8 {
     let base: u8 = match assignment.level.as_deref() {
         Some("high") => instrument.sample_velocity_high,

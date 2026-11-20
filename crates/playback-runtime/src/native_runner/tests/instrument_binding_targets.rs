@@ -1,6 +1,6 @@
 use super::*;
-use crate::native_runner::modulation_audio::instrument_modulation_audio_command;
-use crate::native_runner::modulation_target::{classify_key, TargetMode, TargetValueKind};
+use crate::native_runner::modulation::audio::instrument_modulation_audio_command;
+use crate::native_runner::modulation::target::{classify_key, TargetMode, TargetValueKind};
 
 fn numeric_binding(key: &str, min: f64, max: f64) -> NativeParamBinding {
     NativeParamBinding {

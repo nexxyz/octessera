@@ -1,4 +1,4 @@
-use super::modulation_keys::{
+use super::modulation::keys::{
     parse_fx_bus_binding_key, parse_global_fx_binding_key, parse_link_binding_key,
 };
 use super::system_scalars::system_scalar;

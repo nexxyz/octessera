@@ -1,5 +1,5 @@
 use super::led_color::LedColor;
-use super::modulation_sampler::TransposedHeldNote;
+use super::modulation::sampler::TransposedHeldNote;
 use super::{
     InstrumentType, NativeRunner, RoutedMusicalEvents, TriggerAction, GRID_HEIGHT, GRID_WIDTH,
     LAYER_COUNT,

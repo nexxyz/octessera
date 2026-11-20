@@ -73,10 +73,10 @@ fn classify_layer_key(
     let value_kind = if field == "algorithmStep" {
         TargetValueKind::Enum
     } else if let Some(field) = field.strip_prefix("build.behaviorConfig.") {
-        super::modulation_target_table::behavior_field_kind(field)?
+        super::target_table::behavior_field_kind(field)?
     } else {
         let field = field.strip_prefix("link.")?;
-        super::modulation_target_table::link_field_kind(field)?
+        super::target_table::link_field_kind(field)?
     };
     Some((
         value_kind,
@@ -95,7 +95,7 @@ fn classify_instrument_key(
     if index >= INSTRUMENT_COUNT {
         return None;
     }
-    let (value_kind, additive) = super::modulation_target_table::instrument_field_kind(field)?;
+    let (value_kind, additive) = super::target_table::instrument_field_kind(field)?;
     let endpoint = if matches!(field, "mixer.volume" | "mixer.panPos") {
         Endpoint::InstrumentMixer { index }
     } else {
@@ -130,7 +130,7 @@ fn classify_bus_key(index: usize, field: &str) -> Option<(TargetValueKind, Targe
         (slot, TargetValueKind::Enum, TargetMode::Discrete)
     } else {
         let (slot, field) = parse_fx_slot_field(field)?;
-        let (value_kind, exclusive) = super::modulation_target_table::fx_field_kind(field)?;
+        let (value_kind, exclusive) = super::target_table::fx_field_kind(field)?;
         (
             slot,
             value_kind,
@@ -162,7 +162,7 @@ fn classify_global_fx_key(
         (TargetValueKind::Enum, TargetMode::Discrete)
     } else {
         let field = field.strip_prefix("params.")?;
-        let (value_kind, exclusive) = super::modulation_target_table::fx_field_kind(field)?;
+        let (value_kind, exclusive) = super::target_table::fx_field_kind(field)?;
         (
             value_kind,
             if exclusive {
@@ -180,12 +180,12 @@ fn classify_play_key(key: &str) -> Option<(TargetValueKind, TargetMode)> {
         return Some((TargetValueKind::Enum, TargetMode::Discrete));
     }
     let field = key.strip_prefix("play.fx.params.")?;
-    if !super::modulation_target_table::play_field_is_known(field) {
+    if !super::target_table::play_field_is_known(field) {
         return None;
     }
     Some((
         TargetValueKind::Numeric,
-        if super::modulation_target_table::play_field_is_exclusive(field) {
+        if super::target_table::play_field_is_exclusive(field) {
             TargetMode::Discrete
         } else {
             TargetMode::Numeric

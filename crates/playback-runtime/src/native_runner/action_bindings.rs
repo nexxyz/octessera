@@ -9,11 +9,11 @@ mod binding_target;
 
 pub(super) use binding_target::BindingTarget;
 
-use super::modulation::{param_mod_grid_targets, param_mod_next_toggle_mode};
-use super::modulation_assignment_validation::{
+use super::modulation::assignment_validation::{
     inert_sample_binding_key, validate_binding_changes, BindingChange, BindingValidationError,
 };
-use super::modulation_source::ModulationAxis;
+use super::modulation::source::ModulationAxis;
+use super::modulation::{param_mod_grid_targets, param_mod_next_toggle_mode};
 use super::{native_binding_from_spec, NativeParamBinding, NativeRunner, GRID_HEIGHT};
 
 impl NativeRunner {

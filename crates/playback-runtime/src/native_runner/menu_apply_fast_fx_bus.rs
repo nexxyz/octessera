@@ -133,7 +133,7 @@ impl NativeRunner {
         }
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
-            if let Some(param) = super::modulation_audio::realtime_safe_fx_param_id(param_path) {
+            if let Some(param) = super::modulation::audio::realtime_safe_fx_param_id(param_path) {
                 if let Some(value) = params.get(param_path).and_then(Value::as_f64) {
                     self.queue_audio_command(RuntimeAudioCommand::SetFxBusParam {
                         bus_index,
@@ -255,7 +255,7 @@ impl NativeRunner {
         let params = value_object_to_map(params);
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
-            if let Some(param) = super::modulation_audio::realtime_safe_fx_param_id(param_path) {
+            if let Some(param) = super::modulation::audio::realtime_safe_fx_param_id(param_path) {
                 if let Some(value) = params.get(param_path).and_then(Value::as_f64) {
                     self.queue_audio_command(RuntimeAudioCommand::SetGlobalFxParam {
                         slot_index,

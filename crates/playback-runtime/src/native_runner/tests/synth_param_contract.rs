@@ -1,6 +1,6 @@
 use super::*;
-use crate::native_runner::modulation_audio::instrument_modulation_audio_command;
-use crate::native_runner::modulation_process_audio::audio_base_value;
+use crate::native_runner::modulation::audio::instrument_modulation_audio_command;
+use crate::native_runner::modulation::process_audio::audio_base_value;
 
 type SynthParam = (
     &'static str,

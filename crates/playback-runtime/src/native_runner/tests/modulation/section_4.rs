@@ -1,6 +1,6 @@
 use super::*;
-use crate::native_runner::modulation_link::apply_link_binding_value;
-use crate::native_runner::modulation_sampler::{
+use crate::native_runner::modulation::link::apply_link_binding_value;
+use crate::native_runner::modulation::sampler::{
     cc_events_from_intent, value_from_lane, velocity_from_intent,
 };
 
