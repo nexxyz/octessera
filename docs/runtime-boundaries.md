@@ -112,6 +112,13 @@ are in [`board-profiles.md`](board-profiles.md).
   - shared JSON audio configuration normalization and FX shape/type validation live in `realtime-engine`; desktop and Pi retain sample preparation, preview/bank orchestration, and typed error adaptation
   - desktop and Pi return the same typed audio-command/config failures (one shared validation, and a full or disconnected preparation lane reports Audio `OperationFailed` or `AudioThreadFailed` on both), clamp note, CC, and note-length values into engine range with the shared `playback_runtime::clamp_musical_event` instead of rejecting them, preserve revision identity for full-config preparation, and route `SamplePreview` through the selected realtime instrument path
 
+## Signal Analysis Worker
+
+- The home band and Shape signal views run their tap read, scope trace, FFT, and history on one analysis worker thread owned by `playback-runtime` (`native_runner/signal_view/`), never on the runtime or audio thread.
+- On the boards the worker runs at `SCHED_IDLE` next to the runtime on CPU 0, so the runtime and the render worker preempt it as soon as they wake (`apps/pi-zero/src/audio_priority/dsp_worker_scheduling.rs`).
+- The 2048-point FFT is a real-input transform: a 1024-point complex FFT over the sample pairs, split into the real bins, with per-stage twiddle tables and powers instead of magnitudes. Band ranges are computed once per rate and band count.
+- User-visible rates and ranges are in [`menu-and-controls-spec.md`](menu-and-controls-spec.md#oled-display).
+
 ## Orange production service
 
 The Orange image keeps the same native ownership through the shared Pi host

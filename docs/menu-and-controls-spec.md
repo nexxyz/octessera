@@ -431,17 +431,13 @@ change; only the distance per detent does.
     meanwhile keep the last picture, and the next analysis starts on the newest samples, so only
     the update rate drops. The history keeps its length in time: bars and peaks fall for every
     step since the previous analysis, and a waterfall repeats the newest column once for every
-    column it missed. On the boards the worker runs at `SCHED_IDLE` next to the runtime on CPU 0,
-    so the runtime and the render worker preempt it as soon as they wake. The 2048-point FFT
-    is a real-input transform: a 1024-point complex FFT over the sample pairs, split into the
-    real bins, with per-stage
-    twiddle tables and powers instead of magnitudes; the band ranges are computed once per rate
-    and band count. A step reads only the samples its picture needs (the scope its trace plus
-    about 35 ms of trigger room, an FFT picture one block, the 4 s waterfall the whole ring).
-    The 4 s waterfall runs two FFTs a step, the 16 s and 32 s ones one FFT every second or
-    fourth step. The band steps every 66 ms
-    (about 15 fps); each step is one new scene generation and one timed display deadline, so the
-    boards and the desktop redraw the band at most at that rate.
+    column it missed. A step reads only the samples its picture needs (the scope its trace plus
+    about 35 ms of trigger room, an FFT picture one block, the 4 s waterfall the whole ring). The
+    band steps every 66 ms (about 15 fps); each step is one new scene generation and one timed
+    display deadline, so the boards and the desktop redraw the band at most at that rate. The
+    4 s waterfall runs two FFTs a step, the 16 s and 32 s ones one FFT every second or fourth
+    step. Implementation notes are in
+    [runtime-boundaries.md](runtime-boundaries.md#signal-analysis-worker).
   - The audio engine copies one selected mono signal into a 4096-sample lock-free ring once per
     block at the full output rate (the master as the mean of left and right; 93 ms at 44.1 kHz),
     and only while a live view is on screen; otherwise it costs a few relaxed atomic loads per block. The analysis
