@@ -116,7 +116,8 @@ Auto Save is off, so your edits live in memory until you save them.
 - **Keep it:** `System > Saves > Default > Save Patch` makes it the patch the
   instrument starts with. For a named copy, use `System > Saves > Library`.
 - **Throw it away:** there's no undo. `System > Saves > Default > Load Patch`
-  goes back to your last save (it asks first).
+  goes back to your last save (it asks first). With Auto Save on, your last
+  save is what you have right now, so there's nothing older to go back to.
 - **Start over:** `System > Maintenance > Reset > Factory Patch` brings back
   the shipped patch. Your device settings stay. If it's the device settings
   (display, MIDI, USB, audio) you want back to factory, `Factory System` next

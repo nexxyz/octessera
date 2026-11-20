@@ -396,3 +396,22 @@ fn consecutive_loads_each_open_their_dialog_and_load() {
         assert_eq!(runner.menu.current_key(), Some("default.load"));
     }
 }
+
+#[test]
+fn the_saved_patch_dialog_says_auto_save_leaves_nothing_older_to_go_back_to() {
+    for (auto_save, expected) in [
+        (
+            true,
+            "Load saved patch? Auto Save is on, so there's nothing older to go back to.",
+        ),
+        (false, "Load saved patch? Unsaved changes are lost."),
+    ] {
+        let mut runner = preset_runner();
+        runner.auto_save_default = auto_save;
+        assert!(runner.menu.focus_item_key("default.load"));
+        let _ = press_main(&mut runner);
+        let dialog = runner.display.confirm_dialog.as_ref().unwrap();
+        assert_eq!(dialog.lines.join(" "), expected);
+        assert!(dialog.lines.len() <= OLED_BODY_ROWS - 2);
+    }
+}

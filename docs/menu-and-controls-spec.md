@@ -1276,7 +1276,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - A confirmed load waits for the current patch's save when a patch write is pending or an Auto
   Save-eligible patch edit is dirty: it shows `Saving, then loading`, saves (or lets the pending write
   finish), then loads. A failed save drops the load with `Not saved, so not loaded. Check the SD card.`. With Auto Save
-  off and no pending write, the confirmation may discard unsaved patch edits on purpose. After a
+  off and no pending write, the confirmation may discard unsaved patch edits on purpose. With Auto
+  Save on, `Load Patch` asks `Load saved patch? Auto Save is on, so there's nothing older to go back
+  to.`, since its save first makes the saved patch the current one. After a
   load the menu stays on the row it was loaded from. A named preset whose file is gone shows
   `Not found: <name>` and leaves the current patch and its name untouched.
 - `Save As` or `Rename` onto the name of another existing preset confirms with

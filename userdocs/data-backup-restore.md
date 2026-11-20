@@ -16,7 +16,7 @@ portable preferences off the board so you can reflash without losing anything.
 | Menu | What it does |
 |---|---|
 | `System > Saves > Default > Save Patch` | Saves the current patch as this instrument's default patch. |
-| `System > Saves > Default > Load Patch` | Loads it back, after asking. |
+| `System > Saves > Default > Load Patch` | Loads it back, after asking. With Auto Save on it's already your current patch, so this doesn't undo anything. |
 | `System > Saves > Default > Auto Save` | Saves patch edits automatically. Off by default. |
 | `System > Saves > Default > Backups` | Keeps rolling backups of the patch. |
 | `System > Saves > Library` | Named presets: **Save As**, **Load**, **Rename**, **Delete**, **Save Current**. |

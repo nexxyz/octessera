@@ -176,7 +176,12 @@ impl NativeRunner {
             PlatformAction::DefaultSave => Some(("Confirm Patch", "Save current patch?".into())),
             PlatformAction::DefaultLoad => Some((
                 "Confirm Patch",
-                format!("Load saved patch? {}", self.load_consequence()),
+                if self.auto_save_default {
+                    "Load saved patch? Auto Save is on, so there's nothing older to go back to."
+                        .into()
+                } else {
+                    format!("Load saved patch? {}", self.load_consequence())
+                },
             )),
             PlatformAction::SystemSave => Some(("Confirm System", "Save System settings?".into())),
             PlatformAction::SystemLoad => Some(("Confirm System", "Load System settings?".into())),
