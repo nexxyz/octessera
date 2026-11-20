@@ -46,6 +46,18 @@ pub(crate) fn restore(
         .ok_or_else(|| "store path has no parent".to_string())?
         .join(STAGING_DIR_NAME);
     fs::create_dir_all(&staging).map_err(io_error)?;
+    if recovery::has_leftover_session(
+        &staging,
+        store_dir,
+        samples_dir,
+        recordings_dir,
+        screen_recordings_dir,
+    ) {
+        return Err(
+            "an earlier restore is still unfinished; restart Octessera to finish it, then restore again"
+                .into(),
+        );
+    }
     let backup_path = staging.join(format!("octessera-pre-restore-{session}.oct"));
     if fs::symlink_metadata(&backup_path).is_ok() {
         return Err(format!(
@@ -69,23 +81,6 @@ pub(crate) fn restore(
     let new_screen_recordings = staging_path(&staging, screen_recordings_dir, "new", session);
     let old_recordings = staging_path(&staging, recordings_dir, "old", session);
     let old_screen_recordings = staging_path(&staging, screen_recordings_dir, "old", session);
-    for path in [
-        &new_store,
-        &new_samples,
-        &old_store,
-        &old_samples,
-        &new_recordings,
-        &new_screen_recordings,
-        &old_recordings,
-        &old_screen_recordings,
-    ] {
-        if fs::symlink_metadata(path).is_ok() {
-            return Err(format!(
-                "restore recovery path already exists: {}",
-                path.display()
-            ));
-        }
-    }
     let result = (|| {
         let _sd_card = hold_sd_card_lock(filesystems.sd_card_lock_path())?;
         build_store_tree(
@@ -141,6 +136,7 @@ pub(crate) fn restore(
                 old_screen_recordings.as_path(),
             ),
         ];
+        sync_new_trees();
         transaction::replace_trees(filesystems, &trees, samples_dir)
     })();
     let rolled_back_cleanly = [
@@ -172,6 +168,16 @@ pub(crate) fn restore(
         let _ = fs::remove_file(&backup_path);
     }
     result
+}
+
+/// Puts the new trees on the card before the first live entry moves out, so a power cut during
+/// the swap never rolls forward onto files the card hasn't written yet.
+fn sync_new_trees() {
+    #[cfg(unix)]
+    // SAFETY: sync() takes no arguments and only flushes kernel buffers.
+    unsafe {
+        libc::sync()
+    };
 }
 
 fn read_target_pair(store_dir: &Path) -> Result<(Value, Value), String> {

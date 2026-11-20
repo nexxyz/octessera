@@ -42,12 +42,7 @@ fn finish_interrupted_restore(
     let Some(staging) = store.parent().map(|parent| parent.join(STAGING_DIR_NAME)) else {
         return;
     };
-    let live_trees = [
-        ("store", store),
-        ("samples", samples),
-        (file_label(recordings), recordings),
-        (file_label(screen_recordings), screen_recordings),
-    ];
+    let live_trees = live_trees(store, samples, recordings, screen_recordings);
     for session in leftover_sessions(&staging, &live_trees) {
         let trees = live_trees.map(|(label, live)| SessionTree {
             live: live.to_path_buf(),
@@ -59,6 +54,36 @@ fn finish_interrupted_restore(
             eprintln!("could not finish the interrupted restore {session}: {error}");
         }
     }
+}
+
+/// Whether `staging` still holds a new or old folder of some session, which only the boot sweep
+/// may finish: a restore on top of it could be rolled forward over at the next boot.
+pub(super) fn has_leftover_session(
+    staging: &Path,
+    store: &Path,
+    samples: &Path,
+    recordings: &Path,
+    screen_recordings: &Path,
+) -> bool {
+    !leftover_sessions(
+        staging,
+        &live_trees(store, samples, recordings, screen_recordings),
+    )
+    .is_empty()
+}
+
+fn live_trees<'a>(
+    store: &'a Path,
+    samples: &'a Path,
+    recordings: &'a Path,
+    screen_recordings: &'a Path,
+) -> [(&'a str, &'a Path); 4] {
+    [
+        ("store", store),
+        ("samples", samples),
+        (file_label(recordings), recordings),
+        (file_label(screen_recordings), screen_recordings),
+    ]
 }
 
 /// The store and samples folders are named label first, the media folders role first, as `restore` names them.

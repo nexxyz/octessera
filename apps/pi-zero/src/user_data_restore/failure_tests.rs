@@ -207,24 +207,27 @@ fn a_media_restore_keeps_the_bundled_library_at_its_paths() {
 }
 
 #[test]
-fn recovery_path_collision_keeps_the_new_pre_restore_archive() {
-    let fixture = Fixture::new("recovery-collision");
-    let old_path = fixture
-        .staging
-        .join(".octessera-store-old-recovery-collision");
+fn a_leftover_staging_folder_refuses_a_new_restore_before_anything_is_written() {
+    let fixture = Fixture::new("leftover-staging");
+    let old_path = fixture.staging.join(".octessera-store-old-earlier-session");
     fs::create_dir_all(&old_path).unwrap();
     fs::write(old_path.join("recovery-marker"), b"keep me").unwrap();
 
-    assert!(fixture.restore("recovery-collision", true).is_err());
+    let error = fixture.restore("leftover-staging", true).unwrap_err();
+
+    assert!(
+        error.contains("earlier restore is still unfinished"),
+        "{error}"
+    );
     fixture.assert_live_data();
     assert_eq!(
         fs::read(old_path.join("recovery-marker")).unwrap(),
         b"keep me"
     );
-    assert!(fixture
+    assert!(!fixture
         .staging
-        .join("octessera-pre-restore-recovery-collision.oct")
-        .is_file());
+        .join("octessera-pre-restore-leftover-staging.oct")
+        .exists());
 }
 
 #[test]
