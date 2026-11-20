@@ -1,5 +1,5 @@
 use super::config_dto::{FxBusDto, FxSlotDto, MixerDto};
-use super::{NativeFxBus, Value};
+use super::{FxSlot, NativeFxBus, Value};
 
 pub(super) fn apply_mixer_payload(
     mixer: Option<&MixerDto>,
@@ -29,23 +29,23 @@ pub(super) fn apply_mixer_payload(
 }
 
 fn apply_fx_bus_payload(payload: &FxBusDto, bus: &mut NativeFxBus, bpm: u16) {
+    let [slot1, slot2, slot3] = &mut bus.slots;
     apply_fx_bus_slot_payload(
         payload.slot1.as_ref(),
-        &mut bus.slot1_type,
-        &mut bus.slot1_params,
+        &mut slot1.fx_type,
+        &mut slot1.params,
         bpm,
     );
     apply_fx_bus_slot_payload(
         payload.slot2.as_ref(),
-        &mut bus.slot2_type,
-        &mut bus.slot2_params,
+        &mut slot2.fx_type,
+        &mut slot2.params,
         bpm,
     );
-    if let Some(slot3) = &payload.slot3 {
-        apply_fx_bus_slot_payload(Some(slot3), &mut bus.slot3_type, &mut bus.slot3_params, bpm);
+    if let Some(payload) = &payload.slot3 {
+        apply_fx_bus_slot_payload(Some(payload), &mut slot3.fx_type, &mut slot3.params, bpm);
     } else {
-        bus.slot3_type = "none".into();
-        bus.slot3_params = Value::Object(Default::default());
+        *slot3 = FxSlot::default();
     }
     if let Some(pan_pos) = payload.pan_pos {
         bus.pan_pos = pan_pos.min(32);

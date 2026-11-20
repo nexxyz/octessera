@@ -249,7 +249,7 @@ pub(crate) fn fx_param_fast_path_uses_direct_audio_command_without_revision_bump
         })
         .unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_params["depthPct"], 61);
+    assert_eq!(runner.fx_buses[0].slots[0].params["depthPct"], 61);
     assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -298,7 +298,7 @@ pub(crate) fn fx_param_fast_path_preserves_scaled_values() {
         })
         .unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_params["rateHz"], 4.03);
+    assert_eq!(runner.fx_buses[0].slots[0].params["rateHz"], 4.03);
     assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,

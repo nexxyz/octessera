@@ -169,7 +169,7 @@ fn bus_bypass_is_live_only_and_gates_every_slot_command() {
         tile(&runner, 0, 5),
         led_rgb(dim_rgb(platform_core::palette::MAGENTA, 6))
     );
-    assert_eq!(runner.fx_buses[0].slot1_type, "reverb");
+    assert_eq!(runner.fx_buses[0].slots[0].fx_type, "reverb");
     assert!(!runner.config_dirty);
 
     let mut rerouted = press(&mut runner, 2, 1);

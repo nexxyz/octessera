@@ -88,7 +88,7 @@ fn fx_slot_type_bindings_take_only_their_slot_type_lists() {
 
     assert!(write(&mut runner, "mixer.buses.0.slot1.type", "bitcrusher"));
     assert!(write(&mut runner, "mixer.master.slots.0.type", "saturator"));
-    assert_eq!(runner.fx_buses[0].slot1_type, "bitcrusher");
+    assert_eq!(runner.fx_buses[0].slots[0].fx_type, "bitcrusher");
     assert_eq!(runner.global_fx_slots[0], "saturator");
 }
 

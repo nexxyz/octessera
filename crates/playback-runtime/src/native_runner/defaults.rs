@@ -10,11 +10,7 @@ pub(super) fn derive_instrument_name(_index: usize, kind: InstrumentType) -> Str
 }
 
 pub(super) fn derive_bus_name(bus: &NativeFxBus) -> String {
-    derive_bus_name_from_slots([
-        bus.slot1_type.as_str(),
-        bus.slot2_type.as_str(),
-        bus.slot3_type.as_str(),
-    ])
+    derive_bus_name_from_slots(bus.slots.each_ref().map(|slot| slot.fx_type.as_str()))
 }
 
 pub(super) fn derive_bus_name_from_slots(slots: [&str; 3]) -> String {

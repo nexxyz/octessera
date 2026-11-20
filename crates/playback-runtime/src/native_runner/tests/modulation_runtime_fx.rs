@@ -53,8 +53,8 @@ pub(crate) fn fx_storage_display_codec_materializes_bus_and_global_slots() {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         let mut params = json!({ "mixPct": 100 });
         params[param] = json!(storage);
-        runner.fx_buses[0].slot3_type = fx_type.into();
-        runner.fx_buses[0].slot3_params = params.clone();
+        runner.fx_buses[0].slots[2].fx_type = fx_type.into();
+        runner.fx_buses[0].slots[2].params = params.clone();
         if global_supported {
             runner.global_fx_slots[0] = fx_type.into();
             runner.global_fx_params[0] = params.clone();
@@ -115,11 +115,11 @@ pub(crate) fn fx_storage_display_codec_materializes_bus_and_global_slots() {
         ("rateHz", 4.05, 405.0),
     ] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-        runner.fx_buses[0].slot3_type = "tremolo".into();
+        runner.fx_buses[0].slots[2].fx_type = "tremolo".into();
         runner.global_fx_slots[0] = "compressor".into();
         let mut bus_params = json!({});
         bus_params[param] = json!(storage);
-        runner.fx_buses[0].slot3_params = bus_params;
+        runner.fx_buses[0].slots[2].params = bus_params;
         let mut global_params = json!({});
         global_params[param] = json!(storage);
         runner.global_fx_params[0] = global_params;
@@ -247,8 +247,8 @@ pub(crate) fn resolver_reads_owner_state_without_behavior_serialization() {
 #[test]
 pub(crate) fn overlaid_endpoint_sibling_edit_rematerializes_complete_fx_slot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.fx_buses[0].slot3_type = "eq".into();
-    runner.fx_buses[0].slot3_params = json!({ "midQ": 2.5, "q": 6.0, "mixPct": 100 });
+    runner.fx_buses[0].slots[2].fx_type = "eq".into();
+    runner.fx_buses[0].slots[2].params = json!({ "midQ": 2.5, "q": 6.0, "mixPct": 100 });
     runner.link_lfos[0].enabled = true;
     runner.link_lfos[0].target = Some(fx_binding(
         "mixer.buses.0.slot3.params.midQ",
@@ -283,8 +283,8 @@ pub(crate) fn overlaid_endpoint_sibling_edit_rematerializes_complete_fx_slot() {
 
 fn setup_eq_lfo_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.fx_buses[0].slot3_type = "eq".into();
-    runner.fx_buses[0].slot3_params = json!({ "midQ": 2.5, "lowGainDb": 0, "mixPct": 100 });
+    runner.fx_buses[0].slots[2].fx_type = "eq".into();
+    runner.fx_buses[0].slots[2].params = json!({ "midQ": 2.5, "lowGainDb": 0, "mixPct": 100 });
     runner.global_fx_slots[0] = "eq".into();
     runner.global_fx_params[0] = json!({ "midQ": 2.5, "lowGainDb": 0, "mixPct": 100 });
     runner.link_lfos[0].enabled = true;

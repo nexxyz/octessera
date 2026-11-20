@@ -7,7 +7,7 @@ pub(crate) fn layer_and_bus_names_round_trip_with_auto_name_flags() {
     runner.layers[0].auto_name = false;
     runner.fx_buses[0].name = "space".into();
     runner.fx_buses[0].auto_name = false;
-    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
     let payload = runner.config_payload();
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();

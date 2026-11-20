@@ -54,7 +54,7 @@ pub(crate) fn button_back_exits_after_immediate_structural_apply_without_double_
     runner.menu.state.editing = true;
     let _ = turn_main(&mut runner, 1);
 
-    assert_eq!(runner.fx_buses[0].slot1_type, "tremolo");
+    assert_eq!(runner.fx_buses[0].slots[0].fx_type, "tremolo");
 
     let messages = runner
         .send(HostMessage::DeviceInput {
@@ -63,7 +63,7 @@ pub(crate) fn button_back_exits_after_immediate_structural_apply_without_double_
         })
         .unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_type, "tremolo");
+    assert_eq!(runner.fx_buses[0].slots[0].fx_type, "tremolo");
     assert!(!runner.menu.state.editing);
     assert_no_audio_commands(&messages);
 }

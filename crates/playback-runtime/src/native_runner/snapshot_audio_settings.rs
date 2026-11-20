@@ -20,9 +20,9 @@ pub(super) fn mixer_payload(buses: &[NativeFxBus], slots: &[String], params: &[V
     json!({
         "buses": buses.iter().map(|bus| json!({
             "name": bus.name,
-            "slot1": fx_slot_payload_with_params(&bus.slot1_type, &bus.slot1_params),
-            "slot2": fx_slot_payload_with_params(&bus.slot2_type, &bus.slot2_params),
-            "slot3": fx_slot_payload_with_params(&bus.slot3_type, &bus.slot3_params),
+            "slot1": fx_slot_payload_with_params(&bus.slots[0].fx_type, &bus.slots[0].params),
+            "slot2": fx_slot_payload_with_params(&bus.slots[1].fx_type, &bus.slots[1].params),
+            "slot3": fx_slot_payload_with_params(&bus.slots[2].fx_type, &bus.slots[2].params),
             "panPos": bus.pan_pos, "volumePct": bus.volume_pct, "autoName": bus.auto_name
         })).collect::<Vec<_>>(),
         "master": {

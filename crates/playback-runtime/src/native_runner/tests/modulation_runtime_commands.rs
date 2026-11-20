@@ -300,8 +300,8 @@ pub(crate) fn modulation_between_menu_steps_reaches_the_engine_unrounded_and_sav
 #[test]
 pub(crate) fn fx_modulation_between_menu_steps_reaches_the_engine_unrounded() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot1_params = json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[0].params = json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
     let source = crate::native_runner::modulation_source::ModulationSourceId::layer_axis(
         0,
         crate::native_runner::modulation_source::ModulationAxis::X,
@@ -324,14 +324,14 @@ pub(crate) fn fx_modulation_between_menu_steps_reaches_the_engine_unrounded() {
         _ => None,
     });
     assert!((sent.expect("mix command") - 33.3).abs() < 1.0e-4);
-    assert_eq!(runner.fx_buses[0].slot1_params["mixPct"], json!(33));
+    assert_eq!(runner.fx_buses[0].slots[0].params["mixPct"], json!(33));
 }
 
 #[test]
 pub(crate) fn a_binding_left_behind_by_an_fx_type_change_keeps_the_patch_saveable() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot1_params = json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[0].params = json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
     let source = crate::native_runner::modulation_source::ModulationSourceId::layer_axis(
         0,
         crate::native_runner::modulation_source::ModulationAxis::X,
@@ -341,14 +341,14 @@ pub(crate) fn a_binding_left_behind_by_an_fx_type_change_keeps_the_patch_saveabl
     let feedback = fx_binding("mixer.buses.0.slot1.params.feedback", 0.0, 95.0, 1.0);
     runner.set_runtime_source_input(source, feedback.clone(), 0.2);
     runner.process_dirty_modulation_step(false).unwrap();
-    runner.fx_buses[0].slot1_type = "tremolo".into();
-    runner.fx_buses[0].slot1_params = crate::native_runner::fx_default_params("tremolo");
+    runner.fx_buses[0].slots[0].fx_type = "tremolo".into();
+    runner.fx_buses[0].slots[0].params = crate::native_runner::fx_default_params("tremolo");
 
     runner.set_runtime_source_input(source, feedback, 0.7);
     runner.process_dirty_modulation_step(false).unwrap();
 
     assert_eq!(
-        runner.fx_buses[0].slot1_params,
+        runner.fx_buses[0].slots[0].params,
         crate::native_runner::fx_default_params("tremolo")
     );
     crate::native_runner::split_local_system_patch_documents(&runner.config_payload()).unwrap();

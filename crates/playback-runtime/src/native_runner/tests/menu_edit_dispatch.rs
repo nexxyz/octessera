@@ -133,7 +133,7 @@ fn auto_label_rows_rename_instruments_and_buses_from_the_encoder() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].name = "manual inst".into();
     runner.instruments[0].auto_name = false;
-    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
     runner.fx_buses[0].name = "manual bus".into();
     runner.fx_buses[0].auto_name = false;
     runner.menu.rebuild(runner.menu_config());

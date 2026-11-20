@@ -106,7 +106,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     runner.patch_store.preset_draft_name = "custom draft".into();
     runner.patch_store.preset_names = vec!["old".into()];
     runner.instruments[0].kind = InstrumentType::Synth;
-    runner.fx_buses[0].slot1_type = "delay".into();
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
     runner.grid_assign = Some(GridAssign::PlayFx(Default::default()));
     runner.aux_auto_map_enabled = false;
     runner.display.ui.ghost_tiles = false;
@@ -150,7 +150,7 @@ pub(crate) fn clear_all_confirm_stops_and_resets_patch_state() {
     assert!(runner
         .fx_buses
         .iter()
-        .all(|bus| bus.slot1_type == "none" && bus.slot2_type == "none"));
+        .all(|bus| bus.slots[0].fx_type == "none" && bus.slots[1].fx_type == "none"));
     assert!(runner.global_fx_slots.iter().all(|slot| slot == "none"));
     assert_eq!(runner.grid_assign, None);
     assert!(runner.shift_aux_bindings.iter().all(Option::is_none));

@@ -1,8 +1,8 @@
 use super::*;
 
 fn set_bus_delay(runner: &mut NativeRunner, mode: &str, time_ms: i32) {
-    runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot1_params =
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[0].params =
         json!({ "timeMode": mode, "timeMs": time_ms, "feedback": 0.35, "mixPct": 35 });
     runner.menu.rebuild(runner.menu_config());
 }
@@ -33,10 +33,10 @@ pub(crate) fn delay_time_note_converts_at_current_bpm() {
         .focus_item_key("mixer.buses.0.slot1.params.timeNote"));
     runner.menu.state.editing = true;
     turn_main(&mut runner, 1);
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 333);
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 333);
 
     turn_main(&mut runner, 5);
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 2000);
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 2000);
 }
 
 #[test]
@@ -81,7 +81,7 @@ pub(crate) fn delay_menu_shows_only_the_time_row_of_its_time_mode() {
     );
     assert_eq!(runner.menu.value_for_key(time_note), Some("1/4T".into()));
     assert_eq!(runner.menu.number_for_key(time_ms), None);
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 333);
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 333);
 
     turn_main(&mut runner, -1);
     assert_eq!(runner.menu.number_for_key(time_ms), Some(333));
@@ -100,8 +100,8 @@ pub(crate) fn aux_binding_to_the_hidden_time_ms_row_reports_the_synced_time() {
 
     runner.handle_aux_turn(0, 1).unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 250);
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "note");
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 250);
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMode"], "note");
     let toast = runner
         .display
         .toast
@@ -145,9 +145,9 @@ pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() 
         })
         .unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 333);
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "note");
-    assert_eq!(runner.fx_buses[0].slot1_params["timeNote"], "1/4T");
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 333);
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMode"], "note");
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeNote"], "1/4T");
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::AudioCommands { commands }
@@ -179,8 +179,8 @@ pub(crate) fn delay_time_ms_edit_remains_authoritative() {
     runner.menu.turn(-10);
     runner.apply_current_menu_edit().unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 283);
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 283);
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMode"], "ms");
 }
 
 #[test]
@@ -188,12 +188,12 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     runner.transport.bpm = 120.0;
-    runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot1_params = json!({ "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
-    runner.fx_buses[0].slot2_type = "delay".into();
-    runner.fx_buses[0].slot2_params = json!({ "timeMode": "ms", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
-    runner.fx_buses[0].slot3_type = "delay".into();
-    runner.fx_buses[0].slot3_params = json!({ "timeMode": "note", "timeNote": "1/4", "timeMs": 500, "feedback": 0.35, "mixPct": 35 });
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[0].params = json!({ "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    runner.fx_buses[0].slots[1].fx_type = "delay".into();
+    runner.fx_buses[0].slots[1].params = json!({ "timeMode": "ms", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    runner.fx_buses[0].slots[2].fx_type = "delay".into();
+    runner.fx_buses[0].slots[2].params = json!({ "timeMode": "note", "timeNote": "1/4", "timeMs": 500, "feedback": 0.35, "mixPct": 35 });
     runner.menu.rebuild(runner.menu_config());
 
     assert!(runner.menu.focus_item_key("transport.bpm"));
@@ -217,9 +217,9 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
         })
         .unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 500);
-    assert_eq!(runner.fx_buses[0].slot2_params["timeMs"], 250);
-    assert_eq!(runner.fx_buses[0].slot3_params["timeMs"], 1000);
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 500);
+    assert_eq!(runner.fx_buses[0].slots[1].params["timeMs"], 250);
+    assert_eq!(runner.fx_buses[0].slots[2].params["timeMs"], 1000);
     assert_eq!(
         runner
             .menu
@@ -271,7 +271,7 @@ pub(crate) fn note_mode_delay_config_load_uses_payload_bpm() {
         .unwrap();
 
     assert_eq!(runner.transport.bpm, 60.0);
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 500);
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 500);
 }
 
 #[test]
@@ -291,7 +291,7 @@ pub(crate) fn note_mode_delay_config_load_uses_the_slowest_visible_bpm() {
         .unwrap();
 
     assert_eq!(runner.transport.bpm, 40.0);
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMs"], 750);
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 750);
 }
 
 #[test]
@@ -322,8 +322,8 @@ pub(crate) fn sparse_delay_payload_defaults_to_ms_mode_and_audio_strips_timing_m
     let _ = runner.messages_with_snapshot().unwrap();
     runner.menu.rebuild(runner.menu_config());
 
-    assert_eq!(runner.fx_buses[0].slot1_params["timeMode"], "ms");
-    assert_eq!(runner.fx_buses[0].slot1_params["timeNote"], "1/8");
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMode"], "ms");
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeNote"], "1/8");
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]
             ["timeMode"],

@@ -83,7 +83,7 @@ pub(crate) fn omitted_duck_source_tap_defaults_to_pre() {
         ))
         .unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_params["sourceTap"], "pre");
+    assert_eq!(runner.fx_buses[0].slots[0].params["sourceTap"], "pre");
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]
             ["sourceTap"],
@@ -101,8 +101,8 @@ pub(crate) fn omitted_duck_source_tap_defaults_to_pre() {
 pub(crate) fn duck_source_tap_fast_edit_persists_and_queues_audio_command() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
-    runner.fx_buses[0].slot1_type = "duck".into();
-    runner.fx_buses[0].slot1_params = fx_default_params("duck");
+    runner.fx_buses[0].slots[0].fx_type = "duck".into();
+    runner.fx_buses[0].slots[0].params = fx_default_params("duck");
     runner.menu.rebuild(runner.menu_config());
     assert!(runner
         .menu
@@ -116,7 +116,7 @@ pub(crate) fn duck_source_tap_fast_edit_persists_and_queues_audio_command() {
         })
         .unwrap();
 
-    assert_eq!(runner.fx_buses[0].slot1_params["sourceTap"], "post");
+    assert_eq!(runner.fx_buses[0].slots[0].params["sourceTap"], "post");
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]
             ["sourceTap"],
@@ -141,8 +141,8 @@ pub(crate) fn duck_source_tap_fast_edit_persists_and_queues_audio_command() {
 #[test]
 pub(crate) fn duck_fx_menu_serializes_accepted_boundaries_without_rescaling() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.fx_buses[0].slot2_type = "duck".into();
-    runner.fx_buses[0].slot2_params = json!({
+    runner.fx_buses[0].slots[1].fx_type = "duck".into();
+    runner.fx_buses[0].slots[1].params = json!({
         "source": "I1",
         "threshold": 0.08,
         "amountPct": 60,
@@ -164,7 +164,7 @@ pub(crate) fn duck_fx_menu_serializes_accepted_boundaries_without_rescaling() {
         runner.apply_menu_key_edit(&key).unwrap();
     }
 
-    let params = &runner.fx_buses[0].slot2_params;
+    let params = &runner.fx_buses[0].slots[1].params;
     assert_eq!(params["threshold"], 1.0);
     assert_eq!(params["amountPct"], 100);
     assert_eq!(params["attackMs"], 500);

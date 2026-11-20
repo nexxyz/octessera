@@ -24,7 +24,7 @@ pub(crate) fn fx_bus_slot1_type_turn_applies_immediately() {
         .value_for_key("mixer.buses.0.slot1.type")
         .unwrap();
     assert_eq!(selected, "delay");
-    assert_eq!(runner.fx_buses[0].slot1_type, selected);
+    assert_eq!(runner.fx_buses[0].slots[0].fx_type, selected);
     assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -74,7 +74,7 @@ pub(crate) fn fx_bus_slot1_type_turn_applies_immediately() {
     );
 
     let flushed = press_main(&mut runner);
-    assert_eq!(runner.fx_buses[0].slot1_type, selected);
+    assert_eq!(runner.fx_buses[0].slots[0].fx_type, selected);
     assert_eq!(runner.audio_revisions.revision, 0);
     assert_no_audio_commands(&flushed);
 }
@@ -111,7 +111,7 @@ pub(crate) fn fx_bus_slot2_type_turn_applies_immediately() {
             .as_deref(),
         Some("tremolo")
     );
-    assert_eq!(runner.fx_buses[0].slot2_type, "tremolo");
+    assert_eq!(runner.fx_buses[0].slots[1].fx_type, "tremolo");
     assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,
@@ -125,7 +125,7 @@ pub(crate) fn fx_bus_slot2_type_turn_applies_immediately() {
     assert!(runner.flush_deferred_menu_apply().unwrap().is_empty());
 
     let flushed = press_main(&mut runner);
-    assert_eq!(runner.fx_buses[0].slot2_type, "tremolo");
+    assert_eq!(runner.fx_buses[0].slots[1].fx_type, "tremolo");
     assert_eq!(runner.audio_revisions.revision, 0);
     assert_no_audio_commands(&flushed);
 }
@@ -218,7 +218,7 @@ pub(crate) fn fx_bus_slot3_type_turn_applies_immediately() {
 
     let messages = turn_main(&mut runner, 1);
 
-    assert_eq!(runner.fx_buses[0].slot3_type, "tremolo");
+    assert_eq!(runner.fx_buses[0].slots[2].fx_type, "tremolo");
     assert_eq!(runner.audio_revisions.revision, 0);
     assert!(messages.iter().any(|message| matches!(
         message,

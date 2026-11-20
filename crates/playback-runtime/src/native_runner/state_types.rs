@@ -241,15 +241,26 @@ pub(super) struct NativeAuxBinding {
     pub(super) press_action: Option<NativeMenuAction>,
 }
 
+/// One FX bus slot: its FX type (`none` when empty) and that type's params.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct FxSlot {
+    pub(super) fx_type: String,
+    pub(super) params: Value,
+}
+
+impl Default for FxSlot {
+    fn default() -> Self {
+        Self {
+            fx_type: "none".into(),
+            params: json!({}),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct NativeFxBus {
     pub(super) name: String,
-    pub(super) slot1_type: String,
-    pub(super) slot1_params: Value,
-    pub(super) slot2_type: String,
-    pub(super) slot2_params: Value,
-    pub(super) slot3_type: String,
-    pub(super) slot3_params: Value,
+    pub(super) slots: [FxSlot; 3],
     pub(super) pan_pos: u8,
     pub(super) volume_pct: u8,
     pub(super) auto_name: bool,
@@ -363,21 +374,13 @@ impl NativeFxBus {
     }
 
     pub(super) fn slot(&self, index: usize) -> Option<(&String, &Value)> {
-        match index {
-            0 => Some((&self.slot1_type, &self.slot1_params)),
-            1 => Some((&self.slot2_type, &self.slot2_params)),
-            2 => Some((&self.slot3_type, &self.slot3_params)),
-            _ => None,
-        }
+        let slot = self.slots.get(index)?;
+        Some((&slot.fx_type, &slot.params))
     }
 
     pub(super) fn slot_mut(&mut self, index: usize) -> Option<(&mut String, &mut Value)> {
-        match index {
-            0 => Some((&mut self.slot1_type, &mut self.slot1_params)),
-            1 => Some((&mut self.slot2_type, &mut self.slot2_params)),
-            2 => Some((&mut self.slot3_type, &mut self.slot3_params)),
-            _ => None,
-        }
+        let slot = self.slots.get_mut(index)?;
+        Some((&mut slot.fx_type, &mut slot.params))
     }
 }
 
@@ -385,12 +388,7 @@ impl Default for NativeFxBus {
     fn default() -> Self {
         Self {
             name: "None".into(),
-            slot1_type: "none".into(),
-            slot1_params: json!({}),
-            slot2_type: "none".into(),
-            slot2_params: json!({}),
-            slot3_type: "none".into(),
-            slot3_params: json!({}),
+            slots: Default::default(),
             pan_pos: 16,
             volume_pct: 100,
             auto_name: true,

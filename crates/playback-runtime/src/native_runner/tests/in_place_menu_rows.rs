@@ -252,5 +252,5 @@ fn fx_slot_type_detents_update_their_picker_copies_in_place() {
 
     assert_detents_match_fresh_build(&mut runner, "mixer.buses.1.slot2.type", &[1, 2, -1]);
     assert_detents_match_fresh_build(&mut runner, "mixer.master.slots.0.type", &[1, 1, -1]);
-    assert_ne!(runner.fx_buses[1].slot2_type, "none");
+    assert_ne!(runner.fx_buses[1].slots[1].fx_type, "none");
 }

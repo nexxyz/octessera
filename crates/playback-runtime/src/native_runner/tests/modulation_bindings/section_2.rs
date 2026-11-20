@@ -75,8 +75,8 @@ pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
-    runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot1_params = json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[0].params = json!({ "feedback": 0.35, "timeMs": 250, "mixPct": 35 });
     runner.global_fx_slots[0] = "vinyl".into();
     runner.global_fx_params[0] =
         json!({ "cracklePct": 8, "saturationPct": 15, "warpDepthPct": 5, "mixPct": 100 });
@@ -113,7 +113,7 @@ pub(crate) fn xy_binding_can_drive_link_fx_bus_and_global_fx_params() {
         .unwrap();
 
     assert_eq!(runner.layers[0].link.x_pitch_steps, 16);
-    assert_eq!(runner.fx_buses[0].slot1_params["feedback"], json!(0.98));
+    assert_eq!(runner.fx_buses[0].slots[0].params["feedback"], json!(0.98));
 
     runner.set_param_binding_target(
         "xy:x",
@@ -163,8 +163,8 @@ pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
     let _ = runner.messages_with_snapshot().unwrap();
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
     runner.xy.smoothing_ms = 0;
-    runner.fx_buses[0].slot3_type = "eq".into();
-    runner.fx_buses[0].slot3_params = json!({ "midQ": 1.0, "mixPct": 100 });
+    runner.fx_buses[0].slots[2].fx_type = "eq".into();
+    runner.fx_buses[0].slots[2].params = json!({ "midQ": 1.0, "mixPct": 100 });
     runner.global_fx_slots[0] = "eq".into();
     runner.global_fx_params[0] = json!({ "midQ": 1.0, "mixPct": 100 });
     runner.xy.x_binding = Some(NativeParamBinding {
@@ -206,7 +206,7 @@ pub(crate) fn xy_fx_param_bindings_emit_live_audio_commands_and_scale_mid_q() {
         })
         .unwrap_or_default();
 
-    assert_eq!(runner.fx_buses[0].slot3_params["midQ"], json!(20.0));
+    assert_eq!(runner.fx_buses[0].slots[2].params["midQ"], json!(20.0));
     assert_eq!(runner.global_fx_params[0]["midQ"], json!(20.0));
     assert!(
         commands.iter().any(|command| matches!(

@@ -114,7 +114,9 @@ impl NativeRunner {
         let mut hasher = DefaultHasher::new();
         self.active_behavior().id().hash(&mut hasher);
         for bus in &self.fx_buses {
-            (&bus.slot1_type, &bus.slot2_type, &bus.slot3_type).hash(&mut hasher);
+            for slot in &bus.slots {
+                slot.fx_type.hash(&mut hasher);
+            }
         }
         self.global_fx_slots.hash(&mut hasher);
         for instrument in &self.instruments {
@@ -145,8 +147,8 @@ mod tests {
     fn runner() -> NativeRunner {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.skip_startup_splash();
-        runner.fx_buses[0].slot1_type = "delay".into();
-        runner.fx_buses[0].slot1_params = serde_json::json!({ "timeMs": 250, "feedback": 0.35 });
+        runner.fx_buses[0].slots[0].fx_type = "delay".into();
+        runner.fx_buses[0].slots[0].params = serde_json::json!({ "timeMs": 250, "feedback": 0.35 });
         runner.menu.rebuild(runner.menu_config());
         runner
     }
@@ -252,7 +254,7 @@ mod tests {
         );
 
         runner.edit_menu_key("mixer.buses.0.slot1.type", 1).unwrap();
-        assert_ne!(runner.fx_buses[0].slot1_type, "delay");
+        assert_ne!(runner.fx_buses[0].slots[0].fx_type, "delay");
         assert!(runner
             .menu
             .binding_spec_for_key("mixer.buses.0.slot1.params.spreadPct")

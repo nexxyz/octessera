@@ -8,8 +8,8 @@ pub(crate) fn snapshot_settings_include_complete_audio_config_shapes() {
     runner.instruments[0].sample_amp_env = json!({ "attackMs": 11 });
     runner.instruments[0].sample_filter = json!({ "type": "highpass", "cutoffHz": 1200 });
     runner.instruments[0].sample_filter_env = json!({ "releaseMs": 222 });
-    runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot1_params = json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44 });
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[0].params = json!({ "timeMs": 333, "feedback": 0.42, "mixPct": 44 });
     runner.global_fx_slots[0] = "distortion".into();
     runner.global_fx_params[0] = json!({ "drive": 3.5, "clip": 0.75, "mixPct": 88 });
 

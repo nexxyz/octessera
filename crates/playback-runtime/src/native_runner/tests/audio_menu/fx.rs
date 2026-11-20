@@ -80,8 +80,8 @@ pub(crate) fn invalid_bus_and_global_fx_types_are_rejected_on_load() {
 
 fn bind_aux2_to_bus_delay_mix(runner: &mut NativeRunner) -> &'static str {
     let key = "mixer.buses.0.slot1.params.mixPct";
-    runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot1_params =
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[0].params =
         json!({ "timeMode": "ms", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
     runner.menu.rebuild(runner.menu_config());
     runner.aux_bindings[1] = Some(NativeAuxBinding {
@@ -114,7 +114,7 @@ pub(crate) fn aux_sweep_on_a_bus_fx_param_searches_the_menu_tree_only_once() {
     assert_eq!(runner.menu.key_paths.tree_searches(), searches);
     let mix = runner.menu.number_for_key(key).unwrap();
     assert!(mix < 35, "{mix}");
-    assert_eq!(runner.fx_buses[0].slot1_params["mixPct"], mix);
+    assert_eq!(runner.fx_buses[0].slots[0].params["mixPct"], mix);
 }
 
 #[test]
@@ -129,5 +129,5 @@ pub(crate) fn aux_sweep_follows_its_row_after_the_menu_tree_shifts() {
 
     let mix = runner.menu.number_for_key(key).unwrap();
     assert!(mix < 34, "{mix}");
-    assert_eq!(runner.fx_buses[0].slot1_params["mixPct"], mix);
+    assert_eq!(runner.fx_buses[0].slots[0].params["mixPct"], mix);
 }

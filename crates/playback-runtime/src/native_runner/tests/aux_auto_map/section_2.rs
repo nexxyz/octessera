@@ -125,8 +125,8 @@ pub(crate) fn auto_map_env_and_osc_pages_drive_expected_slots() {
 #[test]
 pub(crate) fn auto_map_fx_slot_uses_effect_specific_param_layout() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.fx_buses[0].slot1_type = "vibrato".into();
-    runner.fx_buses[0].slot1_params = json!({
+    runner.fx_buses[0].slots[0].fx_type = "vibrato".into();
+    runner.fx_buses[0].slots[0].params = json!({
         "rateHz": 0.8,
         "depthMs": 6,
         "baseMs": 8,

@@ -126,7 +126,7 @@ fn every_offered_fx_target_writes_the_value_its_menu_row_shows() {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         let mut deltas = BTreeMap::new();
         runner.apply_param_binding_value("mixer.buses.0.slot1.type", json!(fx), &mut deltas);
-        assert_eq!(runner.fx_buses[0].slot1_type, fx);
+        assert_eq!(runner.fx_buses[0].slots[0].fx_type, fx);
         let checked = assert_targets_with_prefix(&mut runner, "mixer.buses.0.slot1.params.");
         assert!(checked >= 1, "{fx} offered no numeric targets");
     }

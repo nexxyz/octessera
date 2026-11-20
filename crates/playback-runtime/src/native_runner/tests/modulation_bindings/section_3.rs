@@ -57,7 +57,7 @@ pub(crate) fn config_payload_includes_complete_sample_and_fx_param_shapes() {
     assert_eq!(runner.instruments[0].midi_velocity, 66);
     assert_eq!(runner.instruments[0].midi_channel, 7);
     assert_eq!(runner.instruments[0].midi_duration_ms, 444);
-    assert_eq!(runner.fx_buses[0].slot1_params["feedback"], 0.42);
+    assert_eq!(runner.fx_buses[0].slots[0].params["feedback"], 0.42);
     assert_eq!(runner.global_fx_params[0]["drive"], 3.5);
     let round_trip = runner.config_payload();
     assert_eq!(

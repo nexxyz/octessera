@@ -6,8 +6,8 @@ pub(crate) fn turning_instrument_and_bus_auto_name_on_replaces_manual_names() {
     runner.instruments[0].kind = InstrumentType::Sampler;
     runner.instruments[0].name = "manual inst".into();
     runner.instruments[0].auto_name = false;
-    runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot2_type = "duck".into();
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[1].fx_type = "duck".into();
     runner.fx_buses[0].name = "manual bus".into();
     runner.fx_buses[0].auto_name = false;
     runner.menu.rebuild(runner.menu_config());

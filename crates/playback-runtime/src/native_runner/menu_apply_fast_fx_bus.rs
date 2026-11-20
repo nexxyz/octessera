@@ -202,12 +202,9 @@ impl NativeRunner {
         let children = fx_bus_slot_children_for_key(
             &slot_prefix,
             &fx_type,
-            &match slot_index {
-                0 => self.fx_buses[bus_index].slot1_params.clone(),
-                1 => self.fx_buses[bus_index].slot2_params.clone(),
-                2 => self.fx_buses[bus_index].slot3_params.clone(),
-                _ => Value::Null,
-            },
+            &self.fx_buses[bus_index]
+                .slot(slot_index)
+                .map_or(Value::Null, |(_, params)| params.clone()),
             bus_index,
             self.current_menu_bpm(),
         );

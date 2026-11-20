@@ -276,8 +276,8 @@ pub(crate) fn deferred_instrument_name_edit_survives_leaving_row() {
 #[test]
 pub(crate) fn deferred_bus_name_edit_survives_leaving_row() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.fx_buses[0].slot1_type = "delay".into();
-    runner.fx_buses[0].slot2_type = "duck".into();
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[1].fx_type = "duck".into();
     runner.fx_buses[0].name = "Delay+Duck".into();
     runner.menu.rebuild(runner.menu_config());
 

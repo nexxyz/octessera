@@ -99,6 +99,7 @@ mod fm;
 mod fm_device;
 mod fn_layer_gate_colors;
 mod full_screen_signal;
+mod fx_slot_round_trip;
 mod grid_assign_modes;
 mod happy_path;
 mod hardware_test;
