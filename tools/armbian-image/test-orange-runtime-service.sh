@@ -94,7 +94,9 @@ for required_line in \
   'ProtectSystem=strict' \
   'ReadWritePaths=/var/lib/octessera /run/octessera /run/octessera-boot /run/octessera-setup-request/inbox' \
   'PrivateTmp=yes' \
-  'ProtectHome=yes'; do
+  'ProtectHome=yes' \
+  'SuccessExitStatus=75' \
+  'RestartForceExitStatus=75'; do
   grep -qFx "$required_line" "$service" || { echo "Runtime service is missing: $required_line" >&2; exit 1; }
 done
 grep -qFx 'AmbientCapabilities=CAP_SYS_TTY_CONFIG' "$service"

@@ -43,6 +43,8 @@ ExecStart=/usr/local/bin/octessera-pi
 ExecStopPost=-+/usr/bin/python3 -c 'import fcntl;t=open("/dev/tty1","w");fcntl.ioctl(t,0x4B3A,0);fcntl.ioctl(t,0x5606,2)'
 Restart=on-failure
 RestartPreventExitStatus=78
+SuccessExitStatus=75
+RestartForceExitStatus=75
 RestartSec=5s
 StandardOutput=journal
 StandardError=journal

@@ -298,7 +298,7 @@ thread, and never restart the Jack stream.
 
 Failure policy is three attempts in a 30-second start-limit window: the
 initial start plus two `Restart=on-failure` retries five seconds apart. A Perf. Mode app
-restart exits with status 75 so systemd starts it again on both boards; it counts as one of
+restart exits with status 75, which both units treat as a clean exit (no "Failed with result" log), so systemd starts it again on both boards; it counts as one of
 those starts.
 After that the unit stays `start-limit-hit` until someone runs
 `sudo systemctl reset-failed octessera.service` and then

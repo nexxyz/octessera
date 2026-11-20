@@ -81,7 +81,8 @@ for required_line in \
     'ProtectControlGroups=yes' \
     'SupplementaryGroups=tty input' \
     'AmbientCapabilities=CAP_SYS_NICE CAP_SYS_TTY_CONFIG' \
-    'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG'; do
+    'CapabilityBoundingSet=CAP_SYS_NICE CAP_SETUID CAP_SETGID CAP_SYS_TTY_CONFIG' \
+    'SuccessExitStatus=75'; do
     grep -qFx "$required_line" "$runtime"
     grep -qFx "$required_line" "$template"
 done

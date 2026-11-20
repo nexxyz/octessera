@@ -31,6 +31,7 @@ ProtectControlGroups=yes
 ExecStart=/usr/local/bin/octessera-pi
 ExecStopPost=-/usr/bin/chvt 2
 Restart=always
+SuccessExitStatus=75
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
