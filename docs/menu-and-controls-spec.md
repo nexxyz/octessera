@@ -751,14 +751,16 @@ behavior primary red), so a mute never reads as a section color.
   error (domain, code, operation, full message) goes to the journal instead.
 - Wording is chosen by operation, and only states what happens in every case of that family:
   `CAN'T SAVE` (`store_save_preset`: `<name> was not saved.` plus either `A preset with that name
-  exists.` or `Check the SD card, then try again.`, with the name taken from the pending native
-  preset write and clipped to 14 cells; a failure after the file was written reads `PRESET LIST`,
+  exists.` or `Check the SD card, then try again.`, with the name taken from the preset request
+  and clipped to 14 cells, as for the load and delete screens below; a failure after the file was written reads `PRESET LIST`,
   `<name> was saved, but the preset list didn't refresh.`; `store_save_default`/`store_save_recovery`:
   `Your patch was not saved.`; `store_save_backup`: `A backup copy was not saved.`;
   `store_save_system`: `Settings were not saved.`; each followed by the SD card advice, or
   `Its data wasn't valid.` for an `invalid_payload` code), `CAN'T LOAD` (`store_load_default`:
   `Your saved patch didn't load. The patch in use hasn't changed.`; `store_load_system`:
-  `Settings didn't load. The settings in use haven't changed.`), `MIDI TROUBLE`
+  `Settings didn't load. The settings in use haven't changed.`; `store_load_preset`: `<name> didn't
+  load. The patch in use hasn't changed.`), `CAN'T DELETE` (`store_delete_preset`: `<name> wasn't
+  deleted.` plus the SD card advice; the preset stays in the list), `MIDI TROUBLE`
   (`midi_message`, `midi_list_outputs`), `AUDIO TROUBLE` (`audio_thread`: `Sound stopped.` plus
   press Play; `audio_command`), `SAMPLE TROUBLE` (any sample-domain error), `CAN'T RECORD`,
   `SETUP PORTAL`, `UPDATE`, `DATA TRANSFER`, and `OOPS` / `Something went wrong. Try again.` for

@@ -295,7 +295,7 @@ impl RuntimeErrorFacts {
         self
     }
 
-    /// The preset a failed save was writing, so the error screen can name it.
+    /// The preset a failed save, load or delete was about, so the error screen can name it.
     pub fn with_preset_name(mut self, preset_name: Option<String>) -> Self {
         self.preset_name = preset_name;
         self

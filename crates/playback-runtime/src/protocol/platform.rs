@@ -158,7 +158,7 @@ impl RuntimePlatformEffect {
             self.operation(),
             Some(message),
         )
-        .with_preset_name(self.saved_preset_name())
+        .with_preset_name(self.preset_name())
     }
 
     pub fn unsupported_facts(&self, message: String) -> RuntimeErrorFacts {
@@ -168,12 +168,14 @@ impl RuntimePlatformEffect {
             self.operation(),
             Some(message),
         )
-        .with_preset_name(self.saved_preset_name())
+        .with_preset_name(self.preset_name())
     }
 
-    fn saved_preset_name(&self) -> Option<String> {
+    pub fn preset_name(&self) -> Option<String> {
         match self {
-            Self::StoreSavePreset { name, .. } => Some(name.clone()),
+            Self::StoreSavePreset { name, .. }
+            | Self::StoreLoadPreset { name }
+            | Self::StoreDeletePreset { name } => Some(name.clone()),
             _ => None,
         }
     }

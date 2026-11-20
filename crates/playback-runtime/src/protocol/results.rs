@@ -241,8 +241,18 @@ impl RuntimeStoreResult {
                     .map(|facts| facts.with_identity(Some(request_id.clone()), *revision))
             }
             Self::StoreError { message } => (RuntimeErrorDomain::Storage, message.clone()),
-            Self::DeletePresetResult { ok: false, .. }
-            | Self::SaveDefaultResult { ok: false, .. }
+            Self::DeletePresetResult { ok: false, name } => {
+                return Some(
+                    RuntimeErrorFacts::new(
+                        RuntimeErrorDomain::Storage,
+                        RuntimeErrorCode::OperationFailed,
+                        self.operation(),
+                        Some("operation failed".into()),
+                    )
+                    .with_preset_name(Some(name.clone())),
+                );
+            }
+            Self::SaveDefaultResult { ok: false, .. }
             | Self::SaveSystemResult { ok: false }
             | Self::SaveBackupResult { ok: false }
             | Self::SaveRecoveryResult { ok: false } => {

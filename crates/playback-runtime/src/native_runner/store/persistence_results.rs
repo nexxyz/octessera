@@ -191,7 +191,20 @@ impl NativeRunner {
                 name,
                 payload: Some(payload),
             } => {
-                self.apply_patch_payload_preserving_device(payload)?;
+                if let Err(message) = self.apply_patch_payload_preserving_device(payload) {
+                    return self.apply_error_presentation_result(
+                        RuntimeStoreResult::RuntimeFailure {
+                            error: crate::RuntimeErrorFacts::new(
+                                crate::RuntimeErrorDomain::Storage,
+                                crate::RuntimeErrorCode::InvalidPayload,
+                                crate::RuntimeOperation::StoreLoadPreset,
+                                Some(message),
+                            )
+                            .logged()
+                            .with_preset_name(Some(name)),
+                        },
+                    );
+                }
                 self.stop_for_config_load();
                 self.show_toast(format!("Loaded {name}"));
                 self.patch_store.current_preset_name = Some(name);

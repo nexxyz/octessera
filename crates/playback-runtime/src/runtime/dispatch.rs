@@ -286,6 +286,10 @@ impl PlaybackRuntime {
                                         )
                                     });
                                 let message = error.to_string();
+                                let mut error = error;
+                                if error.facts.preset_name.is_none() {
+                                    error.facts.preset_name = request.effect.preset_name();
+                                }
                                 self.latch_adapter_failure(
                                     error,
                                     request.error_domain(),

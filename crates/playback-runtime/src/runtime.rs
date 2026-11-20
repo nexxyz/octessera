@@ -23,6 +23,8 @@ mod oled;
 mod presentation;
 #[cfg(test)]
 mod presentation_state_tests;
+#[cfg(test)]
+mod preset_store_failure_tests;
 mod pulse_phase;
 mod request_identity;
 #[cfg(test)]

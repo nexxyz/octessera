@@ -24,6 +24,20 @@ pub fn runtime_error_screen(error: &OledRuntimeErrorMetadata) -> ErrorScreen {
     let message = error.message.as_deref().unwrap_or_default();
     let (title, text) = match error.operation.as_deref().unwrap_or_default() {
         "store_save_preset" => preset_save_failure(message, error.preset_name.as_deref()),
+        "store_load_preset" => (
+            "CAN'T LOAD",
+            format!(
+                "{} didn't load. The patch in use hasn't changed.",
+                preset_label(error.preset_name.as_deref())
+            ),
+        ),
+        "store_delete_preset" => (
+            "CAN'T DELETE",
+            format!(
+                "{} wasn't deleted. {SD_RETRY}",
+                preset_label(error.preset_name.as_deref())
+            ),
+        ),
         "store_save_default" | "store_save_recovery" => (
             "CAN'T SAVE",
             save_failure("Your patch was not saved.", code),
@@ -84,8 +98,8 @@ fn save_failure(first: &str, code: &str) -> String {
     }
 }
 
-fn preset_save_failure(message: &str, preset_name: Option<&str>) -> (&'static str, String) {
-    let name = preset_name.map_or_else(
+fn preset_label(preset_name: Option<&str>) -> String {
+    preset_name.map_or_else(
         || PRESET_NAME_FALLBACK.to_owned(),
         |name| {
             if name.chars().count() > PRESET_NAME_COLUMNS {
@@ -95,7 +109,11 @@ fn preset_save_failure(message: &str, preset_name: Option<&str>) -> (&'static st
                 name.to_owned()
             }
         },
-    );
+    )
+}
+
+fn preset_save_failure(message: &str, preset_name: Option<&str>) -> (&'static str, String) {
+    let name = preset_label(preset_name);
     if message.contains(PRESET_CATALOG_UNAVAILABLE)
         || message.contains(PRESET_CATALOG_REFRESH_FAILED)
     {

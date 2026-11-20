@@ -248,7 +248,7 @@ impl PlaybackRuntime {
     }
 }
 
-fn oled_error_metadata(error: &RuntimeErrorMetadata) -> OledRuntimeErrorMetadata {
+pub(super) fn oled_error_metadata(error: &RuntimeErrorMetadata) -> OledRuntimeErrorMetadata {
     OledRuntimeErrorMetadata {
         domain: Some(error_domain_name(&error.domain).into()),
         code: Some(error_code_name(&error.code).into()),
