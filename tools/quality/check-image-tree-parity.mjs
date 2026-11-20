@@ -1,5 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { execFileSync } from "node:child_process";
 
 const PI_TREE = "tools/pi-image/stage4-octessera/files/root";
 const ORANGE_TREE = "userpatches/overlay";
@@ -13,22 +12,28 @@ const MAY_DIFFER = new Set([
   "usr/local/share/octessera-setup-ui/index.html",
 ]);
 
-function listFiles(dir, base = dir) {
-  return readdirSync(dir).flatMap((entry) => {
-    const full = join(dir, entry);
-    return statSync(full).isDirectory()
-      ? listFiles(full, base)
-      : [relative(base, full).replace(/\\/g, "/")];
+function trackedBlobs(tree) {
+  const listing = execFileSync("git", ["ls-files", "-s", "-z", "--", tree], {
+    encoding: "utf8",
   });
+  return new Map(
+    listing
+      .split("\0")
+      .filter(Boolean)
+      .map((line) => {
+        const [meta, path] = line.split("\t");
+        return [path.slice(tree.length + 1), meta.split(" ")[1]];
+      }),
+  );
 }
 
-const orange = new Set(listFiles(ORANGE_TREE));
-const shared = listFiles(PI_TREE).filter((rel) => orange.has(rel));
+const pi = trackedBlobs(PI_TREE);
+const orange = trackedBlobs(ORANGE_TREE);
+const shared = [...pi.keys()].filter((rel) => orange.has(rel));
 const differing = shared.filter(
-  (rel) =>
-    !MAY_DIFFER.has(rel) &&
-    !readFileSync(join(PI_TREE, rel)).equals(readFileSync(join(ORANGE_TREE, rel))),
+  (rel) => !MAY_DIFFER.has(rel) && pi.get(rel) !== orange.get(rel),
 );
-for (const rel of differing) console.error(`differs between image trees: ${rel}`);
+for (const rel of differing)
+  console.error(`differs between image trees: ${rel}`);
 if (differing.length > 0) process.exit(1);
 console.log(`${shared.length} shared image files checked.`);
