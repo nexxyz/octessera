@@ -732,15 +732,29 @@ behavior primary red), so a mute never reads as a section color.
 
 ### Runtime errors
 
-- The error frame has seven fixed body rows in its own rectangle (`x=10`, `y=34`, 18 columns,
-  12 px rows): `DOMAIN ` plus 11 identifier cells, `CODE ` plus 13, `OP ` plus 15, then `MSG ` plus
-  up to 14 message cells and three continuation rows with a four-space prefix plus up to 14 cells.
-  The compact `Back/Press: close` footer sits below them.
-- Identifier underscores become spaces, controls and whitespace collapse, unsupported glyphs show as
-  `?`, and missing identifiers show `unknown`. Messages keep supported path punctuation and
-  underscores, use `needs attention` when missing, wrap words and hard-break long words across the
-  four message rows, and end the last content row with `...` when truncated. Unused continuation
-  rows stay empty. PlaybackRuntime owns this layout; Pi consumes the rows.
+- The error frame is plain language, not a debug dump. The title sits centered in the magenta
+  bar. Below it, in its own rectangle (`x=10`, `y=34`, 18 columns, 12 px rows), come up to four
+  wrapped text rows, a blank row, and a dim row with the operation id (for example
+  `store_save_preset`, clipped with `...`). The footer reads `Press Main: OK`. Back and a Main
+  press both still close it. The raw message is never drawn; one `eprintln!` line per presented
+  error (domain, code, operation, full message) goes to the journal instead.
+- Wording is chosen by operation, and only states what happens in every case of that family:
+  `CAN'T SAVE` (`store_save_preset`: `<name> was not saved.` plus either `A preset with that name
+  exists.` or `Check the SD card, then try again.`, with the name taken from the pending native
+  preset write and clipped to 14 cells; a failure after the file was written reads `PRESET LIST`,
+  `<name> was saved, but the preset list didn't refresh.`; `store_save_default`/`store_save_recovery`:
+  `Your patch was not saved.`; `store_save_backup`: `A backup copy was not saved.`;
+  `store_save_system`: `Settings were not saved.`; each followed by the SD card advice, or
+  `Its data wasn't valid.` for an `invalid_payload` code), `CAN'T LOAD` (`store_load_default`:
+  `Your saved patch didn't load. The patch in use hasn't changed.`; `store_load_system`:
+  `Settings didn't load. The settings in use haven't changed.`), `MIDI TROUBLE`
+  (`midi_message`, `midi_list_outputs`), `AUDIO TROUBLE` (`audio_thread`: `Sound stopped.` plus
+  press Play; `audio_command`), `SAMPLE TROUBLE` (any sample-domain error), `CAN'T RECORD`,
+  `SETUP PORTAL`, `UPDATE`, `DATA TRANSFER`, and `OOPS` / `Something went wrong. Try again.` for
+  everything else. `midi_list_inputs` keeps its concise `MIDI INPUTS` presentation.
+- When a presentation exists in the display snapshot with the same title, the frame draws its
+  rows (they carry the preset name); otherwise it derives the rows from the error metadata.
+  PlaybackRuntime owns this layout; Pi consumes the rows.
 - `PlaybackRuntime::latched_errors` is the sole owner of presented runtime-error visibility. While
   its top error is visible, ordinary physical `DeviceInput` messages are rewritten internally and
   never forwarded to platform adapters; `requestSnapshot: false` is ignored on this path.

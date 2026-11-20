@@ -127,7 +127,7 @@ fn native_runner_send_and_runtime_handoff_share_local_patch_rejection() {
     assert!(messages.iter().any(|message| matches!(
         message,
         RunnerMessage::Snapshot { snapshot }
-            if snapshot["display"]["title"] == "RUNTIME ERROR"
+            if snapshot["display"]["title"] == "CAN'T LOAD"
     )));
     assert!(!messages.iter().any(|message| matches!(
         message,

@@ -222,7 +222,10 @@ impl HeadlessSession {
                 self.virtual_seconds(),
                 self.title()
             );
-            if self.title() == "RUNTIME ERROR" {
+            if self
+                .snapshot()
+                .is_some_and(|snapshot| !snapshot["runtimeError"].is_null())
+            {
                 eprintln!(
                     "e2e   {}",
                     display

@@ -216,7 +216,7 @@ fn missing_native_payload_success_forces_synchronous_error_presentation() {
 
     assert!(output.messages.iter().any(|message| matches!(message,
         RunnerMessage::Snapshot { snapshot }
-            if snapshot["display"]["title"] == "RUNTIME ERROR"
+            if snapshot["display"]["title"] == "CAN'T SAVE"
     )));
     assert!(runner.display.runtime_error_presentation.is_some());
     assert!(runner.config_dirty);
@@ -446,7 +446,7 @@ fn failed_music_first_default_write_remains_dirty_and_reschedules_with_visible_e
         .unwrap();
     assert!(response.iter().any(
         |message| matches!(message, RunnerMessage::Snapshot { snapshot }
-        if snapshot["display"]["title"] == "RUNTIME ERROR")
+        if snapshot["display"]["title"] == "CAN'T SAVE")
     ));
     assert!(runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());

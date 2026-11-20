@@ -1,4 +1,4 @@
-use super::error_layout::runtime_error_rows;
+use super::error_layout::{runtime_error_rows, runtime_error_screen};
 use super::font::OledFont;
 use super::model::*;
 use super::pixels::rgb565;
@@ -11,7 +11,7 @@ use platform_core::palette;
 
 const NORMAL_SELECTED_FNV1A64: u64 = 0xBF96_6865_5375_9D07;
 const TOAST_ACTIVE_EVENT_TRANSPORT_FNV1A64: u64 = 0xF53B_1A03_FDEA_63CC;
-const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0x2E40_726F_83B0_07C9;
+const FULL_RUNTIME_ERROR_FNV1A64: u64 = 0xE36C_4898_C731_875D;
 const CONCISE_MIDI_ERROR_FNV1A64: u64 = 0x76A7_6959_8FC1_6EE4;
 const STARTUP_SPLASH_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
 const SLEEP_SPLASH_FNV1A64: u64 = 0x0E92_C1C2_4C3B_175B;
@@ -115,26 +115,25 @@ fn typed_oled_golden_anchors_are_stable() {
 }
 
 #[test]
-fn runtime_error_fallback_and_path_punctuation_are_visible_in_the_fixed_font() {
+fn runtime_error_operation_row_shows_unsupported_glyphs_as_question_marks() {
     let mut input = base();
     input.runtime_error = Some(OledRuntimeErrorMetadata {
         domain: Some("sample".into()),
         code: Some("not_found".into()),
-        operation: Some("sample_preview".into()),
-        message: Some("Ω_/x-y.wav".into()),
+        operation: Some("Ω_/x-y.wav".into()),
+        message: Some("sample not found".into()),
     });
+    let error = input.runtime_error.as_ref().unwrap();
+    let screen = runtime_error_screen(error, None);
+    assert_eq!(screen.title, "SAMPLE TROUBLE");
     assert_eq!(
-        runtime_error_rows(input.runtime_error.as_ref().unwrap())[3],
-        "MSG ?_/x-y.wav"
+        runtime_error_rows(&screen.text, error.operation.as_deref())[5],
+        "?_/x-y.wav"
     );
 
     let frame = render_oled_frame(&input);
-    let text = rgb565(palette::GRAY);
-    assert_eq!(pixel(&frame, 35, 70), text);
-    assert_eq!(pixel(&frame, 40, 76), text);
-    assert!((46..=50).any(|x| (70..77).any(|y| pixel(&frame, x, y) == text)));
-    assert!((58..=62).any(|x| (70..77).any(|y| pixel(&frame, x, y) == text)));
-    assert!((70..=74).any(|x| (70..77).any(|y| pixel(&frame, x, y) == text)));
+    assert!((10..70).any(|x| (94..101).any(|y| pixel(&frame, x, y) != 0)));
+    assert!((10..70).any(|x| (34..41).any(|y| pixel(&frame, x, y) == rgb565(palette::GRAY))));
 }
 
 #[test]
@@ -201,12 +200,12 @@ fn runtime_error_dismissal_affordance_stays_inside_the_error_card() {
     let text = rgb565(palette::GRAY);
     let footer_pixels = (0..128)
         .flat_map(|y| (0..128).map(move |x| (x, y)))
-        .filter(|(x, y)| *y >= 114 && pixel(&frame, *x, *y) == text)
+        .filter(|(x, y)| *y >= 106 && pixel(&frame, *x, *y) == text)
         .collect::<Vec<_>>();
     assert!(!footer_pixels.is_empty());
     assert!(footer_pixels
         .iter()
-        .all(|(x, y)| (4..=123).contains(x) && (114..=123).contains(y)));
+        .all(|(x, y)| (4..=123).contains(x) && (106..=123).contains(y)));
     assert!((0..128).all(|x| pixel(&frame, x, 124) != text));
 }
 

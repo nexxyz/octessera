@@ -1,7 +1,7 @@
 use platform_core::palette;
 
 use super::body_animation::draw_body_animation;
-use super::error_layout::runtime_error_rows;
+use super::error_layout::{runtime_error_rows, runtime_error_screen, ERROR_OPERATION_ROW};
 use super::footer::draw_footer;
 use super::header::draw_header;
 use super::menu_rows::draw_body;
@@ -30,7 +30,7 @@ pub fn render_oled_frame_into(input: &OledPresentationInput, frame: &mut [u8]) {
         if is_concise_runtime_error_presentation(error) {
             render_menu_frame(frame, input);
         } else {
-            render_runtime_error_frame(frame, error);
+            render_runtime_error_frame(frame, input, error);
         }
         return;
     }
@@ -61,31 +61,46 @@ fn render_menu_frame(frame: &mut [u8], input: &OledPresentationInput) {
     draw_footer(frame, input);
 }
 
-fn render_runtime_error_frame(frame: &mut [u8], error: &OledRuntimeErrorMetadata) {
+fn render_runtime_error_frame(
+    frame: &mut [u8],
+    input: &OledPresentationInput,
+    error: &OledRuntimeErrorMetadata,
+) {
     let warning = rgb565(palette::MAGENTA);
     let dim_warning = rgb565(dim(palette::MAGENTA, 6));
     let text = rgb565(palette::GRAY);
+    let screen = runtime_error_screen(error, None);
+    // The runner words a save failure with the preset's name; the metadata alone does not carry it.
+    let lines = if input.display.title == screen.title && !input.display.lines.is_empty() {
+        input.display.lines.clone()
+    } else {
+        runtime_error_rows(&screen.text, error.operation.as_deref()).into()
+    };
     fill_rect(frame, 0, 0, 128, 128, dim_warning);
     fill_rect(frame, 4, 4, 120, 120, rgb565(palette::BLACK));
     fill_rect(frame, 8, 8, 112, 18, warning);
-    draw_text_clipped(frame, "RUNTIME ERROR", 25, 14, 13, rgb565(palette::BLACK));
-    let lines = runtime_error_rows(error);
+    let title_x = 8 + (112 - 6 * screen.title.chars().count() as i32) / 2;
+    draw_text_clipped(frame, screen.title, title_x, 14, 18, rgb565(palette::BLACK));
     for (index, line) in lines.iter().enumerate() {
+        let color = if index == ERROR_OPERATION_ROW {
+            rgb565(dim(palette::GRAY, 2))
+        } else {
+            text
+        };
         draw_text_clipped(
             frame,
             line,
             RUNTIME_ERROR_BODY_RECT.x as i32,
             (RUNTIME_ERROR_BODY_RECT.y + index * RUNTIME_ERROR_BODY_RECT.row_advance) as i32,
             RUNTIME_ERROR_BODY_RECT.columns(),
-            text,
+            color,
         );
     }
-    let footer = fit_line_ellipsis("Back/Press: close", RUNTIME_ERROR_BODY_RECT.columns());
     draw_text_clipped(
         frame,
-        &footer,
+        "Press Main: OK",
         RUNTIME_ERROR_BODY_RECT.x as i32,
-        117,
+        108,
         RUNTIME_ERROR_BODY_RECT.columns(),
         text,
     );

@@ -28,7 +28,9 @@ pub const OLED_HEIGHT: usize = 128;
 pub const OLED_FRAME_BYTES: usize = OLED_WIDTH * OLED_HEIGHT * 2;
 
 pub(crate) use body_wrap::{body_text_fits, wrap_body_text};
-pub use error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
+pub use error_layout::{
+    runtime_error_rows, runtime_error_screen, ERROR_OPERATION_ROW, ERROR_ROW_COUNT, ERROR_ROW_WIDTH,
+};
 #[cfg(test)]
 pub(crate) use font::clip_log;
 pub use font::OledFont;

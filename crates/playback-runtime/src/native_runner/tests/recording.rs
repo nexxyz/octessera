@@ -165,10 +165,10 @@ fn failed_automatic_completion_keeps_error_detail() {
         .unwrap();
 
     let snapshot = snapshot_from(&failed);
-    assert_eq!(snapshot["display"]["title"], "RUNTIME ERROR");
+    assert_eq!(snapshot["display"]["title"], "CAN'T RECORD");
     assert!(snapshot["display"]["lines"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line.as_str().is_some_and(|line| line.contains("auto"))));
+        .any(|line| line.as_str().is_some_and(|line| line == "recording")));
 }

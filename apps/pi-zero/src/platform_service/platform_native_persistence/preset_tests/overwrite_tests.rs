@@ -108,10 +108,9 @@ fn save_onto_an_existing_preset_without_overwrite_is_refused_and_shown() {
         .unwrap();
     assert!(service.native_preset_write().is_none());
     let display = &runner.capture_display_scene().unwrap().into_snapshot()["display"];
-    assert_eq!(display["title"], "RUNTIME ERROR");
-    assert!(
-        display["lines"].to_string().contains("already exists"),
-        "{display}"
-    );
+    assert_eq!(display["title"], "CAN'T SAVE");
+    assert_eq!(display["lines"][0], "Target was not");
+    assert_eq!(display["lines"][3], "exists.");
+    assert_eq!(display["lines"][5], "store_save_preset");
     cleanup(root);
 }

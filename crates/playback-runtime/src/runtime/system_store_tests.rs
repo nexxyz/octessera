@@ -134,7 +134,7 @@ fn invalid_system_load_latches_typed_error_after_native_rejection_without_distur
         RunnerMessage::Snapshot { snapshot }
             if snapshot["runtimeError"]["requestId"] == "load-missing-system"
                 && snapshot["display"]["lines"].as_array().is_some_and(|lines|
-                    lines.iter().any(|line| line.as_str().is_some_and(|line| line.contains("store load"))))
+                    lines.iter().any(|line| line.as_str().is_some_and(|line| line == "store_load_system")))
     )));
 
     runtime

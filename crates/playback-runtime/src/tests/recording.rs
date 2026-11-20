@@ -50,13 +50,13 @@ fn failed_manual_recording_stop_replays_typed_failure_to_clear_lifecycle() {
         })
         .unwrap();
     assert!(
-        snapshot["display"]["title"] == "RUNTIME ERROR"
+        snapshot["display"]["title"] == "CAN'T RECORD"
             && snapshot["display"]["lines"]
                 .as_array()
                 .is_some_and(|lines| {
                     lines
                         .iter()
-                        .any(|line| line.as_str().is_some_and(|line| line.contains("stop")))
+                        .any(|line| line.as_str().is_some_and(|line| line == "recording"))
                 })
     );
     runner.test_advance_display_time(Duration::from_secs(1));

@@ -336,7 +336,8 @@ fn matching_native_preset_success_without_authoritative_catalog_fails_closed() {
 
     assert!(output.messages.iter().any(|message| matches!(message,
         RunnerMessage::Snapshot { snapshot }
-            if snapshot["display"]["title"] == "RUNTIME ERROR"
+            if snapshot["display"]["title"] == "PRESET LIST"
+                && snapshot["display"]["lines"][0] == "Target was saved,"
     )));
     assert_eq!(runner.patch_store.preset_names, original_names);
     assert_eq!(runner.patch_store.current_preset_name, None);

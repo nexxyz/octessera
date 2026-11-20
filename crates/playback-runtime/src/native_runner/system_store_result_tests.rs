@@ -145,11 +145,8 @@ fn system_store_load_missing_or_invalid_result_is_a_typed_non_mutating_storage_e
             revision_state
         );
         let error = runner.display.runtime_error_presentation.as_ref().unwrap();
-        assert!(error
-            .lines
-            .iter()
-            .any(|line| line.starts_with("OP store load")));
-        assert!(error.lines.iter().any(|line| line.contains("storage")));
+        assert!(error.lines.iter().any(|line| line == "store_load_system"));
+        assert_eq!(error.title, "CAN'T LOAD");
     }
 }
 
@@ -203,11 +200,8 @@ fn system_store_save_results_never_acknowledge_patch_dirty_state() {
         } else {
             assert_eq!(runner.restart_settings, restart_settings);
             let error = runner.display.runtime_error_presentation.as_ref().unwrap();
-            assert!(error
-                .lines
-                .iter()
-                .any(|line| line.starts_with("OP store save")));
-            assert!(error.lines.iter().any(|line| line.contains("storage")));
+            assert!(error.lines.iter().any(|line| line == "store_save_system"));
+            assert_eq!(error.title, "CAN'T SAVE");
         }
     }
 }

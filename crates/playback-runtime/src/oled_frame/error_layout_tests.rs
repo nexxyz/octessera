@@ -1,4 +1,6 @@
-use super::error_layout::{runtime_error_rows, ERROR_ROW_COUNT, ERROR_ROW_WIDTH};
+use super::error_layout::{
+    runtime_error_rows, runtime_error_screen, ERROR_OPERATION_ROW, ERROR_ROW_COUNT, ERROR_ROW_WIDTH,
+};
 use super::font_5x7::glyph_rows;
 use super::model::OledRuntimeErrorMetadata;
 use crate::{
@@ -153,10 +155,34 @@ fn producer_corpus() -> [(&'static str, OledRuntimeErrorMetadata); 11] {
     ]
 }
 
+fn screen_of(error: &OledRuntimeErrorMetadata, preset_name: Option<&str>) -> (String, String) {
+    let screen = runtime_error_screen(error, preset_name);
+    (screen.title.to_owned(), screen.text)
+}
+
+fn rows_of(error: &OledRuntimeErrorMetadata) -> [String; ERROR_ROW_COUNT] {
+    runtime_error_rows(
+        &runtime_error_screen(error, None).text,
+        error.operation.as_deref(),
+    )
+}
+
+fn failure(
+    domain: RuntimeErrorDomain,
+    code: RuntimeErrorCode,
+    operation: RuntimeOperation,
+) -> OledRuntimeErrorMetadata {
+    runtime_metadata(domain, code, operation, Some("x"))
+}
+
+fn store_failure(operation: RuntimeOperation, code: RuntimeErrorCode) -> OledRuntimeErrorMetadata {
+    failure(RuntimeErrorDomain::Storage, code, operation)
+}
+
 #[test]
 fn typed_producer_corpus_has_exact_bounded_supported_rows() {
     for (name, error) in producer_corpus() {
-        let rows = runtime_error_rows(&error);
+        let rows = rows_of(&error);
         assert_eq!(rows.len(), ERROR_ROW_COUNT, "row count: {name}");
         assert!(rows.iter().all(|row| {
             row.chars().count() <= ERROR_ROW_WIDTH
@@ -169,110 +195,201 @@ fn typed_producer_corpus_has_exact_bounded_supported_rows() {
 }
 
 #[test]
-fn normal_error_rows_keep_fields_in_fixed_rows() {
-    let rows = runtime_error_rows(&runtime_metadata(
-        RuntimeErrorDomain::Sample,
-        RuntimeErrorCode::NotFound,
-        RuntimeOperation::AudioCommand,
-        Some("sample not found"),
+fn rows_hold_wrapped_text_a_blank_row_and_the_operation_id() {
+    let rows = rows_of(&store_failure(
+        RuntimeOperation::StoreSaveDefault,
+        RuntimeErrorCode::OperationFailed,
     ));
     assert_eq!(
         rows,
         [
-            "DOMAIN sample".to_owned(),
-            "CODE not found".to_owned(),
-            "OP audio command".to_owned(),
-            "MSG sample not".to_owned(),
-            "    found".to_owned(),
+            "Your patch was not".to_owned(),
+            "saved. Check the".to_owned(),
+            "SD card, then try".to_owned(),
+            "again.".to_owned(),
             String::new(),
+            "store_save_default".to_owned(),
             String::new(),
         ]
     );
+    assert_eq!(ERROR_OPERATION_ROW, 5);
 }
 
 #[test]
-fn long_underscored_unicode_path_preserves_path_cells() {
-    let rows = runtime_error_rows(&metadata(
-        Some("sample_device"),
-        Some("not_found"),
-        Some("sample_preview"),
-        Some("/音色/very_long_file_abcdefghijklmnabcdefghijklmn"),
-    ));
+fn the_raw_message_never_reaches_the_screen() {
+    for (name, error) in producer_corpus() {
+        let message = error.message.clone().unwrap();
+        let shown = rows_of(&error).join(" ");
+        assert!(!shown.contains(message.lines().next().unwrap()), "{name}");
+    }
+}
+
+#[test]
+fn each_family_has_its_title_and_an_accurate_line() {
+    use RuntimeErrorCode::{
+        AudioThreadFailed, InvalidPayload, NotFound, OperationFailed, Unavailable, Unsupported,
+    };
+    use RuntimeErrorDomain::{Audio, Midi, Recording, Runtime, Sample};
+    use RuntimeOperation::*;
+    let cases = [
+        (
+            store_failure(StoreSaveSystem, OperationFailed),
+            "CAN'T SAVE",
+            "Settings were not saved. Check the SD card, then try again.",
+        ),
+        (
+            store_failure(StoreSaveBackup, OperationFailed),
+            "CAN'T SAVE",
+            "A backup copy was not saved. Check the SD card, then try again.",
+        ),
+        (
+            store_failure(StoreSaveRecovery, OperationFailed),
+            "CAN'T SAVE",
+            "Your patch was not saved. Check the SD card, then try again.",
+        ),
+        (
+            store_failure(StoreSaveDefault, InvalidPayload),
+            "CAN'T SAVE",
+            "Your patch was not saved. Its data wasn't valid.",
+        ),
+        (
+            store_failure(StoreLoadDefault, OperationFailed),
+            "CAN'T LOAD",
+            "Your saved patch didn't load. The patch in use hasn't changed.",
+        ),
+        (
+            store_failure(StoreLoadSystem, OperationFailed),
+            "CAN'T LOAD",
+            "Settings didn't load. The settings in use haven't changed.",
+        ),
+        (
+            failure(Midi, OperationFailed, MidiMessage),
+            "MIDI TROUBLE",
+            "Couldn't send to the MIDI device. Check the cable.",
+        ),
+        (
+            failure(Midi, OperationFailed, MidiListOutputs),
+            "MIDI TROUBLE",
+            "Couldn't list the MIDI outputs. Try again.",
+        ),
+        (
+            failure(Audio, AudioThreadFailed, AudioThread),
+            "AUDIO TROUBLE",
+            "Sound stopped. Check the audio output, then press Play.",
+        ),
+        (
+            failure(Audio, OperationFailed, AudioCommand),
+            "AUDIO TROUBLE",
+            "An audio command failed. Check the audio output.",
+        ),
+        (
+            failure(Sample, OperationFailed, SampleList),
+            "SAMPLE TROUBLE",
+            "Couldn't list the samples. Check the SD card.",
+        ),
+        (
+            failure(Sample, NotFound, SamplePreview),
+            "SAMPLE TROUBLE",
+            "That sample wasn't found. Check the SD card.",
+        ),
+        (
+            failure(Sample, OperationFailed, SamplePreview),
+            "SAMPLE TROUBLE",
+            "That sample couldn't be read. Check the SD card.",
+        ),
+        (
+            failure(Sample, Unsupported, AudioCommand),
+            "SAMPLE TROUBLE",
+            "That sample is too long to play.",
+        ),
+        (
+            failure(Recording, OperationFailed, RuntimeOperation::Recording),
+            "CAN'T RECORD",
+            "Recording failed. Check the SD card has space.",
+        ),
+        (
+            failure(Runtime, Unavailable, SetupPortal),
+            "SETUP PORTAL",
+            "The setup portal hit a problem. Try again.",
+        ),
+        (
+            failure(Runtime, OperationFailed, DeviceUpdate),
+            "UPDATE",
+            "The update didn't go through. Try again.",
+        ),
+        (
+            failure(Runtime, OperationFailed, UserDataTransfer),
+            "DATA TRANSFER",
+            "The data transfer failed. Try again.",
+        ),
+        (
+            failure(Runtime, OperationFailed, RuntimeDispatch),
+            "OOPS",
+            "Something went wrong. Try again.",
+        ),
+    ];
+    for (error, title, text) in cases {
+        assert_eq!(
+            screen_of(&error, None),
+            (title.to_owned(), text.to_owned()),
+            "{error:?}"
+        );
+    }
+}
+
+#[test]
+fn preset_save_failures_name_the_preset_and_the_real_cause() {
+    let save = |message| {
+        runtime_metadata(
+            RuntimeErrorDomain::Storage,
+            RuntimeErrorCode::OperationFailed,
+            RuntimeOperation::StoreSavePreset,
+            Some(message),
+        )
+    };
     assert_eq!(
-        rows,
-        [
-            "DOMAIN sample d...".to_owned(),
-            "CODE not found".to_owned(),
-            "OP sample preview".to_owned(),
-            "MSG /??/very_long_".to_owned(),
-            "    file_abcdefghi".to_owned(),
-            "    jklmnabcdefghi".to_owned(),
-            "    jklmn".to_owned(),
-        ]
+        screen_of(&save("disk full"), Some("Pad Wash")),
+        (
+            "CAN'T SAVE".to_owned(),
+            "Pad Wash was not saved. Check the SD card, then try again.".to_owned()
+        )
     );
-}
-
-#[test]
-fn missing_message_uses_visible_fallback_and_empty_continuations() {
-    let rows = runtime_error_rows(&metadata(
-        Some("audio"),
-        Some("operation_failed"),
-        Some("audio_command"),
-        None,
-    ));
-    assert_eq!(rows[3], "MSG needs");
-    assert_eq!(rows[4], "    attention");
-    assert!(rows[5..].iter().all(String::is_empty));
-}
-
-#[test]
-fn severe_message_truncation_ends_the_final_content_row() {
-    let rows = runtime_error_rows(&metadata(
-        Some("audio"),
-        Some("operation_failed"),
-        Some("audio_command"),
-        Some("abcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmn"),
-    ));
     assert_eq!(
-        rows,
-        [
-            "DOMAIN audio".to_owned(),
-            "CODE operation ...".to_owned(),
-            "OP audio command".to_owned(),
-            "MSG abcdefghijklmn".to_owned(),
-            "    abcdefghijklmn".to_owned(),
-            "    abcdefghijklmn".to_owned(),
-            "    abcdefghijk...".to_owned(),
-        ]
+        screen_of(
+            &save("Save Pad Wash failed: preset already exists"),
+            Some("Pad Wash")
+        ),
+        (
+            "CAN'T SAVE".to_owned(),
+            "Pad Wash was not saved. A preset with that name exists.".to_owned()
+        )
     );
+    assert_eq!(
+        screen_of(&save("Preset catalog refresh failed: x"), Some("Pad Wash")),
+        (
+            "PRESET LIST".to_owned(),
+            "Pad Wash was saved, but the preset list didn't refresh.".to_owned()
+        )
+    );
+    assert_eq!(
+        screen_of(&save("disk full"), Some("A very long preset name")).1,
+        "A very long .. was not saved. Check the SD card, then try again."
+    );
+    assert!(screen_of(&save("disk full"), None)
+        .1
+        .starts_with("That preset was not saved."));
 }
 
 #[test]
-fn exact_fit_does_not_add_an_ellipsis() {
-    let rows = runtime_error_rows(&metadata(
-        Some("a"),
-        Some("b"),
-        Some("c"),
-        Some("12345678901234123456789012341234567890123412345678901234"),
-    ));
-    assert_eq!(rows[3], "MSG 12345678901234");
-    assert_eq!(rows[6], "    12345678901234");
-    assert!(rows.iter().all(|row| !row.ends_with("...")));
+fn text_beyond_four_rows_ends_the_last_row_with_an_ellipsis() {
+    let rows = runtime_error_rows(&"abcdefghijklmnopqr ".repeat(6), Some("op"));
+    assert_eq!(rows[3], "abcdefghijklmno...");
+    assert_eq!(rows[4], "");
+    assert_eq!(rows[5], "op");
 }
 
 #[test]
-fn controls_whitespace_and_underscores_are_normalized_by_field_kind() {
-    let rows = runtime_error_rows(&metadata(
-        Some("audio__device\t"),
-        Some("not_found"),
-        Some("open\ndevice"),
-        Some("bad\tpath\nwith\u{0000} controls_unchanged"),
-    ));
-    assert_eq!(rows[0], "DOMAIN audio de...");
-    assert_eq!(rows[1], "CODE not found");
-    assert_eq!(rows[2], "OP open device");
-    assert_eq!(rows[3], "MSG bad path with");
-    assert_eq!(rows[4], "    controls_uncha");
-    assert_eq!(rows[5], "    nged");
-    assert!(rows[6].is_empty());
+fn a_long_operation_id_is_clipped_to_the_row() {
+    let rows = runtime_error_rows("x", Some("an_operation_id_far_too_long_to_fit"));
+    assert_eq!(rows[ERROR_OPERATION_ROW], "an_operation_id...");
 }

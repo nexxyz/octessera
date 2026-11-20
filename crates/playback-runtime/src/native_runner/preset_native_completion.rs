@@ -171,6 +171,18 @@ impl NativeRunner {
         }
     }
 
+    fn pending_preset_write_name(&self, request_id: &str, revision: Option<u64>) -> Option<String> {
+        let write = self.pending.native_preset_write.as_ref()?;
+        match &write.request {
+            NativeManualSaveRequest::Preset { name, .. }
+                if write.request_id == request_id && Some(write.revision) == revision =>
+            {
+                Some(name.clone())
+            }
+            _ => None,
+        }
+    }
+
     pub(super) fn resolve_native_preset_result(
         &mut self,
         request_id: &str,
@@ -194,6 +206,7 @@ impl NativeRunner {
                             .is_some_and(|write| write.catalog.is_none())
                     {
                         self.clear_matching_native_preset_write(request_id, Some(revision));
+                        self.pending.failed_preset_name = Some(name.clone());
                         return Some(NativePresetResultAction::MissingCatalog);
                     }
                 }
@@ -204,7 +217,9 @@ impl NativeRunner {
                 if error.operation == crate::RuntimeOperation::StoreSavePreset =>
             {
                 if native_request || self.pending.native_preset_write.is_some() {
+                    let name = self.pending_preset_write_name(request_id, revision);
                     if self.clear_matching_native_preset_write(request_id, revision) {
+                        self.pending.failed_preset_name = name;
                         None
                     } else {
                         Some(NativePresetResultAction::Ignore)

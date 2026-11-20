@@ -75,9 +75,8 @@ fn play_for(session: &mut HeadlessSession, seconds: f64) {
 }
 
 fn assert_no_runtime_error(session: &HeadlessSession, context: &str) {
-    assert_ne!(
-        session.title(),
-        "RUNTIME ERROR",
+    assert!(
+        session.snapshot().unwrap()["runtimeError"].is_null(),
         "{context}: {:?}",
         display(session)
     );
