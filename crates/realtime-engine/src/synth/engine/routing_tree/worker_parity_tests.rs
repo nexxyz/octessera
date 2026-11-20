@@ -1,8 +1,14 @@
 use super::super::*;
-use crate::synth::{SampleLoopMode, SamplePlaybackConfig, ScalarMutation};
+use crate::synth::{
+    FxParamId, FxParamMutation, SampleBankParamId, SampleLoopMode, SamplePlaybackConfig,
+    ScalarMutation,
+};
 
 const RATE: u32 = 44_100;
 const BLOCK: usize = 128;
+/// 1.25 s, so a released note's tail and five repeats of the default 250 ms bus delay are
+/// compared.
+const BLOCKS: usize = 431;
 
 const PLAY_FX_TYPES: [&str; 11] = [
     "stutter",
@@ -44,14 +50,13 @@ fn one_instrument_config(kind: &str, route: &str) -> InstrumentsConfig {
     }
 }
 
-/// Renders `blocks` blocks on the routing-tree workers and inline, asserting identical output.
+/// Renders `BLOCKS` blocks on the routing-tree workers and inline, asserting identical output.
 /// `control(engine, block, routed)` runs at each routed block's control point and before each
 /// inline block. The workers dispatch one block ahead, so a control reaches a worker-owned
 /// target one block later than a Global one.
 fn assert_worker_render_matches_inline(
     routed: &mut SynthEngine,
     inline: &mut SynthEngine,
-    blocks: usize,
     label: &str,
     control: impl Fn(&mut SynthEngine, usize, bool),
 ) {
@@ -66,7 +71,7 @@ fn assert_worker_render_matches_inline(
     let mut inline_right = Vec::new();
     let mut inline_out = Vec::new();
     let mut peak = 0.0_f32;
-    for block in 0..blocks {
+    for block in 0..BLOCKS {
         control(inline, block, false);
         assert_eq!(
             routed.render_interleaved_block_with_source_runtime_ready_with_controls(
@@ -135,7 +140,6 @@ fn every_play_fx_type_renders_the_same_on_the_routing_tree_workers() {
             assert_worker_render_matches_inline(
                 &mut routed,
                 &mut inline,
-                80,
                 &label,
                 |engine, block, routed| {
                     if block == if routed { 40 } else { inline_stop } {
@@ -182,9 +186,19 @@ fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
         assert_worker_render_matches_inline(
             &mut routed,
             &mut inline,
-            40,
             &format!("{loop_mode:?} loop via {route}"),
-            |_, _, _| {},
+            |engine, block, routed| {
+                if block + usize::from(routed) == 60 {
+                    assert_eq!(
+                        engine.set_sample_bank_param_typed(
+                            0,
+                            SampleBankParamId::FilterCutoffHz,
+                            700.0
+                        ),
+                        ScalarMutation::Changed
+                    );
+                }
+            },
         );
     }
 }
@@ -200,7 +214,6 @@ fn level_glides_render_the_same_on_the_routing_tree_workers() {
     assert_worker_render_matches_inline(
         &mut routed,
         &mut inline,
-        12,
         "level glides",
         |engine, block, routed| {
             if block + usize::from(routed) == 2 {
@@ -223,7 +236,6 @@ fn mixer_gain_ramps_render_the_same_on_the_routing_tree_workers() {
         assert_worker_render_matches_inline(
             &mut routed,
             &mut inline,
-            40,
             &format!("mixer ramps via {route}"),
             |engine, block, routed| {
                 let worker_block = if routed { block + 1 } else { block };
@@ -271,10 +283,33 @@ fn assert_fx_config_renders_the_same(config: &InstrumentsConfig, label: &str) {
     for engine in [&mut routed, &mut inline] {
         engine.set_instruments(config.clone());
         for slot in 0..config.instruments.len() as u8 {
-            engine.note_on(slot, 60 + slot * 7, 100, 3_000);
+            engine.note_on(slot, 60 + slot * 7, 100, 300);
         }
     }
-    assert_worker_render_matches_inline(&mut routed, &mut inline, 40, label, |_, _, _| {});
+    let has_master = config
+        .mixer
+        .as_ref()
+        .is_some_and(|mixer| mixer.master.is_some());
+    assert_worker_render_matches_inline(
+        &mut routed,
+        &mut inline,
+        label,
+        |engine, block, routed| {
+            if block + usize::from(routed) == 60 {
+                let glided = [FxParamId::MixPct, FxParamId::DepthPct, FxParamId::AmountPct]
+                    .into_iter()
+                    .any(|id| engine.set_fx_bus_param(0, 0, id, 25.0) == FxParamMutation::Changed);
+                assert!(glided, "{label} bus glide");
+            }
+            if has_master && block == 80 {
+                assert_eq!(
+                    engine.set_global_fx_param(0, FxParamId::MixPct, 40.0),
+                    FxParamMutation::Changed,
+                    "{label} master glide"
+                );
+            }
+        },
+    );
 }
 
 #[test]
