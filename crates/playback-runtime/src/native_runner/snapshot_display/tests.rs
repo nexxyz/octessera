@@ -67,6 +67,22 @@ fn system_save_and_load_confirmations_fit_their_detail_on_one_line() {
 }
 
 #[test]
+fn a_long_preset_name_still_leaves_cancel_and_confirm_on_screen() {
+    let mut runner = runner_at(Instant::now());
+    let name = "a".repeat(96);
+    let action = NativeMenuAction::PlatformEffect(PlatformAction::PresetLoad(name));
+    runner.display.confirm_dialog = runner.confirmation_for_action(&action);
+    let snapshot = runner.snapshot().unwrap();
+    let lines = snapshot["display"]["lines"].as_array().unwrap();
+    let rows = lines.len();
+
+    assert_eq!(lines[rows - 2], "Cancel");
+    assert_eq!(lines[rows - 1], "Confirm");
+    assert!(lines[rows - 3].as_str().unwrap().ends_with(".."));
+    assert_eq!(snapshot["selectedRow"], rows - 2);
+}
+
+#[test]
 fn link_instrument_edit_detail_scrolls_on_timed_snapshots_only() {
     let start = Instant::now();
     let mut runner = runner_at(start);

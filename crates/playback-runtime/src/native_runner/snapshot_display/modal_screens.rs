@@ -39,7 +39,15 @@ pub(super) fn user_data_restore_display(state: &NativeUserDataRestoreState) -> D
 }
 
 pub(super) fn confirm_dialog_display(confirm: &NativeConfirmDialog) -> DisplaySnapshot {
-    let mut lines = confirm.lines.clone();
+    let detail_rows = OLED_BODY_ROWS.saturating_sub(confirm.options.len());
+    let mut lines: Vec<String> = confirm.lines.iter().take(detail_rows).cloned().collect();
+    if confirm.lines.len() > detail_rows {
+        if let Some(last) = lines.last_mut() {
+            let kept = last.chars().count().saturating_sub(2);
+            *last = last.chars().take(kept).chain("..".chars()).collect();
+        }
+    }
+    let shown_detail = lines.len();
     lines.extend(confirm.options.iter().cloned());
     lines.truncate(OLED_BODY_ROWS);
     let line_count = lines.len();
@@ -53,9 +61,7 @@ pub(super) fn confirm_dialog_display(confirm: &NativeConfirmDialog) -> DisplaySn
         rows: vec![None; line_count],
         scroll: None,
         selected_row: Some(
-            confirm
-                .lines
-                .len()
+            shown_detail
                 .saturating_add(confirm.cursor)
                 .min(OLED_BODY_ROWS.saturating_sub(1)),
         ),
