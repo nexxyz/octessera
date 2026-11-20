@@ -286,7 +286,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   Plucked and Sampler slots get the note itself (a Sampler plays slot 1..8 for notes 36..43 and ignores other notes); a
   `hold` slot holds it until the key's note-off, a `oneshot` slot plays the Sound > Note Length and
   the key's note-off ends it early. A Drum slot plays the voice whose Sound has that GM note. A MIDI
-  Inst. or MIDI Drum slot forwards the note to its own MIDI channel while it is enabled. Stop, Pause,
+  Inst. or MIDI Drum slot forwards the note to its own MIDI channel while it is enabled, unless that
+  channel is the one the note came in on (a device that echoes its input would loop). Stop, Pause,
   Panic, a patch load, MIDI Active off and Notes In off release every held keyboard note, forwarded
   ones too. Every Looper layer that is overdubbing and whose Link plays that slot records the note
   as a press and release of the lowest-index tile its current Link mapping plays as that note (after

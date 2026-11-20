@@ -90,7 +90,12 @@ impl NativeRunner {
                 None
             }
             InstrumentType::Midi | InstrumentType::MidiDrum => {
-                let Some(channel) = instrument.midi_output_channel() else {
+                // A note sent back out on the channel it came in on would loop through a
+                // device that echoes its input.
+                let Some(channel) = instrument
+                    .midi_output_channel()
+                    .filter(|channel| *channel != note.channel)
+                else {
                     return;
                 };
                 if kind == InstrumentType::MidiDrum {

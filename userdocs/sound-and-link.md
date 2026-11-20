@@ -189,7 +189,10 @@ wander in by accident.
   MIDI, so a part recorded in a DAW comes back the way it went out.
 - A `MIDI Inst.` or `MIDI Drum` slot passes the note on to its own channel on
   MIDI out, as long as it's enabled. Handy for playing outboard gear through
-  Octessera without re-patching cables.
+  Octessera without re-patching cables. The one exception: a slot whose out
+  channel is the channel the key came in on stays quiet, because gear that
+  echoes its input would bounce the note back forever. A new slot sends on its
+  own number (I3 on channel 3), so give it another channel to pass keys on.
 - Stop, Pause, Panic and loading a patch let go of every key you're still
   holding, notes passed on to MIDI out included, so nothing gets stuck.
 - **Recording into a Looper.** Every `looper` layer that is overdubbing and

@@ -132,3 +132,34 @@ fn recording_undoes_the_play_transpose_the_layer_plays_with() {
         );
     }
 }
+
+#[test]
+fn a_midi_slot_never_sends_a_note_back_out_on_the_channel_it_came_in_on() {
+    let note = tile_notes()[0];
+    for kind in [InstrumentType::Midi, InstrumentType::MidiDrum] {
+        let mut runner = playing_looper();
+        let instrument = &mut runner.instruments[0];
+        instrument.kind = kind;
+        instrument.midi_enabled = true;
+        instrument.midi_channel = 1;
+        instrument.midi_drum.settings.enabled = true;
+        instrument.midi_drum.settings.channel = 1;
+        instrument.midi_drum.assignments = vec![NativeMidiDrumTile {
+            x: 0,
+            y: 0,
+            note,
+            velocity: 100,
+        }];
+
+        let messages = send_note(&mut runner, [0x90, note, 100]);
+        assert!(midi(&messages).is_empty(), "{kind:?}: {messages:?}");
+        let messages = send_note(&mut runner, [0x80, note, 0]);
+        assert!(midi(&messages).is_empty(), "{kind:?}: {messages:?}");
+        assert!(recorded_events(&runner, 0).is_empty(), "{kind:?}");
+
+        runner.instruments[0].midi_channel = 2;
+        runner.instruments[0].midi_drum.settings.channel = 2;
+        let messages = send_note(&mut runner, [0x90, note, 100]);
+        assert_eq!(midi(&messages).len(), 1, "{kind:?} on another channel");
+    }
+}
