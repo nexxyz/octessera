@@ -148,3 +148,5 @@ fn next_probability_random(rng: &mut u64) -> f64 {
         .wrapping_add(1442695040888963407);
     ((*rng >> 11) as f64) / ((1_u64 << 53) as f64)
 }
+
+pub(super) mod payload;

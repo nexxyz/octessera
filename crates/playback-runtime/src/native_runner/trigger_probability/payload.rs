@@ -1,6 +1,6 @@
-use super::*;
+use super::super::*;
 
-pub(super) fn apply_trigger_probability_map_payload(
+pub(in crate::native_runner) fn apply_trigger_probability_map_payload(
     target: &mut TileProbabilityMap,
     map: &[String],
 ) {
