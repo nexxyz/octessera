@@ -47,7 +47,6 @@ pub(crate) fn flush_due_native_persistence(
     if !default && !backup {
         return Vec::new();
     }
-    #[cfg(test)]
     pending.record_snapshot_capture();
     let snapshot = runner.capture_config_snapshot();
     assert_eq!(snapshot.revision(), due.revision);

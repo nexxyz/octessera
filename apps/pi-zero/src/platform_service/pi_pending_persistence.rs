@@ -6,7 +6,6 @@ const COALESCE_MS: u64 = 2_000;
 #[derive(Default)]
 pub(crate) struct PendingPiPersistence {
     pending: Option<NativePiSave>,
-    #[cfg(test)]
     snapshot_captures: u32,
 }
 
@@ -120,7 +119,6 @@ impl PendingPiPersistence {
         self.pending.is_some()
     }
 
-    #[cfg(test)]
     pub(crate) fn record_snapshot_capture(&mut self) {
         self.snapshot_captures = self.snapshot_captures.saturating_add(1);
     }

@@ -251,9 +251,6 @@ fn injected_failure(
     kind: RenameKind,
     faults: &mut Option<&mut FaultInjection>,
 ) -> io::Result<()> {
-    #[cfg(not(test))]
-    let _ = (at, kind, faults);
-    #[cfg(test)]
     if let Some(faults) = faults.as_deref_mut() {
         let index = at.0;
         let failure = match kind {
