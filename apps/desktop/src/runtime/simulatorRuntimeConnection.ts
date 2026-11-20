@@ -40,6 +40,7 @@ export type RuntimeConnectionOptions = {
     allowAsyncOledSplit: boolean,
   ) => boolean;
   publishSnapshot: () => void;
+  reportIpcFailure: (message: string) => void;
 };
 
 export function shouldApplyRuntimeBatch(
@@ -158,6 +159,8 @@ export function createRuntimeConnection(
       .catch((err) => {
         runtimeListenerPending = false;
         console.error('[Runtime] listenRuntimeMessages failed:', err);
+        options.reportIpcFailure('Could not listen to the runtime.');
+        options.publishSnapshot();
       });
   }
 
@@ -190,6 +193,7 @@ export function createRuntimeConnection(
       })
       .catch((err) => {
         console.error('[Runtime] runtimeDispatch failed:', err);
+        options.reportIpcFailure('That input did not reach the runtime.');
         options.publishSnapshot();
       })
       .finally(() => {
@@ -255,9 +259,11 @@ export function createRuntimeConnection(
         for (const batch of batches)
           applyAsyncRuntimeBatch(batch.seq, batch.messages, nowMs);
       })
-      .catch((err) =>
-        console.error('[Runtime] drainRuntimeMessages failed:', err),
-      )
+      .catch((err) => {
+        console.error('[Runtime] drainRuntimeMessages failed:', err);
+        options.reportIpcFailure('Lost contact with the runtime.');
+        options.publishSnapshot();
+      })
       .finally(() => {
         tauriDrainInFlight = false;
       });
@@ -287,6 +293,7 @@ export function createRuntimeConnection(
         })
         .catch((err) => {
           console.error('[Runtime] initial pulse_step failed:', err);
+          options.reportIpcFailure('The runtime did not start.');
           options.publishSnapshot();
         });
       scheduler.start((nowMs) => {

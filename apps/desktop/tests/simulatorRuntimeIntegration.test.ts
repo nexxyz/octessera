@@ -345,3 +345,24 @@ test('simulator requires the native dispatch boundary', () => {
     /requires Tauri native runtime or an injected native dispatch/,
   );
 });
+
+test('simulator surfaces a failed runtime dispatch as a status toast error', async () => {
+  const runtime = createSimulatorRuntime(new RecordingScheduler(), {
+    runtimeDispatch: async () => {
+      throw new Error('ipc down');
+    },
+  });
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    runtime.dispatch({ type: 'grid_press', x: 2, y: 5 });
+    await waitTurn();
+  } finally {
+    console.error = originalError;
+  }
+
+  const status = runtime.getSnapshot().runtimeStatus;
+  assert.equal(status?.state, 'error');
+  assert.equal(status?.error?.message, 'That input did not reach the runtime.');
+  assert.equal(status?.error?.recovery, 'retry');
+});

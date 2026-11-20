@@ -81,6 +81,7 @@ export function createSimulatorRuntime(
       return hasSnapshot;
     },
     publishSnapshot: () => lifecycle.publish(),
+    reportIpcFailure: (message) => reconciliation.reportIpcFailure(message),
   };
   const connection = createRuntimeConnection(connectionOptions);
   lifecycle.listenAudioLoad(

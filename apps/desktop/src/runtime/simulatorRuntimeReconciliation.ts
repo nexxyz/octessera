@@ -36,6 +36,7 @@ type RuntimeReconciliation = {
     allowAsyncOledSplit: boolean,
   ): void;
   reconcileRuntimeStatus(status: RuntimeStatus): void;
+  reportIpcFailure(message: string): void;
   finishMessageBatch(): void;
   getSnapshot(audioLoad: AudioLoadStatus): SimulatorSnapshot;
   stop(): void;
@@ -128,6 +129,22 @@ export function createRuntimeReconciliation(
     reconcileSnapshot,
     reconcileRuntimeStatus(status) {
       runtimeStatus = status;
+    },
+    reportIpcFailure(message) {
+      runtimeStatus = {
+        state: 'error',
+        transport: runtimeStatus?.transport ?? 'stopped',
+        currentPpqnPulse: runtimeStatus?.currentPpqnPulse ?? 0,
+        pendingResync: runtimeStatus?.pendingResync ?? false,
+        syncSource: runtimeStatus?.syncSource ?? 'internal',
+        error: {
+          domain: 'runtime',
+          code: 'unavailable',
+          operation: 'runtime_dispatch',
+          recovery: 'retry',
+          message,
+        },
+      };
     },
     finishMessageBatch,
     getSnapshot(audioLoad) {
