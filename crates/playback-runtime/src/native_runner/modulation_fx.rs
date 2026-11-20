@@ -25,7 +25,7 @@ pub(super) fn apply_fx_bus_binding_value(
             if field == "type" {
                 apply_fx_slot_type_value(slot_type, params, value, is_valid_fx_bus_slot_type)
             } else if let Some(param) = field.strip_prefix("params.") {
-                apply_fx_param_binding_value(params, param, value)
+                apply_fx_param_binding_value(slot_type, params, param, value)
             } else {
                 false
             }
@@ -56,7 +56,7 @@ pub(super) fn apply_global_fx_binding_value(
     match field {
         "type" => apply_fx_slot_type_value(slot, slot_params, value, is_valid_global_fx_slot_type),
         field if field.starts_with("params.") => {
-            apply_fx_param_binding_value(slot_params, &field[7..], value)
+            apply_fx_param_binding_value(slot, slot_params, &field[7..], value)
         }
         _ => false,
     }

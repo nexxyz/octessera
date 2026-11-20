@@ -78,14 +78,26 @@ pub(super) fn apply_fx_slot_type_value(
     false
 }
 
-pub(super) fn apply_fx_param_binding_value(params: &mut Value, key: &str, value: Value) -> bool {
+pub(super) fn apply_fx_param_binding_value(
+    fx_type: &str,
+    params: &mut Value,
+    key: &str,
+    value: Value,
+) -> bool {
     let mut map = params.as_object().cloned().unwrap_or_default();
     let next = if matches!(key, "source" | "sourceTap") {
-        value.as_str().map(|value| json!(value))
-    } else {
+        value
+            .as_str()
+            .filter(|value| {
+                super::config_schema_validation::is_valid_fx_string_param(fx_type, key, value)
+            })
+            .map(|value| json!(value))
+    } else if super::fx_param_specs::fx_param_spec(fx_type, key).is_some() {
         value
             .as_f64()
             .map(|value| fx_param_storage_value(key, value))
+    } else {
+        None
     };
     let Some(next) = next else {
         return false;
