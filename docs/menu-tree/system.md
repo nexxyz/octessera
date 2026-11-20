@@ -177,22 +177,22 @@ nothing changes until Confirm.
 
 | Action | Title | Text |
 |---|---|---|
-| Load Preset / Library Load | `Confirm Load` | `Load preset <name>?` |
+| Load Preset / Library Load | `Confirm Load` | `Load preset <name>? Unsaved changes are lost.` (with Auto Save on: `Your current patch is saved first.`) |
 | Library Delete | `Confirm Delete` | `Delete preset <name>?` |
 | Save As > Save | `Confirm Save` | `Save preset <name>?`, or `Overwrite preset <name>?` when a preset already has that name; after a save, Save As drafts a fresh name |
 | Save Current | `Confirm Save` | `Overwrite preset <name>?` |
 | Rename > Apply | `Confirm Rename` | `Rename <old> to <new>?` |
-| Save Patch / Load Patch | `Confirm Patch` | `Save current patch?` / `Load saved patch?` |
+| Save Patch / Load Patch | `Confirm Patch` | `Save current patch?` / `Load saved patch?` plus the same load line as Load Preset |
 | Save System / Load System | `Confirm System` | `Save System settings?` / `Load System settings?` |
-| SD Card 2 Start Transfer | `Confirm SD2 Transfer` | `USB audio/MIDI disconnect. Host owns OLED SD2 until stopped.` |
+| SD Card 2 Start Transfer | `Confirm SD2 Transfer` | `Playback stops and USB audio/MIDI drop while your computer has SD2. Stopping brings them back.` |
 | SD Card 2 Stop Transfer | `Confirm SD2 Transfer` | `Eject OLED SD2 on the host first, then stop transfer.` |
 | Setup Portal | `Open Wi-Fi Setup` | see [Setup Portal](#setup-portal); options `Cancel` / `Open Portal` |
 | Live Show Mode > Start 48h | `Live Show Mode` | options `Cancel` / `Start` |
 | Updates > Apply | `Confirm Update` | `Apply the update now?` |
 | Updates > Rollback | `Confirm Rollback` | `Rollback to the previous release?` |
 | Hardware Test | `Confirm Hardware Test` | `Run the hardware test?` |
-| Reset > Load Empty | `Confirm Load Empty` | `Load empty patch state?` |
-| Reset > Load Factory | `Confirm Factory` | `Load factory settings?` |
+| Reset > Load Empty | `Confirm Load Empty` | `Load an empty patch? Your current patch is replaced. Device settings stay.` |
+| Reset > Load Factory | `Confirm Factory` | `Load the factory patch? Your current patch is replaced. Device settings stay.` |
 | Panic | `Confirm MIDI` | `Send MIDI panic?` |
 | Reboot / Shutdown | `Confirm Reboot` / `Confirm Shutdown` | `Reboot Octessera?` / `Shut down Octessera?` |
 
@@ -540,7 +540,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   the preset name list. `Notes` (Note Length 120 ms, Vel Scale 100, Vel Curve linear) and
   `Polyphony` (`auto-balanced`) return to their defaults. Aux bindings belong to the patch, so
   all of them are cleared.
-- `Load Factory` (`factory.load`) opens `Confirm Factory` / `Load factory settings?` and loads the
+- `Load Factory` (`factory.load`) opens `Confirm Factory` / `Load the factory patch? Your current patch is replaced. Device settings stay.` and loads the
   factory payload on Confirm.
 
 ### Sys. Info
@@ -555,7 +555,7 @@ hostname, and the explicit board profile. The desktop UI only renders the result
 - `Panic` (`midi.panic`) confirms with `Confirm MIDI` / `Send MIDI panic?`. `Basic Help` opens
   native help with the shortcut cheat sheet.
 - `Reboot` and `Shutdown` confirm, then run the recovery save. They refuse with
-  `System save pending, try again` while a System write or follow-up is pending.
+  `Still saving. Try again in a few seconds.` while a System write or follow-up is pending.
 - One board-neutral terminal lifecycle follows. It needs the save to succeed, stops non-terminal
   follow-ups and new input atomically, and independently attempts external MIDI panic and internal
   audio silence. Only after both succeed does it publish and physically acknowledge the final

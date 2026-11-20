@@ -36,10 +36,16 @@ impl NativeRunner {
             detail
         } else {
             match platform_action {
-                PlatformAction::FactoryLoad => ("Confirm Factory", "Load factory settings?".into()),
-                PlatformAction::SystemClearAll => {
-                    ("Confirm Load Empty", "Load empty patch state?".into())
-                }
+                PlatformAction::FactoryLoad => (
+                    "Confirm Factory",
+                    "Load the factory patch? Your current patch is replaced. Device settings stay."
+                        .into(),
+                ),
+                PlatformAction::SystemClearAll => (
+                    "Confirm Load Empty",
+                    "Load an empty patch? Your current patch is replaced. Device settings stay."
+                        .into(),
+                ),
                 PlatformAction::MidiPanic => ("Confirm MIDI", "Send MIDI panic?".into()),
                 PlatformAction::SystemReboot => ("Confirm Reboot", "Reboot Octessera?".into()),
                 PlatformAction::SystemShutdown => {
@@ -47,7 +53,7 @@ impl NativeRunner {
                 }
                 PlatformAction::UsbSdTransferStart => (
                     "Confirm SD2 Transfer",
-                    "USB audio/MIDI disconnect. Host owns OLED SD2 until stopped.".into(),
+                    "Playback stops and USB audio/MIDI drop while your computer has SD2. Stopping brings them back.".into(),
                 ),
                 PlatformAction::UsbSdTransferStop => (
                     "Confirm SD2 Transfer",
@@ -123,6 +129,14 @@ impl NativeRunner {
         })
     }
 
+    fn load_consequence(&self) -> &'static str {
+        if self.auto_save_default {
+            "Your current patch is saved first."
+        } else {
+            "Unsaved changes are lost."
+        }
+    }
+
     fn preset_store_confirmation_detail(
         &self,
         action: &PlatformAction,
@@ -155,12 +169,16 @@ impl NativeRunner {
                 Some(("Confirm Rename", detail))
             }
             PlatformAction::DefaultSave => Some(("Confirm Patch", "Save current patch?".into())),
-            PlatformAction::DefaultLoad => Some(("Confirm Patch", "Load saved patch?".into())),
+            PlatformAction::DefaultLoad => Some((
+                "Confirm Patch",
+                format!("Load saved patch? {}", self.load_consequence()),
+            )),
             PlatformAction::SystemSave => Some(("Confirm System", "Save System settings?".into())),
             PlatformAction::SystemLoad => Some(("Confirm System", "Load System settings?".into())),
-            PlatformAction::PresetLoad(name) => {
-                Some(("Confirm Load", format!("Load preset {name}?")))
-            }
+            PlatformAction::PresetLoad(name) => Some((
+                "Confirm Load",
+                format!("Load preset {name}? {}", self.load_consequence()),
+            )),
             PlatformAction::PresetDelete(name) => {
                 Some(("Confirm Delete", format!("Delete preset {name}?")))
             }

@@ -21,9 +21,9 @@ impl BindingValidationError {
     pub(super) fn toast_message(&self) -> &'static str {
         match self {
             Self::UnsupportedTarget => "Mapping rejected: unsupported target",
-            Self::KindMismatch => "Mapping rejected: target type mismatch",
-            Self::LfoTargetNotLive => "Mapping rejected: LFO needs a live numeric target",
-            Self::AssignmentClaim => "Mapping rejected: target already claimed",
+            Self::KindMismatch => "This control can't move that setting.",
+            Self::LfoTargetNotLive => "LFOs only move smooth settings.",
+            Self::AssignmentClaim => "Already on another control. Clear that first.",
         }
     }
 }

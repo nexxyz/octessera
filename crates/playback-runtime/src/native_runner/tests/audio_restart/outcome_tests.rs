@@ -32,7 +32,10 @@ fn failed_save_does_not_reboot_or_advance_baseline() {
 
     let messages = identified_save_result(&mut runner, "save-1", false);
     assert_eq!(runner.restart_settings.persisted_default, baseline);
-    assert_eq!(snapshot_from(&messages)["display"]["toast"], "Save failed");
+    assert_eq!(
+        snapshot_from(&messages)["display"]["toast"],
+        "Not saved. Chec.."
+    );
     assert!(!messages.iter().any(|message| matches!(
         message,
         RunnerMessage::PlatformEffects { effects }

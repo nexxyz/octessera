@@ -42,7 +42,7 @@ after you confirm **Apply**.
 You can also use `System > Saves > System > Save System` and **Load System**.
 Load System asks first, but doesn't stop the music or reboot. While a System
 save is still being written, **Reboot** and **Shutdown** refuse with
-`System save pending, try again`; press again once it's done.
+`Still saving. Try again in a few seconds.`; press again once it's done.
 
 Changing Auto Save is itself a System setting. It saves the preference, not
 the patch.

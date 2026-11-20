@@ -34,7 +34,7 @@ impl NativeRunner {
             | PlatformAction::PresetRenameApply
             | PlatformAction::PresetSaveCurrent => match self.platform_effect_for_action(&action) {
                 Err(error) => {
-                    self.show_toast(format!("Preset save rejected: {error}"));
+                    self.show_toast(format!("Not saved: {error}"));
                     Ok(None)
                 }
                 result => result,

@@ -178,7 +178,7 @@ impl NativeRunner {
             || self.pending.system_persistence.has_completed_auto_save()
         {
             self.display.confirm_dialog = None;
-            self.show_toast("System save pending, try again");
+            self.show_toast("Still saving. Try again in a few seconds.");
             return Ok(None);
         }
         if effect != RuntimePlatformEffect::Shutdown {

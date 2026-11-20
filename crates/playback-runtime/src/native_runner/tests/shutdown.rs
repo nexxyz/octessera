@@ -123,7 +123,7 @@ pub(crate) fn shutdown_waits_for_inflight_and_latest_completed_system_save() {
             .toast
             .as_ref()
             .map(|toast| toast.message.as_str()),
-        Some("System save pending, try again")
+        Some("Still saving. Try again in a few seconds.")
     );
 
     let ack_a = runner
@@ -144,7 +144,7 @@ pub(crate) fn shutdown_waits_for_inflight_and_latest_completed_system_save() {
             .toast
             .as_ref()
             .map(|toast| toast.message.as_str()),
-        Some("System save pending, try again")
+        Some("Still saving. Try again in a few seconds.")
     );
 
     runner

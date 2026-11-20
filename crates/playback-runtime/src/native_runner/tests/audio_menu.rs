@@ -25,7 +25,7 @@ pub(crate) fn usb_sd_transfer_actions_are_confirmed_and_emit_effects() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|line| line.as_str().unwrap_or_default().contains("disconnect")));
+        .any(|line| line.as_str().unwrap_or_default().contains("SD2")));
 
     runner.display.confirm_dialog.as_mut().unwrap().cursor = 1;
     let messages = runner

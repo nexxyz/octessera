@@ -1177,9 +1177,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Layer X/Y, Play XY, LFO, and MIDI CC In assignments are staged through the native claim
   validator. An exclusive target may have one layer/Play/CC claim, and an LFO may never claim one. A rejected
   assignment leaves binding, contribution, revision, autosave state, and menu focus unchanged and
-  shows `Mapping rejected: unsupported target`, `Mapping rejected: target type mismatch`,
-  `Mapping rejected: LFO needs a live numeric target`, or
-  `Mapping rejected: target already claimed`. Accepted assignments and removals refresh the visible
+  shows `Mapping rejected: unsupported target`, `This control can't move that setting.`,
+  `LFOs only move smooth settings.`, or
+  `Already on another control. Clear that first.`. Accepted assignments and removals refresh the visible
   `Current:` label.
 - Link axis lanes ([link.md](menu-tree/link.md)):
   - Pitch is additive across axes (`X Steps + Y Steps`), signed `-16..16`, and uses scale-degree
@@ -1233,7 +1233,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   keeps unsaved music, and offers `Restart now` to restart only the app. USB Audio, HDMI Audio, USB
   MIDI, and USB Role save like other System preferences and apply live, also after Load System or a
   backup restore ([system.md](menu-tree/system.md#live-device-settings)).
-- Reboot and Shutdown refuse with `System save pending, try again` while a System write or follow-up
+- Reboot and Shutdown refuse with `Still saving. Try again in a few seconds.` while a System write or follow-up
   is pending. An allowed Shutdown keeps Patch-only recovery.
 - `Auto Save` and `Backups` under `System > Saves > Default` govern the default patch in
   `default.patch.json`. Auto Save is off by default. When on, eligible musical edits emit deferred

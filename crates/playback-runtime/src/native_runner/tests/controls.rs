@@ -25,7 +25,11 @@ pub(crate) fn controls_action_opens_help_without_platform_effects() {
         .iter()
         .all(|line| crate::oled_frame::body_text_fits(line.as_str().unwrap_or_default())));
     let text = runner.display.help_popup.as_ref().unwrap().lines.join(" ");
-    for shortcut in ["Help Sh+Fn+Main", "Sh+Fn right: musical", "Fn+Main Aux map"] {
+    for shortcut in [
+        "Sh+Fn+Main: help for this row",
+        "Sh+Fn+right edge: musical",
+        "Fn+Main: Aux mappings",
+    ] {
         assert!(text.contains(shortcut), "{shortcut} missing from {text}");
     }
     assert!(!text.contains("Space") && !text.contains("Enter"), "{text}");

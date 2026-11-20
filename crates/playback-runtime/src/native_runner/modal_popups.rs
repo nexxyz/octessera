@@ -11,9 +11,22 @@ impl NativeRunner {
     pub(super) fn open_controls_help(&mut self) {
         self.display.help_popup = Some(NativeHelpPopup {
             title: "Help: Basic Help".into(),
-            lines: wrap_help_text(
-                "Help Sh+Fn+Main. Back Back. Play/Pause Play. Stop/Sync Sh+Play. Reset Stop Fn+Play. Fn nav: left layer, right Play. Sh+Fn right: musical. Sh+Fn left: mute layer. Fn+Aux bind. Fn+Main Aux map.",
-            ),
+            lines: [
+                "Sh+Fn+Main: help for this row",
+                "Back: go back",
+                "Play: play or pause",
+                "Sh+Play: stop, or resync",
+                "Fn+Play: stop and reset",
+                "Fn+left edge: pick layer",
+                "Fn+right edge: Play page",
+                "Sh+Fn+right edge: musical",
+                "Sh+Fn+left edge: mute layer",
+                "Fn+Aux: bind it",
+                "Fn+Main: Aux mappings",
+            ]
+            .into_iter()
+            .flat_map(wrap_help_text)
+            .collect(),
             scroll: 0,
         });
     }
@@ -29,7 +42,7 @@ impl NativeRunner {
             self.menu.current_help_target()
         };
         let Some(target) = target else {
-            self.show_toast("Missing help target");
+            self.show_toast("No help here.");
             return;
         };
         let Some(help) = crate::native_help::resolve_native_help(&target) else {

@@ -154,8 +154,7 @@ and faders on a MIDI controller move parameters, much like the XY pad does.
   patch, but a freshly loaded patch keeps its saved values until you touch a
   knob, so nothing jumps on load.
 - Switch-like parameters (on/off, a choice from a list) take one driver at a
-  time. If an XY slot or another CC already has one, you get `Mapping rejected:
-  target already claimed`.
+  time. If an XY slot or another CC already has one, you get `Already on another control. Clear that first.`
 
 ## Shape: what it sounds like
 

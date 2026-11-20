@@ -105,7 +105,7 @@ impl NativeRunner {
             || self.pending.system_persistence.has_pending_request()
             || self.pending.system_persistence.has_completed_auto_save()
         {
-            self.show_toast("System save pending, try again");
+            self.show_toast("Still saving. Try again in a few seconds.");
             return;
         }
         if !self
@@ -192,7 +192,7 @@ impl NativeRunner {
         if self.pending.system_persistence.has_pending_request()
             || self.pending.system_persistence.has_completed_auto_save()
         {
-            return Some("System save pending, try again");
+            return Some("Still saving. Try again in a few seconds.");
         }
         if self.pending.system_persistence.dirty_revision.is_some() {
             return Some("Save or apply System settings before reboot");
@@ -279,7 +279,7 @@ impl NativeRunner {
                 self.display.confirm_dialog = Some(restart_choice_dialog());
             } else {
                 self.display.confirm_dialog = None;
-                self.show_toast("Save failed");
+                self.show_toast("Not saved. Check the SD card.");
             }
         } else {
             self.refresh_restart_save_choice();

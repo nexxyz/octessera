@@ -100,7 +100,7 @@ pub(crate) fn interactive_exclusive_claim_conflict_is_transactional() {
             .toast
             .as_ref()
             .map(|toast| toast.message.as_str()),
-        Some("Mapping rejected: target already claimed")
+        Some("Already on another control. Clear that first.")
     );
 }
 

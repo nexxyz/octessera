@@ -164,7 +164,10 @@ fn a_second_claim_on_an_exclusive_target_is_rejected() {
 
     press_key(&mut runner, "midiCc.1.target.sound.voiceStealingMode");
 
-    assert_eq!(toast(&runner), "Mapping rejected: target already claimed");
+    assert_eq!(
+        toast(&runner),
+        "Already on another control. Clear that first."
+    );
     assert!(runner.midi_cc_mappings[1].target.is_none());
 }
 
