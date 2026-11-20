@@ -7,7 +7,8 @@ nudge them, anchor them with a bit of sequencing and probability, and play
 along. You aren't writing notes into a piano roll. You're co-writing with a
 handful of tiny worlds that sometimes have opinions.
 
-This page is the front door. Everything else is linked from here.
+This page is the front door. Everything else is linked from here, and the
+[glossary](#glossary) explains the words the other pages take for granted.
 
 ## 1. Try the simulator
 
@@ -136,6 +137,21 @@ down before opening the case or moving wiring.
   [controls cheat sheet](controls-cheat-sheet.md) also prints fine.
 - **On the instrument:** `System > Basic Help` shows the core shortcuts, and
   *Shift* + *Fn* + click *Main* opens help for whatever row is highlighted.
+
+### Glossary
+
+| Word | What it means here |
+|---|---|
+| Patch | Everything that makes the music right now: layers, Link, instruments, effects and Aux bindings. Device settings (display, MIDI, USB, audio) aren't part of it. |
+| Preset | A patch saved under a name in `System > Saves > Library`. An instrument preset (`Preset > Load` on a Synth, FM or Plucked) only swaps that one sound. |
+| Layer | One of eight little worlds, L1 to L8, each with its own behavior and its own Link settings. *Fn* + the left grid column picks one. |
+| Slot | A numbered place for something: instrument slots I1 to I8, three effect slots per FX bus, eight sample slots per Sampler. |
+| Main, Aux | *Main* is the big knob that moves through menus. *Aux 1* to *3* are the three smaller ones; each turn and click does whatever is bound to it on that page. |
+| Bus | One of four shared FX chains (B1 to B4, `fxb1` to `fxb4` in Route). Any instrument routed to it goes through its three slots. |
+| Duck | An effect that turns its bus down whenever another sound gets loud: the pumping trick. |
+| Stamp | A Drum voice or Sampler sample written onto one tile, so that tile always plays it. |
+| Toast | A short message that pops up on the screen for a moment. |
+| Detent | One click of a knob as you turn it. |
 
 ### Practical performance
 

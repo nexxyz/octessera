@@ -114,16 +114,18 @@ alone.
   layer is holding (`held`).
 - **Step**, **Length**, **Gate** and **Octaves** shape the run.
 
-### LFOs, tempo and swing
+### Tempo and swing
 
-These live at the top of **Link**, not under a layer.
+Tempo, swing and the LFOs live at the top of **Link**, not under a layer.
 
-- **LFOs** has eight global sine LFOs. Switch one **Enabled**, pick a
-  **Target** (the list only offers parameters that are safe to wobble while
-  playing), a **Period** in note lengths (up to eight bars) and a **Depth**. An LFO adds its
-  wobble on top of anything else steering the same parameter. A switched-off LFO keeps counting
-  along with the music, so when you switch it back on it comes in right where it would have been.
-- **BPM** sets the tempo (40 to 240).
+- **BPM** (`Link > BPM`) sets the tempo, 40 to 240. The shipped patch runs
+  at 120.
+- For a quicker grab, hold *Fn* and press the fourth tile up in the right-hand
+  column: the **Tempo** Play page. Its top five rows are tempo tiles from 50
+  to 240 BPM, the top-left one is Tap, and the row below nudges by -4 to +4.
+- To follow another device's clock instead, set
+  `System > MIDI > Sync / Clock > Sync` to `external` and switch **Clock In**
+  on.
 - **Swing A** and **Swing B** set the swing ratio: how long each beat's first
   eighth lasts against its second. `4` and `4` is straight, `5:3` is a lazy
   shuffle, `3:5` rushes the offbeat. Steps land exactly on the ratio, even
@@ -132,6 +134,11 @@ These live at the top of **Link**, not under a layer.
   us when the next pulse will come. External MIDI clock out stays straight.
   A new ratio kicks in at the next beat, so twisting it mid-beat won't flam.
   The Tempo Play page has both rows on the grid.
+- **LFOs** has eight global sine LFOs. Switch one **Enabled**, pick a
+  **Target** (the list only offers parameters that are safe to wobble while
+  playing), a **Period** in note lengths (up to eight bars) and a **Depth**. An LFO adds its
+  wobble on top of anything else steering the same parameter. A switched-off LFO keeps counting
+  along with the music, so when you switch it back on it comes in right where it would have been.
 - Each layer's **Seeded** row makes trigger probability and random arp orders
   repeatable; see [Seeds](behaviors-and-play.md#seeds-surprises-you-can-keep).
 
@@ -139,6 +146,13 @@ These live at the top of **Link**, not under a layer.
 
 **Link > MIDI CC In** has eight slots, **CC1** to **CC8**, that let the knobs
 and faders on a MIDI controller move parameters, much like the XY pad does.
+
+**Can a MIDI keyboard play the instruments?** No. Octessera listens to
+incoming MIDI for clock, start/stop and these CC knobs only, and ignores
+notes on every channel. The keyboard's knobs and faders work here, its keys
+don't. To play tiles from a keyboard, plug in a computer keyboard instead (see
+the [keyboard map](controls-cheat-sheet.md#usb-host-keyboard)), or play live
+with a `keys` layer on the grid.
 
 - Switch on `System > MIDI > MIDI Active` and connect the controller under
   **MIDI In** (or plug a computer into USB MIDI). Clock and sync settings
