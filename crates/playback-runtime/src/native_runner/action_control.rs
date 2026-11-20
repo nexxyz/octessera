@@ -124,7 +124,7 @@ impl NativeRunner {
         }
         let request = if *action == PlatformAction::DefaultSave {
             if self.restart_settings.has_pending_write() {
-                self.show_toast("Save in progress");
+                self.show_toast("Still saving. Try again in a few seconds.");
                 return true;
             }
             NativeManualSaveRequest::Default
@@ -132,7 +132,7 @@ impl NativeRunner {
             if self.pending.manual_save_request.is_some()
                 || self.pending.native_preset_write.is_some()
             {
-                self.show_toast("Save in progress");
+                self.show_toast("Still saving. Try again in a few seconds.");
                 return true;
             }
             let name = if *action == PlatformAction::PresetSaveCurrent {
@@ -156,7 +156,7 @@ impl NativeRunner {
             }
         };
         if self.pending.manual_save_request.is_some() {
-            self.show_toast("Save in progress");
+            self.show_toast("Still saving. Try again in a few seconds.");
             return true;
         }
         self.pending.manual_save_request = Some(request);

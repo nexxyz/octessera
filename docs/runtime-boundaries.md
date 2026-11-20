@@ -121,7 +121,7 @@ Unnamed threads have no `Builder::name`.
   - owns the fixed 8×8 logical row-major index and logical/display tile and index projection helpers; the lower-left world-space rule is pure native logic, not a runtime projection table
   - no UI framework code
   - no platform-specific I/O
-  - no desktop, Pi, Tauri, Node runner, storage, MIDI-device, filesystem, or hardware adapter code
+  - no desktop, Pi, Tauri, storage, MIDI-device, filesystem, or hardware adapter code
 
 - Output adapters (`apps/desktop/src-tauri/src/`)
   - desktop audio sink maps native events/audio commands to the realtime engine and rodio source
@@ -491,7 +491,7 @@ Raspberry's selected initramfs writes one clean logo+wordmark frame and does not
 - UI must not call native core, transport, audio, MIDI, or storage bridges directly.
 - Runtime may import native core and output/input adapters.
 - Core crates must stay platform-agnostic.
-- `crates/platform-core` and `crates/playback-runtime` must not depend on Tauri, HAL, Pi hardware crates, Node runner processes, storage implementations, or host filesystem/sample-browser adapters.
+- `crates/platform-core` and `crates/playback-runtime` must not depend on Tauri, HAL, Pi hardware crates, storage implementations, or host filesystem/sample-browser adapters.
 - Platform adapters must not create independent musical audio sinks that bypass the realtime engine mixer.
 
 ## Data Flow

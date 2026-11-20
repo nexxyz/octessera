@@ -52,18 +52,26 @@ impl NativeRunner {
             .system_persistence
             .is_auto_save_request(&request_id);
 
+        let optimization_before = self.audio_io.audio_optimization;
         let accepted = match result {
             RuntimeStoreResult::LoadSystemResult {
                 payload: Some(system),
-            } => match self.apply_system_document_preserving_patch(&system) {
+            } => match self
+                .apply_system_document_preserving_patch(&system)
+                .map(|changed| {
+                    (
+                        changed,
+                        self.audio_io.audio_optimization != optimization_before,
+                    )
+                }) {
                 Err(message) => {
                     self.system_store_failure(operation, message, Some(request_id), revision)?
                 }
-                Ok(device_changed) => {
+                Ok((device_changed, perf_mode_changed)) => {
                     let baseline = self.pending.system_persistence.record_system_load(&system);
                     self.restart_settings.update_system_baseline(baseline);
                     if was_system_reset {
-                        self.offer_restart_after_system_reset();
+                        self.offer_restart_after_system_reset(perf_mode_changed);
                     } else {
                         self.show_toast("System loaded");
                     }

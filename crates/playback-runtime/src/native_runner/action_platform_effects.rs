@@ -18,7 +18,7 @@ impl NativeRunner {
             }
             PlatformAction::DefaultSave => {
                 if self.restart_settings.has_pending_patch_write() {
-                    self.show_toast("Save in progress");
+                    self.show_toast("Still saving. Try again in a few seconds.");
                     return Ok(None);
                 }
                 let payload =
@@ -33,7 +33,7 @@ impl NativeRunner {
                         }
                     };
                 if !self.register_default_write(payload.clone(), DefaultSaveScope::Ordinary) {
-                    self.show_toast("Save in progress");
+                    self.show_toast("Still saving. Try again in a few seconds.");
                     return Ok(None);
                 }
                 Some(RuntimePlatformEffect::StoreSaveDefault {

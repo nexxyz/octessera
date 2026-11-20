@@ -1262,7 +1262,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   MIDI, and USB Role save like other System preferences and apply live, also after Load System or a
   backup restore ([system.md](menu-tree/system.md#live-device-settings)).
 - Reboot and Shutdown refuse with `Still saving. Try again in a few seconds.` while a System write or follow-up
-  is pending. An allowed Shutdown keeps Patch-only recovery.
+  is pending. An allowed Shutdown keeps Patch-only recovery. A `Save Patch` or preset save
+  started while another patch or preset write is still running is refused with the same toast.
 - `Auto Save` and `Backups` under `System > Saves > Default` govern the default patch in
   `default.patch.json`. Auto Save is off by default. When on, eligible musical edits emit deferred
   saves; fast audio-facing edits update state and audio immediately and coalesce payload generation

@@ -147,7 +147,7 @@ fn default_save_with_an_accepted_write_keeps_the_save_in_progress_feedback() {
             .toast
             .as_ref()
             .map(|toast| toast.message.as_str()),
-        Some("Save in progress")
+        Some("Still saving. Try again in a few seconds.")
     );
     assert!(runner.take_manual_save_request().is_none());
 }

@@ -571,7 +571,9 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   write is pending). The host keeps the current `system.json` beside the store as
   `system.json.pre-reset-<stamp>` (a numeric suffix keeps an earlier one), writes the platform's
   factory System document, and answers with it as a System load. The runner applies it live like
-  Load System, then offers the usual `Restart?` dialog. Patches, presets, samples and Wi-Fi
+  Load System, then offers the `Restart?` dialog with `Settings reset.` / `Restart the app` /
+  `to apply?`; when the reset changed Perf. Mode, which applies only after a restart, it reads
+  `Settings reset.` / `Perf. Mode changes` / `after a restart.` / `Restart the app?`. Patches, presets, samples and Wi-Fi
   credentials are untouched. Behavior is the same on Raspberry, Orange and the desktop simulator;
   the desktop's `Restart now` is unavailable there as for any other restart-requiring setting.
 

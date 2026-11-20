@@ -337,9 +337,30 @@ impl NativeRunner {
         Ok(None)
     }
 
-    pub(in crate::native_runner) fn offer_restart_after_system_reset(&mut self) {
+    /// After Factory System: the reset applied live, except Perf. Mode, which needs the restart.
+    pub(in crate::native_runner) fn offer_restart_after_system_reset(
+        &mut self,
+        perf_mode_changed: bool,
+    ) {
         self.restart_settings.open_restart_choice();
-        self.display.confirm_dialog = Some(restart_choice_dialog());
+        let lines = if perf_mode_changed {
+            vec![
+                "Settings reset.".into(),
+                "Perf. Mode changes".into(),
+                "after a restart.".into(),
+                "Restart the app?".into(),
+            ]
+        } else {
+            vec![
+                "Settings reset.".into(),
+                "Restart the app".into(),
+                "to apply?".into(),
+            ]
+        };
+        self.display.confirm_dialog = Some(NativeConfirmDialog {
+            lines,
+            ..restart_choice_dialog()
+        });
     }
 
     /// The Restart? dialog's `Restart now`, once the restart save is done.
