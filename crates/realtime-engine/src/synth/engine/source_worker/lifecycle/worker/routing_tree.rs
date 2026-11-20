@@ -1,4 +1,4 @@
-use super::super::super::source_worker_owner::CompletedEnvelope;
+use super::super::super::owner::CompletedEnvelope;
 use super::finish_worker;
 use super::{send_completion, SourceWorkerThreadState, WorkerExit};
 use crossbeam_channel::Sender;
@@ -7,7 +7,7 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 pub(super) fn process(
-    mut work: super::super::super::source_worker_owner::RoutingTreeWork,
+    mut work: super::super::super::owner::RoutingTreeWork,
     parity: usize,
     done_tx: &Sender<CompletedEnvelope>,
     state: &SourceWorkerThreadState,

@@ -1,15 +1,15 @@
-use super::bus_chain_owner::BusChainCarrier;
-use super::source_worker_carrier_transfer_bus::combine_bus_carriers;
-use super::source_worker_lease::OwnerLease;
-use super::source_worker_lifecycle::{OwnerEnvelope, SourceLanePartitionBundle};
-use super::source_worker_transfer::{
+use super::super::bus_chain_owner::BusChainCarrier;
+use super::super::SynthEngine;
+use super::carrier_transfer_bus::combine_bus_carriers;
+use super::lease::OwnerLease;
+use super::lifecycle::{OwnerEnvelope, SourceLanePartitionBundle};
+use super::transfer::{
     can_install_source_partition_bundle, install_source_partition_bundle_after_check,
     source_partitions_vacant, take_source_partition_bundles,
 };
-use super::SynthEngine;
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
-pub(super) use super::source_worker_carrier_transfer_bus::{
+pub(in crate::synth::engine) use super::carrier_transfer_bus::{
     restore_bus_carriers_to_engine, take_bus_carriers,
 };
 
@@ -17,7 +17,7 @@ struct OwnerReturnData {
     generation: u64,
     parity: usize,
     partitions: SourceLanePartitionBundle,
-    routing_tree: Option<super::routing_tree::worker::RoutingTreeOwnerData>,
+    routing_tree: Option<super::super::routing_tree::worker::RoutingTreeOwnerData>,
 }
 
 pub(super) fn with_both_source_owners<R>(
@@ -26,7 +26,7 @@ pub(super) fn with_both_source_owners<R>(
     second: &mut OwnerLease,
     operation: impl FnOnce(
         &mut SynthEngine,
-        &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+        &mut [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT],
     ) -> R,
 ) -> Result<R, ()> {
     with_both_source_owners_inner(engine, first, second, false, operation)
@@ -38,16 +38,17 @@ pub(super) fn with_both_source_owners_for_routing_tree_controls<R>(
     second: &mut OwnerLease,
     operation: impl FnOnce(
         &mut SynthEngine,
-        &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+        &mut [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT],
     ) -> Result<R, ()>,
 ) -> Result<R, ()> {
     with_both_source_owners_inner(engine, first, second, true, |engine, carriers| {
-        if !super::routing_tree::state::sync_routing_tree_spread_states_to_engine(engine, carriers)
-        {
+        if !super::super::routing_tree::state::sync_routing_tree_spread_states_to_engine(
+            engine, carriers,
+        ) {
             return Err(());
         }
         let result = operation(engine, carriers);
-        if !super::routing_tree::state::sync_routing_tree_spread_states_to_carriers(
+        if !super::super::routing_tree::state::sync_routing_tree_spread_states_to_carriers(
             engine, carriers,
         ) {
             return Err(());
@@ -63,7 +64,7 @@ fn with_both_source_owners_inner<R>(
     routing_tree_controls: bool,
     operation: impl FnOnce(
         &mut SynthEngine,
-        &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+        &mut [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT],
     ) -> R,
 ) -> Result<R, ()> {
     let Some(first_owner) = first.take_owner() else {
@@ -99,7 +100,7 @@ fn with_both_source_owners_inner<R>(
             second.restore_owner(second_owner);
             return Err(());
         };
-        if !super::routing_tree::state::preflight_owner_state(
+        if !super::super::routing_tree::state::preflight_owner_state(
             engine,
             &assignment,
             first_routing_tree,
@@ -136,7 +137,7 @@ fn with_both_source_owners_inner<R>(
             let Some(second_routing_tree) = second_routing_tree.as_mut() else {
                 panic!("routing-tree owner state missing");
             };
-            if !super::routing_tree::state::move_owner_state_to_engine(
+            if !super::super::routing_tree::state::move_owner_state_to_engine(
                 engine,
                 first_routing_tree,
                 second_routing_tree,
@@ -155,7 +156,7 @@ fn with_both_source_owners_inner<R>(
             let Some(second_routing_tree) = second_routing_tree.as_mut() else {
                 panic!("routing-tree owner state missing");
             };
-            if !super::routing_tree::state::move_engine_state_to_owners(
+            if !super::super::routing_tree::state::move_engine_state_to_owners(
                 engine,
                 &assignment,
                 first_routing_tree,
@@ -256,12 +257,12 @@ fn valid_owner_pair(
         && can_install_source_partition_bundle(engine, second.parity)
         && source_partitions_vacant(engine)
         && engine.bus_mix.chains.is_empty()
-        && engine.bus_mix.pan_pos.len() <= super::super::types::BUS_COUNT
+        && engine.bus_mix.pan_pos.len() <= super::super::super::types::BUS_COUNT
         && valid_bus_carrier_pair(first, second, engine.bus_mix.pan_pos.len())
 }
 
 fn valid_bus_carrier_pair(first: &OwnerEnvelope, second: &OwnerEnvelope, bus_count: usize) -> bool {
-    (0..super::super::types::BUS_COUNT).all(|logical_bus_id| {
+    (0..super::super::super::types::BUS_COUNT).all(|logical_bus_id| {
         if usize::from(first.bus_carriers[logical_bus_id].is_some())
             + usize::from(second.bus_carriers[logical_bus_id].is_some())
             != 1
@@ -299,7 +300,7 @@ fn valid_bus_carrier_pair(first: &OwnerEnvelope, second: &OwnerEnvelope, bus_cou
 
 fn install_bus_chain_owners_after_check(
     engine: &mut SynthEngine,
-    carriers: &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+    carriers: &mut [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT],
 ) {
     for carrier in carriers.iter_mut().flatten() {
         if let Some(owner) = carrier.owner.take() {
@@ -310,12 +311,12 @@ fn install_bus_chain_owners_after_check(
 
 fn take_bus_chain_owners(
     engine: &mut SynthEngine,
-    carriers: &mut [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+    carriers: &mut [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT],
 ) -> bool {
-    if engine.bus_mix.chains.len() > super::super::types::BUS_COUNT {
+    if engine.bus_mix.chains.len() > super::super::super::types::BUS_COUNT {
         return false;
     }
-    let mut seen = [false; super::super::types::BUS_COUNT];
+    let mut seen = [false; super::super::super::types::BUS_COUNT];
     if engine.bus_mix.chains.iter().any(|owner| {
         let Some(seen) = seen.get_mut(owner.logical_bus_id) else {
             return true;
@@ -346,7 +347,7 @@ fn restore_owner_pair(
     second: &mut OwnerLease,
     first_data: OwnerReturnData,
     second_data: OwnerReturnData,
-    mut carriers: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+    mut carriers: [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT],
 ) {
     let mut first_carriers = std::array::from_fn(|_| None);
     let mut second_carriers = std::array::from_fn(|_| None);

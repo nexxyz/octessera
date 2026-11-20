@@ -1,11 +1,11 @@
 mod owner_routing;
 mod startup;
-use super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
-pub(super) use super::source_worker_owner::{
+use super::super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
+use super::super::source_worker_protocol::SourceWorkerRetirementError;
+use super::super::source_worker_retirement::{SourceWorkerCloseState, SourceWorkerRetirement};
+pub(in crate::synth::engine) use super::owner::{
     CompletedEnvelope, OwnerEnvelope, SourceLanePartitionBundle, WorkerExit,
 };
-use super::source_worker_protocol::SourceWorkerRetirementError;
-use super::source_worker_retirement::{SourceWorkerCloseState, SourceWorkerRetirement};
 use crossbeam_channel::{Receiver, Sender};
 use owner_routing::{route_completion, route_owner, worker_mask};
 #[cfg(any(test, feature = "test-support"))]
@@ -26,7 +26,7 @@ pub(super) const SOURCE_WORKER_MAILBOX_CAPACITY: usize = 1;
 static NEXT_SOURCE_WORKER_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 #[cfg(any(test, feature = "test-support"))]
-pub use super::source_worker_observer::SourceWorkerOwnerIdentity;
+pub use super::observer::SourceWorkerOwnerIdentity;
 
 pub struct SourceWorkerLifecycle {
     pub(super) workers: [SourceWorkerSlot; SOURCE_WORKER_COUNT],
@@ -45,11 +45,14 @@ pub struct SourceWorkerLifecycle {
 }
 
 impl SourceWorkerLifecycle {
-    pub(super) fn runtime_generation(&self) -> u64 {
+    pub(in crate::synth::engine) fn runtime_generation(&self) -> u64 {
         self.runtime_close.generation
     }
 
-    pub(super) fn seed_home(&mut self, owners: [OwnerEnvelope; SOURCE_WORKER_COUNT]) -> bool {
+    pub(in crate::synth::engine) fn seed_home(
+        &mut self,
+        owners: [OwnerEnvelope; SOURCE_WORKER_COUNT],
+    ) -> bool {
         let mut seeded = true;
         for owner in owners {
             let parity = owner.parity;
@@ -75,7 +78,7 @@ impl SourceWorkerLifecycle {
     pub fn shutdown(
         self,
         retirement: SourceWorkerRetirement,
-    ) -> super::source_worker_protocol::SourceWorkerShutdown {
+    ) -> super::super::source_worker_protocol::SourceWorkerShutdown {
         let retirement_error = self.validate_retirement(&retirement).err();
         if retirement_error.is_some() {
             self.runtime_close.closed.store(true, Ordering::Release);
@@ -107,7 +110,7 @@ impl SourceWorkerLifecycle {
 
     pub fn shutdown_after_runtime_drop(
         self,
-    ) -> super::source_worker_protocol::SourceWorkerShutdown {
+    ) -> super::super::source_worker_protocol::SourceWorkerShutdown {
         let retirement_error = if self.runtime_close.closed.load(Ordering::Acquire) {
             None
         } else {
@@ -120,7 +123,7 @@ impl SourceWorkerLifecycle {
     pub fn shutdown_after_retirement_error(
         self,
         error: SourceWorkerRetirementError,
-    ) -> super::source_worker_protocol::SourceWorkerShutdown {
+    ) -> super::super::source_worker_protocol::SourceWorkerShutdown {
         self.runtime_close.closed.store(true, Ordering::Release);
         self.shutdown_report(Some(error))
     }
@@ -128,9 +131,9 @@ impl SourceWorkerLifecycle {
     fn shutdown_report(
         mut self,
         retirement_error: Option<SourceWorkerRetirementError>,
-    ) -> super::source_worker_protocol::SourceWorkerShutdown {
+    ) -> super::super::source_worker_protocol::SourceWorkerShutdown {
         let joined_workers = self.shutdown_inner();
-        let shutdown = super::source_worker_protocol::SourceWorkerShutdown {
+        let shutdown = super::super::source_worker_protocol::SourceWorkerShutdown {
             joined_workers,
             retirement_error,
             #[cfg(any(test, feature = "test-support"))]
@@ -139,7 +142,7 @@ impl SourceWorkerLifecycle {
             destroyed_owner_identities: self.destroyed_owner_identities,
         };
         #[cfg(any(test, feature = "test-support"))]
-        super::source_worker_observer::notify_shutdown_probe(&shutdown);
+        super::observer::notify_shutdown_probe(&shutdown);
         shutdown
     }
 
@@ -230,7 +233,7 @@ impl SourceWorkerLifecycle {
 
     fn finish_owner(&mut self, owner: OwnerEnvelope) {
         #[cfg(any(test, feature = "test-support"))]
-        let identity = super::source_worker_observer::owner_identity(&owner);
+        let identity = super::observer::owner_identity(&owner);
         #[cfg(any(test, feature = "test-support"))]
         if let Some(slot) = self
             .destroyed_owner_identities
@@ -245,8 +248,8 @@ impl SourceWorkerLifecycle {
     #[cfg(any(test, feature = "test-support"))]
     pub fn hold_control_for_test(
         &self,
-    ) -> super::source_worker_retirement::SourceWorkerHoldControl {
-        super::source_worker_retirement::SourceWorkerHoldControl::new(
+    ) -> super::super::source_worker_retirement::SourceWorkerHoldControl {
+        super::super::source_worker_retirement::SourceWorkerHoldControl::new(
             self.workers
                 .each_ref()
                 .map(|worker| Arc::clone(&worker.hold_before_receive)),
@@ -314,7 +317,7 @@ impl Drop for SourceWorkerLifecycle {
 
 #[cfg(test)]
 pub(super) fn owner_for_test(parity: usize) -> OwnerEnvelope {
-    let mut engine = super::SynthEngine::new(48_000);
+    let mut engine = super::super::SynthEngine::new(48_000);
     OwnerEnvelope {
         runtime_generation: 1,
         parity,

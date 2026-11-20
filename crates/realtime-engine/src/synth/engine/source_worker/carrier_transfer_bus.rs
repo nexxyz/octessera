@@ -1,10 +1,10 @@
-use super::bus_chain_owner::BusChainCarrier;
-use super::SynthEngine;
+use super::super::bus_chain_owner::BusChainCarrier;
+use super::super::SynthEngine;
 
 pub(super) fn combine_bus_carriers(
-    mut first: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
-    mut second: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
-) -> [Option<BusChainCarrier>; super::super::types::BUS_COUNT] {
+    mut first: [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT],
+    mut second: [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT],
+) -> [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT] {
     std::array::from_fn(|logical_bus_id| {
         first[logical_bus_id]
             .take()
@@ -12,9 +12,9 @@ pub(super) fn combine_bus_carriers(
     })
 }
 
-pub(super) fn take_bus_carriers(
+pub(in crate::synth::engine) fn take_bus_carriers(
     engine: &mut SynthEngine,
-) -> [Option<BusChainCarrier>; super::super::types::BUS_COUNT] {
+) -> [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT] {
     let mut owners = std::mem::take(&mut engine.bus_mix.chains);
     let mut carriers =
         std::array::from_fn(|logical_bus_id| Some(BusChainCarrier::new(logical_bus_id, None)));
@@ -29,9 +29,9 @@ pub(super) fn take_bus_carriers(
     carriers
 }
 
-pub(super) fn restore_bus_carriers_to_engine(
+pub(in crate::synth::engine) fn restore_bus_carriers_to_engine(
     engine: &mut SynthEngine,
-    carriers: [Option<BusChainCarrier>; super::super::types::BUS_COUNT],
+    carriers: [Option<BusChainCarrier>; super::super::super::types::BUS_COUNT],
 ) {
     for carrier in carriers.into_iter().flatten() {
         if let Some(owner) = carrier.owner {

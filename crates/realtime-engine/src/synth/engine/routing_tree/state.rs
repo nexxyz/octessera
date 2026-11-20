@@ -180,7 +180,7 @@ pub(in crate::synth::engine) fn preflight_owner_state(
     first: &RoutingTreeOwnerData,
     second: &RoutingTreeOwnerData,
 ) -> bool {
-    let result = super::super::source_worker_transfer::source_partitions_vacant(engine)
+    let result = super::super::source_worker::transfer::source_partitions_vacant(engine)
         && engine.bus_mix.chains.is_empty()
         && engine.preview_sample_voices.iter().all(Option::is_none)
         && owner_state_matches(first, 0, assignment)

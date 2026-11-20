@@ -400,7 +400,7 @@ pub(super) fn reassert_routing_tree_bus_assignments(
     }
 }
 
-fn routing_output_is_valid(owner: &super::super::source_worker_owner::OwnerEnvelope) -> bool {
+fn routing_output_is_valid(owner: &super::owner::OwnerEnvelope) -> bool {
     owner.routing_tree.as_ref().is_some_and(|routing| {
         routing.output.left.len() >= BLOCK_SLOT_SCRATCH_FRAMES
             && routing.output.right.len() >= BLOCK_SLOT_SCRATCH_FRAMES

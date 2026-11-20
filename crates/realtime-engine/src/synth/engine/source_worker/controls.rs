@@ -1,7 +1,7 @@
-#[cfg(test)]
-use super::super::source_worker_carrier_transfer;
-use super::super::source_worker_transfer;
 use super::super::SynthEngine;
+#[cfg(test)]
+use super::carrier_transfer;
+use super::transfer;
 use super::{SourceWorkerMode, SourceWorkerRuntime};
 
 impl SourceWorkerRuntime {
@@ -40,7 +40,7 @@ impl SourceWorkerRuntime {
             first.return_fault();
             return None;
         };
-        match source_worker_transfer::with_both_source_partitions_read_only(
+        match transfer::with_both_source_partitions_read_only(
             engine,
             &mut first,
             &mut second,
@@ -70,13 +70,12 @@ impl SourceWorkerRuntime {
             first.return_fault();
             return None;
         };
-        let result =
-            source_worker_carrier_transfer::with_both_source_owners_for_routing_tree_controls(
-                engine,
-                &mut first,
-                &mut second,
-                |engine, _| Ok(inspect(engine)),
-            );
+        let result = carrier_transfer::with_both_source_owners_for_routing_tree_controls(
+            engine,
+            &mut first,
+            &mut second,
+            |engine, _| Ok(inspect(engine)),
+        );
         match result {
             Ok(result) => {
                 first.return_home();

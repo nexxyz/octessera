@@ -1,5 +1,5 @@
-use super::source_worker_owner::OwnerEnvelope;
-use super::source_worker_protocol::SourceWorkerShutdown;
+use super::super::source_worker_protocol::SourceWorkerShutdown;
+use super::owner::OwnerEnvelope;
 use crossbeam_channel::Sender;
 use std::cell::RefCell;
 use std::thread;

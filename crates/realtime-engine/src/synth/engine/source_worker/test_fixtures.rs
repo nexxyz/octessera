@@ -1,4 +1,4 @@
-use super::*;
+use super::super::*;
 use std::sync::Arc;
 
 pub(super) fn dynamic_engine() -> SynthEngine {
@@ -43,7 +43,9 @@ pub(super) fn dynamic_engine() -> SynthEngine {
     engine
 }
 
-pub(super) fn sample_engine_with_shared_buffer(samples: Arc<[f32]>) -> SynthEngine {
+pub(in crate::synth::engine) fn sample_engine_with_shared_buffer(
+    samples: Arc<[f32]>,
+) -> SynthEngine {
     let mut engine = dynamic_engine();
     let mut bank = SampleBankConfig::default();
     bank.slots[0].buffer = Some(SampleBuffer {

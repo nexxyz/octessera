@@ -1,10 +1,10 @@
 use super::super::bus_chain_owner::BusChainCarrier;
-use super::super::source_worker_carrier_transfer;
-use super::super::source_worker_lifecycle::{
+use super::super::source_worker::carrier_transfer;
+use super::super::source_worker::lifecycle::{
     OwnerEnvelope, SourceLanePartitionBundle, SourceWorkerLifecycle,
 };
+use super::super::source_worker::transfer;
 use super::super::source_worker_protocol::{SourceWorkerSetupError, SourceWorkerStartHook};
-use super::super::source_worker_transfer;
 use super::super::{SourceWorkerRuntime, SynthEngine};
 use super::executor::RoutingTreeAssignment;
 use super::state;
@@ -44,17 +44,16 @@ fn start_prewarmed_with_hold(
         let _ = lifecycle.shutdown_after_runtime_drop();
         return Err(error);
     }
-    let bus_carriers = source_worker_carrier_transfer::take_bus_carriers(engine);
+    let bus_carriers = carrier_transfer::take_bus_carriers(engine);
     let Some(source_bank) = state::take_source_bank(engine) else {
-        source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
+        carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::PartitionsUnavailable);
     };
-    let Some(home_partitions) = source_worker_transfer::take_source_partition_bundles(engine)
-    else {
+    let Some(home_partitions) = transfer::take_source_partition_bundles(engine) else {
         let mut source_bank = source_bank;
         let _ = state::restore_source_bank(engine, &mut source_bank);
-        source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
+        carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::PartitionsUnavailable);
     };
@@ -67,7 +66,7 @@ fn start_prewarmed_with_hold(
         let mut source_bank = source_bank;
         restore_partitions(engine, home_partitions);
         let _ = state::restore_source_bank(engine, &mut source_bank);
-        source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
+        carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::InlineSourceExecutorUnavailable);
     }
@@ -81,7 +80,7 @@ fn start_prewarmed_with_hold(
         let mut source_bank = source_bank;
         restore_partitions(engine, home_partitions);
         let _ = state::restore_source_bank(engine, &mut source_bank);
-        source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
+        carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
         lifecycle.mark_runtime_closed();
         return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
     };
@@ -91,7 +90,7 @@ fn start_prewarmed_with_hold(
         None => {
             restore_partitions(engine, home_partitions);
             let _ = state::restore_source_bank(engine, &mut source_bank);
-            source_worker_carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
+            carrier_transfer::restore_bus_carriers_to_engine(engine, bus_carriers);
             lifecycle.mark_runtime_closed();
             let _ = lifecycle.shutdown_after_runtime_drop();
             return Err(SourceWorkerSetupError::RoutingTreeAdmissionUnavailable);
@@ -190,6 +189,6 @@ fn restore_partitions(
     engine: &mut SynthEngine,
     partitions: (SourceLanePartitionBundle, SourceLanePartitionBundle),
 ) {
-    source_worker_transfer::restore_source_partition_bundle(engine, partitions.0);
-    source_worker_transfer::restore_source_partition_bundle(engine, partitions.1);
+    transfer::restore_source_partition_bundle(engine, partitions.0);
+    transfer::restore_source_partition_bundle(engine, partitions.1);
 }

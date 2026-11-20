@@ -1,9 +1,9 @@
+use self::lease::OwnerLease;
+use self::lifecycle::{CompletedEnvelope, OwnerEnvelope};
 use super::routing_tree::worker::RoutingTreeOutputBlock;
 use super::source_worker_health::{
     SourceWorkerHealth, SourceWorkerHealthSnapshot, SourceWorkerHealthState,
 };
-use super::source_worker_lease::OwnerLease;
-use super::source_worker_lifecycle::{CompletedEnvelope, OwnerEnvelope};
 use super::source_worker_load::{SourceWorkerLoad, SourceWorkerLoadSnapshot};
 use super::source_worker_protocol::{RoutingTreeWork, SourceWorkerMode, WorkStamp};
 use super::source_worker_retirement::{SourceWorkerCloseState, SourceWorkerRetirement};
@@ -156,4 +156,24 @@ mod feature_support;
 mod routing_tree_control_gate;
 mod routing_tree_pipeline;
 
+#[cfg(feature = "routing-tree-executor")]
+pub(super) mod carrier_transfer;
+#[cfg(feature = "routing-tree-executor")]
+mod carrier_transfer_bus;
 mod construction;
+#[cfg(feature = "routing-tree-executor")]
+mod lease;
+#[cfg(feature = "routing-tree-executor")]
+pub(super) mod lifecycle;
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+pub(super) mod observer;
+#[cfg(feature = "routing-tree-executor")]
+pub(super) mod owner;
+#[cfg(feature = "routing-tree-executor")]
+mod render;
+#[cfg(all(test, feature = "routing-tree-executor"))]
+mod routing_deadline_tests;
+#[cfg(all(test, feature = "routing-tree-executor"))]
+pub(super) mod test_fixtures;
+#[cfg(feature = "routing-tree-executor")]
+pub(super) mod transfer;

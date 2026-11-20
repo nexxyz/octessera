@@ -1,4 +1,4 @@
-use super::super::source_worker_lifecycle::{OwnerEnvelope, SourceWorkerOwnerIdentity};
+use super::lifecycle::{OwnerEnvelope, SourceWorkerOwnerIdentity};
 use super::*;
 use std::time::Duration;
 

@@ -43,7 +43,7 @@ Unnamed threads have no `Builder::name`.
 | `octessera-runtime` | `apps/pi-zero/src/runtime_thread.rs`, from both board startups | input `HostMessage` channel, platform result lane, audio control requests | runtime loop returns; `main` joins it | inherited CPU0; 8 MiB stack |
 | Jack callback (cpal) | cpal stream, `audio/audio_output/cpal_audio_output.rs` | engine event queue into `EngineSource` | stream dropped | `SCHED_FIFO` 70, CPU1, set on its first callback |
 | USB/HDMI mirror callback (cpal) | cpal mirror stream, `cpal_audio_output/cpal_audio_mirror.rs` | PCM mirror ring | stream dropped | `SCHED_FIFO` 60, CPU0 |
-| `oct-dsp-tree-0`, `oct-dsp-tree-1` | `realtime-engine` `source_worker_lifecycle/worker.rs` (routing tree, Capacity mode) | work and completion mailboxes | work channel closes at engine shutdown | `SCHED_FIFO` 70, CPU2 / CPU3 (`pi_worker_start_hook`) |
+| `oct-dsp-tree-0`, `oct-dsp-tree-1` | `realtime-engine` `source_worker/lifecycle/worker.rs` (routing tree, Capacity mode) | work and completion mailboxes | work channel closes at engine shutdown | `SCHED_FIFO` 70, CPU2 / CPU3 (`pi_worker_start_hook`) |
 | `oct-src-reaper` | `rodio-engine-source` `source_worker_reaper.rs` | bounded retired-audio and shutdown-envelope channels | after the shutdown envelope | inherited |
 | optional audio recovery (unnamed, USB and HDMI) | `audio/audio_output/audio_optional_recovery.rs` | `SelectedOutputs` change wait, PCM mirror producer | stop flag and join in `Drop` | inherited |
 | `octessera-audio-prep` | `host_audio_prep.rs` | `AudioControlRequest` in, `HostMessage` results out | request channel closes | CPU2/3, normal priority |

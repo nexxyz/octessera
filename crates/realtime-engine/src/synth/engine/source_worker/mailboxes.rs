@@ -1,5 +1,5 @@
-use super::super::source_worker_lease::OwnerLease;
 use super::super::source_worker_load::SourceWorkerLoadObservation;
+use super::lease::OwnerLease;
 use super::CompletedEnvelope;
 use super::SourceWorkerHealth;
 use super::*;

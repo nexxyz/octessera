@@ -1,6 +1,7 @@
-use super::source_worker_protocol::{SourceWorkerMode, SourceWorkerRenderDisposition};
-use super::SynthEngine;
-use super::{SourceWorkerRuntime, BLOCK_SLOT_SCRATCH_FRAMES};
+use super::super::source_worker_protocol::{SourceWorkerMode, SourceWorkerRenderDisposition};
+use super::super::SynthEngine;
+use super::super::BLOCK_SLOT_SCRATCH_FRAMES;
+use super::SourceWorkerRuntime;
 
 impl SynthEngine {
     pub fn render_interleaved_block_with_source_runtime(

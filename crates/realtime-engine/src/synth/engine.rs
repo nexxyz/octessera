@@ -99,33 +99,13 @@ mod sample_voice_shape;
 mod source_lane_prefix_tests;
 #[cfg(feature = "routing-tree-executor")]
 mod source_worker;
-#[cfg(feature = "routing-tree-executor")]
-mod source_worker_carrier_transfer;
-#[cfg(feature = "routing-tree-executor")]
-mod source_worker_carrier_transfer_bus;
 mod source_worker_health;
-#[cfg(feature = "routing-tree-executor")]
-mod source_worker_lease;
-#[cfg(feature = "routing-tree-executor")]
-mod source_worker_lifecycle;
 mod source_worker_load;
-#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-mod source_worker_observer;
-#[cfg(feature = "routing-tree-executor")]
-mod source_worker_owner;
 mod source_worker_placement;
 #[cfg(test)]
 mod source_worker_placement_tests;
 mod source_worker_protocol;
-#[cfg(feature = "routing-tree-executor")]
-mod source_worker_render;
 mod source_worker_retirement;
-#[cfg(all(test, feature = "routing-tree-executor"))]
-mod source_worker_routing_deadline_tests;
-#[cfg(all(test, feature = "routing-tree-executor"))]
-mod source_worker_test_fixtures;
-#[cfg(feature = "routing-tree-executor")]
-mod source_worker_transfer;
 #[cfg(test)]
 mod steal_fade_tests;
 #[cfg(test)]
@@ -144,21 +124,21 @@ pub use prepared_momentary_fx::{
 };
 pub use retired_state::RetiredAudioState;
 use retired_state::{store_retired_preview, PREVIEW_AUDITION_SLOTS};
+#[cfg(feature = "routing-tree-executor")]
+pub use source_worker::lifecycle::SourceWorkerLifecycle;
+#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
+pub use source_worker::observer::{
+    install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,
+    SourceWorkerShutdownProbeGuard,
+};
 #[cfg(all(feature = "routing-tree-executor", any(test, feature = "test-support")))]
 pub use source_worker::RoutingTreePipelineProbe;
 #[cfg(feature = "routing-tree-executor")]
 pub use source_worker::SourceWorkerRuntime;
 pub use source_worker_health::{SourceWorkerHealth, SourceWorkerHealthSnapshot};
-#[cfg(feature = "routing-tree-executor")]
-pub use source_worker_lifecycle::SourceWorkerLifecycle;
 pub use source_worker_load::{
     SourceWorkerLoadSnapshot, SOURCE_WORKER_MAX_COST_UNITS, SOURCE_WORKER_SAMPLE_COST_UNITS,
     SOURCE_WORKER_SYNTH_COST_UNITS,
-};
-#[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
-pub use source_worker_observer::{
-    install_source_worker_shutdown_probe_for_test, SourceWorkerOwnerIdentity,
-    SourceWorkerShutdownProbeGuard,
 };
 #[cfg(feature = "routing-tree-executor")]
 pub use source_worker_protocol::SourceWorkerSetupError;

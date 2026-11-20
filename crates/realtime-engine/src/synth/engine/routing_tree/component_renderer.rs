@@ -3,7 +3,7 @@ use super::super::duck_source::resolve_duck_source;
 use super::super::render_momentary_fx::process_momentary_fx_states;
 use super::super::render_plan::RenderPlanRoute;
 use super::super::render_routing::{render_bus_stereo_output, FxBusOutputSpreadState};
-use super::super::source_worker_lifecycle::OwnerEnvelope;
+use super::super::source_worker::lifecycle::OwnerEnvelope;
 use super::worker::{RoutingTreeOwnerData, RoutingTreeWorkerContext};
 use crate::synth::fx_params::FxBusParams;
 use crate::synth::signal_tap::SignalSource;

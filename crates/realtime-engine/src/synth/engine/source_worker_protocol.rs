@@ -19,7 +19,7 @@ pub struct WorkStamp {
 }
 
 #[cfg(feature = "routing-tree-executor")]
-pub(super) use super::source_worker_owner::RoutingTreeWork;
+pub(super) use super::source_worker::owner::RoutingTreeWork;
 
 pub type SourceWorkerStartHook = fn(usize) -> Result<(), ()>;
 
@@ -38,7 +38,7 @@ pub struct SourceWorkerShutdown {
     pub destroyed_owner_count: usize,
     #[cfg(all(any(test, feature = "test-support"), feature = "routing-tree-executor"))]
     pub destroyed_owner_identities:
-        [Option<super::source_worker_lifecycle::SourceWorkerOwnerIdentity>; 2],
+        [Option<super::source_worker::lifecycle::SourceWorkerOwnerIdentity>; 2],
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

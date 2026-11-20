@@ -4,7 +4,7 @@ use crossbeam_channel::bounded;
 fn completion(parity: usize) -> CompletedEnvelope {
     CompletedEnvelope {
         owner: super::super::owner_for_test(parity),
-        stamp: super::super::super::source_worker_protocol::WorkStamp {
+        stamp: super::super::super::super::source_worker_protocol::WorkStamp {
             runtime_generation: 1,
             render_plan_generation: 0,
             quantum_sequence: 1,

@@ -1,4 +1,4 @@
-use super::super::source_worker_protocol::{RoutingTreeWork, SourceWorkerStartHook};
+use super::super::super::source_worker_protocol::{RoutingTreeWork, SourceWorkerStartHook};
 use super::{CompletedEnvelope, WorkerExit, SOURCE_WORKER_CHANNEL_CAPACITY};
 use crossbeam_channel::{bounded, Receiver, Sender, TrySendError};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -14,7 +14,7 @@ pub(crate) struct SourceWorkerSlot {
     pub(crate) done_rx: Receiver<CompletedEnvelope>,
     pub(crate) done_tx: Option<Sender<CompletedEnvelope>>,
     pub(crate) ready_rx:
-        Receiver<Result<(), super::super::source_worker_protocol::SourceWorkerSetupError>>,
+        Receiver<Result<(), super::super::super::source_worker_protocol::SourceWorkerSetupError>>,
     pub(crate) exited: Arc<AtomicBool>,
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) jobs_started: Arc<AtomicU64>,
@@ -75,7 +75,7 @@ pub(super) fn spawn_worker_named(
     hold_before_receive: bool,
     start_hook: Option<SourceWorkerStartHook>,
     thread_name: &'static str,
-) -> Result<SourceWorkerSlot, super::super::source_worker_protocol::SourceWorkerSetupError> {
+) -> Result<SourceWorkerSlot, super::super::super::source_worker_protocol::SourceWorkerSetupError> {
     let (work_tx, work_rx) = bounded(SOURCE_WORKER_CHANNEL_CAPACITY);
     let (done_tx, done_rx) = bounded(SOURCE_WORKER_CHANNEL_CAPACITY);
     let (ready_tx, ready_rx) = bounded(1);
@@ -107,7 +107,7 @@ pub(super) fn spawn_worker_named(
         if let Some(start_hook) = start_hook {
             if start_hook(parity).is_err() {
                 let _ = ready_tx.send(Err(
-                    super::super::source_worker_protocol::SourceWorkerSetupError::WorkerSchedulingUnavailable {
+                    super::super::super::source_worker_protocol::SourceWorkerSetupError::WorkerSchedulingUnavailable {
                         parity,
                     },
                 ));
@@ -139,7 +139,7 @@ pub(super) fn spawn_worker_named(
         )
     })
     .map_err(|_| {
-        super::super::source_worker_protocol::SourceWorkerSetupError::WorkerThreadUnavailable
+        super::super::super::source_worker_protocol::SourceWorkerSetupError::WorkerThreadUnavailable
     })?;
     Ok(SourceWorkerSlot {
         work_tx: Some(work_tx),

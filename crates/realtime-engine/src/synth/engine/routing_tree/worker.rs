@@ -3,7 +3,7 @@ use super::super::render_samples::render_preview_sample_voices_block_into;
 use super::super::render_voice::synth_voice_render::SynthSourceContext;
 use super::super::retired_state::PREVIEW_AUDITION_SLOTS;
 use super::super::sample_voice::PreviewSampleVoice;
-use super::super::source_worker_lifecycle::OwnerEnvelope;
+use super::super::source_worker::lifecycle::OwnerEnvelope;
 use super::super::source_worker_protocol::WorkStamp;
 use super::super::SynthEngine;
 use super::executor::RoutingTreeAssignment;

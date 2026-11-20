@@ -1,8 +1,8 @@
 use super::super::routing_tree::worker::RoutingTreeWorkerContext;
-use super::super::source_worker_carrier_transfer;
 use super::super::source_worker_health::SourceWorkerHealth;
 use super::super::source_worker_protocol::SourceWorkerMode;
 use super::super::SynthEngine;
+use super::carrier_transfer;
 use super::{SourceWorkerLoadSnapshot, SourceWorkerRuntime};
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
@@ -42,20 +42,17 @@ impl SourceWorkerRuntime {
             &context,
         );
         let load = self.load_snapshot();
-        let result =
-            source_worker_carrier_transfer::with_both_source_owners_for_routing_tree_controls(
-                engine,
-                &mut first,
-                &mut second,
-                |engine, _| {
-                    engine.with_source_worker_load(load, |engine| {
-                        engine.with_routing_tree_source_event_sample_clock(
-                            effective_sample_clock,
-                            apply,
-                        )
-                    })
-                },
-            );
+        let result = carrier_transfer::with_both_source_owners_for_routing_tree_controls(
+            engine,
+            &mut first,
+            &mut second,
+            |engine, _| {
+                engine.with_source_worker_load(load, |engine| {
+                    engine
+                        .with_routing_tree_source_event_sample_clock(effective_sample_clock, apply)
+                })
+            },
+        );
         match result {
             Ok(result) => {
                 first.return_home();

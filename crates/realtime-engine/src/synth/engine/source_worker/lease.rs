@@ -1,5 +1,5 @@
-use super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
-use super::source_worker_lifecycle::OwnerEnvelope;
+use super::super::source_worker_health::{SourceWorkerHealth, SourceWorkerHealthState};
+use super::lifecycle::OwnerEnvelope;
 use crossbeam_channel::Sender;
 use std::sync::Arc;
 
