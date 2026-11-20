@@ -106,7 +106,7 @@ impl NativeRunner {
             }
             InstrumentType::None => return,
         };
-        let recorded_tiles = self.record_keyboard_press(slot, note.note, kind, stamped_tile);
+        let recorded_tiles = self.record_keyboard_press(slot, note.note, stamped_tile);
         match held {
             Some(midi_channel) => self.keyboard_notes.push(HeldKeyboardNote {
                 slot,
@@ -143,34 +143,23 @@ impl NativeRunner {
     }
 
     /// A Drum, Sampler or MIDI Drum slot records on its lowest tile stamped with what the key played
-    /// (`stamped_tile`); the other slots on the tile each Looper's mapping plays as the note.
+    /// (`stamped_tile`); the other slots on the tile each Looper's mapping plays as the note
+    /// under the Play Transpose that layer plays with.
     fn record_keyboard_press(
         &mut self,
         slot: u8,
         note: u8,
-        kind: InstrumentType,
         stamped_tile: Option<Option<usize>>,
     ) -> [Option<u8>; LAYER_COUNT] {
-        let follows_transpose = matches!(
-            kind,
-            InstrumentType::Synth
-                | InstrumentType::Fm
-                | InstrumentType::Pluck
-                | InstrumentType::Midi
-        );
+        let offsets: [i8; LAYER_COUNT] =
+            std::array::from_fn(|layer| self.play_transpose_offset_for_layer(layer));
         let running = self.transport.transport != crate::RuntimeTransportState::Stopped;
         let mut recorded = [None; LAYER_COUNT];
         for (layer_index, layer) in self.layers.iter_mut().enumerate().take(LAYER_COUNT) {
             if !layer.engine.records_outside_notes_for(slot) {
                 continue;
             }
-            let offset = self
-                .transpose
-                .offsets
-                .get(layer_index)
-                .copied()
-                .filter(|_| follows_transpose)
-                .unwrap_or(0);
+            let offset = offsets[layer_index];
             let Ok(mapped_note) = u8::try_from(i16::from(note) - i16::from(offset)) else {
                 continue;
             };

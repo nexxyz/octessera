@@ -94,3 +94,41 @@ fn a_midi_drum_slot_records_its_lowest_tile_stamped_with_the_note() {
         "a note no tile is stamped with is not recorded, even if the scale would map it"
     );
 }
+
+fn recorded_press_tile(runner: &NativeRunner) -> Option<u64> {
+    recorded_events(runner, 0)
+        .iter()
+        .find(|event| event["kind"] == "press")
+        .and_then(|event| event["tile"].as_u64())
+}
+
+#[test]
+fn recording_undoes_the_play_transpose_the_layer_plays_with() {
+    let notes = tile_notes();
+    let tile = GRID_WIDTH * 3 + 5;
+    let note = notes[tile];
+    let lowest = notes.iter().position(|played| *played == note).unwrap() as u64;
+
+    for (enabled, selected, played) in [
+        (true, true, note + 2),
+        (false, true, note),
+        (true, false, note),
+    ] {
+        let mut runner = playing_looper();
+        runner.transpose.offsets[0] = 2;
+        runner.transpose.enabled[0] = enabled;
+        runner.transpose.selected[0] = selected;
+        assert_eq!(
+            runner.play_transpose_offset_for_layer(0),
+            if enabled && selected { 2 } else { 0 }
+        );
+
+        send_note(&mut runner, [0x90, played, 100]);
+
+        assert_eq!(
+            recorded_press_tile(&runner),
+            Some(lowest),
+            "enabled {enabled}, selected {selected}"
+        );
+    }
+}
