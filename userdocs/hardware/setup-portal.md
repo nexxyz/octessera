@@ -50,6 +50,18 @@ the instrument, a screen and a keyboard can log in on the console, pick their
 own password, and have full admin rights. Run the portal soon after the first
 boot, and don't leave a fresh card lying around at a party.
 
+## Logging in with SSH
+
+> **SSH in a nutshell:** from a computer on the same network, open a terminal
+> (PowerShell on Windows) and run `ssh pi@octessera-rpi.local` for the
+> Raspberry, or `ssh octessera@<address>` for the Orange, using the address
+> from `System > Maintenance > Sys. Info` (the `IP:` line). The Raspberry
+> image answers to `<hostname>.local`, where the hostname is `octessera-rpi`
+> unless you set another in the portal; if the name doesn't resolve, use its
+> IP address from Sys. Info instead. The user is `pi` or `octessera`; the
+> portal's **SSH** choice decides how you prove it's you: your key, or the
+> local device password.
+
 ## What you should see
 
 - The browser may disconnect while the settings apply. Leave the instrument
