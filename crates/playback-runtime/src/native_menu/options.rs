@@ -28,6 +28,7 @@ pub(crate) const GLOBAL_FX_SLOT_OPTIONS: &[&str] = &[
     "compressor",
     "saturator",
     "distortion",
+    "bitcrusher",
 ];
 
 pub(crate) fn is_valid_fx_bus_slot_type(slot_type: &str) -> bool {

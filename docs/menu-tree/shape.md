@@ -109,7 +109,7 @@ Shape
 │   │   └── Name: (text, max 32)                 ← editing sets Auto Label off
 └── Global FX (group)
     ├── Slot 1..N: <Effect> (group)              ← N = globalFxSlotCount (2)
-    │   ├── Type: [none | vinyl | eq | compressor | saturator | distortion]
+    │   ├── Type: [none | vinyl | eq | compressor | saturator | distortion | bitcrusher]
     │   └── ... params of that Type
     └── Signal (action)                          ← full-screen picture of the master mix
 ```
@@ -402,7 +402,8 @@ Instrument rows offered as modulation, XY, and Aux targets:
 - `auto_pan` moves the bus stereo output position after the slot chain.
 - Global FX runs `Slot 1..N` in order on the stereo main mix after direct and bus outputs are summed,
   before global momentary FX and `Master Vol`. Global FX stays two stereo slots and is limited to
-  `none | vinyl | eq | compressor | saturator | distortion` for Pi Zero 2 W performance.
+  `none | vinyl | eq | compressor | saturator | distortion | bitcrusher` for Pi Zero 2 W
+  performance. A Global FX bitcrusher holds and quantizes each channel the same way the bus one does.
 - Duck `Source Tap`:
   - Instrument source: `Pre` is the raw source before its fader; `Post` applies its fader, before
     instrument-target momentary FX and pan.

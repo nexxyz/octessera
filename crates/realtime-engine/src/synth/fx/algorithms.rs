@@ -137,10 +137,22 @@ pub(in crate::synth) fn process_bitcrusher(
         return input;
     };
     *hold = rate_div;
+    crush_sample(count, last, input, rate_div, bits, mix)
+}
+
+/// One channel of the bitcrusher: holds a sample for `rate_div` samples and quantizes it.
+pub(in crate::synth) fn crush_sample(
+    count: &mut u32,
+    last: &mut f32,
+    input: f32,
+    rate_div: u32,
+    bits: u32,
+    mix: f32,
+) -> f32 {
     if *count == 0 {
         *last = input;
     }
-    *count = (*count + 1) % (*hold).max(1);
+    *count = (*count + 1) % rate_div.max(1);
     let half_levels = (1_u32 << bits.clamp(1, 16)) as f32 * 0.5;
     let crushed = ((*last * half_levels).round() / half_levels).clamp(-1.0, 1.0);
     input * (1.0 - mix) + crushed * mix

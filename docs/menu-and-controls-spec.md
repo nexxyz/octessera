@@ -1100,6 +1100,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   | eq | Low, Mid, High | MidHz, MidQ, Mix |
   | vinyl | Crackle, Warp, Sat | Mix |
 
+  Global FX slots offer `none | vinyl | eq | compressor | saturator | distortion | bitcrusher`
+  and use the same layouts.
+
 - Play FX layouts (Aux 1 click is always `Map`): stutter Rate, Depth; freeze Release, Mix;
   filter_sweep Cutoff, Res, In | Out; pitch_shift Semi, Cents, Mix | In, Out; tape_stop Stop,
   Start; reverse Length, Mix; trance_gate Rate, Depth, Smooth; dub_throw Time, Fdbk, Mix; wash

@@ -92,6 +92,24 @@ pub(in crate::synth) fn process_master_fx_slot(
                 sample_rate,
             )
         }
+        FxBusParams::Bitcrusher {
+            rate_div,
+            bits,
+            mix,
+        } => {
+            let MasterFxState::Bitcrusher {
+                count: [count_l, count_r],
+                last: [last_l, last_r],
+            } = state
+            else {
+                *state = master_fx_state_from_params(params);
+                return (left, right);
+            };
+            (
+                crush_sample(count_l, last_l, left, rate_div, bits, mix),
+                crush_sample(count_r, last_r, right, rate_div, bits, mix),
+            )
+        }
         FxBusParams::Tremolo { .. }
         | FxBusParams::Delay { .. }
         | FxBusParams::ModDelay { .. }
@@ -99,7 +117,6 @@ pub(in crate::synth) fn process_master_fx_slot(
         | FxBusParams::Reverb { .. }
         | FxBusParams::Glitch { .. }
         | FxBusParams::AutoPan { .. }
-        | FxBusParams::Duck { .. }
-        | FxBusParams::Bitcrusher { .. } => (left, right),
+        | FxBusParams::Duck { .. } => (left, right),
     }
 }

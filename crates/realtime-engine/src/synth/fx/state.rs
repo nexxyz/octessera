@@ -95,6 +95,10 @@ pub(in crate::synth) enum MasterFxState {
         right: Box<EqChannelState>,
     },
     Vinyl(VinylState),
+    Bitcrusher {
+        count: [u32; 2],
+        last: [f32; 2],
+    },
 }
 
 impl MasterFxState {
@@ -107,6 +111,7 @@ impl MasterFxState {
                 right.clear_history();
             }
             MasterFxState::Vinyl(state) => *state = VinylState::new(),
+            MasterFxState::Bitcrusher { last, .. } => *last = [0.0; 2],
         }
     }
 }
@@ -195,6 +200,10 @@ pub(in crate::synth) fn master_fx_state_from_params(params: &FxBusParams) -> Mas
             right: Box::new(EqChannelState::new()),
         },
         FxBusParams::Vinyl { .. } => MasterFxState::Vinyl(VinylState::new()),
+        FxBusParams::Bitcrusher { .. } => MasterFxState::Bitcrusher {
+            count: [0; 2],
+            last: [0.0; 2],
+        },
         FxBusParams::None
         | FxBusParams::Saturator { .. }
         | FxBusParams::Distortion { .. }
@@ -205,8 +214,7 @@ pub(in crate::synth) fn master_fx_state_from_params(params: &FxBusParams) -> Mas
         | FxBusParams::Reverb { .. }
         | FxBusParams::Glitch { .. }
         | FxBusParams::AutoPan { .. }
-        | FxBusParams::Duck { .. }
-        | FxBusParams::Bitcrusher { .. } => MasterFxState::None,
+        | FxBusParams::Duck { .. } => MasterFxState::None,
     }
 }
 
@@ -272,5 +280,9 @@ pub(in crate::synth) fn master_fx_state_matches_params(
             )
             | (MasterFxState::Eq { .. }, FxBusParams::Eq { .. })
             | (MasterFxState::Vinyl(..), FxBusParams::Vinyl { .. })
+            | (
+                MasterFxState::Bitcrusher { .. },
+                FxBusParams::Bitcrusher { .. }
+            )
     )
 }

@@ -414,9 +414,9 @@ Raspberry to run them all.
 ## Global FX: the finishing touch
 
 `Shape > Global FX` has two slots on the whole mix, after everything is
-summed: `vinyl`, `eq`, `compressor`, `saturator` or `distortion`. A touch of
-`saturator` or `compressor` glues the layers together. `distortion` here
-affects everything, so go gently.
+summed: `vinyl`, `eq`, `compressor`, `saturator`, `distortion` or
+`bitcrusher`. A touch of `saturator` or `compressor` glues the layers together.
+`distortion` and `bitcrusher` here affect everything, so go gently.
 
 ## Turning knobs
 

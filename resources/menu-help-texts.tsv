@@ -544,12 +544,13 @@ fx_bus_slot2_eq_group	Menu > Shape > FX Buses > B*: * > Slot 2 > eq		group	eq	Th
 fx_bus_slot3_eq_group	Menu > Shape > FX Buses > B*: * > Slot 3 > eq		group	eq	Three-band equalizer with low shelf, peaking mid, and high shelf bands.	Boosts or cuts each band independently; gain range ±12 dB.
 global_fx_group	Menu > Shape > Global FX		group	Global FX	Processes the full stereo main mix after instruments and FX buses are summed together.	These slots run before momentary Play FX and Master Vol, so they color the whole output.
 global_fx_slot_group	Menu > Shape > Global FX > Slot *		group	Global FX Slot	Configures one stereo master effect slot.	Choose Type, then edit the parameters shown below.
-global_fx_slot_type	Menu > Shape > Global FX > Slot * > Type	key:mixer.master.slots.*.type	enum	Slot Type	The effect in this slot, from vinyl lo-fi to distortion; none passes the sound through.	Picking one loads its defaults.
+global_fx_slot_type	Menu > Shape > Global FX > Slot * > Type	key:mixer.master.slots.*.type	enum	Slot Type	The effect in this slot, from vinyl lo-fi to bitcrusher; none passes the sound through.	Picking one loads its defaults.
 global_fx_slot_vinyl_group	Menu > Shape > Global FX > Slot * > vinyl		group	vinyl	Lo-fi stereo master effect with warm saturation, crackle, and shared warp movement.	Designed as a lighter-weight master color effect for current Pi Zero targets.
 global_fx_slot_compressor_group	Menu > Shape > Global FX > Slot * > compressor		group	compressor	Stereo-linked dynamics processor for the summed main mix.	Threshold, ratio, attack, release, makeup gain, and dry/wet mix affect both channels together.
 global_fx_slot_eq_group	Menu > Shape > Global FX > Slot * > eq		group	eq	Stereo three-band equalizer for the summed main mix.	Use it for broad tonal shaping after instrument and bus routing.
 global_fx_slot_saturator_group	Menu > Shape > Global FX > Slot * > saturator		group	saturator	Soft-clipping saturation applied to the stereo main mix.	Useful for gentle density and warmth without adding extra routing.
 global_fx_slot_distortion_group	Menu > Shape > Global FX > Slot * > distortion		group	distortion	Harder clipping/shaping applied to the stereo main mix.	Use sparingly; aggressive settings can dominate the full output.
+global_fx_slot_bitcrusher_group	Menu > Shape > Global FX > Slot * > bitcrusher		group	bitcrusher	Lo-fi digital grit on the whole stereo main mix.	Fewer Bits and a higher Rate Div crush harder; a low Mix keeps some of the clean sound.
 inst_mixer_volume	Menu > Shape > Instruments > Instrument * > Mixer > Volume	key:instruments.*.mixer.volume	number	Mixer Volume	Sets the per-instrument post-voice fader from 0 to 100.	The Play mix page also controls this value from the grid.
 play_section	Menu > Play		group	Play	Performance grid layer for live mix, pan, route, tempo, LFO, Faders, FX, X/Y, transpose, rate, and Trigger Gate pages.	Fn + left column selects a layer; Fn + right column a technical page, Shift+Fn + right column a musical page.
 play_page_mix	Menu > Play > Mix	key:play.page.mix	group	Mix Page	Live grid page: the bottom row mutes each instrument, live only and never saved; the rows above set its volume.	Hold Shift for buses B1-B4 (volume, live mute) and the master volume in the sixth column.
@@ -831,6 +832,8 @@ native_fx_drive	*	key:mixer.*.slots.*.params.drive	number	Drive	Sets nonlinear d
 native_fx_clip	*	key:mixer.*.slots.*.params.clip	number	Clip	Sets distortion clipping threshold.	Lower values clip harder.
 native_fx_bits	*	key:mixer.buses.*.slot*.params.bits	number	Bits	Sets bit depth for bitcrushing.	Lower values sound rougher.
 native_fx_rate_div	*	key:mixer.buses.*.slot*.params.rateDiv	number	Rate Div	Sets sample-rate reduction divisor.	Higher values reduce more aggressively.
+native_fx_global_bits	*	key:mixer.master.slots.*.params.bits	number	Bits	Sets bit depth for bitcrushing the main mix.	Lower values sound rougher.
+native_fx_global_rate_div	*	key:mixer.master.slots.*.params.rateDiv	number	Rate Div	Sets sample-rate reduction divisor for the main mix.	Higher values reduce more aggressively.
 native_fx_center_hz	*	key:mixer.buses.*.slot*.params.centerHz	number	Center Hz	Sets the center frequency for filter modulation.	This anchors the sweep range.
 native_fx_q	*	key:mixer.buses.*.slot*.params.q	number	Q	Sets filter resonance/Q.	Higher values emphasize the cutoff region.
 native_fx_decay	*	key:mixer.buses.*.slot*.params.decay	number	Decay	Sets reverb feedback decay.	Displayed as approximate tail time.

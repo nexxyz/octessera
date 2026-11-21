@@ -28,6 +28,7 @@ pub(crate) fn fx_bus_and_global_fx_option_sets_only_share_supported_processors()
         "compressor",
         "saturator",
         "distortion",
+        "bitcrusher",
     ];
     for fx_type in FX_BUS_SLOT_OPTIONS {
         assert!(is_valid_fx_bus_slot_type(fx_type));

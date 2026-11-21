@@ -34,6 +34,29 @@ pub(crate) fn global_fx_slot_type_edits_into_config_payload() {
 }
 
 #[test]
+fn a_master_slot_can_select_and_edit_a_bitcrusher() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .edit_menu_key("mixer.master.slots.0.type", 6)
+        .unwrap();
+    let slot = &runner.config_payload()["runtimeConfig"]["mixer"]["master"]["slots"][0];
+    assert_eq!(slot["type"], "bitcrusher");
+    assert_eq!(
+        slot["params"],
+        json!({ "bits": 6, "rateDiv": 4, "mixPct": 100 })
+    );
+
+    runner.menu.rebuild(runner.menu_config());
+    runner
+        .edit_menu_key("mixer.master.slots.0.params.bits", -2)
+        .unwrap();
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["mixer"]["master"]["slots"][0]["params"]["bits"],
+        4
+    );
+}
+
+#[test]
 pub(crate) fn fx_params_edit_into_config_payload() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner

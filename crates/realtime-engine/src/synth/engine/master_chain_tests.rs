@@ -85,3 +85,22 @@ fn empty_master_slots_are_bypassed_bit_for_bit() {
         assert_eq!(unconfigured, (left, right));
     }
 }
+
+#[test]
+fn a_master_bitcrusher_holds_and_quantizes_both_channels() {
+    let mut engine = master_engine(vec![slot(
+        "bitcrusher",
+        &[("bits", 2.0), ("rateDiv", 4.0), ("mixPct", 100.0)],
+    )]);
+    let inputs = [(0.3, -0.3), (0.9, 0.9), (0.1, 0.1), (0.0, 0.0), (0.9, -0.9)];
+    let expected = [
+        (0.5, -0.5),
+        (0.5, -0.5),
+        (0.5, -0.5),
+        (0.5, -0.5),
+        (1.0, -1.0),
+    ];
+    for ((left, right), expected) in inputs.into_iter().zip(expected) {
+        assert_frame(engine.apply_master_fx_slots(left, right), expected);
+    }
+}
