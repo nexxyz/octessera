@@ -576,7 +576,8 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   `Polyphony` (`auto-balanced`) return to their defaults. Aux bindings belong to the patch, so
   all of them are cleared.
 - `Factory Patch` (`factory.load`) opens `Confirm Factory` / `Load the factory patch? Your current patch is replaced. Device settings stay.` and loads the
-  factory payload on Confirm.
+  factory payload on Confirm. With Auto Save on, it marks the patch dirty for autosave, so it becomes
+  the saved default patch.
 - `Factory System` (`system.factoryReset`) opens `Confirm Factory Sys.`. Confirm sends one
   `StoreResetSystem` effect (refused with `Still saving. Try again in a few seconds.` while a System
   write is pending). The host keeps the current `system.json` beside the store as

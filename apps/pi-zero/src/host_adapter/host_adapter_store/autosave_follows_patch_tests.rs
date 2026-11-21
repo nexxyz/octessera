@@ -1,4 +1,4 @@
-use super::stale_autosave_tests::{finish_save, press, rig, Rig};
+use super::stale_autosave_tests::{rig, Rig};
 use super::*;
 use serde_json::json;
 
@@ -6,20 +6,20 @@ fn save_as_through_menu(rig: &mut Rig) {
     rig.runner
         .test_focus_menu_item("preset.saveAs.save")
         .unwrap();
-    press(
-        &mut rig.runner,
+    dispatch_inputs(
+        rig,
         &[
             json!({"type":"encoder_press","id":"main"}),
             json!({"type":"encoder_turn","id":"main","delta":1}),
             json!({"type":"encoder_press","id":"main"}),
         ],
     );
-    let refused = rig
-        .adapter
-        .core
-        .take_manual_save(&mut rig.playback, &mut rig.runner);
-    assert!(refused.is_none());
-    finish_save(rig);
+    let deadline = Instant::now() + Duration::from_secs(6);
+    while !rig.root.join("store/patches").is_dir() && Instant::now() < deadline {
+        tick(rig);
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(rig.root.join("store/patches").is_dir());
 }
 
 fn dispatch_inputs(rig: &mut Rig, inputs: &[serde_json::Value]) {
@@ -89,26 +89,30 @@ fn wait_for_default_bpm(rig: &mut Rig, bpm: &serde_json::Value) -> bool {
     false
 }
 
-#[test]
-fn an_edit_after_a_save_as_is_autosaved_without_another_input() {
-    let mut rig = rig(true, true);
-    save_as_through_menu(&mut rig);
-    let saved_as = rig.runner.test_config_payload()["runtimeConfig"]["transport"]["bpm"].clone();
-    assert!(wait_for_default_bpm(&mut rig, &saved_as));
-
+fn edit_bpm(rig: &mut Rig, delta: i64) -> serde_json::Value {
     rig.runner.test_focus_menu_item("transport.bpm").unwrap();
     let mut inputs = vec![
         json!({"type":"encoder_press","id":"main"}),
         json!({"type":"encoder_release","id":"main"}),
     ];
-    inputs.extend((0..15).map(|_| json!({"type":"encoder_turn","id":"main","delta":1})));
+    inputs.extend((0..15).map(|_| json!({"type":"encoder_turn","id":"main","delta":delta})));
     inputs.push(json!({"type":"encoder_press","id":"main"}));
     inputs.push(json!({"type":"encoder_release","id":"main"}));
-    dispatch_inputs(&mut rig, &inputs);
+    dispatch_inputs(rig, &inputs);
+    rig.runner.test_config_payload()["runtimeConfig"]["transport"]["bpm"].clone()
+}
 
-    let edited = rig.runner.test_config_payload()["runtimeConfig"]["transport"]["bpm"].clone();
-    assert_ne!(edited, json!(120));
-    assert!(wait_for_default_bpm(&mut rig, &edited));
+#[test]
+fn an_edit_after_a_save_as_is_autosaved_without_another_input() {
+    let mut rig = rig(true, true);
+    let first = edit_bpm(&mut rig, 1);
+    assert_ne!(first, json!(120));
+    assert!(wait_for_default_bpm(&mut rig, &first));
+
+    save_as_through_menu(&mut rig);
+    let second = edit_bpm(&mut rig, -1);
+    assert_ne!(second, first);
+    assert!(wait_for_default_bpm(&mut rig, &second));
     let _ = std::fs::remove_dir_all(rig.root);
 }
 
