@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / "tools" / "device-update"))
 
 from package_notice_zip import package_notice_zip  # type: ignore[import-not-found]
 from verify_notice_archive import verify_notice_archive  # type: ignore[import-not-found]
-from package_device_bundle import device_asset_names  # type: ignore[import-not-found]
+from package_device_bundle import device_asset_names, root_files  # type: ignore[import-not-found]
 CHECKSUM_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
 RUNTIME_FILES = ("octessera-pi", "octessera-runtime.json", "SHA256SUMS")
 
@@ -139,17 +139,19 @@ def _zip_entries(archive: zipfile.ZipFile, label: str) -> list[zipfile.ZipInfo]:
 
 
 def _verify_device_zip(root: Path, bundle: Path, zip_path: Path, profile: str) -> None:
-    sources = {name: bundle / name for name in RUNTIME_FILES} | {name: root / name for name in ("LICENSE", "NOTICE")}
+    sources = {name: (bundle / name, 0o755 if name == "octessera-pi" else 0o644) for name in RUNTIME_FILES}
+    sources |= {name: (root / name, 0o644) for name in ("LICENSE", "NOTICE")}
+    sources |= {name: (source, mode) for name, source, mode in root_files(root, profile)}
     _regular_file(zip_path, "device archive")
     try:
         with zipfile.ZipFile(zip_path) as archive:
             entries = _zip_entries(archive, f"{profile} device archive")
             _require([entry.filename for entry in entries] == list(sources), f"{profile} device ZIP inventory is not exact")
             for entry in entries:
+                source, expected_mode = sources[entry.filename]
                 mode = (entry.external_attr >> 16) & 0o777
-                expected_mode = 0o755 if entry.filename == "octessera-pi" else 0o644
                 _require(mode == expected_mode, f"{profile} device ZIP mode is not exact: {entry.filename}")
-                _require(archive.read(entry) == sources[entry.filename].read_bytes(), f"{profile} device ZIP {entry.filename} differs")
+                _require(archive.read(entry) == source.read_bytes(), f"{profile} device ZIP {entry.filename} differs")
     except zipfile.BadZipFile as error:
         raise ReleaseArtifactError(f"device archive is not a valid ZIP: {zip_path}") from error
 

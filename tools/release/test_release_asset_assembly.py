@@ -45,6 +45,14 @@ class ReleaseAssetAssemblyTests(unittest.TestCase):
             root = Path(temporary)
             (root / "LICENSE").write_bytes(b"license")
             (root / "NOTICE").write_bytes(b"notice")
+            for relative in (
+                "userpatches/overlay/usr/local/sbin/octessera-example",
+                "userpatches/overlay/etc/hostname",
+                "tools/device-update/octessera-update",
+                "tools/pi-image/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py",
+            ):
+                (root / relative).parent.mkdir(parents=True, exist_ok=True)
+                (root / relative).write_bytes(relative.encode("utf-8"))
             bundle = root / "runtime"
             bundle.mkdir()
             binary = bundle / "octessera-pi"
@@ -62,6 +70,22 @@ class ReleaseAssetAssemblyTests(unittest.TestCase):
             (bundle / "SHA256SUMS").write_text(f"{binary_sha}  octessera-pi\n", encoding="utf-8")
             archive_path = package_bundle(bundle, root / "out", root, "orange-pi-zero-2w", "v1.2.3", "1.2.3")
             _verify_device_zip(root, bundle, archive_path, "orange-pi-zero-2w")
+            with zipfile.ZipFile(archive_path) as archive:
+                root_entries = [name for name in archive.namelist() if name.startswith("root/")]
+            self.assertEqual(
+                root_entries,
+                [
+                    "root/usr/local/lib/octessera/device_config.py",
+                    "root/usr/local/sbin/octessera-example",
+                    "root/usr/local/sbin/octessera-update",
+                ],
+            )
+            (root / "userpatches/overlay/usr/local/sbin/octessera-example").write_bytes(b"changed")
+            with self.assertRaises(ReleaseArtifactError):
+                _verify_device_zip(root, bundle, archive_path, "orange-pi-zero-2w")
+            (root / "userpatches/overlay/usr/local/sbin/octessera-example").write_bytes(
+                b"userpatches/overlay/usr/local/sbin/octessera-example"
+            )
             tampered = root / "tampered-mode.zip"
             with zipfile.ZipFile(archive_path) as source, zipfile.ZipFile(tampered, "w") as target:
                 for info in source.infolist():
