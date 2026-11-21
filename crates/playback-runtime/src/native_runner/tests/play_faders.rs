@@ -234,6 +234,30 @@ fn the_last_manual_source_owns_the_target_and_the_bar_shows_it() {
 }
 
 #[test]
+fn a_frequency_slider_follows_the_encoder_curve() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let center = "mixer.buses.0.slot1.params.centerHz";
+    runner
+        .menu
+        .set_enum_value_for_key("mixer.buses.0.slot1.type", "wah");
+    runner
+        .apply_or_schedule_menu_key("mixer.buses.0.slot1.type")
+        .unwrap();
+    runner.make_deferred_work_due_now();
+    let _ = runner.flush_deferred_menu_apply().unwrap();
+    bind(&mut runner, "play.faders.0.target", center);
+    open_faders(&mut runner);
+
+    let rows = [1, 4, 6].map(|row| {
+        grid_tap(&mut runner, 0, row);
+        runner.menu.number_for_key(center).unwrap()
+    });
+    assert!(rows[0] < 100, "row 1 is {} Hz, not a jump", rows[0]);
+    assert!(rows[0] < rows[1] && rows[1] < rows[2], "{rows:?}");
+    assert_eq!(bar_top(&mut runner, 0, LedColor::GREEN), Some(6));
+}
+
+#[test]
 fn a_side_without_a_target_ignores_presses() {
     let mut runner = faders_runner();
     runner.display.toast = None;

@@ -66,9 +66,9 @@ mod voice;
 
 pub(crate) use bindings::XY_GLIDE_MAX_MS;
 pub(crate) use format::item_gauge;
-pub(crate) use numeric_edit::curved_edit_value;
 #[cfg(test)]
 pub(crate) use numeric_edit::numeric_edit_value;
+pub(crate) use numeric_edit::{curve_fraction, curve_value, curved_edit_value};
 pub(crate) use system::HOME_VISUALS;
 pub(crate) use voice::{
     ENV_ATTACK_MS, ENV_DECAY_MS, ENV_RELEASE_MS, ENV_SUSTAIN_PCT, FILTER_ENV_AMOUNT_PCT,

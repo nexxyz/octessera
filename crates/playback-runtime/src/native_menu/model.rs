@@ -296,6 +296,14 @@ impl NativeMenuModel {
         self.find_key_value(key)
     }
 
+    /// The encoder curve of the number row with `key`; linear for any other row.
+    pub(crate) fn curve_for_key(&self, key: &str) -> super::NumberCurve {
+        match self.key_paths.find(&self.root, key).map(|item| &item.value) {
+            Some(super::NativeMenuValue::Number { curve, .. }) => *curve,
+            _ => super::NumberCurve::Linear,
+        }
+    }
+
     pub fn number_for_key(&self, key: &str) -> Option<i32> {
         if self.current_key() == Some(key) {
             return number_from_item(self.current_item());

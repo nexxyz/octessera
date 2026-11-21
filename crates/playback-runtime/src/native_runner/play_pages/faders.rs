@@ -11,7 +11,7 @@ use super::super::{
 };
 use super::fader_tiles::{NativeFaderTile, NativeFaderTileMapping};
 use crate::native_menu::NativeFadersConfig;
-use crate::native_menu::NativeMenuValue;
+use crate::native_menu::{NativeMenuValue, NumberCurve};
 
 pub(in crate::native_runner) const FADER_COUNT: usize = GRID_WIDTH;
 const TOP_ROW: usize = GRID_HEIGHT - 1;
@@ -69,15 +69,16 @@ fn fader_invert_key(column: usize, shifted: bool) -> String {
     format!("play.faders.{column}.{field}")
 }
 
-/// The value of row `y` (0 bottom .. 7 top) on a slider over `binding`'s range.
-fn fader_row_value(y: usize, binding: &NativeParamBinding) -> Value {
+/// The value of row `y` (0 bottom .. 7 top) on a slider over `binding`'s range, on the target
+/// row's encoder curve.
+fn fader_row_value(y: usize, binding: &NativeParamBinding, curve: NumberCurve) -> Value {
     let normalized = y.min(TOP_ROW) as f32 / TOP_ROW as f32;
     let normalized = if binding.invert {
         1.0 - normalized
     } else {
         normalized
     };
-    quantize_binding_value(normalized, binding)
+    quantize_binding_value(normalized, binding, curve)
 }
 
 /// The row nearest to a target's value on a slider over `binding`'s range: the value a held
@@ -88,9 +89,10 @@ fn fader_value_row(
     binding: &NativeParamBinding,
 ) -> Option<usize> {
     let normalized = match value {
-        NativeMenuValue::Number { value, .. } => binding_normalized(
+        NativeMenuValue::Number { value, curve, .. } => binding_normalized(
             held.and_then(Value::as_f64).unwrap_or(f64::from(*value)),
             binding,
+            *curve,
         ),
         NativeMenuValue::Enum { options, selected } => {
             let selected = held
@@ -183,7 +185,8 @@ impl NativeRunner {
         let Some(binding) = self.faders.sliders[column][usize::from(shifted)].clone() else {
             return;
         };
-        let value = fader_row_value(y, &binding);
+        let curve = self.bound_key_curve(&binding.key);
+        let value = fader_row_value(y, &binding, curve);
         let label = binding.label.as_deref().unwrap_or(&binding.key);
         let head = bank_head(shifted, &format!("F{}", column + 1));
         match self.set_bound_key_value(&binding.key, &value) {
@@ -219,6 +222,14 @@ impl NativeRunner {
         Ok(true)
     }
 
+    /// The encoder curve of a bound key's row, from the menu or a generated behavior row.
+    fn bound_key_curve(&self, key: &str) -> NumberCurve {
+        match self.bound_key_value(key) {
+            Some(NativeMenuValue::Number { curve, .. }) => curve,
+            _ => NumberCurve::Linear,
+        }
+    }
+
     /// The current value of a bound key, from the menu or a generated behavior row.
     fn bound_key_value(&self, key: &str) -> Option<NativeMenuValue> {
         self.generated_behavior_target_item(key)
@@ -239,7 +250,9 @@ impl NativeRunner {
         let sliders = self.faders.first_action_column();
         for (x, sides) in self.faders.sliders.iter().enumerate().take(sliders) {
             let row = sides[usize::from(shifted)].as_ref().and_then(|binding| {
-                let held = self.modulation_process.held_value(&binding.key);
+                let held = self
+                    .modulation_process
+                    .held_value(&binding.key, self.bound_key_curve(&binding.key));
                 fader_value_row(&self.bound_key_value(&binding.key)?, held.as_ref(), binding)
             });
             for y in 0..GRID_HEIGHT {

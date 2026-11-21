@@ -1,4 +1,5 @@
 use super::super::{fx_default_params, json, NativeParamBinding, Value};
+use crate::native_menu::{curve_fraction, curve_value, NumberCurve};
 
 pub(super) fn apply_string_value(target: &mut String, value: Value, allowed: &[&str]) -> bool {
     let Some(value) = value.as_str() else {
@@ -125,9 +126,11 @@ pub(super) fn axis_norm(index: usize, size: usize, invert: bool) -> f32 {
     }
 }
 
+/// The value at `norm` of `binding`'s range, on the encoder curve of its row.
 pub(in crate::native_runner) fn quantize_binding_value(
     norm: f32,
     binding: &NativeParamBinding,
+    curve: NumberCurve,
 ) -> Value {
     let norm = norm.clamp(0.0, 1.0);
     if binding.kind == "enum" && !binding.options.is_empty() {
@@ -140,8 +143,12 @@ pub(in crate::native_runner) fn quantize_binding_value(
     let min = binding.min.unwrap_or(0.0);
     let max = binding.max.unwrap_or(127.0);
     let (min, max) = effective_numeric_range(binding, min, max);
-    let step = binding.step.unwrap_or(1.0);
-    let raw = min + f64::from(norm) * (max - min);
+    let step = if curve == NumberCurve::Linear {
+        binding.step.unwrap_or(1.0)
+    } else {
+        1.0
+    };
+    let raw = curved_binding_value(f64::from(norm), (min, max), curve);
     let stepped = if step > 0.0 {
         (raw / step).round() * step
     } else {
@@ -150,10 +157,12 @@ pub(in crate::native_runner) fn quantize_binding_value(
     json!(stepped.clamp(min, max))
 }
 
-/// Where `value` sits in `binding`'s range, `0.0` at Range Min and `1.0` at Range Max.
+/// Where `value` sits in `binding`'s range on its row's encoder curve, `0.0` at Range Min and
+/// `1.0` at Range Max.
 pub(in crate::native_runner) fn binding_normalized(
     value: f64,
     binding: &NativeParamBinding,
+    curve: NumberCurve,
 ) -> f32 {
     let (min, max) = effective_numeric_range(
         binding,
@@ -163,7 +172,26 @@ pub(in crate::native_runner) fn binding_normalized(
     if max <= min {
         return 0.0;
     }
-    ((value - min) / (max - min)).clamp(0.0, 1.0) as f32
+    if curve == NumberCurve::Linear {
+        return ((value - min) / (max - min)).clamp(0.0, 1.0) as f32;
+    }
+    curve_fraction(
+        value.round() as i32,
+        (min.round() as i32, max.round() as i32),
+        curve,
+    )
+}
+
+/// The value at `fraction` of `min..max` on `curve`; linear ranges keep their fractional values.
+pub(super) fn curved_binding_value(
+    fraction: f64,
+    (min, max): (f64, f64),
+    curve: NumberCurve,
+) -> f64 {
+    if curve == NumberCurve::Linear {
+        return min + fraction.clamp(0.0, 1.0) * (max - min);
+    }
+    curve_value(fraction, (min.round() as i32, max.round() as i32), curve)
 }
 
 fn effective_numeric_range(

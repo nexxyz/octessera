@@ -110,13 +110,9 @@ impl ModulationProcessState {
             resolved.insert(key, (binding, Value::from(stepped)));
         }
         for (key, (binding, normalized)) in discrete {
-            resolved.insert(
-                key,
-                (
-                    binding.clone(),
-                    super::value::quantize_binding_value(normalized as f32, &binding),
-                ),
-            );
+            let curve = runner.menu.curve_for_key(&key);
+            let value = super::value::quantize_binding_value(normalized as f32, &binding, curve);
+            resolved.insert(key, (binding, value));
         }
         for key in self
             .base_keys(full_recomposition, &dirty_keys)

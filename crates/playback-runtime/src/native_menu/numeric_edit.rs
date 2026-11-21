@@ -56,6 +56,52 @@ pub(crate) fn curve_fraction(value: i32, (min, max): (i32, i32), curve: NumberCu
     }
 }
 
+/// The value at `fraction` between `min` and `max` in encoder-turn space, the inverse of
+/// [`curve_fraction`], so a fader row, an XY axis or a CC moves a curved row the way the encoder
+/// does.
+pub(crate) fn curve_value(fraction: f64, (min, max): (i32, i32), curve: NumberCurve) -> f64 {
+    let fraction = fraction.clamp(0.0, 1.0);
+    let (low, high) = (f64::from(min), f64::from(max));
+    let linear = low + fraction * (high - low);
+    if max <= min {
+        return low;
+    }
+    let value = match curve {
+        NumberCurve::Linear => linear,
+        NumberCurve::Time { units_per_ms } => {
+            time_value_at_detents(min, max, units_per_ms.max(1), fraction)
+        }
+        NumberCurve::Ratio if min > 0 => low * (high / low).powf(fraction),
+        NumberCurve::Ratio => linear,
+        NumberCurve::TowardsCeiling { ceiling } => {
+            let distance = |at: i32| f64::from((ceiling - at).max(1));
+            let (near, far) = (distance(max), distance(min));
+            f64::from(ceiling) - near * (far / near).powf(1.0 - fraction)
+        }
+    };
+    if value.is_finite() {
+        value.clamp(low, high)
+    } else {
+        linear
+    }
+}
+
+/// The value `fraction` of the coarse time detents from `min` to `max` up, inside a detent
+/// linearly, as [`coarse_time_detents`] counts them.
+fn time_value_at_detents(min: i32, max: i32, units_per_ms: i32, fraction: f64) -> f64 {
+    let mut left = fraction * coarse_time_detents(min, max, units_per_ms);
+    let (mut at, max) = (i64::from(min), i64::from(max));
+    while at < max {
+        let next = time_detent(at, true, units_per_ms, true);
+        if left < 1.0 {
+            return (at as f64 + left * (next - at) as f64).min(max as f64);
+        }
+        left -= 1.0;
+        at = next;
+    }
+    max as f64
+}
+
 fn log_share(low: f64, at: f64, high: f64) -> f64 {
     (at / low).ln() / (high / low).ln()
 }
@@ -310,6 +356,35 @@ mod curve_tests {
             64.0 / 255.0
         );
         assert_eq!(curve_fraction(5, (5, 5), NumberCurve::Linear), 0.0);
+    }
+
+    #[test]
+    fn curve_values_invert_the_bar_fractions() {
+        for (range, curve) in [
+            ((0, 255), NumberCurve::Linear),
+            ((0, 5_000), NumberCurve::Time { units_per_ms: 1 }),
+            ((1, 800), NumberCurve::Time { units_per_ms: 10 }),
+            ((40, 12_000), NumberCurve::Ratio),
+            ((0, 995), NumberCurve::TowardsCeiling { ceiling: 1000 }),
+        ] {
+            assert_eq!(curve_value(0.0, range, curve), f64::from(range.0));
+            assert_eq!(curve_value(1.0, range, curve), f64::from(range.1));
+            for step in 1..7 {
+                let fraction = f64::from(step) / 7.0;
+                let value = curve_value(fraction, range, curve);
+                let back = f64::from(curve_fraction(value.round() as i32, range, curve));
+                assert!(
+                    (back - fraction).abs() < 0.02,
+                    "{curve:?} {fraction}: {value}"
+                );
+            }
+        }
+        let center = |row| curve_value(f64::from(row) / 7.0, (40, 12_000), NumberCurve::Ratio);
+        assert!(
+            center(1) < 100.0,
+            "the first fader row above 40 Hz is {}",
+            center(1)
+        );
     }
 
     #[test]

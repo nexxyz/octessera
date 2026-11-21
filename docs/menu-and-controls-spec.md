@@ -335,6 +335,10 @@ change; only the distance per detent does.
   Stutter `Rate`. Instrument filter cutoffs keep their logarithmic `0..255` index with linear
   steps.
 - Bipolar mod-delay `Feedback` stays linear. `Play > XY > Glide` is a time row like the others.
+- Faders rows, Play XY, layer X/Y axes and MIDI CC In map onto the same curve: the value at a
+  share of a target's range is the one whose value bar shows that share, so a Wah `Center`
+  slider climbs evenly in octaves instead of jumping from 40 Hz to 1.7 kHz in its first row.
+  LFO depth stays a linear share of the range.
 
 ## OLED Display
 

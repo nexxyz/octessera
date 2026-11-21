@@ -204,7 +204,8 @@ The menu lists the technical bank, then the musical bank.
 
 ## Faders
 
-- Each column is a vertical slider; rows `0..7` stand for `0`, `1/7` .. `1` of its range. A press
+- Each column is a vertical slider; rows `0..7` stand for `0`, `1/7` .. `1` of its range, measured
+  on the target row's encoder curve ([Numeric steps](../menu-and-controls-spec.md#numeric-steps)). A press
   sets that column's target to the row's value, Shift + press sets its second target, so the page
   drives 16 parameters.
 - Each slider side has its own picked target, `Range Min`/`Range Max` and `Invert`

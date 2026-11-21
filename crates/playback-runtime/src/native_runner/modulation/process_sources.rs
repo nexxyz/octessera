@@ -207,7 +207,11 @@ impl ModulationProcessState {
     }
 
     /// The value the held source on `key` plays, LFOs aside; None when nothing holds it.
-    pub(in crate::native_runner) fn held_value(&self, key: &str) -> Option<Value> {
+    pub(in crate::native_runner) fn held_value(
+        &self,
+        key: &str,
+        curve: crate::native_menu::NumberCurve,
+    ) -> Option<Value> {
         let source = self.held_sources(key, None).pop()?;
         let held = self.sources.get(&source)?;
         Some(match held.value {
@@ -217,7 +221,7 @@ impl ModulationProcessState {
                 self.base_values.get(key).copied()? + delta,
             )),
             HeldValue::DiscreteNormalized(normalized) => {
-                super::value::quantize_binding_value(normalized as f32, &held.binding)
+                super::value::quantize_binding_value(normalized as f32, &held.binding, curve)
             }
         })
     }

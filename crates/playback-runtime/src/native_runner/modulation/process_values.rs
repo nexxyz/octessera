@@ -68,7 +68,8 @@ pub(super) fn numeric_sample(
     let Some((min, max)) = user_binding_range(binding) else {
         return super::process_audio::audio_base_value(runner, &binding.key).unwrap_or(0.0);
     };
-    (min + normalized.clamp(0.0, 1.0) * (max - min)).clamp(min, max)
+    let curve = runner.menu.curve_for_key(&binding.key);
+    super::value::curved_binding_value(normalized, (min, max), curve).clamp(min, max)
 }
 
 /// The whole menu step a modulated value is saved as; the engine gets the value itself.
