@@ -349,8 +349,8 @@ usb_notes_in usb_audio usb_audio_fx`.
   keys: the bottom row, Left Alt + the leftmost key of each row, and
   Left Alt + `;`. The autosaved tiles must be exactly the world-space set
   (x 0..7, y 0), (0, 4..7) and (6, 5).
-- `presets` starts on a clone with presets `A` and `AB` (101 and 102 BPM) and
-  Auto Save on. A name edit only appends at the end, so the names grow rather
+- `presets` starts on a clone with presets `A` and `AB` (101 and 102 BPM),
+  Auto Save on and View on Back off (so Back presses always land in the menu). A name edit only appends at the end, so the names grow rather
   than change. Without Refresh List it runs Save As `AC` (the draft `A` comes
   from picking `A` in Rename), turns BPM up three detents, Loads `A` over that
   unsaved change, Renames `AC` to `ACD`, Renames `A` onto `AB` with the
@@ -380,7 +380,9 @@ usb_notes_in usb_audio usb_audio_fx`.
   releases beside the clone, with the service's binary pointed at their
   `current` link: `0.9.91` is the binary under test, `0.9.92` a script that
   exits 1, and `0.9.93` a script that ignores SIGTERM and never reports ready.
-  It switches to `0.9.91`, back to `0.9.90`, then to each failing one. After
+  It switches to `0.9.91`, back to `0.9.90`, then to each failing one,
+  clearing the unit's start limit before each switch (the Orange allows 3
+  starts in 30 s, and the steps follow each other faster than a player would). After
   each switch the links must point at a release that runs, the service must be
   ready within 120 s, the clone's `system.json` and `default.patch.json` must
   be byte-identical, and the message must name the version it ended on. A

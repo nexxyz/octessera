@@ -14,8 +14,8 @@ setups:
                   with Hold, tile (x, y) playing note 60 + x + 8y
   usb_notes_in    the usb_midi rig; slot 1 a Synth with Hold, L1 steps slot 5, a MIDI Inst. on
                   channel 1, on tile (0, 0), which plays note 60
-  presets         Auto Save on, keyboard capture allowed; presets A and AB, the store's patch at
-                  101 and 102 BPM
+  presets         Auto Save on, View on Back off, keyboard capture allowed; presets A and AB, the
+                  store's patch at 101 and 102 BPM
 """
 import json
 import os
@@ -146,7 +146,9 @@ def main():
             instruments[4]["midi"].update(enabled=True, channel=1, durationMs=150)
         chromatic(music["layers"][0])
     elif setup == "presets":
-        config["autoSaveDefault"] = True
+        # Back on the home page would toggle the performance view, so how many Back presses reach the
+        # home page would depend on the menu depth each step ends at.
+        config.update(autoSaveDefault=True, perfViewOnBack=False)
         allow_keyboard(config)
         owner = os.stat(store)
         (store / "patches").mkdir(exist_ok=True)
