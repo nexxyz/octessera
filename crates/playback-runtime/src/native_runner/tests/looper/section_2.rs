@@ -44,7 +44,6 @@ pub(crate) fn assert_deferred_save(messages: &[RunnerMessage]) {
 #[test]
 pub(crate) fn looper_length_edit_after_punch_keeps_recording_and_phase() {
     let mut runner = looper_runner();
-    pulse_step(&mut runner);
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
@@ -107,7 +106,6 @@ pub(crate) fn looper_length_edit_keeps_live_mode_when_config_has_none() {
             runner.transport.bpm as f32,
         )
         .unwrap();
-    pulse_step(&mut runner);
     assert_eq!(looper_mode_and_step(&runner), ("play".into(), 1));
 
     runner.menu.open_labels(&["Build", "L1: looper"]);

@@ -101,15 +101,15 @@ impl NativeRunner {
         Ok(events)
     }
 
-    pub(super) fn prime_sequencer_layer_origins(&mut self) {
+    /// Loopers and scanning sequencers play their first step at Play, not one step later.
+    pub(super) fn prime_layer_origins(&mut self) {
         for index in 0..self.layers.len() {
-            if self.layer_behavior_id(index) == "sequencer"
-                && self
-                    .layers
-                    .get(index)
-                    .map(|layer| &layer.link)
-                    .is_some_and(|layer| layer.scan_mode == ScanMode::Scanning)
-            {
+            let scanning = self
+                .layers
+                .get(index)
+                .is_some_and(|layer| layer.link.scan_mode == ScanMode::Scanning);
+            let behavior = self.layer_behavior_id(index);
+            if behavior == "looper" || (behavior == "sequencer" && scanning) {
                 let step_pulses = self.step_pulses_for_layer(index);
                 if let Some(accumulator) = self.transport.layer_pulse_accumulators.get_mut(index) {
                     *accumulator = step_pulses;

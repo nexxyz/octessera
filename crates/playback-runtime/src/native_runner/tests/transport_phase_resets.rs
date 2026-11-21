@@ -55,7 +55,7 @@ fn transport_stop_resets_active_looper_phase_and_preserves_recorded_sequence() {
         .unwrap();
     runner
         .send(HostMessage::TransportPulseStep {
-            pulses: 12,
+            pulses: 6,
             source: SyncSource::Internal,
             at_ppqn_pulse: None,
             request_snapshot: None,

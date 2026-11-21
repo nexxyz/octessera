@@ -52,15 +52,15 @@ pub(crate) fn looper_overdub_records_release_and_replays_each_loop() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(
-        !runner.active_engine().model().unwrap().tiles[index],
-        "the press already sounded live, so step 1 skips it once"
-    );
+    assert!(!runner.active_engine().model().unwrap().tiles[index]);
 
     pulse_step(&mut runner);
-    assert!(!runner.active_engine().model().unwrap().tiles[index]);
+    assert!(
+        runner.active_engine().model().unwrap().tiles[index],
+        "step 1 replays the press one loop later"
+    );
     pulse_step(&mut runner);
-    assert!(runner.active_engine().model().unwrap().tiles[index]);
+    assert!(!runner.active_engine().model().unwrap().tiles[index]);
 }
 
 #[test]
@@ -79,7 +79,6 @@ pub(crate) fn looper_clear_loop_action_releases_playback_tiles_and_marks_dirty()
             request_snapshot: None,
         })
         .unwrap();
-    pulse_step(&mut runner);
     pulse_step(&mut runner);
     let index = platform_core::grid_index(2, 3);
     assert!(runner.active_engine().model().unwrap().tiles[index]);
@@ -175,7 +174,6 @@ pub(crate) fn looper_length_edit_keeps_recorded_sequence() {
 pub(crate) fn looper_punch_action_toggles_mode_and_preserves_live_state() {
     let mut runner = looper_runner();
     runner.auto_save_default = true;
-    pulse_step(&mut runner);
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),

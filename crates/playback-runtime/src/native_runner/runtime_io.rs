@@ -37,7 +37,7 @@ impl NativeRunner {
         }
         self.transport.transport = RuntimeTransportState::Playing;
         self.reset_transport_position();
-        self.prime_sequencer_layer_origins();
+        self.prime_layer_origins();
         let now = self.display.transients.now();
         self.display
             .transients
@@ -52,7 +52,7 @@ impl NativeRunner {
         let was_stopped = self.transport.transport == RuntimeTransportState::Stopped;
         self.transport.transport = RuntimeTransportState::Playing;
         if was_stopped {
-            self.prime_sequencer_layer_origins();
+            self.prime_layer_origins();
             return self.start_on_the_downbeat();
         }
         self.messages_with_snapshot()
@@ -148,7 +148,7 @@ impl NativeRunner {
 
                 remaining -= 1;
                 self.reset_transport_position();
-                self.prime_sequencer_layer_origins();
+                self.prime_layer_origins();
                 self.append_pending_transpose_note_offs(&mut out);
                 let events = self.advance_due_layer_ticks()?;
                 self.append_music_first_audio_commands(&mut out);

@@ -8,7 +8,7 @@ pub(crate) fn looper_runner() -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.transport.transport = RuntimeTransportState::Playing;
+    super::midi_note_in::press_play(&mut runner);
     runner
 }
 

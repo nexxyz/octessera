@@ -56,7 +56,7 @@ in **Build**.
 | `none` | Human | Inactive layer, for when you want space or are setting up. |
 | `keys` | Human | Press a tile to play, release it to stop. Immediate and human. |
 | `sequencer` | Human | A manual grid sequence for anchoring the more generative layers. It can hold up to 4x4 pages of 8x8: pick the page in view with Page X and Page Y, or let Advance turn the pages for you every few steps (stepping at 1/8, Advance 8 turns once a bar; a scanning layer steps at its Scan Unit). |
-| `looper` | Human | Records and replays grid presses and releases, and notes from a [MIDI keyboard](sound-and-link.md#midi-keyboards-play-the-slots) on its slot as the tile each key maps to, so replay uses the layer's velocity, chords and scale, and keys with no tile aren't kept. Use Punch In/Out to overdub. A press lands on the nearest step: early in a step it goes on that step and comes back next time round; late in a step it goes on the next one, which keeps quiet this once so you don't hear it twice. Right after Play, step 1 counts as the step in progress. With the transport stopped it goes on the step the playhead sits on, so single-step to where you want it. Length only sets the loop window, so shortening it hides steps instead of erasing them. |
+| `looper` | Human | Records what you play on its layer and loops it back; Punch In/Out switches overdub on and off. See [Looper recording](#looper-recording). |
 | `weave` | Human | Two interlaced melodic strands crossing the grid. Quick counterpoint-ish motion. |
 | `polyrhythm` | Rhythm | Lanes with different loop lengths shifting against each other. |
 | `breaks` | Rhythm | A rearranging breakbeat grid: kicks, cuts, gaps and glitchy fragments. |
@@ -104,6 +104,19 @@ in **Build**.
 | `vines` | Growth | Tendrils climb toward light, branch, leaf out and prune themselves back. |
 | `pong` | Games | Two CPU paddles rally a ball, and every step of it is a note. Lower CPU Skill for shorter rallies; press a tile to nudge the nearer paddle and maybe cost it the point. |
 | `blockout` | Games | A CPU paddle knocks the ball into a rainbow wall. Every brick it breaks flashes and plays a note on its way out, cleared rows drop new ones on top, and a press fills a gap in the wall. |
+
+### Looper recording
+
+The Looper records grid presses and releases, and notes from a
+[MIDI keyboard](sound-and-link.md#midi-keyboards-play-the-slots) on its slot as
+the tile each key maps to, so replay uses the layer's velocity, chords and
+scale, and keys with no tile aren't kept. Step 1 sounds the moment you press
+Play. While it plays, a press lands on the nearest step: early in a step it
+goes on that step and comes back next time round; late in a step it goes on the
+next one, which keeps quiet this once so you don't hear it twice. With the
+transport stopped it goes on the step the playhead sits on, so single-step to
+where you want it. Length only sets the loop window, so shortening it hides
+steps instead of erasing them.
 
 ## Trigger types
 

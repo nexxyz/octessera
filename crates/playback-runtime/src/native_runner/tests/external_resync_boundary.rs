@@ -92,7 +92,7 @@ fn prepared_boundary_runner(current_ppqn_pulse: u64) -> NativeRunner {
     let mut runner = scanning_runner("1/16", 0);
     add_tile(&mut runner, 0, 0);
     arm_boundary(&mut runner, current_ppqn_pulse);
-    runner.prime_sequencer_layer_origins();
+    runner.prime_layer_origins();
     runner
 }
 
@@ -161,7 +161,7 @@ fn active_and_inactive_sequencer_ticks_follow_their_own_trigger_probability_maps
             runner.layers[layer].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
             runner.layers[layer].trigger_probability_map.fill(state);
         }
-        runner.prime_sequencer_layer_origins();
+        runner.prime_layer_origins();
         let events = runner.advance_due_layer_ticks().unwrap();
         let note_ons = |lane: &[platform_core::MusicalEvent]| {
             lane.iter()
@@ -184,7 +184,7 @@ fn active_and_inactive_sequencer_ticks_follow_their_own_trigger_probability_maps
 #[test]
 fn active_and_inactive_sequencers_emit_origin_ticks_with_route_ownership_after_cleanup() {
     let mut runner = dual_scanning_runner();
-    runner.prime_sequencer_layer_origins();
+    runner.prime_layer_origins();
     let old_events = runner.advance_due_layer_ticks().unwrap();
     assert_eq!(
         old_events
@@ -265,7 +265,7 @@ fn muted_sequencer_consumes_origin_tick_without_events() {
     add_tile(&mut runner, 0, 0);
     runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Zero;
     arm_boundary(&mut runner, 95);
-    runner.prime_sequencer_layer_origins();
+    runner.prime_layer_origins();
 
     let messages = clock(&mut runner, 1);
 
@@ -304,7 +304,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
     });
     add_tile(&mut runner, 0, 0);
     arm_boundary(&mut runner, 95);
-    runner.prime_sequencer_layer_origins();
+    runner.prime_layer_origins();
 
     let messages = clock(&mut runner, 1);
 
@@ -322,9 +322,8 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
 }
 
 #[test]
-fn non_sequencer_resync_does_not_zero_time_tick_looper_pattern_quantized_keys_or_life() {
+fn non_sequencer_resync_does_not_zero_time_tick_pattern_quantized_keys_or_life() {
     for (behavior_id, behavior_config) in [
-        ("looper", json!({ "mode": "overdub", "lengthSteps": 2 })),
         ("weave", Value::Null),
         ("keys", json!({ "quantize": "step" })),
         ("life", Value::Null),
@@ -355,7 +354,6 @@ fn non_sequencer_resync_does_not_zero_time_tick_looper_pattern_quantized_keys_or
             "{behavior_id}"
         );
         match runner.active_engine().state() {
-            platform_core::NativeBehaviorState::Looper(state) => assert_eq!(state.step_index, 0),
             platform_core::NativeBehaviorState::Pattern(state) => assert_eq!(state.phase, 0),
             platform_core::NativeBehaviorState::Keys(state) => {
                 assert!(state.tiles.iter().all(|tile| !tile));
@@ -364,5 +362,34 @@ fn non_sequencer_resync_does_not_zero_time_tick_looper_pattern_quantized_keys_or
             platform_core::NativeBehaviorState::Life(state) => assert_eq!(state.tick_counter, 0),
             state => panic!("unexpected state for {behavior_id}: {state:?}"),
         }
+    }
+}
+
+#[test]
+fn resync_plays_the_looper_step_one_at_the_boundary() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "looper".into(),
+        behavior_config: json!({ "mode": "overdub", "lengthSteps": 2 }),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    add_tile(&mut runner, 0, 0);
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_release", "x": 0, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    arm_boundary(&mut runner, 95);
+
+    let messages = clock(&mut runner, 1);
+
+    assert!(routed_events(&messages)
+        .iter()
+        .any(|(_, event)| matches!(event, platform_core::MusicalEvent::NoteOn { .. })));
+    assert_eq!(runner.transport.layer_ticks[0], 1);
+    match runner.active_engine().state() {
+        platform_core::NativeBehaviorState::Looper(state) => assert_eq!(state.step_index, 1),
+        state => panic!("unexpected state: {state:?}"),
     }
 }

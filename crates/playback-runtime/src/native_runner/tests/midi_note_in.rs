@@ -300,8 +300,21 @@ pub(super) fn recorded_events(runner: &NativeRunner, layer: usize) -> Vec<Value>
 
 pub(super) fn playing_looper() -> NativeRunner {
     let mut runner = keyboard_runner("looper");
-    runner.transport.transport = RuntimeTransportState::Playing;
+    press_play(&mut runner);
     runner
+}
+
+/// Stops, then presses Play, and returns what Play sent.
+pub(super) fn press_play(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+    runner.send(HostMessage::TransportStop).unwrap();
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "button_s", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
+    messages
 }
 
 #[test]

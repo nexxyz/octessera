@@ -224,13 +224,13 @@ Aux mappings modal:
 - Sequencer alone has origin-immediate static-grid semantics: page 1 step 1 sits on the transport
   origin, empty leading tiles are timed rests, and later pages continue without restarting.
 - The downbeat is PPQN 0. Play from stop (button, or an accepted MIDI Start/Continue-from-stop) on
-  the internal clock plays the scanning Sequencer origin step at once. With external sync, the first
+  the internal clock plays the Looper and scanning Sequencer origin step at once. With external sync, the first
   MIDI Clock after the start is the downbeat: it plays the origin step without advancing, and the
   next clock reports PPQN 1. MIDI Clock Out sends one Clock together with Start so receivers start
   on the same downbeat; Continue from Pause sends no extra Clock.
 - Armed external resync: clocks strictly before the next 96-PPQN boundary process normally. The
-  boundary clock is consumed by the reset; scanning Sequencer layers process their origin tick at
-  reported PPQN 0, and non-Sequencer layers get no zero-elapsed tick. The next clock reports PPQN 1
+  boundary clock is consumed by the reset; Looper and scanning Sequencer layers process their
+  origin tick at reported PPQN 0, and other layers get no zero-elapsed tick. The next clock reports PPQN 1
   and does not repeat the origin tick.
 - Pause and layer trigger-gate changes preserve phase, and Pause/Continue resumes the exact phase.
   A true stop/reset returns to origin.
@@ -1400,7 +1400,7 @@ Input events:
   keyboard notes record by one rule. While playing, an event goes to the nearest step: in the first
   half of a step, that step (it already sounded live, so it plays from the next pass); in the
   second half, the next step, which skips that event once on this pass so it does not hit twice.
-  Right after Play, step 1 counts as the sounding step. Stopped or paused, it goes to the step the
+  Play primes the Looper like a scanning Sequencer, so step 1 sounds at Play. Stopped or paused, it goes to the step the
   playhead waits on, which single-stepping moves. A
   release that would share its press's step goes one step later, so a short note survives. Only the
   tiles are saved; the skip mark is runtime state. Its Length setting is
