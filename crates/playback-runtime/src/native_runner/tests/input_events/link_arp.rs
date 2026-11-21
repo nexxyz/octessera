@@ -5,19 +5,9 @@ pub(crate) fn link_arp_orders_simultaneous_batches_with_finite_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.arp.mode = ArpMode::Up;
     runner.layers[0].link.arp.step_interval_steps = 1;
-    let intent = platform_core::TileTriggerIntent {
-        x: 0,
-        y: 0,
-        degree: 0,
-        kind: platform_core::TileTriggerKind::Activate,
-    };
-    let routed = RoutedMusicalEvents {
-        audio: vec![note_on(64), note_on(60), note_on(67)],
-        midi: vec![],
-        tiles: Vec::new(),
-    };
+    let routed = vec![note_on(64), note_on(60), note_on(67)];
 
-    let immediate = runner.apply_link_timing(0, &[intent], routed);
+    let immediate = route(&mut runner, routed);
     assert_eq!(
         musical_note_ons_from_events(&immediate.audio),
         vec![(0, 60)]
@@ -42,19 +32,15 @@ pub(crate) fn link_arp_floors_short_gated_notes_at_ten_ms_on_both_lanes() {
     runner.layers[0].link.arp.mode = ArpMode::Direct;
     runner.layers[0].link.arp.note_length_ms = 50;
     runner.layers[0].link.arp.gate_pct = 10;
-    let intent = platform_core::TileTriggerIntent {
-        x: 0,
-        y: 0,
-        degree: 0,
-        kind: platform_core::TileTriggerKind::Activate,
-    };
-    let routed = RoutedMusicalEvents {
-        audio: vec![note_on(60)],
-        midi: vec![note_on(62)],
-        tiles: Vec::new(),
-    };
+    runner.instruments[1].kind = InstrumentType::Midi;
+    runner.instruments[1].midi_enabled = true;
+    runner.instruments[1].midi_channel = 1;
+    let mut midi_note = note_on(62);
+    if let platform_core::MusicalEvent::NoteOn { channel, .. } = &mut midi_note {
+        *channel = 1;
+    }
 
-    let immediate = runner.apply_link_timing(0, &[intent], routed);
+    let immediate = route(&mut runner, vec![note_on(60), midi_note]);
     for event in immediate.audio.iter().chain(&immediate.midi) {
         assert!(matches!(
             event,
@@ -71,15 +57,7 @@ pub(crate) fn link_arp_floors_short_gated_notes_at_ten_ms_on_both_lanes() {
 pub(crate) fn link_arp_passes_non_note_events_through() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.arp.mode = ArpMode::Up;
-    let immediate = runner.apply_link_timing(
-        0,
-        &[],
-        RoutedMusicalEvents {
-            audio: vec![cc(74, 90), note_on(60)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    let immediate = route(&mut runner, vec![cc(74, 90), note_on(60)]);
 
     assert!(immediate.audio.iter().any(|event| matches!(
         event,
@@ -100,25 +78,9 @@ pub(crate) fn link_arp_held_source_merges_non_note_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.arp.mode = ArpMode::Direct;
     runner.layers[0].link.arp.source = ArpSource::Held;
-    runner.apply_link_timing(
-        0,
-        &[],
-        RoutedMusicalEvents {
-            audio: vec![note_on(60)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    route(&mut runner, vec![note_on(60)]);
 
-    let immediate = runner.apply_link_timing(
-        0,
-        &[],
-        RoutedMusicalEvents {
-            audio: vec![cc(74, 90)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    let immediate = route(&mut runner, vec![cc(74, 90)]);
 
     assert!(immediate.audio.iter().any(|event| matches!(
         event,
@@ -140,15 +102,7 @@ pub(crate) fn link_arp_octave_spread_expands_notes() {
     runner.layers[0].link.arp.mode = ArpMode::OctaveSpread;
     runner.layers[0].link.arp.octave_spread = 1;
     runner.layers[0].link.arp.step_interval_steps = 1;
-    let immediate = runner.apply_link_timing(
-        0,
-        &[],
-        RoutedMusicalEvents {
-            audio: vec![note_on(60)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    let immediate = route(&mut runner, vec![note_on(60)]);
 
     assert_eq!(
         musical_note_ons_from_events(&immediate.audio),
@@ -163,19 +117,9 @@ pub(crate) fn link_arp_default_none_matches_existing_link_timing() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.activate_timing.delay_steps = 1;
     runner.layers[0].link.activate_timing.retrigger_count = 1;
-    let intent = platform_core::TileTriggerIntent {
-        x: 0,
-        y: 0,
-        degree: 0,
-        kind: platform_core::TileTriggerKind::Activate,
-    };
-    let routed = RoutedMusicalEvents {
-        audio: vec![finite_input_note_on(60)],
-        midi: vec![],
-        tiles: Vec::new(),
-    };
+    let routed = vec![finite_input_note_on(60)];
 
-    let immediate = runner.apply_link_timing(0, &[intent], routed);
+    let immediate = route(&mut runner, routed);
     assert!(immediate.audio.is_empty());
     let delayed = runner.take_due_link_events(0);
     assert_eq!(delayed.audio, vec![finite_input_note_on(60)]);
@@ -187,12 +131,8 @@ pub(crate) fn link_arp_default_none_matches_existing_link_timing() {
 pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_not_collapse() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.arp.mode = ArpMode::Direct;
-    let routed = RoutedMusicalEvents {
-        audio: vec![note_on(67), note_on(60), note_on(64)],
-        midi: vec![],
-        tiles: Vec::new(),
-    };
-    let immediate = runner.apply_link_timing(0, &[], routed);
+    let routed = vec![note_on(67), note_on(60), note_on(64)];
+    let immediate = route(&mut runner, routed);
     assert_eq!(
         musical_note_ons_from_events(&immediate.audio),
         vec![(0, 67), (0, 60), (0, 64)]
@@ -200,12 +140,8 @@ pub(crate) fn link_arp_direct_preserves_input_order_and_large_batch_offsets_do_n
 
     runner.layers[0].link.arp.mode = ArpMode::Up;
     runner.layers[0].link.arp.step_interval_steps = 16;
-    let routed = RoutedMusicalEvents {
-        audio: (0..20).map(|index| note_on(40 + index)).collect(),
-        midi: vec![],
-        tiles: Vec::new(),
-    };
-    runner.apply_link_timing(0, &[], routed);
+    let routed = (0..20).map(|index| note_on(40 + index)).collect();
+    route(&mut runner, routed);
     assert!(runner.delayed_link_events[0]
         .iter()
         .any(|entry| entry.remaining_steps > u16::from(u8::MAX)));
@@ -218,38 +154,14 @@ pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
     runner.layers[0].link.arp.source = ArpSource::Held;
     runner.layers[0].link.arp.step_interval_steps = 1;
 
-    let first = runner.apply_link_timing(
-        0,
-        &[],
-        RoutedMusicalEvents {
-            audio: vec![note_on(64)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    let first = route(&mut runner, vec![note_on(64)]);
     assert_eq!(musical_note_ons_from_events(&first.audio), vec![(0, 64)]);
-    let second = runner.apply_link_timing(
-        0,
-        &[],
-        RoutedMusicalEvents {
-            audio: vec![note_on(60)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    let second = route(&mut runner, vec![note_on(60)]);
     assert_eq!(musical_note_ons_from_events(&second.audio), vec![(0, 60)]);
     let tail = runner.take_due_link_events(0);
     assert_eq!(musical_note_ons_from_events(&tail.audio), vec![(0, 64)]);
 
-    runner.apply_link_timing(
-        0,
-        &[],
-        RoutedMusicalEvents {
-            audio: vec![note_off(64)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    route(&mut runner, vec![note_off(64)]);
     assert!(runner.delayed_link_events[0]
         .iter()
         .all(|entry| !has_note_on(&entry.events.audio, 64)));
@@ -261,27 +173,11 @@ pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
     runner.layers[0].link.arp.mode = ArpMode::Up;
     runner.layers[0].link.arp.source = ArpSource::Held;
 
-    let finite = runner.apply_link_timing(
-        0,
-        &[],
-        RoutedMusicalEvents {
-            audio: vec![finite_input_note_on(60)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    let finite = route(&mut runner, vec![finite_input_note_on(60)]);
     assert!(finite.audio.is_empty());
     assert!(runner.link_arp.held_notes[0].is_empty());
 
-    runner.apply_link_timing(
-        0,
-        &[],
-        RoutedMusicalEvents {
-            audio: vec![note_on(64)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    route(&mut runner, vec![note_on(64)]);
     assert!(!runner.link_arp.held_notes[0].is_empty());
     runner.link_arp.random_state = 123;
     runner.reset_transport_position();
@@ -295,22 +191,8 @@ pub(crate) fn link_arp_held_source_retriggers_finite_arp_notes() {
     runner.layers[0].link.arp.mode = ArpMode::Direct;
     runner.layers[0].link.arp.source = ArpSource::Held;
     runner.layers[0].link.activate_timing.retrigger_count = 1;
-    let intent = platform_core::TileTriggerIntent {
-        x: 0,
-        y: 0,
-        degree: 0,
-        kind: platform_core::TileTriggerKind::Activate,
-    };
 
-    let immediate = runner.apply_link_timing(
-        0,
-        &[intent],
-        RoutedMusicalEvents {
-            audio: vec![note_on(60)],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    let immediate = route(&mut runner, vec![note_on(60)]);
 
     assert_eq!(
         musical_note_ons_from_events(&immediate.audio),
@@ -327,21 +209,17 @@ pub(crate) fn link_arp_held_source_retriggers_finite_arp_notes() {
 pub(crate) fn link_arp_rotating_and_random_vary() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.arp.mode = ArpMode::Rotating;
-    let routed = || RoutedMusicalEvents {
-        audio: vec![note_on(60), note_on(64), note_on(67)],
-        midi: vec![],
-        tiles: Vec::new(),
-    };
-    let first = runner.apply_link_timing(0, &[], routed());
-    let second = runner.apply_link_timing(0, &[], routed());
+    let routed = || vec![note_on(60), note_on(64), note_on(67)];
+    let first = route(&mut runner, routed());
+    let second = route(&mut runner, routed());
     assert_ne!(
         musical_note_ons_from_events(&first.audio),
         musical_note_ons_from_events(&second.audio)
     );
 
     runner.layers[0].link.arp.mode = ArpMode::Random;
-    let first = runner.apply_link_timing(0, &[], routed());
-    let second = runner.apply_link_timing(0, &[], routed());
+    let first = route(&mut runner, routed());
+    let second = route(&mut runner, routed());
     assert_ne!(
         musical_note_ons_from_events(&first.audio),
         musical_note_ons_from_events(&second.audio)
@@ -355,12 +233,8 @@ fn random_arp_orders_are_not_a_fixed_cycle() {
     let mut orders = Vec::new();
     for _ in 0..600 {
         runner.clear_link_arp_state_for_layer(0);
-        let routed = RoutedMusicalEvents {
-            audio: vec![note_on(60), note_on(64), note_on(67)],
-            midi: vec![],
-            tiles: Vec::new(),
-        };
-        let immediate = runner.apply_link_timing(0, &[], routed);
+        let routed = vec![note_on(60), note_on(64), note_on(67)];
+        let immediate = route(&mut runner, routed);
         let mut order = musical_note_ons_from_events(&immediate.audio);
         order.extend(
             runner.delayed_link_events[0]
@@ -421,6 +295,31 @@ fn routed_random_arp_draws_from_the_seeded_layer_stream() {
             "seeded={seeded}"
         );
     }
+}
+
+fn route(
+    runner: &mut NativeRunner,
+    events: Vec<platform_core::MusicalEvent>,
+) -> RoutedMusicalEvents {
+    let intents = vec![
+        Some(platform_core::TileTriggerIntent {
+            x: 0,
+            y: 0,
+            degree: 0,
+            kind: platform_core::TileTriggerKind::Activate,
+        });
+        events.len()
+    ];
+    runner
+        .route_events_with_link_timing(
+            0,
+            super::super::super::algorithm::LinkRoutingInput {
+                events,
+                event_intents: &intents,
+                transpose_offset: 0,
+            },
+        )
+        .unwrap()
 }
 
 fn note_on(note: u8) -> platform_core::MusicalEvent {

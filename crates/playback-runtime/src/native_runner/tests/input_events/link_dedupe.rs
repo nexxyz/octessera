@@ -307,15 +307,16 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.layers[0].link.activate_timing.retrigger_count = 1;
     let activate = intent(platform_core::TileTriggerKind::Activate);
-    let immediate = runner.apply_link_timing(
-        0,
-        std::slice::from_ref(&activate),
-        RoutedMusicalEvents {
-            audio: vec![expected.clone()],
-            midi: vec![],
-            tiles: Vec::new(),
-        },
-    );
+    let immediate = runner
+        .route_events_with_link_timing(
+            0,
+            super::super::super::algorithm::LinkRoutingInput {
+                events: vec![expected.clone()],
+                event_intents: &[Some(activate)],
+                transpose_offset: 0,
+            },
+        )
+        .unwrap();
     assert_eq!(immediate.audio, vec![expected.clone()]);
 
     runner.transport.current_ppqn_pulse = 12;

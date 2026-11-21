@@ -42,18 +42,6 @@ impl NativeRunner {
         }
     }
 
-    #[cfg(test)]
-    pub(super) fn apply_link_timing(
-        &mut self,
-        layer_index: usize,
-        intents: &[TileTriggerIntent],
-        routed: RoutedMusicalEvents,
-    ) -> RoutedMusicalEvents {
-        let sense = self.layers.get(layer_index).map(|layer| layer.link.clone());
-        let struck = super::midi_drum::midi_drum_channels(&self.instruments);
-        self.apply_link_timing_with_sense(layer_index, intents, routed, sense.as_ref(), struck)
-    }
-
     fn apply_link_timing_with_sense(
         &mut self,
         layer_index: usize,
