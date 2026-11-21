@@ -6,6 +6,7 @@ use crate::behaviors::geometry::shapes::random_point_for_dla;
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -38,6 +39,9 @@ struct DlaConfig {
 
 const DEFAULT_CELL_LIFE: usize = 96;
 const MAX_CELL_LIFE: usize = 256;
+const WALKER_STEPS: usize = 4 * TILE_COUNT;
+/// Walkers released per spawn until one sticks.
+const WALKERS: usize = 8;
 
 fn default_cell_life() -> usize {
     DEFAULT_CELL_LIFE
@@ -169,7 +173,11 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
     if state.spawn_interval > 0
         && (tick_counter - 1) % state.spawn_interval == state.spawn_step % state.spawn_interval
     {
-        if let Some((x, y)) = next_frontier_cell(&cells, tick_counter) {
+        if cell_life == 0 && touches_rim(&cells) {
+            cells.fill(false);
+            ages.fill(0);
+            seed_starter_cluster(&mut cells, &mut ages);
+        } else if let Some((x, y)) = (0..WALKERS).find_map(|_| walk_to_cluster(&cells)) {
             set_cluster_cell(&mut cells, &mut ages, x, y);
         }
     }
@@ -195,13 +203,41 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
     }
 }
 
-fn next_frontier_cell(cells: &[bool], tick_counter: usize) -> Option<(usize, usize)> {
-    (0..TILE_COUNT).find_map(|offset| {
-        let index = (tick_counter * 17 + offset) % TILE_COUNT;
-        let x = index % GRID_WIDTH;
-        let y = index / GRID_WIDTH;
-        (!cells[index] && has_adjacent_cluster(cells, x, y)).then_some((x, y))
-    })
+/// Releases one walker from a free rim tile (any free tile once the rim is full) and lets it wander until it sits next to the
+/// cluster, where it sticks: the branching growth that gives diffusion-limited aggregation its
+/// name. A walker that finds nothing in its steps is lost, and the next one tries.
+fn walk_to_cluster(cells: &[bool]) -> Option<(usize, usize)> {
+    let mut rng = crate::behavior_random::rng();
+    let free = (0..TILE_COUNT)
+        .filter(|index| !cells[*index])
+        .collect::<Vec<_>>();
+    let rim = free
+        .iter()
+        .copied()
+        .filter(|index| on_rim(index % GRID_WIDTH, index / GRID_WIDTH))
+        .collect::<Vec<_>>();
+    let starts = if rim.is_empty() { &free } else { &rim };
+    let start = *starts.get(rng.gen_range(0..starts.len().max(1)))?;
+    let (mut x, mut y) = (start % GRID_WIDTH, start / GRID_WIDTH);
+    for _ in 0..WALKER_STEPS {
+        if has_adjacent_cluster(cells, x, y) {
+            return Some((x, y));
+        }
+        let (dx, dy) = [(0, 1), (1, 0), (0, -1), (-1, 0)][rng.gen_range(0..4)];
+        let (nx, ny) = (x.saturating_add_signed(dx), y.saturating_add_signed(dy));
+        if nx < GRID_WIDTH && ny < GRID_HEIGHT && !cells[grid_index(nx, ny)] {
+            (x, y) = (nx, ny);
+        }
+    }
+    None
+}
+
+fn on_rim(x: usize, y: usize) -> bool {
+    x == 0 || y == 0 || x == GRID_WIDTH - 1 || y == GRID_HEIGHT - 1
+}
+
+fn touches_rim(cells: &[bool]) -> bool {
+    (0..TILE_COUNT).any(|index| cells[index] && on_rim(index % GRID_WIDTH, index / GRID_WIDTH))
 }
 
 pub fn dla_render_model(state: &DlaState) -> BehaviorRenderModel {

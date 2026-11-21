@@ -194,3 +194,43 @@ fn default_tail_stays_bounded_and_non_terminal() {
         previous = state.cells.clone();
     }
 }
+
+fn grown(seed: u64, config: Value, ticks: usize) -> Vec<DlaState> {
+    let mut random = crate::behavior_random::LayerRandom::new(Some(seed));
+    random.scope(|| {
+        let mut context = BehaviorContext::new(120.0);
+        let mut state = dla_init(config).unwrap();
+        (0..ticks)
+            .map(|_| {
+                state = dla_on_tick(state.clone(), &mut context);
+                state.clone()
+            })
+            .collect()
+    })
+}
+
+#[test]
+fn walkers_grow_a_different_cluster_in_every_random_stream() {
+    let config = serde_json::json!({ "cellLife": 0 });
+    let first = grown(1, config.clone(), 30);
+    assert_ne!(first[29].cells, grown(2, config.clone(), 30)[29].cells);
+    assert_eq!(first[29].cells, grown(1, config, 30)[29].cells);
+}
+
+#[test]
+fn without_cell_life_the_cluster_starts_over_once_it_reaches_the_rim() {
+    let states = grown(
+        3,
+        serde_json::json!({ "cellLife": 0, "spawnInterval": 1 }),
+        200,
+    );
+    let restart = states
+        .windows(2)
+        .position(|pair| {
+            touches_rim(&pair[0].cells) && pair[1].cells.iter().filter(|cell| **cell).count() == 3
+        })
+        .expect("the cluster starts over");
+    assert!(states[..=restart]
+        .iter()
+        .all(|state| state.cells.iter().any(|cell| !*cell)));
+}
