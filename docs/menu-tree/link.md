@@ -201,8 +201,11 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   eight slots of `{ "cc": 0..127, "channel": 0..16, "target": <binding | null> }`. Channel `0` is
   `any`; the target binding carries `userMin`/`userMax` (Range Min/Max) and `invert`.
 - Each slot is a modulation source after the LFOs. A Control Change whose number matches, on the
-  slot's channel or any channel for `any`, sets the source to `value / 127` (`1 - value / 127` when
-  inverted), mapped through the target's range. The value holds until the next CC; changing Range
+  slot's channel or any channel for `any`, sets the source to its share of the target's range
+  (`1 - share` when inverted): `0` is the bottom, `64` exactly the middle, so a bipolar target
+  reaches 0, and `127` the top. On an option or on/off target the CC keeps its option until it
+  goes a quarter option past the middle to the next, so a knob resting on a boundary does not
+  flicker. The value holds until the next CC; changing Range
   or Invert reshapes the held value at once, a new Target waits for the next CC. Claims are
   validated as described under [Modulation](../menu-and-controls-spec.md#modulation).
 - CC only applies while `System > MIDI > MIDI Active` is on, from the port `MIDI In` (or USB MIDI)

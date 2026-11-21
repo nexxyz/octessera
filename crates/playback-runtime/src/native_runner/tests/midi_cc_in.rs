@@ -157,6 +157,59 @@ fn a_burst_in_one_tick_applies_only_its_last_value() {
 }
 
 #[test]
+fn cc_64_is_the_exact_middle_of_the_range() {
+    let mut runner = midi_runner();
+    map_velocity_to_cc1(&mut runner);
+    for (value, expected) in [(0, 0), (64, 100), (127, 200)] {
+        send_cc_bytes(&mut runner, &[[0xB0, 1, value]]);
+        assert_eq!(velocity(&runner), expected, "CC {value}");
+    }
+}
+
+#[test]
+fn an_option_target_waits_a_quarter_option_past_the_middle() {
+    let mut runner = midi_runner();
+    press_key(&mut runner, "midiCc.0.target.sound.voiceStealingMode");
+    let options = runner.midi_cc_mappings[0]
+        .target
+        .as_ref()
+        .unwrap()
+        .options
+        .clone();
+    assert!(options.len() >= 2, "{options:?}");
+    let mode = |runner: &NativeRunner| runner.voice_stealing_mode.wire_name().to_string();
+    let last = (options.len() - 1) as f64;
+    let cc_at = |options_up: f64| {
+        let normalized = options_up / last;
+        (0..=127u8)
+            .find(|value| {
+                let share = if *value <= 64 {
+                    f64::from(*value) / 128.0
+                } else {
+                    0.5 + f64::from(value - 64) / 126.0
+                };
+                share >= normalized
+            })
+            .unwrap()
+    };
+
+    send_cc_bytes(&mut runner, &[[0xB0, 1, 0]]);
+    assert_eq!(mode(&runner), options[0]);
+    send_cc_bytes(&mut runner, &[[0xB0, 1, cc_at(0.6)]]);
+    assert_eq!(mode(&runner), options[0], "just past the middle keeps it");
+    send_cc_bytes(&mut runner, &[[0xB0, 1, cc_at(0.8)]]);
+    assert_eq!(mode(&runner), options[1]);
+    send_cc_bytes(&mut runner, &[[0xB0, 1, cc_at(0.4)]]);
+    assert_eq!(
+        mode(&runner),
+        options[1],
+        "just back past the middle keeps it"
+    );
+    send_cc_bytes(&mut runner, &[[0xB0, 1, cc_at(0.2)]]);
+    assert_eq!(mode(&runner), options[0]);
+}
+
+#[test]
 fn a_second_claim_on_an_exclusive_target_is_rejected() {
     let mut runner = midi_runner();
     press_key(&mut runner, "midiCc.0.target.sound.voiceStealingMode");

@@ -9,6 +9,38 @@ use std::time::{Duration, Instant};
 pub(super) const MIDI_CC_SLOT_COUNT: usize = 8;
 const RESET_ALL_CONTROLLERS: u8 = 121;
 const LEARN_TIMEOUT: Duration = Duration::from_secs(10);
+/// How far past the middle between two options a CC must go, in options, to pick the next one.
+const OPTION_HYSTERESIS: f64 = 0.25;
+
+/// A CC value as a share of its target's range: 64 is the exact middle, so a bipolar target
+/// reaches 0, and 0 and 127 are its ends.
+fn cc_normalized(value: u8) -> f64 {
+    if value <= 64 {
+        f64::from(value) / 128.0
+    } else {
+        0.5 + f64::from(value - 64) / 126.0
+    }
+}
+
+/// On an option or on/off target a CC keeps the option it holds until it moves a quarter option
+/// past the middle to the next one, so a knob resting on a boundary does not flicker.
+fn option_hysteresis(binding: &NativeParamBinding, held: Option<f64>, normalized: f64) -> f64 {
+    let options = match binding.kind.as_str() {
+        "enum" => binding.options.len(),
+        "bool" => 2,
+        _ => return normalized,
+    };
+    let (Some(held), Some(last)) = (held, options.checked_sub(1).filter(|last| *last > 0)) else {
+        return normalized;
+    };
+    let last = last as f64;
+    let held_option = (held * last).round();
+    if (normalized * last - held_option).abs() < 0.5 + OPTION_HYSTERESIS {
+        held
+    } else {
+        normalized
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct NativeMidiCcMapping {
@@ -192,13 +224,15 @@ impl NativeRunner {
         let (Some(binding), Some(value)) = (mapping.target.clone(), mapping.last_value) else {
             return false;
         };
-        let normalized = f64::from(value) / 127.0;
+        let normalized = cc_normalized(value);
         let normalized = if binding.invert {
             1.0 - normalized
         } else {
             normalized
         };
         let source = ModulationSourceId::midi_cc(slot).expect("validated MIDI CC slot");
+        let held = self.modulation_process.held_normalized(source);
+        let normalized = option_hysteresis(&binding, held, normalized);
         self.set_runtime_source_input(source, binding, normalized)
     }
 

@@ -1228,7 +1228,7 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   LFOs or process unrelated held sources; wall-clock time only places the quarter-pulse step of
   a short LFO inside the current pulse.
 - Modulation sources, in their stable order: layer X/Y slots, Play X/Y, the eight Link LFOs, then
-  the eight MIDI CC In slots. A CC slot holds its last `value / 127` like a held XY position; a
+  the eight MIDI CC In slots. A CC slot holds its last value (`64` is the middle of the range) like a held XY position; a
   loaded patch starts with none, and CC 121 (Reset All Controllers) drops the held values of the slots on its
   channel ([link.md](menu-tree/link.md#midi-cc-in)). Play Faders are not
   sources: a press sets its target like a menu edit ([play.md](menu-tree/play.md#faders)).

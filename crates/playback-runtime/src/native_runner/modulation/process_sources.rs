@@ -161,6 +161,14 @@ impl ModulationProcessState {
         }
     }
 
+    /// The share of its range a held (non-LFO) source sits at.
+    pub(in crate::native_runner) fn held_normalized(
+        &self,
+        source: ModulationSourceId,
+    ) -> Option<f64> {
+        self.sources.get(&source).and_then(|held| held.normalized)
+    }
+
     pub(in crate::native_runner) fn has_source(&self, source: ModulationSourceId) -> bool {
         self.sources.contains_key(&source)
     }
