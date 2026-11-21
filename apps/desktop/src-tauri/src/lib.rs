@@ -91,11 +91,13 @@ pub fn run() {
             app.manage(store_lock);
             let window_handle = app_handle.clone();
             match instance_handoff::listen(&store_dir, move || {
-                if let Some(window) = window_handle.get_webview_window("main") {
-                    let _ = window.unminimize();
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+                let Some(window) = window_handle.get_webview_window("main") else {
+                    return false;
+                };
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+                true
             }) {
                 Ok(port) => {
                     app.manage(port);

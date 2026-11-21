@@ -27,10 +27,10 @@ fn random_token() -> String {
 }
 
 /// Lets a second instance on this store ask the running one to show itself. `show` runs on the
-/// listener thread; a request without the token written next to the store lock is dropped.
+/// listener thread and returns whether it found a window to show; a request without the token written next to the store lock is dropped.
 pub(crate) fn listen<F>(store_dir: &Path, show: F) -> Result<HandoffPort, String>
 where
-    F: Fn() + Send + 'static,
+    F: Fn() -> bool + Send + 'static,
 {
     let listener =
         TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(|error| error.to_string())?;
@@ -55,7 +55,7 @@ where
     Ok(HandoffPort { path })
 }
 
-fn serve(stream: &TcpStream, token: &str, show: &impl Fn()) {
+fn serve(stream: &TcpStream, token: &str, show: &impl Fn() -> bool) {
     let _ = stream.set_read_timeout(Some(IO_TIMEOUT));
     let _ = stream.set_write_timeout(Some(IO_TIMEOUT));
     let mut line = String::new();
@@ -65,8 +65,8 @@ fn serve(stream: &TcpStream, token: &str, show: &impl Fn()) {
     if line.trim_end() != format!("{token} show") {
         return;
     }
-    show();
-    let _ = (&*stream).write_all(b"ok\n");
+    let reply: &[u8] = if show() { b"ok\n" } else { b"no window\n" };
+    let _ = (&*stream).write_all(reply);
 }
 
 struct Handoff {
@@ -142,6 +142,7 @@ mod tests {
         let counter = shown.clone();
         let port = listen(dir, move || {
             counter.fetch_add(1, Ordering::SeqCst);
+            true
         })
         .expect("listen");
         (port, shown)
@@ -157,6 +158,15 @@ mod tests {
 
         drop(port);
         assert!(!dir.join(HANDOFF_FILE).exists());
+        assert!(!request_show(&dir));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_first_instance_without_a_window_does_not_claim_the_hand_off() {
+        let dir = temp_dir("no-window");
+        let _port = listen(&dir, || false).expect("listen");
+
         assert!(!request_show(&dir));
         let _ = std::fs::remove_dir_all(&dir);
     }
