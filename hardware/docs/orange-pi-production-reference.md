@@ -67,7 +67,7 @@ This prevents duplicate text-log space consumption. Inspect and reseat the
 hardware with the board powered down, then use `rsyslogd -N1 -f /etc/rsyslog.conf` and
 `journalctl -k --no-pager` for read-only checks.
 
-## Runtime-only updater contract
+## Updater contract
 
 Orange Check/Apply/Rollback goes through the root-owned update socket to
 `octessera-update`. It takes only this board's pair:
@@ -76,9 +76,12 @@ Orange Check/Apply/Rollback goes through the root-owned update socket to
 - `SHA256SUMS-orange-pi-zero-2w-device.txt`
 
 Apply verifies the checksum, unpacks the release to
-`/opt/octessera/releases/<version>`, and switches `current` with a restart. If
-the runtime is not up and ready within 60 seconds, it switches back. It never
-replaces the Armbian image, kernel, or device tree; those need a reflash.
+`/opt/octessera/releases/<version>`, installs the Octessera-owned root files the
+ZIP carries (units, drop-ins, helper scripts, setup portal; the replaced ones
+stay with the old release), and switches `current` with a restart. If the
+runtime is not up and ready within 60 seconds, it switches both back. It never
+replaces sudoers, the initramfs, the Armbian image, kernel, or device tree;
+those need a reflash.
 
 ## Power boundary
 

@@ -43,6 +43,18 @@ Each board's device ZIP is that board's runtime bundle (`octessera-pi`,
 `tools/device-update/package_device_bundle.py`. The on-device updater downloads
 it and checks it against the matching `SHA256SUMS-<profile>-device.txt`.
 
+The ZIP also carries the board's Octessera-owned root files under `root/`:
+every file in its image tree (`tools/pi-image/stage4-octessera/files/root/` or
+`userpatches/overlay/`) whose path contains `octessera`, plus the files the
+image build stages into that tree (`STAGED_FILES`: the updater itself, the
+Raspberry SD-card tool, the Orange `device_config.py`). `IMAGE_ONLY` in the packager leaves out what
+only an image may change: `etc/octessera/`, `etc/sudoers.d/`,
+`etc/initramfs-tools/`, `usr/local/share/octessera/`, and the Orange image
+build helpers. Files under `usr/local/sbin/`, `usr/local/bin/` and
+`usr/lib/systemd/system-shutdown/` are `0755` (except `*.py`), the rest
+`0644`, as the images install them. An updater older than this format rejects
+the ZIP, so boards flashed before it need one reflash.
+
 GitHub's automatic source archives are not custom assets and are not in
 `SHA256SUMS.txt`.
 
@@ -71,9 +83,13 @@ Both boards update with `/usr/local/sbin/octessera-update`. It picks the newest
 published release that has this board's device ZIP, verifies the checksum,
 unpacks it to `/opt/octessera/releases/<version>`, and starts
 `octessera-update-switch@<version>.service`. The switch moves `current` (and
-`previous`), restarts `octessera.service`, and swaps back if the runtime is not
-active with its readiness marker within 60 seconds. It updates only the runtime
-release; Armbian, kernel, device-tree, and image changes still need a reflash.
+`previous`), installs the release's `root/` files (the ones they replace go to
+`releases/<old>/root-replaced/`, new paths to `releases/<old>/root-added`),
+runs `systemctl daemon-reload`, restarts `octessera.service`, and swaps
+everything back if the runtime is not active with its readiness marker within
+60 seconds. Rollback to the previous release puts its saved files back the same
+way. Newly added units are installed but not enabled. Sudoers, initramfs,
+Armbian, kernel, device-tree, and image changes still need a reflash.
 
 Image release materials must account for source duties covering pinned upstream
 inputs and Octessera source, patches, configuration, and build scripts. Keep

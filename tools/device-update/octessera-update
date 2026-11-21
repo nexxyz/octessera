@@ -24,6 +24,7 @@ PROFILE_FILES = [Path(os.environ["OCTESSERA_UPDATE_PROFILE_FILE"])] if os.enviro
 ]
 MARKER = Path(os.environ.get("OCTESSERA_CANDIDATE_HEALTH_PATH", "/run/octessera/candidate-ready.json"))
 DEV_DROP_IN = Path(os.environ.get("OCTESSERA_UPDATE_DEV_DROP_IN", "/etc/systemd/system/octessera.service.d/90-octessera-dev.conf"))
+SYSTEM_ROOT = Path(os.environ.get("OCTESSERA_UPDATE_SYSTEM_ROOT", "/"))
 SYSTEMCTL = os.environ.get("OCTESSERA_UPDATE_SYSTEMCTL", "systemctl")
 READY_SECONDS = float(os.environ.get("OCTESSERA_UPDATE_READY_SECONDS", "60"))
 SETTLE_SECONDS = float(os.environ.get("OCTESSERA_UPDATE_SETTLE_SECONDS", "5"))
@@ -134,23 +135,35 @@ def fsync_directory(path: Path) -> None:
         os.close(descriptor)
 
 
+def entry_mode(info: zipfile.ZipInfo) -> int:
+    if info.filename in ENTRIES:
+        return 0o755 if info.filename == BINARY else 0o644
+    parts = info.filename.split("/")
+    mode = (info.external_attr >> 16) & 0o777
+    if parts[0] != "root" or len(parts) < 3 or any(part in ("", ".", "..") for part in parts) or "\\" in info.filename or mode not in (0o644, 0o755):
+        raise UpdateError("Release archive has unexpected contents")
+    return mode
+
+
 def extract(archive: Path, output: Path) -> None:
     try:
         with zipfile.ZipFile(archive) as source:
             infos = source.infolist()
-            if sorted(info.filename for info in infos) != ENTRIES:
+            modes = [entry_mode(info) for info in infos]
+            if sorted(info.filename for info in infos if info.filename in ENTRIES) != ENTRIES:
                 raise UpdateError("Release archive has unexpected contents")
             if sum(info.file_size for info in infos) > MAX_ZIP_BYTES:
                 raise UpdateError("Release archive is too large")
             output.mkdir()
             os.chmod(output, 0o755)
-            for info in infos:
+            for info, mode in zip(infos, modes):
                 target = output / info.filename
+                target.parent.mkdir(parents=True, exist_ok=True)
                 with source.open(info) as data, target.open("wb") as handle:
                     shutil.copyfileobj(data, handle)
                     handle.flush()
                     os.fsync(handle.fileno())
-                os.chmod(target, 0o755 if info.filename == BINARY else 0o644)
+                os.chmod(target, mode)
     except zipfile.BadZipFile as error:
         raise UpdateError("Release archive is not a valid ZIP") from error
     fsync_directory(output)
@@ -233,6 +246,7 @@ def store_dir() -> Path:
 def copy_file(source: Path, target: Path) -> None:
     status = source.stat()
     temporary = target.with_name(f".{target.name}.tmp")
+    target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, temporary)
     os.chown(temporary, status.st_uid, status.st_gid)
     os.chmod(temporary, stat.S_IMODE(status.st_mode))
@@ -290,6 +304,42 @@ def put_back_store(store: Path, version: str) -> None:
         else:
             (store / name).unlink(missing_ok=True)
     fsync_directory(store)
+
+
+def root_files(directory: Path) -> list[Path]:
+    return sorted(path.relative_to(directory) for path in directory.rglob("*") if path.is_file()) if directory.is_dir() else []
+
+
+def install_root_files(version: str, leaving: str) -> None:
+    source = ROOT / "releases" / version / "root"
+    aside = ROOT / "releases" / leaving / "root-replaced"
+    added = ROOT / "releases" / leaving / "root-added"
+    files = root_files(source)
+    if files and not added.exists():
+        shutil.rmtree(aside, ignore_errors=True)
+        for relative in files:
+            if (SYSTEM_ROOT / relative).is_file():
+                copy_file(SYSTEM_ROOT / relative, aside / relative)
+        temporary = added.with_suffix(".tmp")
+        temporary.write_text("".join(f"{path.as_posix()}\n" for path in files if not (aside / path).is_file()), encoding="utf-8")
+        os.replace(temporary, added)
+    for relative in files:
+        copy_file(source / relative, SYSTEM_ROOT / relative)
+    os.sync()
+
+
+def put_back_root_files(version: str) -> None:
+    aside = ROOT / "releases" / version / "root-replaced"
+    added = ROOT / "releases" / version / "root-added"
+    if not added.exists():
+        return
+    for relative in root_files(aside):
+        copy_file(aside / relative, SYSTEM_ROOT / relative)
+    for path in added.read_text(encoding="utf-8").splitlines():
+        (SYSTEM_ROOT / path).unlink(missing_ok=True)
+    os.sync()
+    added.unlink()
+    shutil.rmtree(aside, ignore_errors=True)
 
 
 def prune(keep: set[str]) -> None:
@@ -365,6 +415,7 @@ def switch(version: str) -> str:
         if old_version == version:
             raise UpdateError(f"v{version} is already current")
         store = store_dir()
+        returning = (ROOT / "releases" / version / "root-added").exists()
         try:
             if systemctl("stop", SERVICE) != 0:
                 raise UpdateError("Could not stop Octessera")
@@ -377,6 +428,11 @@ def switch(version: str) -> str:
             if going_back or unchanged_since_rollback(store):
                 restore_store(store, version)
             set_links(str(target), old_current)
+            if returning:
+                put_back_root_files(version)
+            else:
+                install_root_files(version, old_version)
+            systemctl("daemon-reload")
             healthy = restart_and_wait()
         except (UpdateError, OSError):
             healthy = False
@@ -395,6 +451,14 @@ def switch(version: str) -> str:
             put_back_store(store, old_version)
         except OSError as error:
             print(f"could not put the v{old_version} settings back: {error}", file=sys.stderr)
+        try:
+            if returning:
+                install_root_files(old_version, version)
+            else:
+                put_back_root_files(old_version)
+            systemctl("daemon-reload")
+        except (UpdateError, OSError) as error:
+            print(f"could not put the v{old_version} system files back: {error}", file=sys.stderr)
         set_links(old_current, old_previous)
         systemctl("restart", "--no-block", SERVICE)
         raise UpdateError(f"v{version} did not start; went back to v{old_version}")

@@ -195,7 +195,7 @@ The desktop host owns one small thread, `octessera-instance-handoff` (`apps/desk
 
 ### Device updates
 
-Device-update effects are executed by `/usr/local/sbin/octessera-update` on both boards (Raspberry through `sudo -n`, Orange through the `/run/octessera-update/update.sock` socket), which owns selecting this board's device ZIP, checksum verification, the guarded `octessera-update-switch@<version>.service` restart (Apply reuses a release that is still installed instead of downloading it again), stopping the runtime before snapshotting `system.json` and `default.patch.json` into the release it leaves and restoring the older release's snapshot when going back and, when going forward, the newer snapshot only if the store is unchanged since that rollback (hashes in `store-restored.json`), and swapping back when the runtime does not report ready, with the store put back to the snapshot taken before the switch; `NativeRunner` owns menu/action semantics and confirmation. Neither board selects the other board's asset.
+Device-update effects are executed by `/usr/local/sbin/octessera-update` on both boards (Raspberry through `sudo -n`, Orange through the `/run/octessera-update/update.sock` socket), which owns selecting this board's device ZIP, checksum verification, the guarded `octessera-update-switch@<version>.service` restart (Apply reuses a release that is still installed instead of downloading it again), stopping the runtime before snapshotting `system.json` and `default.patch.json` into the release it leaves and restoring the older release's snapshot when going back and, when going forward, the newer snapshot only if the store is unchanged since that rollback (hashes in `store-restored.json`), installing the release's Octessera-owned root files with the replaced ones kept in the release it leaves, and swapping back when the runtime does not report ready, with the store and root files put back to their state before the switch; `NativeRunner` owns menu/action semantics and confirmation. Neither board selects the other board's asset.
 
 ### Audio load status
 
@@ -404,7 +404,7 @@ Native Rust owns the confirmed save/apply/shutdown semantic and sends the power 
 
 ### Updater socket
 
-When Internet is available, `System > Maintenance > Updates` uses the separate root-owned `/run/octessera-update/update.sock` socket for Octessera runtime-only `check\n`, `apply\n`, and `rollback\n` actions. The socket service runs `octessera-update serve`, which answers one action with a bounded `ok`/`error` result; it does not expose a general command or privilege broker. The updater changes only the runtime release under `/opt/octessera`. Armbian, kernel, device-tree, and image replacement remains a reflash.
+When Internet is available, `System > Maintenance > Updates` uses the separate root-owned `/run/octessera-update/update.sock` socket for Octessera runtime-only `check\n`, `apply\n`, and `rollback\n` actions. The socket service runs `octessera-update serve`, which answers one action with a bounded `ok`/`error` result; it does not expose a general command or privilege broker. The updater changes the runtime release under `/opt/octessera` and the Octessera-owned root files that release carries (see [Release assembly](workflows/release-assembly.md)). Sudoers, initramfs, Armbian, kernel, device-tree, and image replacement remains a reflash.
 
 ### Orange SD2 transfer
 

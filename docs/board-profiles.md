@@ -153,8 +153,9 @@ that accepts only `reboot\n` and `poweroff\n`, plus `usb-gadget\n` to rebuild
 the USB gadget from the saved config; see the
 [device apply boundary](runtime-boundaries.md#device-apply-boundary). Check,
 Apply, and Rollback go through the root-owned update socket to
-`octessera-update`, which takes only the Orange device ZIP and checksum; full
-Armbian, kernel, device-tree, and image replacement stays a reflash.
+`octessera-update`, which takes only the Orange device ZIP and checksum; the
+ZIP carries the runtime and Octessera's own root files, and full Armbian,
+kernel, device-tree, and image replacement stays a reflash.
 
 On SIGINT the runtime shows the normal shutdown frame, clears the LEDs with a
 bounded 750 ms cleanup/retry (the shared `render_loop.rs` and `seesaw_io.rs`

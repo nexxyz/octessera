@@ -528,8 +528,10 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   `octessera-<version>-<profile>-device-aarch64.zip` and `SHA256SUMS-<profile>-device.txt`
   pair, or `Up to date (v<installed>)`. Raspberry runs the updater through `sudo -n`; Orange
   sends the action over the root-owned update socket. Neither board uses the other's assets.
-- These actions update only the runtime release. Armbian, kernel, device-tree, and image changes
-  still need a reflash.
+- These actions update the runtime release and the Octessera-owned root files it carries (units,
+  drop-ins, helper scripts, setup portal); see the
+  [release assembly notes](../workflows/release-assembly.md). Sudoers, initramfs, Armbian,
+  kernel, device-tree, and image changes still need a reflash.
 - Apply and Rollback confirm first. Apply downloads the release, verifies its checksum (a mismatch
   stops before anything changes), and replies `Installing v<version>; Octessera restarts in a
   moment`. Rollback replies `Going back to v<version>; ...`, or `No previous release to go back to`.

@@ -29,6 +29,11 @@ One honest caveat: pull the power during that minute of restarting and the
 board may wake up on the new version without having checked it. If that version
 then misbehaves, Rollback (or a fresh image) puts things right.
 
-Updates only replace the Octessera program itself and, as above, those two
-files. Your presets, samples and recordings stay where they are, and the
-operating system, kernel and boot setup only change when you flash a new image.
+Updates replace the Octessera program, those two files, and Octessera's own
+system pieces: its services, the setup portal, the helper scripts and the
+little hook that blanks the OLED at shutdown. The board keeps the old pieces
+next to the old version, so a failed start or a Rollback puts them back too.
+Your presets, samples and recordings stay where they are. The operating
+system, kernel, boot setup and sudo rules only change when you flash a new
+image, and a board flashed before 0.8.15 needs one fresh image before it can
+take updates again.
