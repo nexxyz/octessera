@@ -44,3 +44,17 @@ fn nested_scopes_restore_the_outer_stream() {
     });
     assert_eq!(observed, expected);
 }
+
+#[test]
+fn tile_hash_does_not_fall_into_columns_or_bands() {
+    for tick in 0..32 {
+        let column_repeats = (0..56)
+            .filter(|index| tile_hash(tick, *index) % 8 == tile_hash(tick, index + 8) % 8)
+            .count();
+        assert!(column_repeats < 24, "tick {tick}: {column_repeats}");
+        let next_tick_repeats = (0..64)
+            .filter(|index| tile_hash(tick, *index) % 100 == tile_hash(tick + 1, *index) % 100)
+            .count();
+        assert!(next_tick_repeats < 8, "tick {tick}: {next_tick_repeats}");
+    }
+}

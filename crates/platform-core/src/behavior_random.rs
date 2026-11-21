@@ -88,6 +88,16 @@ pub(crate) fn tile_roll_pct(tick: u64, index: usize, salt: u64) -> u32 {
     ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
 
+/// A well-mixed repeatable hash of `tick` and tile `index` in the layer's random stream: every
+/// bit depends on both, so neighboring tiles and ticks do not fall into bands or columns.
+pub(crate) fn tile_hash(tick: u64, index: usize) -> u64 {
+    let mut x = (tick ^ salt()).wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        ^ (index as u64).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
+    x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    x ^ (x >> 31)
+}
+
 /// `pct` percent of `full_scale`, rounded up or down by a repeatable roll so the average stays
 /// exact: every percent counts, even where the whole-number scale has only a few steps.
 pub(crate) fn dithered_pct(pct: u8, full_scale: i16, tick: u64, index: usize, salt: u64) -> i16 {

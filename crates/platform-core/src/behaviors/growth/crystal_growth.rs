@@ -2,6 +2,7 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::tile_hash as hash;
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
@@ -337,12 +338,6 @@ fn deterministic_index(tick: u64, len: usize) -> usize {
     } else {
         (hash(tick, 0) as usize) % len
     }
-}
-
-fn hash(tick: u64, index: usize) -> u64 {
-    let tick = tick ^ crate::behavior_random::salt();
-    tick.wrapping_mul(1_103_515_245)
-        .wrapping_add(index as u64 * 97)
 }
 
 fn has_neighbor(cells: &[bool], x: usize, y: usize, symmetry: &str) -> bool {

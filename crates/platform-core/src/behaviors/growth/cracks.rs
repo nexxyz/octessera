@@ -2,6 +2,7 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::tile_hash as hash;
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
@@ -271,9 +272,10 @@ fn replace(s: &mut CracksState) {
     s.tiles.fill(CLEAR);
     s.stress.fill(0)
 }
+/// Clears a scattered share of the pane each tick, and all of it within four ticks.
 fn dissolve_pane(s: &mut CracksState) {
     for i in 0..TILE_COUNT {
-        if hash(s.tick_counter, i).is_multiple_of(4) {
+        if hash(s.tick_counter / 4, i) % 4 <= s.tick_counter % 4 {
             s.tiles[i] = CLEAR;
             s.stress[i] = 0;
         } else if s.tiles[i] <= STRESS {
@@ -361,10 +363,6 @@ fn best_neighbor(s: &CracksState, i: usize, skip: &[usize]) -> Option<usize> {
         }
     }
     best
-}
-fn hash(t: u64, i: usize) -> u64 {
-    let t = t ^ crate::behavior_random::salt();
-    t.wrapping_mul(1_103_515_245).wrapping_add(i as u64 * 97)
 }
 fn crack_count(s: &CracksState) -> usize {
     s.tiles
