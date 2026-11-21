@@ -123,3 +123,43 @@ fn sample_interpolation_cost() {
         );
     }
 }
+
+fn forward_loop(start_pct: f32, end_pct: f32, buffer: &SampleBuffer) -> (super::ForwardLoop, f64) {
+    let playback = crate::synth::SamplePlaybackConfig {
+        loop_mode: crate::synth::SampleLoopMode::Forward,
+        start_pct: 0.0,
+        loop_start_pct: start_pct,
+        loop_end_pct: end_pct,
+    };
+    match super::SampleVoiceLoop::start(&playback, buffer) {
+        (super::SampleVoiceLoop::Forward(cursor), start) => (cursor, start),
+        other => panic!("expected a forward loop, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_forward_loop_of_whole_cycles_repeats_the_wave_without_drift_or_seam() {
+    let wave = |frame: usize| ((frame % 100) as f32 * std::f32::consts::TAU / 100.0).sin();
+    let buffer = buffer((0..40_000).map(wave).collect());
+    let view = SampleBufferView::from_buffer(&buffer);
+    let (mut cursor, mut pos) = forward_loop(10.0, 60.0, &buffer);
+    for frame in 0..80_000 {
+        let read = cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap();
+        assert!((read - wave(frame)).abs() < 1.0e-5, "frame {frame}: {read}");
+    }
+}
+
+#[test]
+fn a_forward_loop_from_the_first_frame_fades_into_silence_before_it() {
+    let buffer = buffer(vec![1.0; 10_000]);
+    let view = SampleBufferView::from_buffer(&buffer);
+    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, &buffer);
+    let reads = (0..20_000)
+        .map(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap())
+        .collect::<Vec<_>>();
+    let fade = 441;
+    assert_eq!(reads[10_000 - fade - 1], 1.0);
+    assert!(reads[9_999] < 0.01, "{}", reads[9_999]);
+    assert_eq!(reads[10_000], 1.0);
+    assert_eq!(reads[19_999 - fade], 1.0);
+}

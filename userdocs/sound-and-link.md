@@ -249,9 +249,12 @@ point at them.
   attack, a breath of silence) in either Note Mode. **Loop** only wakes up in
   `hold`: `forward` keeps running round from Loop Start to Loop End, and
   `ping-pong` bounces back and forth between them, for as long as the note is
-  held. Let go and the Amp Env release fades it out. Forward loops crossfade
-  their seam over 10 ms, so even a careless loop point won't click, though a
-  loop that sits on a steady part of the sound will be the smoothest. In
+  held. Let go and the Amp Env release fades it out. Forward loops blend
+  their last 10 ms into the 10 ms just before Loop Start, so the loop keeps
+  its exact length and even a careless loop point won't click, though a loop
+  that sits on a steady part of the sound will be the smoothest. With Loop
+  Start at 0% there's nothing before it, so the seam dips into silence for a
+  blink; nudge Loop Start in a little if that bothers you. In
   `oneshot` the sample just plays once, loop or no loop.
 - **MIDI.** A `MIDI Inst.` or `MIDI Drum` slot sends nothing until its
   **Enabled** is on (and `System > MIDI > MIDI Active` is on). MIDI never
