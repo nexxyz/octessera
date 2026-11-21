@@ -10,6 +10,7 @@ fn osc(waveform: WaveformId, pulse_duty: f32) -> OscRenderConfig {
         detune_mul: 1.0,
         level: 1.0,
         pulse_duty,
+        pulse_gain: pulse_gain(pulse_duty),
     }
 }
 
@@ -53,7 +54,7 @@ fn edge_waveforms_keep_folded_harmonics_low_on_a_high_note() {
 }
 
 #[test]
-fn a_pulse_of_any_width_carries_no_dc() {
+fn a_pulse_of_any_width_carries_no_dc_and_peaks_at_one() {
     let inc = 7.0 / 4_410.0;
     for duty in [0.05, 0.12, 0.3, 0.5, 0.66, 0.95] {
         let cfg = osc(WaveformId::Pulse, duty);
@@ -63,5 +64,13 @@ fn a_pulse_of_any_width_carries_no_dc() {
             .sum::<f64>()
             / 4_410.0;
         assert!(mean.abs() < 1.0e-3, "duty {duty}: mean {mean}");
+        let mut phase = 0.0;
+        let peak = (0..4_410)
+            .map(|_| osc_sample_precomputed(cfg, inc, &mut phase).abs())
+            .fold(0.0_f32, f32::max);
+        assert!(
+            (0.99..=1.0 + 1.0e-6).contains(&peak),
+            "duty {duty}: peak {peak}"
+        );
     }
 }

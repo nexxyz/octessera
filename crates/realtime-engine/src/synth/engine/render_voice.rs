@@ -46,6 +46,8 @@ struct OscRenderConfig {
     detune_mul: f32,
     level: f32,
     pulse_duty: f32,
+    /// Keeps the DC-free pulse inside ±1: `1 / (1 + |2 x duty - 1|)`.
+    pulse_gain: f32,
 }
 
 #[derive(Clone, Copy)]
@@ -132,12 +134,14 @@ impl SynthVoiceRenderConfig {
 
 impl OscRenderConfig {
     fn from_config(cfg: OscConfig) -> Self {
+        let pulse_duty = (cfg.pulse_width_pct / 100.0).clamp(0.05, 0.95);
         Self {
             waveform: cfg.waveform,
             octave_mul: 2.0_f32.powi(cfg.octave.clamp(-2, 2)),
             detune_mul: 2.0_f32.powf(cfg.detune_cents.clamp(-1200.0, 1200.0) / 1200.0),
             level: (cfg.level_pct / 100.0).clamp(0.0, 1.0),
-            pulse_duty: (cfg.pulse_width_pct / 100.0).clamp(0.05, 0.95),
+            pulse_duty,
+            pulse_gain: pulse_gain(pulse_duty),
         }
     }
 
@@ -395,23 +399,28 @@ fn osc_sample_precomputed(cfg: OscRenderConfig, inc: f32, phase: &mut f32) -> f3
         WaveformId::Sine => sin_turns(*phase),
         WaveformId::Triangle => 4.0 * (*phase - 0.5).abs() - 1.0,
         WaveformId::Saw => 2.0 * *phase - 1.0 - poly_blep(*phase, inc),
-        WaveformId::Square => pulse_sample(*phase, 0.5, inc),
-        WaveformId::Pulse => pulse_sample(*phase, cfg.pulse_duty, inc),
+        WaveformId::Square => pulse_sample(*phase, 0.5, 1.0, inc),
+        WaveformId::Pulse => pulse_sample(*phase, cfg.pulse_duty, cfg.pulse_gain, inc),
     };
 
     raw * cfg.level
 }
 
-/// A band-limited pulse with its DC removed: a narrow pulse sits around zero like a square does.
+fn pulse_gain(duty: f32) -> f32 {
+    1.0 / (1.0 + (2.0 * duty - 1.0).abs())
+}
+
+/// A band-limited pulse with its DC removed, so a narrow pulse sits around zero like a square
+/// does, scaled by `gain` to peak at ±1.
 #[inline(always)]
-fn pulse_sample(phase: f32, duty: f32, inc: f32) -> f32 {
+fn pulse_sample(phase: f32, duty: f32, gain: f32, inc: f32) -> f32 {
     let dc = 2.0 * duty - 1.0;
     let (naive, since_fall) = if phase < duty {
         (1.0 - dc, phase - duty + 1.0)
     } else {
         (-1.0 - dc, phase - duty)
     };
-    naive + poly_blep(phase, inc) - poly_blep(since_fall, inc)
+    (naive + poly_blep(phase, inc) - poly_blep(since_fall, inc)) * gain
 }
 
 /// Band-limits a unit step at phase 0 over one sample on either side of it.
