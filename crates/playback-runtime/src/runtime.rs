@@ -192,6 +192,9 @@ pub struct PlaybackRuntime {
     last_good_snapshot: Option<Value>,
     presented_snapshot: Option<Value>,
     latched_errors: Vec<RuntimeErrorMetadata>,
+    /// Retried saves whose failure was latched once; their retries stay unlatched until that
+    /// save works again.
+    shown_save_failures: Vec<RuntimeOperation>,
     processed_result_keys: Vec<(bool, RuntimeOperation, Option<String>, Option<u64>)>,
     last_snapshot_revision: u64,
     scheduled_note_offs: VecDeque<ScheduledMidiMessage>,

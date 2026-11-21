@@ -65,6 +65,8 @@ impl NativeRunner {
         ) {
             self.pending.pending_default_load_request = None;
         }
+        // Input is blocked while a restore runs, so its progress and result wake the screen.
+        self.record_display_interaction();
         let rehydration_pending = status.phase == RuntimeUserDataRestorePhase::Succeeded;
         if status.phase == RuntimeUserDataRestorePhase::Failed {
             self.abandon_pending_default_write();

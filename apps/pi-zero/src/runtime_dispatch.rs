@@ -58,7 +58,9 @@ pub(crate) fn dispatch(
     if adapter.shutdown_pending() {
         return Ok(());
     }
-    let dispatch_input = adapter.handle_transfer_input(&message);
+    // A latched runtime error is drawn over the restore question, so it gets the press first.
+    let dispatch_input =
+        !playback.latched_errors().is_empty() || adapter.handle_transfer_input(&message);
     while let Some(status) = adapter.take_transfer_status() {
         if let Err(error) = dispatch_runtime_message(playback, runner, adapter, status) {
             eprintln!("pi transfer status dispatch failed: {error}");

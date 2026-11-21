@@ -7,6 +7,7 @@ mod oled_runtime_fixtures;
 mod oled_runtime_invariant;
 mod presented_runtime_error;
 mod recording;
+mod retried_save_failure;
 mod setup_portal;
 mod stopped_snapshot;
 pub(crate) mod support;

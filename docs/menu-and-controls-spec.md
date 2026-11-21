@@ -742,8 +742,11 @@ behavior primary red), so a mute never reads as a section color.
    `music on here.` / `Main: Restore` / `Back: Cancel` with no selected row; Main applies, Back
    cancels, and a cancel or the two-minute timeout returns to the plain card. Because the board
    takes the next Main or Back as the answer, the question wakes the OLED, keeps it from
-   sleeping, and ranks above every screen except a running restore, including error screens,
-   which show once it is answered.
+   sleeping, and ranks above every runner screen except a running restore, including the
+   runner's error screens, which show once it is answered. A runtime-latched error is drawn
+   over everything, so while one is up the board passes Main and Back to it instead of
+   answering; the question shows again once it is dismissed. The answer, the restore's
+   progress and its result wake the OLED as well.
 6. System info and help. On the boards, Sys. Info shows `IP: unavailable` and `MAC: unavailable`
    unless `wlan0` is up with a carrier (associated) and holds a usable IPv4 address.
 7. A Shape signal view or the performance view, then the menu, with the footer. Context toasts
@@ -758,9 +761,9 @@ behavior primary red), so a mute never reads as a section color.
   press both still close it. The raw message is never drawn; one `eprintln!` line per presented
   error (domain, code, operation, full message) goes to the journal instead.
 - The runtime keeps retrying `store_save_default`, `store_save_backup`, `store_save_recovery` and
-  `store_save_system` while the data stays unsaved. Each of them shows its error once; its retries
-  stay off the screen until that save works again, or until `Save Patch` (for the patch) or a
-  System save (for settings) is run by hand.
+  `store_save_system` while the data stays unsaved. Each of them shows its error once, in the
+  runtime latch and the runner alike; its retries stay off the screen until that save works
+  again, or until `Save Patch` (for the patch) or a System save (for settings) is run by hand.
 - Wording is chosen by operation, and only states what happens in every case of that family:
   `CAN'T SAVE` (`store_save_preset`: `<name> was not saved.` plus either `A preset with that name
   exists.` or `Check the SD card, then try again.`, with the name taken from the preset request

@@ -101,6 +101,20 @@ pub enum RuntimeOperation {
     UserDataTransfer,
 }
 
+impl RuntimeOperation {
+    /// Saves the runtime retries on its own while the patch or settings stay unsaved, so a
+    /// failure of one is shown once rather than on every retry.
+    pub fn is_retried_save(&self) -> bool {
+        matches!(
+            self,
+            Self::StoreSaveDefault
+                | Self::StoreSaveBackup
+                | Self::StoreSaveRecovery
+                | Self::StoreSaveSystem
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeRecovery {

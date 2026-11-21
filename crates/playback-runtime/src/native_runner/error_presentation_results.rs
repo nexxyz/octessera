@@ -79,7 +79,7 @@ impl NativeRunner {
                 }
             }
             RuntimeStoreResult::RuntimeFailure { error } => {
-                if is_retried_save(&error.operation) {
+                if error.operation.is_retried_save() {
                     if self.display.shown_save_failures.contains(&error.operation) {
                         return Ok(());
                     }
@@ -113,17 +113,6 @@ impl NativeRunner {
         }
         Ok(())
     }
-}
-
-/// Saves the runtime retries on its own while the patch or settings stay unsaved.
-fn is_retried_save(operation: &crate::RuntimeOperation) -> bool {
-    matches!(
-        operation,
-        crate::RuntimeOperation::StoreSaveDefault
-            | crate::RuntimeOperation::StoreSaveBackup
-            | crate::RuntimeOperation::StoreSaveRecovery
-            | crate::RuntimeOperation::StoreSaveSystem
-    )
 }
 
 impl NativeRunner {

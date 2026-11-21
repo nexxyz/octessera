@@ -118,11 +118,15 @@ impl NativeRunner {
             }
             self.pending.suppress_snapshot_response = false;
         }
+        // A runtime-latched error is drawn over every runner screen, so it takes the input first.
+        if force_error_presentation {
+            return self.handle_runtime_error_presentation_input(input, true);
+        }
         if self.restore_confirmation().is_some() {
             return self.handle_user_data_transfer_modal_input(input);
         }
-        if force_error_presentation || self.display.runtime_error_presentation.is_some() {
-            return self.handle_runtime_error_presentation_input(input, force_error_presentation);
+        if self.display.runtime_error_presentation.is_some() {
+            return self.handle_runtime_error_presentation_input(input, false);
         }
         if self.display.user_data_restore.is_some() {
             return self.handle_user_data_restore_input(input);

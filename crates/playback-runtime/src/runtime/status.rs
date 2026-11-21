@@ -84,9 +84,16 @@ impl PlaybackRuntime {
                     facts.operation = operation;
                 }
             }
+            if facts.operation.is_retried_save() {
+                if self.shown_save_failures.contains(&facts.operation) {
+                    return;
+                }
+                self.shown_save_failures.push(facts.operation.clone());
+            }
             self.latch_error(facts.into_metadata(RuntimeRecovery::RetainLastGood));
         } else {
             let operation = result.operation();
+            self.shown_save_failures.retain(|shown| *shown != operation);
             if let Some((_, request_id, revision)) = result.success_identity() {
                 let key = crate::RuntimeErrorFacts::new(
                     crate::RuntimeErrorDomain::Runtime,

@@ -25,8 +25,16 @@ impl NativeRunner {
             self.display.user_data_transfer = None;
             return;
         }
-        if status.phase == RuntimeUserDataTransferPhase::ConfirmRestore {
-            // The board takes the next Main or Back as the answer, so the question must be lit.
+        let was_confirming = self
+            .display
+            .user_data_transfer
+            .as_ref()
+            .is_some_and(|current| {
+                current.status.phase == RuntimeUserDataTransferPhase::ConfirmRestore
+            });
+        if was_confirming || status.phase == RuntimeUserDataTransferPhase::ConfirmRestore {
+            // The board takes Main or Back as the answer without the runner seeing it, so the
+            // question and whatever follows it must be lit.
             self.record_display_interaction();
         }
         self.display.user_data_transfer = Some(NativeUserDataTransferState {

@@ -23,6 +23,7 @@ impl PlaybackRuntime {
             last_good_snapshot: None,
             presented_snapshot: None,
             latched_errors: Vec::new(),
+            shown_save_failures: Vec::new(),
             processed_result_keys: Vec::new(),
             last_snapshot_revision: 0,
             scheduled_note_offs: std::collections::VecDeque::new(),
