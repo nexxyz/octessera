@@ -60,20 +60,21 @@ pub fn ant_on_input(
 ) -> AntState {
     let previous = ant_cells_with_agents(&state);
     let mut next = state.clone();
-    if next.ants.len() >= next.max_ants {
-        return state;
-    }
-    match input {
+    let ant = match input {
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "spawnAnt" =>
         {
-            next.ants.push(random_ant())
+            random_ant()
         }
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
-            next.ants.push(AntAgent { x, y, dir: 0 })
+            AntAgent { x, y, dir: 0 }
         }
         _ => return state,
+    };
+    if next.ants.len() >= next.max_ants {
+        next.ants.remove(0);
     }
+    next.ants.push(ant);
     let cells = ant_cells_with_agents(&next);
     next.trigger_types = trigger_types_from_tiles(&previous, &cells);
     next

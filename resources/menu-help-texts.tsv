@@ -879,7 +879,7 @@ layer_build_seeded	*	key:layers.*.build.seeded	bool	Seeded	When On, this layer's
 layer_link_seeded	*	key:layers.*.link.seeded	bool	Seeded	When On, this layer's trigger probability and random arp order follow the Build Seed.	Off keeps them on the shared unseeded stream, as before.
 layer_brain_fire_threshold	*	key:layers.*.build.behaviorConfig.fireThreshold	number	Fire Threshold	How many firing neighbors wake a resting cell.	2 is the classic Brian's Brain; 1 spreads wildly, 3 and 4 calm it down.
 layer_brain_spawn_count	*	key:layers.*.build.behaviorConfig.randomSeedCells	number	Spawn Count	How many cells Seed Brain and Seed Interval light up.	Off seeds nothing.
-layer_ant_max_ants	*	key:layers.*.build.behaviorConfig.maxAnts	number	Max Ants	The most ants that walk at once.	Spawn Ant and Spawn Interval stop adding ants at this count.
+layer_ant_max_ants	*	key:layers.*.build.behaviorConfig.maxAnts	number	Max Ants	The most ants that walk at once.	Spawn Interval stops adding ants at this count; a press or Spawn Ant then replaces the oldest ant.
 layer_ant_spawn_interval	*	key:layers.*.build.behaviorConfig.autoSpawnInterval	number	Spawn Interval	Adds an ant every this many steps.	Off adds ants only when you ask.
 layer_bounce_max_balls	*	key:layers.*.build.behaviorConfig.maxBalls	number	Max Balls	The most balls that bounce at once.	New balls wait until there is room.
 layer_games_cpu_skill	*	key:layers.*.build.behaviorConfig.cpuSkillPct	number	CPU Skill	The chance a CPU paddle means to reach the ball, in Pong and Blockout.	100 never misses; lower values end rallies sooner, and the ball serves again.

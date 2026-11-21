@@ -23,7 +23,7 @@ fn empty_config_seeds_deterministic_ant_and_autospawns_are_bounded() {
 }
 
 #[test]
-fn ant_moves_flips_wraps_and_respects_max_ants() {
+fn ant_moves_flips_wraps_and_a_press_at_max_ants_replaces_the_oldest() {
     let mut context = BehaviorContext::new(120.0);
     let mut state = ant_init(serde_json::json!({ "maxAnts": 1, "ants": [] })).unwrap();
     state = ant_on_input(state, DeviceInput::GridPress { x: 0, y: 0 }, &mut context);
@@ -33,6 +33,7 @@ fn ant_moves_flips_wraps_and_respects_max_ants() {
         &mut context,
     );
     assert_eq!(limited.ants.len(), 1);
+    assert_eq!((limited.ants[0].x, limited.ants[0].y), (2, 2));
 
     let ticked = ant_on_tick(state, &mut context);
     assert!(ticked.cells[grid_index(0, 0)]);
