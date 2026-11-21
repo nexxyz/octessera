@@ -1,26 +1,16 @@
-use super::{NativeRunner, Value};
+use super::NativeRunner;
 
 impl NativeRunner {
-    pub(super) fn prepare_behavior_config_recomposition(
+    /// A manual edit of these behavior settings owns them from now on: the sources holding
+    /// them let go.
+    pub(super) fn yield_behavior_config_fields_to_edit(
         &mut self,
         layer_index: usize,
-        base_config: &Value,
         fields: &[String],
-    ) -> Value {
-        let mut state = std::mem::take(&mut self.modulation_process);
-        let mut final_config = base_config.as_object().cloned().unwrap_or_default();
+    ) {
         for field in fields {
             let key = format!("layers.{layer_index}.build.behaviorConfig.{field}");
-            let Some(base_value) = final_config.get(field).cloned() else {
-                continue;
-            };
-            let held_value = state.composed_discrete_value(&key);
-            state.set_discrete_base(&key, base_value);
-            if let Some(held_value) = held_value {
-                final_config.insert(field.clone(), held_value);
-            }
+            self.modulation_process.yield_key_to_edit(&key);
         }
-        self.modulation_process = state;
-        Value::Object(final_config)
     }
 }

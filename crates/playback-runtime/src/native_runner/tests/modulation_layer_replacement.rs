@@ -42,20 +42,20 @@ pub(crate) fn keyed_behavior_menu_leaf_recomposes_with_one_target_replacement() 
         .unwrap();
 
     assert_eq!(runner.layer_behavior_rebuilds, 1);
+    let edited = runner.menu.number_for_key(key).unwrap();
     assert_eq!(
         runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"],
-        20
+        edited
     );
-    let rebased_base = runner.menu.number_for_key(key).unwrap();
     runner.set_param_binding_target("xy:x", None);
     assert_eq!(
         runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"],
-        rebased_base
+        edited
     );
 }
 
 #[test]
-pub(crate) fn aux_behavior_turn_recomposes_held_value_with_one_replacement() {
+pub(crate) fn aux_behavior_turn_takes_over_a_held_value_with_one_replacement() {
     let mut runner = brain_target_runner();
     let key = "layers.1.build.behaviorConfig.randomSeedCells";
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Xy);
@@ -85,19 +85,26 @@ pub(crate) fn aux_behavior_turn_recomposes_held_value_with_one_replacement() {
         press_action: None,
     });
     runner.layer_behavior_rebuilds = 0;
+    let base_before = runner.menu.number_for_key(key).unwrap();
 
     runner.handle_aux_turn(0, 1).unwrap();
 
     assert_eq!(runner.layer_behavior_rebuilds, 1);
-    assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 10);
+    assert_eq!(
+        runner.layers[1].behavior_config["randomSeedCells"],
+        base_before + 1
+    );
     assert_eq!(
         runner.layers[1].engine.serialized_state().unwrap()["randomSeedCells"],
-        10
+        base_before + 1
     );
+    assert!(!runner
+        .modulation_process
+        .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
 }
 
 #[test]
-pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target() {
+pub(crate) fn physical_aux_turn_takes_over_its_held_target_only() {
     let mut runner = brain_target_runner();
     runner
         .messages_with_snapshot()
@@ -152,24 +159,20 @@ pub(crate) fn physical_aux_turn_updates_base_and_recomposes_only_its_held_target
         .unwrap();
     assert_eq!(runner.layer_behavior_rebuilds, 1);
     assert_eq!(runner.fast_autosave_marks, 1);
-    assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 10);
+    assert_eq!(
+        runner.layers[1].behavior_config["randomSeedCells"],
+        base_before + 1
+    );
     assert_eq!(
         runner.active_engine().state().clone(),
         unrelated_layer_before
     );
     assert_eq!(runner.transport, transport_before);
     assert_eq!(runner.menu.rebuild_count, menu_rebuilds_before);
-    assert!(runner
+    assert!(!runner
         .modulation_process
         .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
-    assert_eq!(
-        runner
-            .modulation_process
-            .base_discrete
-            .get(key)
-            .and_then(|(_, value)| value.as_i64()),
-        Some(i64::from(base_before + 1))
-    );
+    assert!(!runner.modulation_process.base_discrete.contains_key(key));
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
     assert!(runner.pending.pending_save_revision.is_none());
     assert_eq!(runner.behavior_state_serialization_calls.get(), 0);

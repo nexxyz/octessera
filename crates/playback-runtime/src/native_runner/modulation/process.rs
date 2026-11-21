@@ -293,17 +293,19 @@ impl NativeRunner {
         self.modulation_process.clear_source(source)
     }
 
+    /// A manual edit of `key` (menu, Aux, fader) has applied: it drops the sources holding the
+    /// key. True when an LFO still rides it, so the recomposition already sent the new value.
     pub(in crate::native_runner) fn rebase_and_recompose_modulation_key(
         &mut self,
         key: &str,
     ) -> bool {
         let mut state = std::mem::take(&mut self.modulation_process);
-        let relevant = state.rebase_key(self, key);
-        if relevant {
+        let lfo = state.yield_key_to_edit(key);
+        if !state.dirty_keys.is_empty() || !state.dirty_persistent_keys.is_empty() {
             state.process(self, false, true, false);
         }
         self.modulation_process = state;
-        relevant
+        lfo
     }
 
     pub(in crate::native_runner) fn refresh_xy_runtime_sources(&mut self) {

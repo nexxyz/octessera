@@ -129,7 +129,7 @@ fn pluck_string_aux_and_xy_picker_composition_do_not_replace_other_slot() {
 }
 
 #[test]
-fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
+fn pluck_held_xy_edit_takes_over_and_pick_position_is_next_pluck_only() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = InstrumentType::Pluck;
     runner.menu.rebuild(runner.menu_config());
@@ -158,23 +158,25 @@ fn pluck_held_xy_edit_rebases_and_pick_position_is_next_pluck_only() {
         &mut runner,
         json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
     );
-    assert!(!edit
-        .iter()
-        .any(|message| matches!(message, RunnerMessage::AudioCommands { .. })));
-    let new_base = runner
+    let edited = runner
         .menu
         .number_for_key("instruments.0.pluck.brightnessPct")
         .unwrap();
-    runner.set_param_binding_target("xy:x", None);
+    let commands = edit
+        .iter()
+        .flat_map(|message| match message {
+            RunnerMessage::AudioCommands { commands } => commands.as_slice(),
+            _ => &[],
+        })
+        .collect::<Vec<_>>();
     assert!(
-        matches!(&runner.outbox.drain_audio_commands()[..], [RuntimeAudioCommand::SetPluckParam {
+        matches!(&commands[..], [RuntimeAudioCommand::SetPluckParam {
         instrument_slot: 0, path, value, ..
-    }] if path == "pluck.brightnessPct" && *value == new_base as f32)
+    }] if path == "pluck.brightnessPct" && *value == edited as f32),
+        "{commands:?}"
     );
-    assert_eq!(
-        runner.instruments[0].pluck_config["brightnessPct"],
-        new_base
-    );
+    runner.set_param_binding_target("xy:x", None);
+    assert_eq!(runner.instruments[0].pluck_config["brightnessPct"], edited);
 
     assert!(!super::super::modulation::audio::is_live_link_lfo_target(
         "instruments.0.pluck.pickPositionPct"

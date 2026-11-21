@@ -163,7 +163,7 @@ fn synth_and_sample_sustained_device_edits_never_replace_instrument_slots() {
 }
 
 #[test]
-fn held_fm_xy_menu_edit_rebases_without_double_command_then_release_restores_new_base() {
+fn held_fm_xy_menu_edit_takes_over_with_one_command_and_unbinding_keeps_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = InstrumentType::Fm;
     runner.menu.rebuild(runner.menu_config());
@@ -179,23 +179,17 @@ fn held_fm_xy_menu_edit_rebases_without_double_command_then_release_restores_new
         &mut runner,
         json!({ "type": "encoder_turn", "id": "main", "delta": 1 }),
     );
-    assert!(!messages
-        .iter()
-        .any(|message| matches!(message, RunnerMessage::AudioCommands { .. })));
-    let new_base = runner
+    assert_only_scalar(&messages, 0, "fm.index");
+    let edited = runner
         .menu
         .number_for_key("instruments.0.fm.index")
         .unwrap();
+    assert!(messages.iter().any(|message| matches!(message,
+        RunnerMessage::AudioCommands { commands } if commands.iter().any(|command| matches!(command,
+            RuntimeAudioCommand::SetFmParam { value, .. } if *value == edited as f32)))));
+    assert_eq!(runner.instruments[0].fm_config["index"], edited);
     runner.set_param_binding_target("xy:x", None);
-    let commands = runner.outbox.drain_audio_commands();
-    assert!(
-        commands.iter().any(|command| matches!(command,
-            RuntimeAudioCommand::SetFmParam { instrument_slot: 0, path, value, .. }
-            if path == "fm.index" && *value == new_base as f32
-        )),
-        "{commands:?}"
-    );
-    assert_eq!(runner.instruments[0].fm_config["index"], new_base);
+    assert_eq!(runner.instruments[0].fm_config["index"], edited);
 }
 
 #[test]

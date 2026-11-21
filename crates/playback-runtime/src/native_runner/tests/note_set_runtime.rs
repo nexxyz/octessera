@@ -68,7 +68,7 @@ pub(crate) fn note_set_bindings_write_all_current_options() {
 }
 
 #[test]
-pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_autosave() {
+pub(crate) fn changed_note_set_drops_held_modulation_clears_link_state_and_delays_autosave() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.xy.x_binding = Some(NativeParamBinding {
         key: NOTE_SET_KEY.into(),
@@ -117,16 +117,12 @@ pub(crate) fn changed_note_set_rebases_modulation_clears_link_state_and_delays_a
         })
         .unwrap();
 
-    assert_eq!(runner.layers[0].link.scale, "dominant_seventh");
-    assert_eq!(
-        runner
-            .modulation_process
-            .base_discrete
-            .get(NOTE_SET_KEY)
-            .and_then(|(_, value)| value.as_str()),
-        Some("chromatic")
-    );
-    assert!(runner
+    assert_eq!(runner.layers[0].link.scale, "chromatic");
+    assert!(!runner
+        .modulation_process
+        .base_discrete
+        .contains_key(NOTE_SET_KEY));
+    assert!(!runner
         .modulation_process
         .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
     assert!(runner.link_arp.held_notes[0].is_empty());

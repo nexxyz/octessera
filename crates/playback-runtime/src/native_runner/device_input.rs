@@ -357,7 +357,7 @@ impl NativeRunner {
         let xy_held = self.xy.touch.active && self.play_live.xy_held_tile == Some((x, y));
         if self.active_play_mode != ActivePlayMode::None || fx_effects.is_some() || xy_held {
             self.release_fader_tile(x, y);
-            if self.active_play_mode == ActivePlayMode::Page(PlayMode::Xy) || xy_held {
+            if xy_held {
                 self.handle_play_xy_release();
             }
             if let Some(effects) = fx_effects.filter(|effects| !effects.is_empty()) {

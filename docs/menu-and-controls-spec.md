@@ -1207,8 +1207,12 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - The native process combines persistent, held tick/XY, and LFO contributions, clamps once, and
   applies one resolved value per target endpoint. An active LFO step visits only dirty LFO target
   keys plus other contributors sharing them.
-- Ordinary menu/Aux base edits rebase and recompose only the edited key/endpoint and keep held
-  sources, so clearing a source restores the new base.
+- Manual modulation is last edit wins. A menu edit, Aux turn, or Faders press drops every
+  held layer X/Y, Play XY, or MIDI CC source on that key, so the edit is what plays. A held
+  source that moves later drops the held source that moved before it, and the next CC or XY move
+  takes the key back. LFOs keep adding on top of whichever value owns the key. Clearing a source
+  restores the value from before it took the key. The Faders bar shows the value of the held
+  source that owns its target.
 - Changed persistent grid/XY targets from one step share one revision and one delayed autosave
   payload; no immediate full payload or behavior-state serialization is emitted.
 - Config/patch transactions reset candidate modulation state, install all persistent owners, and

@@ -80,14 +80,28 @@ fn fader_row_value(y: usize, binding: &NativeParamBinding) -> Value {
     quantize_binding_value(normalized, binding)
 }
 
-/// The row nearest to a target's current value on a slider over `binding`'s range.
-fn fader_value_row(value: &NativeMenuValue, binding: &NativeParamBinding) -> Option<usize> {
+/// The row nearest to a target's value on a slider over `binding`'s range: the value a held
+/// source plays when one holds the target, otherwise its menu value.
+fn fader_value_row(
+    value: &NativeMenuValue,
+    held: Option<&Value>,
+    binding: &NativeParamBinding,
+) -> Option<usize> {
     let normalized = match value {
-        NativeMenuValue::Number { value, .. } => binding_normalized(f64::from(*value), binding),
+        NativeMenuValue::Number { value, .. } => binding_normalized(
+            held.and_then(Value::as_f64).unwrap_or(f64::from(*value)),
+            binding,
+        ),
         NativeMenuValue::Enum { options, selected } => {
-            *selected as f32 / options.len().saturating_sub(1).max(1) as f32
+            let selected = held
+                .and_then(Value::as_str)
+                .and_then(|held| options.iter().position(|option| option == held))
+                .unwrap_or(*selected);
+            selected as f32 / options.len().saturating_sub(1).max(1) as f32
         }
-        NativeMenuValue::Bool { value } => f32::from(u8::from(*value)),
+        NativeMenuValue::Bool { value } => {
+            f32::from(u8::from(held.and_then(Value::as_bool).unwrap_or(*value)))
+        }
         _ => return None,
     };
     let normalized = if binding.invert {
@@ -224,9 +238,10 @@ impl NativeRunner {
         };
         let sliders = self.faders.first_action_column();
         for (x, sides) in self.faders.sliders.iter().enumerate().take(sliders) {
-            let row = sides[usize::from(shifted)]
-                .as_ref()
-                .and_then(|binding| fader_value_row(&self.bound_key_value(&binding.key)?, binding));
+            let row = sides[usize::from(shifted)].as_ref().and_then(|binding| {
+                let held = self.modulation_process.held_value(&binding.key);
+                fader_value_row(&self.bound_key_value(&binding.key)?, held.as_ref(), binding)
+            });
             for y in 0..GRID_HEIGHT {
                 let value = match row {
                     None => LedColor::BLACK,

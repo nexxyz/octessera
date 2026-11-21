@@ -115,11 +115,10 @@ impl NativeRunner {
             next.insert(field, value);
         }
         let next_config = Value::Object(next);
-        let engine_config = if mark_autosave {
-            self.prepare_behavior_config_recomposition(layer_index, &next_config, &fields)
-        } else {
-            next_config.clone()
-        };
+        if mark_autosave {
+            self.yield_behavior_config_fields_to_edit(layer_index, &fields);
+        }
+        let engine_config = next_config.clone();
         // A sequencer's pattern and a looper's recording are made by hand, so their settings keep
         // them; other behaviors re-initialise their world from the new settings.
         let saved_state = matches!(behavior_id.as_str(), "sequencer" | "looper")

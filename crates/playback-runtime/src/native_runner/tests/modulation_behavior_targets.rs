@@ -121,12 +121,12 @@ pub(crate) fn keyed_layer_algorithm_step_rebases_held_discrete_source() {
             request_snapshot: None,
         })
         .unwrap();
-    let rebased_base =
-        crate::timing_units::note_unit_to_pulses(&runner.menu.value_for_key(key).unwrap());
-    assert_eq!(runner.transport.algorithm_step_pulses, held_step);
+    let edited = crate::timing_units::note_unit_to_pulses(&runner.menu.value_for_key(key).unwrap());
+    assert_ne!(edited, held_step);
+    assert_eq!(runner.transport.algorithm_step_pulses, edited);
 
     runner.set_param_binding_target("xy:x", None);
-    assert_eq!(runner.transport.algorithm_step_pulses, rebased_base);
+    assert_eq!(runner.transport.algorithm_step_pulses, edited);
 }
 
 #[test]

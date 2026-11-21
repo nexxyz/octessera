@@ -211,14 +211,14 @@ The menu lists the technical bank, then the musical bank.
   (`Play > Faders > Fader n > Target`/`S+Target`): the bottom row gives Range Min, the top row Range
   Max, reversed when inverted. A new target, range or invert changes nothing until the next press.
 - A press writes the value through the menu edit, like the Mix page sets Volume, so it saves,
-  autosaves and rebases modulation like one. The slider does not hold it: a menu edit, an Aux turn
-  or a Preset > Load changes it freely afterwards. Sliders are not modulation sources and take no
-  claim.
+  autosaves and takes the target from a held XY, layer axis or CC like one (last edit wins). The
+  slider does not hold it: a menu edit, an Aux turn, the next CC or XY move, or a Preset > Load
+  changes it freely afterwards. Sliders are not modulation sources and take no claim.
 - Toast: `F3: Volume 57`, `S+F3: ...` for the Shift slider. A side without a target ignores
   presses; one whose target is not offered right now toasts `F3: Cutoff not active`.
 - Targets, ranges and inverts are saved with the patch; a slider has no saved position.
-- LEDs: each targeted column is a bar, bright up to the row nearest its target's current value
-  and dim above it, green for the plain sliders and magenta while Shift is held. Columns without a
+- LEDs: each targeted column is a bar, bright up to the row nearest the value you hear (the held
+  XY, layer axis or CC value while one owns the target, LFOs aside) and dim above it, green for the plain sliders and magenta while Shift is held. Columns without a
   target on the shown side, or whose target is not active, are dark.
 
 ### Action columns

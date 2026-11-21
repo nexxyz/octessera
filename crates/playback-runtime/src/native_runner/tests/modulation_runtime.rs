@@ -98,7 +98,7 @@ pub(crate) fn global_lfos_sum_shared_instrument_mixer_target_once() {
 }
 
 #[test]
-pub(crate) fn keyed_base_rebase_preserves_xy_source_and_clear_restores_new_base() {
+pub(crate) fn menu_edit_drops_a_held_xy_source_and_the_edit_is_what_plays() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].volume = 30;
     runner.xy.touch = NativeXyTouch {
@@ -119,14 +119,17 @@ pub(crate) fn keyed_base_rebase_preserves_xy_source_and_clear_restores_new_base(
     runner
         .apply_or_schedule_menu_key("instruments.0.mixer.volume")
         .unwrap();
-    assert_eq!(runner.instruments[0].volume, 50);
+    assert_eq!(runner.instruments[0].volume, 40);
+    assert!(!runner
+        .modulation_process
+        .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
 
     runner.set_param_binding_target("xy:x", None);
     assert_eq!(runner.instruments[0].volume, 40);
 }
 
 #[test]
-pub(crate) fn dirty_key_recomposition_includes_all_contributors_for_that_key() {
+pub(crate) fn the_held_source_touched_last_owns_the_key() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].volume = 50;
     let source_a = crate::native_runner::modulation::source::ModulationSourceId::layer_axis(
@@ -148,9 +151,12 @@ pub(crate) fn dirty_key_recomposition_includes_all_contributors_for_that_key() {
     assert_eq!(runner.instruments[0].volume, 25);
     let _ = runner.outbox.drain_audio_commands();
 
+    assert!(!runner.modulation_process.has_source(source_a));
+
     runner.set_runtime_source_input(source_a, volume_binding(), 1.0);
     runner.process_dirty_modulation_step(false).unwrap();
-    assert_eq!(runner.instruments[0].volume, 75);
+    assert_eq!(runner.instruments[0].volume, 100);
+    assert!(!runner.modulation_process.has_source(source_b));
 }
 
 #[test]

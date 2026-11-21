@@ -72,8 +72,12 @@ impl ModulationProcessState {
             transient_audio: false,
         };
         let key = next.binding.key.clone();
+        let rivals = self.held_sources(&key, Some(source));
+        for rival in &rivals {
+            self.clear_source(*rival);
+        }
         if self.sources.get(&source) == Some(&next) {
-            return false;
+            return !rivals.is_empty();
         }
         let previous = self.sources.get(&source).cloned();
         self.mark_source_change(previous.as_ref(), Some(&next));
@@ -164,95 +168,58 @@ impl ModulationProcessState {
         self.active_endpoint_keys.get(endpoint)
     }
 
-    pub(super) fn rebase_key(&mut self, runner: &NativeRunner, key: &str) -> bool {
-        let mut has_key = false;
-        let mut has_persistent = false;
-        let mut numeric_base = None;
-        let mut discrete_base = None;
-        let mut numeric_binding = None;
-        let source_ids = self
-            .source_keys
-            .get(key)
-            .into_iter()
-            .flatten()
-            .copied()
-            .collect::<Vec<_>>();
-        for source in source_ids {
-            let Some(held) = self.sources.get_mut(&source) else {
-                continue;
-            };
-            has_key = true;
-            if held.transient_audio {
-                continue;
-            }
-            has_persistent = true;
-            match held.value {
-                HeldValue::NumericDelta(_) => {
-                    let base = *numeric_base
-                        .get_or_insert_with(|| persistent_base_value(runner, &held.binding));
-                    numeric_binding = Some(held.binding.clone());
-                    let normalized = held.normalized.unwrap_or(0.0);
-                    held.value = HeldValue::NumericDelta(
-                        numeric_sample(runner, &held.binding, normalized) - base,
-                    );
-                }
-                HeldValue::DiscreteNormalized(_) => {
-                    discrete_base = Some(current_discrete_value(runner, &held.binding));
-                }
-            }
+    /// A manual edit owns `key` from now on: the held sources on it let go and the value they
+    /// held over is forgotten, so the edit is what plays; LFOs keep adding on top. True when an
+    /// LFO still rides the key, so recomposing it sends the edited value.
+    pub(in crate::native_runner) fn yield_key_to_edit(&mut self, key: &str) -> bool {
+        for held in self.held_sources(key, None) {
+            self.clear_source(held);
         }
-        if let (Some(base), Some(binding)) = (numeric_base, numeric_binding) {
-            self.base_values.insert(key.into(), base);
-            self.base_bindings.insert(key.into(), binding);
-            self.mark_key_active(key);
-        }
-        if let Some(value) = discrete_base {
-            if let Some((binding, _)) = self.base_discrete.get(key).cloned() {
-                self.base_discrete.insert(key.into(), (binding, value));
-                self.mark_key_active(key);
-            }
-        }
-        if has_key {
+        self.base_values.remove(key);
+        self.base_bindings.remove(key);
+        self.base_discrete.remove(key);
+        self.remove_key_if_unused(key);
+        let lfo = self.source_keys.contains_key(key);
+        if lfo {
             self.dirty_keys.insert(key.into());
-            if has_persistent {
-                self.dirty_persistent_keys.insert(key.into());
-            }
         }
-        has_key
+        lfo
     }
 
-    pub(in crate::native_runner) fn composed_discrete_value(&self, key: &str) -> Option<Value> {
+    /// The held (non-LFO) sources on `key`, other than `except`.
+    fn held_sources(
+        &self,
+        key: &str,
+        except: Option<ModulationSourceId>,
+    ) -> Vec<ModulationSourceId> {
         self.source_keys
             .get(key)
             .into_iter()
             .flatten()
-            .filter_map(|source| self.sources.get(source))
-            .filter_map(|held| match held.value {
-                HeldValue::DiscreteNormalized(normalized) => {
-                    let value =
-                        super::value::quantize_binding_value(normalized as f32, &held.binding);
-                    Some(
-                        if held.binding.kind == "number"
-                            && value.as_f64().is_some_and(|value| value.fract() == 0.0)
-                        {
-                            Value::from(value.as_f64().unwrap_or_default() as i64)
-                        } else {
-                            value
-                        },
-                    )
-                }
-                HeldValue::NumericDelta(_) => None,
+            .copied()
+            .filter(|source| Some(*source) != except)
+            .filter(|source| {
+                self.sources
+                    .get(source)
+                    .is_some_and(|held| !held.transient_audio)
             })
-            .next_back()
+            .collect()
     }
 
-    pub(in crate::native_runner) fn set_discrete_base(&mut self, key: &str, value: Value) {
-        if let Some((binding, _)) = self.base_discrete.get(key).cloned() {
-            self.base_discrete.insert(key.into(), (binding, value));
-            self.mark_key_active(key);
-        }
-        self.dirty_keys.remove(key);
-        self.dirty_persistent_keys.remove(key);
+    /// The value the held source on `key` plays, LFOs aside; None when nothing holds it.
+    pub(in crate::native_runner) fn held_value(&self, key: &str) -> Option<Value> {
+        let source = self.held_sources(key, None).pop()?;
+        let held = self.sources.get(&source)?;
+        Some(match held.value {
+            HeldValue::NumericDelta(delta) => Value::from(super::process_values::canonical_clamp(
+                held.binding.min,
+                held.binding.max,
+                self.base_values.get(key).copied()? + delta,
+            )),
+            HeldValue::DiscreteNormalized(normalized) => {
+                super::value::quantize_binding_value(normalized as f32, &held.binding)
+            }
+        })
     }
 
     pub(in crate::native_runner) fn persistent_behavior_config_overrides(

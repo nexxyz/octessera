@@ -197,6 +197,43 @@ fn the_bar_follows_the_target_value_in_each_bank() {
 }
 
 #[test]
+fn the_last_manual_source_owns_the_target_and_the_bar_shows_it() {
+    let mut runner = faders_runner();
+    runner.test_set_midi_enabled(true);
+    press_key(&mut runner, "midiCc.0.target.sound.velocityScalePct");
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
+    let cc = |runner: &mut NativeRunner, value: u8| {
+        runner
+            .send(
+                crate::MidiControlChange::parse(&[0xB0, 1, value])
+                    .unwrap()
+                    .into(),
+            )
+            .unwrap();
+    };
+
+    cc(&mut runner, 127);
+    assert_eq!(velocity(&runner), 200);
+    assert_eq!(
+        bar_top(&mut runner, 0, LedColor::GREEN),
+        Some(7),
+        "the bar shows the held CC value, not the menu row under it"
+    );
+
+    grid_tap(&mut runner, 0, 2);
+    let pressed = velocity(&runner);
+    assert_ne!(pressed, 200, "a fader press takes the target from the CC");
+    assert_eq!(bar_top(&mut runner, 0, LedColor::GREEN), Some(2));
+
+    cc(&mut runner, 0);
+    assert_eq!(velocity(&runner), 0, "the next CC takes it back");
+    set_menu_number(&mut runner, VELOCITY, 171);
+    assert_eq!(velocity(&runner), 171, "so does a menu edit");
+    pulses(&mut runner, 8);
+    assert_eq!(velocity(&runner), 171);
+}
+
+#[test]
 fn a_side_without_a_target_ignores_presses() {
     let mut runner = faders_runner();
     runner.display.toast = None;

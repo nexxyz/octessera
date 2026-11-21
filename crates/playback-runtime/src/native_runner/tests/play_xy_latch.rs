@@ -95,3 +95,29 @@ fn clear_all_and_patch_load_drop_the_latch() {
     runner.clear_patch_state().unwrap();
     assert!(!runner.play_live.xy_latched);
 }
+
+#[test]
+fn center_release_waits_for_the_held_tile_not_any_finger() {
+    let mut runner = xy_runner("reset-center");
+    let _ = device_input(&mut runner, json!({ "type": "grid_press", "x": 1, "y": 1 }));
+    let _ = device_input(&mut runner, json!({ "type": "grid_press", "x": 6, "y": 5 }));
+    let _ = device_input(
+        &mut runner,
+        json!({ "type": "grid_release", "x": 1, "y": 1 }),
+    );
+    assert!(
+        runner.xy.touch.active,
+        "an earlier finger lifting keeps the hold"
+    );
+    assert!((runner.xy.touch.display_x - 6.0 / 7.0).abs() < 0.0001);
+
+    let _ = device_input(
+        &mut runner,
+        json!({ "type": "grid_release", "x": 6, "y": 5 }),
+    );
+    assert!(!runner.xy.touch.active);
+    assert_eq!(
+        (runner.xy.touch.display_x, runner.xy.touch.display_y),
+        (0.5, 0.5)
+    );
+}

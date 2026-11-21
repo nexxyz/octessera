@@ -82,6 +82,7 @@ pub(crate) fn xy_smoothing_defaults_persists_in_config_and_patch_payloads() {
 #[test]
 pub(crate) fn xy_smoothing_off_jumps_before_target_conversion() {
     let mut runner = runner_with_xy();
+    runner.xy.y_binding = None;
     runner.xy.smoothing_ms = 0;
     runner.instruments[0].volume = 0;
     let now = Instant::now();
