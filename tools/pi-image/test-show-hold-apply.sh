@@ -52,19 +52,21 @@ check_board() {
     start_show 172800
     apply
     expect "rfkill block wlan"
-    expect "--on-active=3600"
-    expect "tick 3600 $(show_id)"
+    expect "systemctl stop octessera-show-hold-release-*.timer"
+    expect "--unit=octessera-show-hold-release-"
+    expect "--on-active=300"
+    expect "tick 300 $(show_id)"
     if [ -e "$dir/elapsed" ]; then fail "a fresh show banked time"; fi
 
-    apply tick 3600 "$(show_id)"
-    [ "$(sed -n 2p "$dir/elapsed")" = 3600 ] || fail "a tick did not bank its hour"
+    apply tick 300 "$(show_id)"
+    [ "$(sed -n 2p "$dir/elapsed")" = 300 ] || fail "a tick did not bank its five minutes"
 
-    printf '%s\n%s\n' "$(show_id)" 171000 >"$dir/elapsed"
+    printf '%s\n%s\n' "$(show_id)" 172600 >"$dir/elapsed"
     apply
     expect "rfkill block wlan"
-    expect "--on-active=1800"
+    expect "--on-active=200"
 
-    apply tick 1800 "$(show_id)"
+    apply tick 200 "$(show_id)"
     expect "rfkill unblock wlan"
     if [ -e "$dir/length" ] || [ -e "$dir/elapsed" ]; then fail "an expired show left its files"; fi
 
@@ -74,7 +76,7 @@ check_board() {
     printf '%s\n%s\n' "$old_show" 4000 >"$dir/elapsed"
     touch -d @2000 "$dir/length"
     apply tick 600 "$old_show"
-    expect "--on-active=3600"
+    expect "--on-active=300"
 
     rm "$dir/length"
     apply

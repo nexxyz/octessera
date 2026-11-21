@@ -7,14 +7,14 @@
 # The runtime writes the show length in seconds to `length` and removes it on
 # End. The show counts powered time on the monotonic clock, never the wall
 # clock: a transient timer re-runs this script as `tick <seconds> <show>` at
-# most an hour apart, each tick banks its seconds in `elapsed` (keyed to that
+# most five minutes apart, each tick banks its seconds in `elapsed` (keyed to that
 # show's `length` file), and a reboot resumes from the banked total. The show
 # is over, and `length` removed, once the banked time reaches the length.
 set -eu
 
 dir=${OCTESSERA_SHOW_HOLD_DIR:-/var/lib/octessera/show-hold}
 release=octessera-show-hold-release
-step=3600
+step=300
 
 if [ -e "$dir/wifi-off" ]; then
     nmcli radio wifi off
@@ -22,8 +22,10 @@ else
     nmcli radio wifi on
 fi
 
-systemctl stop "$release.timer" >/dev/null 2>&1 || true
-systemctl reset-failed "$release.service" >/dev/null 2>&1 || true
+# Each tick gets its own unit name: a running tick cannot re-arm a timer under
+# the name of its own still-loaded service.
+systemctl stop "$release-*.timer" >/dev/null 2>&1 || true
+systemctl reset-failed "$release-*" >/dev/null 2>&1 || true
 
 length=$(cat "$dir/length" 2>/dev/null || true)
 case "$length" in ""|*[!0-9]*) length=0 ;; esac
@@ -45,7 +47,7 @@ if [ "$left" -gt 0 ]; then
     active=1
     rfkill block wlan
     next=$((left < step ? left : step))
-    systemd-run --quiet --unit="$release" --on-active="$next" \
+    systemd-run --quiet --unit="$release-$(cut -d. -f1 /proc/uptime)-$$" --on-active="$next" \
         --timer-property=AccuracySec=1s /usr/local/sbin/octessera-show-hold-apply tick "$next" "$show"
 else
     rm -f "$dir/length" "$dir/elapsed"

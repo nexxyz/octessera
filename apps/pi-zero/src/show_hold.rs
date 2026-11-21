@@ -26,11 +26,7 @@ fn set_wifi_enabled_at(path: &Path, enabled: bool) -> Result<(), String> {
     if enabled {
         remove_if_present(path)
     } else {
-        std::fs::write(
-            path, "off
-",
-        )
-        .map_err(|error| error.to_string())
+        std::fs::write(path, "off\n").map_err(|error| error.to_string())
     }
 }
 
