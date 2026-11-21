@@ -74,7 +74,7 @@ json.dump(system, open(path, "w"), separators=(",", ":"))
 PY
 }
 # With start_exec set, the service runs that binary instead of the installed one; start_sandbox
-# adds these [Service] lines.
+# adds these [Service] lines; with start_wait=0 it does not wait for the readiness marker.
 start() {
   sudo -n mkdir -p "${dropin%/*}"
   { printf '[Service]\nEnvironment=OCTESSERA_PI_STORE_DIR=%s %s\n' "$store" "$*"
@@ -84,6 +84,7 @@ start() {
   # Never run a scenario against the live store.
   systemctl show -p Environment --value "$service" | grep -q "OCTESSERA_PI_STORE_DIR=$store" || { mark live_store_refused; return 1; }
   sudo -n systemctl restart "$service"
+  [ "$start_wait" = 0 ] && return 0
   for _ in $(seq 1 60); do
     sleep 1
     pid=$(systemctl show -p MainPID --value "$service")
@@ -141,6 +142,7 @@ cleanup() {
   sudo -n systemctl daemon-reload
   [ "$gadget_changed" = 1 ] && sudo -n systemctl restart "$gadget_unit"
   sudo -n systemctl restart "$service"
+  grep -q " $store " /proc/self/mountinfo && { sudo -n umount "$store" || sudo -n umount -l "$store"; }
   sudo -n rm -rf -- "$store" "$store"-*
   # shellcheck disable=SC2086
   sudo -n find $media -type f -newer "$root/started" -print -delete >> host.log 2>&1
@@ -386,11 +388,14 @@ usb_audio() {
 
 # shellcheck disable=SC1091
 . "$root/board-scenarios-system.sh"
+# shellcheck disable=SC1091
+. "$root/board-scenarios-stores.sh"
 started=$(date +%s)
 gadget_changed=0
 show_ran=0
 start_exec=""
 start_sandbox=""
+start_wait=1
 gadget_original=$(gadget_functions)
 touch started
 original=$(hashes)

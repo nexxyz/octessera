@@ -14,6 +14,10 @@ setups:
                   with Hold, tile (x, y) playing note 60 + x + 8y
   usb_notes_in    the usb_midi rig; slot 1 a Synth with Hold, L1 steps slot 5, a MIDI Inst. on
                   channel 1, on tile (0, 0), which plays note 60
+  old_system      keyboard capture allowed, System without midi.notesIn (as saved before it existed)
+  unknown_key     System with an unknown top-level key
+  truncated_patch the patch cut to half its bytes
+  full_card       Auto Save on, View on Back off, keyboard capture allowed
   presets         Auto Save on, View on Back off, keyboard capture allowed; presets A and AB, the
                   store's patch with Note Length 301 and 302 ms (BPM would also move the
                   tempo-synced delay times the runtime derives from it)
@@ -160,6 +164,13 @@ def main():
             path = store / "patches" / f"{name}.json"
             path.write_text(json.dumps(preset, separators=(",", ":")))
             os.chown(path, owner.st_uid, owner.st_gid)
+    elif setup in ("old_system", "unknown_key", "truncated_patch", "full_card"):
+        allow_keyboard(config)
+        config.update(autoSaveDefault=setup == "full_card", perfViewOnBack=False)
+        if setup == "old_system":
+            del config["midi"]["notesIn"]
+        if setup == "unknown_key":
+            system["fromTheFuture"] = True
     elif setup == "keymap":
         config["autoSaveDefault"] = True
         allow_keyboard(config)
@@ -167,7 +178,8 @@ def main():
     else:
         sys.exit(f"unknown setup {setup}")
     (store / "system.json").write_text(json.dumps(system, separators=(",", ":")))
-    (store / "default.patch.json").write_text(json.dumps(patch, separators=(",", ":")))
+    text = json.dumps(patch, separators=(",", ":"))
+    (store / "default.patch.json").write_text(text[: len(text) // 2] if setup == "truncated_patch" else text)
 
 
 main()
