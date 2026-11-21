@@ -41,6 +41,12 @@ impl NativeRunner {
         self.config_dirty = true;
     }
 
+    pub(in crate::native_runner) fn mark_config_clean(&mut self) {
+        self.config_dirty = false;
+        self.dirty_revision = None;
+        self.pending.pending_autosave_payload_due_at = None;
+    }
+
     pub fn mark_system_dirty(&mut self) {
         self.config_revision = self.config_revision.saturating_add(1);
         self.pending

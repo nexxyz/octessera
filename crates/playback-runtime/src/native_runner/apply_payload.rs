@@ -150,8 +150,7 @@ impl NativeRunner {
             self.config_revision = self.config_revision.max(source_revision);
         }
         self.pending.pending_save_revision = None;
-        self.config_dirty = false;
-        self.dirty_revision = None;
+        self.mark_config_clean();
     }
 
     fn apply_config_payload_unchecked(

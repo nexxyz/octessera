@@ -415,3 +415,62 @@ fn the_saved_patch_dialog_says_auto_save_leaves_nothing_older_to_go_back_to() {
         assert!(dialog.lines.len() <= OLED_BODY_ROWS - 2);
     }
 }
+
+/// The Pi side of a native autosave: write the current revision and report success.
+fn land_native_autosave(runner: &mut NativeRunner) {
+    let revision = runner.config_revision;
+    assert!(runner.register_native_default_write("auto-save", revision, true));
+    let payload = std::sync::Arc::new(
+        runner
+            .capture_config_snapshot()
+            .into_portable_patch_payload()
+            .unwrap(),
+    );
+    assert!(runner.attach_native_default_write_payload("auto-save", revision, payload));
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SaveDefaultResult {
+                ok: true,
+                is_auto: None,
+            }
+            .with_identity("auto-save".into(), Some(revision)),
+        })
+        .unwrap();
+}
+
+#[test]
+fn a_landed_autosave_does_not_make_the_next_load_save_again() {
+    let mut runner = preset_runner();
+    runner.auto_save_default = true;
+    for _ in 0..2 {
+        runner.mark_fast_autosave_dirty();
+        land_native_autosave(&mut runner);
+        assert!(!runner.config_dirty);
+
+        let confirmed = confirm_load(&mut runner, "preset.load.Alpha");
+
+        assert_eq!(
+            effects(&confirmed)
+                .into_iter()
+                .filter(is_load)
+                .collect::<Vec<_>>(),
+            vec![RuntimePlatformEffect::StoreLoadPreset {
+                name: "Alpha".into()
+            }]
+        );
+        assert_ne!(toast(&runner), Some("Saving, then loading"));
+        assert_eq!(runner.take_manual_save_request(), None);
+        let payload = runner
+            .capture_config_snapshot()
+            .into_portable_patch_payload()
+            .unwrap();
+        let _ = runner
+            .send(HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::LoadPresetResult {
+                    name: "Alpha".into(),
+                    payload: Some(payload),
+                },
+            })
+            .unwrap();
+    }
+}
