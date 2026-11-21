@@ -147,3 +147,27 @@ fn drop_impulse_forces_activate_and_serialization_is_stable() {
     assert_eq!(wave_serialize(&restored).unwrap(), serialized);
     assert!(!restored.trigger_types.contains(&TileTriggerType::Activate));
 }
+
+#[test]
+fn full_tension_without_damping_stays_in_range() {
+    let checker = (0..TILE_COUNT)
+        .map(|index| {
+            if (index + index / GRID_WIDTH) % 2 == 0 {
+                CLAMP
+            } else {
+                -CLAMP
+            }
+        })
+        .collect::<Vec<_>>();
+    let mut state = wave_init(serde_json::json!({
+        "displacement": checker,
+        "velocity": checker.iter().map(|value| -value).collect::<Vec<_>>(),
+        "dampingPct": 0, "tensionPct": 100, "autoImpulseInterval": 0
+    }))
+    .unwrap();
+    for _ in 0..8 {
+        state = wave_on_tick(state, &mut context());
+        assert!(state.velocity.iter().all(|value| value.abs() <= CLAMP));
+        assert!(state.displacement.iter().all(|value| value.abs() <= CLAMP));
+    }
+}

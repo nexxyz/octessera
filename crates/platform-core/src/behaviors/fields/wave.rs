@@ -111,15 +111,16 @@ pub fn wave_on_tick(mut state: WaveState, _context: &mut BehaviorContext) -> Wav
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
-            let average = neighbor_average(&state.displacement, x, y);
-            let force = (average - state.displacement[index]) * i16::from(state.tension_pct) / 100;
-            let velocity =
-                (state.velocity[index] + force) * (100 - i16::from(state.damping_pct)) / 100;
-            next_velocity[index] = velocity.clamp(-CLAMP, CLAMP);
-            next_displacement[index] = ((state.displacement[index] + next_velocity[index])
-                * (100 - i16::from(state.damping_pct))
-                / 100)
-                .clamp(-CLAMP, CLAMP);
+            let average = i32::from(neighbor_average(&state.displacement, x, y));
+            let displacement = i32::from(state.displacement[index]);
+            let keep = 100 - i32::from(state.damping_pct);
+            let force = (average - displacement) * i32::from(state.tension_pct) / 100;
+            let velocity = (i32::from(state.velocity[index]) + force) * keep / 100;
+            let velocity = velocity.clamp(-i32::from(CLAMP), i32::from(CLAMP));
+            next_velocity[index] = velocity as i16;
+            next_displacement[index] = ((displacement + velocity) * keep / 100)
+                .clamp(-i32::from(CLAMP), i32::from(CLAMP))
+                as i16;
         }
     }
     state.displacement = next_displacement;
