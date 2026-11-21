@@ -2,7 +2,10 @@ use super::super::render_voice::synth_voice_render::SynthSourceContext;
 use super::super::voice_block_sum::{sum_sample_voice, sum_synth_voice, SlotBlockSum};
 use super::super::BLOCK_SLOT_SCRATCH_FRAMES;
 use super::source_bank::RoutingTreeSourceBank;
-use crate::synth::types::INSTRUMENT_SLOT_COUNT;
+use crate::synth::types::{
+    INSTRUMENT_SLOT_COUNT, SAMPLE_VOICE_LANE_CAPACITY, SYNTH_VOICE_LANE_CAPACITY,
+    VOICE_PARTITION_COUNT,
+};
 
 pub(super) struct RoutingTreeSourceBlockScratch {
     voice_block: Vec<f32>,
@@ -24,7 +27,8 @@ impl RoutingTreeSourceBlockScratch {
     }
 }
 
-/// Renders the bank's voices, adding each straight into its instrument's `slot_out`.
+/// Renders the bank's voices, adding each straight into its instrument's `slot_out` in the inline
+/// executor's order (every partition's lanes in turn), so both paths round their sums alike.
 pub(super) fn render_routing_tree_sources(
     bank: &mut RoutingTreeSourceBank,
     frames: usize,
@@ -35,7 +39,8 @@ pub(super) fn render_routing_tree_sources(
     slot_out: &mut [Vec<f32>; INSTRUMENT_SLOT_COUNT],
 ) {
     let mut sum = SlotBlockSum::new(slot_out);
-    for (voice, ring) in bank.synth.iter_mut().zip(bank.rings.iter_mut()) {
+    for lane in partition_order(SYNTH_VOICE_LANE_CAPACITY) {
+        let voice = &mut bank.synth[lane];
         if !voice.active {
             continue;
         }
@@ -45,7 +50,7 @@ pub(super) fn render_routing_tree_sources(
         }
         sum_synth_voice(
             voice,
-            ring.as_deref_mut().expect("routing voice ring"),
+            bank.rings[lane].as_deref_mut().expect("routing voice ring"),
             frames,
             base_sample_clock,
             synth_context,
@@ -54,7 +59,11 @@ pub(super) fn render_routing_tree_sources(
         );
     }
     let mut sample_prefix = 0;
-    for voice in bank.sample.iter_mut().filter(|voice| voice.active) {
+    for lane in partition_order(SAMPLE_VOICE_LANE_CAPACITY) {
+        let voice = &mut bank.sample[lane];
+        if !voice.active {
+            continue;
+        }
         let rendered = sum_sample_voice(
             voice,
             frames,
@@ -65,4 +74,9 @@ pub(super) fn render_routing_tree_sources(
         sample_prefix = sample_prefix.max(rendered);
     }
     scratch.rendered_prefix = sum.longest_prefix().max(sample_prefix).min(frames);
+}
+
+fn partition_order(lanes: usize) -> impl Iterator<Item = usize> {
+    (0..VOICE_PARTITION_COUNT)
+        .flat_map(move |parity| (parity..lanes).step_by(VOICE_PARTITION_COUNT))
 }
