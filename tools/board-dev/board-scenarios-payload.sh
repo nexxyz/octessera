@@ -200,6 +200,7 @@ oled() {
   sudo -n cat "$trace/trace" > oled-trace.txt
 }
 soak() {
+  local start_sandbox=$sandbox
   configure autoSaveDefault=false dimTimerSeconds=0 screenSleepSeconds=0
   start OCTESSERA_TIMING_AUTOPLAY=1 OCTESSERA_RUNTIME_TIMING_TRACE=1 OCTESSERA_PI_UI_PROFILE=1 || return
   pid=$(systemctl show -p MainPID --value "$service")
@@ -278,7 +279,7 @@ stop_after() {
 # Grid Bright +10 and BPM +15, then a stop right after the last key; then 5 s of Audio recording and
 # a stop. Only a .wav in the Audio recordings folder, newer than this take's marker, counts.
 stop_save() {
-  local recordings=${media%% *} rec
+  local recordings=${media%% *} rec start_sandbox=$sandbox
   configure autoSaveDefault=true dimTimerSeconds=0 screenSleepSeconds=0
   snapshot stop-before
   start || return

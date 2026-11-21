@@ -46,6 +46,13 @@ show_mode() {
   local live_show="$system down*8 enter up*5"
   keys show_start "$live_show enter down enter"
   await_wlan yes 10 started
+  # A length written while the menu's apply still runs does not trigger the path unit again, so wait
+  # for that apply to arm its timer and finish first.
+  for _ in $(seq 1 50); do
+    systemctl list-timers --all --no-legend 'octessera-show-hold-release-*' | grep -q . &&
+      ! systemctl is-active --quiet octessera-show-hold.service && break
+    sleep 0.2
+  done
   # The runtime writes the length as its own user; a new length is a new show.
   printf '70\n' | sudo -n -u "$user" tee "$show_dir/length" >/dev/null
   local zero=$SECONDS

@@ -99,6 +99,7 @@ fi
 if [ ${#run[@]} -gt 0 ]; then
   upload
   remote ssh "setsid nohup taskset -c 0 bash $root/board-scenarios-payload.sh $board $root run $soak_seconds ${run[*]} > $root/host.log 2>&1 < /dev/null &"
+  echo "${run[*]}" >> "$out/launches.log"
   echo "running ${run[*]} on $board; no SSH for ${wait}s"
   sleep "$wait"
   collect save-before-system.json save-before-patch.json save-edited-system.json save-edited-patch.json \
@@ -112,6 +113,7 @@ for scenario in usb_midi usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio
   [[ " ${scenarios[*]} " == *" $scenario "* ]] || continue
   upload
   remote ssh "setsid nohup taskset -c 0 bash $root/board-scenarios-payload.sh $board $root run 0 $scenario > $root/host.log 2>&1 < /dev/null &"
+  echo "$scenario" >> "$out/launches.log"
   if [ "$scenario" = usb_midi ]; then
     for phase in straight swing; do
       gate=usb_midi

@@ -23,11 +23,12 @@ def sandbox_refusal(text):
     return ("Permission denied" in text and any(path in text for path in SANDBOXED)) or "no new privileges" in text
 
 
-def errors(rows, start=0.0, end=float("inf")):
+def errors(rows, start=0.0, end=float("inf"), sandboxed=False):
+    """Octessera error lines in the window; in a sandboxed scenario's window, not the sandbox's refusals."""
     return [f"{t:.1f} {ident}: {text}" for t, ident, text in rows
             if start <= t <= end and ident.startswith(("octessera", "systemd"))
             and ("octessera" in ident or "octessera" in text)
-            and ERROR.search(text) and not any(b in text for b in BENIGN) and not sandbox_refusal(text)]
+            and ERROR.search(text) and not any(b in text for b in BENIGN) and not (sandboxed and sandbox_refusal(text))]
 
 
 def marks(out):
@@ -38,9 +39,9 @@ def marks(out):
     return found
 
 
-def window_errors(out, name):
+def window_errors(out, name, sandboxed=False):
     found = marks(out)
-    return errors(journal(out / "journal.log"), found[f"{name}_begin"], found[f"{name}_end"])
+    return errors(journal(out / "journal.log"), found[f"{name}_begin"], found[f"{name}_end"], sandboxed)
 
 
 def first(rows, needle, ident=None):

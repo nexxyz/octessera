@@ -165,7 +165,7 @@ def soak(board, out):
         problems.append("soak too short to judge RSS after the 20-minute warm-up")
     if rss_grows or grows(fds, 4):
         problems.append("RSS grows after the 20-minute warm-up, or open fds grow steadily")
-    problems += errors(rows)
+    problems += errors(rows, sandboxed=True)
     return problems, (f"{underruns} underruns, {late} late timed events, {missed} missed quanta, {pulses} pulses, worst "
                       f"runtime_late {worst}us, RSS kB {rss}, fds {fds}")
 
@@ -235,7 +235,7 @@ def stop_save(board, out):
             problems.append(f"the recording does not decode cleanly: {decoded.stderr[:200]!r}")
     if seconds < 4:
         problems.append(f"the recording stopped by the service stop lasts {seconds:.2f} s, not at least 4 s")
-    problems += window_errors(out, "stop_save")
+    problems += window_errors(out, "stop_save", sandboxed=True)
     return problems, (f"saved Grid Bright and BPM {saved} (from {(grid, bpm)}), stop issued "
                       f"{round((issued - edited) * 1000)} ms and begun {sigterm_ms} ms after the last edit, "
                       f"stops {stops}, recording {seconds:.2f} s")
@@ -256,11 +256,12 @@ def fuzz(board, out):
         if "panicked" in text or (exited and exited.groups() != ("exited", "75")
                                   and not (exited.group(1) == "exited" and any(t - 10 <= r <= t for r in refused))):
             problems.append(f"{t:.1f} {text}")
-    problems += [line for line in errors(rows) if not any(r - 1 <= float(line.split()[0]) <= r + 1 for r in refused)]
+    problems += [line for line in errors(rows, sandboxed=True)
+                 if not any(r - 1 <= float(line.split()[0]) <= r + 1 for r in refused)]
     if end["active"] != "active" or restart["ready"] != "yes":
         problems.append(f"the service is {end['active']} after the fuzz, and ready after a restart: {restart['ready']}")
     restarts = sum("Main process exited" in text for _, _, text in rows)
-    return problems, (f"seed {start['seed']}, {restarts} app exits, {len(errors(rows))} error lines, RSS "
+    return problems, (f"seed {start['seed']}, {restarts} app exits, {len(errors(rows, sandboxed=True))} error lines, RSS "
                       f"{start['rss_kb']} -> {end['rss_kb']} kB (pid {start['pid']} -> {end['pid']})")
 
 
@@ -421,10 +422,11 @@ RESTORED = "service=active live_store_unchanged=yes dropin_left=no gadget_restor
 def restore(board, out):
     lines = [line.removeprefix("restore ") for line in (out / "host.log").read_text().splitlines()
              if line.startswith("restore ")]
+    launches = (out / "launches.log").read_text().splitlines()
     problems = [f"a payload left the board as: {line}" for line in lines if line != RESTORED]
-    if not lines:
-        problems.append("no payload reported its restore")
-    return problems, f"{len(lines)} payload run(s) restored"
+    if len(lines) != len(launches):
+        problems.append(f"{len(launches)} payload runs launched, {len(lines)} reported their restore")
+    return problems, f"{len(lines)} of {len(launches)} payload run(s) restored"
 
 
 def main():

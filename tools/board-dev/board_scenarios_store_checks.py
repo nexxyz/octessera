@@ -27,18 +27,28 @@ def store_facts(out):
     return dict(pair.split("=", 1) for line in store_lines(out) for pair in line.split() if "=" in pair)
 
 
+# The runtimeConfig keys of a saved patch; the rest of the factory config is System's.
+PATCH_KEYS = ("activeBehavior", "activeLayerIndex", "auxBindings", "faders", "instruments", "layers", "linkLfos",
+              "midiCcMappings", "mixer", "playFx", "playMode", "randomSeed", "shiftAuxBindings", "sound", "transport",
+              "xy", "xyRelease")
+# System-owned keys inside a patch section, which the saved patch leaves to system.json.
+SYSTEM_OWNED = (".sound.optimizeFor",)
+MISSING = object()
+
+
 def set_values_differ(factory, saved, path=""):
-    """Where the two disagree, leaving out a null on either side: the runtime fills the factory's
-    null settings of instrument types a slot does not use, and the patch leaves System-owned keys
-    (sound.optimizeFor) to system.json."""
-    if factory is None or saved is None:
+    """Where the saved patch disagrees with the factory config. A factory null is skipped: the
+    runtime fills the settings of instrument types a slot does not use. A null or missing saved
+    value where the factory has one is a difference."""
+    if factory is None or path in SYSTEM_OWNED:
         return []
     if isinstance(factory, dict) and isinstance(saved, dict):
         return [d for k in sorted(set(factory) | set(saved))
-                for d in set_values_differ(factory.get(k), saved.get(k), f"{path}.{k}")]
+                for d in set_values_differ(factory.get(k), saved.get(k, MISSING), f"{path}.{k}")]
     if isinstance(factory, list) and isinstance(saved, list) and len(factory) == len(saved):
         return [d for i, (f, s) in enumerate(zip(factory, saved)) for d in set_values_differ(f, s, f"{path}[{i}]")]
-    return [] if factory == saved else [f"{path}={json.dumps(factory)}->{json.dumps(saved)}"]
+    shown = "missing" if saved is MISSING else json.dumps(saved)
+    return [] if factory == saved else [f"{path}={json.dumps(factory)[:60]}->{shown[:60]}"]
 
 
 def factory_patch_problems(saved_path):
@@ -46,7 +56,7 @@ def factory_patch_problems(saved_path):
     saved = state.music(saved_path)
     factory = state.music(FACTORY_CONFIG)
     unknown = sorted(set(saved) - set(factory))
-    differs = set_values_differ({k: factory[k] for k in saved if k in factory}, saved)
+    differs = set_values_differ({k: factory[k] for k in PATCH_KEYS}, saved)
     return ([f"keys the factory config lacks: {unknown}"] if unknown else []) + \
         ([f"differs from the factory config: {differs[:5]}"] if differs else [])
 
@@ -74,7 +84,7 @@ def resets(board, out):
         problems.append("system.json was renamed aside instead of copied")
     if facts["missing"] != "0":
         problems.append(f"system.json was missing in {facts['missing']} of the 20 ms polls")
-    problems += window_errors(out, "resets")
+    problems += window_errors(out, "resets", sandboxed=True)
     return problems, (f"empty layers {rows['empty'].get('behaviors')}, after Factory System and restart "
                       f"{[restarted.get(k) for k in state.SYSTEM_KEYS]}, {len(new_aside)} new copy set aside, "
                       f"pid {facts['pid_before_reset']} -> {facts['pid_after_reset']}, {facts['missing']} missing polls")

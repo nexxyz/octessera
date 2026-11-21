@@ -405,14 +405,17 @@ usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
   no error line other than the sandbox's refusals, the service active at the
   end, and the clone loading after a restart. RSS is only reported, because it
   warms up for 20 minutes (see `soak`).
-- `resets`, `bad_stores` and `full_card` run in the `fuzz` sandbox.
+- `soak`, `stop_save`, `resets`, `bad_stores` and `full_card` run in the
+  `fuzz` sandbox; only in these scenarios' windows are its refusals excused.
 - `resets` (Auto Save on, the clone's USB and audio outputs at factory values,
   so Factory System asks root for no device change) runs Empty Patch, then
   Factory Patch, turns Grid and Button Bright up two detents each, runs
   Factory System, declines the restart, and stops and starts the service.
   After Empty Patch every layer must be `none`; after Factory Patch the saved
-  patch must hold the patch half of `config/generated/pi/default.json` (delay
-  times derived from BPM aside). After the restart, the changed System values
+  patch must hold every non-null value of the patch half of
+  `config/generated/pi/default.json`: the runtime fills that file's nulls for
+  instrument types a slot does not use, delay times derived from BPM are left
+  out, and `sound.optimizeFor` stays with System. After the restart, the changed System values
   must be back at that file's, so the exit save did not write the old ones
   back. Exactly one new `system.json.pre-reset-*` copy must be kept, as a copy
   (its inode is not the old `system.json`'s), and a root loop polling every
@@ -521,5 +524,5 @@ Each run writes its evidence and a `summary.txt` of PASS/FAIL lines to
 `board-keys.py` or updater switch it started, restores the service, removes
 the drop-in, clone and recordings, and checks the live store (every file in
 it, `patches/` and `backups/` included). Every run also gets a `restore`
-check: each payload's last line must read `service=active
+check: every payload launched must leave a last line reading `service=active
 live_store_unchanged=yes dropin_left=no gadget_restored=yes clone_mounted=no`.
