@@ -13,7 +13,7 @@ use crate::audio_prep_service::{
 use crate::desktop_platform_service::spawn_desktop_platform_service;
 use crate::host_adapter::{DesktopHostAudioState, DesktopPlaybackHostAdapter};
 use crate::recording::{DesktopRecording, RecordingEngineSource, RecordingTapState};
-use crate::store_startup::ensure_store_dir_at;
+use crate::store_startup::{ensure_store_dir_at, StoreLock};
 use logging_adapter::LoggingAdapter;
 pub use midi::PlayedMidi;
 use playback_runtime::{
@@ -61,12 +61,14 @@ pub struct HeadlessSession {
     recording_started_frame: Option<usize>,
     last_snapshot_at: f64,
     midi_port_scan_answered: bool,
+    _store_lock: StoreLock,
 }
 
 impl HeadlessSession {
     /// Starts on `store_dir` (seeded with the shipped default patch when empty).
     pub fn start(store_dir: PathBuf, recordings_dir: PathBuf) -> Result<Self, String> {
-        let store_dir = ensure_store_dir_at(store_dir).map_err(|error| error.to_string())?;
+        let (store_dir, store_lock) =
+            ensure_store_dir_at(store_dir).map_err(|error| error.to_string())?;
         let (engine_tx, engine_rx) = event_queue();
         let recording = DesktopRecording::with_screen_directory(
             recordings_dir.join("recordings"),
@@ -126,6 +128,7 @@ impl HeadlessSession {
             recording_started_frame: None,
             last_snapshot_at: 0.0,
             midi_port_scan_answered: false,
+            _store_lock: store_lock,
         };
         let output = session.playback.dispatch_runner_messages(
             vec![RunnerMessage::PlatformEffects {

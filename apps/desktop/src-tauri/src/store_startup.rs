@@ -86,9 +86,7 @@ pub(crate) fn ensure_store_dir(
     let dir = resolve_store_root(explicit_store_root(), || {
         app.path().app_data_dir().map_err(|error| error.to_string())
     })?;
-    create_store_root(&dir)?;
-    let lock = lock_store_dir(&dir)?;
-    Ok((prepare_store_dir(dir)?, lock))
+    ensure_store_dir_at(dir)
 }
 
 fn lock_store_dir(dir: &Path) -> Result<StoreLock, DesktopStoreStartupError> {
@@ -131,10 +129,12 @@ where
     app_data_dir().map_err(|source| DesktopStoreStartupError::ResolveAppData { source })
 }
 
-#[cfg(any(test, feature = "headless"))]
-pub(crate) fn ensure_store_dir_at(dir: PathBuf) -> Result<PathBuf, DesktopStoreStartupError> {
+pub(crate) fn ensure_store_dir_at(
+    dir: PathBuf,
+) -> Result<(PathBuf, StoreLock), DesktopStoreStartupError> {
     create_store_root(&dir)?;
-    prepare_store_dir(dir)
+    let lock = lock_store_dir(&dir)?;
+    Ok((prepare_store_dir(dir)?, lock))
 }
 
 fn create_store_root(dir: &Path) -> Result<(), DesktopStoreStartupError> {
