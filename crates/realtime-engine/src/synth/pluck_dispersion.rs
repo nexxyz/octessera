@@ -3,24 +3,24 @@ use std::f64::consts::TAU;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct DispersionTuning {
-    pub(super) coefficient: f32,
     pub(super) delay: usize,
     pub(super) fraction: f32,
 }
 
-pub(super) fn tune(
+/// The allpass coefficient for `dispersion_pct`, held back so the loop can still close at the
+/// fundamental; `None` when the note is out of range.
+pub(super) fn coefficient(
     frequency_hz: f64,
     sample_rate: f64,
     loss: f64,
     brightness: f64,
     dispersion_pct: f64,
-) -> Option<DispersionTuning> {
+) -> Option<f32> {
     let w0 = TAU * frequency_hz / sample_rate;
     if !(w0.is_finite() && w0 > 0.0 && w0 < std::f64::consts::PI) {
         return None;
     }
-    let q = loss * (1.0 - brightness);
-    let psi_g = (q * w0.sin()).atan2(1.0 - q * w0.cos());
+    let psi_g = loop_filter_phase(w0, loss, brightness);
     let phase_budget = TAU - 3.0 * w0 - psi_g;
     let requested = -0.85 * dispersion_pct / 100.0;
     let coefficient = if phase_budget >= std::f64::consts::PI {
@@ -31,9 +31,28 @@ pub(super) fn tune(
     } else {
         0.0
     } as f32;
-    if !coefficient.is_finite() || coefficient.abs() >= 1.0 {
+    (coefficient.is_finite() && coefficient.abs() < 1.0).then_some(coefficient)
+}
+
+fn loop_filter_phase(w0: f64, loss: f64, brightness: f64) -> f64 {
+    let q = loss * (1.0 - brightness);
+    (q * w0.sin()).atan2(1.0 - q * w0.cos())
+}
+
+/// The whole and fractional delay that close the loop at the fundamental with allpass
+/// `coefficient`.
+pub(super) fn delay(
+    frequency_hz: f64,
+    sample_rate: f64,
+    loss: f64,
+    brightness: f64,
+    coefficient: f32,
+) -> Option<DispersionTuning> {
+    let w0 = TAU * frequency_hz / sample_rate;
+    if !(w0.is_finite() && w0 > 0.0 && w0 < std::f64::consts::PI) {
         return None;
     }
+    let psi_g = loop_filter_phase(w0, loss, brightness);
     let a = coefficient as f64;
     let psi_a = if a == 0.0 {
         0.0
@@ -56,7 +75,6 @@ pub(super) fn tune(
         return None;
     }
     Some(DispersionTuning {
-        coefficient,
         delay: integer as usize,
         fraction,
     })

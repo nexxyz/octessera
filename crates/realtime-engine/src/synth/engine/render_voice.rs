@@ -207,12 +207,10 @@ pub(super) fn refresh_synth_voice_render_cache(
         voice.fm_neutral = velocity_to_index == 0.0 && mod_shape == 0.0 && mod_mix == 0.0;
     }
     if let VoiceSource::Pluck { settings } = cfg.source {
-        voice.pluck.update_coefficients(
-            voice.freq_hz,
-            sample_rate,
-            settings.decay_ms,
-            settings.brightness_pct,
-        );
+        voice
+            .pluck
+            .update_coefficients(voice.freq_hz, settings.decay_ms, settings.brightness_pct);
+        voice.pluck.retune(voice.freq_hz, sample_rate);
     }
     voice.render_revision = render_revision;
 }

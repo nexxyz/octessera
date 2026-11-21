@@ -81,19 +81,7 @@ impl PluckState {
                 ^ 0x6d2b_79f5,
             ..Self::off()
         };
-        state.update_coefficients(
-            freq_hz,
-            sample_rate,
-            settings.decay_ms,
-            settings.brightness_pct,
-        );
-        state.tune(freq_hz, sample_rate, settings.dispersion_pct);
-        state.update_coefficients(
-            freq_hz,
-            sample_rate,
-            settings.decay_ms,
-            settings.brightness_pct,
-        );
+        state.update_coefficients(freq_hz, settings.decay_ms, settings.brightness_pct);
         let pick_delay = state.tune(freq_hz, sample_rate, settings.dispersion_pct);
         state.pick_offset = ((pick_delay * settings.pick_position_pct.clamp(5.0, 50.0) / 100.0)
             .round() as usize)
@@ -116,19 +104,31 @@ impl PluckState {
         state
     }
 
-    /// Sets the delay so the loop, with its current loss and brightness, closes at `freq_hz`;
-    /// returns the tuned delay in samples.
+    /// Picks the dispersion for `dispersion_pct` and sets the delay so the loop, with its current
+    /// loss and brightness, closes at `freq_hz`; returns the tuned delay in samples.
     fn tune(&mut self, freq_hz: f32, sample_rate: u32, dispersion_pct: f32) -> f32 {
-        if let Some(tuning) = super::pluck_dispersion::tune(
+        let coefficient = super::pluck_dispersion::coefficient(
             freq_hz as f64,
             sample_rate as f64,
             self.loss as f64,
             self.brightness as f64,
             dispersion_pct as f64,
+        );
+        self.dispersion_coefficient = coefficient.unwrap_or(0.0);
+        self.retune(freq_hz, sample_rate)
+    }
+
+    /// Sets the delay for the voice's own dispersion, after its loss or brightness moved.
+    pub(super) fn retune(&mut self, freq_hz: f32, sample_rate: u32) -> f32 {
+        if let Some(tuning) = super::pluck_dispersion::delay(
+            freq_hz as f64,
+            sample_rate as f64,
+            self.loss as f64,
+            self.brightness as f64,
+            self.dispersion_coefficient,
         ) {
             self.delay = tuning.delay;
             self.fraction = tuning.fraction;
-            self.dispersion_coefficient = tuning.coefficient;
             self.delay as f32 + self.fraction
         } else {
             let delay = (sample_rate as f32 / freq_hz - 0.5).clamp(3.0, (RING_LEN - 2) as f32);
@@ -139,30 +139,15 @@ impl PluckState {
         }
     }
 
-    /// Sets the per-pass loss so the fundamental falls 60 dB in `decay_ms`, whatever the
-    /// brightness lowpass and the fractional delay take from it on each pass.
-    pub(super) fn update_coefficients(
-        &mut self,
-        freq_hz: f32,
-        sample_rate: u32,
-        decay_ms: f32,
-        brightness_pct: f32,
-    ) {
+    /// Sets the per-pass loss so the string's lowest partials fall 60 dB over `decay_ms`: the
+    /// loss makes up for what the brightness lowpass takes at DC, and no more, so nothing in the
+    /// loop rings longer than Decay. Higher partials, and the fundamental of a high or dark note,
+    /// fade sooner.
+    pub(super) fn update_coefficients(&mut self, freq_hz: f32, decay_ms: f32, brightness_pct: f32) {
         self.brightness = (0.2 + brightness_pct.clamp(0.0, 100.0) * 0.0078).clamp(0.2, 0.98);
         let pass_gain = (-6.907_755 / (decay_ms.clamp(100.0, 5_000.0) * 0.001 * freq_hz)).exp();
-        let (sin, cos) = (std::f32::consts::TAU * freq_hz / sample_rate as f32).sin_cos();
-        let fraction_gain =
-            (1.0 - 2.0 * self.fraction * (1.0 - self.fraction) * (1.0 - cos)).sqrt();
-        let target = pass_gain / fraction_gain;
-        let darkening = 1.0 - self.brightness;
-        let root = self.brightness * self.brightness - (target * darkening * sin).powi(2);
-        let denominator = root.max(0.0).sqrt() + target * darkening * cos;
-        self.loss = if root > 0.0 && denominator > 0.0 {
-            target / denominator
-        } else {
-            1.0
-        }
-        .clamp(0.0, 0.999_95);
+        self.loss = (pass_gain / (self.brightness + pass_gain * (1.0 - self.brightness)))
+            .clamp(0.0, 0.999_95);
     }
 
     pub(super) fn next(&mut self, ring: &mut PluckRing) -> f32 {

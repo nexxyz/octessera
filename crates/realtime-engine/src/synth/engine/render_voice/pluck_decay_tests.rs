@@ -13,27 +13,29 @@ fn fundamental_amplitude(samples: &[f32], start: usize, period: f64, periods: us
     2.0 * re.hypot(im) / length as f64
 }
 
+fn pluck(frequency: f32, note: u8, brightness_pct: f32) -> Vec<f32> {
+    let settings = PluckStringSettings {
+        decay_ms: 1_000.0,
+        brightness_pct,
+        ..PluckConfig::default().into()
+    };
+    let mut state = PluckState::note_on(frequency, 44_100, note, 100, settings);
+    let mut ring: PluckRing = [0.0; RING_LEN];
+    (0..44_100).map(|_| state.next(&mut ring)).collect()
+}
+
+/// Where the brightness lowpass barely touches the fundamental, it falls 60 dB over Decay.
 #[test]
-fn the_fundamental_falls_sixty_db_over_decay_whatever_the_brightness() {
-    let sample_rate = 44_100_u32;
+fn a_low_or_bright_fundamental_falls_sixty_db_over_decay() {
     for (note, frequency, brightness_pct) in [
-        (57_u8, 220.0_f32, 0.0),
+        (45_u8, 110.0_f32, 0.0),
+        (45, 110.0, 65.0),
         (57, 220.0, 65.0),
         (57, 220.0, 100.0),
-        (81, 880.0, 65.0),
-        (81, 880.0, 100.0),
+        (69, 440.0, 100.0),
     ] {
-        let settings = PluckStringSettings {
-            decay_ms: 1_000.0,
-            brightness_pct,
-            ..PluckConfig::default().into()
-        };
-        let mut state = PluckState::note_on(frequency, sample_rate, note, 100, settings);
-        let mut ring: PluckRing = [0.0; RING_LEN];
-        let samples = (0..sample_rate as usize)
-            .map(|_| state.next(&mut ring))
-            .collect::<Vec<_>>();
-        let period = f64::from(sample_rate) / f64::from(frequency);
+        let samples = pluck(frequency, note, brightness_pct);
+        let period = 44_100.0 / f64::from(frequency);
         let early = fundamental_amplitude(&samples, 4_410, period, 20);
         let late = fundamental_amplitude(&samples, 4_410 + 22_050, period, 20);
         let drop_db = 20.0 * (early / late).log10();
@@ -42,4 +44,20 @@ fn the_fundamental_falls_sixty_db_over_decay_whatever_the_brightness() {
             "{frequency} Hz brightness {brightness_pct}: {drop_db} dB over half the decay"
         );
     }
+}
+
+/// A dark high note, where the fundamental would need more than unity gain: the loop's DC still
+/// falls at least as fast as Decay asks instead of ringing on for tens of seconds.
+#[test]
+fn a_dark_high_string_does_not_hold_a_dc_tail() {
+    let samples = pluck(880.0, 81, 0.0);
+    let mean = |start: usize| {
+        let window = &samples[start..start + 4_410];
+        (window.iter().map(|sample| f64::from(*sample)).sum::<f64>() / window.len() as f64).abs()
+    };
+    let drop_db = 20.0 * (mean(4_410) / mean(4_410 + 22_050).max(1.0e-30)).log10();
+    assert!(
+        drop_db > 28.0,
+        "DC falls only {drop_db} dB over half the decay"
+    );
 }

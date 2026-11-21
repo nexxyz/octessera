@@ -126,6 +126,25 @@ fn pluck_held_live_coefficients_and_next_pick_do_not_restart_ring() {
     assert!(after.pluck.loss < held.pluck.loss);
     assert!(after.pluck.brightness < held.pluck.brightness);
     assert_eq!(after.pluck.pick_offset, held.pluck.pick_offset);
+    let retuned = crate::synth::pluck_string::PluckState::note_on(
+        after.freq_hz,
+        44_100,
+        69,
+        100,
+        crate::synth::pluck_string::PluckStringSettings {
+            decay_ms: 200.0,
+            brightness_pct: 10.0,
+            ..settings
+        },
+    );
+    assert_eq!(
+        (after.pluck.delay, after.pluck.fraction.to_bits()),
+        (retuned.delay, retuned.fraction.to_bits())
+    );
+    assert_ne!(
+        (after.pluck.delay, after.pluck.fraction),
+        (held.pluck.delay, held.pluck.fraction)
+    );
     engine.note_on(0, 69, 100, 10_000);
     let new_voice = engine.synth_voice_pool.lane(1).unwrap();
     assert_ne!(new_voice.pluck.pick_offset, held.pluck.pick_offset);
