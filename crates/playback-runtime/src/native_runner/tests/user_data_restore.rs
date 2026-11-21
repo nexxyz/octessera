@@ -277,6 +277,41 @@ pub(crate) fn restore_failure_is_distinct_and_terminal_status_does_not_rewind() 
 }
 
 #[test]
+fn a_restore_refused_by_an_unfinished_one_says_so_and_closes() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let messages = runner
+        .send(HostMessage::RuntimeResult {
+            result: restore_status(RuntimeUserDataRestorePhase::EarlierRestoreUnfinished),
+        })
+        .unwrap();
+    assert_eq!(
+        snapshot_from(&messages)["display"]["title"],
+        "Restore blocked"
+    );
+    assert_eq!(
+        display_lines(&messages),
+        vec![
+            "Earlier restore",
+            "unfinished.",
+            "Restart, then",
+            "try again.",
+            "Close"
+        ]
+    );
+    let closed = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({"type":"encoder_press","id":"main"}),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(runner.display.user_data_restore.is_none());
+    assert_ne!(
+        snapshot_from(&closed)["display"]["title"],
+        "Restore blocked"
+    );
+}
+
+#[test]
 pub(crate) fn failed_restore_status_releases_pending_save_for_retry() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.auto_save_default = true;

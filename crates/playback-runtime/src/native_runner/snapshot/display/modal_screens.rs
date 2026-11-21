@@ -23,6 +23,17 @@ pub(super) fn user_data_restore_display(state: &NativeUserDataRestoreState) -> D
             vec!["Pre-restore kept".into(), "Close".into()],
             Some(1),
         ),
+        RuntimeUserDataRestorePhase::EarlierRestoreUnfinished => (
+            "Restore blocked".into(),
+            vec![
+                "Earlier restore".into(),
+                "unfinished.".into(),
+                "Restart, then".into(),
+                "try again.".into(),
+                "Close".into(),
+            ],
+            Some(4),
+        ),
     };
     let line_count = lines.len();
     DisplaySnapshot {

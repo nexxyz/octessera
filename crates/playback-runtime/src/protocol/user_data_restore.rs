@@ -6,6 +6,8 @@ pub enum RuntimeUserDataRestorePhase {
     Restoring,
     Succeeded,
     Failed,
+    /// Refused before it started: an earlier restore left staging that only a restart finishes.
+    EarlierRestoreUnfinished,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

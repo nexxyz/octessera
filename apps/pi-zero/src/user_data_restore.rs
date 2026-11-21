@@ -23,6 +23,9 @@ pub(crate) const STAGING_DIR_NAME: &str = "restore";
 #[cfg(board_not_orange)]
 pub(crate) const STAGING_DIR_NAME: &str = ".octessera-restore";
 
+pub(crate) const EARLIER_RESTORE_UNFINISHED: &str =
+    "an earlier restore is still unfinished; restart Octessera to finish it, then restore again";
+
 /// The live folders a restore replaces.
 #[derive(Clone, Copy)]
 pub(crate) struct UserDataDirs<'a> {
@@ -71,10 +74,7 @@ pub(crate) fn restore(
         recordings_dir,
         screen_recordings_dir,
     ) {
-        return Err(
-            "an earlier restore is still unfinished; restart Octessera to finish it, then restore again"
-                .into(),
-        );
+        return Err(EARLIER_RESTORE_UNFINISHED.into());
     }
     let backup_path = staging.join(format!("octessera-pre-restore-{session}.oct"));
     if fs::symlink_metadata(&backup_path).is_ok() {

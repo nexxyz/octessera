@@ -95,11 +95,7 @@ impl UserDataTransferService {
                         &mut state,
                         RuntimeStoreResult::UserDataRestoreStatus {
                             status: RuntimeUserDataRestoreStatus {
-                                phase: if result.is_ok() {
-                                    RuntimeUserDataRestorePhase::Succeeded
-                                } else {
-                                    RuntimeUserDataRestorePhase::Failed
-                                },
+                                phase: restore_finished_phase(&result),
                             },
                         },
                     );
@@ -130,6 +126,16 @@ fn fail_restore_start(inner: &Arc<TransferInner>, stage_root: &Path, session: St
                 },
             },
         );
+    }
+}
+
+fn restore_finished_phase(result: &Result<(), String>) -> RuntimeUserDataRestorePhase {
+    match result {
+        Ok(()) => RuntimeUserDataRestorePhase::Succeeded,
+        Err(error) if error == crate::user_data_restore::EARLIER_RESTORE_UNFINISHED => {
+            RuntimeUserDataRestorePhase::EarlierRestoreUnfinished
+        }
+        Err(_) => RuntimeUserDataRestorePhase::Failed,
     }
 }
 

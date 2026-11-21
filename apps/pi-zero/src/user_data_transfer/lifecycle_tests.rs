@@ -127,3 +127,50 @@ fn staging_that_finishes_after_close_never_arms_and_reopen_never_waits_for_it() 
     service.stop();
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn a_restore_refused_by_unfinished_staging_reports_its_own_phase() {
+    let (service, root) = restore_service("unfinished-staging");
+    let leftover = root
+        .join(crate::user_data_restore::STAGING_DIR_NAME)
+        .join(".octessera-store-old-earlier-session");
+    fs::create_dir_all(&leftover).unwrap();
+    let identity = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::SetupPortalOpen,
+        "unfinished".into(),
+        None,
+    );
+    service.start_session(Some(&identity)).unwrap();
+    let code = service.test_code().unwrap();
+
+    assert_eq!(upload(&service, &code), 202);
+    press(
+        &service,
+        serde_json::json!({"type":"encoder_press","id":"main"}),
+    );
+    service.join_restore_worker();
+
+    let phases = std::iter::from_fn(|| service.take_runtime_status())
+        .filter_map(|message| match message {
+            playback_runtime::HostMessage::RuntimeResult {
+                result: playback_runtime::RuntimeStoreResult::Identified { result, .. },
+            } => match *result {
+                playback_runtime::RuntimeStoreResult::UserDataRestoreStatus { status } => {
+                    Some(status.phase)
+                }
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        phases,
+        vec![
+            playback_runtime::RuntimeUserDataRestorePhase::Restoring,
+            playback_runtime::RuntimeUserDataRestorePhase::EarlierRestoreUnfinished
+        ]
+    );
+    assert!(leftover.exists());
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
