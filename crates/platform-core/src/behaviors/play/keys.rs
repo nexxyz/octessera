@@ -15,6 +15,9 @@ pub struct KeysState {
     pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "heldTiles")]
     pub held_tiles: Vec<bool>,
+    /// Step quantize: tiles pressed since the last step, so a tap released before it still plays.
+    #[serde(default, skip_serializing)]
+    pub pressed_tiles: Vec<bool>,
     pub quantize: KeysQuantize,
 }
 
@@ -52,6 +55,7 @@ pub fn keys_init(config: Value) -> Result<KeysState, String> {
         tiles: vec![false; TILE_COUNT],
         trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         held_tiles: vec![false; TILE_COUNT],
+        pressed_tiles: vec![false; TILE_COUNT],
         quantize: config.quantize.unwrap_or(KeysQuantize::Immediate),
     })
 }
@@ -63,6 +67,7 @@ pub fn keys_deserialize(data: Value) -> Result<KeysState, String> {
         tiles: vec![false; TILE_COUNT],
         trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         held_tiles: vec![false; TILE_COUNT],
+        pressed_tiles: vec![false; TILE_COUNT],
         quantize: saved.quantize,
     })
 }
@@ -99,8 +104,12 @@ pub fn keys_on_input(
             ..state
         };
     }
+    let mut pressed_tiles = state.pressed_tiles.clone();
+    pressed_tiles.resize(TILE_COUNT, false);
+    pressed_tiles[index] |= is_press;
     KeysState {
         held_tiles,
+        pressed_tiles,
         ..state
     }
 }
@@ -126,7 +135,8 @@ pub fn keys_on_tick(state: KeysState, _context: &mut BehaviorContext) -> KeysSta
     let mut tiles = state.tiles.clone();
     let mut trigger_types = vec![TileTriggerType::None; TILE_COUNT];
     for index in 0..TILE_COUNT {
-        match (state.held_tiles[index], state.tiles[index]) {
+        let sounding = state.held_tiles[index] || state.pressed_tiles.get(index) == Some(&true);
+        match (sounding, state.tiles[index]) {
             (true, false) => {
                 tiles[index] = true;
                 trigger_types[index] = TileTriggerType::Activate;
@@ -142,6 +152,7 @@ pub fn keys_on_tick(state: KeysState, _context: &mut BehaviorContext) -> KeysSta
     KeysState {
         tiles,
         trigger_types,
+        pressed_tiles: vec![false; TILE_COUNT],
         ..state
     }
 }
@@ -272,6 +283,22 @@ mod tests {
             ticked.trigger_types[grid_index(2, 3)],
             TileTriggerType::Deactivate
         );
+    }
+
+    #[test]
+    fn step_mode_plays_a_tap_released_before_the_step_for_one_step() {
+        let mut context = context();
+        let state = keys_init(serde_json::json!({ "quantize": "step" })).unwrap();
+        let state = keys_on_input(state, DeviceInput::GridPress { x: 1, y: 1 }, &mut context);
+        let state = keys_on_input(state, DeviceInput::GridRelease { x: 1, y: 1 }, &mut context);
+        let index = grid_index(1, 1);
+
+        let played = keys_on_tick(state, &mut context);
+        assert!(played.tiles[index]);
+        assert_eq!(played.trigger_types[index], TileTriggerType::Activate);
+        let ended = keys_on_tick(played, &mut context);
+        assert!(!ended.tiles[index]);
+        assert_eq!(ended.trigger_types[index], TileTriggerType::Deactivate);
     }
 
     #[test]

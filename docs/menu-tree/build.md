@@ -159,7 +159,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase. Th
 | sequencer | Page X: [1..4] | number, step 1 (default 1): the column of pages in view, clamped to Pages X |
 | sequencer | Page Y: [1..4] | number, step 1 (default 1): the row of pages in view, clamped to Pages Y |
 | sequencer | Advance: [0..64] | number, step 1 (default 0 = off): turn to the next page every this many steps |
-| keys | Quantize: [immediate, step] | enum (default immediate) |
+| keys | Quantize: [immediate, step] | enum (default immediate); `step` plays a tap released before the step for one step |
 | looper | !Punch In/Out | action |
 | looper | Length: [1..64] | number, step 1 (default 16) |
 | looper | !Clear Loop | action |
