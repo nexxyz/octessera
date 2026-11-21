@@ -7,9 +7,10 @@ use super::{
 mod derived_names;
 mod missing_field_defaults;
 
+pub(super) use missing_field_defaults::normalize_missing_tile_stamps;
 use missing_field_defaults::{
     default_missing_instrument_blocks_in_full_config, normalize_missing_fm_fields,
-    normalize_missing_pluck_fields, normalize_missing_tile_stamps, normalize_missing_usb_data_role,
+    normalize_missing_pluck_fields, normalize_missing_usb_data_role,
 };
 
 pub(super) const CONFIG_KIND: &str = "octessera.config";

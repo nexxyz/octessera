@@ -32,7 +32,7 @@ pub(super) fn default_missing_instrument_blocks_in_full_config(input: &mut Value
 
 /// A loaded patch replaces every instrument's tile stamp: one saved without a stamp, or without
 /// its Base `level`, gets the defaults instead of keeping the stamp in use.
-pub(super) fn normalize_missing_tile_stamps(payload: &mut Value) {
+pub(in crate::native_runner) fn normalize_missing_tile_stamps(payload: &mut Value) {
     let Some(instruments) = payload
         .get_mut("runtimeConfig")
         .and_then(|runtime| runtime.get_mut("instruments"))

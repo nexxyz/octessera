@@ -354,3 +354,21 @@ fn preference_projection_keeps_every_system_scalar() {
         ]
     );
 }
+
+#[test]
+fn a_backup_patch_saved_before_tile_stamp_levels_still_passes_the_canonical_check() {
+    let canonical = canonical_defaults();
+    let mut old = normalize_user_data_patch_payload(canonical.clone(), &canonical).unwrap();
+    for instrument in old["runtimeConfig"]["instruments"].as_array_mut().unwrap() {
+        instrument["tileStamp"]
+            .as_object_mut()
+            .unwrap()
+            .remove("level");
+    }
+    old["runtimeConfig"]["instruments"][1]
+        .as_object_mut()
+        .unwrap()
+        .remove("tileStamp");
+
+    validate_canonical_patch(&old, &canonical, "currentState.patch").unwrap();
+}

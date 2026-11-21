@@ -216,6 +216,31 @@ fn present_null_or_empty_midi_ids_and_omitted_saved_state_round_trip() {
 }
 
 #[test]
+fn a_patch_saved_with_tile_stamps_with_or_without_a_base_level_still_composes() {
+    let full: Value = serde_json::from_str(PI_DEFAULT).unwrap();
+    let documents = split_system_patch_documents(&full).unwrap();
+    for stamp in [
+        json!({ "tuneSemis": 2, "tuneCents": 0 }),
+        json!({ "tuneSemis": 2, "tuneCents": 0, "level": null }),
+        json!({ "tuneSemis": 2, "tuneCents": 0, "level": "low" }),
+    ] {
+        let mut patch = documents.patch.clone();
+        for instrument in patch["runtimeConfig"]["instruments"]
+            .as_array_mut()
+            .unwrap()
+        {
+            instrument["tileStamp"] = stamp.clone();
+        }
+        let composed = compose_local_system_patch_documents(&documents.system, &patch)
+            .unwrap_or_else(|error| panic!("{stamp}: {error}"));
+        assert_eq!(
+            composed["runtimeConfig"]["instruments"][0]["tileStamp"]["tuneSemis"],
+            json!(2)
+        );
+    }
+}
+
+#[test]
 fn composition_rejects_aux_bindings_in_the_system_document() {
     let documents = split_system_patch_documents(&distinct_full_config(PI_DEFAULT)).unwrap();
     for bank in ["auxBindings", "shiftAuxBindings"] {

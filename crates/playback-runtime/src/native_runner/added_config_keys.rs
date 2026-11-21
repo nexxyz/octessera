@@ -39,8 +39,14 @@ const ADDED_RUNTIME_KEYS: [AddedKey; 4] = [
 /// one of its kinds was saved before the key existed, so an update carries old settings over.
 /// An entry stays for good. Removing, renaming, or re-ranging a saved key still means
 /// normalizing the existing stores, unless the key only needs dropping (`retired_config_keys`).
+/// Patches saved before every instrument carried a tile stamp with a `level` get the
+/// defaults the same way.
 pub(crate) fn with_added_keys(document: &Value) -> Value {
-    with_runtime_keys(document, &ADDED_RUNTIME_KEYS)
+    let mut upgraded = with_runtime_keys(document, &ADDED_RUNTIME_KEYS);
+    if is_kind(document, &[super::PATCH_KIND, CONFIG_KIND]) {
+        super::config_schema::normalize_missing_tile_stamps(&mut upgraded);
+    }
+    upgraded
 }
 
 pub(super) fn is_kind(document: &Value, kinds: &[&str]) -> bool {
