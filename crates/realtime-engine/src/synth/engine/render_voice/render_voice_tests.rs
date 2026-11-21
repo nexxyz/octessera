@@ -70,7 +70,11 @@ fn key_tracking_multiplies_filter_envelope_but_cc_overrides_both() {
     refresh_synth_voice_render_cache(&mut voice, &cfg, 44_100, 1);
     assert_eq!(
         synth_voice_cutoff(&cfg, None, 1.0, voice.filter_key_scale, 44_100),
-        3_000.0
+        1_000.0 * 2.5_f32.exp2() * 2.0
+    );
+    assert_eq!(
+        synth_voice_cutoff(&cfg, None, 0.4, voice.filter_key_scale, 44_100),
+        1_000.0 * 2.0 * 2.0
     );
     assert_eq!(
         synth_voice_cutoff(&cfg, Some(0.5), 1.0, voice.filter_key_scale, 44_100),
@@ -325,7 +329,7 @@ fn reference_render_synth_voice_sample(
 fn reference_synth_voice_cutoff(cfg: &SynthConfig, cutoff_cc: Option<f32>, filt_env: f32) -> f32 {
     let cutoff_base = cfg.filter.cutoff_hz;
     let env_amt = (cfg.filter.env_amount_pct / 100.0).clamp(-1.0, 1.0);
-    let cutoff_env = cutoff_base * (1.0 + env_amt * filt_env).max(0.0);
+    let cutoff_env = cutoff_base * (env_amt * filt_env * 5.0).exp2();
     match cutoff_cc {
         Some(cutoff_cc) => 120.0 * (16_000.0_f32 / 120.0).powf(cutoff_cc),
         None => cutoff_env,

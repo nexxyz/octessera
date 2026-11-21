@@ -328,7 +328,7 @@ amp_vel	*	key:instruments.*.synth.amp.velocitySensitivityPct	number	Velocity Sen
 filt_type	*	key:instruments.*.synth.filter.type	enum	Filter Type	lowpass keeps lows, highpass highs, bandpass a band; notch cuts a band around cutoff.	Cutoff, resonance and Filter Env shape it.
 filt_cutoff	*	key:instruments.*.synth.filter.cutoffHz	number	Filter Cutoff	Sets base cutoff frequency for tone brightness.	Higher values pass more high content.
 filt_res	*	key:instruments.*.synth.filter.resonance	number	Filter Resonance	Boosts emphasis near cutoff frequency.	High resonance can create pronounced tonal peaks.
-filt_env_amt	*	key:instruments.*.synth.filter.envAmountPct	number	Filter Env Amount	Sets how much filter envelope modulates cutoff.	Positive values open with envelope; negative values invert.
+filt_env_amt	*	key:instruments.*.synth.filter.envAmountPct	number	Filter Env Amount	How far the filter envelope moves the cutoff: 100% is five octaves up at its peak.	Negative values sweep down instead, -100% five octaves.
 filt_keytrack	*	key:instruments.*.synth.filter.keyTrackingPct	number	Filter Key Tracking	Sets how cutoff follows played pitch across notes.	Higher values keep timbre more consistent by pitch.
 engine_group	Menu > System > Audio > Engine		group	Engine	Holds the CPU meter warning threshold and the bus-idle threshold.	CPU Warn only colors the header CPU meter; Bus Idle sets when a quiet FX bus counts as silent.
 dsp_worker_warning	Menu > System > Audio > Engine > CPU Warn	key:dsp.workerWarningThreshold	enum	CPU Warn	CPU load, 70% to 95%, at which the CPU meter shows three red bars.	One green bar lights at a third of it, two yellow at two thirds.
@@ -715,7 +715,7 @@ native_sampler_amp_vel	*	key:instruments.*.sample.amp.velocitySensitivityPct	num
 native_sampler_filter_type	*	key:instruments.*.sample.filter.type	enum	Sample Filter Type	lowpass keeps lows, highpass highs, bandpass a band; notch cuts a band around cutoff.	Cutoff, resonance and Filter Env shape it.
 native_sampler_filter_cutoff	*	key:instruments.*.sample.filter.cutoffHz	number	Sample Filter Cutoff	Sets the sampler filter cutoff; 0..255 spans 20 Hz to 20 kHz.	Samples start fully open (top, Res 0), which skips the filter; a highpass at 0 is open too.
 native_sampler_filter_res	*	key:instruments.*.sample.filter.resonance	number	Sample Filter Resonance	Boosts emphasis near the sampler filter cutoff.	High values create stronger peaks.
-native_sampler_filter_env_amt	*	key:instruments.*.sample.filter.envAmountPct	number	Sample Filter Env Amount	Sets how much the sampler filter envelope moves cutoff.	Positive values open with envelope; negative values invert.
+native_sampler_filter_env_amt	*	key:instruments.*.sample.filter.envAmountPct	number	Sample Filter Env Amount	How far the sampler filter envelope moves the cutoff: 100% is five octaves up at its peak.	Negative values sweep down instead, -100% five octaves.
 native_sampler_filter_keytrack	*	key:instruments.*.sample.filter.keyTrackingPct	number	Sample Filter Key Tracking	Sets how sampler filter cutoff follows played pitch.	Higher values keep timbre more consistent across pitch.
 native_instrument_type	*	key:instruments.*.type	enum	Type	What this slot plays: Synth, FM, Plucked, Drum and Sampler sound here; MIDI Inst. and MIDI Drum play outside gear.	None is silent.
 native_midi_velocity	*	key:instruments.*.midi.velocity	number	MIDI Velocity	Sets fixed outgoing note velocity for this MIDI instrument slot.	Use when Link should drive pitch/timing but not velocity dynamics.

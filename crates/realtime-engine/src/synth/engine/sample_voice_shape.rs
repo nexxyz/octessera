@@ -148,7 +148,8 @@ impl SampleVoiceShape {
     }
 
     fn cutoff(&self, cutoff_hz: f32, filter_env: f32, sample_rate: u32) -> f32 {
-        let enveloped = cutoff_hz * (1.0 + self.env_amount * filter_env).max(0.0);
+        let enveloped =
+            super::render_voice::filter_env_cutoff_hz(cutoff_hz, self.env_amount, filter_env);
         (enveloped * self.key_scale).clamp(20.0, (sample_rate as f32 * 0.49).clamp(20.0, 20_000.0))
     }
 }

@@ -436,14 +436,21 @@ fn synth_voice_cutoff(
     key_scale: f32,
     sample_rate: u32,
 ) -> f32 {
-    let cutoff_base = cfg.filter_cutoff_hz;
-    let env_amt = cfg.filter_env_amount;
-    let cutoff_env = cutoff_base * (1.0 + env_amt * filt_env).max(0.0);
+    let cutoff_env = filter_env_cutoff_hz(cfg.filter_cutoff_hz, cfg.filter_env_amount, filt_env);
     let cutoff = match cutoff_cc {
         Some(cutoff_cc) => cc_cutoff_hz(cutoff_cc),
         None => cutoff_env * key_scale,
     };
     cutoff.clamp(20.0, (sample_rate as f32 * 0.49).clamp(20.0, 20_000.0))
+}
+
+/// How far a full Filter Env Amount moves the cutoff, up or down.
+const FILTER_ENV_OCTAVES: f32 = 5.0;
+
+/// The cutoff a filter envelope at `env` (0 to 1) moves `cutoff_hz` to: Env Amount sweeps in
+/// octaves, so the same amount sounds the same at any cutoff.
+pub(super) fn filter_env_cutoff_hz(cutoff_hz: f32, env_amount: f32, env: f32) -> f32 {
+    cutoff_hz * (env_amount * env * FILTER_ENV_OCTAVES).exp2()
 }
 
 /// CC74 sweeps 120 Hz to 16 kHz evenly in pitch, so each step of the knob moves the same
