@@ -1,6 +1,10 @@
 //! Every numeric instrument option, at its menu minimum, its default and its menu maximum, on
 //! one fixed note: the three renders must differ, and none may be silent or saturated, unless
 //! the option is listed below with the reason it legitimately is.
+//!
+//! The Sampler is not swept here: its sound depends on a decoded sample, which this offline path
+//! has none of, and its rows clamp their ranges inline in `menu_apply/instrument_sampler.rs`
+//! rather than in a table the sweep can read.
 
 use super::*;
 use crate::native_menu::{FactoryLoadKind, NativeMenuAction, PlatformAction};
@@ -34,11 +38,34 @@ const SILENT_BY_DESIGN: &[&str] = &[
     "drum voices.7.levelPct min",
 ];
 
+/// Numeric config values the sweep leaves alone. A Drum kit's envelopes have no menu rows, and
+/// its velocity levels only pick the velocity of a stamped tile's level, which a plain hit does
+/// not use.
+const NOT_SWEPT: &[&str] = &[
+    "drum ampEnv.attackMs",
+    "drum ampEnv.decayMs",
+    "drum ampEnv.sustainPct",
+    "drum ampEnv.releaseMs",
+    "drum filterEnv.attackMs",
+    "drum filterEnv.decayMs",
+    "drum filterEnv.sustainPct",
+    "drum filterEnv.releaseMs",
+    "drum velocityLevels.high",
+    "drum velocityLevels.medium",
+    "drum velocityLevels.low",
+];
+
 /// The menu range of a numeric option, as the menu clamps it, in the units the config stores.
 fn option_range(family: &str, field: &str) -> Option<(f64, f64)> {
     let (min, max) = match family {
         "synth" => synth_config::synth_numeric_field(&format!("synth.{field}"))
-            .map(|(_, min, max)| (min, max)),
+            .map(|(_, min, max)| (min, max))
+            .or(match field {
+                // The rows `menu_apply/instrument_synth.rs` clamps on its own.
+                "amp.gainPct" | "filter.resonance" => Some((0, 100)),
+                "filter.cutoffHz" => Some((0, 255)),
+                _ => None,
+            }),
         "fm" => {
             menu_apply::fast_instruments::fm::numeric_field(field).map(|(_, min, max)| (min, max))
         }
@@ -184,6 +211,11 @@ fn sweep_family(family: &str, findings: &mut Vec<String>) {
     numeric_leaves(&base[family], "", &mut leaves);
     for field in leaves {
         let Some((min, max)) = option_range(family, &field) else {
+            if !NOT_SWEPT.contains(&format!("{family} {field}").as_str()) {
+                findings.push(format!(
+                    "{family} {field}: a numeric value with no menu range"
+                ));
+            }
             continue;
         };
         let voice = field
@@ -205,8 +237,11 @@ fn sweep_family(family: &str, findings: &mut Vec<String>) {
         });
         for (name, value, samples) in &renders {
             let label = format!("{family} {field} {name}");
+            assert!(
+                samples.iter().all(|sample| sample.is_finite()),
+                "{label} = {value}: non-finite output"
+            );
             let loudest = peak(samples);
-            assert!(loudest.is_finite(), "{label} = {value}: non-finite output");
             if loudest < 1.0e-4 && !SILENT_BY_DESIGN.contains(&label.as_str()) {
                 findings.push(format!("{label} = {value}: silent"));
             }
