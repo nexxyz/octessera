@@ -41,6 +41,7 @@ pub(crate) fn pulse_step(runner: &mut NativeRunner) {
         .unwrap();
 }
 
+mod factory_groove;
 mod recording_step;
 mod section_1;
 mod section_2;

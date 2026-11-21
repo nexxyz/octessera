@@ -162,9 +162,9 @@ fn assert_default_looper_steps(config: &Value) {
     assert_eq!(
         nonempty,
         vec![
-            (7, serde_json::json!([{"tile": 49, "kind": "press"}])),
+            (8, serde_json::json!([{"tile": 49, "kind": "press"}])),
             (
-                8,
+                9,
                 serde_json::json!([
                     {"tile": 49, "kind": "release"},
                     {"tile": 42, "kind": "press"},
@@ -172,27 +172,27 @@ fn assert_default_looper_steps(config: &Value) {
                 ])
             ),
             (
-                10,
+                11,
                 serde_json::json!([
                     {"tile": 49, "kind": "press"},
                     {"tile": 42, "kind": "release"},
                     {"tile": 42, "kind": "release"}
                 ])
             ),
-            (12, serde_json::json!([{"tile": 49, "kind": "release"}])),
-            (15, serde_json::json!([{"tile": 49, "kind": "press"}])),
-            (16, serde_json::json!([{"tile": 49, "kind": "release"}])),
+            (13, serde_json::json!([{"tile": 49, "kind": "release"}])),
+            (16, serde_json::json!([{"tile": 49, "kind": "press"}])),
+            (17, serde_json::json!([{"tile": 49, "kind": "release"}])),
             (
-                24,
+                25,
                 serde_json::json!([
                     {"tile": 49, "kind": "press"},
                     {"tile": 49, "kind": "release"},
                     {"tile": 42, "kind": "press"}
                 ])
             ),
-            (26, serde_json::json!([{"tile": 42, "kind": "release"}])),
-            (27, serde_json::json!([{"tile": 49, "kind": "press"}])),
-            (28, serde_json::json!([{"tile": 49, "kind": "release"}]))
+            (27, serde_json::json!([{"tile": 42, "kind": "release"}])),
+            (28, serde_json::json!([{"tile": 49, "kind": "press"}])),
+            (29, serde_json::json!([{"tile": 49, "kind": "release"}]))
         ]
     );
     assert_eq!(
