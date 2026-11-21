@@ -28,7 +28,7 @@ pub(super) fn default_missing_instrument_blocks_in_full_config(input: &mut Value
                 .or_insert_with(|| NativeMidiDrum::default().payload());
             instrument
                 .entry("tileStamp")
-                .or_insert_with(|| json!({ "tuneSemis": 0, "tuneCents": 0 }));
+                .or_insert_with(|| json!({ "tuneSemis": 0, "tuneCents": 0, "level": null }));
         }
     }
 }

@@ -2,12 +2,13 @@ use super::{sample_assignments_payload, NativeInstrumentSlot, NativeTileStamp, V
 use crate::native_runner::InstrumentType;
 use serde_json::json;
 
+/// `level` is always written, `null` for Base, so loading a patch replaces an earlier level.
 fn tile_stamp_payload(stamp: &NativeTileStamp) -> Value {
-    let mut payload = json!({ "tuneSemis": stamp.tune_semis, "tuneCents": stamp.tune_cents });
-    if let Some(level) = &stamp.level {
-        payload["level"] = level.as_str().into();
-    }
-    payload
+    json!({
+        "tuneSemis": stamp.tune_semis,
+        "tuneCents": stamp.tune_cents,
+        "level": stamp.level,
+    })
 }
 
 pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Value {

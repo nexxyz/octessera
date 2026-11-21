@@ -82,7 +82,9 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
             let stamp_path = format!("{path}.tileStamp");
             signed_field(stamp, "tuneSemis", &stamp_path, -24, 24)?;
             signed_field(stamp, "tuneCents", &stamp_path, -100, 100)?;
-            enum_field(stamp, "level", &stamp_path, &["high", "medium", "low"])?;
+            if stamp.get("level").is_some_and(|level| !level.is_null()) {
+                enum_field(stamp, "level", &stamp_path, &["high", "medium", "low"])?;
+            }
         }
         validate_sample(instrument, &path)?;
         validate_synth(instrument, &path)?;

@@ -39,7 +39,6 @@ pub struct TileStampDto {
     pub(in crate::native_runner) tune_semis: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) tune_cents: Option<i8>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) level: Option<String>,
 }
 

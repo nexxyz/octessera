@@ -326,7 +326,25 @@ fn a_saved_patch_with_tile_stamps_normalizes_against_the_shipped_pi_defaults() {
     );
     assert_eq!(
         patch["runtimeConfig"]["instruments"][1]["tileStamp"],
-        json!({ "tuneSemis": 0, "tuneCents": 0 })
+        json!({ "tuneSemis": 0, "tuneCents": 0, "level": null })
+    );
+}
+
+#[test]
+fn loading_a_patch_whose_tile_stamp_has_base_level_clears_an_earlier_level() {
+    let mut runner = fresh_factory_runner();
+    let mut leveled = runner.config_payload();
+    leveled["runtimeConfig"]["instruments"][0]["tileStamp"] =
+        json!({ "tuneSemis": 3, "tuneCents": 0, "level": "low" });
+    runner.apply_config_payload(leveled).unwrap();
+    let base_patch = portable_patch_payload_for_save(&canonical_factory_payload()).unwrap();
+
+    runner
+        .apply_patch_payload_preserving_device(base_patch)
+        .unwrap();
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["instruments"][0]["tileStamp"],
+        json!({ "tuneSemis": 0, "tuneCents": 0, "level": null })
     );
 }
 

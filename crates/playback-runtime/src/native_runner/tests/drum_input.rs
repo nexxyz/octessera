@@ -161,7 +161,7 @@ fn drum_tiles_stamp_tune_fine_and_level_and_restamping_replaces_or_clears() {
     let payload = runner.config_payload();
     assert_eq!(
         payload["runtimeConfig"]["instruments"][0]["tileStamp"],
-        json!({ "tuneSemis": -3, "tuneCents": 0 })
+        json!({ "tuneSemis": -3, "tuneCents": 0, "level": null })
     );
     let mut reloaded = drum_runner();
     reloaded.apply_config_payload(payload).unwrap();
