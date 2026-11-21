@@ -105,7 +105,7 @@ if [ ${#run[@]} -gt 0 ]; then
     save-restarted-system.json save-restarted-patch.json save-runtime-system.json save-runtime-patch.json \
     oled-before-system.json oled-trace.txt soak-proc.log recording.avi keymap-patch.json presets.log presets-diff.log \
     stop-before-system.json stop-before-patch.json stop-saved-system.json stop-saved-patch.json stop.log \
-    stop-recording.media show.log show-journal.log update.log fuzz.log stores.log poll.log
+    stop-recording.media show.log show-journal.log update.log fuzz.log stores.log poll.log resets-factory-patch.json
 fi
 
 for scenario in usb_midi usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx; do

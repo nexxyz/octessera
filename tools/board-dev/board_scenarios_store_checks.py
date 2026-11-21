@@ -27,12 +27,26 @@ def store_facts(out):
     return dict(pair.split("=", 1) for line in store_lines(out) for pair in line.split() if "=" in pair)
 
 
+def set_values_differ(factory, saved, path=""):
+    """Where the two disagree, leaving out a null on either side: the runtime fills the factory's
+    null settings of instrument types a slot does not use, and the patch leaves System-owned keys
+    (sound.optimizeFor) to system.json."""
+    if factory is None or saved is None:
+        return []
+    if isinstance(factory, dict) and isinstance(saved, dict):
+        return [d for k in sorted(set(factory) | set(saved))
+                for d in set_values_differ(factory.get(k), saved.get(k), f"{path}.{k}")]
+    if isinstance(factory, list) and isinstance(saved, list) and len(factory) == len(saved):
+        return [d for i, (f, s) in enumerate(zip(factory, saved)) for d in set_values_differ(f, s, f"{path}[{i}]")]
+    return [] if factory == saved else [f"{path}={json.dumps(factory)}->{json.dumps(saved)}"]
+
+
 def factory_patch_problems(saved_path):
     """The saved patch must hold the patch half of config/generated/pi/default.json."""
     saved = state.music(saved_path)
     factory = state.music(FACTORY_CONFIG)
     unknown = sorted(set(saved) - set(factory))
-    differs = state.differ({k: factory[k] for k in saved if k in factory}, {k: saved[k] for k in saved if k in factory})
+    differs = set_values_differ({k: factory[k] for k in saved if k in factory}, saved)
     return ([f"keys the factory config lacks: {unknown}"] if unknown else []) + \
         ([f"differs from the factory config: {differs[:5]}"] if differs else [])
 

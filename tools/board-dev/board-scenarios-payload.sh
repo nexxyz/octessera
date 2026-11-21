@@ -128,8 +128,10 @@ gate() {
   mark "${1}_timeout"
   return 1
 }
+# Each setup starts from the live System and patch files and no presets: scenarios share one clone.
 prepare() {
   sudo -n systemctl stop "$service"
+  sudo -n rm -rf -- "$store/patches"
   sudo -n cp -a -- "$live/system.json" "$live/default.patch.json" "$store/"
   sudo -n python3 "$root/board-scenarios-store.py" "$store" "$1"
 }
