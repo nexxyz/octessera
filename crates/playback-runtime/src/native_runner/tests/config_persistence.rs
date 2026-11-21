@@ -306,6 +306,30 @@ pub(crate) fn full_config_to_portable_conversion_validates_and_emits_canonical_p
     assert!(patch["runtimeConfig"]["masterVolume"].is_null());
 }
 
+#[test]
+fn a_saved_patch_with_tile_stamps_normalizes_against_the_shipped_pi_defaults() {
+    let shipped: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut edited = shipped.clone();
+    edited["runtimeConfig"]["instruments"][0]["tileStamp"] =
+        json!({ "tuneSemis": 3, "tuneCents": -5, "level": "low" });
+    runner.apply_config_payload(edited).unwrap();
+    let saved = portable_patch_payload_for_save(&runner.config_payload()).unwrap();
+
+    let patch = normalize_user_data_patch_payload(saved, &shipped).unwrap();
+    assert_eq!(
+        patch["runtimeConfig"]["instruments"][0]["tileStamp"],
+        json!({ "tuneSemis": 3, "tuneCents": -5, "level": "low" })
+    );
+    assert_eq!(
+        patch["runtimeConfig"]["instruments"][1]["tileStamp"],
+        json!({ "tuneSemis": 0, "tuneCents": 0 })
+    );
+}
+
 fn opaque_scalar_collision_fixture() -> Value {
     json!({
         "revision": "behavior-owned revision",

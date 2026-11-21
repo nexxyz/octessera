@@ -3,6 +3,7 @@ use crate::native_runner::midi_drum::NativeMidiDrum;
 use crate::native_runner::{
     drum_config::drum_default_config, fm_default_config, pluck_default_config,
 };
+use serde_json::json;
 
 pub(super) fn default_missing_instrument_blocks_in_full_config(input: &mut Value) {
     let Some(instruments) = input
@@ -25,6 +26,9 @@ pub(super) fn default_missing_instrument_blocks_in_full_config(input: &mut Value
             instrument
                 .entry("midiDrum")
                 .or_insert_with(|| NativeMidiDrum::default().payload());
+            instrument
+                .entry("tileStamp")
+                .or_insert_with(|| json!({ "tuneSemis": 0, "tuneCents": 0 }));
         }
     }
 }
