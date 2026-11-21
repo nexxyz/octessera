@@ -125,3 +125,60 @@ fn saving_onto_an_existing_preset_is_refused_unless_told_to_overwrite() {
     );
     let _ = std::fs::remove_dir_all(root);
 }
+
+fn rename(
+    adapter: &mut DesktopPlaybackHostAdapter,
+    from: &str,
+    name: &str,
+    mode: Option<PresetSaveMode>,
+) -> Vec<RuntimeStoreResult> {
+    effect(
+        adapter,
+        RuntimePlatformEffect::StoreRenamePreset {
+            from: from.into(),
+            name: name.into(),
+            mode,
+        },
+    )
+}
+
+#[test]
+fn renaming_onto_a_case_variant_is_refused_unless_told_to_overwrite() {
+    let (mut adapter, _) = test_adapter();
+    let root = temp_store_dir("preset-case-rename-refused");
+    adapter.store_dir = root.clone();
+    save(&mut adapter, "Foo", json!({ "take": 1 }));
+    save(&mut adapter, "bar", json!({ "take": 2 }));
+
+    let refused = rename(&mut adapter, "bar", "FOO", None);
+    assert!(matches!(
+        refused.as_slice(),
+        [RuntimeStoreResult::RuntimeFailure { .. }]
+    ));
+    assert_eq!(names(&adapter), ["Foo", "bar"]);
+
+    let overwritten = rename(&mut adapter, "bar", "FOO", Some(PresetSaveMode::Overwrite));
+    assert!(matches!(
+        overwritten.as_slice(),
+        [RuntimeStoreResult::RenamePresetResult { .. }, ..]
+    ));
+    assert_eq!(names(&adapter), ["FOO"]);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_case_only_rename_of_the_same_preset_needs_no_confirm() {
+    let (mut adapter, _) = test_adapter();
+    let root = temp_store_dir("preset-case-rename-same");
+    adapter.store_dir = root.clone();
+    save(&mut adapter, "foo", json!({ "take": 1 }));
+
+    let renamed = rename(&mut adapter, "foo", "Foo", None);
+
+    assert!(matches!(
+        renamed.as_slice(),
+        [RuntimeStoreResult::RenamePresetResult { .. }]
+    ));
+    assert_eq!(names(&adapter), ["Foo"]);
+    let _ = std::fs::remove_dir_all(root);
+}

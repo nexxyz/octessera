@@ -123,6 +123,15 @@ impl DesktopPlaybackHostAdapter {
         Ok(stored_entry(&path, true)?.is_some())
     }
 
+    /// True when a preset other than `from` already holds `name`, in any letter case.
+    pub(super) fn rename_target_taken(&self, from: &str, name: &str) -> Result<bool, String> {
+        let presets_dir = self.store_dir.join("presets");
+        let source = preset_patch_file_path(&presets_dir, from)?;
+        let target = preset_patch_file_path(&presets_dir, name)?;
+        let held = [stored_entry(&target, true)?, stored_entry(&target, false)?];
+        Ok(held.into_iter().flatten().any(|path| path != source))
+    }
+
     /// Saves the preset; `true` when it replaced a preset whose name differs only in case,
     /// which names the same file on the desktop's case-insensitive store.
     pub(super) fn save_preset_payload(

@@ -70,7 +70,7 @@ impl DesktopPlaybackHostAdapter {
                         },
                     }]);
                 }
-                let refused = mode.is_none() && self.preset_exists(name)?;
+                let refused = mode.is_none() && self.rename_target_taken(from, name)?;
                 let renamed = if refused {
                     Err(format!("Rename {from} failed: {name} already exists"))
                 } else {
