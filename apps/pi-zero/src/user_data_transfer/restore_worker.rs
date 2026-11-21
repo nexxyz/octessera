@@ -148,6 +148,12 @@ fn restore_finished_status(result: &Result<(), String>) -> &'static str {
         .is_some_and(|error| error.contains("audio recording is active"))
     {
         "blocked_recording_active"
+    } else if result
+        .as_ref()
+        .err()
+        .is_some_and(|error| error == crate::user_data_restore::EARLIER_RESTORE_UNFINISHED)
+    {
+        "blocked_earlier_restore"
     } else {
         "failed"
     }

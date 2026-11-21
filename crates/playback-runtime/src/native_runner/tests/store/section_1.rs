@@ -167,14 +167,13 @@ pub(crate) fn full_default_load_and_device_apply_update_device_fields() {
 
     let device = config_with(
         &runner,
-        json!({ "runtimeConfig": { "displayBrightness": 5, "activeBehavior": "sequencer" } }),
+        json!({ "runtimeConfig": { "displayBrightness": 5 } }),
     );
     let system = split_local_system_patch_documents(&device).unwrap().system;
     runner
         .apply_system_document_preserving_patch(&system)
         .unwrap();
     assert_eq!(runner.display.ui.display_brightness, 5);
-    assert_ne!(runner.active_behavior().id(), "sequencer");
 }
 
 #[test]

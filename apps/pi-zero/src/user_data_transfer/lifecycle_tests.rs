@@ -149,6 +149,13 @@ fn a_restore_refused_by_unfinished_staging_reports_its_own_phase() {
         serde_json::json!({"type":"encoder_press","id":"main"}),
     );
     service.join_restore_worker();
+    let status =
+        super::restore_tests::restore_request(&service, "GET", "/restore/status", &code, &[]);
+    let status_body = String::from_utf8(status.1).unwrap();
+    assert!(
+        status_body.contains("blocked_earlier_restore"),
+        "{status_body}"
+    );
 
     let phases = std::iter::from_fn(|| service.take_runtime_status())
         .filter_map(|message| match message {

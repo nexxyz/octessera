@@ -301,15 +301,21 @@ fn route(
     runner: &mut NativeRunner,
     events: Vec<platform_core::MusicalEvent>,
 ) -> RoutedMusicalEvents {
-    let intents = vec![
-        Some(platform_core::TileTriggerIntent {
-            x: 0,
-            y: 0,
-            degree: 0,
-            kind: platform_core::TileTriggerKind::Activate,
-        });
-        events.len()
-    ];
+    let intents = events
+        .iter()
+        .map(|event| {
+            Some(platform_core::TileTriggerIntent {
+                x: 0,
+                y: 0,
+                degree: 0,
+                kind: if matches!(event, platform_core::MusicalEvent::NoteOff { .. }) {
+                    platform_core::TileTriggerKind::Deactivate
+                } else {
+                    platform_core::TileTriggerKind::Activate
+                },
+            })
+        })
+        .collect::<Vec<_>>();
     runner
         .route_events_with_link_timing(
             0,

@@ -71,7 +71,7 @@ impl FxBusState {
             | FxBusState::Glitch { buf, .. } => buf.fill(0.0),
             FxBusState::FilterLfo { filt, .. } => filt.clear_history(),
             FxBusState::Duck { env } | FxBusState::Compressor { env } => *env = 0.0,
-            FxBusState::Bitcrusher { last, .. } => *last = 0.0,
+            FxBusState::Bitcrusher { count, last, .. } => (*count, *last) = (0, 0.0),
             FxBusState::Reverb { bufs, lp, .. } => {
                 for buf in bufs {
                     buf.fill(0.0);
@@ -111,7 +111,7 @@ impl MasterFxState {
                 right.clear_history();
             }
             MasterFxState::Vinyl(state) => *state = VinylState::new(),
-            MasterFxState::Bitcrusher { last, .. } => *last = [0.0; 2],
+            MasterFxState::Bitcrusher { count, last } => (*count, *last) = ([0; 2], [0.0; 2]),
         }
     }
 }
