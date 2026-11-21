@@ -355,8 +355,9 @@ The `ms` rows use the curved time steps from
 
 - Rows are layers in Fn-navigation orientation: bottom row is layer 1.
 - Columns `0..7` set that layer's `Build > Step Rate` to `1/32`, `1/16T`, `1/16`, `1/8T`, `1/8`,
-  `1/4T`, `1/4`, `1/2`, through the same path as the menu edit, so it is saved with the patch. The
-  layer keeps its step phase and the new rate applies from its next step. Toast `L3 rate 1/8`.
+  `1/4T`, `1/4`, `1/2`, through the same path as the menu edit, so it is saved with the patch. A new
+  rate lines up with the clock: the layer's next step lands on the next multiple of the new rate
+  counted from Play, so a switch to a slower rate stays on the beat. Toast `L3 rate 1/8`.
 - Scanning layers step at their `Link > Lx > Scanning > Scan Unit`, not at Step Rate, so Step Rate
   tiles on a scanning layer change the saved Step Rate without changing when it steps.
 - Shift view: while Shift is held the same columns show and set each layer's Scan Unit instead,

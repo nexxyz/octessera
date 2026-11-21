@@ -107,6 +107,7 @@ impl NativeRunner {
         self.transport.tick = source.transport.tick;
         self.transport.layer_ticks = source.transport.layer_ticks.clone();
         self.transport.layer_pulse_accumulators = source.transport.layer_pulse_accumulators.clone();
+        self.transport.layer_counted_steps = source.transport.layer_counted_steps;
     }
 
     fn commit_transaction_candidate(

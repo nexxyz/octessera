@@ -181,14 +181,26 @@ impl NativeRunner {
         }
     }
 
+    /// A layer whose step length changed since its last pulses lines up with the clock first, so
+    /// its next step lands on the next multiple of the new length counted from Play.
     fn accumulate_layer_pulses(&mut self, pulses: u32) {
         if self.transport.layer_pulse_accumulators.len() < GRID_HEIGHT {
             self.transport
                 .layer_pulse_accumulators
                 .resize(GRID_HEIGHT, 0);
         }
-        for value in &mut self.transport.layer_pulse_accumulators {
-            *value = value.saturating_add(pulses);
+        let before = self
+            .transport
+            .swung_ppqn_pulse
+            .saturating_sub(u64::from(pulses));
+        for layer in 0..GRID_HEIGHT {
+            let step = self.step_pulses_for_layer(layer).max(1);
+            let counted = std::mem::replace(&mut self.transport.layer_counted_steps[layer], step);
+            let accumulator = &mut self.transport.layer_pulse_accumulators[layer];
+            if counted != 0 && counted != step {
+                *accumulator = (before % u64::from(step)) as u32;
+            }
+            *accumulator = accumulator.saturating_add(pulses);
         }
     }
 

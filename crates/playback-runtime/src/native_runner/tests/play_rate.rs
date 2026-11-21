@@ -222,6 +222,29 @@ fn pressing_the_lit_step_rate_tile_resyncs_the_layer_to_the_next_bar() {
     assert_eq!(runner.transport.layer_pulse_accumulators[1], 0);
 }
 
+#[test]
+fn a_slower_rate_lands_its_next_step_on_the_beat() {
+    let mut runner = rate_runner();
+    let _ = press(&mut runner, 2, 1);
+    assert_eq!(runner.transport.layer_algorithm_step_pulses[1], 6);
+    runner.transport.transport = RuntimeTransportState::Playing;
+    for _ in 0..9 {
+        let _ = pulse(&mut runner, 1);
+    }
+    let ticks = runner.transport.layer_ticks[1];
+
+    let _ = press(&mut runner, 6, 1);
+    assert_eq!(toast(&runner), "L2 rate 1/4");
+    let mut steps_at = Vec::new();
+    for _ in 0..40 {
+        let _ = pulse(&mut runner, 1);
+        if runner.transport.layer_ticks[1] != ticks + steps_at.len() as u64 {
+            steps_at.push(runner.transport.current_ppqn_pulse);
+        }
+    }
+    assert_eq!(steps_at, [24, 48]);
+}
+
 fn scanning_rows_runner() -> NativeRunner {
     let mut runner = rate_runner();
     let link = &mut runner.layers[0].link;

@@ -64,6 +64,7 @@ impl NativeRunner {
             layer.engine.reset_transport_phase();
         }
         self.transport.layer_pulse_accumulators.fill(0);
+        self.transport.layer_counted_steps = [0; LAYER_COUNT];
         for queue in &mut self.delayed_link_events {
             queue.clear();
         }
