@@ -209,7 +209,13 @@ fn num(value: Option<Value>, default: u8, max: u8) -> u8 {
 }
 
 fn add_ink(state: &mut InkState, index: usize) {
-    state.ink[index] = state.ink[index].saturating_add(state.drop_strength);
+    state.ink[index] = state.ink[index].saturating_add(drop_amount(state));
+}
+
+/// Drop Strength 1 is just visible and 255 a full drop, so every strength shows.
+fn drop_amount(state: &InkState) -> u8 {
+    let strength = u16::from(state.drop_strength.max(1));
+    (u16::from(VISIBLE) + (strength - 1) * u16::from(u8::MAX - VISIBLE) / 254) as u8
 }
 
 fn drop_splash(state: &mut InkState) -> Vec<usize> {
@@ -224,8 +230,8 @@ fn drop_splash_at(state: &mut InkState, x: usize, y: usize) -> Vec<usize> {
         if let (Some(nx), Some(ny)) = (x.checked_add_signed(dx), y.checked_add_signed(dy)) {
             if nx < GRID_WIDTH && ny < GRID_HEIGHT {
                 let index = grid_index(nx, ny);
-                let amount = state.drop_strength / 2;
-                if amount > 0 {
+                let amount = drop_amount(state) / 2;
+                if amount >= VISIBLE {
                     state.ink[index] = state.ink[index].saturating_add(amount);
                     affected.push(index);
                 }

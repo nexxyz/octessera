@@ -80,7 +80,7 @@ layer_kuramoto_jitter	*	key:layers.*.build.behaviorConfig.jitterPct	number	Jitte
 life_spawn_shared_kuramoto	*	action:behavior_action:desyncPulse	action	Desync Pulse	Knocks the oscillators out of step without playing a note.	The next flashes come as they find each other again.
 layer_wave_damping	*	key:layers.*.build.behaviorConfig.dampingPct	number	Damping	Sets how strongly Wave motion fades each tick.	Higher values calm the membrane faster.
 layer_wave_tension	*	key:layers.*.build.behaviorConfig.tensionPct	number	Tension	Sets how strongly neighboring tiles pull displacement back toward balance.	Higher values make impulses travel more sharply.
-layer_wave_impulse	*	key:layers.*.build.behaviorConfig.impulseStrength	number	Impulse Strength	Sets how hard a grid press or Drop Impulse strikes the wave field.	Stronger impulses cross the musical threshold more easily.
+layer_wave_impulse	*	key:layers.*.build.behaviorConfig.impulseStrength	number	Impulse Strength	Sets how hard a grid press or Drop Impulse strikes the wave field.	Even 1 shows; stronger impulses ripple further before they fade.
 layer_wave_auto_impulse	*	key:layers.*.build.behaviorConfig.autoImpulseInterval	number	Impulse Interval	How often Wave taps itself, in steps.	Off stops the automatic taps; Spawn Step sets where in the cycle they land.
 life_spawn_shared_wave	*	action:behavior_action:dropImpulse	action	Drop Impulse	Taps the water once and plays the tiles it hits.	Use it to poke the surface without touching the grid.
 layer_gravity_spawn	*	key:layers.*.build.behaviorConfig.spawnRatePct	number	Spawn Rate	The chance that new sand trickles in along the far edge.	Higher values keep the avalanches fed.
@@ -116,7 +116,7 @@ life_spawn_shared_lava_heat	*	action:behavior_action:heatLamp	action	Heat Lamp	A
 life_spawn_shared_lava_reset	*	action:behavior_action:resetBlobs	action	Reset Blobs	Brings back the four starting blobs.	Blobs that moved play as they appear.
 layer_ink_diffusion	*	key:layers.*.build.behaviorConfig.diffusionPct	number	Diffusion	Sets how strongly Ink pigment or Reaction Diffusion chemicals spread to cardinal neighbors.	Higher values spread the field faster; edges stay clipped and do not wrap.
 layer_ink_fade	*	key:layers.*.build.behaviorConfig.fadePct	number	Fade	Sets how much pigment fades each tick.	Higher values clear the wash sooner.
-layer_ink_strength	*	key:layers.*.build.behaviorConfig.dropStrength	number	Drop Strength	Sets how much pigment a press or Drop Ink adds.	Strong drops cross the musical threshold immediately.
+layer_ink_strength	*	key:layers.*.build.behaviorConfig.dropStrength	number	Drop Strength	Sets how much pigment a press or Drop Ink adds.	Even 1 shows on its own tile; stronger drops also tint the neighbors and last longer.
 layer_ink_auto_drop	*	key:layers.*.build.behaviorConfig.autoDropInterval	number	Drop Interval	How often Ink drips by itself, in steps.	Off stops the automatic drops; Spawn Step sets where in the cycle they land.
 life_spawn_shared_ink_drop	*	action:behavior_action:dropInk	action	Drop Ink	Drops an ink splash near the center and plays the tiles it touches.	Good for starting a bloom without touching the grid.
 life_spawn_shared_ink_clear	*	action:behavior_action:clearInk	action	Clear Ink	Clears all pigment and deactivates tiles that were visible.	Use it when the page needs a fresh blot.

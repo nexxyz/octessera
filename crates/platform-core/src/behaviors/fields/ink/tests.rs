@@ -63,7 +63,11 @@ fn grid_press_force_activate_and_clear_deactivates() {
     let mut c = ctx();
     let s = ink_init(serde_json::json!({"dropStrength":20})).unwrap();
     let s = ink_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
-    assert_eq!(s.ink[grid_index(2, 3)], 20);
+    assert_eq!(s.ink[grid_index(2, 3)], drop_amount(&s));
+    assert_eq!(
+        u16::from(drop_amount(&s)),
+        u16::from(VISIBLE) + 19 * u16::from(255 - VISIBLE) / 254
+    );
     assert_eq!(s.trigger_types[grid_index(2, 3)], TileTriggerType::Activate);
     let cleared = ink_on_input(
         s,

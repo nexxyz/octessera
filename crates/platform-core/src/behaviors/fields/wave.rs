@@ -251,10 +251,12 @@ fn number(value: Option<Value>, default: u8, max: u8) -> u8 {
         .unwrap_or(default)
 }
 
+/// Impulse Strength 1 reaches the visible threshold and 127 the full swing, so every strength
+/// shows.
 fn impulse(state: &mut WaveState, index: usize) {
-    state.displacement[index] =
-        (state.displacement[index] + state.impulse_strength).clamp(-CLAMP, CLAMP);
-    state.velocity[index] = state.impulse_strength / 2;
+    let strength = THRESHOLD + (state.impulse_strength - 1) * (CLAMP - THRESHOLD) / 126;
+    state.displacement[index] = (state.displacement[index] + strength).clamp(-CLAMP, CLAMP);
+    state.velocity[index] = strength / 2;
 }
 
 fn scheduled_impulse_index(step: u64) -> usize {

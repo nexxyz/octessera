@@ -99,7 +99,10 @@ fn grid_press_exact_world_tile_activates() {
     let mut context = context();
     let state = base();
     let state = wave_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
-    assert_eq!(state.displacement[grid_index(2, 3)], 80);
+    assert_eq!(
+        state.displacement[grid_index(2, 3)],
+        THRESHOLD + 79 * (CLAMP - THRESHOLD) / 126
+    );
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
         TileTriggerType::Activate
