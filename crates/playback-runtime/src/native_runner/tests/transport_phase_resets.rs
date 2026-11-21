@@ -153,3 +153,46 @@ fn external_resync_boundary_resets_active_and_inactive_pattern_phases() {
     assert_eq!(pattern_phase(&runner, 0), 0);
     assert_eq!(pattern_phase(&runner, 1), 0);
 }
+
+fn pulse(runner: &mut NativeRunner, pulses: u32) {
+    runner
+        .send(HostMessage::TransportPulseStep {
+            pulses,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: None,
+        })
+        .unwrap();
+}
+
+#[test]
+fn a_pattern_keeps_its_place_in_the_cycle_when_a_setting_turns() {
+    let mut runner = pattern_runner();
+    runner.send(HostMessage::MidiRealtimeStart).unwrap();
+    pulse(&mut runner, 48);
+    let phase = pattern_phase(&runner, 0);
+    assert!(phase > 2, "{phase}");
+
+    runner
+        .edit_menu_key("layers.0.build.behaviorConfig.densityPct", 1)
+        .unwrap();
+
+    assert_eq!(pattern_phase(&runner, 0), phase);
+    assert!(runner.layer_behavior_config(0).get("phase").is_none());
+}
+
+#[test]
+fn a_rate_resync_restarts_the_pattern_cycle_on_the_bar() {
+    let mut runner = pattern_runner();
+    runner.send(HostMessage::MidiRealtimeStart).unwrap();
+    pulse(&mut runner, 48);
+    runner.play_live.rate_resyncs[1] = true;
+    pulse(&mut runner, 48);
+
+    assert!(pattern_phase(&runner, 0) > 2);
+    assert!(
+        pattern_phase(&runner, 1) <= 1,
+        "{}",
+        pattern_phase(&runner, 1)
+    );
+}

@@ -378,3 +378,25 @@ fn with_auto_save_off_the_factory_patch_leaves_nothing_to_save() {
 
     assert!(!runner.config_dirty);
 }
+
+#[test]
+fn a_setting_an_action_turned_stays_turned_at_the_next_settings_change() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .execute_menu_action(NativeMenuAction::SelectBehavior("gravity".into()))
+        .unwrap();
+    runner.menu.rebuild(runner.menu_config());
+    press_key(&mut runner, "layers.0.build.behaviorConfig.invertGravity");
+    let key = "layers.0.build.behaviorConfig.gravityDir";
+    assert_eq!(runner.menu.value_for_key(key).as_deref(), Some("left"));
+
+    runner
+        .edit_menu_key("layers.0.build.behaviorConfig.spawnRatePct", 1)
+        .unwrap();
+
+    assert_eq!(
+        runner.serialized_state_for_layer(0).unwrap()["gravityDir"],
+        "left"
+    );
+    assert_eq!(runner.menu.value_for_key(key).as_deref(), Some("left"));
+}

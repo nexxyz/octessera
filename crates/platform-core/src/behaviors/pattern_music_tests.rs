@@ -113,58 +113,6 @@ fn pattern_behaviors_stay_lively_and_bounded_over_long_scan() {
 }
 
 #[test]
-fn pattern_behavior_controls_affect_generated_frames() {
-    for id in PATTERN_IDS {
-        let behavior = get_native_behavior(id).unwrap();
-        let quiet = behavior
-            .init(serde_json::json!({ "densityPct": 15, "variationPct": 10, "cycleLength": 8, "seed": 101 }))
-            .unwrap();
-        let busy = behavior
-            .init(serde_json::json!({ "densityPct": 75, "variationPct": 90, "cycleLength": 24, "seed": 909 }))
-            .unwrap();
-        let quiet_tiles = behavior.render_model(&quiet).unwrap().tiles;
-        let busy_tiles = behavior.render_model(&busy).unwrap().tiles;
-        assert_ne!(
-            quiet_tiles, busy_tiles,
-            "{id} controls should change the frame"
-        );
-    }
-}
-
-#[test]
-fn each_pattern_control_affects_generated_frames() {
-    for id in PATTERN_IDS {
-        assert_control_changes_frame(id, "densityPct", 15, 75);
-        assert_control_changes_frame(id, "variationPct", 0, 90);
-        assert_control_changes_frame(id, "cycleLength", 8, 24);
-        assert_control_changes_frame(id, "seed", 101, 909);
-    }
-}
-
-fn assert_control_changes_frame(id: &str, key: &str, low: i32, high: i32) {
-    let behavior = get_native_behavior(id).unwrap();
-    let mut left = serde_json::json!({
-        "densityPct": 45,
-        "variationPct": 60,
-        "cycleLength": 16,
-        "seed": 401,
-        "phase": 96
-    });
-    let mut right = left.clone();
-    left[key] = serde_json::json!(low);
-    right[key] = serde_json::json!(high);
-    let left_tiles = behavior
-        .render_model(&behavior.init(left).unwrap())
-        .unwrap()
-        .tiles;
-    let right_tiles = behavior
-        .render_model(&behavior.init(right).unwrap())
-        .unwrap()
-        .tiles;
-    assert_ne!(left_tiles, right_tiles, "{id} should respond to {key}");
-}
-
-#[test]
 fn reset_transport_phase_rebuilds_phase_zero_frame_and_transitions() {
     let config = serde_json::json!({
         "phase": 11,

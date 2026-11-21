@@ -105,6 +105,12 @@ impl NativeRunner {
             }
             if let Some(slot) = self.layers.get_mut(layer) {
                 slot.engine.set_interpretation_tick(0);
+                if matches!(
+                    slot.engine.state(),
+                    platform_core::NativeBehaviorState::Pattern(_)
+                ) {
+                    slot.engine.reset_transport_phase();
+                }
             }
         }
     }

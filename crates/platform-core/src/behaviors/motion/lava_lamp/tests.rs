@@ -204,3 +204,30 @@ fn default_self_sustains_with_bounded_forced_activity() {
     assert!(terminal_same <= 2);
     assert!(final_frames.windows(2).any(|window| window[0] != window[1]));
 }
+
+#[test]
+fn heat_lifts_a_blob_off_the_floor_and_the_top_cools_it_back_down() {
+    let mut ctx = BehaviorContext::new(120.0);
+    let mut s = lava_lamp_init(json!({
+        "activeCount": 1, "blobCount": 1, "x": [64], "y": [0], "vx": [0], "vy": [0],
+        "heatPct": 100, "viscosityPct": 0, "mergePct": 0
+    }))
+    .unwrap();
+    let mut highest = 0;
+    let mut sank = false;
+    for _ in 0..80 {
+        s = lava_lamp_on_tick(s, &mut ctx);
+        highest = highest.max(s.y[0]);
+        sank |= highest > MAX_POS * 2 / 3 && s.vy[0] < 0;
+    }
+    assert!(highest > MAX_POS * 2 / 3, "{highest}");
+    assert!(sank);
+
+    let cold = lava_lamp_init(json!({
+        "activeCount": 1, "blobCount": 1, "x": [64], "y": [0], "vx": [0], "vy": [0],
+        "heatPct": 0, "viscosityPct": 50, "mergePct": 0
+    }))
+    .unwrap();
+    let cold = (0..20).fold(cold, |s, _| lava_lamp_on_tick(s, &mut ctx));
+    assert!(cold.y[0] < MAX_POS / 3, "{}", cold.y[0]);
+}

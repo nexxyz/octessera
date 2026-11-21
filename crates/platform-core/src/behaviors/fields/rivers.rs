@@ -10,8 +10,10 @@ use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-const VISIBLE: u8 = 8;
-const ACTIVATE: u8 = 32;
+const VISIBLE: u8 = 48;
+const ACTIVATE: u8 = 72;
+/// A fresh world starts damp, just under visible, so its first streams gather right away.
+const DAMP: u8 = 40;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RiversState {
@@ -136,10 +138,10 @@ pub fn rivers_on_tick(mut state: RiversState, _: &mut BehaviorContext) -> Rivers
             continue;
         }
         if state.flow_pct > 0 {
+            let amt = (u16::from(w) * u16::from(state.flow_pct) / 100)
+                .max(1)
+                .min(u16::from(w)) as u8;
             if let Some(dest) = lowest(&ph, &rain_water, i) {
-                let amt = (u16::from(w) * u16::from(state.flow_pct) / 100)
-                    .max(1)
-                    .min(u16::from(w)) as u8;
                 nw[i] = nw[i].saturating_add(w - amt);
                 nw[dest] = nw[dest].saturating_add(amt);
                 if tile_roll_pct(state.tick_counter, i, 13) < u32::from(state.erosion_pct) {
@@ -147,6 +149,10 @@ pub fn rivers_on_tick(mut state: RiversState, _: &mut BehaviorContext) -> Rivers
                     ns[dest] = ns[dest].saturating_add(1);
                     changed[i] = true
                 }
+                continue;
+            }
+            if i < GRID_WIDTH {
+                nw[i] = nw[i].saturating_add(w - amt);
                 continue;
             }
         }
@@ -200,7 +206,7 @@ fn from_config(v: Value) -> RiversState {
     let c: Config = serde_json::from_value(v).unwrap_or_default();
     let mut s = RiversState {
         height: norm_with_defaults(c.height, default_height()),
-        water: norm(c.water, vec![0; TILE_COUNT]),
+        water: norm(c.water, vec![DAMP; TILE_COUNT]),
         sediment: norm(c.sediment, vec![0; TILE_COUNT]),
         trigger_types: restore_trigger_types(c.trigger_types),
         rain_pct: num(c.rain_pct, 20),
@@ -232,12 +238,14 @@ fn normalize(s: &mut RiversState) {
     s.erosion_pct = s.erosion_pct.min(100);
     s.evaporation_pct = s.evaporation_pct.min(100)
 }
+/// Hills along the top row, falling toward the bottom row, so the water runs down the panel and
+/// spills off its bottom edge.
 fn default_height() -> Vec<u8> {
     (0..TILE_COUNT)
         .map(|i| {
             let x = i % GRID_WIDTH;
             let y = i / GRID_WIDTH;
-            (180i32 - y as i32 * 16 + ((x * 17 + y * 11) % 24) as i32).clamp(0, 255) as u8
+            (68 + y as i32 * 16 + ((x * 17 + y * 11) % 24) as i32).clamp(0, 255) as u8
         })
         .collect()
 }

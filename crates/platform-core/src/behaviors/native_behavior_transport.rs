@@ -6,7 +6,7 @@ impl NativeBehaviorState {
         match self {
             NativeBehaviorState::None(_) => {}
             NativeBehaviorState::Life(state) => state.tick_counter = 0,
-            NativeBehaviorState::Sequencer(state) => state.tick_counter = 0,
+            NativeBehaviorState::Sequencer(state) => play::sequencer::reset_transport_phase(state),
             NativeBehaviorState::Keys(_) => {}
             NativeBehaviorState::Looper(state) => play::looper::reset_transport_phase(state),
             NativeBehaviorState::Brain(state) => state.tick_counter = 0,

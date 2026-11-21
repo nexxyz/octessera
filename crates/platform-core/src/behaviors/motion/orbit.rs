@@ -2,6 +2,7 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::dithered_pct;
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
@@ -128,10 +129,12 @@ pub fn orbit_on_tick(mut state: OrbitState, _: &mut BehaviorContext) -> OrbitSta
     for i in 0..state.active_count {
         let dx = state.attractor_x - ox[i];
         let dy = state.attractor_y - oy[i];
-        let pullx = dx.signum() * i16::from(state.attraction_pct) / 20;
-        let pully = dy.signum() * i16::from(state.attraction_pct) / 20;
-        let tangx = -dy.signum() * i16::from(state.orbit_pct) / 20;
-        let tangy = dx.signum() * i16::from(state.orbit_pct) / 20;
+        let pull = dithered_pct(state.attraction_pct, 5, state.tick_counter, i, 71);
+        let swirl = dithered_pct(state.orbit_pct, 5, state.tick_counter, i, 73);
+        let pullx = dx.signum() * pull;
+        let pully = dy.signum() * pull;
+        let tangx = -dy.signum() * swirl;
+        let tangy = dx.signum() * swirl;
         let repel = if state.repel_mode == "always" { -1 } else { 1 };
         state.vx[i] = (state.vx[i] + pullx * repel + tangx).clamp(-SPEED, SPEED);
         state.vy[i] = (state.vy[i] + pully * repel + tangy).clamp(-SPEED, SPEED);
@@ -312,7 +315,6 @@ fn reset_orbit(s: &mut OrbitState) {
     s.attractor_vx = 3;
     s.attractor_vy = 2;
     for i in 0..s.active_count {
-        let a = i % 8;
         let (dx, dy) = [
             (24, 0),
             (16, 16),
@@ -322,7 +324,15 @@ fn reset_orbit(s: &mut OrbitState) {
             (-16, -16),
             (0, -24),
             (16, -16),
-        ][a];
+            (37, 15),
+            (15, 37),
+            (-15, 37),
+            (-37, 15),
+            (-37, -15),
+            (-15, -37),
+            (15, -37),
+            (37, -15),
+        ][i];
         s.x[i] = (s.attractor_x + dx).clamp(0, WORLD_MAX_X);
         s.y[i] = (s.attractor_y + dy).clamp(0, WORLD_MAX_Y);
         s.vx[i] = (-dy / 4).clamp(-SPEED, SPEED);

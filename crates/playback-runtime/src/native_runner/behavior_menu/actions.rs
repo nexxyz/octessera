@@ -22,15 +22,18 @@ impl NativeRunner {
         layer_index: usize,
         action_type: String,
     ) -> Result<platform_core::NativeInputResult, String> {
-        let looper = self.layer_behavior_id(layer_index) == "looper";
+        let behavior_id = self.layer_behavior_id(layer_index).to_string();
+        let looper = behavior_id == "looper";
         let is_looper_punch = looper && action_type == "toggleMode";
         let is_looper_clear = looper && action_type == "clearLoop";
+        let before = self.serialized_state_for_layer(layer_index)?;
         let result = self.layer_engine_input_result(
             layer_index,
             DeviceInput::BehaviorAction(BehaviorActionInput { action_type }),
         )?;
+        self.keep_behavior_action_settings(layer_index, &before, &behavior_id);
         if is_looper_punch {
-            self.sync_looper_mode_config_after_punch(layer_index);
+            self.show_looper_mode_toast(layer_index);
         } else if is_looper_clear {
             self.show_toast("Loop cleared");
         }
@@ -49,18 +52,14 @@ impl NativeRunner {
         }
     }
 
-    fn sync_looper_mode_config_after_punch(&mut self, layer_index: usize) {
-        let state = self
+    fn show_looper_mode_toast(&mut self, layer_index: usize) {
+        let Some(platform_core::NativeBehaviorState::Looper(state)) = self
             .layers
             .get(layer_index)
-            .map(|layer| layer.engine.state().clone());
-        let Some(platform_core::NativeBehaviorState::Looper(state)) = state else {
+            .map(|layer| layer.engine.state())
+        else {
             return;
         };
-        let config = self.layer_behavior_config(layer_index);
-        let mut object = config.as_object().cloned().unwrap_or_default();
-        object.insert("mode".into(), Value::from(state.mode.as_str()));
-        self.set_layer_behavior_config(layer_index, "looper", Value::Object(object));
         let label = if state.mode.as_str() == "play" {
             "Play"
         } else {

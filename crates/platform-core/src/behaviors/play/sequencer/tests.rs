@@ -131,3 +131,19 @@ fn a_single_page_saves_exactly_as_before_pages() {
     let paged = with_config(&state, json!({ "pagesX": 2 }));
     assert!(serialize(&paged).unwrap().get("pages").is_some());
 }
+
+#[test]
+fn stop_returns_an_advancing_sequencer_to_the_first_page() {
+    let state = init(json!({ "pagesX": 2, "pagesY": 2, "advanceSteps": 1 })).unwrap();
+    let state = press(state, 1, 1);
+    let mut turned = ticks(state.clone(), 3);
+    assert_eq!((turned.page_x, turned.page_y), (1, 2));
+    reset_transport_phase(&mut turned);
+    assert_eq!((turned.page_x, turned.page_y), (1, 1));
+    assert_eq!(turned.tiles, state.tiles);
+    assert_eq!(turned.tick_counter, 0);
+
+    let mut held = init(json!({ "pagesX": 2, "pageX": 2 })).unwrap();
+    reset_transport_phase(&mut held);
+    assert_eq!((held.page_x, held.page_y), (2, 1));
+}

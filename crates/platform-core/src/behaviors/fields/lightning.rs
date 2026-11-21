@@ -12,6 +12,8 @@ use serde_json::Value;
 const EMPTY: u8 = 0;
 const LEADER: u8 = 1;
 const FLASH: u8 = 2;
+/// The path a leader already took: lit, and part of the bolt when it connects.
+const TRAIL: u8 = 3;
 const EDGES: &[&str] = &["north", "east", "south", "west"];
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -226,8 +228,7 @@ fn normalize_state(s: &mut LightningState) {
             if s.leaders.len() < limit {
                 s.leaders.push(LeaderPos { x, y });
             } else {
-                s.tiles[index] = EMPTY;
-                s.ages[index] = 0;
+                s.tiles[index] = TRAIL;
             }
         }
     }
@@ -242,7 +243,7 @@ fn normalize_state(s: &mut LightningState) {
                     .iter()
                     .any(|leader| grid_index(leader.x, leader.y) == index)
             {
-                *tile = EMPTY;
+                *tile = TRAIL;
                 *age = 0;
             }
         });
@@ -258,7 +259,7 @@ fn number(v: Option<Value>, d: u8, m: u8) -> u8 {
 fn normalize_tiles(v: Vec<Value>) -> Vec<u8> {
     let mut out = v
         .into_iter()
-        .map(|v| v.as_u64().unwrap_or(0).min(2) as u8)
+        .map(|v| v.as_u64().unwrap_or(0).min(u64::from(TRAIL)) as u8)
         .collect::<Vec<_>>();
     out.resize(TILE_COUNT, EMPTY);
     out.truncate(TILE_COUNT);
@@ -359,6 +360,9 @@ fn step_toward(x: usize, y: usize, edge: &str, jitter: bool) -> (usize, usize) {
 }
 fn advance_leaders(s: &mut LightningState, snapshot: &[LeaderPos]) {
     s.leaders.clear();
+    for p in snapshot {
+        s.tiles[grid_index(p.x, p.y)] = TRAIL;
+    }
     for p in snapshot.iter().take(s.leader_limit as usize) {
         let jitter = crate::behavior_random::rng().gen_range(0..100) < s.jitter_chance_pct;
         let (x, y) = step_toward(p.x, p.y, &s.target_edge, jitter);

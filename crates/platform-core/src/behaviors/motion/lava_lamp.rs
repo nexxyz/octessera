@@ -2,7 +2,7 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
-use crate::behavior_random::tile_roll_pct;
+use crate::behavior_random::{dithered_pct, tile_roll_pct};
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
@@ -131,7 +131,8 @@ pub fn lava_lamp_on_tick(mut s: LavaLampState, _: &mut BehaviorContext) -> LavaL
             s.vx[i] += tile_roll_pct(s.tick_counter, i, 41) as i16 % 5 - 2;
             s.vy[i] += tile_roll_pct(s.tick_counter, i, 43) as i16 % 5 - 2;
         }
-        s.vy[i] -= i16::from(s.heat_pct / 20) + i16::from(s.heat_ticks) * 2;
+        let lift = dithered_pct(s.heat_pct, 5, s.tick_counter, i, 47) + i16::from(s.heat_ticks) * 2;
+        s.vy[i] += convection(s.y[i], s.vy[i], lift);
         s.vx[i] += tile_roll_pct(s.tick_counter, i, 5) as i16 % 3 - 1;
         let damp = 100 - i16::from(s.viscosity_pct / 2);
         s.vx[i] = (s.vx[i] * damp / 100).clamp(-12, 12);
@@ -319,6 +320,17 @@ fn reset_changed(s: &mut LavaLampState, f: &mut Vec<usize>) {
         if before[index] != after[index] && after[index] >= VISIBLE {
             f.push(index);
         }
+    }
+}
+/// The lamp heats its bottom third and cools its top third: warm blobs rise, cooled blobs sink,
+/// and in between a blob keeps drifting the way it was going.
+fn convection(y: i16, vy: i16, lift: i16) -> i16 {
+    if y < MAX_POS / 3 {
+        lift
+    } else if y > MAX_POS * 2 / 3 {
+        -lift
+    } else {
+        vy.signum() * lift.min(1)
     }
 }
 fn reflect(p: &mut i16, v: &mut i16) {

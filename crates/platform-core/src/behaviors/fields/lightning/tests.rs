@@ -22,7 +22,7 @@ fn menu_palette_and_normalization_contract() {
     );
     assert_eq!(menu[5].key, "strikeNow");
     let state = lightning_deserialize(serde_json::json!({"tiles":[9,1],"ages":[999],"leaders":[{"x":99,"y":0}],"branchChancePct":999,"jitterChancePct":999,"decayTicks":99,"leaderLimit":99,"targetEdge":"bad"})).unwrap();
-    assert_eq!(state.tiles[0], FLASH);
+    assert_eq!(state.tiles[0], TRAIL);
     assert_eq!(state.target_edge, "south");
     assert_eq!(state.decay_ticks, 16);
     assert_eq!(state.leader_limit, 8);
@@ -109,4 +109,20 @@ fn grid_press_strike_now_and_serialization_are_stable() {
     assert!(serialized.get("triggerTypes").is_none());
     let restored = lightning_deserialize(serialized.clone()).unwrap();
     assert_eq!(lightning_serialize(&restored).unwrap(), serialized);
+}
+
+#[test]
+fn the_default_bolt_flashes_as_one_path_from_edge_to_edge() {
+    let mut context = BehaviorContext::new(120.0);
+    let mut state = lightning_init(serde_json::json!({})).unwrap();
+    for _ in 0..GRID_HEIGHT * 2 {
+        state = lightning_on_tick(state, &mut context);
+        if state.tiles.contains(&FLASH) {
+            break;
+        }
+    }
+    let flashed = (0..GRID_HEIGHT)
+        .map(|y| (0..GRID_WIDTH).any(|x| state.tiles[grid_index(x, y)] == FLASH))
+        .collect::<Vec<_>>();
+    assert!(flashed.iter().all(|row| *row), "{flashed:?}");
 }

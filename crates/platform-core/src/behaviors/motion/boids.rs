@@ -2,6 +2,7 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::dithered_pct;
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
@@ -146,13 +147,13 @@ pub fn boids_on_tick(mut state: BoidsState, _context: &mut BehaviorContext) -> B
             state.vx[i] = (ovx[i]
                 + sx * i16::from(state.separation_pct) / 100
                 + ax * i16::from(state.alignment_pct) / 100
-                + cx.signum() * i16::from(state.cohesion_pct) / 20)
-                .clamp(-SPEED, SPEED);
+                + cx.signum() * dithered_pct(state.cohesion_pct, 5, state.tick_counter, i, 61))
+            .clamp(-SPEED, SPEED);
             state.vy[i] = (ovy[i]
                 + sy * i16::from(state.separation_pct) / 100
                 + ay * i16::from(state.alignment_pct) / 100
-                + cy.signum() * i16::from(state.cohesion_pct) / 20)
-                .clamp(-SPEED, SPEED);
+                + cy.signum() * dithered_pct(state.cohesion_pct, 5, state.tick_counter, i, 67))
+            .clamp(-SPEED, SPEED);
         }
         if state.vx[i] == 0 && state.vy[i] == 0 {
             let (hx, hy) = heading(i);

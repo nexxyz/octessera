@@ -55,7 +55,7 @@ layer_sequencer_pages_x	*	key:layers.*.build.behaviorConfig.pagesX	number	Pages 
 layer_sequencer_pages_y	*	key:layers.*.build.behaviorConfig.pagesY	number	Pages Y	Sets how many 8x8 pages the sequencer canvas has stacked up (1 to 4).	The grid shows one page at a time; Page X and Page Y pick which.
 layer_sequencer_page_x	*	key:layers.*.build.behaviorConfig.pageX	number	Page X	Chooses which column of pages is in view. What is in view is what you see, edit, and hear.	Turn it live to jump to another page; Advance turns it for you on musical time.
 layer_sequencer_page_y	*	key:layers.*.build.behaviorConfig.pageY	number	Page Y	Chooses which row of pages is in view. What is in view is what you see, edit, and hear.	Turn it live to jump to another page; Advance turns it for you on musical time.
-layer_sequencer_advance	*	key:layers.*.build.behaviorConfig.advanceSteps	number	Advance	Turns to the next page every this many layer steps; 0 keeps the page.	A scanning layer steps at its Scan Unit, otherwise at Step Rate; at 1/8, Advance 8 turns once a bar. The count starts at Play.
+layer_sequencer_advance	*	key:layers.*.build.behaviorConfig.advanceSteps	number	Advance	Turns to the next page every this many layer steps; 0 keeps the page.	A scanning layer steps at its Scan Unit, else at Step Rate; at 1/8, Advance 8 turns once a bar. Stop returns to page 1, 1.
 life_spawn_shared_lightning	*	action:behavior_action:strikeNow	action	Strike Now	Clears the current bolt and starts a new Lightning strike immediately.	Use it to kick the sky when it is being too polite.
 layer_predator_prey_grass	*	key:layers.*.build.behaviorConfig.grassGrowChancePct	number	Grass Grow	Sets the percent chance empty tiles regrow grass after animals move.	Grass is visible background and does not fire activate triggers.
 layer_predator_prey_herbivore	*	key:layers.*.build.behaviorConfig.herbivoreReproducePct	number	Herbivore Repro	Sets the chance a herbivore leaves a child behind after eating grass.	Higher values make the herd bloom faster.
@@ -110,7 +110,7 @@ life_spawn_shared_sand_shift	*	action:behavior_action:shiftWind	action	Shift Win
 life_spawn_shared_sand_seed	*	action:behavior_action:seedDunes	action	Seed Dunes	Plants a diagonal dune pattern across the grid.	Changed visible dunes emit activate accents.
 layer_lava_count	*	key:layers.*.build.behaviorConfig.blobCount	number	Blob Count	Sets how many lava blobs are active.	More blobs make denser merging fields.
 layer_lava_viscosity	*	key:layers.*.build.behaviorConfig.viscosityPct	number	Viscosity	Damps blob velocity each tick.	Higher values make the lamp move more slowly.
-layer_lava_heat	*	key:layers.*.build.behaviorConfig.heatPct	number	Heat	Controls upward push and split chance.	Heat Lamp adds a one-tick boost.
+layer_lava_heat	*	key:layers.*.build.behaviorConfig.heatPct	number	Heat	Warms the bottom of the lamp: warm blobs rise, the cool top sends them back down, and hot blobs split more often.	At 0 the lamp is cold and the blobs only wander. Heat Lamp adds a one-tick boost.
 layer_lava_merge	*	key:layers.*.build.behaviorConfig.mergePct	number	Merge	Sets how often close blobs merge.	Only one scan-order pair can merge per tick.
 life_spawn_shared_lava_heat	*	action:behavior_action:heatLamp	action	Heat Lamp	Adds one tick of extra heat without immediate notes.	The next tick may move or split blobs.
 life_spawn_shared_lava_reset	*	action:behavior_action:resetBlobs	action	Reset Blobs	Brings back the four starting blobs.	Blobs that moved play as they appear.
@@ -636,7 +636,7 @@ native_behavior_select_groove	*	action:behavior_select:groove	action	Groove	Crea
 native_behavior_select_euclid	*	action:behavior_select:euclid	action	Euclid	Spreads hits evenly across a cycle.	Great for compact rhythms that feel intentional at many lengths.
 native_behavior_select_ostinato	*	action:behavior_select:ostinato	action	Ostinato	Repeats a short musical figure with variation.	Use it as a persistent hook for other worlds to push against.
 native_behavior_select_motif	*	action:behavior_select:motif	action	Motif	Develops small melodic cells into phrases.	Good for recognizable ideas that can still wander.
-native_behavior_select_canon	*	action:behavior_select:canon	action	Canon	Moves a melodic lane across the grid with delayed voices on later rows.	Density and variation add neighboring echoes; Cycle controls the phrase length.
+native_behavior_select_canon	*	action:behavior_select:canon	action	Canon	Plays a melody in the low rows and the same melody a few steps later four rows up.	Variation sets how late the answer comes; Density how often the melody sounds; Cycle how often the page turns.
 native_behavior_select_chords	*	action:behavior_select:chords	action	Chords	Builds stacked pitch rows from a moving root, then adds interval rows as density rises.	Variation changes the upper interval choice; Cycle controls how often the chord pattern shifts.
 native_behavior_select_contour	*	action:behavior_select:contour	action	Contour	Shapes pitch motion around rising and falling curves.	Use it when the melody's outline matters more than any one note.
 native_behavior_select_cadence	*	action:behavior_select:cadence	action	Cadence	Leans phrases toward arrival and release points.	Good for making algorithmic layers feel like they breathe in sections.
@@ -663,7 +663,7 @@ native_behavior_select_lightning	*	action:behavior_select:lightning	action	Light
 native_behavior_select_wave	*	action:behavior_select:wave	action	Wave	Simulates displacement and velocity on every tile; tension spreads an impulse and damping removes energy.	Grid press or Drop Impulse hits a tile; Impulse Interval adds scheduled hits.
 native_behavior_select_raindrops	*	action:behavior_select:raindrops	action	Raindrops	Drops impacts that ripple outward.	Use it for scattered events that bloom into circles.
 native_behavior_select_reaction_diffusion	*	action:behavior_select:reaction_diffusion	action	Reaction Diffusion	Evolves chemical-like patterns in a field.	Good for spots, stripes, and slow transformations.
-native_behavior_select_rivers	*	action:behavior_select:rivers	action	Rivers	Moves flow through channels across the grid.	Use it for current, branching streams, and directional drift.
+native_behavior_select_rivers	*	action:behavior_select:rivers	action	Rivers	Rain gathers into streams that run down from the hills along the top row and spill off the bottom.	Use it for current, branching streams, and directional drift.
 native_behavior_select_gravity	*	action:behavior_select:gravity	action	Gravity	Sand that falls toward an edge and slides off piles.	Drop Sand pours more; Clear Bottom empties the floor; Invert Gravity turns it.
 native_behavior_select_orbit	*	action:behavior_select:orbit	action	Orbit	Moves particles with attractor pull and tangential steering; particles and attractor reflect at grid edges.	Reset Orbit restores a centered ring; Nudge Attractor changes its velocity for later ticks.
 native_behavior_select_lava_lamp	*	action:behavior_select:lava_lamp	action	Lava Lamp	Moves blobs in slow merging currents.	Good for warm, drifting motion that never quite repeats.

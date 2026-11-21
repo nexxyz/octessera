@@ -36,6 +36,11 @@ fn menu_serialize_restore_quiet() {
 fn grid_actions_and_reset() {
     let mut ctx = context();
     let state = rivers_init(json!({})).unwrap();
+    assert!(state
+        .water
+        .iter()
+        .all(|water| *water == DAMP && *water < VISIBLE));
+    let state = rivers_init(json!({ "water": vec![0; TILE_COUNT] })).unwrap();
     let pressed = rivers_on_input(state, DeviceInput::GridPress { x: 0, y: 0 }, &mut ctx);
     assert_eq!(pressed.water[grid_index(0, 0)], 96);
     assert_eq!(
@@ -97,10 +102,30 @@ fn flow_erosion_evaporation_status() {
     assert_eq!(ticked.water[grid_index(0, 0)], 64);
     assert_eq!(ticked.water[grid_index(1, 0)], 0);
     let state = rivers_init(
-        json!({"water":[8],"rainPct":0,"flowPct":0,"erosionPct":0,"evaporationPct":100}),
+        json!({"water":[VISIBLE],"rainPct":0,"flowPct":0,"erosionPct":0,"evaporationPct":100}),
     )
     .unwrap();
     let ticked = rivers_on_tick(state, &mut ctx);
     assert_eq!(ticked.water[0], 0);
     assert_eq!(ticked.trigger_types[0], TileTriggerType::Deactivate);
+}
+
+#[test]
+fn rain_runs_down_the_panel_and_spills_off_the_bottom_edge() {
+    let mut ctx = context();
+    let height = default_height();
+    assert!(height[grid_index(3, GRID_HEIGHT - 1)] > height[grid_index(3, 0)]);
+    let mut water = vec![0; TILE_COUNT];
+    water[grid_index(3, 0)] = 200;
+    let state = rivers_init(json!({
+        "water": water, "rainPct": 0, "flowPct": 50, "erosionPct": 0, "evaporationPct": 0
+    }))
+    .unwrap();
+    let ticked = (0..8).fold(state, |state, _| rivers_on_tick(state, &mut ctx));
+    let total = ticked
+        .water
+        .iter()
+        .map(|water| u32::from(*water))
+        .sum::<u32>();
+    assert!(total < 200, "{total}");
 }

@@ -28,6 +28,7 @@ pub struct FractalExplorerState {
     pub julia_cx: i16,
     #[serde(rename = "juliaCy")]
     pub julia_cy: i16,
+    #[serde(rename = "fractalMode", alias = "mode")]
     pub mode: String,
     #[serde(rename = "regionIndex")]
     pub region_index: u8,

@@ -128,7 +128,7 @@ impl NativeRunner {
         self.replace_layer_engine_with_config(
             layer_index,
             behavior,
-            engine_config.clone(),
+            self.with_pattern_phase(layer_index, &engine_config),
             saved_state,
         )?;
         self.set_layer_behavior_config(layer_index, behavior_id.as_str(), engine_config);
@@ -144,6 +144,60 @@ impl NativeRunner {
             self.mark_fast_autosave_dirty();
         }
         Ok(true)
+    }
+
+    /// Keeps the settings a behavior action changed, such as a turned gravity or wind direction,
+    /// in the layer's behavior config, so the next settings change starts from them instead of
+    /// turning them back.
+    pub(super) fn keep_behavior_action_settings(
+        &mut self,
+        layer_index: usize,
+        before: &Value,
+        behavior_id: &str,
+    ) {
+        let Ok(after) = self.serialized_state_for_layer(layer_index) else {
+            return;
+        };
+        let changed = after
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter(|(key, value)| {
+                !value.is_array() && !value.is_object() && before.get(key.as_str()) != Some(*value)
+            })
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect::<Vec<_>>();
+        if changed.is_empty() {
+            return;
+        }
+        let mut config = self
+            .layer_behavior_config(layer_index)
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
+        for (key, value) in changed {
+            self.set_behavior_config_menu_value(
+                &format!("layers.{layer_index}.build.behaviorConfig.{key}"),
+                &value,
+            );
+            config.insert(key, value);
+        }
+        self.set_layer_behavior_config(layer_index, behavior_id, Value::Object(config));
+    }
+
+    /// A pattern's place in its cycle follows the transport, so new settings keep it.
+    fn with_pattern_phase(&self, layer_index: usize, config: &Value) -> Value {
+        let phase = match self
+            .layers
+            .get(layer_index)
+            .map(|layer| layer.engine.state())
+        {
+            Some(platform_core::NativeBehaviorState::Pattern(state)) => state.phase,
+            _ => return config.clone(),
+        };
+        let mut config = config.as_object().cloned().unwrap_or_default();
+        config.insert("phase".into(), json!(phase));
+        Value::Object(config)
     }
 
     pub(super) fn apply_behavior_config_menu_key(&mut self, key: &str) -> Result<bool, String> {
@@ -203,7 +257,7 @@ impl NativeRunner {
         self.set_behavior_config_menu_value(key, &value);
     }
 
-    fn set_behavior_config_menu_value(&mut self, key: &str, value: &Value) {
+    pub(super) fn set_behavior_config_menu_value(&mut self, key: &str, value: &Value) {
         let Some(item) = self.menu.item_for_key(key) else {
             return;
         };

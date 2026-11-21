@@ -125,6 +125,15 @@ pub fn on_tick(state: SequencerState, _context: &mut BehaviorContext) -> Sequenc
     next
 }
 
+/// Stop or reset restarts the count and, while Advance turns pages, the song from page 1, 1.
+pub(crate) fn reset_transport_phase(state: &mut SequencerState) {
+    state.tick_counter = 0;
+    if state.advance_steps > 0 {
+        (state.page_x, state.page_y) = (1, 1);
+        show_page(state);
+    }
+}
+
 pub fn render_model(state: &SequencerState) -> BehaviorRenderModel {
     let status_line = if state.pages_x * state.pages_y > 1 {
         format!("Page {},{}", state.page_x, state.page_y)

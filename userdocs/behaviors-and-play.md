@@ -51,6 +51,12 @@ These five behaviors make a good first tour:
 Names are shown as they appear on the OLED. Behaviors are grouped by category
 in **Build**.
 
+The pattern behaviors (`weave` and everything under Rhythm and Musical) are
+scan patterns: they redraw the grid once per Cycle, a page at a time, and each
+page carries on where the last one stopped. Let a Link scan play them column by
+column. On a plain Activate link they fire one burst per page, which is a
+fine trick, just not a rhythm.
+
 | Behavior | Category | What it's good for |
 |---|---|---|
 | `none` | Human | Inactive layer, for when you want space or are setting up. |
@@ -66,7 +72,7 @@ in **Build**.
 | `euclid` | Rhythm | Evenly spread hits across uneven lane lengths. Simple controls, surprisingly useful loops. |
 | `ostinato` | Musical | A repeating melodic figure that shifts without losing its anchor. |
 | `motif` | Musical | A short melodic shape that mutates, folds and returns. |
-| `canon` | Musical | Delayed copies of a line, stacked into layered motion. |
+| `canon` | Musical | A melody in the low rows, answered a few steps later by the same melody four rows up. Variation sets how late the answer comes. |
 | `chords` | Musical | Moving triad-like tiles for harmonic blocks and chord strikes. |
 | `contour` | Musical | Melody-like tiles following rise, fall, arch and valley shapes. |
 | `cadence` | Musical | Harmonic movement with repeated tension and resolution points. |

@@ -41,21 +41,20 @@ fn crossing_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
 }
 
 fn polyrhythm_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
-    let lengths = [5, 7, 8, 9, 11, 12, 13, 15];
-    let slow = (state.phase / state.cycle_length as u64) as usize;
-    let length = (lengths[y] + slow % 3).min(GRID_WIDTH);
-    ((x + state.seed as usize + y * 2 + slow) % length) < lane_hits(state, length, y)
+    const LENGTHS: [usize; GRID_HEIGHT] = [5, 7, 8, 9, 11, 12, 13, 15];
+    let length = LENGTHS[y];
+    (lane_step(state, x) + state.seed as usize + y * 2) % length < lane_hits(state, length, y)
 }
 
 fn breaks_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
     let page = (state.phase / state.cycle_length as u64) as usize;
     let span = state.cycle_length.max(8) as usize;
     let step = ((x + page + state.seed as usize) % span) * 16 / span;
-    let cut = (state.density_pct as usize / 20).clamp(1, 4);
+    let ghost_rows = density_lanes(state);
     matches!(
         (y, step % 16),
         (0, 0 | 7 | 10) | (2, 4 | 12) | (4, 2 | 6 | 14)
-    ) || (y >= GRID_HEIGHT.saturating_sub(cut)
+    ) || (y >= GRID_HEIGHT - ghost_rows
         && hash(state.seed, x, y, state.phase / 8) % 100 < state.variation_pct as u32 / 3)
 }
 
@@ -71,8 +70,10 @@ fn clave_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
     const CELL: [usize; 5] = [0, 3, 6, 10, 12];
     let page = (state.phase / state.cycle_length as u64) as usize;
     let span = state.cycle_length.max(8) as usize;
-    let variation_shift = if state.variation_pct > 50 && y >= 4 {
-        (state.seed as usize + y) % 3
+    let shifted =
+        y >= 4 && hash(state.seed, 0, y, page as u64) % 100 < u32::from(state.variation_pct);
+    let variation_shift = if shifted {
+        (state.seed as usize + y) % 3 + 1
     } else {
         0
     };
@@ -95,13 +96,10 @@ fn groove_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
 }
 
 fn euclid_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
-    let steps = (8 + y).min(GRID_WIDTH);
+    let steps = 8 + y;
     let hits = lane_hits(state, steps, y);
-    let cycle_shift = state.cycle_length as usize / 4;
-    let seed_turn = state.seed as usize / 7;
-    let rotate =
-        (seed_turn + (state.phase / state.cycle_length as u64) as usize + y + cycle_shift) % steps;
-    ((x + rotate) * hits) % steps < hits
+    let position = (lane_step(state, x) + state.seed as usize + y) % steps;
+    (position * hits) % steps < hits
 }
 
 fn motif_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
@@ -111,54 +109,67 @@ fn motif_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
         || generic_accent(state, x, y)
 }
 
+/// A leader melody in the lower four rows and the same melody, rests included, a few steps later
+/// and four rows up. Variation sets the delay; Density how often the melody sounds.
 fn canon_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
-    let page = state.phase / state.cycle_length as u64;
-    let delay = y / 2;
-    let cycle_shift = u64::from(state.cycle_length / 4);
-    let seed_turn = u64::from(state.seed / 7);
-    let voice = ((x as u64 + page + cycle_shift + seed_turn + delay as u64 * 2)
-        % GRID_HEIGHT as u64) as usize;
-    y == voice
-        || (state.density_pct > 55 && y.abs_diff(voice) == 1 && (x + delay).is_multiple_of(2))
-        || (state.variation_pct > 50 && y.abs_diff(voice) == 1 && (x + delay).is_multiple_of(4))
-        || scan_breath(state, x, y)
+    const VOICE_ROWS: usize = GRID_HEIGHT / 2;
+    let delay = 1 + state.variation_pct as usize / 25;
+    let step = lane_step(state, x) + delay;
+    let (voice_step, row) = if y < VOICE_ROWS {
+        (step, y)
+    } else {
+        (step - delay, y - VOICE_ROWS)
+    };
+    canon_melody(state, voice_step) == Some(row) || scan_breath(state, x, y)
+}
+
+fn canon_melody(state: &PatternBehaviorState, step: usize) -> Option<usize> {
+    const SHAPE: [usize; 8] = [0, 2, 1, 3, 2, 0, 1, 3];
+    let sounding = hash(state.seed, step % 32, 0, 0) % 100 < u32::from(state.density_pct) + 30;
+    sounding.then(|| SHAPE[(step + state.seed as usize) % SHAPE.len()])
 }
 
 fn chord_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
     let page = state.phase / state.cycle_length as u64;
-    let cycle_shift = u64::from(state.cycle_length / 4);
-    let seed_turn = u64::from(state.seed / 7);
-    let root = ((page + cycle_shift + x as u64 / 2 + seed_turn) % GRID_HEIGHT as u64) as usize;
-    let fifth = if state.variation_pct >= 50 { 5 } else { 4 };
+    let chord = x as u64 / 2;
+    let root = ((page + chord + u64::from(state.seed)) % GRID_HEIGHT as u64) as usize;
+    let raised = hash(state.seed, chord as usize, 0, page) % 100 < u32::from(state.variation_pct);
+    let fifth = if raised { 5 } else { 4 };
+    let density = u32::from(state.density_pct);
+    let tone = |salt: usize| hash(state.seed, chord as usize, salt, page) % 100;
     y == root
-        || (state.density_pct >= 25 && y == (root + 2) % GRID_HEIGHT)
-        || (state.density_pct >= 45 && y == (root + fifth) % GRID_HEIGHT)
-        || (state.density_pct >= 65 && y == (root + 7) % GRID_HEIGHT)
+        || (tone(1) < density * 2 && y == (root + 2) % GRID_HEIGHT)
+        || (tone(2) < density * 3 / 2 && y == (root + fifth) % GRID_HEIGHT)
+        || (tone(3) < density && y == (root + 7) % GRID_HEIGHT)
 }
 
 fn contour_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
-    let center =
-        ((state.phase / state.cycle_length as u64 + x as u64 + state.seed as u64) % 14) as i32;
+    let page = state.phase / state.cycle_length as u64;
+    let center = ((page + x as u64 + state.seed as u64) % 14) as i32;
     let folded = if center > 7 { 14 - center } else { center } as usize;
-    let width = usize::from(state.density_pct >= 45);
+    let width = (state.density_pct as usize * 3 + 50) / 100;
+    let counter_line = hash(state.seed, x, 0, page) % 100 < u32::from(state.variation_pct) / 2;
     y.abs_diff(folded.min(GRID_HEIGHT - 1)) <= width
-        || (state.variation_pct >= 70
-            && y.abs_diff((folded + 2).min(GRID_HEIGHT - 1)) == 0
-            && x.is_multiple_of(3))
+        || (counter_line && y == (folded + 3).min(GRID_HEIGHT - 1))
         || scan_breath(state, x, y)
 }
 
 fn cadence_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
-    let step = (x + (state.phase / state.cycle_length as u64) as usize + state.seed as usize) % 16;
-    let root = match step / 4 {
+    let page = state.phase / state.cycle_length as u64;
+    let step = (x + page as usize + state.seed as usize) % 16;
+    let bar = step / 4;
+    let lifted = hash(state.seed, bar, 0, page) % 100 < u32::from(state.variation_pct);
+    let root = match bar {
         0 => 0,
         1 => 3,
-        2 => 4 + usize::from(state.variation_pct > 60),
+        2 => 4 + usize::from(lifted),
         _ => 0,
     };
+    let density = u32::from(state.density_pct);
+    let tone = |salt: usize| hash(state.seed, x, salt, page) % 100;
     y == root
-        || (state.density_pct >= 30 && y == (root + 2) % GRID_HEIGHT)
-        || (state.density_pct >= 55 && y == (root + 5) % GRID_HEIGHT)
+        || (tone(1) < density * 2 && y == (root + 2) % GRID_HEIGHT)
+        || (tone(2) < density && y == (root + 5) % GRID_HEIGHT)
         || (step >= 14 && y == 7)
         || scan_breath(state, x, y)
 }
@@ -192,7 +203,13 @@ fn lane_hits(state: &PatternBehaviorState, steps: usize, y: usize) -> usize {
 }
 
 fn density_lanes(state: &PatternBehaviorState) -> usize {
-    ((GRID_HEIGHT * state.density_pct as usize) / 100).clamp(1, GRID_HEIGHT - 1)
+    ((GRID_HEIGHT * state.density_pct as usize + 50) / 100).clamp(1, GRID_HEIGHT - 1)
+}
+
+/// The lane step a column plays on the current page: each page continues the lanes where the
+/// previous page stopped, so a lane longer than the grid carries on across page turns.
+fn lane_step(state: &PatternBehaviorState, x: usize) -> usize {
+    (state.phase / state.cycle_length as u64) as usize * GRID_WIDTH + x
 }
 
 fn hash(seed: u32, x: usize, y: usize, phase: u64) -> u32 {

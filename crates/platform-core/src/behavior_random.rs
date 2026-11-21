@@ -88,6 +88,12 @@ pub(crate) fn tile_roll_pct(tick: u64, index: usize, salt: u64) -> u32 {
     ((x.wrapping_mul(0x27D4_EB2D) >> 24) % 100) as u32
 }
 
+/// `pct` percent of `full_scale`, rounded up or down by a repeatable roll so the average stays
+/// exact: every percent counts, even where the whole-number scale has only a few steps.
+pub(crate) fn dithered_pct(pct: u8, full_scale: i16, tick: u64, index: usize, salt: u64) -> i16 {
+    (i16::from(pct) * full_scale + tile_roll_pct(tick, index, salt) as i16) / 100
+}
+
 impl RngCore for BehaviorRng {
     fn next_u32(&mut self) -> u32 {
         with_active(|rng| rng.next_u32())
