@@ -163,7 +163,7 @@ fn assert_loaded(messages: &[HostMessage]) {
 fn booting_a_factory_store_leaves_nothing_to_autosave() {
     let rig = rig(true, false);
 
-    assert!(!rig.runner.owes_patch_persistence());
+    assert!(!rig.runner.owes_default_autosave());
     assert!(rig
         .runner
         .persistence_intent_at(Instant::now() + Duration::from_secs(5))
@@ -180,7 +180,7 @@ fn a_preset_save_that_cleans_the_patch_leaves_no_autosave_to_refuse_the_next_loa
     assert!(rig.adapter.core.pending_default_save.has_default_pending());
 
     save_as_mine(&mut rig);
-    assert!(!rig.runner.owes_patch_persistence());
+    assert!(!rig.runner.owes_default_autosave());
     flush(&mut rig, now + Duration::from_millis(10));
 
     assert!(!rig.adapter.core.pending_default_save.has_default_pending());
@@ -190,7 +190,9 @@ fn a_preset_save_that_cleans_the_patch_leaves_no_autosave_to_refuse_the_next_loa
 
 #[test]
 fn turning_auto_save_off_drops_the_autosave_it_queued() {
-    let mut rig = rig(true, false);
+    // Backups on, as shipped: the edit's flush also issues the backup, so afterwards the runner
+    // owes nothing that would rebuild the queued record.
+    let mut rig = rig(true, true);
     save_as_mine(&mut rig);
     edit(&mut rig);
     let now = Instant::now();
@@ -206,7 +208,7 @@ fn turning_auto_save_off_drops_the_autosave_it_queued() {
             json!({"type":"encoder_press","id":"main"}),
         ],
     );
-    assert!(!rig.runner.owes_patch_persistence());
+    assert!(!rig.runner.owes_default_autosave());
     flush(&mut rig, now + Duration::from_millis(10));
 
     assert!(!rig.adapter.core.pending_default_save.has_default_pending());
@@ -218,7 +220,7 @@ fn turning_auto_save_off_drops_the_autosave_it_queued() {
 fn a_backup_alone_is_still_written_when_auto_save_is_off() {
     let mut rig = rig(false, true);
     edit(&mut rig);
-    assert!(rig.runner.owes_patch_persistence());
+    assert!(!rig.runner.owes_default_autosave());
     flush(&mut rig, Instant::now());
 
     finished_operation(&mut rig, RuntimeOperation::StoreSaveBackup);

@@ -23,6 +23,15 @@ impl PendingPiPersistence {
         self.pending = None;
     }
 
+    /// Forgets a queued default autosave the runner no longer owes; a queued backup stays.
+    pub(crate) fn drop_default(&mut self) {
+        if let Some(native) = self.pending.as_mut() {
+            native.default_eligible = false;
+            native.default_due_at = None;
+        }
+        self.pending = self.pending.filter(|native| native.backup_eligible);
+    }
+
     pub(crate) fn has_default_pending(&self) -> bool {
         self.pending.is_some_and(|native| native.default_eligible)
     }

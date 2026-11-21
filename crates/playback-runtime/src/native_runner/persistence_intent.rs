@@ -23,9 +23,9 @@ impl NativePersistenceIntent {
 }
 
 impl NativeRunner {
-    /// Whether the patch still owes an autosave or a rolling backup.
-    pub fn owes_patch_persistence(&self) -> bool {
-        self.config_dirty && (self.auto_save_default || self.rolling_backups)
+    /// Whether the patch still owes Auto Save a write to the default patch.
+    pub fn owes_default_autosave(&self) -> bool {
+        self.config_dirty && self.auto_save_default
     }
 
     pub fn persistence_intent_at(&self, now: Instant) -> Option<NativePersistenceIntent> {

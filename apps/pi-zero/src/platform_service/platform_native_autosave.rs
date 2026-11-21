@@ -22,8 +22,8 @@ pub(crate) fn flush_due_native_persistence(
     now: Instant,
     skip_coalescing: bool,
 ) -> Vec<HostMessage> {
-    if !runner.owes_patch_persistence() {
-        pending.cancel();
+    if !runner.owes_default_autosave() {
+        pending.drop_default();
     }
     let generation = service.store_write_generation();
     let blocked = service.store_writes_blocked();
