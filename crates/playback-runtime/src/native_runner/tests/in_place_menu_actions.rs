@@ -328,3 +328,25 @@ fn sample_favourites_and_missing_samples_update_their_instrument_in_place() {
     );
     assert_matches_fresh_build(&runner, rebuilds + 1);
 }
+
+#[test]
+fn factory_patch_loads_after_empty_patch_left_every_layer_without_behavior_state() {
+    let payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_config_payload(payload).unwrap();
+    runner.skip_startup_splash();
+    confirm_key(&mut runner, "system.clearAll");
+    assert_eq!(
+        runner.config_payload()["runtimeConfig"]["layers"][2]["build"]["behaviorId"],
+        "none"
+    );
+
+    confirm_key(&mut runner, "factory.load");
+    assert!(runner.display.runtime_error_presentation.is_none());
+    let build = &runner.config_payload()["runtimeConfig"]["layers"][2]["build"];
+    assert_eq!(build["behaviorId"], "looper");
+    assert!(build["savedState"]["steps"].is_array());
+}

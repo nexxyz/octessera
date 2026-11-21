@@ -64,6 +64,11 @@ fn validate_value(value: &Value, template: &Value, path: &str) -> Result<(), Str
     if is_play_assignments_path(path) {
         return validate_play_assignments(value, path);
     }
+    if is_layer_build_path(path) {
+        // Which build keys a layer carries depends on its behavior, so the current layer is no
+        // template for the loaded one; its keys are checked by name, its state stays opaque.
+        return validate_object_keys(value, path, BUILD_FIELDS);
+    }
     if path.ends_with(".faders.tiles") {
         return validate_fader_tiles(value, path);
     }
@@ -278,6 +283,10 @@ fn is_aux_binding_path(path: &str) -> bool {
         && !path.ends_with(".pressAction")
 }
 
+fn is_layer_build_path(path: &str) -> bool {
+    path.starts_with("$.runtimeConfig.layers[") && path.ends_with("].build")
+}
+
 fn is_sample_assignments_path(path: &str) -> bool {
     path.ends_with(".sample.assignments")
 }
@@ -296,6 +305,14 @@ const PARAM_BINDING_FIELDS: &[&str] = &[
 const AUX_BINDING_FIELDS: &[&str] = &["turnKey", "pressAction"];
 const PRESS_ACTION_FIELDS: &[&str] = &["kind", "actionType", "layer", "action", "slot"];
 const FADER_TILE_FIELDS: &[&str] = &["x", "y", "type", "action", "shiftAction", "target"];
+const BUILD_FIELDS: &[&str] = &[
+    "behaviorId",
+    "behaviorConfig",
+    "savedState",
+    "behaviorConfigHistory",
+    "seeded",
+    "stepRate",
+];
 const SYSTEM_FIELDS: &[&str] = &["playMode"];
 const SAMPLE_ASSIGNMENT_FIELDS: &[&str] =
     &["level", "sampleSlot", "x", "y", "tuneSemis", "tuneCents"];
