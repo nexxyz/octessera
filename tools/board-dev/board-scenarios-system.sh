@@ -20,7 +20,12 @@ await_wlan() {
 }
 # Ends a show the scenario left running, so a failed run never keeps the board off Wi-Fi.
 show_cleanup() {
-  grep -q " $show_apply " /proc/self/mountinfo && sudo -n umount "$show_apply"
+  local _
+  for _ in 1 2 3 4 5; do
+    grep -q " $show_apply " /proc/self/mountinfo || break
+    sudo -n umount "$show_apply" || sleep 1
+  done
+  grep -q " $show_apply " /proc/self/mountinfo && sudo -n umount -l "$show_apply"
   if sudo -n test -e "$show_dir/length"; then
     sudo -n rm -f "$show_dir/length" "$show_dir/elapsed"
     sudo -n "$show_apply"
@@ -96,9 +101,11 @@ fake_release() {
     sudo -n chmod 755 "$update_root/releases/$1/octessera-pi"
   fi
 }
+# The failing releases log errors by design, so the journal is not checked; the restart at the end
+# shows the clone still loads.
 update_fail() {
   configure autoSaveDefault=false dimTimerSeconds=0 screenSleepSeconds=0
-  local binary
+  local binary start_exec
   binary=$(readlink -f "$(systemctl show -p ExecStart --value "$service" | sed -n 's/.*path=\([^ ;]*\).*/\1/p')")
   echo "binary $binary" >> update.log
   update_root="$store-update"
@@ -114,5 +121,5 @@ update_fail() {
   update_step dies 0.9.92
   fake_release 0.9.93 'trap "" TERM; while :; do sleep 1; done'
   update_step hangs 0.9.93
-  start_exec=""
+  if start; then echo "restart_ready=yes" >> update.log; else echo "restart_ready=no" >> update.log; fi
 }

@@ -127,6 +127,10 @@ prepare() {
 }
 cleanup() {
   set +e
+  # Nothing of the scenario may go on typing or switching releases once the drop-in is gone.
+  sudo -n pkill -f "$root/board-keys.py"
+  sudo -n pkill -f "$root/octessera-update switch"
+  for _ in $(seq 1 20); do pgrep -f "$root/(board-keys.py|octessera-update)" >/dev/null || break; sleep 0.5; done
   if sudo -n test -d "$trace"; then
     sudo -n sh -c "echo 0 > $trace/events/spi/spi_transfer_start/enable"
     sudo -n rmdir "$trace"
@@ -209,8 +213,13 @@ preset_state() {
 import hashlib, json, sys
 from pathlib import Path
 store = Path(sys.argv[1])
-files = " ".join(f"{p.stem}={hashlib.sha256(p.read_bytes()).hexdigest()[:16]}" for p in sorted((store / "patches").glob("*.json")))
-print(f"{sys.argv[2]} bpm={json.loads((store / 'default.patch.json').read_text())['runtimeConfig']['transport']['bpm']} {files}")
+presets = sorted((store / "patches").glob("*.json"))
+files = " ".join(f"{p.stem}={hashlib.sha256(p.read_bytes()).hexdigest()[:16]}" for p in presets)
+saved = json.loads((store / "default.patch.json").read_text())["runtimeConfig"]
+# The saved patch is a preset's when it holds every runtimeConfig value of that preset.
+loaded = [p.stem for p in presets
+          if all(saved.get(k) == v for k, v in json.loads(p.read_text())["runtimeConfig"].items())]
+print(f"{sys.argv[2]} bpm={saved['transport']['bpm']} matches={','.join(loaded) or '-'} {files}")
 PY
 }
 # Types one preset step and waits until the store changed and then held still for 0.5 s.
@@ -227,63 +236,81 @@ preset_step() {
   preset_state "$1"
 }
 # Text edits only append at the end of a name, so: Save As AC (the draft A comes from picking A in
-# Rename), Load A, Rename AC to ACD, Rename A onto AB with the overwrite confirmed, Delete ACD.
-# Every confirm takes its last option.
+# Rename), BPM +15, Load A over that unsaved change, Rename AC to ACD, Rename A onto AB with the
+# overwrite confirmed, Delete ACD. Every confirm takes its last option.
 presets() {
   prepare presets
   start || return
   local lib="$system down enter up*5 enter up*10" confirm="down*3 enter"
   preset_state initial
   preset_step save_as "$lib down*2 enter up*10 enter esc up*10 enter up*5 enter right*3 enter enter down enter $confirm"
+  preset_step edit "$link enter right*3 enter"
   preset_step load "$lib down enter up*10 enter $confirm"
   preset_step rename "$lib down*2 enter up*10 down*2 enter down*20 up enter right*4 enter enter down enter $confirm"
   preset_step overwrite "$lib down*2 enter up*10 enter down*20 up enter right*2 enter enter down enter $confirm"
   preset_step delete "$lib down*3 enter up*10 down enter $confirm"
 }
-# Stops the service once the given keys' last mark is in the log, and logs how long the stop took.
+# Waits up to $2 s for the mark $1; on a timeout it marks <mark>_timeout and fails.
+await_mark() {
+  local tries=$(($2 * 50))
+  until grep -q " $1\$" marks.log 2>/dev/null; do
+    tries=$((tries - 1))
+    [ "$tries" -gt 0 ] || { mark "${1}_timeout"; return 1; }
+    sleep 0.02
+  done
+}
+# Stops the service once the mark $1 is in the log (waiting up to $2 s), and logs when the stop was
+# issued (uptime, the marks' clock) and how long it took.
 stop_after() {
   local since
-  until grep -q " $1\$" marks.log 2>/dev/null; do sleep 0.02; done
+  await_mark "$1" "$2" || return 1
   since=$(date +%s%N)
+  echo "$1 issued=$(cut -d' ' -f1 /proc/uptime)" >> stop.log
   sudo -n systemctl stop "$service"
   echo "$1 stop_ms=$((($(date +%s%N) - since) / 1000000))" >> stop.log
 }
-# Grid Bright +10 and BPM +15, then a stop within 200 ms; then 5 s of Audio recording and a stop.
+# Grid Bright +10 and BPM +15, then a stop right after the last key; then 5 s of Audio recording and
+# a stop. Only a .wav in the Audio recordings folder, newer than this take's marker, counts.
 stop_save() {
+  local recordings=${media%% *} rec
   configure autoSaveDefault=true dimTimerSeconds=0 screenSleepSeconds=0
   snapshot stop-before
   start || return
   keys stop_edit "$display up*2 enter right*2 enter $link enter right*3 gap:0.05 enter mark:edited" &
-  stop_after stop_edit_edited
+  stop_after stop_edit_edited 30 || { wait; return; }
   wait
   snapshot stop-saved
   start || return
+  touch "$root/stop-rec-started"
   keys stop_rec "$system down*2 enter down enter mark:recording" &
-  until grep -q " stop_rec_recording\$" marks.log; do sleep 0.1; done
+  await_mark stop_rec_recording 60 || { wait; return; }
   sleep 5
   mark stop_rec_stopping
-  stop_after stop_rec_stopping
+  stop_after stop_rec_stopping 5
   wait
-  # shellcheck disable=SC2086
-  sudo -n find $media -type f -newer "$root/started" -printf '%p %s\n' >> stop.log
-  # shellcheck disable=SC2086
-  rec=$(sudo -n find $media -type f -newer "$root/started" | tail -n 1)
+  sudo -n find "$recordings" -maxdepth 1 -type f -name '*.wav' -newer "$root/stop-rec-started" -printf '%p %s\n' >> stop.log
+  echo "partial=$(sudo -n find "$recordings" -maxdepth 1 -type f -name '*.partial.wav' -newer "$root/stop-rec-started" | wc -l)" >> stop.log
+  rec=$(sudo -n find "$recordings" -maxdepth 1 -type f -name '*.wav' ! -name '*.partial.wav' -newer "$root/stop-rec-started" | tail -n 1)
   [ -n "$rec" ] && sudo -n cat "$rec" > stop-recording.media
 }
 rss() { sudo -n awk '/VmRSS/{print $2}' "/proc/$(systemctl show -p MainPID --value "$service")/status"; }
 # Five minutes of seeded random input on the store's own patch. The service cannot reach root's
-# power, device-apply, update, setup-portal or Live Show Mode paths while it runs.
+# power, device-apply, update, setup-portal, Orange storage-control (SD2 transfer) or Live Show
+# Mode paths while it runs. A restart afterwards shows the clone still loads.
 fuzz() {
   configure autoSaveDefault=false dimTimerSeconds=0 screenSleepSeconds=0
-  local seed=${OCTESSERA_SCENARIO_FUZZ_SEED:-$(date +%s)}
+  local seed=${OCTESSERA_SCENARIO_FUZZ_SEED:-$(date +%s)} start_sandbox restarted=no
   start_sandbox="NoNewPrivileges=yes
 InaccessiblePaths=-/run/octessera-device-apply -/run/octessera-update -/run/octessera-setup-request/inbox
-InaccessiblePaths=-/var/lib/octessera/show-hold -/usr/bin/systemctl -/usr/sbin/reboot -/usr/sbin/poweroff"
+InaccessiblePaths=-/run/octessera-orange-storage-control -/var/lib/octessera/show-hold
+InaccessiblePaths=-/usr/bin/systemctl -/usr/sbin/reboot -/usr/sbin/poweroff"
   start OCTESSERA_TIMING_AUTOPLAY=1 || return
   echo "start seed=$seed pid=$(systemctl show -p MainPID --value "$service") rss_kb=$(rss)" >> fuzz.log
   keys fuzz "random:$seed" 300
   echo "end pid=$(systemctl show -p MainPID --value "$service") rss_kb=$(rss) active=$(systemctl is-active "$service")" >> fuzz.log
-  start_sandbox=""
+  mark fuzz_typed
+  start OCTESSERA_TIMING_AUTOPLAY=1 && restarted=yes
+  echo "restart ready=$restarted" >> fuzz.log
 }
 usb_midi() {
   local setup

@@ -234,14 +234,18 @@ def presets(board, out):
     rows = {name: values for name, values in map(fields, (out / "presets.log").read_text().splitlines())}
     first = rows["initial"]
     a, ab = first["A"], first["AB"]
-    files = {step: {k: v for k, v in row.items() if k not in ("bpm", "message")} for step, row in rows.items()}
+    files = {step: {k: v for k, v in row.items() if k not in ("bpm", "matches", "message")} for step, row in rows.items()}
     saved = files.get("save_as", {}).get("AC")
+    edited = str(int(first["bpm"]) + 15)
     expected = {"save_as": lambda f: set(f) == {"A", "AB", "AC"} and f["A"] == a and f["AB"] == ab,
-                "load": lambda f: rows["load"]["bpm"] == "101" and set(f) == {"A", "AB", "AC"},
+                "edit": lambda f: rows["edit"]["bpm"] == edited and set(f) == {"A", "AB", "AC"},
+                "load": lambda f: (rows["load"]["bpm"] == "101" and "A" in rows["load"]["matches"].split(",")
+                                   and set(f) == {"A", "AB", "AC"}),
                 "rename": lambda f: set(f) == {"A", "AB", "ACD"} and f["ACD"] == saved,
                 "overwrite": lambda f: set(f) == {"AB", "ACD"} and f["AB"] == a,
                 "delete": lambda f: set(f) == {"AB"} and f["AB"] == a}
-    problems = [f"after {step}: {files.get(step)} (bpm {rows.get(step, {}).get('bpm')})"
+    problems = [f"after {step}: {files.get(step)} (bpm {rows.get(step, {}).get('bpm')}, "
+                f"matches {rows.get(step, {}).get('matches')})"
                 for step, check in expected.items() if step not in files or not check(files[step])]
     problems += window_errors(out, "presets")
     return problems, "; ".join(f"{step} {files[step]}" for step in files)
@@ -253,11 +257,22 @@ def stop_save(board, out):
         patch = json.loads((out / f"stop-{phase}-patch.json").read_text())["runtimeConfig"]
         return system["gridBrightness"], patch["transport"]["bpm"]
     (grid, bpm), saved = values("before"), values("saved")
-    stops = dict(line.split(" stop_ms=") for line in (out / "stop.log").read_text().splitlines() if " stop_ms=" in line)
+    log = (out / "stop.log").read_text().splitlines()
+    stops = dict(line.split(" stop_ms=") for line in log if " stop_ms=" in line)
+    issued = float(next(line.split("issued=")[1] for line in log if line.startswith("stop_edit_edited issued=")))
+    edited = marks(out)["stop_edit_edited"]
+    stopping = next((t for t, ident, text in journal(out / "journal.log")
+                     if t >= edited and ident.startswith("systemd") and "Stopping" in text), None)
+    sigterm_ms = None if stopping is None else round((stopping - edited) * 1000)
     problems = []
     if saved != (grid + 10, bpm + 15):
         problems.append(f"the stop right after the edits saved Grid Bright and BPM {saved}, not {(grid + 10, bpm + 15)}")
+    if sigterm_ms is None or sigterm_ms > 200:
+        problems.append(f"systemd began the stop {sigterm_ms} ms after the last edit, not within 200 ms")
     problems += [f"{name} took {ms} ms to stop" for name, ms in stops.items() if int(ms) >= 12000]
+    partial = next(line.split("=")[1] for line in log if line.startswith("partial="))
+    if partial != "0":
+        problems.append(f"{partial} recording(s) left as .partial.wav")
     media = out / "stop-recording.media"
     seconds = 0.0
     if media.exists():
@@ -270,25 +285,30 @@ def stop_save(board, out):
     if seconds < 4:
         problems.append(f"the recording stopped by the service stop lasts {seconds:.2f} s, not at least 4 s")
     problems += window_errors(out, "stop_save")
-    return problems, f"saved Grid Bright and BPM {saved} (from {(grid, bpm)}), stops {stops}, recording {seconds:.2f} s"
+    return problems, (f"saved Grid Bright and BPM {saved} (from {(grid, bpm)}), stop issued "
+                      f"{round((issued - edited) * 1000)} ms and begun {sigterm_ms} ms after the last edit, "
+                      f"stops {stops}, recording {seconds:.2f} s")
 
 
 def fuzz(board, out):
-    """No crash and no exit but the restart request (75); an exit right after a power request the
-    sandbox refused is the sandbox's doing. RSS is reported: it warms up for the soak's 20 minutes."""
-    start, end = (fields(line)[1] for line in (out / "fuzz.log").read_text().splitlines()[:2])
+    """No crash and no exit but the restart request (75): only a plain exit right after a power request
+    the sandbox refused is the sandbox's doing. Error lines from the sandbox's refusals are excused;
+    any other one fails. RSS is reported: it warms up for the soak's 20 minutes."""
+    start, end, restart = (fields(line)[1] for line in (out / "fuzz.log").read_text().splitlines()[:3])
     found = marks(out)
-    rows = [r for r in journal(out / "journal.log") if found["fuzz_begin"] <= r[0] <= found["fuzz_end"]]
+    rows = [r for r in journal(out / "journal.log") if found["fuzz_begin"] <= r[0] <= found["fuzz_typed"]]
     problems, refused = [], []
     for t, _, text in rows:
         exited = re.search(r"Main process exited, code=(\w+), status=(\d+)", text)
         if "power lifecycle failed" in text or "power request" in text:
             refused.append(t)
         if "panicked" in text or (exited and exited.groups() != ("exited", "75")
-                                  and not any(t - 10 <= r <= t for r in refused)):
+                                  and not (exited.group(1) == "exited" and any(t - 10 <= r <= t for r in refused))):
             problems.append(f"{t:.1f} {text}")
-    if end["active"] != "active":
-        problems.append(f"the service is {end['active']} after the fuzz")
+    sandboxed = ("Permission denied", "no new privileges", "power lifecycle failed", "power request")
+    problems += [line for line in errors(rows) if not any(cause in line for cause in sandboxed)]
+    if end["active"] != "active" or restart["ready"] != "yes":
+        problems.append(f"the service is {end['active']} after the fuzz, and ready after a restart: {restart['ready']}")
     restarts = sum("Main process exited" in text for _, _, text in rows)
     return problems, (f"seed {start['seed']}, {restarts} app exits, {len(errors(rows))} error lines, RSS "
                       f"{start['rss_kb']} -> {end['rss_kb']} kB (pid {start['pid']} -> {end['pid']})")
@@ -334,6 +354,8 @@ def update_fail(board, out):
         if row["store_unchanged"] != "yes":
             problems.append(f"{name}: the store changed")
         evidence.append(f"{name} took {row['took']}, ready {row['ready_after']} later on v{row['current']}")
+    if "restart_ready=yes" not in (out / "update.log").read_text().split():
+        problems.append("the clone did not load after a restart on the release it ended on")
     return problems, "; ".join(evidence)
 
 

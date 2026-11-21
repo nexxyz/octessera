@@ -349,18 +349,24 @@ usb_notes_in usb_audio usb_audio_fx`.
   keys: the bottom row, Left Alt + the leftmost key of each row, and
   Left Alt + `;`. The autosaved tiles must be exactly the world-space set
   (x 0..7, y 0), (0, 4..7) and (6, 5).
-- `presets` starts on a clone with presets `A` and `B` (101 and 102 BPM) and
-  Auto Save on, then, without Refresh List: Save As `C` (the name drafted by
-  picking `A` in Rename), Load `A`, Rename `A` to `D`, Rename `D` onto `B` with
-  the overwrite confirmed, Delete `C`. After each step it waits for the store
-  to change and settle. `D` and then `B` must be byte-identical to the
-  original `A`, the saved patch must play 101 BPM after the load, and only `B`
-  may be left.
+- `presets` starts on a clone with presets `A` and `AB` (101 and 102 BPM) and
+  Auto Save on. A name edit only appends at the end, so the names grow rather
+  than change. Without Refresh List it runs Save As `AC` (the draft `A` comes
+  from picking `A` in Rename), turns BPM up three detents, Loads `A` over that
+  unsaved change, Renames `AC` to `ACD`, Renames `A` onto `AB` with the
+  overwrite confirmed, and Deletes `ACD`. After each step it waits for the
+  store to change and settle. The edit must save BPM + 15; after the load the
+  saved patch must play 101 BPM and hold every value of `A`'s
+  `runtimeConfig`; `ACD` must be byte-identical to the saved `AC`, and `AB` to
+  the original `A`; only `AB` may be left.
 - `stop_save` turns Grid Bright up two detents and BPM up three with Auto Save
-  on and stops the service within about 100 ms of the last key: both values
-  must be in the saved files after the restart. Then it records 5 s of Audio
-  and stops the service: the file must last at least 4 s and decode cleanly,
-  and each stop must return in under 12 s.
+  on and stops the service as soon as the last key's mark is written: both
+  values must be in the saved files after the restart, and systemd's
+  `Stopping` line must come within 200 ms of that mark (the `sudo systemctl
+  stop` itself is logged too). Then it records 5 s of Audio and stops the
+  service: the take is the `.wav` in the Audio recordings folder newer than a
+  marker touched just before it, no `.partial.wav` may be left, it must last
+  at least 4 s and decode cleanly, and each stop must return in under 12 s.
 - `show_mode` starts a show from the menu, rewrites its length to 70 s as the
   runtime would, and bind-mounts the installed `octessera-show-hold-apply`
   with only its step changed to 20 s, so the re-arm runs four times. At 45 s
@@ -377,16 +383,20 @@ usb_notes_in usb_audio usb_audio_fx`.
   It switches to `0.9.91`, back to `0.9.90`, then to each failing one. After
   each switch the links must point at a release that runs, the service must be
   ready within 120 s, the clone's `system.json` and `default.patch.json` must
-  be byte-identical, and the message must name the version it ended on. The
-  real `/opt/octessera` links are never touched.
+  be byte-identical, and the message must name the version it ended on. A
+  last restart on the release it ended on must load the clone. The journal is
+  not checked for errors: the failing releases log them by design. The real
+  `/opt/octessera` links are never touched.
 - `fuzz` types 600 seeded random taps on repeat for 5 minutes on the store's
   own patch: grid keys with and without Alt, the dials, Back, Play, Shift and
   Fn chords and short holds. Set `OCTESSERA_SCENARIO_FUZZ_SEED` to replay a
   seed from the summary. The drop-in keeps the service away from root's power,
-  device-apply, update, setup-portal and Live Show Mode paths. It needs no
-  panic, no exit other than the restart request (75) except right after such
-  a refused power request, and the service active at the end; RSS is only
-  reported, because it warms up for 20 minutes (see `soak`).
+  device-apply, update, setup-portal, Orange storage-control (SD2 transfer)
+  and Live Show Mode paths. It needs no panic, no exit other than the restart
+  request (75) except a plain exit right after such a refused power request,
+  no error line other than the sandbox's refusals, the service active at the
+  end, and the clone loading after a restart. RSS is only reported, because it
+  warms up for 20 minutes (see `soak`).
 
 `usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_audio` and `usb_audio_fx` are driven from this
 host over the board's USB connection, so plug both boards in and install `python-rtmidi`,
@@ -430,7 +440,13 @@ on the Orange, `Octessera Line In` on the Raspberry).
   then plays 10 with an 80 ms echo and sends Stop. Every key needs its mirrored
   note-on and a note-off within 1 s of the release, the echoed keys at most 2
   mirrored note-ons each, the held key its mirrored note-off within 1 s, and
-  no note may arrive from 1 s after Stop on.
+  no note may arrive from 1 s after Stop on. The UAT design's other Notes In
+  steps stay with the runner tests, which run the same code without the USB
+  path: Notes In off while a key is held
+  (`notes_in_off_ignores_notes_and_switching_it_off_releases_held_ones`),
+  Stop and Panic while held (`stop_releases_held_keyboard_notes_including_forwarded_midi_ones`,
+  `panic_releases_held_keyboard_notes`), and the Sampler's note range
+  (`a_sampler_slot_plays_only_notes_36_to_43`).
 - `usb_audio` turns USB Audio on in the clone and rebuilds the USB gadget from
   it (the cleanup rebuilds it from the live store). `host_usb_audio.py` waits
   for the capture device and records 90 s of the store's own patch through
@@ -454,5 +470,6 @@ on the Orange, `Octessera Line In` on the Raspberry).
   while held.
 
 Each run writes its evidence and a `summary.txt` of PASS/FAIL lines to
-`target/board-scenarios/<board>-<stamp>/`. Afterwards the payload restores the
-service, removes the drop-in, clone and recordings, and checks the live store.
+`target/board-scenarios/<board>-<stamp>/`. Afterwards the payload stops any
+`board-keys.py` or updater switch it started, restores the service, removes
+the drop-in, clone and recordings, and checks the live store.
