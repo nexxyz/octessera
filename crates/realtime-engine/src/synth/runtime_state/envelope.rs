@@ -1,5 +1,9 @@
 use super::super::types::EnvConfig;
 
+/// The shortest release: Release 0 still ramps down over this long instead of cutting, so a
+/// note-off never clicks.
+const MIN_RELEASE_MS: f32 = 2.0;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::synth) enum EnvStage {
     Attack,
@@ -68,7 +72,7 @@ impl EnvState {
         }
         self.stage = EnvStage::Release;
         self.stage_pos = 0;
-        self.stage_len = ms_to_samples(cfg.release_ms, sample_rate).max(1);
+        self.stage_len = ms_to_samples(cfg.release_ms.max(MIN_RELEASE_MS), sample_rate).max(1);
         self.release_start = self.level;
     }
 
@@ -166,5 +170,22 @@ mod tests {
         let after_attack = 240 + 48 * 150;
         assert!(levels[after_attack] > 0.8 && levels[after_attack] < 0.9);
         assert!((levels[levels.len() - 1] - 0.7).abs() < 1.0e-6);
+    }
+
+    #[test]
+    fn release_zero_ramps_down_over_two_ms_instead_of_cutting() {
+        let cfg = EnvConfig {
+            attack_ms: 0.0,
+            decay_ms: 0.0,
+            sustain_pct: 100.0,
+            release_ms: 0.0,
+        };
+        let mut env = EnvState::note_on(cfg, 48_000);
+        assert_eq!(env.next(), 1.0);
+        env.begin_release(cfg, 48_000);
+        let levels = (0..96).map(|_| env.next()).collect::<Vec<_>>();
+        assert!(levels.windows(2).all(|pair| pair[0] - pair[1] < 0.025));
+        assert!(levels[..95].iter().all(|level| *level > 0.0));
+        assert!(env.is_off());
     }
 }

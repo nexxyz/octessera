@@ -1,13 +1,16 @@
 use super::voice_block_sum::{sum_sample_partition, sum_synth_partition, SlotBlockSum};
 use super::*;
 
+/// A one-sample note, then the shortest release: 2 ms at 48 kHz.
+const SYNTH_PREFIX: usize = 96;
+
 #[test]
 fn rendered_prefixes_match_synth_and_sample_completion_and_serial_output() {
     for frames in [32, 64, 128, 256, 2048] {
         let mut block = prefix_engine();
         let mut serial = prefix_engine();
-        block.note_on(0, 60, 96, 1);
-        serial.note_on(0, 60, 96, 1);
+        block.note_on(0, 60, 96, 0);
+        serial.note_on(0, 60, 96, 0);
         block.note_on(1, 36, 96, 10_000);
         serial.note_on(1, 36, 96, 10_000);
 
@@ -26,9 +29,13 @@ fn rendered_prefixes_match_synth_and_sample_completion_and_serial_output() {
             assert_eq!(actual.to_bits(), expected.to_bits(), "sample {index}");
         }
 
-        assert_prefix(&block.block_slot_scratch.synth_active[0], 48, frames);
+        assert_prefix(
+            &block.block_slot_scratch.synth_active[0],
+            SYNTH_PREFIX,
+            frames,
+        );
         assert_prefix(&block.block_slot_scratch.sample_active[1], 3, frames);
-        assert_eq!(block.active_synth_slots[0], frames < 48);
+        assert_eq!(block.active_synth_slots[0], frames < SYNTH_PREFIX);
         assert_eq!(block.active_sample_slots[1], frames < 3);
     }
 }
@@ -56,7 +63,7 @@ fn prefix_metadata_and_activity_application_are_not_per_frame_operations() {
 #[test]
 fn finished_voices_leave_the_render_lists_and_survivors_render_the_next_block() {
     let mut engine = prefix_engine();
-    engine.note_on(0, 60, 96, 1);
+    engine.note_on(0, 60, 96, 0);
     let mut synth_survivor = *engine.synth_voice_pool.lane(0).expect("synth lane");
     synth_survivor.note_off_sample = u64::MAX;
     assert!(engine.synth_voice_pool.assign_lane(2, 0));
@@ -123,7 +130,7 @@ fn finished_voices_leave_the_render_lists_and_survivors_render_the_next_block() 
 #[test]
 fn completed_prefix_does_not_leak_into_the_next_block() {
     let mut engine = prefix_engine();
-    engine.note_on(0, 60, 96, 1);
+    engine.note_on(0, 60, 96, 0);
     engine.note_on(1, 36, 96, 10_000);
     let mut left = Vec::new();
     let mut right = Vec::new();
@@ -131,7 +138,11 @@ fn completed_prefix_does_not_leak_into_the_next_block() {
 
     super::voice_block_sum::reset_rendered_voices_for_test();
     engine.render_interleaved_block(128, &mut left, &mut right, &mut output);
-    assert_prefix(&engine.block_slot_scratch.synth_active[0], 48, 128);
+    assert_prefix(
+        &engine.block_slot_scratch.synth_active[0],
+        SYNTH_PREFIX,
+        128,
+    );
     assert_prefix(&engine.block_slot_scratch.sample_active[1], 3, 128);
     assert_eq!(super::voice_block_sum::rendered_voices_for_test(), [1, 1]);
 

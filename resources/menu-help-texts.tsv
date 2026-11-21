@@ -921,7 +921,7 @@ fx_slot_vinyl	Slot *: Vinyl		group	Vinyl	Old record charm: warmth, crackle and w
 env_synth_ampEnv_attackMs	*	key:instruments.*.synth.ampEnv.attackMs	number	Attack	How long the sound takes to rise after a note starts.	0 starts at full strength right away.
 env_synth_ampEnv_decayMs	*	key:instruments.*.synth.ampEnv.decayMs	number	Decay	How long the sound takes to fall from the peak to the Sustain level.	
 env_synth_ampEnv_sustainPct	*	key:instruments.*.synth.ampEnv.sustainPct	number	Sustain	The volume level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
-env_synth_ampEnv_releaseMs	*	key:instruments.*.synth.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	
+env_synth_ampEnv_releaseMs	*	key:instruments.*.synth.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	0 still fades over 2 ms, so a note never clicks off.
 env_synth_filterEnv_attackMs	*	key:instruments.*.synth.filterEnv.attackMs	number	Attack	How long the filter takes to rise after a note starts.	0 starts at full strength right away.
 env_synth_filterEnv_decayMs	*	key:instruments.*.synth.filterEnv.decayMs	number	Decay	How long the filter takes to fall from the peak to the Sustain level.	
 env_synth_filterEnv_sustainPct	*	key:instruments.*.synth.filterEnv.sustainPct	number	Sustain	The filter level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
@@ -929,7 +929,7 @@ env_synth_filterEnv_releaseMs	*	key:instruments.*.synth.filterEnv.releaseMs	numb
 env_sample_ampEnv_attackMs	*	key:instruments.*.sample.ampEnv.attackMs	number	Attack	How long the sound takes to rise after a note starts.	0 starts at full strength right away.
 env_sample_ampEnv_decayMs	*	key:instruments.*.sample.ampEnv.decayMs	number	Decay	How long the sound takes to fall from the peak to the Sustain level.	
 env_sample_ampEnv_sustainPct	*	key:instruments.*.sample.ampEnv.sustainPct	number	Sustain	The volume level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
-env_sample_ampEnv_releaseMs	*	key:instruments.*.sample.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	
+env_sample_ampEnv_releaseMs	*	key:instruments.*.sample.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	0 still fades over 2 ms, so a note never clicks off.
 env_sample_filterEnv_attackMs	*	key:instruments.*.sample.filterEnv.attackMs	number	Attack	How long the filter takes to rise after a note starts.	0 starts at full strength right away.
 env_sample_filterEnv_decayMs	*	key:instruments.*.sample.filterEnv.decayMs	number	Decay	How long the filter takes to fall from the peak to the Sustain level.	
 env_sample_filterEnv_sustainPct	*	key:instruments.*.sample.filterEnv.sustainPct	number	Sustain	The filter level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
@@ -937,7 +937,7 @@ env_sample_filterEnv_releaseMs	*	key:instruments.*.sample.filterEnv.releaseMs	nu
 env_fm_ampEnv_attackMs	*	key:instruments.*.fm.ampEnv.attackMs	number	Attack	How long the sound takes to rise after a note starts.	0 starts at full strength right away.
 env_fm_ampEnv_decayMs	*	key:instruments.*.fm.ampEnv.decayMs	number	Decay	How long the sound takes to fall from the peak to the Sustain level.	
 env_fm_ampEnv_sustainPct	*	key:instruments.*.fm.ampEnv.sustainPct	number	Sustain	The volume level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
-env_fm_ampEnv_releaseMs	*	key:instruments.*.fm.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	
+env_fm_ampEnv_releaseMs	*	key:instruments.*.fm.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	0 still fades over 2 ms, so a note never clicks off.
 env_fm_filterEnv_attackMs	*	key:instruments.*.fm.filterEnv.attackMs	number	Attack	How long the filter takes to rise after a note starts.	0 starts at full strength right away.
 env_fm_filterEnv_decayMs	*	key:instruments.*.fm.filterEnv.decayMs	number	Decay	How long the filter takes to fall from the peak to the Sustain level.	
 env_fm_filterEnv_sustainPct	*	key:instruments.*.fm.filterEnv.sustainPct	number	Sustain	The filter level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
@@ -949,7 +949,7 @@ env_fm_indexEnv_releaseMs	*	key:instruments.*.fm.indexEnv.releaseMs	number	Relea
 env_pluck_ampEnv_attackMs	*	key:instruments.*.pluck.ampEnv.attackMs	number	Attack	How long the sound takes to rise after a note starts.	0 starts at full strength right away.
 env_pluck_ampEnv_decayMs	*	key:instruments.*.pluck.ampEnv.decayMs	number	Decay	How long the sound takes to fall from the peak to the Sustain level.	
 env_pluck_ampEnv_sustainPct	*	key:instruments.*.pluck.ampEnv.sustainPct	number	Sustain	The volume level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
-env_pluck_ampEnv_releaseMs	*	key:instruments.*.pluck.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	
+env_pluck_ampEnv_releaseMs	*	key:instruments.*.pluck.ampEnv.releaseMs	number	Release	How long the sound takes to fade after the note ends.	0 still fades over 2 ms, so a note never clicks off.
 env_pluck_filterEnv_attackMs	*	key:instruments.*.pluck.filterEnv.attackMs	number	Attack	How long the filter takes to rise after a note starts.	0 starts at full strength right away.
 env_pluck_filterEnv_decayMs	*	key:instruments.*.pluck.filterEnv.decayMs	number	Decay	How long the filter takes to fall from the peak to the Sustain level.	
 env_pluck_filterEnv_sustainPct	*	key:instruments.*.pluck.filterEnv.sustainPct	number	Sustain	The filter level held while a note stays on.	100% holds the peak; 0% fades out after Decay.
