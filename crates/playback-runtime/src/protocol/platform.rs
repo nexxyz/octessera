@@ -263,13 +263,9 @@ impl RuntimePlatformRequest {
     }
 
     pub fn failure_facts(&self, message: String) -> RuntimeErrorFacts {
-        RuntimeErrorFacts::new(
-            self.error_domain(),
-            crate::RuntimeErrorCode::OperationFailed,
-            self.operation(),
-            Some(message),
-        )
-        .with_identity(Some(self.request_id.clone()), self.revision)
+        self.effect
+            .failure_facts(message)
+            .with_identity(Some(self.request_id.clone()), self.revision)
     }
 
     pub fn unsupported_facts(&self, message: String) -> RuntimeErrorFacts {
