@@ -538,7 +538,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   moment`. Rollback replies `Going back to v<version>; ...`, or `No previous release to go back to`.
   Both refuse while a development build drop-in is active.
 - One update action runs at a time. Check, Apply or Rollback while another is still running
-  replies `Update already running` and does nothing.
+  replies `Updater is busy. Try again soon.` and does nothing.
 - The switch then restarts the runtime. If it is not active with its readiness marker within
   60 seconds, the previous release comes back automatically. The device keeps the current and the
   previous release and removes older ones.
@@ -581,8 +581,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   write is pending). The host keeps the current `system.json` beside the store as
   `system.json.pre-reset-<stamp>` (a numeric suffix keeps an earlier one), writes the platform's
   factory System document, and answers with it as a System load. The runner applies it live like
-  Load System, then offers the `Restart?` dialog with `Settings reset.` / `Restart the app` /
-  `to apply?`; when the reset changed Perf. Mode, which applies only after a restart, it reads
+  Load System, then offers the `Restart?` dialog with `Settings reset.` / `Restart now?`; when the reset changed Perf. Mode, which applies only after a restart, it reads
   `Settings reset.` / `Perf. Mode changes` / `after a restart.` / `Restart the app?`. Patches, presets, samples and Wi-Fi
   credentials are untouched. Behavior is the same on Raspberry, Orange and the desktop simulator;
   the desktop's `Restart now` is unavailable there as for any other restart-requiring setting.

@@ -31,7 +31,7 @@ impl UpdateLane {
         if self.busy.swap(true, Ordering::AcqRel) {
             let result = RuntimeStoreResult::DeviceUpdateStatus {
                 ok: false,
-                message: "Update already running".into(),
+                message: "Updater is busy. Try again soon.".into(),
             };
             send_update_result(results, &job.request, result);
             return;

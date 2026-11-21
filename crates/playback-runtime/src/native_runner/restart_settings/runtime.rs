@@ -351,11 +351,7 @@ impl NativeRunner {
                 "Restart the app?".into(),
             ]
         } else {
-            vec![
-                "Settings reset.".into(),
-                "Restart the app".into(),
-                "to apply?".into(),
-            ]
+            vec!["Settings reset.".into(), "Restart now?".into()]
         };
         self.display.confirm_dialog = Some(NativeConfirmDialog {
             lines,

@@ -70,10 +70,7 @@ fn reset_system(mut runner: NativeRunner) -> NativeConfirmDialog {
 #[test]
 fn factory_system_confirm_emits_the_reset_and_offers_a_restart_once_it_is_applied() {
     let dialog = reset_system(NativeRunner::new(NativeRunnerConfig::default()).unwrap());
-    assert_eq!(
-        dialog.lines,
-        vec!["Settings reset.", "Restart the app", "to apply?"]
-    );
+    assert_eq!(dialog.lines, vec!["Settings reset.", "Restart now?"]);
 }
 
 #[test]

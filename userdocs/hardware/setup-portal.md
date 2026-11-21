@@ -33,7 +33,7 @@ steps.
 |---|---|
 | Wi-Fi | Country code, then a network from the scanned list and its password (open networks need none). For a hidden network, pick **Other network…** and type its name; tick **This network is open** if it has no password. |
 | Local device password | For `pi` on the Raspberry Pi or `octessera` on the Orange Pi. At least 8 characters. Required even with SSH off. |
-| SSH | **Key** (recommended; password login stays off), **password** (uses the local device password), or **none** (SSH stays off). Root login is never allowed. |
+| SSH | **Password** (the default; uses the local device password), **none** (SSH stays off), or, under **Advanced**, **key**. Root login is never allowed. |
 | Hostname | Optional: letters, digits and hyphens, up to 63 characters, not starting or ending with a hyphen. Leave blank to keep the current name; a fresh card uses `octessera-rpi` or `octessera-opi`. |
 
 A fresh card ships with a throwaway first password: `raspberry` for `pi`, or

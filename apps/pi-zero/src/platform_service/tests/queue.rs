@@ -235,7 +235,7 @@ fn an_update_request_while_one_runs_is_refused_and_the_worker_takes_the_next() {
     );
     assert_eq!(
         wait_for_update_status(&service, "overlapping"),
-        Some((false, "Update already running".into()))
+        Some((false, "Updater is busy. Try again soon.".into()))
     );
 
     release_tx.send(()).unwrap();

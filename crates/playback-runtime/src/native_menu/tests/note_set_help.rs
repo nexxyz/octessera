@@ -28,13 +28,8 @@ pub(crate) fn note_set_help_targets_use_exact_folder_and_leaf_rows() {
         assert_eq!(entry.key, key);
         assert_eq!(entry.kind, "action");
         let copy = format!("{} {}", entry.line1, entry.line2);
-        assert!(copy.contains("allowed pitch classes"), "{key}: {copy}");
-        if note_set.category == platform_core::NoteSetCategory::ChordTones {
-            assert!(
-                copy.contains("simultaneous chords or choose inversions"),
-                "{key}: {copy}"
-            );
-        }
+        assert!(copy.contains("plays only these notes"), "{key}: {copy}");
+        assert!(copy.contains("not chords"), "{key}: {copy}");
         if matches!(note_set.id, "hirajoshi_like" | "in_sen_like" | "iwato_like") {
             assert!(
                 copy.contains("common Western 12-TET approximation"),
