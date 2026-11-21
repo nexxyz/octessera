@@ -26,7 +26,7 @@ pub(super) fn pluck_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Na
                     number_item(
                         "Decay",
                         format!("{prefix}.pluck.decayMs"),
-                        synth_number(pluck, &["decayMs"], 1500),
+                        synth_number(pluck, &["decayMs"], 1070),
                         100,
                         5000,
                         5,

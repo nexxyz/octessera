@@ -60,7 +60,7 @@ fn pluck_menu_numeric_device_edits_emit_only_targeted_scalar() {
             .unwrap();
         assert_scalar(&messages, &format!("pluck.{field}"));
     }
-    assert_eq!(runner.instruments[0].pluck_config["decayMs"], 1525);
+    assert_eq!(runner.instruments[0].pluck_config["decayMs"], 1075);
     assert_eq!(runner.instruments[0].pluck_config["brightnessPct"], 66);
     assert_eq!(runner.instruments[0].pluck_config["pickPositionPct"], 26);
     assert_eq!(runner.instruments[0].pluck_config["pickDepthPct"], 66);

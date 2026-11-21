@@ -4,7 +4,7 @@ use super::*;
 fn pluck_defaults_validate_bounds_and_roundtrip_inactive_type_clone_reset() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let defaults = runner.instruments[0].pluck_config.clone();
-    assert_eq!(defaults["decayMs"], 1500);
+    assert_eq!(defaults["decayMs"], 1070);
     assert_eq!(defaults["brightnessPct"], 65);
     assert_eq!(defaults["pickPositionPct"], 25);
     assert_eq!(defaults["pickDepthPct"], 65);

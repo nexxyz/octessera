@@ -9,7 +9,7 @@
         "osc2": { "levelPct": 60, "octave": -1, "detuneCents": -4 },
         "amp": { "velocitySensitivityPct": 70 },
         "ampEnv": { "attackMs": 2, "decayMs": 220, "sustainPct": 65, "releaseMs": 120 },
-        "filter": { "cutoffHz": 900, "resonance": 18, "envAmountPct": 40, "keyTrackingPct": 30 },
+        "filter": { "cutoffHz": 900, "resonance": 18, "envAmountPct": 10, "keyTrackingPct": 30 },
         "filterEnv": { "attackMs": 2, "decayMs": 180, "sustainPct": 30, "releaseMs": 120 }
       }
     },
@@ -21,7 +21,7 @@
         "osc2": { "levelPct": 0 },
         "amp": { "gainPct": 70 },
         "ampEnv": { "attackMs": 1, "decayMs": 240, "sustainPct": 45, "releaseMs": 80 },
-        "filter": { "cutoffHz": 500, "resonance": 70, "envAmountPct": 75, "keyTrackingPct": 20 },
+        "filter": { "cutoffHz": 500, "resonance": 70, "envAmountPct": 16, "keyTrackingPct": 20 },
         "filterEnv": { "attackMs": 0, "decayMs": 170, "sustainPct": 0, "releaseMs": 90 }
       }
     },
@@ -32,7 +32,7 @@
         "osc1": { "levelPct": 82, "detuneCents": 6 },
         "osc2": { "waveform": "saw", "levelPct": 70, "detuneCents": -6 },
         "ampEnv": { "attackMs": 4, "decayMs": 180, "sustainPct": 85, "releaseMs": 220 },
-        "filter": { "cutoffHz": 3200, "resonance": 28, "envAmountPct": 30, "keyTrackingPct": 50 },
+        "filter": { "cutoffHz": 3200, "resonance": 28, "envAmountPct": 8, "keyTrackingPct": 50 },
         "filterEnv": { "attackMs": 3, "decayMs": 220, "sustainPct": 50, "releaseMs": 200 }
       }
     },
@@ -44,7 +44,7 @@
         "osc2": { "waveform": "saw", "levelPct": 45, "detuneCents": 7 },
         "amp": { "velocitySensitivityPct": 60 },
         "ampEnv": { "attackMs": 50, "decayMs": 600, "sustainPct": 75, "releaseMs": 1400 },
-        "filter": { "cutoffHz": 2400, "resonance": 10, "envAmountPct": 15, "keyTrackingPct": 30 },
+        "filter": { "cutoffHz": 2400, "resonance": 10, "envAmountPct": 4, "keyTrackingPct": 30 },
         "filterEnv": { "attackMs": 60, "decayMs": 700, "sustainPct": 60, "releaseMs": 1200 }
       }
     },
@@ -56,7 +56,7 @@
         "osc2": { "waveform": "pulse", "levelPct": 52, "octave": 1, "detuneCents": 6, "pulseWidthPct": 30 },
         "amp": { "gainPct": 84 },
         "ampEnv": { "attackMs": 3, "sustainPct": 18, "releaseMs": 70 },
-        "filter": { "cutoffHz": 7200, "resonance": 34, "envAmountPct": 54, "keyTrackingPct": 34 },
+        "filter": { "cutoffHz": 7200, "resonance": 34, "envAmountPct": 12, "keyTrackingPct": 34 },
         "filterEnv": { "attackMs": 2, "decayMs": 180, "sustainPct": 16, "releaseMs": 120 }
       }
     },
@@ -67,7 +67,7 @@
         "osc1": { "detuneCents": -8 },
         "osc2": { "waveform": "saw", "levelPct": 80, "detuneCents": 8 },
         "ampEnv": { "attackMs": 12, "decayMs": 320, "sustainPct": 70, "releaseMs": 200 },
-        "filter": { "cutoffHz": 1100, "resonance": 14, "envAmountPct": 55, "keyTrackingPct": 40 },
+        "filter": { "cutoffHz": 1100, "resonance": 14, "envAmountPct": 13, "keyTrackingPct": 40 },
         "filterEnv": { "attackMs": 30, "decayMs": 260, "sustainPct": 35, "releaseMs": 200 }
       }
     },
@@ -90,7 +90,7 @@
         "osc2": { "waveform": "pulse", "levelPct": 74, "detuneCents": 6, "pulseWidthPct": 66 },
         "amp": { "gainPct": 82, "velocitySensitivityPct": 96 },
         "ampEnv": { "attackMs": 9, "decayMs": 260, "sustainPct": 60 },
-        "filter": { "type": "bandpass", "cutoffHz": 2500, "resonance": 48, "envAmountPct": 30, "keyTrackingPct": 28 },
+        "filter": { "type": "bandpass", "cutoffHz": 2500, "resonance": 48, "envAmountPct": 8, "keyTrackingPct": 28 },
         "filterEnv": { "decayMs": 220, "sustainPct": 40 }
       }
     },
@@ -112,7 +112,7 @@
         "osc2": { "waveform": "pulse", "levelPct": 60, "octave": 1, "pulseWidthPct": 25 },
         "amp": { "gainPct": 62 },
         "ampEnv": { "attackMs": 0, "decayMs": 140, "sustainPct": 0, "releaseMs": 90 },
-        "filter": { "cutoffHz": 250, "resonance": 82, "envAmountPct": 90, "keyTrackingPct": 40 },
+        "filter": { "cutoffHz": 250, "resonance": 82, "envAmountPct": 19, "keyTrackingPct": 40 },
         "filterEnv": { "attackMs": 0, "decayMs": 70, "sustainPct": 0, "releaseMs": 60 }
       }
     }
@@ -231,14 +231,14 @@
   ],
   "pluck": [
     { "id": "init", "label": "Init", "set": {} },
-    { "id": "nylon", "label": "Nylon", "set": { "decayMs": 2400, "brightnessPct": 35, "pickPositionPct": 32 } },
-    { "id": "steel", "label": "Steel", "set": { "decayMs": 3200, "brightnessPct": 88, "pickPositionPct": 17 } },
-    { "id": "muted", "label": "Muted", "set": { "decayMs": 350, "brightnessPct": 22, "pickPositionPct": 38 } },
+    { "id": "nylon", "label": "Nylon", "set": { "decayMs": 1150, "brightnessPct": 35, "pickPositionPct": 32 } },
+    { "id": "steel", "label": "Steel", "set": { "decayMs": 2840, "brightnessPct": 88, "pickPositionPct": 17 } },
+    { "id": "muted", "label": "Muted", "set": { "decayMs": 140, "brightnessPct": 22, "pickPositionPct": 38 } },
     {
       "id": "harp",
       "label": "Harp",
       "set": {
-        "decayMs": 2800,
+        "decayMs": 1770,
         "brightnessPct": 55,
         "pickPositionPct": 12,
         "pickDepthPct": 50,
@@ -252,7 +252,7 @@
       "id": "koto",
       "label": "Koto",
       "set": {
-        "decayMs": 1800,
+        "decayMs": 1490,
         "brightnessPct": 80,
         "pickPositionPct": 8,
         "pickDepthPct": 85,
@@ -265,6 +265,7 @@
       "id": "kalimba",
       "label": "Kalimba",
       "set": {
+        "decayMs": 1250,
         "brightnessPct": 81,
         "pickPositionPct": 41,
         "pickDepthPct": 78,
@@ -278,7 +279,7 @@
       "id": "pizz",
       "label": "Pizz",
       "set": {
-        "decayMs": 420,
+        "decayMs": 220,
         "brightnessPct": 40,
         "pickPositionPct": 30,
         "pickDepthPct": 45,
@@ -291,7 +292,7 @@
       "id": "pluck_bass",
       "label": "Pluck Bass",
       "set": {
-        "decayMs": 1100,
+        "decayMs": 470,
         "brightnessPct": 28,
         "pickPositionPct": 35,
         "pickDepthPct": 75,
@@ -305,7 +306,7 @@
       "id": "sitar_buzz",
       "label": "Sitar Buzz",
       "set": {
-        "decayMs": 2600,
+        "decayMs": 2450,
         "brightnessPct": 95,
         "pickPositionPct": 6,
         "pickDepthPct": 90,

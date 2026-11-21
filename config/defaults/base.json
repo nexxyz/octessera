@@ -731,7 +731,7 @@
           "bodyAmountPct": 81,
           "bodyFrequencyHz": 884,
           "brightnessPct": 81,
-          "decayMs": 1500,
+          "decayMs": 1250,
           "dispersionPct": 37,
           "filter": {
             "cutoffHz": 16000,

@@ -75,7 +75,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
     assert!(menu.focus_item_key("instruments.0.pluck.decayMs"));
     let snapshot = menu.snapshot();
     assert!(
-        snapshot.lines.iter().any(|line| line == "  Decay 1.5s"),
+        snapshot.lines.iter().any(|line| line == "  Decay 1.1s"),
         "{:?}",
         snapshot.lines
     );
@@ -85,13 +85,13 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
     menu.turn(1);
     assert_eq!(
         menu.number_for_key("instruments.0.pluck.decayMs"),
-        Some(1505)
+        Some(1075)
     );
     menu.back();
     assert!(!menu.state.editing);
     assert_eq!(
         menu.number_for_key("instruments.0.pluck.decayMs"),
-        Some(1505)
+        Some(1075)
     );
     assert!(menu.focus_item_key("instruments.0.pluck.bodyFrequencyHz"));
     let snapshot = menu.snapshot();
@@ -106,7 +106,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
 fn plucked_defaults_ranges_and_saved_values_stay_in_own_block() {
     let menu = pluck_menu();
     for (field, value, min, max, step) in [
-        ("decayMs", 1500, 100, 5000, 5),
+        ("decayMs", 1070, 100, 5000, 5),
         ("brightnessPct", 65, 0, 100, 1),
         ("pickPositionPct", 25, 5, 50, 1),
         ("pickDepthPct", 65, 0, 100, 1),

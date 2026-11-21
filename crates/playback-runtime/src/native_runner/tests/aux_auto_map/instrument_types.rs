@@ -188,7 +188,7 @@ fn plucked_string_auto_map_turns_decay_without_replacing_any_slot() {
         .unwrap();
     assert!(
         matches!(&commands[..], [RuntimeAudioCommand::SetPluckParam {
-        instrument_slot: 0, path, value: 1525.0, ..
+        instrument_slot: 0, path, value: 1075.0, ..
     }] if path == "pluck.decayMs"),
         "{commands:?}"
     );

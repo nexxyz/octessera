@@ -189,7 +189,7 @@ fn fm_ratio_and_index_are_bounded_and_legacy_synth_config_is_unchanged() {
 fn pluck_slot_defaults_and_numeric_validation_preserve_other_sources() {
     let slot = normalize_instrument_slot_config(&serde_json::json!({"type":"pluck"})).unwrap();
     let pluck = slot.slot.pluck.unwrap_or_default();
-    assert_eq!(pluck.decay_ms, 1500.0);
+    assert_eq!(pluck.decay_ms, 1070.0);
     assert_eq!(pluck.brightness_pct, 65.0);
     assert_eq!(pluck.pick_position_pct, 25.0);
     assert_eq!(pluck.pick_depth_pct, 65);

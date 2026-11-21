@@ -30,7 +30,7 @@ impl Default for PluckConfig {
     fn default() -> Self {
         let synth = default_synth_config();
         Self {
-            decay_ms: 1_500.0,
+            decay_ms: 1_070.0,
             brightness_pct: 65.0,
             pick_position_pct: 25.0,
             pick_depth_pct: 65,

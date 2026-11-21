@@ -76,7 +76,7 @@ fn factory_load_cancel_and_back_do_not_change_patch_or_send_audio() {
 fn factory_load_confirm_replaces_one_slot_only_and_schedules_autosave() {
     for (kind, key, field, value) in [
         ("fm", "fm.preset:2:bell", "fm", "3"),
-        ("pluck", "pluck.preset:2:steel", "pluck", "3200"),
+        ("pluck", "pluck.preset:2:steel", "pluck", "2840"),
         (
             "sampler",
             "sample.kit:2:synthkit",

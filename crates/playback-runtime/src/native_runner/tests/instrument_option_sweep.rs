@@ -158,6 +158,7 @@ fn sweep_base(family: &str) -> Value {
         }
         "pluck" => {
             set(config, "ampEnv.sustainPct", 70.0);
+            set(config, "decayMs", 3_000.0);
             set(config, "bodyAmountPct", 50.0);
         }
         "drum" => {

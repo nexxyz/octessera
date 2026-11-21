@@ -36,7 +36,7 @@ pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
         "bodyAmountPct": 81,
         "bodyFrequencyHz": 884,
         "brightnessPct": 81,
-        "decayMs": 1500,
+        "decayMs": 1250,
         "dispersionPct": 37,
         "filter": {"cutoffHz": 16000, "envAmountPct": 0, "keyTrackingPct": 0, "resonance": 0, "type": "lowpass"},
         "filterEnv": {"attackMs": 5, "decayMs": 120, "releaseMs": 180, "sustainPct": 70},

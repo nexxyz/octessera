@@ -100,7 +100,7 @@ fn pluck_held_live_coefficients_and_next_pick_do_not_restart_ring() {
             settings.brightness_pct,
             settings.pick_position_pct
         ),
-        (1500.0, 65.0, 25.0)
+        (1070.0, 65.0, 25.0)
     );
     for (id, value) in [
         (PluckParamId::DecayMs, 200.0),

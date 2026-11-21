@@ -28,7 +28,7 @@ pub(super) fn instrument_pluck_configs(instruments: &[NativeInstrumentSlot]) -> 
 pub(super) fn pluck_default_config() -> Value {
     let synth = synth_default_config();
     json!({
-        "decayMs": 1500,
+        "decayMs": 1070,
         "brightnessPct": 65,
         "pickPositionPct": 25,
         "pickDepthPct": 65,
