@@ -110,7 +110,7 @@ fn native_default_autosave_backup_recovery_and_load_preserve_local_sample_paths(
 
     service.save_recovery_now(&payload).unwrap();
     assert_eq!(
-        service.load_recovery_patch_now().unwrap(),
+        crate::platform_service::load_recovery_patch(&root.join("store")).unwrap(),
         Some(payload.clone())
     );
 

@@ -1,5 +1,3 @@
-#[cfg(test)]
-use super::recovery_patch_path;
 use super::{
     default_patch_path, load_json, preset_patch_path, validate_named_preset_document,
     validate_patch_document, PiPlatformService,
@@ -55,15 +53,6 @@ impl PiPlatformService {
             return Err("Save pending, try again".into());
         }
         self.load_validated_named_preset(&preset_patch_path(&self.store_dir, name)?)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn load_recovery_patch_now(&self) -> Result<Option<serde_json::Value>, String> {
-        let _guard = self
-            .store_lock
-            .lock()
-            .map_err(|_| "pi store is unavailable".to_string())?;
-        self.load_validated_patch(&recovery_patch_path(&self.store_dir))
     }
 
     fn load_validated_patch(
