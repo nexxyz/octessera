@@ -26,6 +26,8 @@ mod liveness_probe_tests;
 #[cfg(test)]
 mod native_behavior_transport_tests;
 #[cfg(test)]
+mod option_sweep_tests;
+#[cfg(test)]
 mod palette_tests;
 #[cfg(test)]
 mod pattern_music_tests;
