@@ -21,6 +21,7 @@ mod midi_note_input;
 mod midi_realtime_input;
 mod music_first;
 mod oled;
+mod platform_effect_forwarding;
 mod presentation;
 #[cfg(test)]
 mod presentation_state_tests;

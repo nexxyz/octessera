@@ -2,8 +2,7 @@ use super::dispatch_profile::Stage;
 use super::{CoreRunner, HostAdapter, PlaybackRuntime, RuntimeDispatchInput, RuntimeIngest};
 use crate::protocol::{
     HostMessage, RunnerMessage, RuntimeAdapterError, RuntimeAudioCommand, RuntimeErrorDomain,
-    RuntimeErrorMetadata, RuntimeOperation, RuntimePlatformEffect, RuntimeRecovery,
-    RuntimeStoreResult,
+    RuntimeErrorMetadata, RuntimeOperation, RuntimeRecovery,
 };
 use std::time::Duration;
 
@@ -273,73 +272,7 @@ impl PlaybackRuntime {
                 RunnerMessage::PresentedRuntimeErrorDismissed => {}
                 RunnerMessage::PlatformEffects { effects } => {
                     for effect in effects {
-                        if matches!(
-                            effect,
-                            crate::RuntimePlatformEffect::StoreSaveDefault { mode: None, .. }
-                        ) {
-                            self.forget_shown_save_failure(&RuntimeOperation::StoreSaveDefault);
-                        }
-                        let request = self.next_platform_request(effect);
-                        if let Some(runner) = runner.as_deref_mut() {
-                            runner.register_platform_request(&request);
-                        }
-                        match host.handle_platform_effect(&request) {
-                            Ok(messages) => {
-                                for follow_up in messages {
-                                    let follow_up = self.identify_result(follow_up, &request);
-                                    output.follow_ups.push(follow_up);
-                                }
-                            }
-                            Err(error) => {
-                                let recording_finalization_failed = error.facts.operation
-                                    == RuntimeOperation::Recording
-                                    && !matches!(
-                                        &request.effect,
-                                        RuntimePlatformEffect::RecordingStartAudio { .. }
-                                            | RuntimePlatformEffect::RecordingStartAudioOled { .. }
-                                    );
-                                let recording_failure = recording_finalization_failed
-                                    .then(|| error.facts.clone())
-                                    .map(|facts| {
-                                        facts.with_identity(
-                                            Some(request.request_id.clone()),
-                                            request.revision,
-                                        )
-                                    });
-                                let message = error.to_string();
-                                let mut error = error;
-                                if error.facts.preset_name.is_none() {
-                                    error.facts.preset_name = request.effect.preset_name();
-                                }
-                                self.latch_adapter_failure(
-                                    error,
-                                    request.error_domain(),
-                                    request.operation(),
-                                    Some(request.request_id.clone()),
-                                    request.revision,
-                                );
-                                if matches!(
-                                    request.operation(),
-                                    RuntimeOperation::StoreSaveDefault
-                                        | RuntimeOperation::StoreSaveSystem
-                                        | RuntimeOperation::Recording
-                                ) || recording_finalization_failed
-                                {
-                                    let failure_facts = recording_failure
-                                        .unwrap_or_else(|| request.effect.failure_facts(message));
-                                    output.follow_ups.push(HostMessage::RuntimeResult {
-                                        result: RuntimeStoreResult::RuntimeFailure {
-                                            error: failure_facts,
-                                        }
-                                        .with_identity(
-                                            request.request_id.clone(),
-                                            request.revision,
-                                        ),
-                                    });
-                                }
-                                self.append_presentations(&mut output);
-                            }
-                        }
+                        self.forward_platform_effect(effect, &mut runner, host, &mut output);
                     }
                 }
                 RunnerMessage::MusicalEvents { events } => {
@@ -457,7 +390,7 @@ impl PlaybackRuntime {
     }
 
     /// Latches a host adapter failure; the last good state stays presented.
-    fn latch_adapter_failure(
+    pub(super) fn latch_adapter_failure(
         &mut self,
         error: RuntimeAdapterError,
         domain: RuntimeErrorDomain,
