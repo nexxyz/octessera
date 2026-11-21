@@ -163,6 +163,7 @@ impl UserDataTransferService {
                         session: pending.session.clone(),
                         status: "timed_out",
                     };
+                    queue_transfer_status(&mut state);
                     Some(*pending)
                 }
                 other => {
@@ -363,8 +364,13 @@ fn transfer_status_for_state(
         .as_secs()
         .saturating_add(u64::from(remaining.subsec_nanos() > 0))
         .clamp(1, TRANSFER_LIFETIME.as_secs()) as u16;
+    let phase = if matches!(state.restore, RestoreState::Pending(_)) {
+        RuntimeUserDataTransferPhase::ConfirmRestore
+    } else {
+        RuntimeUserDataTransferPhase::Ready
+    };
     Some(RuntimeUserDataTransferStatus {
-        phase: RuntimeUserDataTransferPhase::Ready,
+        phase,
         url: Some(format!("http://{}:{}", network.address, endpoint.port())),
         code: Some(code),
         expires_in_seconds: Some(expires_in_seconds),
@@ -401,6 +407,13 @@ pub(super) fn queue_runtime_status(state: &mut TransferState, result: RuntimeSto
     state
         .runtime_statuses
         .push_back(QueuedRuntimeStatus { result, identity });
+}
+
+/// Tells the device card that a restore started or stopped waiting for its confirmation.
+pub(super) fn queue_transfer_status(state: &mut TransferState) {
+    if let Some(status) = transfer_status_for_state(state, Instant::now()) {
+        queue_runtime_status(state, RuntimeStoreResult::UserDataTransferStatus { status });
+    }
 }
 
 pub(super) fn revoke_inner(inner: &TransferInner) -> Option<PendingRestore> {

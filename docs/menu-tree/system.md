@@ -557,8 +557,8 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
 - The `.oct` archive carries music, selected portable preferences, and optionally media. It is not a
   complete device backup: USB role, MIDI/audio endpoint IDs, and favorites stay local to the
   destination. Rolling `Saves > Default > Backups` are separate and patch-only.
-- An upload unpacks into a staging folder and only prepares the restore; the OLED asks for Main to
-  apply or Back to cancel. Applying swaps the store, samples and recordings in from staging next to
+- An upload unpacks into a staging folder and only prepares the restore; the card becomes
+  `Restore backup?` and asks for Main to apply or Back to cancel, for up to two minutes. Applying swaps the store, samples and recordings in from staging next to
   the store, after writing a pre-restore archive there. It never copies, moves or deletes across a
   mount, so the SD2 card and its mount stay untouched, and the bundled sample library stays in
   place. Saving pauses while it runs. A failed restore rolls back and cleans up after itself, and

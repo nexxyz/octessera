@@ -737,7 +737,10 @@ behavior primary red), so a mute never reads as a section color.
    shows `Wi-Fi chip stopped`. A successful setup closes its card and
    opens the Sys. Info popup over the unchanged menu position, so the new address shows.
    An export that leaves damaged patches or presets out shows the footer toast
-   `Export: N items skipped` over the Backup / Restore card.
+   `Export: N items skipped` over the Backup / Restore card. An accepted restore upload turns the
+   card, shown again if Back had hidden it, into `Restore backup?` / `Replaces the` /
+   `music on here.` / `Main: Restore` / `Back: Cancel` with no selected row; Main applies, Back
+   cancels, and a cancel or the two-minute timeout returns to the plain card.
 6. System info and help. On the boards, Sys. Info shows `IP: unavailable` and `MAC: unavailable`
    unless `wlan0` is up with a carrier (associated) and holds a usable IPv4 address.
 7. A Shape signal view or the performance view, then the menu, with the footer. Context toasts

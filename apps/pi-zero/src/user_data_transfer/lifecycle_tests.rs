@@ -181,3 +181,50 @@ fn a_restore_refused_by_unfinished_staging_reports_its_own_phase() {
     service.stop();
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn the_device_card_asks_while_an_upload_waits_and_returns_after_cancel_or_timeout() {
+    use super::restore_tests::transfer_phase;
+    use playback_runtime::RuntimeUserDataTransferPhase::{ConfirmRestore, Ready};
+    let (service, root) = restore_service("confirm-card");
+    let identity = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::UserDataTransferOpen,
+        "confirm-card".into(),
+        Some(2),
+    );
+    service.start_session(Some(&identity)).unwrap();
+    let code = service.test_code().unwrap();
+
+    assert_eq!(upload(&service, &code), 202);
+    assert_eq!(
+        transfer_phase(service.take_runtime_status().unwrap()),
+        ConfirmRestore
+    );
+    press(
+        &service,
+        serde_json::json!({"type":"button_a","pressed":true}),
+    );
+    assert_eq!(
+        transfer_phase(service.take_runtime_status().unwrap()),
+        Ready
+    );
+
+    assert_eq!(upload(&service, &code), 202);
+    assert_eq!(
+        transfer_phase(service.take_runtime_status().unwrap()),
+        ConfirmRestore
+    );
+    if let Ok(mut state) = service.inner.state.lock() {
+        if let RestoreState::Pending(pending) = &mut state.restore {
+            pending.expires_at = Instant::now() - Duration::from_secs(1);
+        }
+    }
+    service.expire_if_needed();
+    assert_eq!(
+        transfer_phase(service.take_runtime_status().unwrap()),
+        Ready
+    );
+    assert!(service.take_runtime_status().is_none());
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}

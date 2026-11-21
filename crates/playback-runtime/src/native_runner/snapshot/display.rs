@@ -47,7 +47,9 @@ impl NativeRunner {
             .and_then(|row| menu.line_keys.get(row))
             .and_then(|key| key.as_deref())
             .is_some_and(is_link_instrument_target_key);
-        let mut display = if let Some(restore) = &self.display.user_data_restore {
+        let mut display = if let Some(transfer) = self.restore_confirmation() {
+            user_data_transfer_display(transfer)
+        } else if let Some(restore) = &self.display.user_data_restore {
             user_data_restore_display(restore)
         } else if let Some(confirm) = &self.display.confirm_dialog {
             confirm_dialog_display(confirm)

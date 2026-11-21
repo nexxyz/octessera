@@ -294,8 +294,8 @@ mod session;
 
 pub(crate) use barrier::{RestorePreflight, StoreWriteBarrier};
 use session::{
-    queue_runtime_status, revoke_inner, ACCEPT_POLL, MAX_AUTH_FAILURES, MAX_HEADER_BYTES,
-    RESTORE_CONFIRM_LIFETIME, TRANSFER_PORT,
+    queue_runtime_status, queue_transfer_status, revoke_inner, ACCEPT_POLL, MAX_AUTH_FAILURES,
+    MAX_HEADER_BYTES, RESTORE_CONFIRM_LIFETIME, TRANSFER_PORT,
 };
 
 fn remove_stage(staged: &StagedRestore) {

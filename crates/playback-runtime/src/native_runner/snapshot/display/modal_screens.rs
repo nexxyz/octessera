@@ -193,6 +193,15 @@ pub(super) fn user_data_transfer_display(state: &NativeUserDataTransferState) ->
                 ],
             )
         }
+        RuntimeUserDataTransferPhase::ConfirmRestore => (
+            "Restore backup?".into(),
+            vec![
+                "Replaces the".into(),
+                "music on here.".into(),
+                "Main: Restore".into(),
+                "Back: Cancel".into(),
+            ],
+        ),
         RuntimeUserDataTransferPhase::Unsupported => (
             "Backup / Restore".into(),
             vec![
@@ -213,7 +222,8 @@ pub(super) fn user_data_transfer_display(state: &NativeUserDataTransferState) ->
         full_lines: vec![None; line_count],
         rows: vec![None; line_count],
         scroll: None,
-        selected_row: Some(line_count.saturating_sub(1)),
+        selected_row: (state.status.phase != RuntimeUserDataTransferPhase::ConfirmRestore)
+            .then(|| line_count.saturating_sub(1)),
     }
 }
 

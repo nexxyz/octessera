@@ -115,8 +115,9 @@ anything on that board you want to keep.
    curl.exe -f -X POST --data-binary "@octessera-user-data.oct" -H "X-Octessera-Transfer-Code: <code>" "http://<board-ip>:8081/restore"
    ```
 
-4. The upload only prepares the restore. When the OLED asks, click *Main* to
-   apply it or press *Back* to cancel. While it runs, the OLED shows
+4. The upload only prepares the restore. The OLED asks `Restore backup?`:
+   click *Main* to apply it or press *Back* to cancel. Leave it alone for two
+   minutes and it cancels itself. While it runs, the OLED shows
    `Restoring...` and `Please wait`, and other input is blocked.
 5. Wait for the final result before stopping the service or powering down.
 

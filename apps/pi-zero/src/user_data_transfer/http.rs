@@ -361,6 +361,7 @@ fn handle_restore_upload(inner: &Arc<TransferInner>, stream: &mut TcpStream, len
             staged,
             expires_at: Instant::now() + RESTORE_CONFIRM_LIFETIME,
         }));
+        super::queue_transfer_status(&mut state);
         json!({"status":"confirmation_required","session":session})
     };
     let body =

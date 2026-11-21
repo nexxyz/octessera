@@ -1,9 +1,13 @@
 use super::*;
 
 fn ready_result() -> RuntimeStoreResult {
+    transfer_result(RuntimeUserDataTransferPhase::Ready)
+}
+
+fn transfer_result(phase: RuntimeUserDataTransferPhase) -> RuntimeStoreResult {
     RuntimeStoreResult::UserDataTransferStatus {
         status: RuntimeUserDataTransferStatus {
-            phase: RuntimeUserDataTransferPhase::Ready,
+            phase,
             url: Some("http://192.168.42.1:8081".into()),
             code: Some("Ab2Cd3Ef4H".into()),
             expires_in_seconds: Some(900),
@@ -93,6 +97,80 @@ pub(crate) fn back_hides_ready_transfer_card_while_stop_closes_it() {
             if effects == &[RuntimePlatformEffect::UserDataTransferClose])
     }));
     assert!(runner.display.user_data_transfer.is_none());
+}
+
+#[test]
+fn an_uploaded_backup_shows_its_question_even_on_a_hidden_card_and_keeps_the_service() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_store_result(ready_result()).unwrap();
+    send_main(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    assert!(!runner.display.user_data_transfer.as_ref().unwrap().visible);
+
+    runner
+        .apply_store_result(transfer_result(
+            RuntimeUserDataTransferPhase::ConfirmRestore,
+        ))
+        .unwrap();
+    let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(snapshot["display"]["title"], "Restore backup?");
+    assert_eq!(
+        snapshot["display"]["lines"],
+        json!([
+            "Replaces the",
+            "music on here.",
+            "Main: Restore",
+            "Back: Cancel"
+        ])
+    );
+    assert!(snapshot["selectedRow"].is_null());
+    for input in [
+        json!({ "type": "encoder_press", "id": "main" }),
+        json!({ "type": "button_a", "pressed": true }),
+    ] {
+        let messages = send_main(&mut runner, input);
+        assert!(!messages
+            .iter()
+            .any(|message| matches!(message, RunnerMessage::PlatformEffects { .. })));
+        assert_eq!(
+            snapshot_from(&messages)["display"]["title"],
+            "Restore backup?"
+        );
+    }
+
+    runner.apply_store_result(ready_result()).unwrap();
+    let snapshot = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(snapshot["display"]["title"], "Backup / Restore");
+}
+
+#[test]
+fn the_restore_question_outranks_an_open_confirmation_dialog_until_it_is_answered() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_store_result(ready_result()).unwrap();
+    send_main(&mut runner, json!({ "type": "button_a", "pressed": true }));
+    super::in_place_menu_actions::press_key(&mut runner, "system.clearAll");
+    assert!(runner.display.confirm_dialog.is_some());
+
+    runner
+        .apply_store_result(transfer_result(
+            RuntimeUserDataTransferPhase::ConfirmRestore,
+        ))
+        .unwrap();
+    let messages = send_main(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    assert_eq!(
+        snapshot_from(&messages)["display"]["title"],
+        "Restore backup?"
+    );
+    assert!(runner.display.confirm_dialog.is_some());
+
+    runner.apply_store_result(ready_result()).unwrap();
+    assert_ne!(
+        snapshot_from(&runner.messages_with_snapshot().unwrap())["display"]["title"],
+        "Restore backup?"
+    );
+    assert!(runner.display.confirm_dialog.is_some());
 }
 
 #[test]

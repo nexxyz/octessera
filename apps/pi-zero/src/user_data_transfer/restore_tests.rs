@@ -367,6 +367,19 @@ fn pending_restore_times_out_and_removes_staged_data() {
     let _ = fs::remove_dir_all(root);
 }
 
+pub(super) fn transfer_phase(message: HostMessage) -> RuntimeUserDataTransferPhase {
+    let HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::Identified { result, .. },
+    } = message
+    else {
+        panic!("expected an identified status");
+    };
+    let RuntimeStoreResult::UserDataTransferStatus { status } = *result else {
+        panic!("expected a transfer status");
+    };
+    status.phase
+}
+
 #[test]
 fn confirmation_publishes_blocking_status_before_store_worker_runs() {
     let (service, root) = restore_service("blocking-status");
@@ -382,11 +395,19 @@ fn confirmation_publishes_blocking_status_before_store_worker_runs() {
         restore_request(&service, "POST", "/restore", &code, &archive).0,
         202
     );
+    assert_eq!(
+        transfer_phase(service.take_runtime_status().unwrap()),
+        RuntimeUserDataTransferPhase::ConfirmRestore
+    );
     let store_guard = service.inner.store_lock.lock().unwrap();
     assert!(!service.handle_physical_input(&serde_json::json!({
         "type":"encoder_press",
         "id":"main"
     })));
+    assert_eq!(
+        transfer_phase(service.take_runtime_status().unwrap()),
+        RuntimeUserDataTransferPhase::Ready
+    );
     let status = service.take_runtime_status().unwrap();
     assert!(matches!(
         status,

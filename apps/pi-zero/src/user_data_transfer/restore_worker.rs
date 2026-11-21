@@ -16,6 +16,7 @@ impl UserDataTransferService {
                     return false;
                 }
             };
+            super::queue_transfer_status(&mut state);
             if !approved {
                 state.restore = RestoreState::Finished {
                     session: pending.session.clone(),

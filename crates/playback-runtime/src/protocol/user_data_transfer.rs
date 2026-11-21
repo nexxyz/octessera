@@ -9,6 +9,8 @@ pub const USER_DATA_TRANSFER_CODE_ALPHABET: &[u8] =
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeUserDataTransferPhase {
     Ready,
+    /// An uploaded backup waits for Main (apply) or Back (cancel) on the device.
+    ConfirmRestore,
     Closed,
     Unsupported,
 }
@@ -24,7 +26,7 @@ pub struct RuntimeUserDataTransferStatus {
 impl RuntimeUserDataTransferStatus {
     pub fn validate(&self) -> Result<(), String> {
         match self.phase {
-            RuntimeUserDataTransferPhase::Ready => {
+            RuntimeUserDataTransferPhase::Ready | RuntimeUserDataTransferPhase::ConfirmRestore => {
                 let url = self
                     .url
                     .as_deref()

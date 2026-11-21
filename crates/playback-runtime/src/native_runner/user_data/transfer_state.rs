@@ -33,6 +33,17 @@ impl NativeRunner {
         });
     }
 
+    /// The board takes Main and Back while an uploaded backup waits, so this question outranks
+    /// every other screen and input route except a restore that is already running.
+    pub(in crate::native_runner) fn restore_confirmation(
+        &self,
+    ) -> Option<&NativeUserDataTransferState> {
+        self.display.user_data_transfer.as_ref().filter(|transfer| {
+            transfer.status.phase == RuntimeUserDataTransferPhase::ConfirmRestore
+                && !self.user_data_restore_is_active()
+        })
+    }
+
     pub(in crate::native_runner) fn handle_user_data_transfer_modal_input(
         &mut self,
         input: DeviceInput,
@@ -43,6 +54,9 @@ impl NativeRunner {
         );
         let back_pressed =
             matches!(input, DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true));
+        if self.restore_confirmation().is_some() {
+            return self.messages_with_snapshot();
+        }
         if main_pressed {
             let should_close = self
                 .display
