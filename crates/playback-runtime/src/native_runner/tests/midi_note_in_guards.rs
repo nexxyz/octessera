@@ -177,8 +177,13 @@ fn a_keyboard_note_forwarded_on_its_own_channel_ignores_its_echo() {
         dispatch_note(&mut runtime, &mut runner, &mut host, [0x80, 60, 0]);
         assert_eq!(
             sent(&host),
-            vec![vec![0x90, 60, 100], vec![0x80, 60, 0], vec![0x90, 60, 90]],
-            "{kind:?}: the echoed note-off leaves the key pressed again held"
+            vec![
+                vec![0x90, 60, 100],
+                vec![0x80, 60, 0],
+                vec![0x90, 60, 90],
+                vec![0x80, 60, 0]
+            ],
+            "{kind:?}: a key-up inside the window of the sent note-off still releases the key"
         );
         dispatch_note(&mut runtime, &mut runner, &mut host, [0x90, 60, 99]);
         assert_eq!(sent(&host).len(), 5, "{kind:?}: another velocity plays");

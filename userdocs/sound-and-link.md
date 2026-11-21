@@ -191,8 +191,9 @@ wander in by accident.
   MIDI out, as long as it's enabled. Handy for playing outboard gear through
   Octessera without re-patching cables. Gear that echoes its input straight
   back is fine too: anything Octessera sends to MIDI out (your keys, MIDI
-  parts, Send MIDI copies) that comes back identical within a blink (30 ms) is
+  parts, Send MIDI copies) that comes back identical within a blink (150 ms) is
   recognized as our own echo and ignored, so it can't bounce around forever.
+  Letting go of a key always counts, echo or not.
 - Stop, Pause, Panic and loading a patch let go of every key you're still
   holding, notes passed on to MIDI out included, so nothing gets stuck.
 - **Recording into a Looper.** Every `looper` layer that is overdubbing and

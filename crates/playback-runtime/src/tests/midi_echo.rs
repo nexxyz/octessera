@@ -100,11 +100,45 @@ fn a_sequenced_note_echoed_back_is_dropped_but_other_notes_reach_the_runner() {
         .filter_map(|(_, at)| *at)
         .max()
         .unwrap();
-    host.clock = Some(last_sent_at + Duration::from_millis(31));
+    host.clock = Some(last_sent_at + Duration::from_millis(151));
     dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 90]);
     assert_eq!(
         runner.keyboard.len(),
         3,
         "after the window it is a played note"
+    );
+}
+
+#[test]
+fn a_key_up_right_after_a_sequenced_note_off_on_the_same_note_reaches_the_runner() {
+    let mut runtime = midi_out_runtime();
+    let mut runner = SequencerRunner::default();
+    let start = Instant::now();
+    let mut host = FakeHost {
+        clock: Some(start),
+        ..FakeHost::default()
+    };
+    set_runtime_playing(&mut runtime, &mut host);
+    host.midi_message_at.clear();
+    runtime.advance(100, &mut runner, &mut host).unwrap();
+    let off_at = host
+        .midi_messages
+        .iter()
+        .zip(&host.midi_message_at)
+        .find(|(bytes, _)| *bytes == &vec![0x82, 64, 0])
+        .and_then(|(_, at)| *at)
+        .expect("the sequenced note-off goes out");
+    runner.keyboard.clear();
+
+    host.clock = Some(off_at + Duration::from_millis(5));
+    dispatch_note(&mut runtime, &mut runner, &mut host, [0x82, 64, 0]);
+    assert_eq!(
+        runner.keyboard,
+        vec![HostMessage::MidiNote {
+            channel: 2,
+            note: 64,
+            velocity: 0,
+        }],
+        "a note-off is never an echo, so the key-up releases the held note"
     );
 }
