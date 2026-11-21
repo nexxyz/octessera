@@ -244,22 +244,6 @@ impl NativeRunner {
         result
     }
 
-    fn handle_user_data_restore_input(
-        &mut self,
-        input: DeviceInput,
-    ) -> Result<Vec<RunnerMessage>, String> {
-        if !self.user_data_restore_is_active()
-            && (matches!(
-                input,
-                DeviceInput::EncoderPress { ref id }
-                    if id.as_deref().unwrap_or("main") == "main"
-            ) || matches!(input, DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true)))
-        {
-            self.display.user_data_restore = None;
-        }
-        self.messages_with_snapshot()
-    }
-
     fn handle_confirm_device_input(
         &mut self,
         input: DeviceInput,

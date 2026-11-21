@@ -1,9 +1,5 @@
 use super::*;
 use crate::user_data_archive::{build_export_plan, write_archive};
-use playback_runtime::{
-    HostMessage, RuntimePlatformEffect, RuntimePlatformRequest, RuntimeStoreResult,
-    RuntimeUserDataRestorePhase,
-};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
@@ -363,61 +359,6 @@ fn pending_restore_times_out_and_removes_staged_data() {
             .file_name()
             .to_string_lossy()
             .starts_with(".user-data-stage-")));
-    service.stop();
-    let _ = fs::remove_dir_all(root);
-}
-
-pub(super) fn transfer_phase(message: HostMessage) -> RuntimeUserDataTransferPhase {
-    let HostMessage::RuntimeResult {
-        result: RuntimeStoreResult::Identified { result, .. },
-    } = message
-    else {
-        panic!("expected an identified status");
-    };
-    let RuntimeStoreResult::UserDataTransferStatus { status } = *result else {
-        panic!("expected a transfer status");
-    };
-    status.phase
-}
-
-#[test]
-fn confirmation_publishes_blocking_status_before_store_worker_runs() {
-    let (service, root) = restore_service("blocking-status");
-    let request_identity = RuntimePlatformRequest::new(
-        RuntimePlatformEffect::SetupPortalOpen,
-        "restore-status".into(),
-        Some(4),
-    );
-    service.start_session(Some(&request_identity)).unwrap();
-    let code = service.test_code().unwrap();
-    let archive = restore_archive(&service, false);
-    assert_eq!(
-        restore_request(&service, "POST", "/restore", &code, &archive).0,
-        202
-    );
-    assert_eq!(
-        transfer_phase(service.take_runtime_status().unwrap()),
-        RuntimeUserDataTransferPhase::ConfirmRestore
-    );
-    let store_guard = service.inner.store_lock.lock().unwrap();
-    assert!(!service.handle_physical_input(&serde_json::json!({
-        "type":"encoder_press",
-        "id":"main"
-    })));
-    assert_eq!(
-        transfer_phase(service.take_runtime_status().unwrap()),
-        RuntimeUserDataTransferPhase::Ready
-    );
-    let status = service.take_runtime_status().unwrap();
-    assert!(matches!(
-        status,
-        HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::Identified { result, request_id, revision: Some(4) }
-        } if request_id == "restore-status"
-            && matches!(result.as_ref(), RuntimeStoreResult::UserDataRestoreStatus { status } if status.phase == RuntimeUserDataRestorePhase::Restoring)
-    ));
-    assert!(!service.handle_physical_input(&serde_json::json!({"type":"grid_press"})));
-    drop(store_guard);
     service.stop();
     let _ = fs::remove_dir_all(root);
 }

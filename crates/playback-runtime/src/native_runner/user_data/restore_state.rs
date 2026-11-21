@@ -87,6 +87,24 @@ impl NativeRunner {
         }
     }
 
+    /// Main or Back closes a finished restore's screen; nothing gets past a running one.
+    pub(in crate::native_runner) fn handle_user_data_restore_input(
+        &mut self,
+        input: crate::native_runner::DeviceInput,
+    ) -> Result<Vec<crate::protocol::RunnerMessage>, String> {
+        use crate::native_runner::DeviceInput;
+        if !self.user_data_restore_is_active()
+            && (matches!(
+                input,
+                DeviceInput::EncoderPress { ref id }
+                    if id.as_deref().unwrap_or("main") == "main"
+            ) || matches!(input, DeviceInput::ButtonA { pressed } if pressed.unwrap_or(true)))
+        {
+            self.display.user_data_restore = None;
+        }
+        self.messages_with_snapshot()
+    }
+
     pub(in crate::native_runner) fn user_data_restore_is_active(&self) -> bool {
         self.display
             .user_data_restore
