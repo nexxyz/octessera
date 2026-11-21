@@ -1,8 +1,9 @@
 use crate::native_menu::format_values::{fx_type_label, instrument_kind_label};
 
+use super::fx_param_specs::fx_param_specs;
 use super::{
-    json, InstrumentType, NativeFxBus, NativeInstrumentSlot, NativeLinkLayer, Value, BUS_COUNT,
-    GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT,
+    binding_number, json, InstrumentType, NativeFxBus, NativeInstrumentSlot, NativeLinkLayer,
+    Value, BUS_COUNT, GLOBAL_FX_SLOT_COUNT, INSTRUMENT_COUNT,
 };
 
 pub(super) fn derive_instrument_name(_index: usize, kind: InstrumentType) -> String {
@@ -65,40 +66,20 @@ pub(super) fn fx_slot_payload_with_params(slot_type: &str, params: &Value) -> Va
 }
 
 pub(super) fn fx_default_params(slot_type: &str) -> Value {
+    let mut params = fx_param_specs(slot_type)
+        .iter()
+        .map(|param| (param.key.to_string(), binding_number(param.default)))
+        .collect::<serde_json::Map<_, _>>();
     match slot_type {
-        "reverb" => json!({ "mixPct": 30, "decay": 0.72, "damp": 0.35 }),
         "delay" => {
-            json!({ "timeMode": "ms", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35, "spreadPct": 0 })
+            params.insert("timeMode".into(), json!("ms"));
+            params.insert("timeNote".into(), json!("1/8"));
         }
-        "tremolo" => json!({ "rateHz": 4, "depthPct": 60 }),
-        "vibrato" => {
-            json!({ "rateHz": 0.8, "depthMs": 6, "baseMs": 8, "feedback": 0, "mixPct": 100 })
-        }
-        "auto_pan" => json!({ "rateHz": 0.5, "depthPct": 100 }),
-        "chorus" => {
-            json!({ "rateHz": 0.8, "depthMs": 14, "baseMs": 22, "feedback": 0, "mixPct": 45 })
-        }
-        "flanger" => {
-            json!({ "rateHz": 0.8, "depthMs": 2, "baseMs": 3, "feedback": 0.35, "mixPct": 45 })
-        }
-        "wah" => json!({ "rateHz": 1.2, "centerHz": 900, "depthPct": 70, "q": 6 }),
-        "filter_lfo" => json!({ "rateHz": 0.5, "centerHz": 1600, "depthPct": 70, "q": 1 }),
         "duck" => {
-            json!({ "source": "I1", "sourceTap": "pre", "threshold": 0.08, "amountPct": 60, "attackMs": 8, "releaseMs": 160 })
+            params.insert("source".into(), json!("I1"));
+            params.insert("sourceTap".into(), json!("pre"));
         }
-        "bitcrusher" => json!({ "rateDiv": 4, "bits": 6, "mixPct": 100 }),
-        "saturator" => json!({ "drive": 1.8, "mixPct": 100 }),
-        "distortion" => json!({ "drive": 2.5, "clip": 0.6, "mixPct": 100 }),
-        "glitch" => json!({ "chancePct": 8, "sliceMs": 80, "mixPct": 100 }),
-        "compressor" => {
-            json!({ "thresholdDb": -24, "ratio": 4, "attackMs": 10, "releaseMs": 100, "makeupDb": 0, "mixPct": 100 })
-        }
-        "eq" => {
-            json!({ "lowGainDb": 0, "midGainDb": 0, "midFreqHz": 1000, "midQ": 1, "highGainDb": 0, "mixPct": 100 })
-        }
-        "vinyl" => {
-            json!({ "saturationPct": 15, "cracklePct": 8, "warpDepthPct": 5, "mixPct": 100 })
-        }
-        _ => json!({}),
+        _ => {}
     }
+    Value::Object(params)
 }
