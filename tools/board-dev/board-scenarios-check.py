@@ -234,12 +234,12 @@ def presets(board, out):
     rows = {name: values for name, values in map(fields, (out / "presets.log").read_text().splitlines())}
     first = rows["initial"]
     a, ab = first["A"], first["AB"]
-    files = {step: {k: v for k, v in row.items() if k not in ("bpm", "matches", "message")} for step, row in rows.items()}
+    files = {step: {k: v for k, v in row.items() if k not in ("bpm", "note", "matches", "message")} for step, row in rows.items()}
     saved = files.get("save_as", {}).get("AC")
     edited = str(int(first["bpm"]) + 15)
     expected = {"save_as": lambda f: set(f) == {"A", "AB", "AC"} and f["A"] == a and f["AB"] == ab,
                 "edit": lambda f: rows["edit"]["bpm"] == edited and set(f) == {"A", "AB", "AC"},
-                "load": lambda f: (rows["load"]["bpm"] == "101" and "A" in rows["load"]["matches"].split(",")
+                "load": lambda f: (rows["load"]["note"] == "301" and "A" in rows["load"]["matches"].split(",")
                                    and set(f) == {"A", "AB", "AC"}),
                 "rename": lambda f: set(f) == {"A", "AB", "ACD"} and f["ACD"] == saved,
                 "overwrite": lambda f: set(f) == {"AB", "ACD"} and f["AB"] == a,

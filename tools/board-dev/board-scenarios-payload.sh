@@ -207,7 +207,8 @@ keymap() {
   keys keymap "c v b n m , . / alt+c alt+f alt+r alt+4 alt+; wait:12"
   snapshot keymap
 }
-# One line per state: the saved patch's BPM and a hash per preset file.
+# One line per state: the saved patch's BPM and Note Length, the presets it matches, and a hash per
+# preset file; presets-diff.log lists where the saved patch differs from preset A.
 preset_state() {
   sudo -n python3 - "$store" "$1" >> presets.log <<'PY'
 import hashlib, json, sys
@@ -215,11 +216,29 @@ from pathlib import Path
 store = Path(sys.argv[1])
 presets = sorted((store / "patches").glob("*.json"))
 files = " ".join(f"{p.stem}={hashlib.sha256(p.read_bytes()).hexdigest()[:16]}" for p in presets)
-saved = json.loads((store / "default.patch.json").read_text())["runtimeConfig"]
+def music(path):
+    """A runtimeConfig without the delay times a note-mode delay derives from BPM: the runtime
+    recomputes those on load (the factory patch stores 273 ms for a 1/8 at 120 BPM)."""
+    config = json.loads(path.read_text())["runtimeConfig"]
+    for bus in config.get("mixer", {}).get("buses", []):
+        for slot in bus.values():
+            if isinstance(slot, dict) and slot.get("params", {}).get("timeMode") == "note":
+                slot["params"].pop("timeMs", None)
+    return config
+saved = music(store / "default.patch.json")
 # The saved patch is a preset's when it holds every runtimeConfig value of that preset.
-loaded = [p.stem for p in presets
-          if all(saved.get(k) == v for k, v in json.loads(p.read_text())["runtimeConfig"].items())]
-print(f"{sys.argv[2]} bpm={saved['transport']['bpm']} matches={','.join(loaded) or '-'} {files}")
+loaded = [p.stem for p in presets if all(saved.get(k) == v for k, v in music(p).items())]
+def differ(a, b, path=""):
+    if isinstance(a, dict) and isinstance(b, dict):
+        return [d for k in sorted(set(a) | set(b)) for d in differ(a.get(k), b.get(k), f"{path}.{k}")]
+    if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+        return [d for i, (x, y) in enumerate(zip(a, b)) for d in differ(x, y, f"{path}[{i}]")]
+    return [] if a == b else [f"{path}={json.dumps(a)}->{json.dumps(b)}"]
+if (store / "patches" / "A.json").exists():
+    with open("presets-diff.log", "a") as out:
+        a = music(store / "patches" / "A.json")
+        out.write(f"{sys.argv[2]} {' '.join(differ(a, saved)[:20])}\n")
+print(f"{sys.argv[2]} bpm={saved['transport']['bpm']} note={saved['sound']['noteLengthMs']} matches={','.join(loaded) or '-'} {files}")
 PY
 }
 # Types one preset step and waits until the store changed and then held still for 0.5 s.

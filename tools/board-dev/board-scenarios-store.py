@@ -15,7 +15,8 @@ setups:
   usb_notes_in    the usb_midi rig; slot 1 a Synth with Hold, L1 steps slot 5, a MIDI Inst. on
                   channel 1, on tile (0, 0), which plays note 60
   presets         Auto Save on, View on Back off, keyboard capture allowed; presets A and AB, the
-                  store's patch at 101 and 102 BPM
+                  store's patch with Note Length 301 and 302 ms (BPM would also move the
+                  tempo-synced delay times the runtime derives from it)
 """
 import json
 import os
@@ -153,9 +154,9 @@ def main():
         owner = os.stat(store)
         (store / "patches").mkdir(exist_ok=True)
         os.chown(store / "patches", owner.st_uid, owner.st_gid)
-        for name, bpm in (("A", 101), ("AB", 102)):
+        for name, note_length in (("A", 301), ("AB", 302)):
             preset = json.loads(json.dumps(patch))
-            preset["runtimeConfig"]["transport"]["bpm"] = bpm
+            preset["runtimeConfig"]["sound"]["noteLengthMs"] = note_length
             path = store / "patches" / f"{name}.json"
             path.write_text(json.dumps(preset, separators=(",", ":")))
             os.chown(path, owner.st_uid, owner.st_gid)
