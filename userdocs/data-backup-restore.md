@@ -123,7 +123,10 @@ anything on that board you want to keep.
 
 A broken upload, or a failure before applying, leaves the board's data as it
 was. A broken archive comes back as HTTP 400; a board without room for the
-restore answers 507 instead, so free some space and try again. If something fails while the restore runs, the instrument puts the old
+restore answers 507 instead, so free some space and try again. The restore
+first keeps a copy of everything it replaces, so it needs room for the backup
+plus about as much again as the board's current data, and a big one can take
+half a minute. If something fails while the restore runs, the instrument puts the old
 data back, cleans up after itself, reports the failure and carries on saving
 as before. Still, keep the source card and the downloaded file until you're
 happy.
