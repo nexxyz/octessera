@@ -108,6 +108,29 @@ fn finished_operation(rig: &mut Rig, operation: RuntimeOperation) -> Vec<HostMes
     panic!("{operation:?} did not finish");
 }
 
+fn dispatch_all(rig: &mut Rig, messages: Vec<HostMessage>) {
+    for message in messages {
+        rig.playback
+            .dispatch_host_message_music_first(message, &mut rig.runner, &mut rig.adapter)
+            .unwrap();
+    }
+}
+
+fn force_flush(rig: &mut Rig) {
+    let messages = rig.adapter.core.flush_native_persistence_at(
+        &mut rig.playback,
+        &mut rig.runner,
+        Instant::now(),
+        true,
+    );
+    dispatch_all(rig, messages);
+}
+
+fn finish_default_save(rig: &mut Rig) {
+    let messages = finished_operation(rig, RuntimeOperation::StoreSaveDefault);
+    dispatch_all(rig, messages);
+}
+
 fn finish_save(rig: &mut Rig) {
     for message in finished_operation(rig, RuntimeOperation::StoreSavePreset) {
         rig.playback
@@ -172,16 +195,50 @@ fn booting_a_factory_store_leaves_nothing_to_autosave() {
 }
 
 #[test]
-fn a_preset_save_that_cleans_the_patch_leaves_no_autosave_to_refuse_the_next_load() {
+fn a_preset_save_under_auto_save_also_writes_the_default_patch() {
     let mut rig = rig(true, false);
+    let factory_level = saved_level(&rig, "default.patch.json");
     edit(&mut rig);
-    let now = Instant::now();
-    flush(&mut rig, now);
+    flush(&mut rig, Instant::now());
     assert!(rig.adapter.core.pending_default_save.has_default_pending());
 
     save_as_mine(&mut rig);
+    assert!(rig.runner.owes_default_autosave());
+    force_flush(&mut rig);
+    finish_default_save(&mut rig);
+
+    let preset_level = saved_level(&rig, "patches/Mine.json");
+    assert_ne!(preset_level, factory_level);
+    assert_eq!(saved_level(&rig, "default.patch.json"), preset_level);
     assert!(!rig.runner.owes_default_autosave());
-    flush(&mut rig, now + Duration::from_millis(10));
+    assert!(!rig.adapter.core.pending_default_save.has_default_pending());
+    assert_loaded(&load_mine(&mut rig));
+    let _ = std::fs::remove_dir_all(rig.root);
+}
+
+#[test]
+fn turning_auto_save_on_after_a_load_leaves_no_stuck_autosave() {
+    let mut rig = rig(false, false);
+    save_as_mine(&mut rig);
+    edit(&mut rig);
+    for message in load_mine(&mut rig) {
+        rig.playback
+            .dispatch_host_message_music_first(message, &mut rig.runner, &mut rig.adapter)
+            .unwrap();
+    }
+    force_flush(&mut rig);
+    assert!(!rig.adapter.core.pending_default_save.has_default_pending());
+
+    rig.runner.test_focus_menu_item("autoSaveDefault").unwrap();
+    press(
+        &mut rig.runner,
+        &[
+            json!({"type":"encoder_press","id":"main"}),
+            json!({"type":"encoder_turn","id":"main","delta":1}),
+            json!({"type":"encoder_press","id":"main"}),
+        ],
+    );
+    force_flush(&mut rig);
 
     assert!(!rig.adapter.core.pending_default_save.has_default_pending());
     assert_loaded(&load_mine(&mut rig));
@@ -242,12 +299,7 @@ fn load_mine_and_flush(rig: &mut Rig) {
     std::thread::sleep(Duration::from_millis(160));
     let now = Instant::now();
     flush(rig, now);
-    rig.adapter.core.flush_native_persistence_at(
-        &mut rig.playback,
-        &mut rig.runner,
-        Instant::now(),
-        true,
-    );
+    force_flush(rig);
 }
 
 #[test]

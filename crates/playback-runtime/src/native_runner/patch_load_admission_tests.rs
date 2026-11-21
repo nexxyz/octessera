@@ -418,6 +418,7 @@ fn the_saved_patch_dialog_says_auto_save_leaves_nothing_older_to_go_back_to() {
 
 /// The Pi side of a native autosave: write the current revision and report success.
 fn land_native_autosave(runner: &mut NativeRunner) {
+    runner.make_deferred_work_due_now();
     let revision = runner.config_revision;
     assert!(runner.register_native_default_write("auto-save", revision, true));
     let payload = std::sync::Arc::new(
@@ -428,7 +429,7 @@ fn land_native_autosave(runner: &mut NativeRunner) {
     );
     assert!(runner.attach_native_default_write_payload("auto-save", revision, payload));
     runner
-        .send(HostMessage::RuntimeResult {
+        .send_music_first(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::SaveDefaultResult {
                 ok: true,
                 is_auto: None,
@@ -465,7 +466,7 @@ fn a_landed_autosave_does_not_make_the_next_load_save_again() {
             .into_portable_patch_payload()
             .unwrap();
         let _ = runner
-            .send(HostMessage::RuntimeResult {
+            .send_music_first(HostMessage::RuntimeResult {
                 result: RuntimeStoreResult::LoadPresetResult {
                     name: "Alpha".into(),
                     payload: Some(payload),

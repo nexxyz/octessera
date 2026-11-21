@@ -128,6 +128,8 @@ impl NativeRunner {
                     && operation != crate::protocol::RuntimeOperation::StoreSaveDefault
                     && pending_default_revision != revision
                     && !native_preset_ignored
+                    && !(operation == crate::protocol::RuntimeOperation::StoreSavePreset
+                        && self.auto_save_default)
                 {
                     self.acknowledge_config_save(revision);
                 }
