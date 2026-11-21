@@ -14,6 +14,9 @@ impl NativeRunner {
             .current_ppqn_pulse
             .saturating_add(pulses as u64);
         let mut out = Vec::new();
+        if pulses == 0 {
+            self.advance_lfo_sub_pulse()?;
+        }
         let events = self.advance_algorithm(pulses)?;
         self.append_music_first_audio_commands(&mut out);
         self.push_routed_events(&mut out, events);

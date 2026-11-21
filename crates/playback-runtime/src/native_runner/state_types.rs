@@ -199,6 +199,9 @@ pub(super) struct NativeTransportState {
     pub(super) layer_pulse_accumulators: Vec<u32>,
     /// The step length each accumulator last counted against; 0 until the first pulses after Play.
     pub(super) layer_counted_steps: [u32; LAYER_COUNT],
+    /// When the internal clock's last pulse arrived, and the step inside it the short LFOs are at.
+    pub(super) lfo_pulse_at: Option<std::time::Instant>,
+    pub(super) lfo_sub_pulse: u8,
     /// External MIDI channels, one bit each, that sounded a note since the last Stop.
     pub(super) midi_channels_sounded: u16,
 }
@@ -228,6 +231,8 @@ impl NativeTransportState {
             layer_algorithm_step_pulses: vec![algorithm_step_pulses; LAYER_COUNT],
             layer_pulse_accumulators: vec![0; LAYER_COUNT],
             layer_counted_steps: [0; LAYER_COUNT],
+            lfo_pulse_at: None,
+            lfo_sub_pulse: 0,
             midi_channels_sounded: 0,
         }
     }

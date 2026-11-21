@@ -100,6 +100,12 @@ pub trait CoreRunner {
 
     fn register_platform_request(&mut self, _request: &RuntimePlatformRequest) {}
 
+    /// Whether a pulse-free step is due between two internal clock pulses, for LFOs that move
+    /// faster than the pulses.
+    fn lfo_sub_pulse_due(&self) -> bool {
+        false
+    }
+
     fn send_system_store_result(
         &mut self,
         message: HostMessage,

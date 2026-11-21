@@ -66,6 +66,10 @@ impl CoreRunner for MusicFirstRunner<'_> {
         self.0.register_platform_request(request);
     }
 
+    fn lfo_sub_pulse_due(&self) -> bool {
+        self.0.lfo_sub_pulse_due()
+    }
+
     fn send_system_store_result(
         &mut self,
         message: HostMessage,

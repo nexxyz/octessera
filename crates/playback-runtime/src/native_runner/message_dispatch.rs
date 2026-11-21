@@ -165,6 +165,10 @@ fn order_terminal_presentation(mut messages: Vec<RunnerMessage>) -> Vec<RunnerMe
 }
 
 impl super::CoreRunner for NativeRunner {
+    fn lfo_sub_pulse_due(&self) -> bool {
+        NativeRunner::lfo_sub_pulse_due(self)
+    }
+
     fn register_platform_request(&mut self, request: &RuntimePlatformRequest) {
         if request.operation() == crate::RuntimeOperation::StoreSaveDefault {
             self.register_default_write_request(&request.request_id, request.revision);

@@ -233,8 +233,8 @@ impl PlaybackRuntime {
 
         let pulses = self.pulse_phase.advance(elapsed, self.config.bpm);
         if pulses == 0 {
-            if self.request_next_snapshot {
-                self.request_next_snapshot = false;
+            if self.request_next_snapshot || runner.lfo_sub_pulse_due() {
+                let request_snapshot = std::mem::take(&mut self.request_next_snapshot);
                 return self.dispatch(
                     RuntimeDispatchInput::HostMessage(HostMessage::TransportPulseStep {
                         pulses: 0,
@@ -243,7 +243,7 @@ impl PlaybackRuntime {
                             .last_good_status
                             .as_ref()
                             .map(|status| status.current_ppqn_pulse),
-                        request_snapshot: Some(true),
+                        request_snapshot: Some(request_snapshot),
                     }),
                     runner,
                     host,

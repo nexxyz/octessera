@@ -173,11 +173,21 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 - `Link > LFOs > LFO1..LFO8` is the global bank stored as `runtimeConfig.linkLfos`, exactly eight slots,
   independent of the active layer.
 - Targets are additive, numeric, and live-safe; exclusive controls and every LFO configuration key
-  are excluded. Claims are validated as described under
+  are excluded. Instrument targets are Volume and Pan, the Synth oscillator levels, detunes and
+  pulse widths, Gain, Cutoff and Res; FM Index, Gain, Cutoff and Res; Plucked Gain, Decay,
+  Brightness, Cutoff and Res; Drum Gain, Cutoff and Res; and Sampler Gain, Cutoff and Res.
+  Sampler Gain is read when a hit starts, so each hit takes the LFO's value at that moment;
+  Sampler Tune is a whole-semitone setting, so XY, layer axes and CC move it but LFOs do not.
+- `Depth` swings the target around its current value: at 100% the wave reaches half the
+  target's range each way, clamped to the range. Claims are validated as described under
   [Modulation](../menu-and-controls-spec.md#modulation).
 - Periods run from `1/32T` to `8/1` (eight bars, 768 pulses); `2/1T`, `4/1T` and `8/1T` are 128,
   256 and 512 pulses. Changing an LFO's period scales its phase to the new length, so the wave keeps
   its position in the cycle instead of jumping.
+- LFOs shorter than `1/8` would only get a few clock pulses per wave (`1/32T` is two, so a sine
+  sampled on them is always zero). With the internal clock they also move between pulses, in four
+  steps per pulse placed by the time since the last pulse, so `1/32T` and `1/32` play a whole
+  wave. Under external MIDI clock they move once per incoming pulse.
 - An LFO's phase keeps running while it is off, so switching it back on (from the menu or the LFO
   play page) picks the wave up where a never-switched-off LFO would be, in phrase with the music.
   While off it contributes nothing.

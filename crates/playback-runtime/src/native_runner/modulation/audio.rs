@@ -91,6 +91,12 @@ pub(crate) fn is_live_link_lfo_target(key: &str) -> bool {
                 | "synth.osc2.detuneCents"
                 | "synth.osc1.pulseWidthPct"
                 | "synth.osc2.pulseWidthPct"
+                | "synth.amp.gainPct"
+                | "synth.filter.cutoffHz"
+                | "synth.filter.resonance"
+                | "sample.amp.gainPct"
+                | "sample.filter.cutoffHz"
+                | "sample.filter.resonance"
         )
     })
 }

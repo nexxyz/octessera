@@ -106,6 +106,7 @@ mod layer_behavior_config;
 mod layer_replacement;
 mod layer_state;
 mod led_color;
+mod lfo_sub_pulse;
 mod link_arp;
 mod link_arp_mode;
 mod link_routing;

@@ -1207,7 +1207,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 ## Modulation
 
 - Behavior ticks and held XY input update persistent source contributions without cloning or
-  reapplying unchanged held targets. Global Link LFOs advance at 24 PPQN only.
+  reapplying unchanged held targets. Global Link LFOs advance at 24 PPQN; with the internal clock,
+  LFOs shorter than `1/8` are also evaluated at quarter-pulse steps in between (see
+  [link.md](menu-tree/link.md#lfos)).
 - The native process combines persistent, held tick/XY, and LFO contributions, clamps once, and
   applies one resolved value per target endpoint. An active LFO step visits only dirty LFO target
   keys plus other contributors sharing them.
@@ -1222,8 +1224,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Config/patch transactions reset candidate modulation state, install all persistent owners, and
   resample active XY afterwards so its captured base is the loaded value.
 - Every LFO phase advances and wraps while playing, also when the LFO is off, untargeted, or at
-  depth zero; only enabled targeted LFOs trigger modulation work. Other PPQN paths and wall-clock
-  timing never advance LFOs or process unrelated held sources.
+  depth zero; only enabled targeted LFOs trigger modulation work. Other PPQN paths never advance
+  LFOs or process unrelated held sources; wall-clock time only places the quarter-pulse step of
+  a short LFO inside the current pulse.
 - Modulation sources, in their stable order: layer X/Y slots, Play X/Y, the eight Link LFOs, then
   the eight MIDI CC In slots. A CC slot holds its last `value / 127` like a held XY position; a
   loaded patch starts with none, and CC 121 (Reset All Controllers) drops the held values of the slots on its

@@ -97,6 +97,7 @@ impl ModulationProcessState {
         &mut self,
         source: ModulationSourceId,
         lfo: &super::super::NativeLinkLfo,
+        sub_pulse: u8,
     ) -> Result<bool, String> {
         let Some(binding) = lfo.target.clone() else {
             return Ok(self.clear_source(source));
@@ -106,7 +107,10 @@ impl ModulationProcessState {
         }
         let (min, max) = super::process_values::user_binding_range(&binding)
             .ok_or_else(|| format!("LFO target `{}` has no numeric range", binding.key))?;
-        let phase = f64::from(lfo.phase_pulses) / f64::from(lfo_period_pulses(&lfo.period).max(1));
+        let period = lfo_period_pulses(&lfo.period).max(1);
+        let steps = super::super::lfo_sub_pulse::lfo_steps_per_pulse(period);
+        let sub_pulse = if steps > 1 { u32::from(sub_pulse) } else { 0 };
+        let phase = f64::from(lfo.phase_pulses * steps + sub_pulse) / f64::from(period * steps);
         let mut delta = f64::from(realtime_engine::sine::sin_turns(phase as f32))
             * 0.5
             * f64::from(lfo.depth_pct)
@@ -266,7 +270,7 @@ impl ModulationProcessState {
                         .is_some_and(|target| target.key == held.binding.key)
                 });
             if should_refresh {
-                changed |= self.set_lfo(source, lfo)?;
+                changed |= self.set_lfo(source, lfo, runner.transport.lfo_sub_pulse)?;
             } else {
                 changed |= self.clear_source(source);
             }

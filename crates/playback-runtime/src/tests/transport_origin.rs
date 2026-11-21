@@ -383,3 +383,55 @@ fn midi_start_goes_out_with_the_downbeat_clock_but_continue_does_not() {
         vec![vec![0xFB]]
     );
 }
+
+/// A runner whose short LFOs want a step between two clock pulses.
+#[derive(Default)]
+struct SubPulseRunner {
+    inner: FakeRunner,
+    due: bool,
+}
+
+impl CoreRunner for SubPulseRunner {
+    fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        self.due = false;
+        self.inner.send(message)
+    }
+
+    fn send_system_store_result(
+        &mut self,
+        message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<crate::RuntimeStoreResult>), String> {
+        self.inner.send_system_store_result(message)
+    }
+
+    fn lfo_sub_pulse_due(&self) -> bool {
+        self.due
+    }
+}
+
+#[test]
+fn a_due_lfo_sub_pulse_gets_a_pulse_free_step_between_internal_pulses() {
+    let mut runtime = PlaybackRuntime::new(RuntimeConfig::default());
+    let mut host = FakeHost::default();
+    set_runtime_playing(&mut runtime, &mut host);
+    let mut runner = SubPulseRunner::default();
+    let quarter_pulse = std::time::Duration::from_secs_f64(60.0 / 120.0 / 24.0 / 4.0);
+
+    runtime
+        .advance_duration(quarter_pulse, &mut runner, &mut host)
+        .unwrap();
+    assert!(runner.inner.seen.is_empty(), "nothing is due yet");
+
+    runner.due = true;
+    runtime
+        .advance_duration(quarter_pulse, &mut runner, &mut host)
+        .unwrap();
+    assert!(matches!(
+        runner.inner.seen.as_slice(),
+        [HostMessage::TransportPulseStep {
+            pulses: 0,
+            request_snapshot: Some(false),
+            ..
+        }]
+    ));
+}

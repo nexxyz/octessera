@@ -231,6 +231,7 @@ impl NativeRunner {
         for lfo in &mut self.link_lfos {
             lfo.phase_pulses = 0;
         }
+        self.reset_lfo_sub_pulses();
     }
 }
 

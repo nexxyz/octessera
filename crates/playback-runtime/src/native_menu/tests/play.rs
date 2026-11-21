@@ -322,7 +322,7 @@ pub(crate) fn link_lfo_picker_only_exposes_live_safe_targets() {
         target,
         "mixer.buses.0.slot1.params.timeMs"
     ));
-    assert!(!contains_set_binding(
+    assert!(contains_set_binding(
         &menu.browsable_root(),
         target,
         "instruments.0.synth.filter.cutoffHz"

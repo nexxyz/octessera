@@ -139,6 +139,7 @@ mod modulation_behavior_targets;
 mod modulation_bindings;
 mod modulation_layer_replacement;
 mod modulation_lfo_phase;
+mod modulation_lfo_sweep;
 mod modulation_runtime;
 mod modulation_runtime_commands;
 mod modulation_runtime_fx;

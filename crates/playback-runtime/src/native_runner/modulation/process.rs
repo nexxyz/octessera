@@ -431,7 +431,7 @@ impl NativeRunner {
         &mut self,
         pulses: u32,
     ) -> Result<(), String> {
-        let mut phase_changed = false;
+        let mut phase_changed = self.start_lfo_sub_pulses();
         for lfo in &mut self.link_lfos {
             let period = crate::timing_units::lfo_period_pulses(&lfo.period).max(1);
             let phase = (lfo.phase_pulses + pulses) % period;

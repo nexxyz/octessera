@@ -255,7 +255,7 @@ link_lfo_group	Menu > Link > LFOs > LFO*		group	LFO	One LFO: a slow wave in time
 link_lfo_enabled	Menu > Link > LFOs > LFO* > Enabled	key:linkLfos.*.enabled	bool	Enabled	Switches this LFO on or off.	It does nothing until it has a Target.
 link_lfo_target	Menu > Link > LFOs > LFO* > Target	key:linkLfos.*.target	group	Target	The setting this LFO moves.	Only settings that can move smoothly are listed.
 link_lfo_period	Menu > Link > LFOs > LFO* > Period	key:linkLfos.*.period	enum	Period	How long one wave takes, from 1/32T to 8/1 (eight bars). T means triplet.	Changing it keeps the wave where it is.
-link_lfo_depth	Menu > Link > LFOs > LFO* > Depth	key:linkLfos.*.depthPct	number	Depth	How far the LFO swings around the middle of the target's range.	Range Min/Max and Invert on the target still apply.
+link_lfo_depth	Menu > Link > LFOs > LFO* > Depth	key:linkLfos.*.depthPct	number	Depth	How far the LFO swings around the target's current value: 100% reaches half the range each way.	Range Min/Max and Invert on the target still apply.
 link_midi_cc_group	Menu > Link > MIDI CC In		group	MIDI CC In	Eight slots that turn incoming MIDI Control Change messages into parameter moves.	They follow System > MIDI: MIDI Active and the connected MIDI In. The last value of each slot holds.
 link_midi_cc_slot_group	Menu > Link > MIDI CC In > CC*		group	MIDI CC Slot	One CC In slot: which CC and channel it listens to, and the parameter it moves.	Saved with the patch; a loaded patch moves nothing until the slot's CC arrives.
 link_midi_cc_number	Menu > Link > MIDI CC In > CC* > CC	key:midiCc.*.cc	number	CC Number	The Control Change number this slot listens to, 0 to 127.	Learn sets it from the next CC that arrives.

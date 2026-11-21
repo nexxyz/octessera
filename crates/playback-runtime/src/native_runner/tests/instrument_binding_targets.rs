@@ -61,16 +61,18 @@ fn instrument_scalar_target_matrix_excludes_fm_enums_and_structural_sample_contr
         assert!(!supported_param_binding_key(&key));
         assert!(classify_key(&key).is_none());
     }
-    for field in [
-        "sample.tuneSemis",
-        "sample.amp.gainPct",
-        "sample.amp.velocitySensitivityPct",
+    for (field, lfo) in [
+        ("sample.tuneSemis", false),
+        ("sample.amp.gainPct", true),
+        ("sample.amp.velocitySensitivityPct", false),
     ] {
         let key = format!("instruments.0.{field}");
         assert!(supported_param_binding_key(&key));
-        assert!(!crate::native_runner::is_live_link_lfo_target_for_picker(
-            &key
-        ));
+        assert_eq!(
+            crate::native_runner::is_live_link_lfo_target_for_picker(&key),
+            lfo,
+            "{key}"
+        );
         assert!(matches!(
             instrument_modulation_audio_command(0, field, &json!(75)),
             Some(RuntimeAudioCommand::SetSampleBankParam { .. })
