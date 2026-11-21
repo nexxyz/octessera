@@ -387,7 +387,10 @@ def switch(version: str) -> str:
                 RESTORED_MARK.unlink(missing_ok=True)
             prune({version, old_version})
             return f"Now running v{version}"
-        systemctl("stop", SERVICE)
+        try:
+            systemctl("stop", SERVICE)
+        except UpdateError as error:
+            print(f"could not stop v{version}: {error}", file=sys.stderr)
         try:
             put_back_store(store, old_version)
         except OSError as error:

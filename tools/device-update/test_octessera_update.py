@@ -21,7 +21,8 @@ ORANGE = "orange-pi-zero-2w"
 FAKE_SYSTEMCTL = """#!/bin/sh
 echo "$*" >> "$FAKE_LOG"
 case "$1" in
-  stop) sleep "${FAKE_STOP_SLEEP:-0}" ;;
+  stop) if grep -q stuck "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then exec sleep 6; fi
+    sleep "${FAKE_STOP_SLEEP:-0}" ;;
   restart) if grep -q hangs "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then sleep 5; fi
     if grep -q scribbles "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then echo scribbled > "$FAKE_STORE/system.json"; fi
     if grep -q healthy "$OCTESSERA_UPDATE_ROOT/current/octessera-pi"; then echo ready > "$OCTESSERA_CANDIDATE_HEALTH_PATH"; fi ;;
@@ -271,6 +272,17 @@ class UpdaterTests(unittest.TestCase):
         result = self.invoke("switch", "1.1.0")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.link("current"), "1.1.0")
+
+    def test_failed_update_goes_back_even_when_the_new_version_will_not_stop(self):
+        self.install_release("1.1.0", b"stuck 1.1.0")
+        before = self.stored()
+        result = self.invoke("switch", "1.1.0")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(b"did not start; went back to v1.0.0", result.stderr)
+        self.assertEqual(self.link("current"), "1.0.0")
+        self.assertFalse((self.root / "previous").is_symlink())
+        self.assertEqual(self.stored(), before)
+        self.assertEqual(self.calls()[-1], "restart --no-block octessera.service")
 
     def test_failed_update_undoes_what_the_new_version_wrote(self):
         self.install_release("1.1.0", b"scribbles 1.1.0")
