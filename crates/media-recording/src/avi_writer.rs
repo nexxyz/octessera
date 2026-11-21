@@ -52,8 +52,15 @@ impl AviWriter {
         final_path: PathBuf,
         file_limit: u64,
     ) -> Result<Self, RecordingError> {
-        let offsets =
-            write_headers(&mut file).map_err(|error| recording_error(&partial_path, error))?;
+        let offsets = match write_headers(&mut file) {
+            Ok(offsets) => offsets,
+            Err(error) => {
+                // Nothing was recorded yet (a full card, typically), so no take is left behind.
+                drop(file);
+                let _ = fs::remove_file(&partial_path);
+                return Err(recording_error(&partial_path, error));
+            }
+        };
         Ok(Self::with_offsets(
             file,
             partial_path,

@@ -309,7 +309,7 @@ After that the unit stays `start-limit-hit` until someone runs
 - `crates/media-recording` owns bounded realtime-safe ingress, worker-owned 44.1 kHz stereo signed-16 little-endian PCM WAV writing, PNG-frame/PCM AVI writing, frame-timeline gap handling, lifecycle, container finalization, and collision-safe partial/final naming.
 - `Start Audio` writes WAV; `Audio+Video` writes an AVI with PNG-frame video and PCM audio. See [Recording formats](#recording-formats).
 - Desktop resolves its platform Audio/Music directory through Tauri and uses `Octessera/recordings` for audio and `Octessera/screen-recordings` for Audio+Video. Raspberry defaults are `/home/pi/recordings` and `/home/pi/screen-recordings`; Orange defaults are `/var/lib/octessera/recordings` and `/var/lib/octessera/screen-recordings`.
-- Each worker reserves a partial path and renames it on a complete take; worker failures keep the partial file. See [Take files](#take-files).
+- Each worker reserves a partial path and renames it on a complete take; worker failures keep the partial file, except a header that could not be written, which leaves nothing to keep. See [Take files](#take-files).
 - PlaybackRuntime owns recording lifecycle presentation; host adapters own ingress and finalization. See [Recording status](#recording-status).
 - Board adapters and the desktop adapter attach exactly one tap to the canonical final stereo mix; mirrored USB/HDMI output callbacks do not create recording owners, and recording ingress performs no filesystem I/O in an audio callback.
 - Desktop UI only emits the native recording actions and renders native status; it has no recording or file-writing path.
@@ -320,7 +320,7 @@ After that the unit stays `start-limit-hit` until someone runs
 
 ### Take files
 
-Each worker reserves a `.partial.wav` or `.partial.avi` path, syncs and renames it atomically to `.wav` or `.avi` on a complete take, and uses `.incomplete.wav` or `.incomplete.avi` when audio gaps or audio ingress overflow occurred; dropped screen frames are logged and the previous picture is held. Worker failures retain the partial file; collision-safe reservations add a suffix instead of replacing an existing take.
+Each worker reserves a `.partial.wav` or `.partial.avi` path, syncs and renames it atomically to `.wav` or `.avi` on a complete take, and uses `.incomplete.wav` or `.incomplete.avi` when audio gaps or audio ingress overflow occurred; dropped screen frames are logged and the previous picture is held. Worker failures retain the partial file, except when the header itself could not be written (a full card): that empty file is removed. Collision-safe reservations add a suffix instead of replacing an existing take.
 
 ### Recording status
 

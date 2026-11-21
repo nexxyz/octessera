@@ -265,31 +265,6 @@ fn finalization_failure_retains_partial_file() {
 }
 
 #[test]
-fn write_failure_retains_partial_file() {
-    let dir = temp_dir("write-failure");
-    let partial = dir.join("write.partial.wav");
-    let final_path = dir.join("write.wav");
-    fs::write(&partial, []).unwrap();
-    let file = File::open(&partial).unwrap();
-    let (_tx, rx) = mpsc::sync_channel(1);
-    let state = Arc::new(IngressState::new());
-    state.accepting.store(false, Ordering::Release);
-    let error = wav::write_recording(
-        file,
-        partial.clone(),
-        final_path,
-        rx,
-        Arc::new(AtomicBool::new(true)),
-        state,
-        8,
-    )
-    .unwrap_err();
-    assert!(error.to_string().contains("audio recording failed"));
-    assert!(partial.exists());
-    remove_temp_dir(dir);
-}
-
-#[test]
 fn path_reservation_skips_existing_partial_and_final_takes() {
     let dir = temp_dir("collision");
     fs::write(dir.join("octessera-fixed.wav"), []).unwrap();

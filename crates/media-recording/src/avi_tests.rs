@@ -1,6 +1,6 @@
 use super::*;
 use image::GenericImageView;
-use std::fs::{self, File};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc;
@@ -337,37 +337,6 @@ fn avi_collision_reservation_keeps_existing_files() {
     assert!(partial.ends_with("take-2.partial.avi"));
     assert!(final_path.ends_with("take-2.avi"));
     drop(file);
-    remove_temp_dir(dir);
-}
-
-#[test]
-fn avi_worker_failure_retains_partial_file() {
-    let dir = temp_dir("avi-failure");
-    let partial = dir.join("failure.partial.avi");
-    fs::write(&partial, []).unwrap();
-    let file = File::open(&partial).unwrap();
-    let (_tx, rx) = mpsc::sync_channel(1);
-    let state = Arc::new(IngressState::new());
-    state
-        .accepting
-        .store(false, std::sync::atomic::Ordering::Release);
-    let oled = OledIngress {
-        state: Arc::new(OledIngressState::new()),
-    };
-    let error = crate::avi::write_recording(crate::avi::AviRecordingInput {
-        file,
-        partial_path: partial.clone(),
-        final_path: dir.join("failure.avi"),
-        rx,
-        stop: Arc::new(AtomicBool::new(true)),
-        state,
-        oled,
-        max_frames: 8,
-        file_limit: AVI_TARGET_MAX_BYTES,
-    })
-    .unwrap_err();
-    assert!(error.partial_path().ends_with("failure.partial.avi"));
-    assert!(partial.exists());
     remove_temp_dir(dir);
 }
 

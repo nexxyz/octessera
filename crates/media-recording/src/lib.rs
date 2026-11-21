@@ -296,4 +296,6 @@ impl std::error::Error for RecordingError {}
 #[cfg(test)]
 mod avi_tests;
 #[cfg(test)]
+mod header_failure_tests;
+#[cfg(test)]
 mod tests;

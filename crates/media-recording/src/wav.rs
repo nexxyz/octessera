@@ -95,7 +95,12 @@ impl WavWriter {
         partial_path: PathBuf,
         final_path: PathBuf,
     ) -> Result<Self, RecordingError> {
-        write_header(&mut file, 0).map_err(|error| recording_error(&partial_path, error))?;
+        if let Err(error) = write_header(&mut file, 0) {
+            // Nothing was recorded yet (a full card, typically), so no take is left behind.
+            drop(file);
+            let _ = fs::remove_file(&partial_path);
+            return Err(recording_error(&partial_path, error));
+        }
         Ok(Self {
             file,
             partial_path,
