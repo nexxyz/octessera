@@ -244,18 +244,7 @@ impl AudioService {
             .recording
             .clone()
             .ok_or_else(|| "recording tap is inactive".to_string())?;
-        let mut chunk = tap.new_chunk();
-        let (frames, _) = samples.as_chunks::<2>();
-        for frame in frames {
-            if !chunk.push_frame(frame[0], frame[1]) {
-                tap.push_chunk(chunk);
-                chunk = tap.new_chunk();
-                assert!(chunk.push_frame(frame[0], frame[1]));
-            }
-        }
-        if !chunk.is_empty() {
-            tap.push_chunk(chunk);
-        }
+        tap.push_frames(samples);
         Ok(())
     }
 }
