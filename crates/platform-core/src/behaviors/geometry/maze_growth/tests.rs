@@ -285,3 +285,26 @@ fn collapse_and_exhaustion_preserve_walker_tiles() {
     assert_eq!(renewed.tiles[renewed.walkers[0]], WALKER);
     assert_eq!(renewed.tiles.iter().filter(|c| **c == WALL).count(), 1);
 }
+
+#[test]
+fn every_walker_count_walks_and_a_pressed_walker_comes_back() {
+    let mut ctx = context();
+    for count in 1..=8u8 {
+        let state = maze_growth_init(json!({ "walkerCount": count })).unwrap();
+        assert_eq!(state.walkers.len(), usize::from(count));
+    }
+    let state = maze_growth_init(json!({ "walkerCount": 3 })).unwrap();
+    let walker = state.walkers[0];
+    let pressed = maze_growth_on_input(
+        state,
+        DeviceInput::GridPress {
+            x: walker % GRID_WIDTH,
+            y: walker / GRID_WIDTH,
+        },
+        &mut ctx,
+    );
+    assert_eq!(pressed.tiles[walker], WALL);
+    let ticked = maze_growth_on_tick(pressed, &mut ctx);
+    assert_eq!(ticked.walkers.len(), 3);
+    assert!(!ticked.walkers.contains(&walker));
+}

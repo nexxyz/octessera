@@ -7,6 +7,7 @@ use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -14,6 +15,17 @@ const WALL: u8 = 0;
 const PATH: u8 = 1;
 const FRONTIER: u8 = 2;
 const WALKER: u8 = 3;
+/// Where Restart Maze puts its walkers, first to last, around the starting corridor.
+const WALKER_STARTS: [(usize, usize); 8] = [
+    (3, 3),
+    (4, 4),
+    (2, 4),
+    (4, 2),
+    (3, 5),
+    (5, 3),
+    (2, 3),
+    (5, 4),
+];
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MazeGrowthState {
@@ -165,6 +177,7 @@ pub fn maze_growth_on_tick(mut state: MazeGrowthState, _: &mut BehaviorContext) 
             state.ages[i] = 0
         }
     }
+    replace_lost_walkers(&mut state, &mut forced);
     renew_exhausted_maze(&mut state, &mut forced);
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers(&prev, &state.tiles, &forced);
@@ -286,6 +299,23 @@ fn clean_walkers(w: &[usize], tiles: &mut [u8], count: usize) -> Vec<usize> {
     }
     out
 }
+/// A walker pressed away, or one more than were walking, reappears on a random open tile.
+fn replace_lost_walkers(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
+    let mut rng = crate::behavior_random::rng();
+    while s.walkers.len() < usize::from(s.walker_count) {
+        let open = (0..TILE_COUNT)
+            .filter(|i| s.tiles[*i] == PATH || s.tiles[*i] == FRONTIER)
+            .collect::<Vec<_>>();
+        let Some(i) = open.get(rng.gen_range(0..open.len().max(1))).copied() else {
+            return;
+        };
+        s.tiles[i] = WALKER;
+        s.visited[i] = 1;
+        s.ages[i] = 0;
+        s.walkers.push(i);
+        forced.push(i);
+    }
+}
 fn restart(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
     s.tiles.fill(WALL);
     s.visited.fill(0);
@@ -305,7 +335,8 @@ fn seed_default(s: &mut MazeGrowthState) {
         s.visited[i] = 1;
         s.ages[i] = 0;
     }
-    for i in [grid_index(3, 3), grid_index(4, 4)]
+    for i in WALKER_STARTS
+        .map(|(x, y)| grid_index(x, y))
         .into_iter()
         .take(s.walker_count.into())
     {

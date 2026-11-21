@@ -150,7 +150,7 @@ life_spawn_shared_fractal_jump	*	action:behavior_action:jumpRegion	action	Jump R
 life_spawn_shared_fractal_toggle	*	action:behavior_action:toggleFractalMode	action	Toggle Fractal Mode	Switches between Mandelbrot and Julia mode and recomputes the grid.	Changed visible classes emit the corresponding grid triggers.
 layer_maze_carve	*	key:layers.*.build.behaviorConfig.carvePct	number	Carve	Sets the chance frontier tiles carve new maze corridors.	Carving uses cardinal neighbors only.
 layer_maze_collapse	*	key:layers.*.build.behaviorConfig.collapseAge	number	Collapse Age	Sets how long non-walker corridors age before they can crumble.	Walker tiles are protected from collapse.
-layer_maze_walkers	*	key:layers.*.build.behaviorConfig.walkerCount	number	Walker Count	Sets how many walkers move through visible maze tiles.	Walker entries emit activate accents.
+layer_maze_walkers	*	key:layers.*.build.behaviorConfig.walkerCount	number	Walker Count	Sets how many walkers move through visible maze tiles.	Walker entries emit activate accents; a walker you press away comes back on an open tile.
 life_spawn_shared_maze_restart	*	action:behavior_action:restartMaze	action	Restart Maze	Clears the maze and seeds center frontiers and walkers.	Seeded tiles emit activate accents.
 life_spawn_shared_maze_collapse	*	action:behavior_action:collapseMaze	action	Collapse Maze	Removes up to eight old non-walker corridor tiles.	Each removed tile fires its Off event, so mapped notes can stop.
 layer_reaction_feed	*	key:layers.*.build.behaviorConfig.feedPct	number	Feed	Sets how quickly chemical A refills empty space.	Feed and Kill only make spots in a narrow band; around 60 and 62 the patterns hold.
