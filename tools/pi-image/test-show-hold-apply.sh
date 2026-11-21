@@ -13,7 +13,7 @@ cat >"$work/bin/stub" <<'EOF'
 echo "$(basename "$0") $*" >> "$STUB_LOG"
 EOF
 chmod +x "$work/bin/stub"
-for command in nmcli systemctl systemd-run rfkill; do
+for command in nmcli systemctl systemd-run rfkill flock; do
     cp "$work/bin/stub" "$work/bin/$command"
 done
 export STUB_LOG="$work/log"

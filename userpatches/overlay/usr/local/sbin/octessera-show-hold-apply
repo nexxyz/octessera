@@ -15,6 +15,9 @@ set -eu
 dir=${OCTESSERA_SHOW_HOLD_DIR:-/var/lib/octessera/show-hold}
 release=octessera-show-hold-release
 step=300
+# One run at a time: a tick and a path-unit apply must not both arm a timer.
+exec 9>"$dir/.lock"
+flock 9
 
 if [ -e "$dir/wifi-off" ]; then
     nmcli radio wifi off
