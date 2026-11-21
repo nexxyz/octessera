@@ -91,7 +91,7 @@ impl DrumState {
                 1.0
             },
             sweep_remaining: sweep_frames,
-            noise_alpha: (TAU * (400.0 + tone * 11_600.0) / sample_rate as f32).min(1.0),
+            noise_alpha: 1.0 - (-TAU * (400.0 + tone * 11_600.0) / sample_rate as f32).exp(),
             noise_mix: voice.noise_mix_pct.clamp(0.0, 100.0) / 100.0,
             upper_mix: upper_mix * (0.2 + 0.8 * tone),
             level: voice.level_pct.clamp(0.0, 100.0) * 0.01,
@@ -186,5 +186,22 @@ mod tests {
         let rendered = (0..64).map(|_| hit.next()).collect::<Vec<_>>();
         assert_eq!(hit.seed, seed);
         assert!(rendered.iter().any(|sample| *sample != 0.0));
+    }
+
+    #[test]
+    fn noise_tone_keeps_brightening_up_to_its_top() {
+        for sample_rate in [44_100, 48_000] {
+            let alphas = [0.0, 50.0, 57.0, 70.0, 85.0, 90.0, 100.0].map(|tone_pct| {
+                let mut voice = DrumSound::ClosedHat.default_voice();
+                voice.tone_pct = tone_pct;
+                DrumState::note_on(voice, 0, 100, 0, sample_rate).noise_alpha
+            });
+            assert!(
+                alphas
+                    .windows(2)
+                    .all(|pair| pair[1] > pair[0] && pair[1] < 1.0),
+                "{sample_rate} Hz: {alphas:?}"
+            );
+        }
     }
 }
