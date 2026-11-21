@@ -195,7 +195,8 @@ impl SampleVoicePool {
             .find(|lane| self.lane(*lane).is_some_and(|voice| !voice.active))
     }
 
-    pub(super) fn first_stealable_lane_for_slot(&self, slot: usize) -> Option<usize> {
+    /// The slot's oldest sounding voice that is not already fading out.
+    pub(super) fn oldest_stealable_lane_for_slot(&self, slot: usize) -> Option<usize> {
         if !self.partitions_home() {
             return None;
         }
@@ -203,23 +204,29 @@ impl SampleVoicePool {
         lanes[..self.slot_lane_counts[slot]]
             .iter()
             .copied()
-            .filter(|lane| {
-                self.lane(*lane)
-                    .is_some_and(|voice| voice.active && !voice.declick.is_fading())
-            })
+            .filter_map(|lane| self.stealable_start(lane).map(|started| (started, lane)))
             .min()
+            .map(|(_, lane)| lane)
     }
 
-    pub(super) fn first_stealable_lane_global(&self) -> Option<(usize, usize)> {
+    /// The oldest sounding voice of any slot that is not already fading out.
+    pub(super) fn oldest_stealable_lane_global(&self) -> Option<(usize, usize)> {
         if !self.partitions_home() {
             return None;
         }
-        for slot in 0..INSTRUMENT_SLOT_COUNT {
-            if let Some(lane) = self.first_stealable_lane_for_slot(slot) {
-                return Some((slot, lane));
-            }
-        }
-        None
+        (0..INSTRUMENT_SLOT_COUNT)
+            .filter_map(|slot| {
+                let lane = self.oldest_stealable_lane_for_slot(slot)?;
+                Some((self.stealable_start(lane)?, lane, slot))
+            })
+            .min()
+            .map(|(_, lane, slot)| (slot, lane))
+    }
+
+    fn stealable_start(&self, lane: usize) -> Option<u64> {
+        self.lane(lane)
+            .filter(|voice| voice.active && !voice.declick.is_fading())
+            .map(|voice| voice.started_sample)
     }
 
     pub(super) fn slot_lanes(&self, slot: usize) -> Option<&[usize]> {

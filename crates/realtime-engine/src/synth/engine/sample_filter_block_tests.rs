@@ -175,5 +175,6 @@ fn sample_voice(
         last_output: 0.0,
         declick: Default::default(),
         start_delay: 0,
+        started_sample: 0,
     }
 }

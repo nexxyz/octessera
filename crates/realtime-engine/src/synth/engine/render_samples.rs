@@ -108,17 +108,17 @@ impl SynthEngine {
             None
         } else if active >= MAX_SAMPLE_VOICES_PER_SLOT {
             self.sample_voice_pool
-                .first_stealable_lane_for_slot(slot)
+                .oldest_stealable_lane_for_slot(slot)
                 .or_else(|| {
                     first_inactive_lane.is_none().then(|| {
                         self.sample_voice_pool
-                            .first_stealable_lane_global()
+                            .oldest_stealable_lane_global()
                             .map(|(_, lane)| lane)
                     })?
                 })
         } else if first_inactive_lane.is_none() {
             self.sample_voice_pool
-                .first_stealable_lane_global()
+                .oldest_stealable_lane_global()
                 .map(|(_, lane)| lane)
         } else {
             None
@@ -190,6 +190,7 @@ impl SynthEngine {
             last_output: 0.0,
             declick,
             start_delay: self.event_frame_offset,
+            started_sample: self.event_block_sample_clock() + u64::from(self.event_frame_offset),
         };
         if !self.sample_voice_pool.replace_lane_for_admission(
             lane,

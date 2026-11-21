@@ -213,3 +213,26 @@ fn retirement_overflow_rejects_without_taking_sample_handle() {
         .as_ref()
         .is_some_and(|buffer| std::sync::Arc::ptr_eq(&buffer.samples, &samples)));
 }
+
+#[test]
+fn stealing_takes_the_oldest_voice_not_the_lowest_lane() {
+    let mut pool = SampleVoicePool::new();
+    let mut start = |lane: usize, slot: usize, started_sample: u64| {
+        assert!(pool.assign_lane(lane, slot));
+        let voice = pool.lane_mut(lane).expect("home partition lane");
+        voice.instrument_slot = slot as u8;
+        voice.active = true;
+        voice.started_sample = started_sample;
+    };
+    start(0, 0, 900);
+    start(1, 0, 300);
+    start(2, 0, 200);
+    start(3, 0, 400);
+    start(4, 1, 500);
+    start(5, 1, 100);
+    assert_eq!(pool.oldest_stealable_lane_for_slot(0), Some(2));
+    assert_eq!(pool.oldest_stealable_lane_global(), Some((1, 5)));
+    pool.lane_mut(5).unwrap().declick.begin_fade();
+    assert_eq!(pool.oldest_stealable_lane_for_slot(1), Some(4));
+    assert_eq!(pool.oldest_stealable_lane_global(), Some((0, 2)));
+}

@@ -122,6 +122,7 @@ fn identity_voice(
         last_output: 0.0,
         declick: Default::default(),
         start_delay,
+        started_sample: 0,
     }
 }
 

@@ -78,6 +78,8 @@ pub(super) struct SampleVoice {
     pub(super) declick: StealDeclick,
     /// Silent frames left before the voice starts, for an event placed inside a block.
     pub(super) start_delay: u32,
+    /// The engine sample the voice started on; the oldest voice is the first to be stolen.
+    pub(super) started_sample: u64,
 }
 
 impl SampleVoice {
@@ -105,6 +107,7 @@ impl SampleVoice {
             last_output: 0.0,
             declick: StealDeclick::default(),
             start_delay: 0,
+            started_sample: 0,
         }
     }
 }

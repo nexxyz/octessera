@@ -249,7 +249,7 @@ fn routing_tree_blocks_carry_a_sample_filter_glide_to_the_sounding_voice() {
     engine.note_on(0, 36, 127, 10_000);
     let lane = engine
         .sample_voice_pool
-        .first_stealable_lane_for_slot(0)
+        .oldest_stealable_lane_for_slot(0)
         .expect("sounding sample voice");
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut engine, 128)

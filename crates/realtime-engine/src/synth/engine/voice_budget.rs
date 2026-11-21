@@ -102,7 +102,7 @@ impl SynthEngine {
                 self.record_voice_steal();
             }
             while self.sounding_sample_voice_count(slot) > MAX_SAMPLE_VOICES_PER_SLOT {
-                let Some(lane) = self.sample_voice_pool.first_stealable_lane_for_slot(slot) else {
+                let Some(lane) = self.sample_voice_pool.oldest_stealable_lane_for_slot(slot) else {
                     break;
                 };
                 if !self.sample_voice_pool.fade_out_lane(lane) {
@@ -135,7 +135,7 @@ impl SynthEngine {
 
     fn enforce_global_sample_budget(&mut self) {
         while self.sounding_sample_voice_total() > MAX_SAMPLE_VOICES {
-            let Some((_slot, lane)) = self.sample_voice_pool.first_stealable_lane_global() else {
+            let Some((_slot, lane)) = self.sample_voice_pool.oldest_stealable_lane_global() else {
                 break;
             };
             if !self.sample_voice_pool.fade_out_lane(lane) {

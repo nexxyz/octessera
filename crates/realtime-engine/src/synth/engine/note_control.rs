@@ -18,7 +18,7 @@ impl SynthEngine {
         result
     }
 
-    fn event_block_sample_clock(&self) -> u64 {
+    pub(super) fn event_block_sample_clock(&self) -> u64 {
         #[cfg(feature = "routing-tree-executor")]
         return self
             .routing_tree_source_event_sample_clock
