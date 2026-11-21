@@ -9,7 +9,7 @@ mod missing_field_defaults;
 
 use missing_field_defaults::{
     default_missing_instrument_blocks_in_full_config, normalize_missing_fm_fields,
-    normalize_missing_pluck_fields, normalize_missing_usb_data_role,
+    normalize_missing_pluck_fields, normalize_missing_tile_stamps, normalize_missing_usb_data_role,
 };
 
 pub(super) const CONFIG_KIND: &str = "octessera.config";
@@ -36,6 +36,7 @@ pub(super) fn prepare_config_payload(
     normalize_missing_usb_data_role(&mut input);
     validate_supplied_audio_outputs(&input)?;
     default_missing_instrument_blocks_in_full_config(&mut input);
+    normalize_missing_tile_stamps(&mut input);
     normalize_missing_pluck_fields(&mut input);
     super::drum_config::normalize_complete_voice_bank(&mut input);
     normalize_missing_fm_fields(&mut input);
@@ -64,6 +65,7 @@ pub(super) fn prepare_patch_payload(
     validate_canonical_lfo_bank_shape(&input)?;
     let mut validation_template = current.clone();
     default_missing_instrument_blocks_in_full_config(&mut validation_template);
+    normalize_missing_tile_stamps(&mut validation_template);
     normalize_missing_pluck_fields(&mut validation_template);
     super::drum_config::normalize_complete_voice_bank(&mut validation_template);
     normalize_missing_fm_fields(&mut validation_template);
@@ -74,9 +76,11 @@ pub(super) fn prepare_patch_payload(
     normalize_missing_pluck_fields(&mut input);
     super::drum_config::normalize_complete_voice_bank(&mut input);
     normalize_missing_fm_fields(&mut input);
+    normalize_missing_tile_stamps(&mut input);
     let mut patch = patch_payload_from_payload(input)?;
     super::random_streams::default_missing_seed_fields(&mut patch);
     let mut payload = merge_values(current, &patch);
+    normalize_missing_tile_stamps(&mut payload);
     derived_names::canonicalize_merged_payload_names(&mut payload, &patch);
     discard_incompatible_layer_state(&mut payload, &patch, current);
     set_config_envelope(

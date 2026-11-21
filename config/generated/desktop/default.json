@@ -394,6 +394,11 @@
             "waveform": "pulse"
           }
         },
+        "tileStamp": {
+          "level": null,
+          "tuneCents": 0,
+          "tuneSemis": 0
+        },
         "type": "synth"
       },
       {
@@ -690,6 +695,11 @@
             "waveform": "square"
           }
         },
+        "tileStamp": {
+          "level": null,
+          "tuneCents": 0,
+          "tuneSemis": 0
+        },
         "type": "sampler"
       },
       {
@@ -872,6 +882,11 @@
             "pulseWidthPct": 50,
             "waveform": "saw"
           }
+        },
+        "tileStamp": {
+          "level": null,
+          "tuneCents": 0,
+          "tuneSemis": 0
         },
         "type": "pluck"
       },
@@ -1061,6 +1076,11 @@
             "waveform": "triangle"
           }
         },
+        "tileStamp": {
+          "level": null,
+          "tuneCents": 0,
+          "tuneSemis": 0
+        },
         "type": "fm"
       },
       {
@@ -1248,6 +1268,11 @@
             "pulseWidthPct": 50,
             "waveform": "square"
           }
+        },
+        "tileStamp": {
+          "level": null,
+          "tuneCents": 0,
+          "tuneSemis": 0
         },
         "type": "fm"
       },
@@ -1569,6 +1594,11 @@
             "waveform": "square"
           }
         },
+        "tileStamp": {
+          "level": null,
+          "tuneCents": 0,
+          "tuneSemis": 0
+        },
         "type": "drum"
       },
       {
@@ -1720,6 +1750,11 @@
             "waveform": "square"
           }
         },
+        "tileStamp": {
+          "level": null,
+          "tuneCents": 0,
+          "tuneSemis": 0
+        },
         "type": "none"
       },
       {
@@ -1870,6 +1905,11 @@
             "pulseWidthPct": 50,
             "waveform": "square"
           }
+        },
+        "tileStamp": {
+          "level": null,
+          "tuneCents": 0,
+          "tuneSemis": 0
         },
         "type": "none"
       }

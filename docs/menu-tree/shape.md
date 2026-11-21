@@ -255,7 +255,9 @@ Shape
   (`-24..24` st), Tile Fine (`-100..100` cents), and Tile Level (Base, High, Medium, Low) onto each
   tile it stamps, together with the selected sample slot (Sampler) or voice (Drum). Sampler stamps
   carry a level only while Vel Levels is on.
-- Each instrument saves its stamp values with the patch as `instruments[i].tileStamp`.
+- Each instrument saves its stamp values with the patch as `instruments[i].tileStamp`, with
+  `level: null` for Base. Loading a patch replaces them; a patch saved without them loads
+  Tile Tune 0, Tile Fine 0 and Base.
 - Base-level tiles play at the trigger velocity. High/Medium/Low tiles play the Vel Levels
   velocities, still scaled by velocity shaping.
 - Stamped values are offsets, so slot-wide Tune, Gain, Filter, velocity shaping, and their

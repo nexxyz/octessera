@@ -26,9 +26,26 @@ pub(super) fn default_missing_instrument_blocks_in_full_config(input: &mut Value
             instrument
                 .entry("midiDrum")
                 .or_insert_with(|| NativeMidiDrum::default().payload());
-            instrument
-                .entry("tileStamp")
-                .or_insert_with(|| json!({ "tuneSemis": 0, "tuneCents": 0, "level": null }));
+        }
+    }
+}
+
+/// A loaded patch replaces every instrument's tile stamp: one saved without a stamp, or without
+/// its Base `level`, gets the defaults instead of keeping the stamp in use.
+pub(super) fn normalize_missing_tile_stamps(payload: &mut Value) {
+    let Some(instruments) = payload
+        .get_mut("runtimeConfig")
+        .and_then(|runtime| runtime.get_mut("instruments"))
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for instrument in instruments.iter_mut().filter_map(Value::as_object_mut) {
+        let stamp = instrument
+            .entry("tileStamp")
+            .or_insert_with(|| json!({ "tuneSemis": 0, "tuneCents": 0 }));
+        if let Some(stamp) = stamp.as_object_mut() {
+            stamp.entry("level").or_insert(Value::Null);
         }
     }
 }
