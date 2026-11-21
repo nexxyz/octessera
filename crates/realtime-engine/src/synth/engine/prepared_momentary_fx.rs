@@ -29,7 +29,7 @@ pub enum PreparedMomentaryFxUpdate {
     },
     FilterSweep {
         epoch: u64,
-        target_cutoff: f32,
+        target_octaves: f32,
         q: f32,
         sweep_in_step: f32,
         sweep_out_step: f32,

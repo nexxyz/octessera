@@ -43,14 +43,14 @@ impl MomentaryFxVoice {
             (
                 Self::FilterSweep(voice),
                 PreparedMomentaryFxUpdate::FilterSweep {
-                    target_cutoff,
+                    target_octaves,
                     q,
                     sweep_in_step,
                     sweep_out_step,
                     ..
                 },
             ) => voice.update(FilterSweepParams {
-                target_cutoff,
+                target_octaves,
                 q,
                 sweep_in_step,
                 sweep_out_step,
@@ -200,14 +200,14 @@ pub(in crate::synth::engine) fn prepare_voice_update(
         }
         MomentaryFxKind::FilterSweep => {
             let FilterSweepParams {
-                target_cutoff,
+                target_octaves,
                 q,
                 sweep_in_step,
                 sweep_out_step,
             } = FilterSweepParams::from_map(params, sample_rate);
             PreparedMomentaryFxUpdate::FilterSweep {
                 epoch,
-                target_cutoff,
+                target_octaves,
                 q,
                 sweep_in_step,
                 sweep_out_step,

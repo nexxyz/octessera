@@ -1,4 +1,4 @@
-use super::{param_f32, pct_param};
+use super::{param_f32, pct_param, GainRamp, ENVELOPE_MS};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -19,7 +19,8 @@ impl StutterParams {
 }
 
 /// Captures one segment of the target plus ~2 ms on press, then loops the segment with a ~2 ms
-/// ease-in, crossfading that extra tail into the start of each repeat. It ends at once on release.
+/// ease-in, crossfading that extra tail into the start of each repeat. On release the repeats fade
+/// back to the dry sound over a few ms.
 #[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct StutterVoice {
     pub(in crate::synth::engine) params: StutterParams,
@@ -30,6 +31,7 @@ pub(in crate::synth::engine) struct StutterVoice {
     ramp_len: usize,
     pub(in crate::synth::engine) ramp_pos: usize,
     releasing: bool,
+    release_fade: GainRamp,
 }
 
 impl StutterVoice {
@@ -44,6 +46,7 @@ impl StutterVoice {
             ramp_len,
             ramp_pos: 0,
             releasing: false,
+            release_fade: GainRamp::new(1.0, ENVELOPE_MS, sample_rate),
         }
     }
 
@@ -60,11 +63,15 @@ impl StutterVoice {
     }
 
     pub(super) fn finished(&self) -> bool {
-        self.releasing
+        self.releasing && (!self.ready || self.release_fade.value() <= 0.0)
     }
 
     pub(super) fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
-        let depth = self.params.depth;
+        let depth = if self.releasing {
+            self.params.depth * self.release_fade.toward(0.0)
+        } else {
+            self.params.depth
+        };
         let segment_len = self
             .params
             .segment_len

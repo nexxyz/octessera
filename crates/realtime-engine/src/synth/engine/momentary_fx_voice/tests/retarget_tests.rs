@@ -37,7 +37,7 @@ fn retarget_cutoffs(
 }
 
 #[test]
-fn filter_sweep_retarget_glides_in_hz_from_the_current_cutoff_and_still_releases_open() {
+fn filter_sweep_retarget_glides_in_octaves_from_the_current_cutoff_and_still_releases_open() {
     let first = params(&[
         ("cutoffPct", 0.0),
         ("sweepInMs", 100.0),
@@ -50,19 +50,27 @@ fn filter_sweep_retarget_glides_in_hz_from_the_current_cutoff_and_still_releases
     ]);
     let glide = 9_600;
     let (held, gliding, releasing) = retarget_cutoffs("filter_sweep", &first, &next, glide);
+    let octaves = |hz: &[f32]| hz.iter().map(|hz| hz.log2()).collect::<Vec<_>>();
 
     assert!(
         (held - 120.0).abs() < 0.5,
         "held at the first target {held}"
     );
-    assert!(max_step(&gliding) < 0.5, "no jump {}", max_step(&gliding));
+    assert!(max_step(&octaves(&gliding)) < 0.001, "no jump");
     let halfway = gliding[glide / 2];
-    assert!((halfway - 2_120.0).abs() < 5.0, "linear in Hz {halfway}");
+    let geometric_mean = (120.0_f32 * 4_120.0).sqrt();
     assert!(
-        (gliding[glide] - 4_120.0).abs() < 0.5,
+        (halfway - geometric_mean).abs() < 2.0,
+        "even in octaves {halfway}"
+    );
+    assert!(
+        (gliding[glide] - 4_120.0).abs() < 1.0,
         "reaches the new target"
     );
-    assert!(max_step(&releasing) < 4.0, "release has no jump");
+    assert!(
+        max_step(&octaves(&releasing)) < 0.002,
+        "release has no jump"
+    );
     assert!(*releasing.last().unwrap() > 19_990.0, "release ends open");
     assert!(releasing.len() <= 4_801, "release takes Sweep Out");
 }

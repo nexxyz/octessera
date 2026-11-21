@@ -93,13 +93,13 @@ impl MomentaryFxState {
     /// The release of a press: true when the effect ends at once instead of fading out.
     pub(super) fn stop(&mut self) -> bool {
         match &mut self.voice {
-            MomentaryFxVoice::Stutter(_) => return true,
             MomentaryFxVoice::PitchShift(voice) => match voice.stop() {
                 PitchStopAction::Retire => return true,
                 PitchStopAction::Ignore => return false,
                 PitchStopAction::Release => {}
             },
-            MomentaryFxVoice::Freeze(_)
+            MomentaryFxVoice::Stutter(_)
+            | MomentaryFxVoice::Freeze(_)
             | MomentaryFxVoice::FilterSweep(_)
             | MomentaryFxVoice::TapeStop(_)
             | MomentaryFxVoice::Reverse(_)

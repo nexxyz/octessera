@@ -210,7 +210,7 @@ play the effect; let go and it winds down on its own terms.
 | Type | What happens while you hold it |
 |---|---|
 | `stutter` | Grabs a slice and loops it. |
-| `freeze` | Catches the moment in an endless shimmering tail. |
+| `freeze` | Catches the moment in a shimmering tail that slowly darkens and fades while you hold. |
 | `filter sweep` | Closes a lowpass down, then opens it back up. |
 | `pitch` | Glides the sound up or down by semitones. |
 | `tape stop` | The tape slows to a halt, pitch and all. Let go and it spins back up. |

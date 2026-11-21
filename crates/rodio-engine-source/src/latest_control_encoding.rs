@@ -291,7 +291,7 @@ pub(super) fn encode_momentary(update: PreparedMomentaryFxUpdate) -> (u8, [u32; 
             mix, release_len, ..
         } => (1, [mix.to_bits(), release_len, 0, 0]),
         PreparedMomentaryFxUpdate::FilterSweep {
-            target_cutoff,
+            target_octaves,
             q,
             sweep_in_step,
             sweep_out_step,
@@ -299,7 +299,7 @@ pub(super) fn encode_momentary(update: PreparedMomentaryFxUpdate) -> (u8, [u32; 
         } => (
             2,
             [
-                target_cutoff.to_bits(),
+                target_octaves.to_bits(),
                 q.to_bits(),
                 sweep_in_step.to_bits(),
                 sweep_out_step.to_bits(),
@@ -391,7 +391,7 @@ pub(super) fn decode_momentary(
         },
         2 => PreparedMomentaryFxUpdate::FilterSweep {
             epoch,
-            target_cutoff: f32::from_bits(values[0]),
+            target_octaves: f32::from_bits(values[0]),
             q: f32::from_bits(values[1]),
             sweep_in_step: f32::from_bits(values[2]),
             sweep_out_step: f32::from_bits(values[3]),

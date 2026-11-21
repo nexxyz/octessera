@@ -67,3 +67,48 @@ fn stutter_handles_segments_shorter_than_its_ramp() {
         }
     }
 }
+
+#[test]
+fn stutter_release_fades_back_to_the_dry_sound() {
+    let segment_len = 6_000;
+    let mut voice = StutterVoice::new(
+        StutterParams {
+            depth: 1.0,
+            segment_len,
+        },
+        48_000,
+    );
+    for _ in 0..segment_len + 96 {
+        voice.process(1.0, 1.0);
+    }
+    for _ in 0..1_000 {
+        voice.process(0.0, 0.0);
+    }
+    voice.release();
+    let mut released = Vec::new();
+    while !voice.finished() {
+        assert!(released.len() < 480, "the release never ended");
+        released.push(voice.process(0.0, 0.0).0);
+    }
+    assert!((235..=241).contains(&released.len()), "{}", released.len());
+    let largest_step = released
+        .windows(2)
+        .map(|pair| (pair[0] - pair[1]).abs())
+        .fold(0.0, f32::max);
+    assert!(largest_step < 0.01, "step {largest_step}");
+    assert!(released.last().unwrap().abs() < 0.01);
+}
+
+#[test]
+fn stutter_released_before_its_capture_ends_at_once() {
+    let mut voice = StutterVoice::new(
+        StutterParams {
+            depth: 1.0,
+            segment_len: 6_000,
+        },
+        48_000,
+    );
+    voice.process(0.3, 0.3);
+    voice.release();
+    assert!(voice.finished());
+}

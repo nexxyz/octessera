@@ -24,8 +24,8 @@ impl FreezeParams {
     }
 }
 
-/// Injects the first moments after the press into an almost endless comb tail that holds with
-/// no new input. Its wet mix eases in once every comb has filled; on release the tail fades
+/// Injects the first moments after the press into a long comb tail that holds with no new
+/// input, darkening and fading over a few seconds. Its wet mix eases in once every comb has filled; on release the tail fades
 /// over Release.
 #[derive(Clone, Debug)]
 pub(in crate::synth::engine) struct FreezeVoice {

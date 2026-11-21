@@ -348,13 +348,13 @@ fn sample_bank(value: f32) -> SampleBankConfig {
 fn immediate_momentary_stop_returns_removed_state_for_retirement() {
     let mut engine = SynthEngine::new(48_000);
     engine.momentary_fx_start(
-        "stutter".into(),
-        "stutter".into(),
+        "pitch".into(),
+        "pitch_shift".into(),
         BTreeMap::new(),
         MomentaryFxTarget::Global,
     );
 
-    let retired = engine.momentary_fx_stop("stutter");
+    let retired = engine.momentary_fx_stop("pitch");
 
     assert_eq!(engine.profile_snapshot().active_momentary_fx, 0);
     assert_eq!(retired.displaced_momentary_fx.iter().flatten().count(), 1);

@@ -214,7 +214,7 @@ fn prepared_momentary_epochs_scope_stop_and_restart_retirement() {
         prepare_momentary_fx_start_with_epoch(
             "same-id".into(),
             epoch,
-            "stutter".into(),
+            "pitch_shift".into(),
             BTreeMap::new(),
             MomentaryFxTarget::Global,
             44_100,
