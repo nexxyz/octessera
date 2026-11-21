@@ -150,16 +150,23 @@ fn a_forward_loop_of_whole_cycles_repeats_the_wave_without_drift_or_seam() {
 }
 
 #[test]
-fn a_forward_loop_from_the_first_frame_fades_into_silence_before_it() {
-    let buffer = buffer(vec![1.0; 10_000]);
-    let view = SampleBufferView::from_buffer(&buffer);
-    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, &buffer);
-    let reads = (0..20_000)
+fn a_forward_loop_from_the_first_frame_blends_into_its_own_start_without_a_dip_or_step() {
+    let flat = buffer(vec![1.0; 10_000]);
+    let view = SampleBufferView::from_buffer(&flat);
+    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, &flat);
+    assert!((0..30_000).all(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0) == Some(1.0)));
+
+    let wave = |frame: usize| (frame as f32 * std::f32::consts::TAU / 97.3).sin();
+    let uneven = buffer((0..10_000).map(wave).collect());
+    let view = SampleBufferView::from_buffer(&uneven);
+    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, &uneven);
+    let reads = (0..30_000)
         .map(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap())
         .collect::<Vec<_>>();
-    let fade = 441;
-    assert_eq!(reads[10_000 - fade - 1], 1.0);
-    assert!(reads[9_999] < 0.01, "{}", reads[9_999]);
-    assert_eq!(reads[10_000], 1.0);
-    assert_eq!(reads[19_999 - fade], 1.0);
+    let natural = std::f32::consts::TAU / 97.3;
+    let largest = reads
+        .windows(2)
+        .map(|pair| (pair[1] - pair[0]).abs())
+        .fold(0.0_f32, f32::max);
+    assert!(largest < natural * 1.5, "seam steps by {largest}");
 }

@@ -1,5 +1,5 @@
 //! Where a sample voice reads next: once to the end, round a forward loop that crossfades its
-//! seam with the frames before Loop Start, or back and forth between the loop points. A voice picks its cursor when it starts, and
+//! seam, or back and forth between the loop points. A voice picks its cursor when it starts, and
 //! each block runs the read loop built for that cursor.
 
 use super::super::types::{SampleLoopMode, SamplePlaybackConfig};
@@ -89,7 +89,11 @@ impl SampleVoiceLoop {
                 end: loop_end,
                 fade_start: loop_end - fade,
                 inverse_fade: if fade > 0.0 { (1.0 / fade) as f32 } else { 0.0 },
-                length: loop_frames,
+                jump: if loop_start >= fade {
+                    loop_frames
+                } else {
+                    loop_frames - fade
+                },
             })
         } else {
             Self::PingPong(PingPongLoop {
@@ -127,15 +131,17 @@ impl SampleCursor for OnceThrough {
     }
 }
 
-/// Loops forward with a period of exactly the loop: over the last `fade` frames before Loop End
-/// it blends into the frames just before Loop Start, so the jump back lands where the blend ends
-/// and the seam never steps. Frames before the sample's first one count as silence.
+/// Loops forward: over the last `fade` frames before Loop End it blends into the frames `jump`
+/// earlier, then jumps back by `jump`, landing where the blend ends, so the seam never steps.
+/// With a full fade of sample before Loop Start, those are the frames just before it and every
+/// pass lasts exactly the loop; without, they are the first frames of the loop, and a pass is
+/// one fade shorter.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ForwardLoop {
     end: f64,
     fade_start: f64,
     inverse_fade: f32,
-    length: f64,
+    jump: f64,
 }
 
 impl SampleCursor for ForwardLoop {
@@ -150,17 +156,11 @@ impl SampleCursor for ForwardLoop {
         let mut input = I::at(source, at);
         if at >= self.fade_start {
             let blend = (at - self.fade_start) as f32 * self.inverse_fade;
-            let before_start = at - self.length;
-            let partner = if before_start >= 0.0 {
-                I::at(source, before_start)
-            } else {
-                0.0
-            };
-            input += (partner - input) * blend;
+            input += (I::at(source, at - self.jump) - input) * blend;
         }
         let next = at + step;
         *pos = if next >= self.end {
-            self.end - self.length + (next - self.end) % self.length
+            self.end - self.jump + (next - self.end) % self.jump
         } else {
             next
         };
