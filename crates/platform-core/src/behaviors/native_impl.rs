@@ -71,8 +71,8 @@ pub use geometry::maze_growth::{
     maze_growth_on_tick, maze_growth_render_model, maze_growth_serialize, MazeGrowthState,
 };
 pub use geometry::shapes::{
-    shapes_config_menu, shapes_init, shapes_on_input, shapes_on_tick, shapes_render_model,
-    ShapesState,
+    shapes_config_menu, shapes_deserialize, shapes_init, shapes_on_input, shapes_on_tick,
+    shapes_render_model, ShapesState,
 };
 pub use growth::coral::{
     coral_config_menu, coral_deserialize, coral_init, coral_on_input, coral_on_tick,
@@ -103,8 +103,8 @@ pub use motion::boids::{
     boids_render_model, boids_serialize, BoidsState,
 };
 pub use motion::bounce::{
-    bounce_config_menu, bounce_init, bounce_on_input, bounce_on_tick, bounce_render_model,
-    BounceState,
+    bounce_config_menu, bounce_deserialize, bounce_init, bounce_on_input, bounce_on_tick,
+    bounce_render_model, BounceState,
 };
 pub use motion::bubbles::{
     bubbles_config_menu, bubbles_deserialize, bubbles_init, bubbles_on_input, bubbles_on_tick,

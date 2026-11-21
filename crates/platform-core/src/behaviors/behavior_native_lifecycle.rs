@@ -142,9 +142,9 @@ impl NativeBehavior {
             NativeBehavior::Boids => Ok(NativeBehaviorState::Boids(
                 native_impl::boids_deserialize(data)?,
             )),
-            NativeBehavior::Bounce => {
-                Ok(NativeBehaviorState::Bounce(native_impl::deserialize(data)?))
-            }
+            NativeBehavior::Bounce => Ok(NativeBehaviorState::Bounce(
+                native_impl::bounce_deserialize(data)?,
+            )),
             NativeBehavior::Bubbles => Ok(NativeBehaviorState::Bubbles(
                 native_impl::bubbles_deserialize(data)?,
             )),
@@ -166,9 +166,9 @@ impl NativeBehavior {
             NativeBehavior::MazeGrowth => Ok(NativeBehaviorState::MazeGrowth(
                 native_impl::maze_growth_deserialize(data)?,
             )),
-            NativeBehavior::Shapes => {
-                Ok(NativeBehaviorState::Shapes(native_impl::deserialize(data)?))
-            }
+            NativeBehavior::Shapes => Ok(NativeBehaviorState::Shapes(
+                native_impl::shapes_deserialize(data)?,
+            )),
             NativeBehavior::Ink => Ok(NativeBehaviorState::Ink(native_impl::ink_deserialize(
                 data,
             )?)),

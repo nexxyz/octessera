@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
+use crate::behaviors::native_impl::state_codec::{deserialize, restore_trigger_types};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -59,6 +60,14 @@ fn random_ball() -> Ball {
         rng.gen_range(0..GRID_WIDTH) as f32,
         rng.gen_range(0..GRID_HEIGHT) as f32,
     )
+}
+
+/// A saved Bounce world fitted to the grid, so a short or hand-edited save still plays.
+pub fn bounce_deserialize(data: Value) -> Result<BounceState, String> {
+    let mut state: BounceState = deserialize(data)?;
+    state.tiles.resize(TILE_COUNT, false);
+    state.trigger_types = restore_trigger_types(Some(state.trigger_types));
+    Ok(state)
 }
 
 pub fn bounce_init(config: Value) -> Result<BounceState, String> {

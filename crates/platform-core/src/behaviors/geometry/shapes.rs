@@ -4,6 +4,7 @@ use crate::behavior::{
 };
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::{trigger_types_from_tiles, TILE_COUNT};
+use crate::behaviors::native_impl::state_codec::{deserialize, restore_trigger_types};
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -48,6 +49,14 @@ struct ShapesConfig {
     auto_pulse_interval: Option<usize>,
     #[serde(rename = "spawnStep")]
     spawn_step: Option<usize>,
+}
+
+/// A saved Shapes world fitted to the grid, so a short or hand-edited save still plays.
+pub fn shapes_deserialize(data: Value) -> Result<ShapesState, String> {
+    let mut state: ShapesState = deserialize(data)?;
+    state.lifetimes.resize(TILE_COUNT, 0);
+    state.trigger_types = restore_trigger_types(Some(state.trigger_types));
+    Ok(state)
 }
 
 pub fn shapes_init(config: Value) -> Result<ShapesState, String> {

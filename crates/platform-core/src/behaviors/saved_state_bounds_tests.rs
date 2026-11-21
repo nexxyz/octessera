@@ -92,3 +92,29 @@ fn hand_edited_off_grid_saved_state_keeps_every_behavior_playing() {
     }
     assert!(failing.is_empty(), "{failing:?}");
 }
+
+#[test]
+fn a_saved_state_with_short_arrays_keeps_every_behavior_playing() {
+    let mut failing = Vec::new();
+    for (index, id) in list_native_behavior_ids().iter().enumerate() {
+        let behavior = get_native_behavior(id).unwrap();
+        let mut random = LayerRandom::new(Some(index as u64 + 1));
+        let saved = random.scope(|| played_state(behavior));
+        let Some(object) = saved.as_object() else {
+            continue;
+        };
+        for (key, value) in object {
+            let Some(items) = value.as_array() else {
+                continue;
+            };
+            for length in [0, 1] {
+                let mut edited = saved.clone();
+                edited[key] = Value::Array(items.iter().take(length).cloned().collect());
+                if !random.scope(|| keeps_playing(behavior, edited)) {
+                    failing.push(format!("{id}.{key}[..{length}]"));
+                }
+            }
+        }
+    }
+    assert!(failing.is_empty(), "{failing:?}");
+}
