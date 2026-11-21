@@ -15,6 +15,7 @@ mod local_sample_tests;
 mod overwrite_tests;
 #[cfg(test)]
 mod result_tests;
+mod stale_autosave_tests;
 
 #[derive(Default)]
 struct TestHost;

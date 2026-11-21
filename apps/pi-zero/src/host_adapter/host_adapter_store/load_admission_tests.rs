@@ -193,3 +193,45 @@ fn loading_a_patch_drops_the_autosave_it_made_unnecessary() {
     assert!(!adapter.core.pending_default_save.has_default_pending());
     let _ = std::fs::remove_dir_all(root);
 }
+
+#[test]
+fn booting_a_factory_store_leaves_nothing_to_autosave() {
+    let root = crate::test_temp_dir::unique_temp_path("octessera-pi-boot-clean");
+    let store = root.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    let mut full_default: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
+    full_default["runtimeConfig"]["autoSaveDefault"] = json!(true);
+    let documents = playback_runtime::split_system_patch_documents(&full_default).unwrap();
+    std::fs::write(
+        store.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        store.join("default.patch.json"),
+        serde_json::to_vec(&documents.patch).unwrap(),
+    )
+    .unwrap();
+    let mut adapter = PiHostAdapter::new(
+        None,
+        store,
+        root.join("samples"),
+        Arc::new(|_| {}),
+        false,
+        UsbAudioOut::Jack,
+    );
+    let mut playback =
+        playback_runtime::PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    crate::runtime_output::initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
+
+    assert!(!runner.has_unsaved_config());
+    assert!(runner
+        .persistence_intent_at(Instant::now() + std::time::Duration::from_secs(5))
+        .is_none());
+    let _ = std::fs::remove_dir_all(root);
+}
