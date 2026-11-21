@@ -4,11 +4,14 @@ use crate::synth::{
     ScalarMutation,
 };
 
-const RATE: u32 = 44_100;
+mod fx_chains;
+mod voice_kinds;
+
+/// Test samples are recorded at 44.1 kHz, so the Orange resamples them.
+const SAMPLE_BUFFER_RATE: u32 = 44_100;
+/// The default 44.1 kHz and the Orange's 48 kHz.
+const RATES: [u32; 2] = [44_100, 48_000];
 const BLOCK: usize = 128;
-/// 1.25 s, so a released note's tail and five repeats of the default 250 ms bus delay are
-/// compared.
-const BLOCKS: usize = 431;
 
 const PLAY_FX_TYPES: [&str; 11] = [
     "stutter",
@@ -27,9 +30,9 @@ const PLAY_FX_TYPES: [&str; 11] = [
 fn one_instrument_config(kind: &str, route: &str) -> InstrumentsConfig {
     InstrumentsConfig {
         instruments: vec![InstrumentSlotConfig {
-            fm: None,
-            pluck: None,
-            drum: None,
+            fm: (kind == "fm").then(FmConfig::default),
+            pluck: (kind == "pluck").then(PluckConfig::default),
+            drum: (kind == "drum").then(DrumConfig::default),
             kind: kind.into(),
             synth: default_synth_config(),
             mixer: Some(InstrumentMixerConfig {
@@ -50,7 +53,8 @@ fn one_instrument_config(kind: &str, route: &str) -> InstrumentsConfig {
     }
 }
 
-/// Renders `BLOCKS` blocks on the routing-tree workers and inline, asserting identical output.
+/// Renders 1.25 s on the routing-tree workers and inline, asserting identical output, so a
+/// released note's tail and five repeats of the default 250 ms bus delay are compared.
 /// `control(engine, block, routed)` runs at each routed block's control point and before each
 /// inline block. The workers dispatch one block ahead, so a control reaches a worker-owned
 /// target one block later than a Global one.
@@ -71,7 +75,7 @@ fn assert_worker_render_matches_inline(
     let mut inline_right = Vec::new();
     let mut inline_out = Vec::new();
     let mut peak = 0.0_f32;
-    for block in 0..BLOCKS {
+    for block in 0..(routed.sample_rate as usize * 5 / 4).div_ceil(BLOCK) {
         control(inline, block, false);
         assert_eq!(
             routed.render_interleaved_block_with_source_runtime_ready_with_controls(
@@ -109,15 +113,18 @@ fn assert_worker_render_matches_inline(
 
 #[test]
 fn every_play_fx_type_renders_the_same_on_the_routing_tree_workers() {
-    for fx_type in PLAY_FX_TYPES {
+    for (rate, fx_type) in RATES
+        .into_iter()
+        .flat_map(|rate| PLAY_FX_TYPES.map(|fx| (rate, fx)))
+    {
         for target in [
             MomentaryFxTarget::Instrument { index: 0 },
             MomentaryFxTarget::FxBus { index: 0 },
             MomentaryFxTarget::Global,
         ] {
-            let label = format!("{fx_type} on {target:?}");
-            let mut routed = SynthEngine::new(RATE);
-            let mut inline = SynthEngine::new(RATE);
+            let label = format!("{fx_type} on {target:?} at {rate} Hz");
+            let mut routed = SynthEngine::new(rate);
+            let mut inline = SynthEngine::new(rate);
             for engine in [&mut routed, &mut inline] {
                 engine.set_instruments(one_instrument_config("synth", "fx_bus_1"));
                 let start = prepare_momentary_fx_start_with_epoch(
@@ -126,7 +133,7 @@ fn every_play_fx_type_renders_the_same_on_the_routing_tree_workers() {
                     fx_type.into(),
                     BTreeMap::new(),
                     target,
-                    RATE,
+                    rate,
                 )
                 .unwrap();
                 drop(engine.apply_prepared_momentary_fx_start(start));
@@ -156,17 +163,21 @@ fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
     let samples: Vec<f32> = (0..1_000)
         .map(|frame| (frame as f32 * 0.07).sin() * 0.5)
         .collect();
-    for (loop_mode, route) in [
-        (SampleLoopMode::Forward, "direct"),
-        (SampleLoopMode::PingPong, "direct"),
-        (SampleLoopMode::Forward, "fx_bus_1"),
-        (SampleLoopMode::PingPong, "fx_bus_1"),
-    ] {
+    let cases = RATES.into_iter().flat_map(|rate| {
+        [
+            (SampleLoopMode::Forward, "direct"),
+            (SampleLoopMode::PingPong, "direct"),
+            (SampleLoopMode::Forward, "fx_bus_1"),
+            (SampleLoopMode::PingPong, "fx_bus_1"),
+        ]
+        .map(|(loop_mode, route)| (rate, loop_mode, route))
+    });
+    for (rate, loop_mode, route) in cases {
         let mut bank = SampleBankConfig::default();
         bank.slots[0].buffer = Some(SampleBuffer {
             samples: samples.clone().into(),
             channels: 1,
-            sample_rate: RATE,
+            sample_rate: SAMPLE_BUFFER_RATE,
         });
         bank.slots[0].playback = SamplePlaybackConfig {
             loop_mode,
@@ -176,8 +187,8 @@ fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
         };
         let mut banks = vec![SampleBankConfig::default(); INSTRUMENT_SLOT_COUNT];
         banks[0] = bank;
-        let mut routed = SynthEngine::new(RATE);
-        let mut inline = SynthEngine::new(RATE);
+        let mut routed = SynthEngine::new(rate);
+        let mut inline = SynthEngine::new(rate);
         for engine in [&mut routed, &mut inline] {
             engine.set_instruments(one_instrument_config("sampler", route));
             drop(engine.set_sample_banks(banks.clone()));
@@ -186,7 +197,7 @@ fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
         assert_worker_render_matches_inline(
             &mut routed,
             &mut inline,
-            &format!("{loop_mode:?} loop via {route}"),
+            &format!("{loop_mode:?} loop via {route} at {rate} Hz"),
             |engine, block, routed| {
                 if block + usize::from(routed) == 60 {
                     assert_eq!(
@@ -205,30 +216,35 @@ fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
 
 #[test]
 fn level_glides_render_the_same_on_the_routing_tree_workers() {
-    let mut routed = SynthEngine::new(RATE);
-    let mut inline = SynthEngine::new(RATE);
-    for engine in [&mut routed, &mut inline] {
-        engine.set_instruments(one_instrument_config("synth", "direct"));
-        engine.note_on(0, 60, 100, 2_000);
+    for rate in RATES {
+        let mut routed = SynthEngine::new(rate);
+        let mut inline = SynthEngine::new(rate);
+        for engine in [&mut routed, &mut inline] {
+            engine.set_instruments(one_instrument_config("synth", "direct"));
+            engine.note_on(0, 60, 100, 2_000);
+        }
+        assert_worker_render_matches_inline(
+            &mut routed,
+            &mut inline,
+            &format!("level glides at {rate} Hz"),
+            |engine, block, routed| {
+                if block + usize::from(routed) == 2 {
+                    engine.set_synth_param_typed(0, crate::synth::SynthParamId::AmpGainPct, 30.0);
+                    engine.set_synth_param_typed(0, crate::synth::SynthParamId::Osc1LevelPct, 20.0);
+                }
+            },
+        );
     }
-    assert_worker_render_matches_inline(
-        &mut routed,
-        &mut inline,
-        "level glides",
-        |engine, block, routed| {
-            if block + usize::from(routed) == 2 {
-                engine.set_synth_param_typed(0, crate::synth::SynthParamId::AmpGainPct, 30.0);
-                engine.set_synth_param_typed(0, crate::synth::SynthParamId::Osc1LevelPct, 20.0);
-            }
-        },
-    );
 }
 
 #[test]
 fn mixer_gain_ramps_render_the_same_on_the_routing_tree_workers() {
-    for route in ["direct", "fx_bus_1"] {
-        let mut routed = SynthEngine::new(RATE);
-        let mut inline = SynthEngine::new(RATE);
+    for (rate, route) in RATES
+        .into_iter()
+        .flat_map(|rate| ["direct", "fx_bus_1"].map(|route| (rate, route)))
+    {
+        let mut routed = SynthEngine::new(rate);
+        let mut inline = SynthEngine::new(rate);
         for engine in [&mut routed, &mut inline] {
             engine.set_instruments(one_instrument_config("synth", route));
             engine.note_on(0, 60, 100, 2_000);
@@ -236,7 +252,7 @@ fn mixer_gain_ramps_render_the_same_on_the_routing_tree_workers() {
         assert_worker_render_matches_inline(
             &mut routed,
             &mut inline,
-            &format!("mixer ramps via {route}"),
+            &format!("mixer ramps via {route} at {rate} Hz"),
             |engine, block, routed| {
                 let worker_block = if routed { block + 1 } else { block };
                 if block == 10 {
@@ -253,108 +269,5 @@ fn mixer_gain_ramps_render_the_same_on_the_routing_tree_workers() {
                 }
             },
         );
-    }
-}
-
-const BUS_FX_TYPES: [&str; 16] = [
-    "tremolo",
-    "delay",
-    "vibrato",
-    "chorus",
-    "flanger",
-    "filter_lfo",
-    "wah",
-    "reverb",
-    "glitch",
-    "auto_pan",
-    "saturator",
-    "distortion",
-    "bitcrusher",
-    "compressor",
-    "eq",
-    "vinyl",
-];
-
-const MASTER_FX_TYPES: [&str; 5] = ["saturator", "distortion", "compressor", "eq", "vinyl"];
-
-fn assert_fx_config_renders_the_same(config: &InstrumentsConfig, label: &str) {
-    let mut routed = SynthEngine::new(RATE);
-    let mut inline = SynthEngine::new(RATE);
-    for engine in [&mut routed, &mut inline] {
-        engine.set_instruments(config.clone());
-        for slot in 0..config.instruments.len() as u8 {
-            engine.note_on(slot, 60 + slot * 7, 100, 300);
-        }
-    }
-    let has_master = config
-        .mixer
-        .as_ref()
-        .is_some_and(|mixer| mixer.master.is_some());
-    assert_worker_render_matches_inline(
-        &mut routed,
-        &mut inline,
-        label,
-        |engine, block, routed| {
-            if block + usize::from(routed) == 60 {
-                let glided = [FxParamId::MixPct, FxParamId::DepthPct, FxParamId::AmountPct]
-                    .into_iter()
-                    .any(|id| engine.set_fx_bus_param(0, 0, id, 25.0) == FxParamMutation::Changed);
-                assert!(glided, "{label} bus glide");
-            }
-            if has_master && block == 80 {
-                assert_eq!(
-                    engine.set_global_fx_param(0, FxParamId::MixPct, 40.0),
-                    FxParamMutation::Changed,
-                    "{label} master glide"
-                );
-            }
-        },
-    );
-}
-
-#[test]
-fn every_bus_fx_type_renders_the_same_on_the_routing_tree_workers() {
-    for fx_type in BUS_FX_TYPES {
-        let mut config = one_instrument_config("synth", "fx_bus_1");
-        config.mixer.as_mut().unwrap().buses[0].slots = vec![FxBusSlotConfig::Kind(fx_type.into())];
-        assert_fx_config_renders_the_same(&config, &format!("bus {fx_type}"));
-    }
-}
-
-#[test]
-fn duck_renders_the_same_on_the_routing_tree_workers() {
-    for source in ["I2", "B2"] {
-        let mut config = one_instrument_config("synth", "fx_bus_1");
-        let mut source_slot = config.instruments[0].clone();
-        source_slot.mixer.as_mut().unwrap().route = MixerRoute::FxBus(1);
-        config.instruments.push(source_slot);
-        let mixer = config.mixer.as_mut().unwrap();
-        mixer.buses[0].slots = vec![FxBusSlotConfig::Config {
-            kind: "duck".into(),
-            params: [
-                ("source".into(), Value::from(source)),
-                ("amountPct".into(), Value::from(80.0)),
-            ]
-            .into_iter()
-            .collect(),
-        }];
-        mixer.buses.push(FxBusConfig {
-            slots: vec![FxBusSlotConfig::Kind("delay".into())],
-            ..FxBusConfig::default()
-        });
-        assert_fx_config_renders_the_same(&config, &format!("duck from {source}"));
-    }
-}
-
-#[test]
-fn every_master_fx_type_renders_the_same_on_the_routing_tree_workers() {
-    for fx_type in MASTER_FX_TYPES {
-        for route in ["direct", "fx_bus_1"] {
-            let mut config = one_instrument_config("synth", route);
-            config.mixer.as_mut().unwrap().master = Some(MasterFxConfig {
-                slots: vec![FxBusSlotConfig::Kind(fx_type.into())],
-            });
-            assert_fx_config_renders_the_same(&config, &format!("master {fx_type} via {route}"));
-        }
     }
 }
