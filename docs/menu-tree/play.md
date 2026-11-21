@@ -284,6 +284,9 @@ The menu lists the technical bank, then the musical bank.
   Assigned idle tiles are bright, active tiles add white, and tiles blocked by a limit are dimmed.
 - `Aux Map` lists the Play FX params and `Map to Grid` that auto-map to aux. Rows are editable but
   do not change the mapping target; they wear the same Aux caps as the live auto-mapped rows.
+- While a tile of the selected `FX Type` sounds, changing one of its rows (a menu edit, an Aux
+  turn, or an XY, layer axis or CC source on the row) sends that row's new value to the sounding
+  effect. The tile keeps its stored settings, so a takeover or fallback plays those again.
 
 | FX Type | Rows | Behavior |
 |---|---|---|

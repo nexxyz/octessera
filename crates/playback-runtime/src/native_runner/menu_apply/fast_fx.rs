@@ -23,8 +23,11 @@ impl NativeRunner {
         true
     }
 
-    pub(super) fn fast_play_fx_value_key(&mut self) -> bool {
+    pub(super) fn fast_play_fx_value_key(&mut self, key: &str) -> bool {
         if self.apply_play_fx_menu_state() {
+            if let Some(param) = key.strip_prefix("play.fx.params.") {
+                self.update_held_play_fx_param(param);
+            }
             self.mark_fast_autosave_dirty();
         }
         true

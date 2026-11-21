@@ -56,7 +56,7 @@ impl NativeRunner {
             return self.fast_play_fx_type_key(key);
         }
         if key == "play.fx.target" || key.starts_with("play.fx.params.") {
-            return self.fast_play_fx_value_key();
+            return self.fast_play_fx_value_key(key);
         }
         if let Some(applied) = self.apply_runtime_menu_key_fast(key) {
             return applied;

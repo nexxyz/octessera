@@ -311,3 +311,50 @@ fn clear_all_stops_the_running_voice_and_drops_the_tiles_held_underneath() {
         .collect::<Vec<_>>();
     assert_eq!(stops, ["momentary-fx:0:0"]);
 }
+
+#[test]
+fn a_held_source_on_a_play_fx_row_moves_the_sounding_effect_of_that_type() {
+    let mut runner = fx_page_runner();
+    assert_eq!(press(&mut runner, 0), ["start 0 12"]);
+    let _ = runner.apply_param_binding_value(
+        "play.fx.type",
+        json!("pitch_shift"),
+        &mut BTreeMap::new(),
+    );
+    let binding = NativeParamBinding {
+        key: "play.fx.params.semitones".into(),
+        label: None,
+        kind: "number".into(),
+        min: Some(-24.0),
+        max: Some(24.0),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    };
+    let source = crate::native_runner::modulation::source::ModulationSourceId::midi_cc(0).unwrap();
+    let _ = runner.outbox.drain_audio_commands();
+
+    runner.set_runtime_source_input(source, binding, 1.0);
+    runner.process_dirty_modulation_step(true).unwrap();
+
+    let updates = runner
+        .outbox
+        .drain_audio_commands()
+        .into_iter()
+        .filter_map(|command| match command {
+            RuntimeAudioCommand::MomentaryFxUpdate { id, params, .. } => {
+                Some((id, params.get("semitones").cloned()))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(updates, [("momentary-fx:0:0".to_string(), Some(json!(24)))]);
+    assert_eq!(
+        runner.play_fx_assignments[0].config.params.get("semitones"),
+        Some(&12),
+        "the tile keeps its stored setting"
+    );
+    assert_eq!(release(&mut runner, 0), ["stop 0"]);
+}

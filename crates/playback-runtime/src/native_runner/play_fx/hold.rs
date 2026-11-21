@@ -112,6 +112,37 @@ impl NativeRunner {
         Some(vec![play_fx_stop_effect(active.voice_id)])
     }
 
+    /// A Play FX row change, by menu edit, Aux or modulation, reaches the sounding effect of the
+    /// row's type: it gets its tile's settings with that row changed. The tile keeps its stored
+    /// settings, so a takeover or fallback plays them again.
+    pub(in crate::native_runner) fn update_held_play_fx_param(&mut self, param: &str) {
+        let Some(value) = self.play_fx_selected.params.get(param).copied() else {
+            return;
+        };
+        let Some(active) = self
+            .active_play_fx
+            .iter()
+            .find(|active| active.fx_type == self.play_fx_selected.fx_type)
+            .cloned()
+        else {
+            return;
+        };
+        let Some(mut assignment) = self
+            .play_fx_assignments
+            .iter()
+            .find(|assignment| play_fx_tile_id(assignment.x, assignment.y) == active.tile_id)
+            .cloned()
+        else {
+            return;
+        };
+        assignment.config.params.insert(param.into(), value);
+        if let RuntimePlatformEffect::AudioCommand { command } =
+            self.play_fx_update_effect(&active.voice_id, &assignment)
+        {
+            self.queue_audio_command(command);
+        }
+    }
+
     fn play_fx_held(&self, id: &str) -> bool {
         self.active_play_fx
             .iter()

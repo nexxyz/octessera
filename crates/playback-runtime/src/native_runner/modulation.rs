@@ -168,6 +168,9 @@ impl NativeRunner {
             return self.apply_global_fx_param_binding(index, field, value);
         } else if let Some(field) = key.strip_prefix("play.fx.") {
             if apply_play_fx_binding_value(&mut self.play_fx_selected, field, value) {
+                if let Some(param) = field.strip_prefix("params.") {
+                    self.update_held_play_fx_param(param);
+                }
                 return true;
             }
         }
