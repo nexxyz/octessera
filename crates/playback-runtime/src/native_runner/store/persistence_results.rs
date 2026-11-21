@@ -217,8 +217,7 @@ impl NativeRunner {
                 self.show_toast(format!("Loaded {name}"));
                 self.patch_store.current_preset_name = Some(name);
                 if self.auto_save_default {
-                    // With Auto Save on the saved default patch is the one in use, so it
-                    // becomes the loaded preset and a restart comes back to it.
+                    // With Auto Save on, the loaded preset becomes the saved default patch.
                     self.mark_fast_autosave_dirty();
                 }
             }
@@ -465,8 +464,7 @@ impl NativeRunner {
             self.pending.pending_save_revision = None;
         }
         if self.dirty_revision == Some(revision) && self.config_revision == revision {
-            self.config_dirty = false;
-            self.dirty_revision = None;
+            self.mark_config_clean();
         }
     }
 
@@ -474,8 +472,7 @@ impl NativeRunner {
         if captured_patch_dirty_revision.is_some()
             && self.dirty_revision == captured_patch_dirty_revision
         {
-            self.config_dirty = false;
-            self.dirty_revision = None;
+            self.mark_config_clean();
         }
     }
 

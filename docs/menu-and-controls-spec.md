@@ -1289,8 +1289,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   for about 150 ms, so storage writes the latest settled value. Changing the Auto Save preference
   itself saves to System after a changed editor exit and does not write the Patch.
 - Patch autosave, rolling backups, and recovery saves are patch-only. Backups are on by default: the
-  first eligible dirty edit may trigger one immediately, later backups are at least five minutes
-  apart, and hosts keep the latest 20 rolling patch backups.
+  first eligible dirty edit or Auto Save preset load may trigger one immediately, later backups are
+  at least five minutes apart, and hosts keep the latest 20 rolling patch backups.
 - `Save Patch` writes the default patch. Confirmed `Load Patch` and named-preset loads stop/reset
   playback and panic/clear held notes while keeping local System settings and ports. With Auto
   Save on, a loaded named preset also becomes the saved default patch, so a restart comes back
