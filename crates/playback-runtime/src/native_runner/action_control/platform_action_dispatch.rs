@@ -95,7 +95,10 @@ impl NativeRunner {
                 self.platform_effect_for_action(&action)
             }
             PlatformAction::FactoryLoad => {
-                self.apply_factory_payload()?;
+                if let Err(error) = self.apply_factory_payload() {
+                    eprintln!("factory patch load rejected: {error}");
+                    self.show_toast("Factory load rejected");
+                }
                 Ok(None)
             }
             PlatformAction::FaderTileMap => {

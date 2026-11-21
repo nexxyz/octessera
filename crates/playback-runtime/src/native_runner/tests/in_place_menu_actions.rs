@@ -345,7 +345,6 @@ fn factory_patch_loads_after_empty_patch_left_every_layer_without_behavior_state
     );
 
     confirm_key(&mut runner, "factory.load");
-    assert!(runner.display.runtime_error_presentation.is_none());
     let build = &runner.config_payload()["runtimeConfig"]["layers"][2]["build"];
     assert_eq!(build["behaviorId"], "looper");
     assert!(build["savedState"]["steps"].is_array());

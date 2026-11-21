@@ -246,6 +246,14 @@ pub(crate) fn v2_portable_patch_unknown_fields_report_json_paths() {
     unknown_system["system"] = json!({ "futureField": true });
     let error = prepare_patch_payload(unknown_system, &runner.config_payload()).unwrap_err();
     assert!(error.contains("$.system.futureField"), "{error}");
+
+    let mut unknown_build = runner.patch_payload().unwrap();
+    unknown_build["runtimeConfig"]["layers"][0]["build"]["futureField"] = json!(true);
+    let error = prepare_patch_payload(unknown_build, &runner.config_payload()).unwrap_err();
+    assert!(
+        error.contains("$.runtimeConfig.layers[0].build.futureField"),
+        "{error}"
+    );
 }
 
 #[test]
