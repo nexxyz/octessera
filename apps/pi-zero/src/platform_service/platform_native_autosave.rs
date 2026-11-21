@@ -22,6 +22,9 @@ pub(crate) fn flush_due_native_persistence(
     now: Instant,
     skip_coalescing: bool,
 ) -> Vec<HostMessage> {
+    if !runner.has_unsaved_config() {
+        pending.cancel();
+    }
     let generation = service.store_write_generation();
     let blocked = service.store_writes_blocked();
     let intent = if blocked {

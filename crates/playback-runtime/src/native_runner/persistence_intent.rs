@@ -23,6 +23,10 @@ impl NativePersistenceIntent {
 }
 
 impl NativeRunner {
+    pub fn has_unsaved_config(&self) -> bool {
+        self.config_dirty
+    }
+
     pub fn persistence_intent_at(&self, now: Instant) -> Option<NativePersistenceIntent> {
         let revision = self.dirty_revision.filter(|_| self.config_dirty)?;
         let restore_blocks_writes = self.restore_blocks_config_writes();
