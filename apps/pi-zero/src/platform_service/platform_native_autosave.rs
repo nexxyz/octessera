@@ -22,7 +22,7 @@ pub(crate) fn flush_due_native_persistence(
     now: Instant,
     skip_coalescing: bool,
 ) -> Vec<HostMessage> {
-    if !runner.has_unsaved_config() {
+    if !runner.owes_patch_persistence() {
         pending.cancel();
     }
     let generation = service.store_write_generation();

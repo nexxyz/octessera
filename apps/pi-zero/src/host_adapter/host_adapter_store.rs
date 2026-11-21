@@ -4,6 +4,8 @@ use std::time::{Duration, Instant};
 
 #[cfg(all(test, board_not_orange))]
 mod load_admission_tests;
+#[cfg(all(test, board_not_orange))]
+mod stale_autosave_tests;
 
 impl PiHostAdapter {
     pub(crate) fn flush_native_persistence_at(

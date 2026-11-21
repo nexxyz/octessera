@@ -23,8 +23,9 @@ impl NativePersistenceIntent {
 }
 
 impl NativeRunner {
-    pub fn has_unsaved_config(&self) -> bool {
-        self.config_dirty
+    /// Whether the patch still owes an autosave or a rolling backup.
+    pub fn owes_patch_persistence(&self) -> bool {
+        self.config_dirty && (self.auto_save_default || self.rolling_backups)
     }
 
     pub fn persistence_intent_at(&self, now: Instant) -> Option<NativePersistenceIntent> {
