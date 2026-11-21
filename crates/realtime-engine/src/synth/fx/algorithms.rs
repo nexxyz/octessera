@@ -123,9 +123,20 @@ pub(super) fn process_glitch(
     input * (1.0 - mix) + wet * mix
 }
 
+/// A zeroed buffer with every page written, so the audio thread never takes the page faults of
+/// a lazily mapped allocation; the Pi locks memory only as it is first touched.
+fn resident_zeros(len: usize) -> Vec<f32> {
+    const PAGE_SAMPLES: usize = 4096 / std::mem::size_of::<f32>();
+    let mut buf = vec![0.0; len];
+    for sample in buf.iter_mut().step_by(PAGE_SAMPLES) {
+        *sample = std::hint::black_box(0.0);
+    }
+    buf
+}
+
 pub(super) fn glitch_state(sample_rate: u32) -> FxBusState {
     FxBusState::Glitch {
-        buf: vec![0.0; (GLITCH_MAX_SLICE_MS * sample_rate as f32 / 1000.0).ceil() as usize],
+        buf: resident_zeros((GLITCH_MAX_SLICE_MS * sample_rate as f32 / 1000.0).ceil() as usize),
         idx: 0,
         read: 0,
         remain: 0,

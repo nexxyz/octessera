@@ -63,7 +63,8 @@ impl DelayCache {
     }
 }
 
-/// A delay line holding up to `longest_ms`, set to `time_ms`.
+/// A delay line holding up to `longest_ms`, set to `time_ms`. Built off the audio thread: on the
+/// prep worker for bus slots, on the runtime thread for a Dub Throw press.
 pub(in crate::synth) fn delay_line_state(
     longest_ms: f32,
     time_ms: f32,
@@ -71,7 +72,7 @@ pub(in crate::synth) fn delay_line_state(
 ) -> FxBusState {
     let longest = DelayCache::new(longest_ms.max(time_ms), sample_rate);
     FxBusState::Delay {
-        buf: vec![0.0; longest.min_len],
+        buf: resident_zeros(longest.min_len),
         idx: 0,
         cache: DelayCache::new(time_ms, sample_rate),
     }
