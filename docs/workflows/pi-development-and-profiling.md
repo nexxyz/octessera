@@ -358,7 +358,9 @@ usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
   `AC` (the draft `A` comes from picking `A` in Rename), turns BPM up three
   detents, Loads `A` over that unsaved change, Renames `AC` to `ACD`, Renames
   `A` onto `AB` with the overwrite confirmed, and Deletes `ACD`. After each
-  step it waits for the store to change and settle. The edit must save
+  step it waits for the store to change and then stay unchanged for 3 s,
+  longer than the 2.15 s autosave coalesce window, so a save still owed from
+  the step before is not taken for this step's own. The edit must save
   BPM + 15; after the load the saved patch must have Note Length 301 and hold
   every value of `A`'s `runtimeConfig` (`presets-diff.log` lists any
   difference); `ACD` must be byte-identical to the saved `AC`, and `AB` to the

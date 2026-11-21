@@ -222,17 +222,19 @@ keymap() {
 preset_state() { sudo -n python3 "$root/board-scenarios-state.py" presets "$store" "$1" "$root/presets-diff.log" >> presets.log; }
 store_state() { sudo -n python3 "$root/board-scenarios-state.py" store "$store" "$1" >> stores.log; }
 clone_hashes() { sudo -n sh -c "sha256sum $store/*.json $store/patches/*.json 2>/dev/null"; }
-# Types the keys $3, waits up to 15 s for the clone to change and hold still for 0.5 s, then logs
-# the state with $1 under the label $2.
+# Types the keys $3, waits up to 20 s for the clone to change and then hold still for 3 s, then
+# logs the state with $1 under the label $2. The 3 s outlast the 2.15 s autosave coalesce window, so
+# a save still owed from the step before cannot pass for this step's own.
 settled_step() {
-  local before now settled=""
+  local before now last quiet=0
   before=$(clone_hashes)
   keys "$2" "$3"
-  for _ in $(seq 1 30); do
-    now=$(clone_hashes)
-    [ "$now" != "$before" ] && [ "$now" = "$settled" ] && break
-    settled=$now
+  last=$before
+  for _ in $(seq 1 40); do
     sleep 0.5
+    now=$(clone_hashes)
+    if [ "$now" != "$last" ]; then last=$now quiet=0; else quiet=$((quiet + 1)); fi
+    [ "$now" != "$before" ] && [ "$quiet" -ge 6 ] && break
   done
   "$1" "$2"
 }
