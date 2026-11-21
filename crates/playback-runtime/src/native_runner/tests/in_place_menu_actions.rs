@@ -349,3 +349,32 @@ fn factory_patch_loads_after_empty_patch_left_every_layer_without_behavior_state
     assert_eq!(build["behaviorId"], "looper");
     assert!(build["savedState"]["steps"].is_array());
 }
+
+fn dirty_after_empty_then_factory_patch(auto_save: bool) -> NativeRunner {
+    let payload: Value = serde_json::from_str(include_str!(
+        "../../../../../config/generated/pi/default.json"
+    ))
+    .unwrap();
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.apply_config_payload(payload).unwrap();
+    runner.skip_startup_splash();
+    runner.auto_save_default = auto_save;
+    confirm_key(&mut runner, "system.clearAll");
+    confirm_key(&mut runner, "factory.load");
+    runner
+}
+
+#[test]
+fn with_auto_save_on_the_factory_patch_becomes_the_saved_default_patch() {
+    let runner = dirty_after_empty_then_factory_patch(true);
+
+    assert!(runner.config_dirty);
+    assert!(runner.pending.pending_autosave_payload_due_at.is_some());
+}
+
+#[test]
+fn with_auto_save_off_the_factory_patch_leaves_nothing_to_save() {
+    let runner = dirty_after_empty_then_factory_patch(false);
+
+    assert!(!runner.config_dirty);
+}

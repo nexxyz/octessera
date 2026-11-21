@@ -9,6 +9,9 @@ impl NativeRunner {
         self.apply_patch_payload_preserving_device(patch)?;
         self.stop_for_config_load();
         self.show_toast("Factory loaded");
+        if self.auto_save_default {
+            self.mark_fast_autosave_dirty();
+        }
         Ok(())
     }
 

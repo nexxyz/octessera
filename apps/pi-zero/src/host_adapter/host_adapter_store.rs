@@ -3,6 +3,8 @@ use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
 use std::time::{Duration, Instant};
 
 #[cfg(all(test, board_not_orange))]
+mod autosave_follows_patch_tests;
+#[cfg(all(test, board_not_orange))]
 mod load_admission_tests;
 #[cfg(all(test, board_not_orange))]
 mod stale_autosave_tests;

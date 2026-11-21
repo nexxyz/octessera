@@ -7,14 +7,14 @@ use playback_runtime::{
 use serde_json::json;
 use std::sync::Arc;
 
-struct Rig {
-    adapter: PiHostAdapter,
-    runner: NativeRunner,
-    playback: PlaybackRuntime,
-    root: std::path::PathBuf,
+pub(super) struct Rig {
+    pub(super) adapter: PiHostAdapter,
+    pub(super) runner: NativeRunner,
+    pub(super) playback: PlaybackRuntime,
+    pub(super) root: std::path::PathBuf,
 }
 
-fn rig(auto_save: bool, rolling_backups: bool) -> Rig {
+pub(super) fn rig(auto_save: bool, rolling_backups: bool) -> Rig {
     let root = crate::test_temp_dir::unique_temp_path("octessera-pi-stale-autosave");
     let store = root.join("store");
     std::fs::create_dir_all(&store).unwrap();
@@ -55,7 +55,7 @@ fn rig(auto_save: bool, rolling_backups: bool) -> Rig {
     }
 }
 
-fn press(runner: &mut NativeRunner, inputs: &[serde_json::Value]) {
+pub(super) fn press(runner: &mut NativeRunner, inputs: &[serde_json::Value]) {
     for input in inputs {
         runner
             .send_music_first(HostMessage::DeviceInput {
@@ -131,7 +131,7 @@ fn finish_default_save(rig: &mut Rig) {
     dispatch_all(rig, messages);
 }
 
-fn finish_save(rig: &mut Rig) {
+pub(super) fn finish_save(rig: &mut Rig) {
     for message in finished_operation(rig, RuntimeOperation::StoreSavePreset) {
         rig.playback
             .dispatch_host_message_music_first(message, &mut rig.runner, &mut rig.adapter)

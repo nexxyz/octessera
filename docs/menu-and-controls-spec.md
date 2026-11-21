@@ -1293,8 +1293,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   at least five minutes apart, and hosts keep the latest 20 rolling patch backups.
 - `Save Patch` writes the default patch. Confirmed `Load Patch` and named-preset loads stop/reset
   playback and panic/clear held notes while keeping local System settings and ports. With Auto
-  Save on, a loaded named preset also becomes the saved default patch, so a restart comes back
-  to it. After saving a named preset (Save As, Save Current), Auto Save still writes the patch to the
+  Save on, a loaded named preset or `Factory Patch` also becomes the saved default patch, so a
+  restart comes back to it. After saving a named preset (Save As, Save Current), Auto Save still writes the patch to the
   default patch. With Auto Save off, a preset save counts as saving the patch.
 - A confirmed load waits for the current patch's save when a patch write is pending or an Auto
   Save-eligible patch edit is dirty: it shows `Saving, then loading`, saves (or lets the pending write
