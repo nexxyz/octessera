@@ -171,9 +171,10 @@ then do exactly what the screen says, and nothing else.
 *Back* takes you home to the menu, right where you left it. If you'd like to
 start every session there, switch on `System > Display > View at Boot`.
 
-Trigger Gate overrides the layer's saved `Trigger Prob.` mode without changing
-it, so the patch keeps its saved mode. Hold *Fn* to check which layers are
-blocked: they're magenta in the left column.
+Trigger Gate sets the layer's `Trigger Prob.` mode, the same row as in the
+menu, so the patch remembers it: a layer you gate before saving stays gated
+when you load it again. Hold *Fn* to check which layers are blocked: they're
+magenta in the left column.
 
 ### Faders
 

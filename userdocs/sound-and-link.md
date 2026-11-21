@@ -111,8 +111,8 @@ layer makes the delay bloom.
   off, so a held note always gets its release, even at `zero`. Turn it on
   if you like notes that sometimes forget to stop.
 
-Play's **Trigger Gate** page overrides the mode live without changing what's
-saved.
+Play's **Trigger Gate** page sets the same mode from the grid, and the patch
+saves whatever it was left on.
 
 ### Arp: notes in a line instead of a lump
 

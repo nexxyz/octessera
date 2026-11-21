@@ -315,7 +315,8 @@ The `ms` rows use the curved time steps from
 
 ## Trigger Gate
 
-- A live override of each layer's trigger mode. It does not edit the saved per-tile probability map.
+- Sets each layer's trigger mode (`Link > Lx > Trigger Prob. > Mode`) from the grid, so the mode is
+  saved with the patch like a menu edit. It does not edit the saved per-tile probability map.
 - Rows are layers in Fn-navigation orientation: bottom row is layer 1.
 - Columns `0..2` set that row's layer to `0%` (magenta), `custom` (yellow), or `100%` (green). The
   selected mode is bright, the other two dim.
