@@ -116,12 +116,8 @@ fn confident_mode_peak(
 fn midi60_dry_stiffness_modes_follow_ordered_phase_roots_at_both_rates() {
     for sample_rate in [44_100_u32, 48_000] {
         for window_start in DRY_MEASUREMENT_WINDOWS_SECONDS {
-            let unshaped = render_dry_pluck(
-                60,
-                120,
-                sample_rate,
-                PluckPitchReference::CompensatedUnshaped,
-            );
+            let unshaped =
+                render_dry_pluck(60, 120, sample_rate, PluckPitchReference::ProductionZero);
             let stiff =
                 render_dry_pluck(60, 120, sample_rate, PluckPitchReference::ProductionStiff);
             let unshaped_roots = ordered_phase_roots(sample_rate, &unshaped);
@@ -200,12 +196,7 @@ fn midi60_dry_stiffness_modes_follow_ordered_phase_roots_at_both_rates() {
 #[test]
 fn midi84_stored_loop_phase_crossings_remain_ordered_at_both_rates() {
     for sample_rate in [44_100_u32, 48_000] {
-        let unshaped = render_dry_pluck(
-            84,
-            120,
-            sample_rate,
-            PluckPitchReference::CompensatedUnshaped,
-        );
+        let unshaped = render_dry_pluck(84, 120, sample_rate, PluckPitchReference::ProductionZero);
         let stiff = render_dry_pluck(84, 120, sample_rate, PluckPitchReference::ProductionStiff);
         let unshaped_roots = ordered_phase_roots(sample_rate, &unshaped);
         let stiff_roots = ordered_phase_roots(sample_rate, &stiff);

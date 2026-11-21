@@ -62,15 +62,21 @@ fn pluck_neutral_settings_match_legacy_ring_samples_and_old_json_defaults() {
 }
 
 #[test]
-fn pluck_dispersion_phase_closes_with_stored_coefficients_across_notes_and_rates() {
+fn pluck_loop_phase_closes_with_stored_coefficients_across_notes_rates_and_stiffness() {
     for sample_rate in [44_100_u32, 48_000] {
         for note in 0_u8..=127 {
             let frequency = midi_note_to_hz(note) as f64;
-            for (brightness_pct, decay_ms) in [(0.0, 100.0), (65.0, 1_500.0), (100.0, 5_000.0)] {
+            for (brightness_pct, decay_ms, dispersion_pct) in [
+                (0.0, 100.0, 100.0),
+                (65.0, 1_500.0, 100.0),
+                (100.0, 5_000.0, 100.0),
+                (0.0, 1_500.0, 0.0),
+                (100.0, 1_500.0, 0.0),
+            ] {
                 let settings = crate::synth::pluck_string::PluckStringSettings {
                     decay_ms,
                     brightness_pct,
-                    dispersion_pct: 100.0,
+                    dispersion_pct,
                     ..PluckConfig::default().into()
                 };
                 let state = PluckState::note_on(frequency as f32, sample_rate, note, 120, settings);

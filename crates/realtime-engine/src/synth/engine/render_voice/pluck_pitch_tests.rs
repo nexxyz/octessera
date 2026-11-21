@@ -203,7 +203,7 @@ fn note_frequency(note: u8) -> f64 {
 #[derive(Clone, Copy, Debug)]
 pub(super) enum PluckPitchReference {
     ProductionZero,
-    CompensatedUnshaped,
+    DarkZero,
     ProductionStiff,
 }
 
@@ -228,30 +228,19 @@ pub(super) fn render_dry_pluck(
     let frequency = note_frequency(note);
     let config = PluckConfig::default();
     let dispersion_pct = match reference {
-        PluckPitchReference::ProductionZero | PluckPitchReference::CompensatedUnshaped => 0.0,
+        PluckPitchReference::ProductionZero | PluckPitchReference::DarkZero => 0.0,
         PluckPitchReference::ProductionStiff => 100.0,
+    };
+    let brightness_pct = match reference {
+        PluckPitchReference::DarkZero => 0.0,
+        _ => config.brightness_pct,
     };
     let settings = PluckStringSettings {
         dispersion_pct,
+        brightness_pct,
         ..config.into()
     };
     let mut state = PluckState::note_on(frequency as f32, sample_rate, note, velocity, settings);
-    if matches!(reference, PluckPitchReference::CompensatedUnshaped) {
-        let tuning = crate::synth::pluck_dispersion::tune(
-            frequency,
-            f64::from(sample_rate),
-            f64::from(state.loss),
-            f64::from(state.brightness),
-            0.0,
-        )
-        .unwrap();
-        state.delay = tuning.delay;
-        state.fraction = tuning.fraction;
-        state.pick_offset = (((tuning.delay as f32 + tuning.fraction) * config.pick_position_pct
-            / 100.0)
-            .round() as usize)
-            .clamp(1, tuning.delay.saturating_sub(1));
-    }
     let frames = (0.05 + WINDOW_SECONDS * 2.0 + 0.05) * f64::from(sample_rate);
     let mut ring: PluckRing = [0.0; RING_LEN];
     let samples = (0..frames.round() as usize)
@@ -271,7 +260,7 @@ pub(super) fn render_dry_pluck(
 fn dry_pluck_fundamental_matches_requested_pitch_across_notes_rates_and_references() {
     let references = [
         PluckPitchReference::ProductionZero,
-        PluckPitchReference::CompensatedUnshaped,
+        PluckPitchReference::DarkZero,
         PluckPitchReference::ProductionStiff,
     ];
     for sample_rate in [44_100_u32, 48_000] {

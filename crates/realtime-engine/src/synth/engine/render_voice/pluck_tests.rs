@@ -58,15 +58,13 @@ fn pluck_starts_immediately_across_midi_range_with_safe_full_delay_ring() {
 }
 
 #[test]
-fn pluck_delay_tracks_tuned_sample_frames_at_both_rates() {
+fn pluck_loop_repeats_at_its_period_at_both_rates() {
     for sample_rate in [44_100_u32, 48_000] {
         for note in 0_u8..=127 {
             let mut engine = pluck_engine(PluckConfig::default(), sample_rate);
             engine.note_on(0, note, 120, 10_000);
             let voice = engine.synth_voice_pool.lane(0).unwrap();
             let period = sample_rate as f32 / voice.freq_hz;
-            let delay = voice.pluck.delay as f32 + voice.pluck.fraction;
-            assert!((delay - (period - 0.5)).abs() < 0.001, "note {note}");
             let length = voice.pluck.delay * 3 + 512;
             let samples = (0..length)
                 .map(|_| engine.next_sample())

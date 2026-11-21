@@ -81,30 +81,20 @@ impl PluckState {
                 ^ 0x6d2b_79f5,
             ..Self::off()
         };
-        state.update_coefficients(freq_hz, settings.decay_ms, settings.brightness_pct);
-        let tuning = if settings.dispersion_pct == 0.0 {
-            None
-        } else {
-            super::pluck_dispersion::tune(
-                freq_hz as f64,
-                sample_rate as f64,
-                state.loss as f64,
-                state.brightness as f64,
-                settings.dispersion_pct as f64,
-            )
-        };
-        let pick_delay = if let Some(tuning) = tuning {
-            state.delay = tuning.delay;
-            state.fraction = tuning.fraction;
-            state.dispersion_coefficient = tuning.coefficient;
-            state.delay as f32 + state.fraction
-        } else {
-            let delay = (sample_rate as f32 / freq_hz - 0.5).clamp(3.0, (RING_LEN - 2) as f32);
-            let integer = delay.floor() as usize;
-            state.delay = integer;
-            state.fraction = delay - integer as f32;
-            delay
-        };
+        state.update_coefficients(
+            freq_hz,
+            sample_rate,
+            settings.decay_ms,
+            settings.brightness_pct,
+        );
+        state.tune(freq_hz, sample_rate, settings.dispersion_pct);
+        state.update_coefficients(
+            freq_hz,
+            sample_rate,
+            settings.decay_ms,
+            settings.brightness_pct,
+        );
+        let pick_delay = state.tune(freq_hz, sample_rate, settings.dispersion_pct);
         state.pick_offset = ((pick_delay * settings.pick_position_pct.clamp(5.0, 50.0) / 100.0)
             .round() as usize)
             .clamp(1, state.delay.saturating_sub(1));
@@ -126,11 +116,53 @@ impl PluckState {
         state
     }
 
-    pub(super) fn update_coefficients(&mut self, freq_hz: f32, decay_ms: f32, brightness_pct: f32) {
-        self.loss = (-6.907_755 / (decay_ms.clamp(100.0, 5_000.0) * 0.001 * freq_hz))
-            .exp()
-            .clamp(0.0, 0.999_95);
+    /// Sets the delay so the loop, with its current loss and brightness, closes at `freq_hz`;
+    /// returns the tuned delay in samples.
+    fn tune(&mut self, freq_hz: f32, sample_rate: u32, dispersion_pct: f32) -> f32 {
+        if let Some(tuning) = super::pluck_dispersion::tune(
+            freq_hz as f64,
+            sample_rate as f64,
+            self.loss as f64,
+            self.brightness as f64,
+            dispersion_pct as f64,
+        ) {
+            self.delay = tuning.delay;
+            self.fraction = tuning.fraction;
+            self.dispersion_coefficient = tuning.coefficient;
+            self.delay as f32 + self.fraction
+        } else {
+            let delay = (sample_rate as f32 / freq_hz - 0.5).clamp(3.0, (RING_LEN - 2) as f32);
+            self.delay = delay.floor() as usize;
+            self.fraction = delay - self.delay as f32;
+            self.dispersion_coefficient = 0.0;
+            delay
+        }
+    }
+
+    /// Sets the per-pass loss so the fundamental falls 60 dB in `decay_ms`, whatever the
+    /// brightness lowpass and the fractional delay take from it on each pass.
+    pub(super) fn update_coefficients(
+        &mut self,
+        freq_hz: f32,
+        sample_rate: u32,
+        decay_ms: f32,
+        brightness_pct: f32,
+    ) {
         self.brightness = (0.2 + brightness_pct.clamp(0.0, 100.0) * 0.0078).clamp(0.2, 0.98);
+        let pass_gain = (-6.907_755 / (decay_ms.clamp(100.0, 5_000.0) * 0.001 * freq_hz)).exp();
+        let (sin, cos) = (std::f32::consts::TAU * freq_hz / sample_rate as f32).sin_cos();
+        let fraction_gain =
+            (1.0 - 2.0 * self.fraction * (1.0 - self.fraction) * (1.0 - cos)).sqrt();
+        let target = pass_gain / fraction_gain;
+        let darkening = 1.0 - self.brightness;
+        let root = self.brightness * self.brightness - (target * darkening * sin).powi(2);
+        let denominator = root.max(0.0).sqrt() + target * darkening * cos;
+        self.loss = if root > 0.0 && denominator > 0.0 {
+            target / denominator
+        } else {
+            1.0
+        }
+        .clamp(0.0, 0.999_95);
     }
 
     pub(super) fn next(&mut self, ring: &mut PluckRing) -> f32 {
