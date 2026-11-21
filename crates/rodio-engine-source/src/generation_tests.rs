@@ -366,3 +366,66 @@ fn global_generation_sequence_preserves_scalar_parity() {
         global_owner,
     );
 }
+
+#[test]
+fn an_out_of_range_slot_is_ignored_instead_of_replacing_the_last_slot() {
+    use realtime_engine::synth::{
+        BUS_COUNT, BUS_SLOTS_PER_BUS, GLOBAL_FX_SLOT_COUNT, INSTRUMENT_SLOT_COUNT,
+    };
+    let (tx, rx) = event_queue();
+    let mut source = EngineSource::new(rx, RATE);
+    tx.send(EngineEvent::SetPreparedAudioConfig {
+        generation: 20,
+        config: full_config(),
+    })
+    .unwrap();
+    assert_eq!(source.drain_control_events().config_events, 1);
+
+    let instrument_slot = INSTRUMENT_SLOT_COUNT as u8;
+    tx.send(EngineEvent::SetPreparedSampleBank {
+        instrument_slot,
+        generation: 21,
+        bank: SampleBankConfig::default(),
+    })
+    .unwrap();
+    tx.send(EngineEvent::SetPreparedInstrumentSlot {
+        instrument_slot,
+        generation: 21,
+        config: prepare_instrument_slot_config(InstrumentSlotConfig {
+            kind: "synth".into(),
+            synth: default_synth_config(),
+            fm: None,
+            pluck: None,
+            drum: None,
+            mixer: None,
+        }),
+    })
+    .unwrap();
+    tx.send(EngineEvent::SetPreparedFxBusSlot {
+        bus_index: BUS_COUNT as u8,
+        slot_index: 0,
+        generation: 21,
+        config: prepare_fx_bus_slot("none".into(), BTreeMap::new(), RATE),
+    })
+    .unwrap();
+    tx.send(EngineEvent::SetPreparedFxBusSlot {
+        bus_index: 0,
+        slot_index: BUS_SLOTS_PER_BUS as u8,
+        generation: 21,
+        config: prepare_fx_bus_slot("none".into(), BTreeMap::new(), RATE),
+    })
+    .unwrap();
+    tx.send(EngineEvent::SetPreparedGlobalFxSlot {
+        slot_index: GLOBAL_FX_SLOT_COUNT as u8,
+        generation: 21,
+        config: prepare_global_fx_slot("none".into(), BTreeMap::new()),
+    })
+    .unwrap();
+    assert_eq!(source.drain_control_events().config_events, 0);
+    let generations = &source.owner_generations;
+    assert_eq!(generations.sample[INSTRUMENT_SLOT_COUNT - 1], 20);
+    assert_eq!(generations.instrument[INSTRUMENT_SLOT_COUNT - 1], 20);
+    assert_eq!(generations.fx_bus[BUS_COUNT - 1][0], 20);
+    assert_eq!(generations.fx_bus[0][BUS_SLOTS_PER_BUS - 1], 20);
+    assert_eq!(generations.global_fx[GLOBAL_FX_SLOT_COUNT - 1], 20);
+}

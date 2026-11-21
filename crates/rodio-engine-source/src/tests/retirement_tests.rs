@@ -479,8 +479,16 @@ fn invalid_global_fx_state_is_retired_without_callback_deallocation() {
     .unwrap();
 
     let (allocation_count, deallocation_count) = callback_memory_activity(&mut source);
-    let retired = receive_retired_state(&retired_rx);
-    assert!(!retired.is_empty());
+    let retired = retired_rx
+        .try_recv()
+        .expect("expected the ignored event back");
+    assert!(matches!(
+        retired.event,
+        Some(EngineEvent::SetPreparedGlobalFxSlot {
+            slot_index: u8::MAX,
+            ..
+        })
+    ));
     assert_eq!(allocation_count, 0);
     assert_eq!(deallocation_count, 0);
 }

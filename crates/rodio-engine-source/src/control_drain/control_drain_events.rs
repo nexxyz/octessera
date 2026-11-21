@@ -37,8 +37,8 @@ impl<'a> ControlDrain<'a> {
                 generation,
                 bank,
             } => {
-                let slot = usize::from(instrument_slot).min(INSTRUMENT_SLOT_COUNT - 1);
-                if generation < self.generations.sample[slot] {
+                let slot = usize::from(instrument_slot);
+                if slot >= INSTRUMENT_SLOT_COUNT || generation < self.generations.sample[slot] {
                     self.retire_event(EngineEvent::SetPreparedSampleBank {
                         instrument_slot,
                         generation,
@@ -59,11 +59,9 @@ impl<'a> ControlDrain<'a> {
             } => {
                 let slot = usize::from(instrument_slot);
                 let has_sample_bank = sample_bank.is_some();
-                let sample_generation_is_stale = has_sample_bank
-                    && generation < self.generations.sample[slot.min(INSTRUMENT_SLOT_COUNT - 1)];
                 if slot >= INSTRUMENT_SLOT_COUNT
-                    || generation < self.generations.instrument[slot.min(INSTRUMENT_SLOT_COUNT - 1)]
-                    || sample_generation_is_stale
+                    || generation < self.generations.instrument[slot]
+                    || (has_sample_bank && generation < self.generations.sample[slot])
                 {
                     self.retire_event(EngineEvent::SetPreparedInstrumentOwner {
                         instrument_slot,
@@ -98,8 +96,8 @@ impl<'a> ControlDrain<'a> {
                 generation,
                 config,
             } => {
-                let slot = usize::from(instrument_slot).min(INSTRUMENT_SLOT_COUNT - 1);
-                if generation < self.generations.instrument[slot] {
+                let slot = usize::from(instrument_slot);
+                if slot >= INSTRUMENT_SLOT_COUNT || generation < self.generations.instrument[slot] {
                     self.retire_event(EngineEvent::SetPreparedInstrumentSlot {
                         instrument_slot,
                         generation,
@@ -118,9 +116,12 @@ impl<'a> ControlDrain<'a> {
                 generation,
                 config,
             } => {
-                let bus = usize::from(bus_index).min(BUS_COUNT - 1);
-                let slot = usize::from(slot_index).min(BUS_SLOTS_PER_BUS - 1);
-                if generation < self.generations.fx_bus[bus][slot] {
+                let bus = usize::from(bus_index);
+                let slot = usize::from(slot_index);
+                if bus >= BUS_COUNT
+                    || slot >= BUS_SLOTS_PER_BUS
+                    || generation < self.generations.fx_bus[bus][slot]
+                {
                     self.retire_event(EngineEvent::SetPreparedFxBusSlot {
                         bus_index,
                         slot_index,
@@ -139,8 +140,8 @@ impl<'a> ControlDrain<'a> {
                 generation,
                 config,
             } => {
-                let slot = usize::from(slot_index).min(GLOBAL_FX_SLOT_COUNT - 1);
-                if generation < self.generations.global_fx[slot] {
+                let slot = usize::from(slot_index);
+                if slot >= GLOBAL_FX_SLOT_COUNT || generation < self.generations.global_fx[slot] {
                     self.retire_event(EngineEvent::SetPreparedGlobalFxSlot {
                         slot_index,
                         generation,
@@ -207,8 +208,8 @@ impl<'a> ControlDrain<'a> {
         else {
             return;
         };
-        let slot = usize::from(instrument_slot).min(INSTRUMENT_SLOT_COUNT - 1);
-        if generation < self.generations.sample[slot] {
+        let slot = usize::from(instrument_slot);
+        if slot >= INSTRUMENT_SLOT_COUNT || generation < self.generations.sample[slot] {
             self.retire_event(EngineEvent::PreviewSample {
                 instrument_slot,
                 generation,
