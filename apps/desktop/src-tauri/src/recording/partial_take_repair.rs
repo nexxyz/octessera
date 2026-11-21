@@ -62,7 +62,7 @@ mod tests {
     use super::repair_partial_takes;
     use crate::recording::DesktopRecording;
     use std::fs;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn a_partial_audio_video_take_is_saved_as_incomplete() {
@@ -74,11 +74,18 @@ mod tests {
         let screen = root.join("screen-recordings");
         let recording = DesktopRecording::with_screen_directory(root.join("audio"), screen.clone());
         recording.start_audio_oled(1).unwrap();
-        std::thread::sleep(Duration::from_millis(50));
         let crashed = root.join("crashed");
         fs::create_dir_all(&crashed).unwrap();
         let active = media_recording::partial_take_paths(&screen);
         assert_eq!(active.len(), 1);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !fs::read(&active[0]).is_ok_and(|bytes| bytes.windows(4).any(|w| w == b"movi")) {
+            assert!(
+                Instant::now() < deadline,
+                "the recorder never wrote its header"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
         fs::copy(&active[0], crashed.join("interrupted.partial.avi")).unwrap();
         recording.stop_audio().unwrap();
 
