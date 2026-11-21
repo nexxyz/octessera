@@ -73,7 +73,7 @@ life_clear_shared_twinkle	*	action:behavior_action:clearStars	action	Clear Stars
 layer_cyclic_states	*	key:layers.*.build.behaviorConfig.states	number	States	Sets how many discrete states the Cyclic world chases through.	Higher values make longer wave-front cycles.
 layer_cyclic_threshold	*	key:layers.*.build.behaviorConfig.threshold	number	Threshold	How many neighbors already in the next color a cell needs before it moves on.	Higher values make the waves pickier.
 layer_cyclic_range	*	key:layers.*.build.behaviorConfig.range	number	Range	Sets whether Cyclic checks nearby neighbors at range 1 or 2.	Range 2 makes broader fronts without wrapping edges.
-life_spawn_shared_cyclic	*	action:behavior_action:seedCycle	action	Seed Cycle	Starts a fresh Cyclic pattern.	Use it to set off a new chasing wave.
+life_spawn_shared_cyclic	*	action:behavior_action:seedCycle	action	Seed Cycle	Scatters a fresh mix of every state across the grid.	The waves sort the mix into spirals; a world that freezes scatters itself again.
 layer_kuramoto_coupling	*	key:layers.*.build.behaviorConfig.couplingPct	number	Coupling	Sets how strongly neighboring Kuramoto phases pull each other toward sync.	Higher values make wrap flashes gather into shared pulses.
 layer_kuramoto_spread	*	key:layers.*.build.behaviorConfig.frequencySpread	number	Frequency Spread	Sets how far oscillator speeds vary across the grid.	Lower values drift together more easily.
 layer_kuramoto_jitter	*	key:layers.*.build.behaviorConfig.jitterPct	number	Jitter	The chance of a tiny wobble in each oscillator each step.	Use a little to keep the field breathing.
@@ -162,7 +162,7 @@ layer_rivers_rain	*	key:layers.*.build.behaviorConfig.rainPct	number	Rain	Sets t
 layer_rivers_flow	*	key:layers.*.build.behaviorConfig.flowPct	number	Flow	Sets how much water moves downhill each tick.	Movement uses cardinal neighbors without wrapping.
 life_spawn_shared_rivers_rain	*	action:behavior_action:rainBurst	action	Rain Burst	Rains on the high ground.	Tiles where the water changes play.
 life_spawn_shared_rivers_reset	*	action:behavior_action:resetTerrain	action	Reset Terrain	Restores the terrain and clears water and sediment.	Previously visible water emits deactivate.
-layer_ising_temperature	*	key:layers.*.build.behaviorConfig.temperaturePct	number	Temperature	Sets how much domain pressure is needed before a spin flips.	Higher values resist neighbor and field pressure.
+layer_ising_temperature	*	key:layers.*.build.behaviorConfig.temperaturePct	number	Temperature	Sets how restless the spins are against their neighbors and the field.	Around 35 the patches keep forming and breaking; higher values melt them into noise.
 layer_ising_field	*	key:layers.*.build.behaviorConfig.fieldStrengthPct	number	Field Strength	Sets how strongly the global field biases spins.	Flip Field reverses the preferred magnetic direction.
 layer_ising_noise	*	key:layers.*.build.behaviorConfig.noisePct	number	Noise	The chance of random flips each step.	Use it to keep the magnetic patches restless.
 life_spawn_shared_ising_heat	*	action:behavior_action:heatPulse	action	Heat Pulse	Adds one tick of extra spin noise without firing immediately.	The next behavior tick may kick domains loose.
@@ -643,7 +643,7 @@ native_behavior_select_cadence	*	action:behavior_select:cadence	action	Cadence	L
 native_behavior_select_phrase	*	action:behavior_select:phrase	action	Phrase	Builds longer musical gestures from smaller choices.	Use it for a layer that should speak in sentences, not ticks.
 native_behavior_select_life	*	action:behavior_select:life	action	Life	Runs Conway-style cellular life on the grid.	Tiny seeds can settle, explode, or blink into musical events.
 native_behavior_select_brain	*	action:behavior_select:brain	action	Brain	Uses three-state cellular rules with firing and recovery.	Good for waves of activity that leave afterimages behind.
-native_behavior_select_cyclic	*	action:behavior_select:cyclic	action	Cyclic	Cells advance to the next state when enough nearby cells already have that state.	States sets the cycle count; Threshold and Range control how readily fronts advance.
+native_behavior_select_cyclic	*	action:behavior_select:cyclic	action	Cyclic	Cells advance to the next state when enough nearby cells already have that state; the lit tiles are the moving fronts.	States sets the cycle count; Threshold and Range control how readily fronts advance.
 native_behavior_select_forest_fire	*	action:behavior_select:forest_fire	action	Forest Fire	Lets growth and ignition compete across the grid.	Sparse sparks can become crackling bursts and then empty space again.
 native_behavior_select_predator_prey	*	action:behavior_select:predator_prey	action	Predator Prey	Runs chasing populations that feed and fade.	Good for unstable musical ecosystems with pursuit and collapse.
 native_behavior_select_twinkle	*	action:behavior_select:twinkle	action	Twinkle	A sparse little sky of short-lived stars.	Blue-white tiles come and go, a lovely restless layer.

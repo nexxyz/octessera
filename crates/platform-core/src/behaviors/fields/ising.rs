@@ -6,8 +6,14 @@ use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+/// Temperature 100 is this hot; the 2D Ising critical point (about 2.27) sits near 35.
+const MAX_TEMPERATURE: f32 = 6.5;
+/// Field Strength 100 outweighs all four neighbors.
+const MAX_FIELD: f32 = 4.5;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IsingState {
@@ -100,23 +106,30 @@ pub fn ising_on_tick(mut state: IsingState, _: &mut BehaviorContext) -> IsingSta
     normalize(&mut state);
     let prev = state.spins.clone();
     let mut next = prev.clone();
-    let heat_bonus = if state.heat_ticks > 0 { 35 } else { 0 };
-    let field_bias =
-        (i32::from(state.field_sign) * i32::from(state.field_strength_pct) / 25).clamp(-4, 4);
+    let heat_bonus = if state.heat_ticks > 0 { 35.0 } else { 0.0 };
+    let temperature = f32::from(state.temperature_pct) * MAX_TEMPERATURE / 100.0;
+    let field =
+        f32::from(state.field_sign) * f32::from(state.field_strength_pct) * MAX_FIELD / 100.0;
+    let noise = (f32::from(state.noise_pct) + heat_bonus) / 100.0;
+    let parity = (state.tick_counter % 2) as usize;
+    let mut rng = crate::behavior_random::rng();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
-            let i = grid_index(x, y);
-            let combined = neighbor_sum(&prev, x, y) + field_bias;
-            if combined != 0 {
-                let desired = if combined > 0 { 1 } else { -1 };
-                if desired != prev[i] && combined.abs() * 25 > i32::from(state.temperature_pct) {
-                    next[i] = desired;
-                    continue;
-                }
+            if (x + y) % 2 != parity {
+                continue;
             }
-            let threshold = u32::from(state.noise_pct) + heat_bonus;
-            if hash_pct(state.tick_counter, i) < threshold {
-                next[i] *= -1;
+            let i = grid_index(x, y);
+            let spin = f32::from(prev[i]);
+            let energy = 2.0 * spin * (neighbor_sum(&prev, x, y) as f32 + field);
+            let accept = if energy < 0.0 {
+                1.0
+            } else if temperature > 0.0 {
+                (-energy / temperature).exp().min(0.5)
+            } else {
+                0.0
+            };
+            if rng.gen::<f32>() < accept || rng.gen::<f32>() < noise {
+                next[i] = -prev[i];
             }
         }
     }
@@ -162,7 +175,7 @@ fn from_config(v: Value) -> IsingState {
         heat_ticks: 0,
         trigger_types: restore_trigger_types(c.trigger_types),
         temperature_pct: num(c.temperature_pct, 35),
-        field_strength_pct: num(c.field_strength_pct, 15),
+        field_strength_pct: num(c.field_strength_pct, 5),
         noise_pct: num(c.noise_pct, 8),
         tick_counter: 0,
     };
@@ -218,25 +231,10 @@ fn neighbor_sum(spins: &[i8], x: usize, y: usize) -> i32 {
     }
     sum
 }
-fn hash_pct(tick: u64, index: usize) -> u32 {
-    let tick = tick ^ crate::behavior_random::salt();
-    let mut x = tick
-        .wrapping_mul(0x9E37_79B9)
-        .wrapping_add(index as u64 * 0x85EB_CA6B);
-    x ^= x >> 16;
-    ((x.wrapping_mul(0xC2B2_AE35) >> 24) % 100) as u32
-}
 fn randomize(s: &mut IsingState) {
-    for y in 0..GRID_HEIGHT {
-        for x in 0..GRID_WIDTH {
-            let i = grid_index(x, y);
-            s.spins[i] = if ((x as i32 * 17 + y as i32 * 31 + i32::from(s.field_sign) * 7) & 3) < 2
-            {
-                1
-            } else {
-                -1
-            };
-        }
+    let mut rng = crate::behavior_random::rng();
+    for spin in &mut s.spins {
+        *spin = if rng.gen_bool(0.5) { 1 } else { -1 };
     }
 }
 fn triggers(p: &[i8], n: &[i8]) -> Vec<TileTriggerType> {

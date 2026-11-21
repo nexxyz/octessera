@@ -35,8 +35,7 @@ fn empty_config_seeds_bounded_default_activity_and_deserialize_empty_stays_empty
         total_activates += activates;
     }
     assert!(total_activates > 0);
-    assert!(max_activates <= 48);
-    assert!(total_activates <= 384);
+    assert!(max_activates < TILE_COUNT);
 }
 
 #[test]
@@ -106,14 +105,18 @@ fn grid_press_exact_world_tile_and_wrap_deactivate() {
         TileTriggerType::Activate
     );
 
-    let mut state = state;
-    state.cells[grid_index(2, 3)] = state.states - 1;
     let state = cyclic_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
-    assert_eq!(state.cells[grid_index(2, 3)], 0);
+    assert_eq!(state.cells[grid_index(2, 3)], 2);
     assert_eq!(
         state.trigger_types[grid_index(2, 3)],
         TileTriggerType::Deactivate
     );
+
+    let mut state = state;
+    state.cells[grid_index(2, 3)] = state.states - 1;
+    let state = cyclic_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
+    assert_eq!(state.cells[grid_index(2, 3)], 0);
+    assert_eq!(state.trigger_types[grid_index(2, 3)], TileTriggerType::None);
 }
 
 #[test]
@@ -127,37 +130,47 @@ fn threshold_advancement_and_non_wrapping_edges() {
     assert_eq!(state.cells[grid_index(0, 0)], 2);
     assert_eq!(
         state.trigger_types[grid_index(0, 0)],
-        TileTriggerType::Activate
+        TileTriggerType::Deactivate
     );
     assert_eq!(state.cells[grid_index(GRID_WIDTH - 1, 0)], 0);
 }
 
 #[test]
-fn seed_cycle_is_deterministic_and_activates_nonzero_cells() {
+fn seed_cycle_scatters_a_fresh_mix_of_every_state() {
     let mut context = context();
-    let state = empty();
-    let seeded = cyclic_on_input(
-        state,
-        DeviceInput::BehaviorAction(BehaviorActionInput {
-            action_type: "seedCycle".into(),
-        }),
-        &mut context,
-    );
-    assert_eq!(seeded.cells[grid_index(2, 2)], 0);
-    assert_eq!(seeded.cells[grid_index(3, 2)], 1);
-    assert_eq!(
-        seeded.trigger_types[grid_index(3, 2)],
-        TileTriggerType::Activate
-    );
+    let seed = |context: &mut BehaviorContext| {
+        cyclic_on_input(
+            empty(),
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "seedCycle".into(),
+            }),
+            context,
+        )
+    };
+    let seeded = seed(&mut context);
+    for value in 0..seeded.states {
+        assert!(seeded.cells.contains(&value), "state {value} missing");
+    }
+    let lit = seeded.cells.iter().position(|cell| *cell == FRONT).unwrap();
+    assert_eq!(seeded.trigger_types[lit], TileTriggerType::Activate);
+    assert_ne!(seeded.cells, seed(&mut context).cells);
+}
 
-    let seeded_again = cyclic_on_input(
-        empty(),
-        DeviceInput::BehaviorAction(BehaviorActionInput {
-            action_type: "seedCycle".into(),
-        }),
-        &mut context,
-    );
-    assert_eq!(seeded.cells, seeded_again.cells);
+#[test]
+fn a_frozen_world_seeds_itself_again() {
+    let mut context = context();
+    let mut state = cyclic_deserialize(serde_json::json!({
+        "states": 8, "threshold": 8, "range": 1, "cells": []
+    }))
+    .unwrap();
+    state.cells[grid_index(4, 4)] = 3;
+    for _ in 0..STALL_TICKS - 1 {
+        state = cyclic_on_tick(state, &mut context);
+        assert_eq!(state.cells[grid_index(4, 4)], 3);
+    }
+    state = cyclic_on_tick(state, &mut context);
+    assert!(state.ages.iter().all(|age| *age == 0));
+    assert!(state.cells.iter().filter(|cell| **cell != 0).count() > 1);
 }
 
 #[test]
@@ -174,38 +187,7 @@ fn persistent_nonzero_stable_and_no_stale_activate() {
 }
 
 #[test]
-fn seed_cycle_rotates_exact_valid_patterns_for_every_state_count() {
-    let cycle = [
-        grid_index(2, 2),
-        grid_index(3, 2),
-        grid_index(2, 3),
-        grid_index(3, 3),
-    ];
-    let base = [0, 1, 3, 2];
-    let mut context = context();
-    for states in 3..=8 {
-        for rotation in 0..states {
-            let mut state = cyclic_deserialize(serde_json::json!({
-                "states": states, "threshold": 8, "range": 1, "cells": []
-            }))
-            .unwrap();
-            state.ages.fill(9);
-            for (position, index) in cycle.iter().enumerate() {
-                state.cells[*index] = (base[position] + rotation) % states;
-            }
-
-            let next = cyclic_on_tick(state, &mut context);
-
-            for (position, index) in cycle.iter().enumerate() {
-                assert_eq!(next.cells[*index], (base[position] + rotation + 1) % states);
-                assert_eq!(next.ages[*index], 0);
-            }
-        }
-    }
-}
-
-#[test]
-fn unrelated_four_cell_state_does_not_enter_seed_cycle_path() {
+fn cells_without_a_successor_neighbor_stay_and_age() {
     let mut state = cyclic_deserialize(serde_json::json!({
         "states": 4, "threshold": 8, "range": 1, "cells": []
     }))
@@ -227,25 +209,27 @@ fn unrelated_four_cell_state_does_not_enter_seed_cycle_path() {
 }
 
 #[test]
-fn state_advancement_marks_each_local_nonzero_change_as_activate() {
+fn only_the_front_state_lights_its_tile() {
     let center = grid_index(4, 4);
     let neighbor = grid_index(5, 4);
     let mut state = cyclic_deserialize(serde_json::json!({
         "states": 4, "threshold": 1, "range": 1, "cells": []
     }))
     .unwrap();
-    state.cells[center] = 1;
-    state.cells[neighbor] = 2;
+    state.cells[center] = 0;
+    state.cells[neighbor] = 1;
 
     let first = cyclic_on_tick(state, &mut context());
-    assert_eq!(first.cells[center], 2);
+    assert_eq!(first.cells[center], 1);
     assert_eq!(first.trigger_types[center], TileTriggerType::Activate);
+    assert!(cyclic_render_model(&first).tiles[center]);
 
     let mut second_input = first;
-    second_input.cells[neighbor] = 3;
+    second_input.cells[neighbor] = 2;
     let second = cyclic_on_tick(second_input, &mut context());
-    assert_eq!(second.cells[center], 3);
-    assert_eq!(second.trigger_types[center], TileTriggerType::Activate);
+    assert_eq!(second.cells[center], 2);
+    assert_eq!(second.trigger_types[center], TileTriggerType::Deactivate);
+    assert!(!cyclic_render_model(&second).tiles[center]);
 }
 
 #[test]

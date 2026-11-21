@@ -90,7 +90,9 @@ fn grid_press_and_actions_follow_trigger_contract() {
         }),
         &mut ctx,
     );
-    assert_eq!(randomized.spins, again.spins);
+    assert_ne!(randomized.spins, again.spins);
+    let positives = randomized.spins.iter().filter(|spin| **spin > 0).count();
+    assert!((8..56).contains(&positives), "{positives}");
 }
 
 #[test]

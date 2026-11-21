@@ -5,8 +5,14 @@ use crate::behavior::{
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+/// A world where no cell has moved on for this many ticks is frozen, so it starts afresh.
+const STALL_TICKS: u8 = 8;
+/// The state a resting cell moves into; its tiles light, so the waves show as moving fronts.
+const FRONT: u8 = 1;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CyclicState {
@@ -24,7 +30,7 @@ pub fn cyclic_init(config: Value) -> Result<CyclicState, String> {
     if !has_cells {
         seed_cycle(&mut state);
     }
-    state.trigger_types = triggers(&state.cells, &state.cells, &[]);
+    state.trigger_types = triggers(&state.cells, &state.cells);
     Ok(state)
 }
 
@@ -33,7 +39,7 @@ pub fn cyclic_deserialize(data: Value) -> Result<CyclicState, String> {
     if !has_cells {
         seed_cycle(&mut state);
     }
-    state.trigger_types = triggers(&state.cells, &state.cells, &[]);
+    state.trigger_types = triggers(&state.cells, &state.cells);
     Ok(state)
 }
 
@@ -50,33 +56,25 @@ pub fn cyclic_on_input(
 ) -> CyclicState {
     normalize(&mut state);
     let previous = state.cells.clone();
-    let forced = match input {
+    match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
-            let index = grid_index(x, y);
-            advance_cell(&mut state, index);
-            vec![index]
+            advance_cell(&mut state, grid_index(x, y));
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "seedCycle" =>
         {
-            seed_cycle(&mut state)
+            seed_cycle(&mut state);
         }
         _ => return state,
-    };
-    state.trigger_types = triggers(&previous, &state.cells, &forced);
+    }
+    state.trigger_types = triggers(&previous, &state.cells);
     state
 }
 
 pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) -> CyclicState {
     let previous = state.cells.clone();
-    if is_seed_cycle(&state) {
-        rotate_seed_cycle(&mut state);
-        state.trigger_types = triggers(&previous, &state.cells, &[]);
-        return state;
-    }
     let mut next = state.cells.clone();
     let mut ages = state.ages.clone();
-    let mut advanced = Vec::new();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
@@ -84,7 +82,6 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
             if count_neighbors(&previous, x, y, target, state.range) >= state.threshold {
                 next[index] = target;
                 ages[index] = 0;
-                advanced.push(index);
             } else {
                 ages[index] = ages[index].saturating_add(1);
             }
@@ -92,54 +89,19 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
     }
     state.cells = next;
     state.ages = ages;
-    state.trigger_types = triggers(&previous, &state.cells, &advanced);
+    if state.ages.iter().all(|age| *age >= STALL_TICKS) {
+        seed_cycle(&mut state);
+    }
+    state.trigger_types = triggers(&previous, &state.cells);
     state
 }
 
-fn is_seed_cycle(state: &CyclicState) -> bool {
-    if !(3..=8).contains(&state.states) {
-        return false;
-    }
-    let cycle = [
-        grid_index(2, 2),
-        grid_index(3, 2),
-        grid_index(2, 3),
-        grid_index(3, 3),
-    ];
-    if state
-        .cells
-        .iter()
-        .enumerate()
-        .any(|(index, cell)| !cycle.contains(&index) && *cell != 0)
-    {
-        return false;
-    }
-    (0..state.states).any(|rotation| {
-        cycle.iter().enumerate().all(|(position, index)| {
-            let expected = ([0, 1, 3, 2][position] + rotation) % state.states;
-            state.cells[*index] == expected
-        })
-    })
-}
-
-fn rotate_seed_cycle(state: &mut CyclicState) {
-    for index in [
-        grid_index(2, 2),
-        grid_index(3, 2),
-        grid_index(2, 3),
-        grid_index(3, 3),
-    ] {
-        state.cells[index] = (state.cells[index] + 1) % state.states;
-        state.ages[index] = 0;
-    }
-}
-
 pub fn cyclic_render_model(state: &CyclicState) -> BehaviorRenderModel {
-    let active = state.cells.iter().filter(|cell| **cell != 0).count();
+    let active = state.cells.iter().filter(|cell| **cell == FRONT).count();
     BehaviorRenderModel {
         name: "cyclic".into(),
         status_line: format!("S:{} T:{} A:{active}", state.states, state.threshold),
-        tiles: state.cells.iter().map(|cell| *cell != 0).collect(),
+        tiles: state.cells.iter().map(|cell| *cell == FRONT).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 120, 220],
             inactive: crate::palette::BLACK,
@@ -245,20 +207,13 @@ fn advance_cell(state: &mut CyclicState, index: usize) {
     state.ages[index] = 0;
 }
 
-fn seed_cycle(state: &mut CyclicState) -> Vec<usize> {
-    let mut seeded = Vec::new();
-    for (x, y, value) in [(2, 2, 0), (3, 2, 1), (2, 3, 3), (3, 3, 2)] {
-        if x < GRID_WIDTH && y < GRID_HEIGHT {
-            let index = grid_index(x, y);
-            let next = value % state.states;
-            state.cells[index] = next;
-            state.ages[index] = 0;
-            if next != 0 {
-                seeded.push(index);
-            }
-        }
+/// Scatters every state across the grid: a fresh mix the waves can organize into spirals.
+fn seed_cycle(state: &mut CyclicState) {
+    let mut rng = crate::behavior_random::rng();
+    for (cell, age) in state.cells.iter_mut().zip(&mut state.ages) {
+        *cell = rng.gen_range(0..state.states);
+        *age = 0;
     }
-    seeded
 }
 
 fn count_neighbors(cells: &[u8], x: usize, y: usize, target: u8, range: u8) -> u8 {
@@ -279,24 +234,17 @@ fn count_neighbors(cells: &[u8], x: usize, y: usize, target: u8, range: u8) -> u
     count
 }
 
-fn triggers(previous: &[u8], next: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
-    let mut triggers = (0..TILE_COUNT)
-        .map(|index| match (previous[index], next[index]) {
-            (_, 0) if previous[index] != 0 => TileTriggerType::Deactivate,
-            (0, 0) => TileTriggerType::None,
-            (old, new) if old != new => TileTriggerType::Activate,
-            (_, _) if next[index] != 0 => TileTriggerType::Stable,
-            _ => TileTriggerType::None,
-        })
-        .collect::<Vec<_>>();
-    for index in forced {
-        triggers[*index] = if next[*index] == 0 {
-            TileTriggerType::Deactivate
-        } else {
-            TileTriggerType::Activate
-        };
-    }
-    triggers
+fn triggers(previous: &[u8], next: &[u8]) -> Vec<TileTriggerType> {
+    (0..TILE_COUNT)
+        .map(
+            |index| match (previous[index] == FRONT, next[index] == FRONT) {
+                (false, true) => TileTriggerType::Activate,
+                (true, false) => TileTriggerType::Deactivate,
+                (true, true) => TileTriggerType::Stable,
+                (false, false) => TileTriggerType::None,
+            },
+        )
+        .collect()
 }
 
 #[cfg(test)]
