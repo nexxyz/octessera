@@ -404,12 +404,14 @@ fn osc_sample_precomputed(cfg: OscRenderConfig, inc: f32, phase: &mut f32) -> f3
     raw * cfg.level
 }
 
+/// A band-limited pulse with its DC removed: a narrow pulse sits around zero like a square does.
 #[inline(always)]
 fn pulse_sample(phase: f32, duty: f32, inc: f32) -> f32 {
+    let dc = 2.0 * duty - 1.0;
     let (naive, since_fall) = if phase < duty {
-        (1.0, phase - duty + 1.0)
+        (1.0 - dc, phase - duty + 1.0)
     } else {
-        (-1.0, phase - duty)
+        (-1.0 - dc, phase - duty)
     };
     naive + poly_blep(phase, inc) - poly_blep(since_fall, inc)
 }

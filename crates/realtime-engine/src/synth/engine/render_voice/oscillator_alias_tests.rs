@@ -51,3 +51,17 @@ fn edge_waveforms_keep_folded_harmonics_low_on_a_high_note() {
         assert!(alias < -25.0, "{name}: aliasing at {alias:.1} dB");
     }
 }
+
+#[test]
+fn a_pulse_of_any_width_carries_no_dc() {
+    let inc = 7.0 / 4_410.0;
+    for duty in [0.05, 0.12, 0.3, 0.5, 0.66, 0.95] {
+        let cfg = osc(WaveformId::Pulse, duty);
+        let mut phase = 0.0;
+        let mean = (0..4_410)
+            .map(|_| f64::from(osc_sample_precomputed(cfg, inc, &mut phase)))
+            .sum::<f64>()
+            / 4_410.0;
+        assert!(mean.abs() < 1.0e-3, "duty {duty}: mean {mean}");
+    }
+}
