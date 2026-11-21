@@ -12,6 +12,7 @@ mod basics;
 mod coverage_compile;
 mod coverage_process;
 mod dynamics;
+mod fx_option_sweep;
 mod momentary_buffers;
 mod momentary_pitch_filter;
 mod routing;
