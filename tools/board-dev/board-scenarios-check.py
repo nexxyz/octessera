@@ -224,6 +224,119 @@ def keymap(board, out):
     return problems, f"saved tiles {sorted(saved)}"
 
 
+def fields(line):
+    head, _, message = line.partition(" message=")
+    name, *pairs = head.split()
+    return name, dict(pair.split("=", 1) for pair in pairs if "=" in pair) | {"message": message}
+
+
+def presets(board, out):
+    rows = {name: values for name, values in map(fields, (out / "presets.log").read_text().splitlines())}
+    first = rows["initial"]
+    a, ab = first["A"], first["AB"]
+    files = {step: {k: v for k, v in row.items() if k not in ("bpm", "message")} for step, row in rows.items()}
+    saved = files.get("save_as", {}).get("AC")
+    expected = {"save_as": lambda f: set(f) == {"A", "AB", "AC"} and f["A"] == a and f["AB"] == ab,
+                "load": lambda f: rows["load"]["bpm"] == "101" and set(f) == {"A", "AB", "AC"},
+                "rename": lambda f: set(f) == {"A", "AB", "ACD"} and f["ACD"] == saved,
+                "overwrite": lambda f: set(f) == {"AB", "ACD"} and f["AB"] == a,
+                "delete": lambda f: set(f) == {"AB"} and f["AB"] == a}
+    problems = [f"after {step}: {files.get(step)} (bpm {rows.get(step, {}).get('bpm')})"
+                for step, check in expected.items() if step not in files or not check(files[step])]
+    problems += window_errors(out, "presets")
+    return problems, "; ".join(f"{step} {files[step]}" for step in files)
+
+
+def stop_save(board, out):
+    def values(phase):
+        system = json.loads((out / f"stop-{phase}-system.json").read_text())["runtimeConfig"]
+        patch = json.loads((out / f"stop-{phase}-patch.json").read_text())["runtimeConfig"]
+        return system["gridBrightness"], patch["transport"]["bpm"]
+    (grid, bpm), saved = values("before"), values("saved")
+    stops = dict(line.split(" stop_ms=") for line in (out / "stop.log").read_text().splitlines() if " stop_ms=" in line)
+    problems = []
+    if saved != (grid + 10, bpm + 15):
+        problems.append(f"the stop right after the edits saved Grid Bright and BPM {saved}, not {(grid + 10, bpm + 15)}")
+    problems += [f"{name} took {ms} ms to stop" for name, ms in stops.items() if int(ms) >= 12000]
+    media = out / "stop-recording.media"
+    seconds = 0.0
+    if media.exists():
+        probe = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_format", "-of", "json", str(media)],
+                                          capture_output=True, check=True).stdout)
+        seconds = float(probe["format"]["duration"])
+        decoded = subprocess.run(["ffmpeg", "-v", "error", "-i", str(media), "-f", "null", "-"], capture_output=True)
+        if decoded.returncode or decoded.stderr.strip():
+            problems.append(f"the recording does not decode cleanly: {decoded.stderr[:200]!r}")
+    if seconds < 4:
+        problems.append(f"the recording stopped by the service stop lasts {seconds:.2f} s, not at least 4 s")
+    problems += window_errors(out, "stop_save")
+    return problems, f"saved Grid Bright and BPM {saved} (from {(grid, bpm)}), stops {stops}, recording {seconds:.2f} s"
+
+
+def fuzz(board, out):
+    """No crash and no exit but the restart request (75); an exit right after a power request the
+    sandbox refused is the sandbox's doing. RSS is reported: it warms up for the soak's 20 minutes."""
+    start, end = (fields(line)[1] for line in (out / "fuzz.log").read_text().splitlines()[:2])
+    found = marks(out)
+    rows = [r for r in journal(out / "journal.log") if found["fuzz_begin"] <= r[0] <= found["fuzz_end"]]
+    problems, refused = [], []
+    for t, _, text in rows:
+        exited = re.search(r"Main process exited, code=(\w+), status=(\d+)", text)
+        if "power lifecycle failed" in text or "power request" in text:
+            refused.append(t)
+        if "panicked" in text or (exited and exited.groups() != ("exited", "75")
+                                  and not any(t - 10 <= r <= t for r in refused)):
+            problems.append(f"{t:.1f} {text}")
+    if end["active"] != "active":
+        problems.append(f"the service is {end['active']} after the fuzz")
+    restarts = sum("Main process exited" in text for _, _, text in rows)
+    return problems, (f"seed {start['seed']}, {restarts} app exits, {len(errors(rows))} error lines, RSS "
+                      f"{start['rss_kb']} -> {end['rss_kb']} kB (pid {start['pid']} -> {end['pid']})")
+
+
+def show_mode(board, out):
+    rows = dict(fields(line) for line in (out / "show.log").read_text().splitlines())
+    problems = []
+    if rows["started"]["wlan_blocked"] != "yes" or rows["second_started"]["wlan_blocked"] != "yes":
+        problems.append("Start 48h did not block the radio")
+    at45, at100, ended = rows["at45"], rows["at100"], rows["ended"]
+    if at45["elapsed"] != "40" or at45["release_timers"] == "0" or at45["wlan_blocked"] != "yes":
+        problems.append(f"at 45 s: banked {at45['elapsed']} s (not 40), {at45['release_timers']} release timers")
+    if at100["length"] or at100["elapsed"] or at100["wlan_blocked"] != "no":
+        problems.append(f"the 70 s show did not end by itself: {at100}")
+    if board == "rpi" and at100["health_timer"] != "active":
+        problems.append("the network-health timer did not come back after the show")
+    failed = [line for line in (out / "show-journal.log").read_text().splitlines()
+              if "octessera-show-hold" in line and re.search(r"(?i)\bfail", line)]
+    problems += [f"journal: {line}" for line in failed]
+    if ended["wlan_blocked"] != "no" or int(ended["after"].rstrip("s")) > 5:
+        problems.append(f"End left the radio blocked for {ended['after']}")
+    problems += window_errors(out, "show_mode")
+    return problems, (f"at 45 s banked {at45['elapsed']} s with {at45['release_timers']} release timer(s); at 100 s "
+                      f"length '{at100['length']}', radio blocked {at100['wlan_blocked']}, health timer "
+                      f"{at100['health_timer']}; End unblocked the radio after {ended['after']}")
+
+
+UPDATE_STEPS = {"good": ("0", "0.9.91", "Now running v0.9.91"), "back": ("0", "0.9.90", "Now running v0.9.90"),
+                "dies": ("1", "0.9.90", "v0.9.92 did not start; went back to v0.9.90"),
+                "hangs": ("1", "0.9.90", "v0.9.93 did not start; went back to v0.9.90")}
+
+
+def update_fail(board, out):
+    rows = dict(fields(line) for line in (out / "update.log").read_text().splitlines() if line.split()[0] in UPDATE_STEPS)
+    problems, evidence = [], []
+    for name, (rc, current, message) in UPDATE_STEPS.items():
+        row = rows[name]
+        if row["rc"] != rc or row["current"] != current or message not in row["message"]:
+            problems.append(f"{name}: exit {row['rc']}, current v{row['current']}, said '{row['message']}'")
+        if row["active"] != "active" or int(row["ready_after"].rstrip("s")) >= 120:
+            problems.append(f"{name}: service {row['active']}, ready {row['ready_after']} after the switch")
+        if row["store_unchanged"] != "yes":
+            problems.append(f"{name}: the store changed")
+        evidence.append(f"{name} took {row['took']}, ready {row['ready_after']} later on v{row['current']}")
+    return problems, "; ".join(evidence)
+
+
 def usb_midi(board, out):
     problems, evidence = [], []
     for phase, gate in (("straight", "usb_midi"), ("swing", "usb_midi_swing")):
@@ -237,14 +350,42 @@ def usb_midi(board, out):
     return problems, "; ".join(evidence)
 
 
-def usb_midi_cc(board, out):
-    result = json.loads((out / "usb-midi-cc.json").read_text())
-    underruns, late, worst, journal_errors = window_counts(out, "usb_midi_cc_ready", "usb_midi_cc_go")
+def host_midi(out, scenario):
+    result = json.loads((out / f"usb-midi-{scenario.removeprefix('usb_').removeprefix('midi_')}.json").read_text())
+    underruns, late, worst, journal_errors = window_counts(out, f"{scenario}_ready", f"{scenario}_go")
     problems = result["problems"] + journal_errors
     if underruns or late:
         problems.append(f"{underruns} underruns and {late} late timed events (timing smoke: 0 and 0)")
     return problems, (f"{json.dumps(result['metrics'])}, {underruns} underruns, {late} late timed events, "
                       f"worst runtime_late {worst}us")
+
+
+def usb_midi_cc(board, out):
+    return host_midi(out, "usb_midi_cc")
+
+
+def usb_notes_in(board, out):
+    return host_midi(out, "usb_notes_in")
+
+
+def usb_looper(board, out):
+    """The host's timing checks, plus the autosaved steps: one press and one release per tapped tile
+    (note 60 + tile), each press on the step it must land on."""
+    problems, evidence = host_midi(out, "usb_looper")
+    layer = json.loads((out / "looper-patch.json").read_text())["runtimeConfig"]["layers"][0]
+    steps = layer["build"]["savedState"]["steps"]
+    found = {}
+    for index, events in enumerate(steps):
+        for event in events:
+            found.setdefault(event["tile"], []).append((event["kind"], index))
+    expected = {0: 0, 1: 2, 2: 5, 3: 0}
+    for tile, step in expected.items():
+        kinds = sorted(kind for kind, _ in found.get(tile, []))
+        if kinds != ["press", "release"] or (("press", step) not in found[tile]):
+            problems.append(f"tile {tile}: saved {found.get(tile)}, not one press on step {step} and one release")
+    if set(found) - set(expected):
+        problems.append(f"unexpected tiles saved: {sorted(set(found) - set(expected))}")
+    return problems, f"{evidence}; saved {found}"
 
 
 def usb_audio_fx(board, out):

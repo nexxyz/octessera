@@ -3,12 +3,14 @@
 usage: board-keys.py <usb|bt> <mark-log> <label> "<steps>" [seconds]
 steps: space-separated tokens: a key name with an optional *N repeat, wait:<s>, gap:<s> (pause after
 each tap, default 0.12), hold:<key>:<s> (holds one key down that long), or mark:<name> (writes
-"<uptime> <label>_<name>" to the mark log). A key may be a chord like alt+r: the modifiers are held
-around each tap. Grid keys use their US keycaps (4..0 -,
+"<uptime> <label>_<name>" to the mark log), or random:<seed> (600 seeded random taps: grid keys with
+and without Alt, the dials, Back, Play, Shift and Fn chords and short holds). A key may be a chord like
+alt+r: the modifiers are held around each tap. Grid keys use their US keycaps (4..0 -,
 r..p [, f..l ; ', c..m , . /). With seconds, the steps repeat until that much time has passed.
 """
 import fcntl
 import os
+import random
 import struct
 import sys
 import time
@@ -21,6 +23,27 @@ KEYS.update({key: first + column for first, row in GRID_ROWS.items() for column,
 EV_SYN, EV_KEY = 0, 1
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_DEV_CREATE, UI_DEV_DESTROY = 0x40045564, 0x40045565, 0x5501, 0x5502
 BUS = {"usb": 0x03, "bt": 0x05}
+
+
+def random_taps(seed):
+    rng = random.Random(seed)
+    grid = [key for row in GRID_ROWS.values() for key in row]
+    nav = ["up", "down", "left", "right", "enter", "esc"]
+
+    def tap():
+        roll = rng.random()
+        if roll < 0.35:
+            return rng.choice(grid) if rng.random() < 0.7 else f"alt+{rng.choice(grid)}"
+        if roll < 0.7:
+            return rng.choice(nav)
+        if roll < 0.82:
+            return rng.choice("123qweasd")
+        if roll < 0.85:
+            return "space"
+        if roll < 0.95:
+            return f"{rng.choice(['shift', 'ctrl', 'shift+ctrl'])}+{rng.choice(grid + nav)}"
+        return f"hold:{rng.choice(grid)}:{rng.choice([0.2, 0.4, 0.8])}"
+    return [tap() for _ in range(600)]
 
 
 def emit(fd, kind, code, value):
@@ -40,8 +63,10 @@ def main():
     time.sleep(3.0)
     gap = 0.12
     end = time.monotonic() + seconds
+    tokens = [tap for token in steps.split()
+              for tap in (random_taps(int(token[7:])) if token.startswith("random:") else [token])]
     while True:
-        for token in steps.split():
+        for token in tokens:
             kind, _, value = token.partition(":")
             if kind == "wait":
                 time.sleep(float(value))

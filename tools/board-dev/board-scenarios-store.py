@@ -10,8 +10,15 @@ setups:
   usb_audio_fx    usb_audio with a tape stop on master mapped to Play FX tile (3, 3)
   usb_audio_clip  USB Audio on, Master Vol 100, eight synth notes per step pushed past full scale
   keymap          Auto Save on, L1 a sequencer with an empty grid, keyboard capture allowed
+  usb_looper      the usb_midi rig with Auto Save on; L1 an empty 8-step 1/8 Looper on a Synth
+                  with Hold, tile (x, y) playing note 60 + x + 8y
+  usb_notes_in    the usb_midi rig; slot 1 a Synth with Hold, L1 steps slot 5, a MIDI Inst. on
+                  channel 1, on tile (0, 0), which plays note 60
+  presets         Auto Save on, keyboard capture allowed; presets A and AB, the store's patch at
+                  101 and 102 BPM
 """
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -41,6 +48,29 @@ def sequencer(layer, slot, tiles):
                        for event, action in actions.items()}
 
 
+def chromatic(layer):
+    """Tile (x, y) plays note 60 + x + 8y."""
+    link = layer["link"]
+    link["pitch"].update(root="C", scale="chromatic", startingNote=60, lowestNote=0, highestNote=127)
+    link["x"]["pitch"]["steps"] = 1
+    link["y"]["pitch"]["steps"] = 8
+
+
+def looper(layer, slot, length):
+    sequencer(layer, slot, set())
+    config = {"lengthSteps": length, "mode": "overdub"}
+    layer["build"].update(behaviorId="looper", behaviorConfig=config, behaviorConfigHistory={"looper": config},
+                          savedState=dict(config, steps=[[] for _ in range(length)]))
+    layer["link"].update(eventEnabled=True, scanMode="none")
+    layer["name"] = "looper"
+
+
+def midi_rig(config):
+    config["midi"].update(enabled=True, syncMode="external", clockInEnabled=True, clockOutEnabled=False,
+                          respondToStartStop=True, sendInstruments="all")
+    config["usb"]["midiOutEnabled"] = True
+
+
 def allow_keyboard(config):
     """board-keys.py types on a uinput keyboard: off the terminal HDMI mode, and on the Raspberry over Bluetooth."""
     if config["hdmi"]["mode"] == "terminal":
@@ -65,9 +95,7 @@ def main():
     config.update(autoSaveDefault=False, dimTimerSeconds=0, screenSleepSeconds=0)
     instruments = music["instruments"]
     if setup.startswith("usb_midi"):
-        config["midi"].update(enabled=True, syncMode="external", clockInEnabled=True, clockOutEnabled=False,
-                              respondToStartStop=True, sendInstruments="all")
-        config["usb"]["midiOutEnabled"] = True
+        midi_rig(config)
         patch_layers(music, {0: (0, {(x, 0) for x in range(8)}), 1: (7, {(x, y) for x, y, _ in MIDI_DRUM_TILES})})
         instruments[0].update(type="drum", name="Drum", autoName=True)
         instruments[0]["drum"]["assignments"] = [
@@ -104,6 +132,31 @@ def main():
             slots[:] = [{"params": {"attackMs": 36, "makeupDb": 12, "mixPct": 100, "ratio": 1, "releaseMs": 100,
                                     "thresholdDb": 0}, "type": "compressor"}] + [{"params": {}, "type": "none"}] * (len(slots) - 1)
             music["sound"].update(noteLengthMs=240, velocityScalePct=200)
+    elif setup in ("usb_looper", "usb_notes_in"):
+        midi_rig(config)
+        instruments[0].update(type="synth", name="Synth", autoName=True, noteBehavior="hold")
+        if setup == "usb_looper":
+            config["autoSaveDefault"] = True
+            patch_layers(music, {})
+            looper(music["layers"][0], 0, 8)
+            music["activeBehavior"] = "looper"
+        else:
+            patch_layers(music, {0: (4, {(0, 0)})})
+            instruments[4].update(type="midi", name="MIDI", autoName=True)
+            instruments[4]["midi"].update(enabled=True, channel=1, durationMs=150)
+        chromatic(music["layers"][0])
+    elif setup == "presets":
+        config["autoSaveDefault"] = True
+        allow_keyboard(config)
+        owner = os.stat(store)
+        (store / "patches").mkdir(exist_ok=True)
+        os.chown(store / "patches", owner.st_uid, owner.st_gid)
+        for name, bpm in (("A", 101), ("AB", 102)):
+            preset = json.loads(json.dumps(patch))
+            preset["runtimeConfig"]["transport"]["bpm"] = bpm
+            path = store / "patches" / f"{name}.json"
+            path.write_text(json.dumps(preset, separators=(",", ":")))
+            os.chown(path, owner.st_uid, owner.st_gid)
     elif setup == "keymap":
         config["autoSaveDefault"] = True
         allow_keyboard(config)

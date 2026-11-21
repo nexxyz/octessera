@@ -6,8 +6,9 @@
 # the payload touches <gate>.ready and goes on once the host touches <gate>.go.
 #
 #   board-scenarios-payload.sh <rpi|opi> <root> boot
-#   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap
-#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_audio|usb_audio_fx
+#   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap presets
+#     stop_save show_mode update_fail fuzz
+#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_audio|usb_audio_fx
 # Root reads privileged files; the redirects deliberately write as the unprivileged payload user.
 # shellcheck disable=SC2024
 set -u
@@ -72,9 +73,13 @@ config["bluetooth"]["enabled"] = True
 json.dump(system, open(path, "w"), separators=(",", ":"))
 PY
 }
+# With start_exec set, the service runs that binary instead of the installed one; start_sandbox
+# adds these [Service] lines.
 start() {
   sudo -n mkdir -p "${dropin%/*}"
-  printf '[Service]\nEnvironment=OCTESSERA_PI_STORE_DIR=%s %s\n' "$store" "$*" | sudo -n tee "$dropin" >/dev/null || return 1
+  { printf '[Service]\nEnvironment=OCTESSERA_PI_STORE_DIR=%s %s\n' "$store" "$*"
+    [ -z "$start_exec" ] || printf 'ExecStart=\nExecStart=%s\n' "$start_exec"
+    [ -z "$start_sandbox" ] || printf '%s\n' "$start_sandbox"; } | sudo -n tee "$dropin" >/dev/null || return 1
   sudo -n systemctl daemon-reload
   # Never run a scenario against the live store.
   systemctl show -p Environment --value "$service" | grep -q "OCTESSERA_PI_STORE_DIR=$store" || { mark live_store_refused; return 1; }
@@ -127,11 +132,12 @@ cleanup() {
     sudo -n rmdir "$trace"
   fi
   sudo -n journalctl -u "$service" --since "@$started" --no-pager -o short-monotonic > journal.log
+  [ "$show_ran" = 1 ] && show_cleanup
   sudo -n rm -f "$dropin"
   sudo -n systemctl daemon-reload
   [ "$gadget_changed" = 1 ] && sudo -n systemctl restart "$gadget_unit"
   sudo -n systemctl restart "$service"
-  sudo -n rm -rf -- "$store"
+  sudo -n rm -rf -- "$store" "$store"-*
   # shellcheck disable=SC2086
   sudo -n find $media -type f -newer "$root/started" -print -delete >> host.log 2>&1
   for _ in $(seq 1 30); do [ "$(systemctl is-active "$service")" = active ] && break; sleep 1; done
@@ -197,6 +203,88 @@ keymap() {
   keys keymap "c v b n m , . / alt+c alt+f alt+r alt+4 alt+; wait:12"
   snapshot keymap
 }
+# One line per state: the saved patch's BPM and a hash per preset file.
+preset_state() {
+  sudo -n python3 - "$store" "$1" >> presets.log <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+store = Path(sys.argv[1])
+files = " ".join(f"{p.stem}={hashlib.sha256(p.read_bytes()).hexdigest()[:16]}" for p in sorted((store / "patches").glob("*.json")))
+print(f"{sys.argv[2]} bpm={json.loads((store / 'default.patch.json').read_text())['runtimeConfig']['transport']['bpm']} {files}")
+PY
+}
+# Types one preset step and waits until the store changed and then held still for 0.5 s.
+preset_step() {
+  local before now settled
+  before=$(sudo -n sh -c "sha256sum $store/patches/*.json $store/default.patch.json")
+  keys "preset_$1" "$2"
+  for _ in $(seq 1 30); do
+    now=$(sudo -n sh -c "sha256sum $store/patches/*.json $store/default.patch.json")
+    [ "$now" != "$before" ] && [ "$now" = "${settled:-}" ] && break
+    settled=$now
+    sleep 0.5
+  done
+  preset_state "$1"
+}
+# Text edits only append at the end of a name, so: Save As AC (the draft A comes from picking A in
+# Rename), Load A, Rename AC to ACD, Rename A onto AB with the overwrite confirmed, Delete ACD.
+# Every confirm takes its last option.
+presets() {
+  prepare presets
+  start || return
+  local lib="$system down enter up*5 enter up*10" confirm="down*3 enter"
+  preset_state initial
+  preset_step save_as "$lib down*2 enter up*10 enter esc up*10 enter up*5 enter right*3 enter enter down enter $confirm"
+  preset_step load "$lib down enter up*10 enter $confirm"
+  preset_step rename "$lib down*2 enter up*10 down*2 enter down*20 up enter right*4 enter enter down enter $confirm"
+  preset_step overwrite "$lib down*2 enter up*10 enter down*20 up enter right*2 enter enter down enter $confirm"
+  preset_step delete "$lib down*3 enter up*10 down enter $confirm"
+}
+# Stops the service once the given keys' last mark is in the log, and logs how long the stop took.
+stop_after() {
+  local since
+  until grep -q " $1\$" marks.log 2>/dev/null; do sleep 0.02; done
+  since=$(date +%s%N)
+  sudo -n systemctl stop "$service"
+  echo "$1 stop_ms=$((($(date +%s%N) - since) / 1000000))" >> stop.log
+}
+# Grid Bright +10 and BPM +15, then a stop within 200 ms; then 5 s of Audio recording and a stop.
+stop_save() {
+  configure autoSaveDefault=true dimTimerSeconds=0 screenSleepSeconds=0
+  snapshot stop-before
+  start || return
+  keys stop_edit "$display up*2 enter right*2 enter $link enter right*3 gap:0.05 enter mark:edited" &
+  stop_after stop_edit_edited
+  wait
+  snapshot stop-saved
+  start || return
+  keys stop_rec "$system down*2 enter down enter mark:recording" &
+  until grep -q " stop_rec_recording\$" marks.log; do sleep 0.1; done
+  sleep 5
+  mark stop_rec_stopping
+  stop_after stop_rec_stopping
+  wait
+  # shellcheck disable=SC2086
+  sudo -n find $media -type f -newer "$root/started" -printf '%p %s\n' >> stop.log
+  # shellcheck disable=SC2086
+  rec=$(sudo -n find $media -type f -newer "$root/started" | tail -n 1)
+  [ -n "$rec" ] && sudo -n cat "$rec" > stop-recording.media
+}
+rss() { sudo -n awk '/VmRSS/{print $2}' "/proc/$(systemctl show -p MainPID --value "$service")/status"; }
+# Five minutes of seeded random input on the store's own patch. The service cannot reach root's
+# power, device-apply, update, setup-portal or Live Show Mode paths while it runs.
+fuzz() {
+  configure autoSaveDefault=false dimTimerSeconds=0 screenSleepSeconds=0
+  local seed=${OCTESSERA_SCENARIO_FUZZ_SEED:-$(date +%s)}
+  start_sandbox="NoNewPrivileges=yes
+InaccessiblePaths=-/run/octessera-device-apply -/run/octessera-update -/run/octessera-setup-request/inbox
+InaccessiblePaths=-/var/lib/octessera/show-hold -/usr/bin/systemctl -/usr/sbin/reboot -/usr/sbin/poweroff"
+  start OCTESSERA_TIMING_AUTOPLAY=1 || return
+  echo "start seed=$seed pid=$(systemctl show -p MainPID --value "$service") rss_kb=$(rss)" >> fuzz.log
+  keys fuzz "random:$seed" 300
+  echo "end pid=$(systemctl show -p MainPID --value "$service") rss_kb=$(rss) active=$(systemctl is-active "$service")" >> fuzz.log
+  start_sandbox=""
+}
 usb_midi() {
   local setup
   for setup in usb_midi usb_midi_swing; do
@@ -207,12 +295,24 @@ usb_midi() {
     gate "$setup" || return
   done
 }
-usb_midi_cc() {
-  prepare usb_midi_cc
+# One host_usb_midi.py phase on a clone set up for it.
+usb_midi_phase() {
+  prepare "$1"
   gadget_from_clone
   start OCTESSERA_RUNTIME_TIMING_TRACE=1 || return
   sleep 5
-  gate usb_midi_cc || return
+  gate "$1"
+}
+usb_midi_cc() { usb_midi_phase usb_midi_cc; }
+usb_notes_in() { usb_midi_phase usb_notes_in; }
+usb_looper() {
+  usb_midi_phase usb_looper || return
+  # Auto Save writes the recorded steps: wait for the four presses and releases.
+  for _ in $(seq 1 30); do
+    [ "$(sudo -n grep -Eo '"kind": ?"(press|release)"' "$store/default.patch.json" | wc -l)" -ge 8 ] && break
+    sleep 1
+  done
+  snapshot looper
 }
 # Holds the tape stop on Play FX tile (3, 3), key 7, while the host captures USB Audio.
 usb_audio_fx() {
@@ -238,8 +338,13 @@ usb_audio() {
   echo "recording $avi" >> host.log
 }
 
+# shellcheck disable=SC1091
+. "$root/board-scenarios-system.sh"
 started=$(date +%s)
 gadget_changed=0
+show_ran=0
+start_exec=""
+start_sandbox=""
 gadget_original=$(gadget_functions)
 touch started
 original=$(hashes)

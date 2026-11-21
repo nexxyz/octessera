@@ -6,9 +6,9 @@
 #
 #   tools/board-dev/board-scenarios.sh rpi pi@<PI_HOST> [scenario ...]
 #   tools/board-dev/board-scenarios.sh opi octessera@<ORANGE_HOST> [scenario ...]
-# Scenarios: boot save_restore recording oled soak keymap usb_midi usb_midi_cc usb_audio usb_audio_fx
-# (default: all). boot really reboots the board and only reads the live service; the others run
-# detached on a cloned store. The usb_ ones are driven from this host over the board's USB connection
+# Scenarios: boot save_restore recording oled soak keymap presets stop_save show_mode update_fail fuzz
+# usb_midi usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx (default: all). boot really reboots the board and only reads the live
+# service; the others run detached on a cloned store. The usb_ ones are driven from this host over the board's USB connection
 # (host_usb_midi.py, host_usb_audio.py) and use SSH only between their measurements; the rest use none
 # until they end.
 # Results and evidence land in target/board-scenarios/<board>-<stamp>/, PASS/FAIL lines in summary.txt.
@@ -17,7 +17,8 @@ board=${1:?board: rpi or opi} target=${2:?target: user@host}
 shift 2
 [[ "$board" == rpi || "$board" == opi ]] || { echo "board must be rpi or opi" >&2; exit 2; }
 scenarios=("$@")
-[ ${#scenarios[@]} -gt 0 ] || scenarios=(boot save_restore recording oled soak keymap usb_midi usb_midi_cc usb_audio usb_audio_fx)
+[ ${#scenarios[@]} -gt 0 ] || scenarios=(boot save_restore recording oled soak keymap presets stop_save show_mode update_fail fuzz usb_midi
+  usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx)
 soak_seconds=${OCTESSERA_SCENARIO_SOAK_SECONDS:-1500}
 cd "$(git rev-parse --show-toplevel)"
 port=Raspberry
@@ -29,9 +30,10 @@ root="/tmp/octessera-scenarios-$(date +%s)"
 mkdir -p "$out"
 upload() {
   remote ssh "mkdir -m 755 $root"
-  for file in board-scenarios-payload.sh board-keys.py board-scenarios-store.py; do
+  for file in board-scenarios-payload.sh board-scenarios-system.sh board-keys.py board-scenarios-store.py; do
     remote scp "$(local_path "tools/board-dev/$file")" "$target:$root/$file" >/dev/null
   done
+  remote scp "$(local_path tools/device-update/octessera-update)" "$target:$root/octessera-update" >/dev/null
 }
 fetch() {
   for file in "$@"; do
@@ -66,7 +68,12 @@ for scenario in "${scenarios[@]}"; do
     oled) run+=("$scenario"); wait=$((wait + 120)) ;;
     soak) run+=("$scenario"); wait=$((wait + soak_seconds + 60)) ;;
     keymap) run+=("$scenario"); wait=$((wait + 45)) ;;
-    usb_midi | usb_midi_cc | usb_audio | usb_audio_fx) ;;
+    presets) run+=("$scenario"); wait=$((wait + 90)) ;;
+    stop_save) run+=("$scenario"); wait=$((wait + 75)) ;;
+    show_mode) run+=("$scenario"); wait=$((wait + 180)) ;;
+    update_fail) run+=("$scenario"); wait=$((wait + 330)) ;;
+    fuzz) run+=("$scenario"); wait=$((wait + 340)) ;;
+    usb_midi | usb_midi_cc | usb_looper | usb_notes_in | usb_audio | usb_audio_fx) ;;
     *) echo "unknown scenario: $scenario" >&2; exit 2 ;;
   esac
 done
@@ -92,10 +99,12 @@ if [ ${#run[@]} -gt 0 ]; then
   sleep "$wait"
   collect save-before-system.json save-before-patch.json save-edited-system.json save-edited-patch.json \
     save-restarted-system.json save-restarted-patch.json save-runtime-system.json save-runtime-patch.json \
-    oled-before-system.json oled-trace.txt soak-proc.log recording.avi keymap-patch.json
+    oled-before-system.json oled-trace.txt soak-proc.log recording.avi keymap-patch.json presets.log \
+    stop-before-system.json stop-before-patch.json stop-saved-system.json stop-saved-patch.json stop.log \
+    stop-recording.media show.log show-journal.log update.log fuzz.log
 fi
 
-for scenario in usb_midi usb_midi_cc usb_audio usb_audio_fx; do
+for scenario in usb_midi usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx; do
   [[ " ${scenarios[*]} " == *" $scenario "* ]] || continue
   upload
   remote ssh "setsid nohup taskset -c 0 bash $root/board-scenarios-payload.sh $board $root run 0 $scenario > $root/host.log 2>&1 < /dev/null &"
@@ -107,10 +116,12 @@ for scenario in usb_midi usb_midi_cc usb_audio usb_audio_fx; do
       open_gate "$gate"
     done
     collect
-  elif [ "$scenario" = usb_midi_cc ]; then
-    await_gate usb_midi_cc && { python tools/board-dev/host_usb_midi.py "$port" cc "$out/usb-midi-cc.json" || true; }
-    open_gate usb_midi_cc
-    collect
+  elif [[ "$scenario" == usb_midi_cc || "$scenario" == usb_looper || "$scenario" == usb_notes_in ]]; then
+    phase=${scenario#usb_}
+    phase=${phase#midi_}
+    await_gate "$scenario" && { python tools/board-dev/host_usb_midi.py "$port" "$phase" "$out/usb-midi-$phase.json" || true; }
+    open_gate "$scenario"
+    collect looper-patch.json
   elif [ "$scenario" = usb_audio_fx ]; then
     await_gate usb_audio_fx && open_gate usb_audio_fx && { python tools/board-dev/host_usb_audio.py 32 "$out/usb-audio-fx" fx || true; }
     collect

@@ -313,13 +313,14 @@ tools/board-dev/board-scenarios.sh opi "$OrangeTarget"
 ```
 
 Name scenarios to run a subset: `boot save_restore recording oled soak keymap
-usb_midi usb_midi_cc usb_audio usb_audio_fx`.
+presets stop_save show_mode update_fail fuzz usb_midi usb_midi_cc usb_looper
+usb_notes_in usb_audio usb_audio_fx`.
 
 - `boot` reboots the board and only reads the live service: kernel, splash,
   service, audio and menu-ready times from the journal and readiness marker, an
   advancing playback stream, no Octessera errors or failed units, and unchanged
   live store hashes.
-- The rest run detached (about 17 minutes, no SSH until they end) on the real
+- The rest run detached (about 35 minutes, no SSH until they end) on the real
   service through a temporary `95-octessera-scenarios.conf` drop-in and a cloned
   store. `board-keys.py` types on a uinput keyboard; the Raspberry uses the
   Bluetooth bus, so Bluetooth must be on there.
@@ -348,8 +349,46 @@ usb_midi usb_midi_cc usb_audio usb_audio_fx`.
   keys: the bottom row, Left Alt + the leftmost key of each row, and
   Left Alt + `;`. The autosaved tiles must be exactly the world-space set
   (x 0..7, y 0), (0, 4..7) and (6, 5).
+- `presets` starts on a clone with presets `A` and `B` (101 and 102 BPM) and
+  Auto Save on, then, without Refresh List: Save As `C` (the name drafted by
+  picking `A` in Rename), Load `A`, Rename `A` to `D`, Rename `D` onto `B` with
+  the overwrite confirmed, Delete `C`. After each step it waits for the store
+  to change and settle. `D` and then `B` must be byte-identical to the
+  original `A`, the saved patch must play 101 BPM after the load, and only `B`
+  may be left.
+- `stop_save` turns Grid Bright up two detents and BPM up three with Auto Save
+  on and stops the service within about 100 ms of the last key: both values
+  must be in the saved files after the restart. Then it records 5 s of Audio
+  and stops the service: the file must last at least 4 s and decode cleanly,
+  and each stop must return in under 12 s.
+- `show_mode` starts a show from the menu, rewrites its length to 70 s as the
+  runtime would, and bind-mounts the installed `octessera-show-hold-apply`
+  with only its step changed to 20 s, so the re-arm runs four times. At 45 s
+  (after which it restarts the service) the show must have banked 40 s with a
+  release timer armed; at 100 s `length` and `elapsed` must be gone, the radio
+  unblocked, the Raspberry's network-health timer active again and no release
+  run failed in the journal. A second show ended from the menu must unblock
+  the radio within 5 s. The board is off Wi-Fi for about two minutes; the
+  cleanup ends any show it left.
+- `update_fail` runs this tree's `octessera-update switch` against scratch
+  releases beside the clone, with the service's binary pointed at their
+  `current` link: `0.9.91` is the binary under test, `0.9.92` a script that
+  exits 1, and `0.9.93` a script that ignores SIGTERM and never reports ready.
+  It switches to `0.9.91`, back to `0.9.90`, then to each failing one. After
+  each switch the links must point at a release that runs, the service must be
+  ready within 120 s, the clone's `system.json` and `default.patch.json` must
+  be byte-identical, and the message must name the version it ended on. The
+  real `/opt/octessera` links are never touched.
+- `fuzz` types 600 seeded random taps on repeat for 5 minutes on the store's
+  own patch: grid keys with and without Alt, the dials, Back, Play, Shift and
+  Fn chords and short holds. Set `OCTESSERA_SCENARIO_FUZZ_SEED` to replay a
+  seed from the summary. The drop-in keeps the service away from root's power,
+  device-apply, update, setup-portal and Live Show Mode paths. It needs no
+  panic, no exit other than the restart request (75) except right after such
+  a refused power request, and the service active at the end; RSS is only
+  reported, because it warms up for 20 minutes (see `soak`).
 
-`usb_midi`, `usb_midi_cc`, `usb_audio` and `usb_audio_fx` are driven from this
+`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_audio` and `usb_audio_fx` are driven from this
 host over the board's USB connection, so plug both boards in and install `python-rtmidi`,
 `sounddevice` and `numpy` (`pip install python-rtmidi sounddevice numpy`);
 `ffmpeg` decodes the recording. The payload waits at a gate for each host
@@ -376,6 +415,22 @@ on the Orange, `Octessera Line In` on the Raspberry).
   and 96 for 12 s each. From one step after each CC, the mirrored Drum must
   play a single velocity, and the three velocities must rise with the CC
   values. The journal must show no underruns and no late timed events.
+- `usb_looper` is the `usb_midi` rig with Auto Save on and L1 an empty 8-step
+  1/8 Looper on a Synth with Hold, tile (x, y) playing note 60 + x + 8y.
+  `host_usb_midi.py ... looper` sends Start and 100 BPM clock for four passes
+  and keyboard notes on channel 1 at 10 ms, early in step 3 and late in step 5,
+  and one more 1 s after Stop. Each must sound once live and replay once a
+  pass within half a step of its press time plus whole loops; the autosaved
+  steps must hold one press and one release per tile, on steps 1, 3, 6 and,
+  for the stopped tap, the step the playhead waits on (1).
+- `usb_notes_in` is the `usb_midi` rig with slot 1 a Synth with Hold and L1
+  stepping slot 5, a MIDI Inst. on channel 1, on a tile that plays note 60.
+  The host plays 20 keys, then 10 with every note echoed back after 5 ms,
+  holds key 60 and releases it 2 ms after the sequenced note-off of note 60,
+  then plays 10 with an 80 ms echo and sends Stop. Every key needs its mirrored
+  note-on and a note-off within 1 s of the release, the echoed keys at most 2
+  mirrored note-ons each, the held key its mirrored note-off within 1 s, and
+  no note may arrive from 1 s after Stop on.
 - `usb_audio` turns USB Audio on in the clone and rebuilds the USB gadget from
   it (the cleanup rebuilds it from the live store). `host_usb_audio.py` waits
   for the capture device and records 90 s of the store's own patch through

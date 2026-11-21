@@ -1,9 +1,13 @@
 """Closed-loop USB MIDI timing test against a board running the usb_midi scenario (run on the host).
 
-usage: host_usb_midi.py <Raspberry|Orange> <straight|swing|cc> <result.json>
+usage: host_usb_midi.py <Raspberry|Orange> <straight|swing|cc|looper|notes_in> <result.json>
 straight: Start, 24 PPQN clock at 100 BPM for 120 s, 140 BPM for 60 s, Stop. swing: 100 BPM for 30 s
 with the board on Swing 4:5. cc: 100 BPM for 36 s with CC1 at 16, 48 and 96 for 12 s each; the board
-maps CC1 to Vel Scale, so the mirrored Drum's velocity must follow each value from the next step on. Every incoming message is stamped with perf_counter while the same loop
+maps CC1 to Vel Scale, so the mirrored Drum's velocity must follow each value from the next step on.
+looper: 100 BPM for four passes of an 8-step 1/8 Looper, keyboard notes on channel 1 at Start, early
+in step 3 and late in step 5, and one more after Stop. notes_in: 20 keyboard notes, 10 with every
+note echoed back after 5 ms, a key released just after the sequenced note-off of the same note, then
+10 echoed after 80 ms and Stop. Every incoming message is stamped with perf_counter while the same loop
 sends the clock, so the stamps share the clock's time base. Intervals near a clock pulse the host
 itself sent more than 1 ms late are left out of the interval checks and counted. Needs python-rtmidi.
 """
@@ -22,13 +26,27 @@ DURATION_TOLERANCE_MS = 3.0
 CC_STEPS = [(0.0, 16), (12.0, 48), (24.0, 96)]
 # One 1/8 step at 100 BPM plus a margin: a CC applies from the next step on.
 CC_SETTLE_S = 0.35
+STEP_S, LOOP_S = 0.3, 2.4
+# (seconds after Start, note, the Looper step it must land on); the last is played 1 s after Stop.
+LOOPER_TAPS = [(0.010, 60, 0), (0.650, 61, 2), (1.450, 62, 5), (10.6, 63, 0)]
+LOOPER_PLAYED_S = 4 * LOOP_S
+HOLD_S = 0.06
+NOTES_PLAIN = [(0.5 + 0.3 * i, 62 + i) for i in range(20)]
+NOTES_ECHO_5 = [(7.0 + 0.3 * i, 62 + i) for i in range(10)]
+NOTES_ECHO_80 = [(15.5 + 0.3 * i, 62 + i) for i in range(10)]
+NOTES_PLAYED_S = 19.2
+# Key 60 is held from 10.5 s; the sequenced note 60 sounds at 12.0 s for 150 ms.
+HELD_KEY_S, SEQUENCED_OFF_S = 10.5, (12.08, 12.5)
+HELD_KEY_RELEASED = []
 
 
 def port(ports, name):
     return next(i for i, label in enumerate(ports) if name in label and "Octessera" in label)
 
 
-def drive(name, segments, ccs=()):
+def drive(name, segments, sends=(), react=None):
+    """Plays Start, the clock segments and Stop, then listens for 3 s. sends holds (seconds after Start,
+    message) pairs; react(seconds after Start, message) returns (delay, message) pairs to send back."""
     ctypes.windll.winmm.timeBeginPeriod(1)
     ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), 0x80)
     ctypes.windll.kernel32.SetThreadPriority(ctypes.windll.kernel32.GetCurrentThread(), 15)
@@ -36,17 +54,24 @@ def drive(name, segments, ccs=()):
     midi_in.ignore_types(sysex=True, timing=False, active_sense=True)
     midi_in.open_port(port(midi_in.get_ports(), name))
     midi_out.open_port(port(midi_out.get_ports(), name))
-    received, ticks, changes, late, sent_ccs = [], [], [], [], []
-    pending_ccs = list(ccs)
+    received, ticks, changes, late, sent_log = [], [], [], [], []
+    origin = time.perf_counter() + 0.5
+    pending = sorted((origin + offset, message) for offset, message in sends)
 
     def until(deadline):
         while (now := time.perf_counter()) < deadline:
             message = midi_in.get_message()
             if message:
                 received.append((now, message[0]))
+                if react:
+                    pending.extend((now + delay, reply) for delay, reply in react(now - origin, message[0]))
+                    pending.sort()
+            while pending and pending[0][0] <= now:
+                reply = pending.pop(0)[1]
+                midi_out.send_message(reply)
+                sent_log.append((time.perf_counter(), reply))
 
-    start = time.perf_counter() + 0.5
-    until(start)
+    until(origin)
     midi_out.send_message([0xFA])
     sent = time.perf_counter()
     due = sent
@@ -54,10 +79,6 @@ def drive(name, segments, ccs=()):
         changes.append((due, bpm))
         for _ in range(round(seconds * bpm * 24 / 60)):
             until(due)
-            while pending_ccs and due - sent >= pending_ccs[0][0]:
-                value = pending_ccs.pop(0)[1]
-                midi_out.send_message([0xB0, 1, value])
-                sent_ccs.append((time.perf_counter(), value))
             midi_out.send_message([0xF8])
             ticks.append(time.perf_counter())
             if ticks[-1] - due > HOST_LATE_S:
@@ -70,7 +91,7 @@ def drive(name, segments, ccs=()):
     midi_in.close_port()
     midi_out.close_port()
     return {"start": sent, "stop": stop, "ticks": ticks, "changes": changes, "received": received, "host_late": late,
-            "ccs": sent_ccs}
+            "sent": sent_log, "ccs": [(t, message[2]) for t, message in sent_log if message[0] == 0xB0]}
 
 
 def notes(received):
@@ -111,9 +132,83 @@ def analyze_cc(run):
     return problems, {"windows": windows, "ccs_sent": len(run["ccs"])}
 
 
+def keys(taps, hold=0.15):
+    return [(t, [0x90, note, 100]) for t, note in taps] + [(t + hold, [0x80, note, 0]) for t, note in taps]
+
+
+def echo_notes(offset, message):
+    """Echoes every note after 5 ms in its window and after 80 ms from 15.5 s on; releases the held key
+    the moment the sequenced note-off of the same note arrives."""
+    note = message[0] & 0xE0 == 0x80
+    if (note and message[0] & 0xF0 == 0x80 and message[1] == 60 and not HELD_KEY_RELEASED
+            and SEQUENCED_OFF_S[0] <= offset <= SEQUENCED_OFF_S[1]):
+        HELD_KEY_RELEASED.append(offset)
+        return [(0.002, [0x80, 60, 0])]
+    if note and 7.0 <= offset < 10.3:
+        return [(0.005, message)]
+    if note and offset >= 15.5:
+        return [(0.080, message)]
+    return []
+
+
+def analyze_looper(run):
+    """Each tap sounds once live, lands on its step and replays once a pass, within half a step of its
+    press time plus whole loops; the tap after Stop only sounds live."""
+    problems, metrics = [], {}
+    found = [n for n in notes(run["received"]) if n[0] == DRUM]
+    for at, note, step in LOOPER_TAPS:
+        pressed = run["start"] + at
+        ons = [n[2] - run["start"] for n in found if n[1] == note]
+        live = [t for t in ons if at <= t <= at + 0.1]
+        replays = [t for t in ons if t > at + 0.1]
+        expected = [at + k * LOOP_S for k in range(1, 5) if at + k * LOOP_S < LOOPER_PLAYED_S]
+        if pressed > run["stop"]:
+            expected = []
+        misses = [e for e in expected if not any(abs(t - e) <= STEP_S / 2 for t in replays)]
+        metrics[str(note)] = {"live": [round(t, 3) for t in live], "replays": [round(t, 3) for t in replays],
+                              "replay_step_offsets_ms": [round(((t % LOOP_S) - step * STEP_S) * 1000, 1) for t in replays]}
+        if len(live) != 1:
+            problems.append(f"note {note} at {at} s sounded {len(live)} times live")
+        if misses or len(replays) != len(expected):
+            problems.append(f"note {note}: replays at {metrics[str(note)]['replays']}, expected one within half a step of each of {expected}")
+    return problems, metrics
+
+
+def analyze_notes_in(run):
+    problems, metrics = [], {}
+    found = [n for n in notes(run["received"]) if n[0] == DRUM]
+    origin = run["start"]
+    open_keys = [k for k in NOTES_PLAIN if not any(n[1] == k[1] and k[0] <= n[2] - origin <= k[0] + 0.1
+                                                   and n[3] is not None and n[3] - origin <= k[0] + 0.15 + 1.0 for n in found)]
+    metrics["plain_unreleased"] = len(open_keys)
+    if open_keys:
+        problems.append(f"{len(open_keys)} of 20 keys had no mirrored note-on and note-off within 1 s: {open_keys[:4]}")
+    for label, taps in (("echo_5ms", NOTES_ECHO_5), ("echo_80ms", NOTES_ECHO_80)):
+        counts = [sum(1 for n in found if n[1] == note and at <= n[2] - origin < at + 0.3) for at, note in taps]
+        metrics[label] = counts
+        if max(counts) > 2 or min(counts) < 1:
+            problems.append(f"{label}: mirrored note-ons per key {counts}, not 1 or 2")
+    after = [t - run["stop"] for t, message in run["received"] if t > run["stop"] + 1.0 and message[0] & 0xE0 == 0x80]
+    metrics["notes_from_1s_after_stop"] = len(after)
+    if after:
+        problems.append(f"{len(after)} notes from 1 s after Stop on: the echo keeps feeding back")
+    window = (SEQUENCED_OFF_S[0], SEQUENCED_OFF_S[1] + 0.01)
+    released = [t for t, message in run["sent"] if message == [0x80, 60, 0] and window[0] <= t - origin <= window[1]]
+    offs = [t for t, message in run["received"] if message[0] == 0x80 and message[1] == 60 and released
+            and released[0] < t <= released[0] + 1.0]
+    metrics["held_key"] = {"released_at": [round(t - origin, 3) for t in released], "mirrored_off_at": [round(t - origin, 3) for t in offs]}
+    if len(released) != 1:
+        problems.append("the sequenced note-off of the held key's note never came, so the key was not released")
+    elif not offs:
+        problems.append("the held key's mirrored note-off did not follow its release within 1 s")
+    return problems, metrics
+
+
 def analyze(run, phase):
     if phase == "cc":
         return analyze_cc(run)
+    if phase in ("looper", "notes_in"):
+        return {"looper": analyze_looper, "notes_in": analyze_notes_in}[phase](run)
     problems, metrics = [], {}
     found = notes(run["received"])
     drum = [n for n in found if n[0] == DRUM]
@@ -171,8 +266,12 @@ def analyze(run, phase):
 
 def main():
     name, phase, result = sys.argv[1:4]
-    segments = {"straight": [(100, 120), (140, 60)], "swing": [(100, 30)], "cc": [(100, 36)]}[phase]
-    run = drive(name, segments, CC_STEPS if phase == "cc" else ())
+    segments = {"straight": [(100, 120), (140, 60)], "swing": [(100, 30)], "cc": [(100, 36)],
+                "looper": [(100, LOOPER_PLAYED_S)], "notes_in": [(100, NOTES_PLAYED_S)]}[phase]
+    sends = {"cc": [(t, [0xB0, 1, value]) for t, value in CC_STEPS],
+             "looper": keys([(t, note) for t, note, _ in LOOPER_TAPS], HOLD_S),
+             "notes_in": keys(NOTES_PLAIN + NOTES_ECHO_5 + NOTES_ECHO_80) + [(HELD_KEY_S, [0x90, 60, 100])]}.get(phase, ())
+    run = drive(name, segments, sends, echo_notes if phase == "notes_in" else None)
     problems, metrics = analyze(run, phase)
     with open(result, "w") as out:
         json.dump({"phase": phase, "problems": problems, "metrics": metrics, "run": run}, out)
