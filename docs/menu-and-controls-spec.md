@@ -1055,7 +1055,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - A regular press triggers the press slot action; a regular turn adjusts the turn slot value. Enum
   turns clamp without wrapping; bool turns go `-1 => Off`, `+1 => On`.
 - `activeBehavior` and `behaviorConfig.*` updates re-initialize behavior state, except on a
-  sequencer, whose settings (pages, view, advance) keep the drawn pattern.
+  sequencer, whose settings (pages, view, advance) keep the drawn pattern. A pattern behavior keeps
+  its place in its cycle. A setting a behavior action turned (Gravity Dir, Fractal, wind direction,
+  field sign, food layout) is kept in `behaviorConfig`, so the next settings change starts from it.
 - Aux value changes become autosave-eligible after the native 150 ms edit debounce, counted from
   the first unsettled edit. Pi autosaves write the latest eligible revision two seconds after the
   first unsaved one, whether transport is playing or stopped; newer revisions do not move that
