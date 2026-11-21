@@ -1,4 +1,5 @@
 use super::*;
+use realtime_engine::synth::FxParamId;
 
 fn set_bus_delay(runner: &mut NativeRunner, mode: &str, time_ms: i32) {
     runner.fx_buses[0].slots[0].fx_type = "delay".into();
@@ -128,7 +129,7 @@ pub(crate) fn invalid_delay_fields_are_rejected_on_load() {
 }
 
 #[test]
-pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() {
+pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_sets_it_live() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let _ = runner.messages_with_snapshot().unwrap();
     runner.transport.bpm = 120.0;
@@ -153,12 +154,19 @@ pub(crate) fn selecting_delay_time_note_updates_time_ms_only_and_queues_audio() 
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetFxBusSlot { bus_index: 0, slot_index: 0, fx_type, params, .. }
-                    if fx_type == "delay"
-                        && params.get("timeMs") == Some(&json!(333))
-                        && !params.contains_key("timeMode")
-                        && !params.contains_key("timeNote")
+                RuntimeAudioCommand::SetFxBusParam {
+                    bus_index: 0,
+                    slot_index: 0,
+                    param: FxParamId::TimeMs,
+                    value,
+                    ..
+                } if *value == 333.0
             ))
+    )));
+    assert!(!messages.iter().any(|message| matches!(
+        message,
+        RunnerMessage::AudioCommands { commands }
+            if commands.iter().any(|command| matches!(command, RuntimeAudioCommand::SetFxBusSlot { .. }))
     )));
     assert_eq!(
         runner.config_payload()["runtimeConfig"]["mixer"]["buses"][0]["slot1"]["params"]
@@ -231,10 +239,12 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetFxBusSlot { slot_index: 0, params, .. }
-                    if params.get("timeMs") == Some(&json!(500))
-                        && !params.contains_key("timeMode")
-                        && !params.contains_key("timeNote")
+                RuntimeAudioCommand::SetFxBusParam {
+                    slot_index: 0,
+                    param: FxParamId::TimeMs,
+                    value,
+                    ..
+                } if *value == 500.0
             ))
     )));
     assert_eq!(
@@ -248,8 +258,12 @@ pub(crate) fn bpm_edit_retimes_note_mode_delay_but_not_ms_mode() {
         RunnerMessage::AudioCommands { commands }
             if commands.iter().any(|command| matches!(
                 command,
-                RuntimeAudioCommand::SetFxBusSlot { slot_index: 2, params, .. }
-                    if params.get("timeMs") == Some(&json!(1000))
+                RuntimeAudioCommand::SetFxBusParam {
+                    slot_index: 2,
+                    param: FxParamId::TimeMs,
+                    value,
+                    ..
+                } if *value == 1000.0
             ))
     )));
 }

@@ -828,7 +828,7 @@ native_fx_rate_hz	*	key:mixer.*.slots.*.params.rateHz	number	Rate	Sets modulatio
 native_fx_depth_pct	*	key:mixer.buses.*.slot*.params.depthPct	number	Depth	Sets modulation depth as a percentage.	Higher values create stronger movement.
 native_fx_depth_ms	*	key:mixer.buses.*.slot*.params.depthMs	number	Depth	Sets modulation depth in milliseconds.	Used by chorus, flanger, and vibrato style effects.
 native_fx_base_ms	*	key:mixer.buses.*.slot*.params.baseMs	number	Base	Sets the base delay time in milliseconds.	Depth is applied around this base.
-native_fx_drive	*	key:mixer.*.slots.*.params.drive	number	Drive	Sets the gain into the saturation or clipping.	0 passes the sound clean; higher values add more grit.
+native_fx_drive	*	key:mixer.*.slots.*.params.drive	number	Drive	Sets the gain into the saturation or clipping (Distortion: up to Clip).	0 passes the sound clean; higher values add more grit.
 native_fx_clip	*	key:mixer.*.slots.*.params.clip	number	Clip	The level the distortion clips at.	Lower values clip harder and sound quieter.
 native_fx_bits	*	key:mixer.buses.*.slot*.params.bits	number	Bits	Sets bit depth for bitcrushing.	Lower values sound rougher; 1 bit keeps only the sign, a fuzzy square wave.
 native_fx_rate_div	*	key:mixer.buses.*.slot*.params.rateDiv	number	Rate Div	Sets sample-rate reduction divisor.	Higher values reduce more aggressively.
@@ -862,7 +862,7 @@ native_fx_bus_high_gain	*	key:mixer.*.slot*.params.highGainDb	number	High Gain	A
 native_fx_bus_mid_freq	*	key:mixer.*.slot*.params.midFreqHz	number	Mid Frequency	Sets the EQ mid-band center frequency.	Move it to target different tonal ranges.
 native_fx_bus_mid_q	*	key:mixer.*.slot*.params.midQ	number	Mid Q	Sets the EQ mid-band width.	Higher values make a narrower band.
 native_fx_bus_clip	*	key:mixer.*.slot*.params.clip	number	Clip	The level the distortion clips at.	Lower values clip harder and sound quieter.
-native_fx_bus_drive	*	key:mixer.*.slot*.params.drive	number	Drive	Sets the gain into the saturation or clipping.	0 passes the sound clean; higher values add more grit.
+native_fx_bus_drive	*	key:mixer.*.slot*.params.drive	number	Drive	Sets the gain into the saturation or clipping (Distortion: up to Clip).	0 passes the sound clean; higher values add more grit.
 native_fx_bus_mix	*	key:mixer.*.slot*.params.mixPct	number	Mix	Sets wet/dry mix for this effect.	0 is dry; 100 is fully wet.
 native_fx_bus_rate_hz	*	key:mixer.*.slot*.params.rateHz	number	Rate	Sets modulation rate in Hertz.	Higher rates move faster.
 native_fx_global_attack	*	key:mixer.master.slots.*.params.attackMs	number	Attack	Sets how quickly this global effect reacts.	Short values respond faster.

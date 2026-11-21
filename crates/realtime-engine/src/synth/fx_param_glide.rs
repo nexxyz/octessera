@@ -12,7 +12,8 @@ pub(super) fn fx_param_glide_frames(sample_rate: u32) -> u32 {
 
 /// Levels, gains, feedback, filter centers and Q glide. Rates switch at once because the LFO
 /// phase carries on smoothly anyway; attack and release times, Glitch chance and slice length,
-/// and the Bitcrusher's bits and rate divider are steps or time constants, not levels.
+/// and the Bitcrusher's bits and rate divider are steps or time constants, not levels. Delay
+/// Time switches here and glides inside the delay line.
 fn glides(id: FxParamId) -> bool {
     !matches!(
         id,
@@ -23,6 +24,7 @@ fn glides(id: FxParamId) -> bool {
             | FxParamId::ReleaseMs
             | FxParamId::Bits
             | FxParamId::RateDiv
+            | FxParamId::TimeMs
     )
 }
 

@@ -57,8 +57,15 @@ impl FxBusOutputSpreadState {
     }
 
     #[cfg(all(test, feature = "routing-tree-executor"))]
-    pub(super) fn state_for_test(&self) -> (usize, &[f32]) {
-        (self.idx, &self.buf)
+    /// The write index, then the delay line followed by the low cut's history.
+    pub(super) fn state_for_test(&self) -> (usize, Vec<f32>) {
+        let history = [
+            self.low_cut.x1,
+            self.low_cut.x2,
+            self.low_cut.y1,
+            self.low_cut.y2,
+        ];
+        (self.idx, self.buf.iter().copied().chain(history).collect())
     }
 }
 

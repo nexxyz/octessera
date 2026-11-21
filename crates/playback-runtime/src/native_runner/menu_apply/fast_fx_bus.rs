@@ -133,10 +133,15 @@ impl NativeRunner {
         }
         self.mark_fast_autosave_dirty();
         if !self.rebase_and_recompose_modulation_key(key) {
+            let live_path = if fx_type == "delay" && is_delay_timing_field(param_path) {
+                "timeMs"
+            } else {
+                param_path
+            };
             if let Some(param) =
-                super::super::modulation::audio::realtime_safe_fx_param_id(param_path)
+                super::super::modulation::audio::realtime_safe_fx_param_id(live_path)
             {
-                if let Some(value) = params.get(param_path).and_then(Value::as_f64) {
+                if let Some(value) = params.get(live_path).and_then(Value::as_f64) {
                     self.queue_audio_command(RuntimeAudioCommand::SetFxBusParam {
                         bus_index,
                         slot_index,
@@ -355,6 +360,11 @@ impl NativeRunner {
     pub(in crate::native_runner) fn current_menu_bpm(&self) -> u16 {
         crate::delay_timing::visible_bpm_u16(self.transport.bpm)
     }
+}
+
+/// Time Mode, Time Note and Time all land on the delay as its Time in ms.
+fn is_delay_timing_field(param_path: &str) -> bool {
+    matches!(param_path, "timeMs" | "timeNote" | "timeMode")
 }
 
 fn apply_fx_param_value(params: &mut Value, param_path: &str, value: Value, bpm: u16) -> bool {

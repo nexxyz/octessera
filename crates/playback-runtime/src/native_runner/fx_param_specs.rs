@@ -99,7 +99,7 @@ const FX_PARAMS: [(&str, &[FxParam]); 17] = [
         "distortion",
         &[
             param("drive", "Drive", 0, 500, 5, 10.0, 2.5),
-            param("clip", "Clip", 5, 200, 5, 100.0, 0.6),
+            param("clip", "Clip", 5, 100, 5, 100.0, 0.6),
             MIX,
         ],
     ),

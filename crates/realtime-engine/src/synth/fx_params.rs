@@ -1,4 +1,3 @@
-use super::fx::DELAY_MAX_MS;
 use super::fx_param::{clamp_fx_param, fx_param_range, FxParamId};
 use super::types::FxBusSlotConfig;
 use serde::de::IntoDeserializer;
@@ -175,7 +174,7 @@ pub(super) fn compile_fx_bus_params(cfg: &FxBusSlotConfig) -> FxBusParams {
             depth: ranged("depthPct", FxParamId::DepthPct),
         },
         FxKind::Delay => FxBusParams::Delay {
-            time_ms: compiled_param(cfg, kind, "timeMs"),
+            time_ms: ranged("timeMs", FxParamId::TimeMs),
             feedback: ranged("feedback", FxParamId::Feedback),
             mix: ranged("mixPct", FxParamId::MixPct),
             spread: ranged("spreadPct", FxParamId::SpreadPct),
@@ -301,7 +300,6 @@ pub fn fx_param_saved_range(kind: &str, key: &str) -> Option<(f32, f32, f32)> {
 /// The ranges of the parameters a slot sets when it compiles and never moves live.
 fn compiled_param_range(kind: FxKind, key: &str) -> Option<(f32, f32, f32)> {
     Some(match (kind, key) {
-        (FxKind::Delay, "timeMs") => (1.0, DELAY_MAX_MS, 250.0),
         (FxKind::Vibrato, "depthMs") => (0.0, 40.0, 6.0),
         (FxKind::Vibrato, "baseMs") => (0.1, 80.0, 8.0),
         (FxKind::Chorus, "depthMs") => (0.0, 40.0, 14.0),

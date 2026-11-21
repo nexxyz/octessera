@@ -29,8 +29,8 @@ pub(super) fn bus_output_spread_state_signature(
         .iter()
         .enumerate()
         .map(|(bus, state)| {
-            let (idx, buf) = state.state_for_test();
-            (bus, idx, buf.to_vec())
+            let (idx, values) = state.state_for_test();
+            (bus, idx, values)
         })
         .collect()
 }

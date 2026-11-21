@@ -10,10 +10,15 @@ pub(in crate::synth) fn process_master_fx_slot(
 ) -> (f32, f32) {
     match *params {
         FxBusParams::None => (left, right),
-        FxBusParams::Saturator { drive, mix } => (
-            process_saturator(left, drive, mix),
-            process_saturator(right, drive, mix),
-        ),
+        FxBusParams::Saturator { drive, mix } => {
+            let MasterFxState::Saturator(curve) = state else {
+                return (left, right);
+            };
+            (
+                process_saturator(curve, left, drive, mix),
+                process_saturator(curve, right, drive, mix),
+            )
+        }
         FxBusParams::Distortion { drive, clip, mix } => (
             process_distortion(left, drive, clip, mix),
             process_distortion(right, drive, clip, mix),

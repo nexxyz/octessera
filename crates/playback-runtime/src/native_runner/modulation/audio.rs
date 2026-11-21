@@ -125,6 +125,7 @@ pub(in crate::native_runner) fn realtime_safe_fx_param_id(field: &str) -> Option
         "sliceMs" => FxParamId::SliceMs,
         "spreadPct" => FxParamId::SpreadPct,
         "threshold" => FxParamId::Threshold,
+        "timeMs" => FxParamId::TimeMs,
         "thresholdDb" => FxParamId::ThresholdDb,
         "warpDepthPct" => FxParamId::WarpDepthPct,
         _ => return None,

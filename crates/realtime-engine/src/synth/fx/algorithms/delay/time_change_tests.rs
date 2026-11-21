@@ -1,5 +1,7 @@
 use super::*;
-use crate::synth::fx::{fx_bus_state_can_preserve, fx_bus_state_from_params};
+use crate::synth::fx::{
+    fx_bus_state_can_preserve, fx_bus_state_from_params, land_loaded_delay_time,
+};
 
 const SAMPLE_RATE: u32 = 48_000;
 
@@ -52,4 +54,27 @@ fn a_time_change_either_way_glides_without_a_click() {
             .fold(0.0, f32::max);
         assert!(largest_step < 0.25, "{next_ms} ms: step {largest_step}");
     }
+}
+
+#[test]
+fn a_load_lands_a_kept_line_on_its_time_at_once_and_keeps_the_echoes() {
+    let mut kept = fx_bus_state_from_params(&delay(100.0, 0.0), SAMPLE_RATE);
+    let mut output = vec![process_delay(&mut kept, 1.0, 100.0, 0.0, 1.0, SAMPLE_RATE)];
+    for _ in 1..2_400 {
+        output.push(process_delay(&mut kept, 0.0, 100.0, 0.0, 1.0, SAMPLE_RATE));
+    }
+    land_loaded_delay_time(
+        &mut kept,
+        &fx_bus_state_from_params(&delay(300.0, 0.0), SAMPLE_RATE),
+    );
+    for _ in 2_400..16_000 {
+        output.push(process_delay(&mut kept, 0.0, 300.0, 0.0, 1.0, SAMPLE_RATE));
+    }
+    assert!(output[14_400] > 0.99, "the echo lands 300 ms on");
+    let elsewhere = output[2_400..]
+        .iter()
+        .enumerate()
+        .filter(|(frame, _)| *frame + 2_400 != 14_400)
+        .fold(0.0_f32, |peak, (_, sample)| peak.max(sample.abs()));
+    assert!(elsewhere < 0.01, "no glide smears it: {elsewhere}");
 }

@@ -3,7 +3,7 @@ use super::super::super::fx_params::{FxBusParams, ModDelayKind};
 
 #[test]
 fn fx_param_id_is_a_closed_camel_case_whitelist() {
-    assert_eq!(FxParamId::ALL.len(), 30);
+    assert_eq!(FxParamId::ALL.len(), 31);
     for id in FxParamId::ALL {
         let encoded = serde_json::to_string(&id).expect("FX parameter id serializes");
         let decoded: FxParamId = serde_json::from_str(&encoded).expect("FX parameter id parses");

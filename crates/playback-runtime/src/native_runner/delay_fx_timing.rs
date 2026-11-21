@@ -1,6 +1,7 @@
-use crate::delay_timing::{normalized_delay_params, strip_delay_timing_metadata};
+use crate::delay_timing::normalized_delay_params;
 use crate::native_menu::{delay_time_field, delay_time_row_item, NativeMenuItem};
 use crate::protocol::RuntimeAudioCommand;
+use realtime_engine::synth::FxParamId;
 
 use super::NativeRunner;
 
@@ -50,13 +51,16 @@ impl NativeRunner {
                 *params = normalized;
                 if params.get("timeMs") != before.as_ref() {
                     changed = true;
-                    commands.push(RuntimeAudioCommand::SetFxBusSlot {
-                        bus_index,
-                        slot_index,
-                        generation: 0,
-                        fx_type: fx_type.clone(),
-                        params: strip_delay_timing_metadata(params).into_iter().collect(),
-                    });
+                    if let Some(time_ms) = params.get("timeMs").and_then(serde_json::Value::as_f64)
+                    {
+                        commands.push(RuntimeAudioCommand::SetFxBusParam {
+                            bus_index,
+                            slot_index,
+                            generation: 0,
+                            param: FxParamId::TimeMs,
+                            value: time_ms as f32,
+                        });
+                    }
                 }
             }
         }

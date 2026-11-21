@@ -1,3 +1,4 @@
+use super::fx::DELAY_MAX_MS;
 use super::fx_params::{FilterLfoKind, FxBusParams, FxKind, ModDelayKind};
 use serde::{Deserialize, Serialize};
 
@@ -36,10 +37,11 @@ pub enum FxParamId {
     SaturationPct,
     CracklePct,
     WarpDepthPct,
+    TimeMs,
 }
 
 impl FxParamId {
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 31] = [
         Self::RateHz,
         Self::DepthPct,
         Self::Feedback,
@@ -70,6 +72,7 @@ impl FxParamId {
         Self::SaturationPct,
         Self::CracklePct,
         Self::WarpDepthPct,
+        Self::TimeMs,
     ];
 
     const fn is_percent(self) -> bool {
@@ -97,6 +100,7 @@ pub(super) const fn fx_param_range(kind: FxKind, id: FxParamId) -> Option<(f32, 
         (K::Delay, P::Feedback) => (0.0, 0.98, 0.35),
         (K::Delay, P::MixPct) => (0.0, 100.0, 35.0),
         (K::Delay, P::SpreadPct) => (0.0, 100.0, 0.0),
+        (K::Delay, P::TimeMs) => (1.0, DELAY_MAX_MS, 250.0),
         (K::Vibrato | K::Chorus | K::Flanger, P::RateHz) => (0.02, 20.0, 0.8),
         (K::Vibrato | K::Chorus, P::Feedback) => (-0.95, 0.95, 0.0),
         (K::Flanger, P::Feedback) => (-0.95, 0.95, 0.35),
@@ -122,7 +126,7 @@ pub(super) const fn fx_param_range(kind: FxKind, id: FxParamId) -> Option<(f32, 
         (K::Duck, P::ReleaseMs) => (1.0, 5000.0, 160.0),
         (K::Saturator, P::Drive) => (0.0, 20.0, 1.8),
         (K::Distortion, P::Drive) => (0.0, 50.0, 2.5),
-        (K::Distortion, P::Clip) => (0.05, 2.0, 0.6),
+        (K::Distortion, P::Clip) => (0.05, 1.0, 0.6),
         (K::Bitcrusher, P::RateDiv) => (1.0, 128.0, 4.0),
         (K::Bitcrusher, P::Bits) => (1.0, 16.0, 6.0),
         (K::Compressor, P::ThresholdDb) => (-60.0, 0.0, -24.0),
@@ -218,11 +222,12 @@ pub(super) fn apply_fx_param(
             _ => FxParamMutation::Rejected,
         },
         FxBusParams::Delay {
+            time_ms,
             feedback,
             mix,
             spread,
-            ..
         } => match id {
+            FxParamId::TimeMs => set_f32(time_ms, value),
             FxParamId::Feedback => set_f32(feedback, value),
             FxParamId::MixPct => set_f32(mix, value),
             FxParamId::SpreadPct => set_f32(spread, value),

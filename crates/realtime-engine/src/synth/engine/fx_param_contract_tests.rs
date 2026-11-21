@@ -36,6 +36,7 @@ fn fx_param_ids_match_the_exact_camel_case_bridge_names() {
         (FxParamId::SaturationPct, "saturationPct"),
         (FxParamId::CracklePct, "cracklePct"),
         (FxParamId::WarpDepthPct, "warpDepthPct"),
+        (FxParamId::TimeMs, "timeMs"),
     ];
     assert_eq!(expected.len(), FxParamId::ALL.len());
     for ((id, name), expected_id) in expected.into_iter().zip(FxParamId::ALL) {
@@ -414,4 +415,20 @@ fn representative_params() -> [FxBusParams; 15] {
             mix: 0.5,
         },
     ]
+}
+
+#[test]
+fn delay_time_is_a_live_param_clamped_to_its_six_second_line() {
+    let mut delay = FxBusParams::Delay {
+        time_ms: 250.0,
+        feedback: 0.35,
+        mix: 0.35,
+        spread: 0.0,
+    };
+    assert_eq!(
+        apply_fx_param(&mut delay, FxParamId::TimeMs, 9_000.0),
+        FxParamMutation::Changed
+    );
+    assert!(matches!(delay, FxBusParams::Delay { time_ms, .. } if time_ms == 6_000.0));
+    assert_unchanged(&mut delay, FxParamId::TimeMs, 6_000.0);
 }

@@ -18,6 +18,6 @@ pub(super) use master::process_master_fx_slot;
 #[cfg(test)]
 pub(super) use state::fx_bus_state_matches_params;
 pub(super) use state::{
-    fx_bus_state_can_preserve, fx_bus_state_from_params, master_fx_state_from_params,
-    master_fx_state_matches_params, FxBusState, MasterFxState,
+    fx_bus_state_can_preserve, fx_bus_state_from_params, land_loaded_delay_time,
+    master_fx_state_from_params, master_fx_state_matches_params, FxBusState, MasterFxState,
 };

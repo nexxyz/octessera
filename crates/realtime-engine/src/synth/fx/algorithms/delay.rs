@@ -159,13 +159,15 @@ pub(in crate::synth) fn process_mod_delay(
     (input * (1.0 - params.mix) + delayed * params.mix).clamp(-1.5, 1.5)
 }
 
+/// Splits the delay into whole samples and a fraction before wrapping, so the fraction keeps
+/// its precision however long the line is.
 fn read_delay(buf: &[f32], write_idx: usize, delay_samples: f32) -> f32 {
-    let len = buf.len() as f32;
-    let pos = (write_idx as f32 - delay_samples).rem_euclid(len);
-    let i0 = pos.floor() as usize % buf.len();
-    let i1 = (i0 + 1) % buf.len();
-    let frac = pos - pos.floor();
-    buf[i0] * (1.0 - frac) + buf[i1] * frac
+    let len = buf.len();
+    let whole = delay_samples.floor();
+    let back = delay_samples - whole;
+    let newer = (write_idx + len - whole as usize % len) % len;
+    let older = (newer + len - 1) % len;
+    buf[newer] * (1.0 - back) + buf[older] * back
 }
 
 #[cfg(test)]

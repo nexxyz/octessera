@@ -283,12 +283,12 @@ fn reference_process_mod_delay(
 }
 
 fn reference_read_delay(buf: &[f32], write_idx: usize, delay_samples: f32) -> f32 {
-    let len = buf.len() as f32;
-    let pos = (write_idx as f32 - delay_samples).rem_euclid(len);
-    let i0 = pos.floor() as usize % buf.len();
-    let i1 = (i0 + 1) % buf.len();
-    let frac = pos - pos.floor();
-    buf[i0] * (1.0 - frac) + buf[i1] * frac
+    let whole = delay_samples.floor() as usize;
+    let back = delay_samples - delay_samples.floor();
+    let len = buf.len();
+    let newer = (write_idx + len * 2 - whole) % len;
+    let older = (newer + len - 1) % len;
+    buf[newer] * (1.0 - back) + buf[older] * back
 }
 
 fn assert_delay_state_eq(actual: &FxBusState, expected: &FxBusState, frame: usize) {

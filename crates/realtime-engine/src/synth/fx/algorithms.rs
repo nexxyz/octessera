@@ -55,13 +55,44 @@ pub(super) fn mix_sample(dry: f32, wet: f32, mix: f32) -> f32 {
     dry * (1.0 - mix) + wet * mix
 }
 
+/// The saturator's `1 / tanh(drive)`, worked out again only when Drive moves.
+#[derive(Clone, Copy, Debug)]
+pub(in crate::synth) struct SaturatorCurve {
+    drive: f32,
+    scale: f32,
+}
+
+impl SaturatorCurve {
+    pub(in crate::synth) const fn new() -> Self {
+        Self {
+            drive: 0.0,
+            scale: 1.0,
+        }
+    }
+
+    fn scale(&mut self, drive: f32) -> f32 {
+        if self.drive.to_bits() != drive.to_bits() {
+            *self = Self {
+                drive,
+                scale: 1.0 / drive.tanh(),
+            };
+        }
+        self.scale
+    }
+}
+
 /// `tanh(x * drive) / tanh(drive)`: full scale stays full scale, and a Drive near 0 passes the
 /// sound clean.
-pub(super) fn process_saturator(input: f32, drive: f32, mix: f32) -> f32 {
+pub(super) fn process_saturator(
+    curve: &mut SaturatorCurve,
+    input: f32,
+    drive: f32,
+    mix: f32,
+) -> f32 {
     let y = if drive < SATURATOR_CLEAN_DRIVE {
         input
     } else {
-        (input * drive).tanh() / drive.tanh()
+        (input * drive).tanh() * curve.scale(drive)
     };
     mix_sample(input, y, mix)
 }
@@ -95,7 +126,6 @@ pub(super) fn process_glitch(
         rng,
     } = state
     else {
-        *state = glitch_state(sample_rate);
         return input;
     };
     if *remain == 0 {
@@ -130,6 +160,9 @@ fn resident_zeros(len: usize) -> Vec<f32> {
     let mut buf = vec![0.0; len];
     for sample in buf.iter_mut().step_by(PAGE_SAMPLES) {
         *sample = std::hint::black_box(0.0);
+    }
+    if let Some(last) = buf.last_mut() {
+        *last = std::hint::black_box(0.0);
     }
     buf
 }

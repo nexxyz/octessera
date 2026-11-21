@@ -1,6 +1,6 @@
 use super::algorithms::{
     comb_buffers, delay_line_state, glitch_state, DelayCache, EqChannelState, FilterLfoCache,
-    ModDelayCache, ModDelayParams, ReverbInputGain, VinylState, DELAY_MAX_MS,
+    ModDelayCache, ModDelayParams, ReverbInputGain, SaturatorCurve, VinylState, DELAY_MAX_MS,
 };
 use super::{BiquadState, FxBusParams};
 
@@ -61,6 +61,7 @@ pub(in crate::synth) enum FxBusState {
         channel: EqChannelState,
     },
     Vinyl(VinylState),
+    Saturator(SaturatorCurve),
 }
 
 impl FxBusState {
@@ -68,10 +69,21 @@ impl FxBusState {
     /// allocating.
     pub(in crate::synth) fn silence(&mut self) {
         match self {
-            FxBusState::None | FxBusState::Tremolo { .. } | FxBusState::AutoPan { .. } => {}
-            FxBusState::Delay { buf, .. }
-            | FxBusState::ModDelay { buf, .. }
-            | FxBusState::Glitch { buf, .. } => buf.fill(0.0),
+            FxBusState::None
+            | FxBusState::Tremolo { .. }
+            | FxBusState::AutoPan { .. }
+            | FxBusState::Saturator(..) => {}
+            FxBusState::Delay { buf, .. } | FxBusState::ModDelay { buf, .. } => buf.fill(0.0),
+            FxBusState::Glitch {
+                buf,
+                remain,
+                repeating,
+                heard,
+                ..
+            } => {
+                buf.fill(0.0);
+                (*remain, *repeating, *heard) = (0, false, 0);
+            }
             FxBusState::FilterLfo { filt, .. } => filt.clear_history(),
             FxBusState::Duck { env } | FxBusState::Compressor { env } => *env = 0.0,
             FxBusState::Bitcrusher { count, last, .. } => (*count, *last) = (0, 0.0),
@@ -102,12 +114,13 @@ pub(in crate::synth) enum MasterFxState {
         count: [u32; 2],
         last: [f32; 2],
     },
+    Saturator(SaturatorCurve),
 }
 
 impl MasterFxState {
     pub(in crate::synth) fn silence(&mut self) {
         match self {
-            MasterFxState::None => {}
+            MasterFxState::None | MasterFxState::Saturator(..) => {}
             MasterFxState::Compressor { env } => *env = 0.0,
             MasterFxState::Eq { left, right } => {
                 left.clear_history();
@@ -176,9 +189,8 @@ pub(in crate::synth) fn fx_bus_state_from_params(
             channel: EqChannelState::new(),
         },
         FxBusParams::Vinyl { .. } => FxBusState::Vinyl(VinylState::new()),
-        FxBusParams::None | FxBusParams::Saturator { .. } | FxBusParams::Distortion { .. } => {
-            FxBusState::None
-        }
+        FxBusParams::Saturator { .. } => FxBusState::Saturator(SaturatorCurve::new()),
+        FxBusParams::None | FxBusParams::Distortion { .. } => FxBusState::None,
     }
 }
 
@@ -194,8 +206,8 @@ pub(in crate::synth) fn master_fx_state_from_params(params: &FxBusParams) -> Mas
             count: [0; 2],
             last: [0.0; 2],
         },
+        FxBusParams::Saturator { .. } => MasterFxState::Saturator(SaturatorCurve::new()),
         FxBusParams::None
-        | FxBusParams::Saturator { .. }
         | FxBusParams::Distortion { .. }
         | FxBusParams::Tremolo { .. }
         | FxBusParams::Delay { .. }
@@ -215,7 +227,7 @@ pub(in crate::synth) fn fx_bus_state_matches_params(
     matches!(
         (state, params),
         (FxBusState::None, FxBusParams::None)
-            | (FxBusState::None, FxBusParams::Saturator { .. })
+            | (FxBusState::Saturator(..), FxBusParams::Saturator { .. })
             | (FxBusState::None, FxBusParams::Distortion { .. })
             | (FxBusState::Tremolo { .. }, FxBusParams::Tremolo { .. })
             | (FxBusState::Delay { .. }, FxBusParams::Delay { .. })
@@ -255,6 +267,16 @@ pub(in crate::synth) fn fx_bus_state_can_preserve(
     }
 }
 
+/// A load lands a kept delay line on the loaded Time at once instead of gliding there; the
+/// echoes already in the line keep playing.
+pub(in crate::synth) fn land_loaded_delay_time(kept: &mut FxBusState, loaded: &FxBusState) {
+    if let (FxBusState::Delay { cache, .. }, FxBusState::Delay { cache: loaded, .. }) =
+        (kept, loaded)
+    {
+        *cache = *loaded;
+    }
+}
+
 pub(in crate::synth) fn master_fx_state_matches_params(
     state: &MasterFxState,
     params: &FxBusParams,
@@ -262,7 +284,7 @@ pub(in crate::synth) fn master_fx_state_matches_params(
     matches!(
         (state, params),
         (MasterFxState::None, FxBusParams::None)
-            | (MasterFxState::None, FxBusParams::Saturator { .. })
+            | (MasterFxState::Saturator(..), FxBusParams::Saturator { .. })
             | (MasterFxState::None, FxBusParams::Distortion { .. })
             | (
                 MasterFxState::Compressor { .. },

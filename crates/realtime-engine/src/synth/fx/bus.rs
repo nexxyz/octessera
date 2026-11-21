@@ -113,7 +113,12 @@ pub(in crate::synth) fn process_fx_bus_slot(
             resolved_duck_source,
             sample_rate,
         ),
-        FxBusParams::Saturator { drive, mix } => process_saturator(input, drive, mix),
+        FxBusParams::Saturator { drive, mix } => {
+            let FxBusState::Saturator(curve) = state else {
+                return input;
+            };
+            process_saturator(curve, input, drive, mix)
+        }
         FxBusParams::Distortion { drive, clip, mix } => process_distortion(input, drive, clip, mix),
         FxBusParams::Bitcrusher {
             rate_div,

@@ -1,5 +1,7 @@
 use super::super::dsp_config::BusIdleThreshold;
-use super::super::fx::{fx_bus_state_can_preserve, process_fx_bus_slot, FxBusState};
+use super::super::fx::{
+    fx_bus_state_can_preserve, land_loaded_delay_time, process_fx_bus_slot, FxBusState,
+};
 use super::super::fx_param::{FxParamId, FxParamMutation};
 use super::super::fx_param_glide::FxSlotGlides;
 use super::super::fx_params::{FxBusParams, FxKind};
@@ -368,6 +370,10 @@ impl BusChainOwner {
                 std::mem::swap(
                     &mut previous.slot_state[slot_index],
                     &mut self.slot_state[slot_index],
+                );
+                land_loaded_delay_time(
+                    &mut self.slot_state[slot_index],
+                    &previous.slot_state[slot_index],
                 );
             }
         }

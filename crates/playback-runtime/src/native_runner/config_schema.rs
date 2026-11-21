@@ -6,12 +6,14 @@ use super::{
 
 mod derived_names;
 mod missing_field_defaults;
+mod narrowed_fx_params;
 
 pub(super) use missing_field_defaults::normalize_missing_tile_stamps;
 use missing_field_defaults::{
     default_missing_instrument_blocks_in_full_config, normalize_missing_fm_fields,
     normalize_missing_pluck_fields, normalize_missing_usb_data_role,
 };
+pub(super) use narrowed_fx_params::clamp_narrowed_fx_params;
 
 pub(super) const CONFIG_KIND: &str = "octessera.config";
 pub(super) const PATCH_KIND: &str = "octessera.patch";
@@ -30,6 +32,7 @@ pub(super) fn prepare_config_payload(
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
     let (mut input, source_revision) = parse_envelope(input, CONFIG_KIND)?;
+    clamp_narrowed_fx_params(&mut input);
     validate_canonical_lfo_bank_shape(&input)?;
     if !has_global_lfo_bank(&input) {
         return Err("runtimeConfig.linkLfos must be supplied in a v2 full config".into());
@@ -63,6 +66,7 @@ pub(super) fn prepare_patch_payload(
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
     let (mut input, source_revision) = parse_envelope(input, PATCH_KIND)?;
+    clamp_narrowed_fx_params(&mut input);
     validate_canonical_lfo_bank_shape(&input)?;
     let mut validation_template = current.clone();
     default_missing_instrument_blocks_in_full_config(&mut validation_template);
