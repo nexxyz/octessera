@@ -153,7 +153,7 @@ layer_maze_collapse	*	key:layers.*.build.behaviorConfig.collapseAge	number	Colla
 layer_maze_walkers	*	key:layers.*.build.behaviorConfig.walkerCount	number	Walker Count	Sets how many walkers move through visible maze tiles.	Walker entries emit activate accents.
 life_spawn_shared_maze_restart	*	action:behavior_action:restartMaze	action	Restart Maze	Clears the maze and seeds center frontiers and walkers.	Seeded tiles emit activate accents.
 life_spawn_shared_maze_collapse	*	action:behavior_action:collapseMaze	action	Collapse Maze	Removes up to eight old non-walker corridor tiles.	Each removed tile fires its Off event, so mapped notes can stop.
-layer_reaction_feed	*	key:layers.*.build.behaviorConfig.feedPct	number	Feed	Sets how quickly chemical A refills empty space.	Higher values keep fresh material moving into the reaction.
+layer_reaction_feed	*	key:layers.*.build.behaviorConfig.feedPct	number	Feed	Sets how quickly chemical A refills empty space.	Feed and Kill only make spots in a narrow band; around 60 and 62 the patterns hold.
 layer_reaction_kill	*	key:layers.*.build.behaviorConfig.killPct	number	Kill	Sets how quickly chemical B is removed.	Higher values thin out the visible pattern sooner.
 layer_reaction_reaction	*	key:layers.*.build.behaviorConfig.reactionPct	number	Reaction	Sets how strongly A and B convert into new B detail.	Higher values make sharper chemical blooms.
 life_spawn_shared_reaction_seed	*	action:behavior_action:seedChemicals	action	Seed Chemicals	Splashes chemicals near the center and the corners.	Only tiles that get stronger play.

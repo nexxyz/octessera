@@ -10,8 +10,7 @@ fn assert_tail_activity(mut state: ReactionDiffusionState) {
     let mut ctx = context();
     let mut consecutive_empty = 0;
     let mut consecutive_full = 0;
-    let mut consecutive_same = 0;
-    let mut previous = Vec::new();
+    let mut tail = std::collections::HashSet::new();
     for tick in 1..=300 {
         state = reaction_diffusion_on_tick(state, &mut ctx);
         let tiles = reaction_diffusion_render_model(&state).tiles;
@@ -25,16 +24,17 @@ fn assert_tail_activity(mut state: ReactionDiffusionState) {
         } else {
             0
         };
-        consecutive_same = if tiles == previous {
-            consecutive_same + 1
-        } else {
-            0
-        };
         assert!(consecutive_empty <= 1, "empty run at tick {tick}");
         assert!(consecutive_full <= 1, "full run at tick {tick}");
-        assert!(consecutive_same <= 2, "same-frame run at tick {tick}");
-        previous = tiles;
+        if tick > 236 {
+            tail.insert(tiles);
+        }
     }
+    assert!(
+        tail.len() >= 8,
+        "{} frames in the last 64 ticks",
+        tail.len()
+    );
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn default_seed_interval_keeps_reaction_visible_with_bounded_pulses() {
     }
     assert!(state.b.iter().filter(|value| **value >= VISIBLE).count() > 0);
     assert!(pulse_counts.len() >= 4);
-    assert!(pulse_counts.iter().all(|count| *count <= 5));
+    assert!(pulse_counts.iter().all(|count| *count < TILE_COUNT / 2));
 }
 
 #[test]
@@ -145,25 +145,25 @@ fn grid_press_seed_and_clear_trigger_contract() {
 fn integer_tick_uses_start_snapshot_thresholds_and_edges() {
     let mut ctx = context();
     let mut b = vec![0; TILE_COUNT];
-    b[grid_index(1, 1)] = 100;
+    b[grid_index(1, 1)] = 140;
     let state = reaction_diffusion_init(
         json!({"b":b,"feedPct":0,"killPct":0,"diffusionPct":0,"reactionPct":50}),
     )
     .unwrap();
     let ticked = reaction_diffusion_on_tick(state, &mut ctx);
-    assert!(ticked.b[grid_index(1, 1)] > 100);
+    assert!(ticked.b[grid_index(1, 1)] > 140);
     assert_eq!(
         ticked.trigger_types[grid_index(1, 1)],
         TileTriggerType::Stable
     );
     let mut b = vec![0; TILE_COUNT];
-    b[grid_index(0, 0)] = 100;
+    b[grid_index(0, 0)] = VISIBLE + 4;
     let edge = reaction_diffusion_init(
         json!({"b":b,"feedPct":0,"killPct":100,"diffusionPct":100,"reactionPct":0}),
     )
     .unwrap();
     let edge = reaction_diffusion_on_tick(edge, &mut ctx);
-    assert_eq!(edge.b[grid_index(0, 0)], 0);
+    assert!(edge.b[grid_index(0, 0)] < VISIBLE);
     assert_eq!(edge.b[grid_index(7, 7)], 0);
     assert_eq!(
         edge.trigger_types[grid_index(0, 0)],
@@ -171,6 +171,24 @@ fn integer_tick_uses_start_snapshot_thresholds_and_edges() {
     );
     assert_eq!(
         reaction_diffusion_render_model(&edge).status_line,
-        "B:2 E:2"
+        "B:0 E:0"
     );
+}
+
+#[test]
+fn a_seeded_reaction_usually_keeps_itself_going_without_more_splashes() {
+    let alive = (1..=20)
+        .filter(|seed| {
+            let mut random = crate::behavior_random::LayerRandom::new(Some(*seed));
+            random.scope(|| {
+                let mut ctx = context();
+                let mut state = reaction_diffusion_init(json!({ "seedInterval": 0 })).unwrap();
+                for _ in 0..150 {
+                    state = reaction_diffusion_on_tick(state, &mut ctx);
+                }
+                state.b.iter().any(|b| *b >= VISIBLE)
+            })
+        })
+        .count();
+    assert!(alive >= 12, "{alive} of 20 streams still react");
 }

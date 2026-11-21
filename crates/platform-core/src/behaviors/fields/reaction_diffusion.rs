@@ -6,11 +6,12 @@ use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-const VISIBLE: u8 = 32;
-const ACTIVATE: u8 = 96;
+const VISIBLE: u8 = 96;
+const ACTIVATE: u8 = 128;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReactionDiffusionState {
@@ -115,23 +116,22 @@ pub fn reaction_diffusion_on_tick(
     let pb = state.b.clone();
     let mut na = pa.clone();
     let mut nb = pb.clone();
+    let feed = f32::from(state.feed_pct) / 1000.0;
+    let kill = f32::from(state.kill_pct) / 1000.0;
+    let diffusion_a = f32::from(state.diffusion_pct) / 100.0;
+    let diffusion_b = diffusion_a / 3.0;
+    let reaction_scale = f32::from(state.reaction_pct) / 50.0;
+    let mut rng = crate::behavior_random::rng();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let i = grid_index(x, y);
             let (avg_a, avg_b) = avg(&pa, &pb, x, y);
-            let lap_a = avg_a - i32::from(pa[i]);
-            let lap_b = avg_b - i32::from(pb[i]);
-            let reaction =
-                (u32::from(pa[i]) * u32::from(pb[i]) * u32::from(pb[i]) / (255 * 255)) as i32;
-            let a = i32::from(pa[i]) + i32::from(state.diffusion_pct) * lap_a / 100
-                - i32::from(state.reaction_pct) * reaction / 100
-                + i32::from(state.feed_pct) * (255 - i32::from(pa[i])) / 100;
-            let b = i32::from(pb[i])
-                + i32::from(state.diffusion_pct) * lap_b / 100
-                + i32::from(state.reaction_pct) * reaction / 100
-                - i32::from(state.kill_pct) * i32::from(pb[i]) / 100;
-            na[i] = a.clamp(0, 255) as u8;
-            nb[i] = b.clamp(0, 255) as u8;
+            let (a, b) = (f32::from(pa[i]), f32::from(pb[i]));
+            let reaction = reaction_scale * a * b * b / (255.0 * 255.0);
+            let da = diffusion_a * (avg_a - a) - reaction + feed * (255.0 - a);
+            let db = diffusion_b * (avg_b - b) + reaction - (kill + feed) * b;
+            na[i] = (a + da + rng.gen::<f32>()).floor().clamp(0.0, 255.0) as u8;
+            nb[i] = (b + db + rng.gen::<f32>()).floor().clamp(0.0, 255.0) as u8;
         }
     }
     state.a = na;
@@ -185,11 +185,11 @@ fn from_config(v: Value) -> ReactionDiffusionState {
         a: norm(c.a, 255),
         b: norm(c.b, 0),
         trigger_types: restore_trigger_types(c.trigger_types),
-        feed_pct: num(c.feed_pct, 35, 100),
-        kill_pct: num(c.kill_pct, 55, 100),
-        diffusion_pct: num(c.diffusion_pct, 35, 100),
+        feed_pct: num(c.feed_pct, 60, 100),
+        kill_pct: num(c.kill_pct, 62, 100),
+        diffusion_pct: num(c.diffusion_pct, 60, 100),
         reaction_pct: num(c.reaction_pct, 50, 100),
-        seed_interval: num(c.seed_interval, 3, 64),
+        seed_interval: num(c.seed_interval, 8, 64),
         spawn_step: num(c.spawn_step, 2, 63),
         tick_counter: 0,
     };
@@ -255,7 +255,7 @@ fn seed_at_step(s: &mut ReactionDiffusionState, step: u64) -> Vec<usize> {
     let (x, y) = points[step as usize % points.len()];
     splash(s, x, y)
 }
-fn avg(a: &[u8], b: &[u8], x: usize, y: usize) -> (i32, i32) {
+fn avg(a: &[u8], b: &[u8], x: usize, y: usize) -> (f32, f32) {
     let mut sa = 0;
     let mut sb = 0;
     let mut c = 0;
@@ -271,11 +271,11 @@ fn avg(a: &[u8], b: &[u8], x: usize, y: usize) -> (i32, i32) {
     }
     if c == 0 {
         (
-            i32::from(a[grid_index(x, y)]),
-            i32::from(b[grid_index(x, y)]),
+            f32::from(a[grid_index(x, y)]),
+            f32::from(b[grid_index(x, y)]),
         )
     } else {
-        (sa / c, sb / c)
+        (sa as f32 / c as f32, sb as f32 / c as f32)
     }
 }
 fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
