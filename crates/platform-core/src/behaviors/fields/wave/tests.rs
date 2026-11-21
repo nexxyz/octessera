@@ -155,7 +155,7 @@ fn drop_impulse_forces_activate_and_serialization_is_stable() {
 fn full_tension_without_damping_stays_in_range() {
     let checker = (0..TILE_COUNT)
         .map(|index| {
-            if (index + index / GRID_WIDTH) % 2 == 0 {
+            if (index + index / GRID_WIDTH).is_multiple_of(2) {
                 CLAMP
             } else {
                 -CLAMP
