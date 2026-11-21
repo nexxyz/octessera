@@ -69,6 +69,10 @@ impl NativeRunner {
             .now()
             .saturating_duration_since(pulse_at)
             .as_secs_f64();
+        if elapsed > 2.0 * pulse_seconds {
+            // A pause or a stalled clock: hold where the LFOs are until the next pulse.
+            return self.transport.lfo_sub_pulse;
+        }
         let step = (elapsed / pulse_seconds * f64::from(LFO_SUB_PULSES)) as u32;
         step.min(LFO_SUB_PULSES - 1) as u8
     }
