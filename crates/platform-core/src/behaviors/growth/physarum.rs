@@ -418,7 +418,7 @@ fn apply_food(s: &mut PhysarumState) {
     s.food.fill(0);
     match s.food_pattern {
         0 => {
-            for (x, y) in [(0, 0), (7, 0), (0, 7), (7, 7)] {
+            for (x, y) in drifting_food(s.tick_counter) {
                 s.food[grid_index(x, y)] = 1
             }
         }
@@ -441,15 +441,22 @@ fn apply_food(s: &mut PhysarumState) {
         }
     }
 }
+/// Moves the drifting food one step along the edges; food placed by a press stays put.
 fn drift_food(s: &mut PhysarumState) {
     if s.food_pattern != 0 {
         return;
     }
-    s.food.fill(0);
-    let offset = (s.tick_counter as usize) % GRID_WIDTH;
-    for (x, y) in [(offset, 0), (7 - offset, 7), (0, offset), (7, 7 - offset)] {
+    for (x, y) in drifting_food(s.tick_counter.wrapping_sub(1)) {
+        s.food[grid_index(x, y)] = 0;
+    }
+    for (x, y) in drifting_food(s.tick_counter) {
         s.food[grid_index(x, y)] = 1;
     }
+}
+
+fn drifting_food(tick: u64) -> [(usize, usize); 4] {
+    let offset = (tick as usize) % GRID_WIDTH;
+    [(offset, 0), (7 - offset, 7), (0, offset), (7, 7 - offset)]
 }
 
 #[cfg(test)]

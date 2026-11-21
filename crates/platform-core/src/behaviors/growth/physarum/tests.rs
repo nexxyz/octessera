@@ -275,3 +275,15 @@ fn boundary_reflection_covers_left_bottom_edges_and_food_drift() {
     assert_eq!(drifted.food[grid_index(0, 0)], 1);
     assert!(drifted.food.iter().filter(|food| **food == 1).count() >= 2);
 }
+
+#[test]
+fn pressed_food_stays_while_the_drifting_food_moves() {
+    let mut c = ctx();
+    let state = physarum_init(serde_json::json!({ "foodPattern": 0 })).unwrap();
+    let mut state = physarum_on_input(state, DeviceInput::GridPress { x: 3, y: 4 }, &mut c);
+    for _ in 0..12 {
+        state = physarum_on_tick(state, &mut c);
+        assert_eq!(state.food[grid_index(3, 4)], 1);
+    }
+    assert_eq!(state.food.iter().filter(|food| **food == 1).count(), 5);
+}
