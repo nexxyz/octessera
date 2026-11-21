@@ -205,7 +205,7 @@ fn synth_block_matches_scalar_across_config_and_mod_changes_and_release() {
 fn synth_block_static_filter_prepares_once_per_active_voice() {
     for cutoff_cc in [None, Some(83)] {
         let mut cfg = default_synth_config();
-        cfg.filter.env_amount_pct = if cutoff_cc.is_some() { 42.0 } else { 0.0 };
+        cfg.filter.env_amount_pct = 0.0;
         let mut engine = synth_engine(cfg);
         engine.note_on(0, 60, 96, 10_000);
         if let Some(value) = cutoff_cc {
@@ -229,7 +229,7 @@ fn synth_block_dynamic_filter_prepares_at_control_rate() {
 }
 
 #[test]
-fn filter_ccs_at_zero_hold_the_bottom_of_their_range() {
+fn filter_ccs_at_zero_take_the_cutoff_down_and_the_resonance_to_its_bottom() {
     let mut patch = default_synth_config();
     patch.filter.env_amount_pct = 0.0;
     patch.filter.cutoff_hz = 6_000.0;
@@ -239,7 +239,7 @@ fn filter_ccs_at_zero_hold_the_bottom_of_their_range() {
     swept.cc(0, 71, 0);
 
     let mut bottom = patch;
-    bottom.filter.cutoff_hz = 120.0;
+    bottom.filter.cutoff_hz = 6_000.0 * ((0.0_f32 - 64.0 / 127.0) * 7.0).exp2();
     bottom.filter.resonance = 0.0;
     let mut expected = synth_engine(bottom);
 

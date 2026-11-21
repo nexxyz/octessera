@@ -297,8 +297,7 @@ pub(super) fn prepare_synth_voice_block(
         }
         None => 0.0,
     };
-    let static_cutoff = (cutoff_cc_step == 0.0
-        && (mods.cutoff_cc.is_some() || cfg.filter_env_amount == 0.0))
+    let static_cutoff = (cutoff_cc_step == 0.0 && cfg.filter_env_amount == 0.0)
         .then(|| synth_voice_cutoff(cfg, mods.cutoff_cc, 0.0, v.filter_key_scale, sample_rate));
     SynthVoiceBlockRenderState {
         velocity_gain,
@@ -438,7 +437,7 @@ fn synth_voice_cutoff(
 ) -> f32 {
     let cutoff_env = filter_env_cutoff_hz(cfg.filter_cutoff_hz, cfg.filter_env_amount, filt_env);
     let cutoff = match cutoff_cc {
-        Some(cutoff_cc) => cc_cutoff_hz(cutoff_cc),
+        Some(cutoff_cc) => cutoff_env * key_scale * cc_cutoff_ratio(cutoff_cc),
         None => cutoff_env * key_scale,
     };
     cutoff.clamp(20.0, (sample_rate as f32 * 0.49).clamp(20.0, 20_000.0))
@@ -453,10 +452,13 @@ pub(super) fn filter_env_cutoff_hz(cutoff_hz: f32, env_amount: f32, env: f32) ->
     cutoff_hz * (env_amount * env * FILTER_ENV_OCTAVES).exp2()
 }
 
-/// CC74 sweeps 120 Hz to 16 kHz evenly in pitch, so each step of the knob moves the same
-/// musical distance.
-fn cc_cutoff_hz(cutoff_cc: f32) -> f32 {
-    120.0 * (16_000.0_f32 / 120.0).powf(cutoff_cc)
+/// How far CC74 moves the cutoff from one end to the other.
+const CC74_SPAN_OCTAVES: f32 = 7.0;
+
+/// CC74 moves the patch's cutoff, its envelope and key tracking included, evenly in pitch around
+/// it: 64 leaves it alone, 0 and 127 take it about three and a half octaves down or up.
+fn cc_cutoff_ratio(cutoff_cc: f32) -> f32 {
+    ((cutoff_cc - 64.0 / 127.0) * CC74_SPAN_OCTAVES).exp2()
 }
 
 fn synth_voice_q(cfg: &SynthVoiceRenderConfig, resonance_cc: Option<f32>) -> f32 {

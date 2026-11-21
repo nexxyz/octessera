@@ -397,12 +397,12 @@ aux_manual_hints	*	key:auxManualHints	bool	Manual Hints	Shows your own Aux bindi
 link_x_axis_group	Menu > Link > L*: * > X Axis		group	X Axis	Lets a tile's left-right position shape pitch, velocity and the filter.	Each lane has its own range.
 link_x_pitch_group	Menu > Link > L*: * > X Axis > Pitch Steps		group	X Pitch Steps	Controls pitch stepping derived from X position.	Disable to remove X-axis pitch influence.
 link_x_velocity_group	Menu > Link > L*: * > X Axis > Velocity		group	Velocity	Lets left-right position set how hard notes play.	From and To set the softest and hardest.
-link_x_cutoff_group	Menu > Link > L*: * > X Axis > Filter Cutoff		group	Filter Cutoff	Lets left-right position open or close the filter.	Sent as MIDI CC74 to external gear too.
+link_x_cutoff_group	Menu > Link > L*: * > X Axis > Filter Cutoff		group	Filter Cutoff	Lets left-right position open or close the filter around the instrument's own cutoff.	Sent as MIDI CC74 to external gear too.
 link_x_res_group	Menu > Link > L*: * > X Axis > Filter Res		group	Filter Res	Lets left-right position set the filter resonance.	Sent as MIDI CC71. Go easy, it can squeal.
 link_y_axis_group	Menu > Link > L*: * > Y Axis		group	Y Axis	Lets a tile's bottom-top position shape pitch, velocity and the filter.	Combine it with X Axis for two-handed shaping.
 link_y_pitch_group	Menu > Link > L*: * > Y Axis > Pitch Steps		group	Y Pitch Steps	Controls pitch stepping derived from Y position.	Disable to remove Y-axis pitch influence.
 link_y_velocity_group	Menu > Link > L*: * > Y Axis > Velocity		group	Velocity	Lets bottom-top position set how hard notes play.	From and To set the softest and hardest.
-link_y_cutoff_group	Menu > Link > L*: * > Y Axis > Filter Cutoff		group	Filter Cutoff	Lets bottom-top position open or close the filter.	Sent as MIDI CC74 to external gear too.
+link_y_cutoff_group	Menu > Link > L*: * > Y Axis > Filter Cutoff		group	Filter Cutoff	Lets bottom-top position open or close the filter around the instrument's own cutoff.	Sent as MIDI CC74 to external gear too.
 link_y_res_group	Menu > Link > L*: * > Y Axis > Filter Res		group	Filter Res	Lets bottom-top position set the filter resonance.	Sent as MIDI CC71. Go easy, it can squeal.
 axis_pitch_enabled_x_part	*	key:layers.*.link.x.pitch.enabled	bool	X Pitch Enabled	Enables pitch stepping derived from X position.	Disable to remove horizontal pitch influence for this layer.
 axis_pitch_steps_x_part	*	key:layers.*.link.x.pitch.steps	number	X Pitch Steps	Sets semitone-step influence per X grid step.	Larger values create wider horizontal intervals.

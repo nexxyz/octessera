@@ -59,7 +59,7 @@ fn synth_and_fm_key_tracking_follow_note_octaves_without_changing_zero_tracking(
 }
 
 #[test]
-fn key_tracking_multiplies_filter_envelope_but_cc_overrides_both() {
+fn key_tracking_and_cc74_both_move_the_enveloped_cutoff_in_pitch() {
     let mut synth = default_synth_config();
     synth.filter.cutoff_hz = 1_000.0;
     synth.filter.env_amount_pct = 50.0;
@@ -77,9 +77,25 @@ fn key_tracking_multiplies_filter_envelope_but_cc_overrides_both() {
         1_000.0 * 2.0 * 2.0
     );
     assert_eq!(
-        synth_voice_cutoff(&cfg, Some(0.5), 1.0, voice.filter_key_scale, 44_100),
-        synth_voice_cutoff(&cfg, Some(0.5), 0.0, 1.0, 44_100)
+        synth_voice_cutoff(
+            &cfg,
+            Some(64.0 / 127.0),
+            0.4,
+            voice.filter_key_scale,
+            44_100
+        ),
+        synth_voice_cutoff(&cfg, None, 0.4, voice.filter_key_scale, 44_100)
     );
+    let opened = synth_voice_cutoff(
+        &cfg,
+        Some(96.0 / 127.0),
+        0.0,
+        voice.filter_key_scale,
+        44_100,
+    );
+    assert!((opened / 2_000.0 - (7.0 * 32.0 / 127.0_f32).exp2()).abs() < 1.0e-4);
+    let closed = synth_voice_cutoff(&cfg, Some(0.0), 0.4, voice.filter_key_scale, 44_100);
+    assert!((closed / 4_000.0 - (-7.0 * 64.0 / 127.0_f32).exp2()).abs() < 1.0e-4);
     voice.midi_note = 127;
     refresh_synth_voice_render_cache(&mut voice, &cfg, 44_100, 2);
     assert_eq!(
@@ -242,20 +258,22 @@ fn render_cache_refresh_matches_reference_after_config_change() {
 }
 
 #[test]
-fn cc74_maps_evenly_in_pitch_from_120_hz_to_16_khz() {
-    let cfg = SynthVoiceRenderConfig::from_config(default_synth_config());
-    let cutoff = |cc: f32| synth_voice_cutoff(&cfg, Some(cc), 0.0, 1.0, 48_000);
-    assert!((cutoff(0.0) - 120.0).abs() < 1.0e-3);
-    assert!((cutoff(1.0) - 16_000.0).abs() < 0.05);
-    assert!((cutoff(0.5) - (120.0_f32 * 16_000.0).sqrt()).abs() < 0.05);
-    let octaves_per_tenth = (cutoff(0.6) / cutoff(0.5)).log2();
-    assert!((octaves_per_tenth - (16_000.0_f32 / 120.0).log2() / 10.0).abs() < 1.0e-3);
+fn cc74_moves_the_cutoff_evenly_in_pitch_around_64() {
+    let mut synth = default_synth_config();
+    synth.filter.cutoff_hz = 1_000.0;
+    let cfg = SynthVoiceRenderConfig::from_config(synth);
+    let cutoff = |cc: f32| synth_voice_cutoff(&cfg, Some(cc / 127.0), 0.0, 1.0, 48_000);
+    assert_eq!(cutoff(64.0), 1_000.0);
+    assert!((cutoff(0.0) - 1_000.0 * (-7.0 * 64.0 / 127.0_f32).exp2()).abs() < 1.0e-3);
+    assert!((cutoff(127.0) - 1_000.0 * (7.0 * 63.0 / 127.0_f32).exp2()).abs() < 0.05);
+    let octaves_per_step = (cutoff(65.0) / cutoff(64.0)).log2();
+    assert!((octaves_per_step - 7.0 / 127.0).abs() < 1.0e-4);
 }
 
 #[test]
 fn a_cc74_move_glides_across_the_control_updates_of_one_block() {
     let mut synth = default_synth_config();
-    synth.filter.env_amount_pct = 40.0;
+    synth.filter.env_amount_pct = 0.0;
     let cfg = SynthVoiceRenderConfig::from_config(synth);
     let mut voice = test_voice();
     let mut mods = InstrumentMod::new();
@@ -331,7 +349,7 @@ fn reference_synth_voice_cutoff(cfg: &SynthConfig, cutoff_cc: Option<f32>, filt_
     let env_amt = (cfg.filter.env_amount_pct / 100.0).clamp(-1.0, 1.0);
     let cutoff_env = cutoff_base * (env_amt * filt_env * 5.0).exp2();
     match cutoff_cc {
-        Some(cutoff_cc) => 120.0 * (16_000.0_f32 / 120.0).powf(cutoff_cc),
+        Some(cutoff_cc) => cutoff_env * ((cutoff_cc - 64.0 / 127.0) * 7.0).exp2(),
         None => cutoff_env,
     }
 }
