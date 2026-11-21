@@ -4,10 +4,13 @@ use crate::behavior::{
 };
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
 use rand::seq::SliceRandom;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 const TILE_COUNT: usize = GRID_WIDTH * GRID_HEIGHT;
+/// A world that stands still or empty this long gets a glider to wake it.
+const STILL_TICKS: usize = 8;
 
 fn trigger_types_from_tiles(previous: &[bool], next: &[bool]) -> Vec<TileTriggerType> {
     (0..TILE_COUNT)
@@ -36,6 +39,9 @@ pub struct LifeState {
     pub spawn_step: usize,
     #[serde(rename = "tickCounter", default, skip_serializing, skip_deserializing)]
     pub tick_counter: usize,
+    /// Ticks the world has stood still or empty in a row.
+    #[serde(default, skip_serializing, skip_deserializing)]
+    pub still_ticks: usize,
     #[serde(rename = "triggerTypes")]
     pub trigger_types: Vec<TileTriggerType>,
 }
@@ -135,6 +141,21 @@ pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
         spawn_glider(&mut next_cells, &mut trigger_types, 0, 0);
     }
 
+    let mut still_ticks = if next_cells == state.cells {
+        state.still_ticks + 1
+    } else {
+        0
+    };
+    if still_ticks >= STILL_TICKS {
+        let mut rng = crate::behavior_random::rng();
+        let (x, y) = (
+            rng.gen_range(0..GRID_WIDTH - 2),
+            rng.gen_range(0..GRID_HEIGHT - 2),
+        );
+        spawn_glider(&mut next_cells, &mut trigger_types, x, y);
+        still_ticks = 0;
+    }
+
     LifeState {
         width: state.width,
         height: state.height,
@@ -145,6 +166,7 @@ pub fn on_tick(state: LifeState, _context: &mut BehaviorContext) -> LifeState {
         glider_spawn_interval: state.glider_spawn_interval,
         spawn_step: state.spawn_step,
         tick_counter: next_tick_counter,
+        still_ticks,
         trigger_types,
     }
 }
@@ -266,6 +288,7 @@ fn from_value(data: &Value) -> LifeState {
         glider_spawn_interval: number_field(data, "gliderSpawnInterval", 0, 0, 20),
         spawn_step: number_field(data, "spawnStep", 0, 0, 63),
         tick_counter: 0,
+        still_ticks: 0,
         trigger_types: normalize_triggers(array_field(data, "triggerTypes")),
     };
     normalize(&mut state);
