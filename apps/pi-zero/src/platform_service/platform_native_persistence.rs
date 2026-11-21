@@ -172,6 +172,7 @@ pub(crate) fn submit_manual_save(
 ) -> Option<playback_runtime::HostMessage> {
     match manual {
         NativeManualSaveRequest::Default => {
+            playback.forget_shown_save_failure(&RuntimeOperation::StoreSaveDefault);
             let snapshot = runner.capture_config_snapshot();
             let revision = snapshot.revision();
             let request =

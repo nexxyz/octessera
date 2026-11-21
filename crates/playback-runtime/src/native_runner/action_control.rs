@@ -127,6 +127,7 @@ impl NativeRunner {
                 self.show_toast("Still saving. Try again in a few seconds.");
                 return true;
             }
+            self.forget_shown_save_failure(&crate::RuntimeOperation::StoreSaveDefault);
             NativeManualSaveRequest::Default
         } else {
             if self.pending.manual_save_request.is_some()

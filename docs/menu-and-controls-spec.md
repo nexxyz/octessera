@@ -758,13 +758,13 @@ behavior primary red), so a mute never reads as a section color.
   bar. Below it, in its own rectangle (`x=10`, `y=34`, 18 columns, 12 px rows), come up to four
   wrapped text rows, a blank row, and a dim row with the operation id (for example
   `store_save_preset`, clipped with `...`). The footer reads `Press Main: OK`. Back and a Main
-  press both still close it. The raw message is never drawn; one `eprintln!` line per presented
-  error (domain, code, operation, full message) goes to the journal instead.
+  press both still close it. The raw message is never drawn; one `eprintln!` line per error the
+  runtime latches (domain, code, operation, full message) goes to the journal instead.
 - The runtime keeps retrying `store_save_default`, `store_save_backup`, `store_save_recovery` and
   `store_save_system` while the data stays unsaved. Each of them shows its error once, in the
   runtime latch and the runner alike; its retries stay off the screen until that save works
   again. `Save Patch` run by hand always shows (and logs) its own failure. A System save run by
-  hand shows its failure on the runner's error screen.
+  hand shows its failure on the runner's error screen; the runtime does not latch it again.
 - Wording is chosen by operation, and only states what happens in every case of that family:
   `CAN'T SAVE` (`store_save_preset`: `<name> was not saved.` plus either `A preset with that name
   exists.` or `Check the SD card, then try again.`, with the name taken from the preset request

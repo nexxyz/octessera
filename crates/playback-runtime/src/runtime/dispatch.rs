@@ -277,9 +277,7 @@ impl PlaybackRuntime {
                             effect,
                             crate::RuntimePlatformEffect::StoreSaveDefault { mode: None, .. }
                         ) {
-                            // A patch save run by hand reports its own failure again.
-                            self.shown_save_failures
-                                .retain(|shown| *shown != RuntimeOperation::StoreSaveDefault);
+                            self.forget_shown_save_failure(&RuntimeOperation::StoreSaveDefault);
                         }
                         let request = self.next_platform_request(effect);
                         if let Some(runner) = runner.as_deref_mut() {

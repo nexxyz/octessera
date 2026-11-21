@@ -140,6 +140,11 @@ impl PlaybackRuntime {
         })
     }
 
+    /// A save run by hand latches its own failure again even after a retried one was shown.
+    pub fn forget_shown_save_failure(&mut self, operation: &RuntimeOperation) {
+        self.shown_save_failures.retain(|shown| shown != operation);
+    }
+
     pub fn latch_error(&mut self, error: RuntimeErrorMetadata) {
         eprintln!("{}", error.log_line());
         self.latched_errors

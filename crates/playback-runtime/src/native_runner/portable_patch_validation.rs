@@ -64,9 +64,6 @@ fn validate_value(value: &Value, template: &Value, path: &str) -> Result<(), Str
     if is_play_assignments_path(path) {
         return validate_play_assignments(value, path);
     }
-    if path.ends_with(".tileStamp") {
-        return validate_object_keys(value, path, TILE_STAMP_FIELDS);
-    }
     if path.ends_with(".faders.tiles") {
         return validate_fader_tiles(value, path);
     }
@@ -299,7 +296,6 @@ const PARAM_BINDING_FIELDS: &[&str] = &[
 const AUX_BINDING_FIELDS: &[&str] = &["turnKey", "pressAction"];
 const PRESS_ACTION_FIELDS: &[&str] = &["kind", "actionType", "layer", "action", "slot"];
 const FADER_TILE_FIELDS: &[&str] = &["x", "y", "type", "action", "shiftAction", "target"];
-const TILE_STAMP_FIELDS: &[&str] = &["tuneSemis", "tuneCents", "level"];
 const SYSTEM_FIELDS: &[&str] = &["playMode"];
 const SAMPLE_ASSIGNMENT_FIELDS: &[&str] =
     &["level", "sampleSlot", "x", "y", "tuneSemis", "tuneCents"];

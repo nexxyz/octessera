@@ -66,7 +66,6 @@ pub(super) fn prepare_patch_payload(
     validate_canonical_lfo_bank_shape(&input)?;
     let mut validation_template = current.clone();
     default_missing_instrument_blocks_in_full_config(&mut validation_template);
-    normalize_missing_tile_stamps(&mut validation_template);
     normalize_missing_pluck_fields(&mut validation_template);
     super::drum_config::normalize_complete_voice_bank(&mut validation_template);
     normalize_missing_fm_fields(&mut validation_template);
@@ -81,7 +80,6 @@ pub(super) fn prepare_patch_payload(
     let mut patch = patch_payload_from_payload(input)?;
     super::random_streams::default_missing_seed_fields(&mut patch);
     let mut payload = merge_values(current, &patch);
-    normalize_missing_tile_stamps(&mut payload);
     derived_names::canonicalize_merged_payload_names(&mut payload, &patch);
     discard_incompatible_layer_state(&mut payload, &patch, current);
     set_config_envelope(

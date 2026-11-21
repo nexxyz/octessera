@@ -150,3 +150,53 @@ fn restore_generation_invalidates_pending_native_metadata() {
     assert!(service.native_default_write().is_none());
     let _ = std::fs::remove_dir_all(root);
 }
+
+#[test]
+fn a_patch_save_run_by_hand_on_the_board_shows_its_failure_after_a_shown_autosave_failure() {
+    let (service, root) = service_and_root("manual-after-shown");
+    let mut playback = PlaybackRuntime::new(playback_runtime::RuntimeConfig::default());
+    let mut runner = runner_with_aux_mapping(true, false);
+    let mut pending = PendingPiPersistence::default();
+    let failure = |id: &str| {
+        RuntimeStoreResult::RuntimeFailure {
+            error: playback_runtime::RuntimeErrorFacts::new(
+                playback_runtime::RuntimeErrorDomain::Storage,
+                playback_runtime::RuntimeErrorCode::OperationFailed,
+                RuntimeOperation::StoreSaveDefault,
+                Some("No space left on device".into()),
+            ),
+        }
+        .with_identity(id.into(), Some(1))
+    };
+    let runner_shows_error = |runner: &mut NativeRunner, id: &str| {
+        let messages = runner
+            .send_music_first(HostMessage::RuntimeResult {
+                result: failure(id),
+            })
+            .unwrap();
+        let shown = messages.iter().any(|message| {
+            matches!(message, playback_runtime::RunnerMessage::Snapshot { snapshot }
+                if snapshot["display"]["title"] == "CAN'T SAVE")
+        });
+        runner
+            .send_music_first(HostMessage::DeviceInput {
+                input: json!({ "type": "encoder_press", "id": "main" }),
+                request_snapshot: None,
+            })
+            .unwrap();
+        shown
+    };
+
+    playback.ingest_runtime_result(&failure("auto-1"));
+    assert!(runner_shows_error(&mut runner, "auto-1"));
+    playback.ingest_runtime_result(&failure("auto-2"));
+    assert_eq!(playback.latched_errors().len(), 1);
+    assert!(!runner_shows_error(&mut runner, "auto-2"));
+
+    confirm_action(&mut runner, "default.save");
+    take_manual_save(&mut pending, &service, &mut playback, &mut runner);
+    playback.ingest_runtime_result(&failure("manual"));
+    assert_eq!(playback.latched_errors().len(), 2);
+    assert!(runner_shows_error(&mut runner, "manual"));
+    let _ = std::fs::remove_dir_all(root);
+}
