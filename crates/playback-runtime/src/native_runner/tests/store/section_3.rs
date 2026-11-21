@@ -43,7 +43,9 @@ pub(crate) fn patch_load_brings_its_own_aux_layout_including_system_targets() {
 #[test]
 pub(crate) fn device_config_apply_keeps_the_patch_aux_layout() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let device = runner.device_config_payload().unwrap();
+    let system = split_local_system_patch_documents(&runner.config_payload())
+        .unwrap()
+        .system;
     runner.aux_bindings[0] = Some(NativeAuxBinding {
         turn_key: Some("masterVolume".into()),
         press_action: None,
@@ -58,7 +60,7 @@ pub(crate) fn device_config_apply_keeps_the_patch_aux_layout() {
     );
 
     runner
-        .apply_device_config_payload_preserving_patch(device)
+        .apply_system_document_preserving_patch(&system)
         .unwrap();
 
     assert_eq!(

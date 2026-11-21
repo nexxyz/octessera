@@ -114,13 +114,19 @@ pub(crate) fn pi_default_reproduces_complete_canonical_projections() {
 
     let mut expected_desktop = runner_with_config(base.clone());
     let desktop_device = config_with(&expected_desktop, desktop_override);
+    let system = split_local_system_patch_documents(&desktop_device)
+        .unwrap()
+        .system;
     expected_desktop
-        .apply_device_config_payload_preserving_patch(desktop_device)
+        .apply_system_document_preserving_patch(&system)
         .unwrap();
     let mut expected_pi = runner_with_config(base.clone());
     let pi_device = config_with(&expected_pi, pi_override);
+    let system = split_local_system_patch_documents(&pi_device)
+        .unwrap()
+        .system;
     expected_pi
-        .apply_device_config_payload_preserving_patch(pi_device)
+        .apply_system_document_preserving_patch(&system)
         .unwrap();
     assert_eq!(
         device_config_payload_from_payload(desktop.clone()).unwrap(),

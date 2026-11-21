@@ -117,25 +117,18 @@ pub(crate) fn patch_and_device_payloads_preserve_the_other_owner() {
     );
 
     let musical_before_device = runner.patch_payload().unwrap();
-    let mut device = runner.device_config_payload().unwrap();
-    device["runtimeConfig"]["masterVolume"] = json!(22);
-    device["runtimeConfig"]["displayBrightness"] = json!(3);
-    device["runtimeConfig"]["audioOutputs"] = json!({
+    let mut system = split_local_system_patch_documents(&runner.config_payload())
+        .unwrap()
+        .system;
+    system["runtimeConfig"]["masterVolume"] = json!(22);
+    system["runtimeConfig"]["displayBrightness"] = json!(3);
+    system["runtimeConfig"]["audioOutputs"] = json!({
         "dac": false,
         "usb": true,
         "hdmi": false
     });
-    device["runtimeConfig"]["instruments"] = json!([
-        { "mixer": { "volume": 1 } }
-    ]);
-    device["runtimeConfig"]["layers"] = json!([
-        { "build": { "behaviorId": "brain" } }
-    ]);
-    device["runtimeConfig"]["mixer"] = json!({
-        "buses": [{ "volumePct": 1 }]
-    });
     runner
-        .apply_device_config_payload_preserving_patch(device)
+        .apply_system_document_preserving_patch(&system)
         .unwrap();
 
     assert_eq!(runner.patch_payload().unwrap(), musical_before_device);

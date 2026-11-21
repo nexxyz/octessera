@@ -93,31 +93,6 @@ pub(super) fn prepare_patch_payload(
     })
 }
 
-#[cfg(test)]
-pub(super) fn prepare_device_payload(
-    input: Value,
-    current: &Value,
-) -> Result<PreparedConfigPayload, String> {
-    let (mut input, source_revision) = parse_envelope(input, CONFIG_KIND)?;
-    validate_canonical_lfo_bank_shape(&input)?;
-    normalize_missing_usb_data_role(&mut input);
-    validate_supplied_audio_outputs(&input)?;
-    let device = super::device_config_payload_from_payload(input)?;
-    let mut payload = merge_values(current, &device);
-    set_config_envelope(
-        &mut payload,
-        source_revision.or_else(|| revision_of(current)),
-    );
-    validate_config_payload(&payload)?;
-    let envelope = ConfigDto::decode(&payload)?;
-    Ok(PreparedConfigPayload {
-        apply_payload: payload.clone(),
-        payload,
-        envelope,
-        source_revision,
-    })
-}
-
 fn discard_incompatible_layer_state(payload: &mut Value, patch: &Value, current: &Value) {
     let Some(patch_layers) = patch
         .get("runtimeConfig")

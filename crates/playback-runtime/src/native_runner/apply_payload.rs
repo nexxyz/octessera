@@ -1,7 +1,5 @@
 use super::grid_assign::GridAssign;
 use super::play_fx::config::PlayFxConfig;
-#[cfg(test)]
-use super::prepare_device_payload;
 use super::NativeHdmiMode;
 use super::{
     prepare_config_payload, prepare_patch_payload, ConfigDto, ConfigurationAggregate,
@@ -219,24 +217,6 @@ impl NativeRunner {
         let before = self.configuration_aggregate();
         let prepared = super::prepare_local_patch_payload(payload, &current)?;
         let candidate = self.build_transaction_candidate(&prepared, false)?;
-        let plan = before.resolve_plan(
-            &candidate.configuration_aggregate(),
-            self.audio_revisions.revision,
-        );
-        let source_revision = prepared.source_revision;
-        self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
-        Ok(())
-    }
-
-    #[cfg(test)]
-    pub(super) fn apply_device_config_payload_preserving_patch(
-        &mut self,
-        payload: Value,
-    ) -> Result<(), String> {
-        let current = self.config_payload();
-        let before = self.configuration_aggregate();
-        let prepared = prepare_device_payload(payload, &current)?;
-        let candidate = self.build_transaction_candidate(&prepared, true)?;
         let plan = before.resolve_plan(
             &candidate.configuration_aggregate(),
             self.audio_revisions.revision,
