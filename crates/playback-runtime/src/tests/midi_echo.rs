@@ -142,3 +142,35 @@ fn a_key_up_right_after_a_sequenced_note_off_on_the_same_note_reaches_the_runner
         "a note-off is never an echo, so the key-up releases the held note"
     );
 }
+
+#[test]
+fn a_key_up_forgets_the_sent_note_so_the_next_identical_press_plays() {
+    let mut runtime = midi_out_runtime();
+    let mut runner = SequencerRunner::default();
+    let start = Instant::now();
+    let mut host = FakeHost {
+        clock: Some(start),
+        ..FakeHost::default()
+    };
+    set_runtime_playing(&mut runtime, &mut host);
+    host.midi_message_at.clear();
+    runtime.advance(100, &mut runner, &mut host).unwrap();
+    let sent = host
+        .midi_messages
+        .iter()
+        .position(|bytes| bytes == &vec![0x92, 64, 90])
+        .expect("the sequencer note goes out");
+    let sent_at = host.midi_message_at[sent].expect("a sequenced note is stamped");
+    runner.keyboard.clear();
+
+    host.clock = Some(sent_at + Duration::from_millis(2));
+    dispatch_note(&mut runtime, &mut runner, &mut host, [0x82, 64, 0]);
+    host.clock = Some(sent_at + Duration::from_millis(10));
+    dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 90]);
+
+    assert_eq!(
+        runner.keyboard.len(),
+        2,
+        "no echo came before the key-up, so the next press of that key is a played note"
+    );
+}

@@ -290,7 +290,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   note-on identical (channel, note, velocity) to any note-on Octessera put on MIDI out in the last
   150 ms (forwarded keys, MIDI Inst. and MIDI Drum parts, Send MIDI `all inst.` copies) is taken as
   the device echoing it back and dropped: no sound, no forward, no recording. Note-offs always get
-  through, so a real key-up is never lost. Stop, Pause,
+  through, so a real key-up is never lost, and a key-up forgets that key's sent note-ons, so pressing it
+  again always plays. Stop, Pause,
   Panic, a patch load, MIDI Active off and Notes In off release every held keyboard note, forwarded
   ones too. Every Looper layer that is overdubbing and whose Link plays that slot records the note
   as a press and release of the lowest-index tile its current Link mapping plays as that note (after
@@ -511,13 +512,13 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
 - On both boards `octessera-show-hold.path` runs `octessera-show-hold-apply` whenever the file
   changes and at boot. While the mode is on it blocks the Wi-Fi radio (`rfkill block wlan`;
   Bluetooth is untouched), on Raspberry also stops `octessera-network-health.timer`, and schedules a
-  transient monotonic timer that re-runs the script as a tick at most an hour later. Each tick banks
+  transient monotonic timer that re-runs the script as a tick at most five minutes later. Each tick banks
   its seconds in `show-hold/elapsed`, keyed to that show's `length` file, so the show counts powered
   time and never reads the wall clock. Once the banked time reaches the length, the script removes
   `length`. End or expiry unblocks Wi-Fi and, on Raspberry, restarts the timer unless the Wi-Fi
   switch is off.
 - Skipped jobs run at their next schedule. The hold survives reboots: boot resumes from the banked
-  time, so a power cut adds at most the unbanked hour. Starting again restarts the 48 h.
+  time, so a power cut adds at most the unbanked five minutes. Starting again restarts the 48 h.
 
 ## Maintenance
 
