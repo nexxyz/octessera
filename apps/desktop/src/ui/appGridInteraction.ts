@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   GRID_DOMAIN,
   type DeviceInput,
@@ -135,6 +135,14 @@ export function useGridInteraction(
     paintPressedTiles.current = [];
     endPaint();
   }
+
+  const releaseRef = useRef(handleMouseUp);
+  releaseRef.current = handleMouseUp;
+  useEffect(() => {
+    const onBlur = () => releaseRef.current();
+    window.addEventListener('blur', onBlur);
+    return () => window.removeEventListener('blur', onBlur);
+  }, []);
 
   function handleTileMouseDown(index: number, x: number, y: number) {
     if (frame.gridInteraction === 'momentary') {

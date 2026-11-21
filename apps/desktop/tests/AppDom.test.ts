@@ -101,3 +101,27 @@ test('a paint drag releases every tile it pressed', async () => {
   assert.deepEqual(columns('grid_release'), [0, 1, 2]);
   app.unmount();
 });
+
+test('losing window focus mid paint drag releases every tile it pressed', async () => {
+  sentInputs.length = 0;
+  const app = mount(createElement(App));
+  const tile = (x: number, y: number) =>
+    app.container.querySelector(`button[aria-label="Grid ${x},${y}"]`)!;
+
+  fire(tile(0, 0), new win.MouseEvent('mousedown', { bubbles: true }));
+  fire(
+    tile(1, 0),
+    new win.MouseEvent('mouseover', { bubbles: true, buttons: 1 }),
+  );
+  fire(win as unknown as EventTarget, new win.Event('blur'));
+
+  await waitFor(() => nonTurnInputs().length >= 4);
+  assert.deepEqual(
+    nonTurnInputs()
+      .filter((input) => input.type === 'grid_release')
+      .map((input) => (input as { x: number }).x)
+      .sort(),
+    [0, 1],
+  );
+  app.unmount();
+});
