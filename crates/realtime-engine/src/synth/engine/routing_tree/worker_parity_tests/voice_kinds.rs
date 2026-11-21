@@ -1,7 +1,7 @@
 use super::*;
-use crate::synth::{DrumParamId, FmParamId, PluckParamId};
+use crate::synth::{DrumParamId, FmParamId, PluckParamId, SynthParamId};
 
-const KINDS: [&str; 4] = ["fm", "pluck", "drum", "sampler"];
+const KINDS: [&str; 5] = ["synth", "fm", "pluck", "drum", "sampler"];
 
 fn one_shot_banks() -> Vec<SampleBankConfig> {
     let samples: Vec<f32> = (0..30_000)
@@ -19,24 +19,33 @@ fn one_shot_banks() -> Vec<SampleBankConfig> {
 fn start_voices(engine: &mut SynthEngine, kind: &str) {
     match kind {
         "drum" => {
-            for voice in [0, 3] {
+            for voice in [0, 3, 6] {
                 engine.tile_hit(0, voice, voice, 0, 110);
             }
         }
         "sampler" => {
             drop(engine.set_sample_banks(one_shot_banks()));
-            engine.note_on(0, 36, 110, 300);
-            engine.note_on(0, 43, 90, 300);
+            for (tile, pitch_cents) in [(0, 0), (1, 700), (2, 1_200)] {
+                engine.tile_hit(0, 0, tile, pitch_cents, 110);
+            }
         }
         _ => {
-            engine.note_on(0, 60, 100, 300);
-            engine.note_on(0, 67, 90, 300);
+            for (note, velocity) in [(60, 100), (67, 90), (72, 80)] {
+                engine.note_on(0, note, velocity, 300);
+            }
         }
     }
+    let voices = engine.profile_snapshot();
+    assert_eq!(
+        voices.active_synth_voices + voices.active_sample_voices,
+        3,
+        "{kind} voices"
+    );
 }
 
 fn glide_voice_param(engine: &mut SynthEngine, kind: &str) -> ScalarMutation {
     match kind {
+        "synth" => engine.set_synth_param_typed(0, SynthParamId::AmpGainPct, 30.0),
         "fm" => engine.set_fm_param_typed(0, FmParamId::Index, 80.0),
         "pluck" => engine.set_pluck_param_typed(0, PluckParamId::BrightnessPct, 20.0),
         "drum" => engine.set_drum_param_typed(0, 0, DrumParamId::TonePct, 20.0),

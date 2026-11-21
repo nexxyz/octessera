@@ -7,9 +7,10 @@ use crate::synth::{
 mod fx_chains;
 mod voice_kinds;
 
-/// Test samples are recorded at 44.1 kHz, so the Orange resamples them.
+/// Test samples are recorded at 44.1 kHz, so the 48 kHz cases resample them.
 const SAMPLE_BUFFER_RATE: u32 = 44_100;
-/// The default 44.1 kHz and the Orange's 48 kHz.
+/// The shipped 44.1 kHz (`platform-capabilities.json`), plus 48 kHz as cheap coverage of
+/// rate-dependent timing.
 const RATES: [u32; 2] = [44_100, 48_000];
 const BLOCK: usize = 128;
 
