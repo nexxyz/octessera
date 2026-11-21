@@ -40,9 +40,7 @@ if [ "${1:-}" = tick ] && [ -n "$show" ] && [ "${3:-}" = "$show" ]; then
 fi
 
 left=$((length - elapsed))
-active=0
 if [ "$left" -gt 0 ]; then
-    active=1
     rfkill block wlan
     next=$((left < step ? left : step))
     systemd-run --quiet --unit="$release" --on-active="$next" \
