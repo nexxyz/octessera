@@ -17,6 +17,7 @@ impl NativeRunner {
                 self.admit_patch_load(RuntimePlatformEffect::StoreLoadDefault)
             }
             PlatformAction::DefaultSave => {
+                self.forget_shown_save_failure(&crate::RuntimeOperation::StoreSaveDefault);
                 if self.restart_settings.has_pending_patch_write() {
                     self.show_toast("Still saving. Try again in a few seconds.");
                     return Ok(None);
@@ -42,6 +43,7 @@ impl NativeRunner {
                 })
             }
             PlatformAction::SystemSave => {
+                self.forget_shown_save_failure(&crate::RuntimeOperation::StoreSaveSystem);
                 if self.pending.system_persistence.has_pending_request()
                     || self.pending.system_persistence.has_completed_auto_save()
                     || self.system_apply_pending()

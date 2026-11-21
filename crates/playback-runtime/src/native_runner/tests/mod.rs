@@ -175,6 +175,7 @@ mod sample_favorite_save;
 mod sample_loop;
 mod sample_preview_indicator;
 mod sampler_tiles;
+mod save_failure_retries;
 mod saved_json_round_trip;
 mod scan_note_offs;
 mod scan_replacement;

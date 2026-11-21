@@ -104,6 +104,9 @@ pub(super) struct NativeDisplayState {
     pub(super) held_toast_head: Option<String>,
     pub(super) menu_scroll_offset: usize,
     pub(super) runtime_error_presentation: Option<NativeRuntimeErrorPresentation>,
+    /// The background saves whose failure was already on screen. Their retries stay off the
+    /// screen until that save works again or the player saves by hand.
+    pub(super) shown_save_failures: Vec<crate::RuntimeOperation>,
     pub(super) manual_aux_hints: std::cell::RefCell<Option<super::aux_hints::ManualAuxHintSlots>>,
 }
 
@@ -144,6 +147,7 @@ impl NativeDisplayState {
             held_toast_head: None,
             menu_scroll_offset: 0,
             runtime_error_presentation: None,
+            shown_save_failures: Vec::new(),
             manual_aux_hints: std::cell::RefCell::new(None),
         }
     }

@@ -79,6 +79,14 @@ impl NativeRunner {
                 }
             }
             RuntimeStoreResult::RuntimeFailure { error } => {
+                if is_retried_save(&error.operation) {
+                    if self.display.shown_save_failures.contains(&error.operation) {
+                        return Ok(());
+                    }
+                    self.display
+                        .shown_save_failures
+                        .push(error.operation.clone());
+                }
                 self.display.runtime_error_presentation = None;
                 if error.operation == crate::RuntimeOperation::Recording {
                     let now = self.display.transients.now();
@@ -104,6 +112,43 @@ impl NativeRunner {
             _ => {}
         }
         Ok(())
+    }
+}
+
+/// Saves the runtime retries on its own while the patch or settings stay unsaved.
+fn is_retried_save(operation: &crate::RuntimeOperation) -> bool {
+    matches!(
+        operation,
+        crate::RuntimeOperation::StoreSaveDefault
+            | crate::RuntimeOperation::StoreSaveBackup
+            | crate::RuntimeOperation::StoreSaveRecovery
+            | crate::RuntimeOperation::StoreSaveSystem
+    )
+}
+
+impl NativeRunner {
+    /// A save that works again lets its next failure reach the screen.
+    pub(super) fn forget_shown_save_failure_after_success(&mut self, result: &RuntimeStoreResult) {
+        let result = match result {
+            RuntimeStoreResult::Identified { result, .. } => result.as_ref(),
+            result => result,
+        };
+        let succeeded = matches!(
+            result,
+            RuntimeStoreResult::SaveDefaultResult { ok: true, .. }
+                | RuntimeStoreResult::SaveBackupResult { ok: true }
+                | RuntimeStoreResult::SaveRecoveryResult { ok: true }
+                | RuntimeStoreResult::SaveSystemResult { ok: true }
+        );
+        if succeeded {
+            self.forget_shown_save_failure(&result.operation());
+        }
+    }
+
+    pub(super) fn forget_shown_save_failure(&mut self, operation: &crate::RuntimeOperation) {
+        self.display
+            .shown_save_failures
+            .retain(|shown| shown != operation);
     }
 }
 

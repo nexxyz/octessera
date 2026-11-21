@@ -13,6 +13,7 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_store_result(&mut self, result: RuntimeStoreResult) -> Result<(), String> {
+        self.forget_shown_save_failure_after_success(&result);
         if is_system_store_operation(&result.operation()) {
             self.apply_system_store_result(result)?;
             return Ok(());

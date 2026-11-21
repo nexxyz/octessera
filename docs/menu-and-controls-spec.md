@@ -754,6 +754,10 @@ behavior primary red), so a mute never reads as a section color.
   `store_save_preset`, clipped with `...`). The footer reads `Press Main: OK`. Back and a Main
   press both still close it. The raw message is never drawn; one `eprintln!` line per presented
   error (domain, code, operation, full message) goes to the journal instead.
+- The runtime keeps retrying `store_save_default`, `store_save_backup`, `store_save_recovery` and
+  `store_save_system` while the data stays unsaved. Each of them shows its error once; its retries
+  stay off the screen until that save works again, or until `Save Patch` (for the patch) or a
+  System save (for settings) is run by hand.
 - Wording is chosen by operation, and only states what happens in every case of that family:
   `CAN'T SAVE` (`store_save_preset`: `<name> was not saved.` plus either `A preset with that name
   exists.` or `Check the SD card, then try again.`, with the name taken from the preset request
