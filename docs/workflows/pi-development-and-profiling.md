@@ -381,8 +381,8 @@ usb_notes_in usb_audio usb_audio_fx`.
   `current` link: `0.9.91` is the binary under test, `0.9.92` a script that
   exits 1, and `0.9.93` a script that ignores SIGTERM and never reports ready.
   It switches to `0.9.91`, back to `0.9.90`, then to each failing one,
-  clearing the unit's start limit before each switch (the Orange allows 3
-  starts in 30 s, and the steps follow each other faster than a player would). After
+  clearing the unit's start limit before each switch (only needed while an
+  Orange still has a unit older than 8421caec, which allows 3 starts in 30 s). After
   each switch the links must point at a release that runs, the service must be
   ready within 120 s, the clone's `system.json` and `default.patch.json` must
   be byte-identical, and the message must name the version it ended on. A

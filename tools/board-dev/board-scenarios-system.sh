@@ -73,7 +73,7 @@ update_root=""
 # SIGTERM and never reports ready.
 update_step() {
   local name=$1 version=$2 before after message rc since
-  # The steps follow each other faster than a player would; the Orange unit allows 3 starts in 30 s.
+  # Only for Orange units older than 8421caec (3 starts in 30 s); drop after the next flash.
   sudo -n systemctl reset-failed "$service"
   before=$(sudo -n sha256sum "$store/system.json" "$store/default.patch.json" | cut -c1-64 | tr '\n' ' ')
   since=$SECONDS
