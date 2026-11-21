@@ -13,7 +13,7 @@ fn midi_keys_runner() -> NativeRunner {
     instrument.midi_enabled = true;
     instrument.midi_channel = 3;
     runner.instruments[0] = instrument;
-    runner.midi.enabled = true;
+    runner.test_set_midi_enabled(true);
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.sync_engine_runtime_config();
     runner

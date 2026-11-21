@@ -82,7 +82,12 @@ pub(super) fn board_runner(usb_data_role_available: bool) -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.midi.enabled = true;
+    runner
+        .apply_config_payload(config_with(
+            &runner,
+            json!({ "runtimeConfig": { "midi": { "enabled": true } } }),
+        ))
+        .unwrap();
     runner.menu.rebuild(runner.menu_config());
     runner
         .send(HostMessage::DeviceInput {

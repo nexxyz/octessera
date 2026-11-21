@@ -132,7 +132,7 @@ fn non_sequencer_scanning_origins_keep_zero_accumulators() {
     for behavior_id in ["looper", "weave", "life"] {
         let mut runner = scanning_runner(behavior_id);
         runner.transport.layer_pulse_accumulators[0] = 0;
-        runner.midi.enabled = true;
+        runner.test_set_midi_enabled(true);
         runner.send(HostMessage::MidiRealtimeStart).unwrap();
         assert_eq!(
             runner.transport.layer_pulse_accumulators[0], 0,
@@ -143,7 +143,7 @@ fn non_sequencer_scanning_origins_keep_zero_accumulators() {
 
 fn external_resync_runner() -> NativeRunner {
     let mut runner = scanning_runner("keys");
-    runner.midi.enabled = true;
+    runner.test_set_midi_enabled(true);
     runner.transport.sync_source = SyncSource::External;
     runner.midi.clock_in_enabled = true;
     runner.transport.current_ppqn_pulse = 95;

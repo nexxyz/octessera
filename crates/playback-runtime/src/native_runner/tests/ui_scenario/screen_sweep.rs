@@ -68,7 +68,7 @@ impl Sweep {
             ..NativeRunnerConfig::default()
         })
         .unwrap();
-        runner.midi.enabled = true;
+        runner.test_set_midi_enabled(true);
         runner.apply_config_payload(payload).unwrap();
         runner.skip_startup_splash();
         let mut sweep = Self {

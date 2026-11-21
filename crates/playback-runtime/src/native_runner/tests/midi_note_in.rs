@@ -20,7 +20,7 @@ pub(super) fn keyboard_runner(behavior: &str) -> NativeRunner {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.midi.enabled = true;
+    runner.test_set_midi_enabled(true);
     runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.instruments[MIDI_SLOT].kind = InstrumentType::Midi;
     runner.instruments[MIDI_SLOT].midi_enabled = true;
@@ -229,7 +229,7 @@ fn notes_in_off_ignores_notes_and_switching_it_off_releases_held_ones() {
     assert!(midi(&messages).is_empty());
 
     runner.midi.notes_in = true;
-    runner.midi.enabled = false;
+    runner.test_set_midi_enabled(false);
     let messages = send_note(&mut runner, [0x90, 60, 100]);
     assert!(
         audio(&messages).is_empty(),

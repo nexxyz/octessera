@@ -75,7 +75,7 @@ pub(crate) fn device_config_apply_keeps_the_patch_aux_layout() {
 #[test]
 pub(crate) fn preset_load_preserves_local_midi_selection_without_select_effects() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.midi.enabled = true;
+    runner.test_set_midi_enabled(true);
     runner.midi.output_id = Some("local-out".into());
     runner.midi.input_id = Some("local-in".into());
 

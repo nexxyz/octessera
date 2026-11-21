@@ -11,7 +11,7 @@ fn midi_hold_runner() -> NativeRunner {
     runner.instruments[0].kind = InstrumentType::Midi;
     runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.instruments[0].midi_enabled = true;
-    runner.midi.enabled = true;
+    runner.test_set_midi_enabled(true);
     runner.midi.output_id = Some("out-1".into());
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.menu.rebuild(runner.menu_config());
@@ -62,7 +62,7 @@ pub(crate) fn usb_device_midi_routes_notes_and_internal_clock_without_host_selec
     runtime.advance(500, &mut runner, &mut host).unwrap();
     assert!(host.midi_messages.iter().any(|message| message == &[0xF8]));
 
-    runner.midi.enabled = false;
+    runner.test_set_midi_enabled(false);
     runtime
         .dispatch_host_message(
             HostMessage::DeviceInput {

@@ -21,7 +21,7 @@ fn system_document_matches_the_device_projection_and_leaves_aux_bindings_to_the_
     runner.sample_favourite_dirs = vec!["/samples/favourites".into()];
     runner.auto_save_default = true;
     runner.rolling_backups = false;
-    runner.midi.enabled = true;
+    runner.test_set_midi_enabled(true);
     runner.midi.output_id = Some("midi-out-2".into());
     runner.midi.input_id = Some("midi-in-3".into());
     runner.audio_io.recording_max_minutes = 23;

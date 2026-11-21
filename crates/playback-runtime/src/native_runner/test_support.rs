@@ -10,8 +10,14 @@ impl NativeRunner {
         self.menu.rebuild_count
     }
 
-    pub fn test_enable_midi(&mut self) {
-        self.midi.enabled = true;
+    pub fn test_set_midi_enabled(&mut self, enabled: bool) {
+        self.menu.set_bool_value_for_key("midiEnabled", enabled);
+        self.apply_or_schedule_menu_key("midiEnabled")
+            .expect("midiEnabled menu edit");
+        assert_eq!(
+            self.midi.enabled, enabled,
+            "midiEnabled menu row is missing"
+        );
     }
 
     #[cfg(test)]

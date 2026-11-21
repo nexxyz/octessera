@@ -14,7 +14,7 @@ fn delayed_release_runner(midi: bool) -> NativeRunner {
         instrument.kind = InstrumentType::Midi;
         instrument.midi_enabled = true;
         instrument.midi_channel = 3;
-        runner.midi.enabled = true;
+        runner.test_set_midi_enabled(true);
     }
     runner.instruments[0] = instrument;
     runner.layers[0].link.deactivate_timing.delay_steps = 2;
@@ -102,7 +102,7 @@ pub(crate) fn external_resync_releases_a_note_whose_note_off_was_delayed() {
     assert_path_releases_the_queued_note(
         "external resync",
         |runner| {
-            runner.midi.enabled = true;
+            runner.test_set_midi_enabled(true);
             runner.midi.clock_in_enabled = true;
             runner.transport.sync_source = SyncSource::External;
             runner.transport.current_ppqn_pulse = BAR_PULSES - 1;

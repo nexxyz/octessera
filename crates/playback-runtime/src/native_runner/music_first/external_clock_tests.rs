@@ -5,7 +5,7 @@ use super::tests::{assert_music_only, playing_default};
 fn external_clock_resync_uses_music_first_only_while_already_playing() {
     let mut runner = playing_default();
     let mut legacy = playing_default();
-    runner.midi.enabled = true;
+    runner.test_set_midi_enabled(true);
     runner.midi.clock_in_enabled = true;
     runner.transport.sync_source = SyncSource::External;
     runner.transport.current_ppqn_pulse = 95;
@@ -19,7 +19,7 @@ fn external_clock_resync_uses_music_first_only_while_already_playing() {
     assert_music_only(&no_clock);
     assert_eq!(runner.display.transients.generation(), generation);
     assert!(!runner.display_scene_pending());
-    legacy.midi.enabled = true;
+    legacy.test_set_midi_enabled(true);
     legacy.midi.clock_in_enabled = true;
     legacy.transport.sync_source = SyncSource::External;
     legacy.transport.current_ppqn_pulse = 95;
@@ -64,7 +64,7 @@ fn external_clock_resync_uses_music_first_only_while_already_playing() {
 #[test]
 fn external_start_from_stop_defers_its_presentation_to_the_scene_pump() {
     let mut runner = playing_default();
-    runner.midi.enabled = true;
+    runner.test_set_midi_enabled(true);
     runner.midi.clock_in_enabled = true;
     runner.midi.respond_to_start_stop = true;
     runner.transport.sync_source = SyncSource::External;
