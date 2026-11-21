@@ -128,6 +128,18 @@ impl PlaybackRuntime {
         &self.latched_errors
     }
 
+    /// Whether the top latched error is drawn over the whole screen, as every one is except the
+    /// concise MIDI input-list failure, which keeps the menu frame.
+    pub fn shows_full_screen_error(&self) -> bool {
+        self.latched_errors.last().is_some_and(|error| {
+            !crate::protocol::is_midi_input_list_failure(
+                &error.domain,
+                &error.code,
+                &error.operation,
+            )
+        })
+    }
+
     pub fn latch_error(&mut self, error: RuntimeErrorMetadata) {
         eprintln!("{}", error.log_line());
         self.latched_errors

@@ -173,3 +173,43 @@ fn a_latched_error_over_the_restore_question_takes_main_first_and_then_shows_the
     assert!(snapshot.get("runtimeError").is_none());
     assert_eq!(snapshot["display"]["title"], "Restore backup?");
 }
+
+#[test]
+fn a_patch_save_run_by_hand_latches_its_failure_again() {
+    let (mut runtime, mut runner, mut host) = runtime();
+    host_result(
+        &mut runtime,
+        &mut runner,
+        &mut host,
+        autosave_failure(),
+        "auto-1",
+    );
+    input(
+        &mut runtime,
+        &mut runner,
+        &mut host,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    assert!(runtime.latched_errors().is_empty());
+
+    runtime
+        .dispatch_runner_messages(
+            vec![crate::RunnerMessage::PlatformEffects {
+                effects: vec![crate::RuntimePlatformEffect::StoreSaveDefault {
+                    payload: json!({}),
+                    mode: None,
+                }],
+            }],
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    host_result(
+        &mut runtime,
+        &mut runner,
+        &mut host,
+        autosave_failure(),
+        "manual",
+    );
+    assert_eq!(runtime.latched_errors().len(), 1);
+}

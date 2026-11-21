@@ -273,6 +273,14 @@ impl PlaybackRuntime {
                 RunnerMessage::PresentedRuntimeErrorDismissed => {}
                 RunnerMessage::PlatformEffects { effects } => {
                     for effect in effects {
+                        if matches!(
+                            effect,
+                            crate::RuntimePlatformEffect::StoreSaveDefault { mode: None, .. }
+                        ) {
+                            // A patch save run by hand reports its own failure again.
+                            self.shown_save_failures
+                                .retain(|shown| *shown != RuntimeOperation::StoreSaveDefault);
+                        }
                         let request = self.next_platform_request(effect);
                         if let Some(runner) = runner.as_deref_mut() {
                             runner.register_platform_request(&request);
