@@ -64,7 +64,7 @@ pub enum TickStrategy {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum AxisStrategy {
-    ScaleStep { step: usize },
+    ScaleStep { step: i32 },
     TimingOnly,
     Ignore,
 }
@@ -140,6 +140,7 @@ pub fn interpret_grid(
         tick,
         profile,
         TriggerMarkerAuthority::LegacyCompatible,
+        false,
     )
 }
 
@@ -149,10 +150,15 @@ pub(crate) fn interpret_grid_with_marker_authority(
     tick: usize,
     profile: &InterpretationProfile,
     marker_authority: TriggerMarkerAuthority,
+    stable: bool,
 ) -> Vec<TileTriggerIntent> {
     let mut intents = Vec::new();
     if profile.event.enabled {
         intents.extend(select_event_candidates(previous, next, marker_authority));
+    }
+    if stable {
+        let stable_tiles = select_stable_candidates(previous, next, &intents);
+        intents.extend(stable_tiles);
     }
     if profile.state.enabled {
         intents.extend(select_state_candidates(next, tick, &profile.state.tick));
@@ -238,6 +244,21 @@ fn select_event_candidates(
     }
 
     boolean_transition_candidates(previous, next)
+}
+
+/// A tile lit before and after the step that fired no On or Off event this step.
+fn select_stable_candidates(
+    previous: &GridSnapshot,
+    next: &GridSnapshot,
+    events: &[(usize, usize, TileTriggerKind)],
+) -> Vec<(usize, usize, TileTriggerKind)> {
+    let len = previous.tiles.len().min(next.tiles.len());
+    (0..len)
+        .filter(|&index| previous.tiles[index] && next.tiles[index])
+        .map(|index| (index % next.width, index / next.width))
+        .filter(|&(x, y)| !events.iter().any(|event| (event.0, event.1) == (x, y)))
+        .map(|(x, y)| (x, y, TileTriggerKind::Stable))
+        .collect()
 }
 
 fn boolean_transition_candidates(

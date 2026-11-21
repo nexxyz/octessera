@@ -1,0 +1,126 @@
+use super::*;
+
+/// A Life block: four cells that stay alive forever.
+fn block_engine(behavior: NativeBehavior, stable: TriggerAction) -> NativeLayerEngine {
+    let mut cells = vec![false; GRID_WIDTH * GRID_HEIGHT];
+    for (x, y) in [(1, 1), (2, 1), (1, 2), (2, 2)] {
+        cells[crate::grid_index(x, y)] = true;
+    }
+    let mut mapping_config = default_mapping_config();
+    mapping_config.stable.action = stable;
+    NativeLayerEngine::new(NativeLayerEngineConfig {
+        behavior,
+        behavior_config: serde_json::json!({ "cells": cells }),
+        mapping_config,
+        ..base_config()
+    })
+    .unwrap()
+}
+
+fn stable_note_ons(tick: &NativeTickResult) -> usize {
+    tick.event_intents
+        .iter()
+        .zip(&tick.events)
+        .filter(|(intent, event)| {
+            intent
+                .as_ref()
+                .is_some_and(|intent| intent.kind == TileTriggerKind::Stable)
+                && matches!(event, MusicalEvent::NoteOn { .. })
+        })
+        .count()
+}
+
+#[test]
+fn tiles_that_stay_lit_fire_hold_events_every_step() {
+    let mut engine = block_engine(NativeBehavior::Life, TriggerAction::NoteOn);
+    for _ in 0..3 {
+        let tick = engine.tick(120.0).unwrap();
+        assert_eq!(stable_note_ons(&tick), 4);
+    }
+}
+
+#[test]
+fn hold_events_stay_off_without_a_hold_trigger() {
+    let mut engine = block_engine(NativeBehavior::Life, TriggerAction::None);
+    let tick = engine.tick(120.0).unwrap();
+    assert!(tick
+        .event_intents
+        .iter()
+        .flatten()
+        .all(|intent| intent.kind != TileTriggerKind::Stable));
+}
+
+#[test]
+fn play_and_game_behaviors_add_no_hold_events() {
+    for behavior in [
+        NativeBehavior::None,
+        NativeBehavior::Keys,
+        NativeBehavior::Looper,
+        NativeBehavior::Sequencer,
+        NativeBehavior::Pong,
+        NativeBehavior::Blockout,
+    ] {
+        assert!(!behavior.reports_stable_tiles(), "{behavior:?}");
+    }
+    assert!(NativeBehavior::Life.reports_stable_tiles());
+}
+
+#[test]
+fn hold_events_on_a_hold_instrument_start_one_note_per_tile_and_keep_it() {
+    let mut engine = block_engine(NativeBehavior::Life, TriggerAction::NoteOn);
+    engine.set_note_behaviors(vec![NoteBehavior::Hold; 16]);
+    let first = engine.tick(120.0).unwrap();
+    let second = engine.tick(120.0).unwrap();
+    assert_eq!(stable_note_ons(&first), 4);
+    assert!(second.events.is_empty(), "{:?}", second.events);
+}
+
+fn scanned(x: usize, y: usize) -> Option<TileTriggerIntent> {
+    Some(TileTriggerIntent {
+        x,
+        y,
+        degree: 0,
+        kind: TileTriggerKind::Scanned,
+    })
+}
+
+fn on(note: u8) -> MusicalEvent {
+    MusicalEvent::NoteOn {
+        channel: 0,
+        note,
+        velocity: 90,
+        duration_ms: Some(120),
+    }
+}
+
+#[test]
+fn a_scan_held_pitch_ends_on_the_first_step_that_does_not_play_it() {
+    let mut held = HeldNotes::default();
+    let hold = [NoteBehavior::Hold];
+
+    let first = held.apply(&[on(60), on(64)], vec![scanned(0, 0), scanned(0, 1)], &hold);
+    assert_eq!(first.events.len(), 2);
+    assert!(held.release_unscanned().is_empty());
+
+    let second = held.apply(&[on(60)], vec![scanned(1, 0)], &hold);
+    assert!(second.events.is_empty());
+    assert_eq!(
+        held.release_unscanned(),
+        vec![MusicalEvent::NoteOff {
+            channel: 0,
+            note: 64,
+        }]
+    );
+
+    assert_eq!(
+        held.release_unscanned(),
+        vec![MusicalEvent::NoteOff {
+            channel: 0,
+            note: 60,
+        }]
+    );
+    assert!(!held.contains(&HeldNote {
+        channel: 0,
+        note: 60,
+    }));
+}

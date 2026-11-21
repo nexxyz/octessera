@@ -52,7 +52,7 @@ Link
 │   │   └── Empty Retrig: [0..8]
 │   ├── Events (group)
 │   │   ├── Event Triggers: [on | off]            default on
-│   │   ├── State Notes: [on | off]               default on
+│   │   ├── State Notes: [on | off]               default on; lets Hold events fire
 │   │   ├── On Inst / On Trig / On Delay / On Retrig          ← activate
 │   │   ├── Hold Inst / Hold Trig / Hold Delay / Hold Retrig  ← stable
 │   │   └── Off Inst / Off Trig / Off Delay / Off Retrig      ← deactivate
@@ -129,6 +129,12 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 ## Events and scanning
 
+- `Event Triggers` gates On and Off events, `State Notes` gates Hold events. A Hold event fires at
+  each behavior step for a tile that stays lit; play and game behaviors send none. Which tiles
+  count as holders of a held note, and how a scan holds a pitch, is defined under
+  [Trigger types](../menu-and-controls-spec.md#trigger-types).
+- `Steps` on Pitch Steps counts notes of the set (scale degrees), not semitones; negative steps go
+  down.
 - Event mappings (`activate`, `stable`, `deactivate`, `scanned`, `scanned_empty`) each have Delay
   and Retrig. Delay counts that layer's Link ticks. Retrig adds extra repeats after the original,
   at delay+1, delay+2, and so on. Trigger probability is rolled once before scheduling; delayed
@@ -207,7 +213,11 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 - Stored as `layers.N.link.arp` with `mode`, `source`, `stepIntervalSteps`, `noteLengthMs`,
   `gatePct`, and `octaveSpread`.
 - Sources: `simultaneous` routed note-on batches, or `held` notes tracked by playback-runtime.
-  Unsupported sources normalize to `simultaneous`.
+  Unsupported sources normalize to `simultaneous`. A batch is every note-on of one kind and
+  instrument in one step, even with note-offs between them. `held` replays the held set on a batch
+  that starts a note; a batch that only releases notes replays nothing. `held` tracks notes of
+  `hold` instruments only, so on a `oneshot` instrument it plays nothing.
+- `rotating` starts each batch one note further along than the batch before.
 - `none` keeps the normal Link path. Other modes emit finite note-ons lasting
   `noteLengthMs * gatePct / 100`, never shorter than 10 ms, and create no held notes; strum-like
   modes space notes by `Step` Link ticks. Matching note-offs update held membership and never cut off arp-owned finite notes.

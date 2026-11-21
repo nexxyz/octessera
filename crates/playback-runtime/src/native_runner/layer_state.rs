@@ -47,7 +47,12 @@ impl NativeRunner {
         mapping.scale = platform_core::expand_note_set(&sense.scale, &sense.root)
             .expect("validated note set and root");
         mapping.activate = trigger_target(sense.activate_slot, sense.activate_action, 96, 150);
-        mapping.stable = trigger_target(sense.stable_slot, sense.stable_action, 88, 130);
+        let stable_action = if sense.state_notes_enabled {
+            sense.stable_action
+        } else {
+            TriggerAction::None
+        };
+        mapping.stable = trigger_target(sense.stable_slot, stable_action, 88, 130);
         mapping.deactivate = trigger_target(sense.deactivate_slot, sense.deactivate_action, 68, 90);
         mapping.scanned = trigger_target(sense.scanned_slot, sense.scanned_action, 88, 130);
         mapping.scanned_empty =
@@ -65,7 +70,7 @@ impl NativeRunner {
         };
         let mut profile = self.base_interpretation_profile.clone();
         profile.event.enabled = sense.event_enabled;
-        profile.state.enabled = sense.state_notes_enabled || sense.scan_mode == ScanMode::Scanning;
+        profile.state.enabled = sense.scan_mode == ScanMode::Scanning;
         let sections = if sense.scan_sections <= 1 {
             None
         } else {
@@ -91,14 +96,14 @@ impl NativeRunner {
         };
         profile.x = AxisStrategy::ScaleStep {
             step: if sense.x_pitch_enabled {
-                sense.x_pitch_steps.max(0) as usize
+                sense.x_pitch_steps
             } else {
                 0
             },
         };
         profile.y = AxisStrategy::ScaleStep {
             step: if sense.y_pitch_enabled {
-                sense.y_pitch_steps.max(0) as usize
+                sense.y_pitch_steps
             } else {
                 0
             },

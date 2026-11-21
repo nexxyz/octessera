@@ -1447,5 +1447,21 @@ All behaviors use `TileTriggerType`: `activate`, `stable`, `deactivate`, `scanne
 | `deactivate` | Behavior | Tile becomes inactive (death, shape leaves tile, etc.) |
 | `scanned` | Scanning layer | Tile found active during a scan (scan mode `scanning` only) |
 
-Scan mode `none` produces no `scanned` triggers. `State Notes` controls only non-scan state-note
-events; `scanned` triggers stay active while scanning.
+Scan mode `none` produces no `scanned` triggers. Link fires `stable` (Hold Trig/Hold Inst) at each
+behavior step for every tile lit before and after the step that fired no On or Off event, while
+`State Notes` is on. The play behaviors (`none`, `keys`, `looper`, `sequencer`) and the games
+(`pong`, `blockout`) shape their own events and fire no `stable` triggers. `scanned` triggers stay
+active while scanning, whatever `State Notes` says.
+
+Held notes (instruments in `hold` mode):
+
+- One pitch on one instrument sounds once. Each tile that plays it, the scan line, and note-ons
+  without a tile count as holders; the note-off waits for the last holder, so two tiles on one
+  pitch never cut each other.
+- An Off event ends the note its tile started, even when a mapping change (Root, Set, 1st Note,
+  Low/High Note, Pitch Steps) or modulation has moved that tile to another pitch since. A note-on
+  from a tile on a new pitch ends that tile's old note first.
+- On a scanning layer the scan line is compared with the step before, pitch by pitch: a pitch the
+  line starts playing begins a note, a pitch it keeps playing holds, and a pitch it no longer plays
+  ends at that step. Lit steps in a row therefore play one long note, and the next lap plays the
+  same notes again. `oneshot` instruments still hit on every lit step.

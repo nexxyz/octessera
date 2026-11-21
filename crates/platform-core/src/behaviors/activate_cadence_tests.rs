@@ -50,6 +50,7 @@ fn activate_ticks(behavior: NativeBehavior, salt: u64, ticks: usize) -> Vec<usiz
                 tick,
                 &profile,
                 TriggerMarkerAuthority::FreshTick,
+                false,
             )
             .iter()
             .any(|intent| intent.kind == TileTriggerKind::Activate)

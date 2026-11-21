@@ -193,13 +193,13 @@ event_enabled	*	key:layers.*.link.eventEnabled	bool	Event Triggers	Plays notes w
 targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Which instrument each kind of trigger plays, and how.	Use note off for triggers that should end a held note.
 map_activate_action	*	key:layers.*.link.mapping.activate.action	enum	On Trig	What a tile does when it lights up: none, note on or note off.	note on starts a note; note off ends a held one.
 map_activate_slot	*	key:layers.*.link.mapping.activate.slot	enum	On Inst	The instrument a tile plays when it turns on: I1 to I8, or none.	The label shows what that slot holds now.
-map_stable_action	*	key:layers.*.link.mapping.stable.action	enum	Hold Trig	What a tile does while it stays lit: none, note on or note off.	note on plays it again; note off ends a held note.
+map_stable_action	*	key:layers.*.link.mapping.stable.action	enum	Hold Trig	What a tile does at each step it stays lit: none, note on or note off.	note on repeats a one-shot and keeps a hold note going. Play and game behaviors send none.
 map_stable_slot	*	key:layers.*.link.mapping.stable.slot	enum	Hold Inst	The instrument a tile plays while it stays on: I1 to I8, or none.	Usually none; pick one for droning, insistent layers.
 map_deactivate_action	*	key:layers.*.link.mapping.deactivate.action	enum	Off Trig	What a tile does when it goes dark: none, note on or note off.	note off ends a held note; note on plays one.
 map_deactivate_slot	*	key:layers.*.link.mapping.deactivate.slot	enum	Off Inst	The instrument that hears a tile turn off, usually to stop its note: I1 to I8, or none.	The label shows what that slot holds now.
 map_scanned_action	*	key:layers.*.link.mapping.scanned.action	enum	Action	What a lit tile does when the scan reaches it: none, note on or note off.	note on plays it; note off ends a held note.
 map_scanned_slot	*	key:layers.*.link.mapping.scanned.slot	enum	Scanned Instrument	The instrument the scan cursor plays on a lit tile: I1 to I8, or none.	The label shows what that slot holds now.
-map_scanned_empty_action	*	key:layers.*.link.mapping.scanned_empty.action	enum	Empty Act	What an empty tile does when the scan reaches it: none, note on or note off.	note off here is handy for ending held notes on rests.
+map_scanned_empty_action	*	key:layers.*.link.mapping.scanned_empty.action	enum	Empty Act	What an empty tile does when the scan reaches it: none, note on or note off.	A hold note under the scan already ends on the first dark step.
 map_scanned_empty_slot	*	key:layers.*.link.mapping.scanned_empty.slot	enum	Empty Inst	The instrument the scan cursor plays on a dark tile: I1 to I8, or none.	Good for release notes or a ghostly counter-rhythm.
 voices_section	Menu > Shape		group	Shape	Defines pitch mapping and instrument slot sound engines.	This layer controls how sensed events become audible voices.
 pitch_start	*	key:layers.*.link.pitch.startingNote	number	Starting Note	Sets the reference note before X/Y pitch step offsets are applied for this layer.	Use this as the tonal center anchor.
@@ -405,13 +405,13 @@ link_y_velocity_group	Menu > Link > L*: * > Y Axis > Velocity		group	Velocity	Le
 link_y_cutoff_group	Menu > Link > L*: * > Y Axis > Filter Cutoff		group	Filter Cutoff	Lets bottom-top position open or close the filter around the instrument's own cutoff.	Sent as MIDI CC74 to external gear too.
 link_y_res_group	Menu > Link > L*: * > Y Axis > Filter Res		group	Filter Res	Lets bottom-top position set the filter resonance.	Sent as MIDI CC71. Go easy, it can squeal.
 axis_pitch_enabled_x_part	*	key:layers.*.link.x.pitch.enabled	bool	X Pitch Enabled	Enables pitch stepping derived from X position.	Disable to remove horizontal pitch influence for this layer.
-axis_pitch_steps_x_part	*	key:layers.*.link.x.pitch.steps	number	X Pitch Steps	Sets semitone-step influence per X grid step.	Larger values create wider horizontal intervals.
+axis_pitch_steps_x_part	*	key:layers.*.link.x.pitch.steps	number	X Pitch Steps	How many notes of the set each step to the right moves the pitch.	Negative steps go down; larger values make wider intervals.
 axis_pitch_restart_x_part	*	key:layers.*.link.x.pitch.restartEachSection	bool	Restart Section	When On with row scan sections, X pitch counts from the left edge of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
 axis_vel_enabled_x_part	*	key:layers.*.link.x.velocity.enabled	bool	X Velocity Enabled	Enables velocity modulation from X position.	Disable for fixed mapped velocity from the trigger target.
 axis_cut_enabled_x_part	*	key:layers.*.link.x.filterCutoff.enabled	bool	Enabled	Lets left-right position move the filter cutoff.	Also sends MIDI CC74.
 axis_res_enabled_x_part	*	key:layers.*.link.x.filterResonance.enabled	bool	Enabled	Lets left-right position move the filter resonance.	Also sends MIDI CC71.
 axis_pitch_enabled_y_part	*	key:layers.*.link.y.pitch.enabled	bool	Y Pitch Enabled	Enables pitch stepping derived from Y position.	Disable to remove vertical pitch influence for this layer.
-axis_pitch_steps_y_part	*	key:layers.*.link.y.pitch.steps	number	Y Pitch Steps	Sets semitone-step influence per Y grid step.	Larger values create wider vertical intervals.
+axis_pitch_steps_y_part	*	key:layers.*.link.y.pitch.steps	number	Y Pitch Steps	How many notes of the set each step up moves the pitch.	Negative steps go down; larger values make wider intervals.
 axis_pitch_restart_y_part	*	key:layers.*.link.y.pitch.restartEachSection	bool	Restart Section	When On with column scan sections, Y pitch counts from the bottom of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
 axis_vel_enabled_y_part	*	key:layers.*.link.y.velocity.enabled	bool	Y Velocity Enabled	Enables velocity modulation from Y position.	Disable for fixed mapped velocity from the trigger target.
 axis_cut_enabled_y_part	*	key:layers.*.link.y.filterCutoff.enabled	bool	Enabled	Lets bottom-top position move the filter cutoff.	Also sends MIDI CC74.
@@ -687,7 +687,7 @@ native_midi_enabled	Menu > System > MIDI > MIDI Active	key:midiEnabled	bool	MIDI
 native_midi_send_instruments	Menu > System > MIDI > Send MIDI	key:midi.sendInstruments	enum	Send MIDI	MIDI inst.: only MIDI Inst. and MIDI Drum slots send MIDI. all inst.: the internal sounds send their notes too.	Internal slots send on channels 1 to 8; drums use GM notes.
 native_midi_notes_in	Menu > System > MIDI > Notes In	key:midi.notesIn	bool	Notes In	A keyboard on MIDI In plays the slots: channel 1 plays I1, up to channel 8 for I8.	Overdubbing Loopers on that slot record the tile each key maps to; keys with no tile are not kept.
 native_midi_sync	*	key:midiSyncMode	enum	Sync Mode	internal runs on Octessera's own clock; external follows incoming MIDI clock when Clock In is on.	Clock Out works either way.
-native_state_notes	*	key:layers.*.link.stateNotesEnabled	bool	State Notes	Plays lit tiles on every step, not only when they change.	Turn it off to hear only changes.
+native_state_notes	*	key:layers.*.link.stateNotesEnabled	bool	State Notes	Lets tiles that stay lit play Hold Trig at every step.	Turn it off to hear only changes.
 native_lane_curve_x	*	key:layers.*.link.x.*.curve	enum	Curve	linear spreads values evenly; curve starts slow and rises late.	From and To stay the ends either way.
 native_lane_curve_y	*	key:layers.*.link.y.*.curve	enum	Curve	linear spreads values evenly; curve starts slow and rises late.	From and To stay the ends either way.
 native_lane_from_x	*	key:layers.*.link.x.*.from	number	X Lane From	Sets the low endpoint for this X-axis value lane.	The lane scales grid position between From and To.

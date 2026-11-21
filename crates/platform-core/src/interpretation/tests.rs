@@ -412,6 +412,7 @@ fn fresh_tick_markers_preserve_nonzero_activation_intents() {
         0,
         &profile(TickStrategy::WholeGridTransitions),
         TriggerMarkerAuthority::FreshTick,
+        false,
     );
 
     assert_eq!(intents.len(), 1);

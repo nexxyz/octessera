@@ -72,7 +72,7 @@ impl NativeRunner {
         routed.midi = midi;
         self.update_link_arp_held_notes(layer_index, &routed);
         self.update_link_arp_held_tiles(layer_index, &routed);
-        let source_routed = if arp.source == ArpSource::Held {
+        let source_routed = if arp.source == ArpSource::Held && starts_a_note(&routed) {
             let mut source = non_note_routed_events(&routed);
             source.tiles = routed
                 .tiles
@@ -85,6 +85,8 @@ impl NativeRunner {
                 source.tiles.extend(held.iter().cloned());
             }
             source
+        } else if arp.source == ArpSource::Held {
+            non_note_routed_events(&routed)
         } else {
             suppress_arp_note_offs(routed)
         };
@@ -270,10 +272,11 @@ impl NativeRunner {
                     .get(layer_index)
                     .copied()
                     .unwrap_or(0);
-                if notes.len() > 1 {
-                    let len = notes.len();
-                    notes.rotate_left(phase % len);
+                if notes.is_empty() {
+                    return notes;
                 }
+                let len = notes.len();
+                notes.rotate_left(phase % len);
                 if let Some(stored) = self.link_arp.rotating_phase.get_mut(layer_index) {
                     *stored = stored.wrapping_add(1);
                 }
@@ -300,6 +303,16 @@ fn suppress_arp_note_offs(mut routed: RoutedMusicalEvents) -> RoutedMusicalEvent
         .midi
         .retain(|event| !matches!(event, MusicalEvent::NoteOff { .. }));
     routed
+}
+
+/// A batch the held-notes arp replays on: one that starts a note, not one that only ends some.
+fn starts_a_note(routed: &RoutedMusicalEvents) -> bool {
+    routed.tiles.iter().any(|hit| hit.velocity > 0)
+        || routed
+            .audio
+            .iter()
+            .chain(&routed.midi)
+            .any(|event| matches!(event, MusicalEvent::NoteOn { .. }))
 }
 
 fn non_note_routed_events(routed: &RoutedMusicalEvents) -> RoutedMusicalEvents {

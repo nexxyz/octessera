@@ -5,11 +5,12 @@ use crate::interpretation::{
 };
 use crate::mapping::{default_mapping_config, TriggerAction};
 use crate::transforms::{GlobalSoundConfig, VelocityCurve};
-use std::collections::BTreeSet;
+use held_notes::{HeldNote, HeldNotes};
 
 mod finalization_tests;
 mod persistence_tests;
 mod seeded_random_tests;
+mod stable_hold_tests;
 mod twinkle_tests;
 
 fn base_config() -> NativeLayerEngineConfig {
@@ -214,7 +215,24 @@ fn note_behavior_suppression_keeps_event_intents_aligned() {
         kind: TileTriggerKind::Deactivate,
     };
 
-    let result = apply_note_behavior_with_event_intents(
+    let mut held = HeldNotes::default();
+    let first = held.apply(
+        &[MusicalEvent::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 96,
+            duration_ms: Some(120),
+        }],
+        vec![Some(duplicate.clone())],
+        &[NoteBehavior::Hold],
+    );
+    assert_eq!(first.events.len(), 1);
+    assert!(held.contains(&HeldNote {
+        channel: 0,
+        note: 60,
+    }));
+
+    let result = held.apply(
         &[
             MusicalEvent::NoteOn {
                 channel: 0,
@@ -229,10 +247,6 @@ fn note_behavior_suppression_keeps_event_intents_aligned() {
         ],
         vec![Some(duplicate), Some(release.clone())],
         &[NoteBehavior::Hold],
-        &mut BTreeSet::from([HeldNote {
-            channel: 0,
-            note: 60,
-        }]),
     );
 
     assert_eq!(
@@ -260,7 +274,7 @@ fn duplicate_note_ons_keep_distinct_event_intents_for_link_timing() {
         kind: TileTriggerKind::Scanned,
     };
 
-    let result = apply_note_behavior_with_event_intents(
+    let result = HeldNotes::default().apply(
         &[
             MusicalEvent::NoteOn {
                 channel: 0,
@@ -277,7 +291,6 @@ fn duplicate_note_ons_keep_distinct_event_intents_for_link_timing() {
         ],
         vec![Some(activate.clone()), Some(scanned.clone())],
         &[NoteBehavior::Oneshot],
-        &mut BTreeSet::new(),
     );
 
     assert_eq!(result.events.len(), 2);

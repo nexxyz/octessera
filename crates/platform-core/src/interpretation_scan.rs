@@ -177,7 +177,7 @@ pub(crate) fn compute_degree(
 
 fn axis_value(strategy: &AxisStrategy, value: usize) -> i32 {
     match strategy {
-        AxisStrategy::ScaleStep { step } => (value * step.max(&0usize)) as i32,
+        AxisStrategy::ScaleStep { step } => value as i32 * step,
         AxisStrategy::TimingOnly | AxisStrategy::Ignore => 0,
     }
 }

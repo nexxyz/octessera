@@ -12,14 +12,10 @@ use crate::mapping::{
 };
 use crate::transforms::{apply_global_sound, GlobalSoundConfig, NoteBehavior};
 use crate::MusicalEvent;
+use held_notes::{HeldNotes, NoteBehaviorWithIntentsResult};
 use serde_json::Value;
-use std::collections::BTreeSet;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-struct HeldNote {
-    channel: u8,
-    note: u8,
-}
+mod held_notes;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct NativeLayerEngineConfig {
@@ -59,7 +55,7 @@ pub struct NativeLayerEngine {
     global_sound: GlobalSoundConfig,
     note_behaviors: Vec<NoteBehavior>,
     tick: usize,
-    held_notes: BTreeSet<HeldNote>,
+    held_notes: HeldNotes,
     random: LayerRandom,
     step_phase: StepPhase,
 }
@@ -95,7 +91,7 @@ impl NativeLayerEngine {
             global_sound: config.global_sound,
             note_behaviors: config.note_behaviors,
             tick: 0,
-            held_notes: BTreeSet::new(),
+            held_notes: HeldNotes::default(),
             random: LayerRandom::new(config.random_seed),
             step_phase: StepPhase::Stopped,
         })
@@ -155,6 +151,7 @@ impl NativeLayerEngine {
                 self.tick,
                 &profile,
                 marker_authority,
+                false,
             );
             let intents = intents
                 .into_iter()
@@ -201,12 +198,15 @@ impl NativeLayerEngine {
             .scope(|| behavior.on_tick(state, &mut context))?;
         let after = self.behavior.render_model(&self.state)?;
 
+        let stable = self.behavior.reports_stable_tiles()
+            && self.mapping_config.stable.action != TriggerAction::None;
         let intents = interpret_grid_with_marker_authority(
             &to_snapshot(&before),
             &to_snapshot(&after),
             self.tick,
             &self.interpretation_profile,
             TriggerMarkerAuthority::FreshTick,
+            stable,
         );
         let intents = intents
             .into_iter()
@@ -220,6 +220,14 @@ impl NativeLayerEngine {
             events,
             event_intents,
         } = finalized;
+        let released = self.held_notes.release_unscanned();
+        let (events, event_intents) = if released.is_empty() {
+            (events, event_intents)
+        } else {
+            let mut intents = vec![None; released.len()];
+            intents.extend(event_intents);
+            (released.into_iter().chain(events).collect(), intents)
+        };
 
         Ok(NativeTickResult {
             emitted_events,
@@ -235,23 +243,7 @@ impl NativeLayerEngine {
     }
 
     pub fn drain_held_notes(&mut self, max_notes: usize) -> Vec<MusicalEvent> {
-        let limit = max_notes.min(self.held_notes.len());
-        let held_notes = self
-            .held_notes
-            .iter()
-            .copied()
-            .take(limit)
-            .collect::<Vec<_>>();
-        for held_note in &held_notes {
-            self.held_notes.remove(held_note);
-        }
-        held_notes
-            .into_iter()
-            .map(|held_note| MusicalEvent::NoteOff {
-                channel: held_note.channel,
-                note: held_note.note,
-            })
-            .collect()
+        self.held_notes.drain(max_notes)
     }
 
     pub fn set_mapping_config(&mut self, mapping_config: MappingConfig) {
@@ -354,12 +346,9 @@ impl NativeLayerEngine {
         let NoteBehaviorWithIntentsResult {
             events,
             event_intents,
-        } = apply_note_behavior_with_event_intents(
-            &events,
-            event_intents,
-            &self.note_behaviors,
-            &mut self.held_notes,
-        );
+        } = self
+            .held_notes
+            .apply(&events, event_intents, &self.note_behaviors);
         if events.len() != event_intents.len() {
             return Err("event intent metadata length mismatch after note behavior".into());
         }
@@ -376,79 +365,6 @@ fn to_snapshot(model: &BehaviorRenderModel) -> GridSnapshot {
         height: GRID_HEIGHT,
         tiles: model.tiles.clone(),
         trigger_types: model.trigger_types.clone(),
-    }
-}
-
-struct NoteBehaviorWithIntentsResult {
-    events: Vec<MusicalEvent>,
-    event_intents: Vec<Option<TileTriggerIntent>>,
-}
-
-fn apply_note_behavior_with_event_intents(
-    events: &[MusicalEvent],
-    event_intents: Vec<Option<TileTriggerIntent>>,
-    behaviors: &[NoteBehavior],
-    held: &mut BTreeSet<HeldNote>,
-) -> NoteBehaviorWithIntentsResult {
-    let mut out = Vec::with_capacity(events.len());
-    let mut out_intents = Vec::with_capacity(event_intents.len());
-    let mut intents = event_intents.into_iter();
-    for event in events {
-        let event_intent = intents.next().unwrap_or(None);
-        match event {
-            MusicalEvent::NoteOn {
-                channel,
-                note,
-                velocity,
-                duration_ms,
-            } => {
-                let key = HeldNote {
-                    channel: *channel,
-                    note: *note,
-                };
-                let behavior = behaviors
-                    .get(*channel as usize)
-                    .copied()
-                    .unwrap_or(NoteBehavior::Oneshot);
-                if behavior == NoteBehavior::Hold && held.contains(&key) {
-                    continue;
-                }
-                if behavior == NoteBehavior::Hold {
-                    held.insert(key);
-                    out.push(MusicalEvent::NoteOn {
-                        channel: *channel,
-                        note: *note,
-                        velocity: *velocity,
-                        duration_ms: None,
-                    });
-                } else {
-                    out.push(MusicalEvent::NoteOn {
-                        channel: *channel,
-                        note: *note,
-                        velocity: *velocity,
-                        duration_ms: *duration_ms,
-                    });
-                }
-                out_intents.push(event_intent);
-            }
-            MusicalEvent::NoteOff { channel, note } => {
-                let key = HeldNote {
-                    channel: *channel,
-                    note: *note,
-                };
-                let _ = held.remove(&key);
-                out.push(event.clone());
-                out_intents.push(event_intent);
-            }
-            _ => {
-                out.push(event.clone());
-                out_intents.push(event_intent);
-            }
-        }
-    }
-    NoteBehaviorWithIntentsResult {
-        events: out,
-        event_intents: out_intents,
     }
 }
 

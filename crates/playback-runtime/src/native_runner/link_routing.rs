@@ -170,12 +170,17 @@ impl NativeRunner {
         }
         let mut out = RoutedMusicalEvents::default();
         let midi_drum_channels = super::midi_drum::midi_drum_channels(instruments);
-        let mut event_index = 0;
-        while event_index < events.len() {
-            let event = events[event_index].clone();
+        // An arp orders one step's notes as one batch, so it gathers them across the
+        // interleaved note-offs; without an arp each run of one kind routes on its own.
+        let batch_by_kind = sense.is_some_and(|link| link.arp.mode != ArpMode::None);
+        let mut routed_events = vec![false; events.len()];
+        for event_index in 0..events.len() {
+            if std::mem::replace(&mut routed_events[event_index], true) {
+                continue;
+            }
             let Some(Some(intent)) = event_intents.get(event_index) else {
                 let routed = apply_sampler_assignments_for_instruments_routed(
-                    vec![event],
+                    vec![events[event_index].clone()],
                     &[],
                     0,
                     instruments,
@@ -185,25 +190,28 @@ impl NativeRunner {
                 );
                 self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
                 out.extend(routed);
-                event_index += 1;
                 continue;
             };
-            let mapping_context = event_channel(&events[event_index]);
-            let mut end = event_index + 1;
-            while end < events.len()
-                && event_intents
-                    .get(end)
-                    .and_then(Clone::clone)
-                    .is_some_and(|next| {
-                        next.kind == intent.kind && event_channel(&events[end]) == mapping_context
-                    })
-            {
-                end += 1;
+            let group = (intent.kind, event_channel(&events[event_index]));
+            let mut members = vec![event_index];
+            for next in event_index + 1..events.len() {
+                let same_group = event_intents[next].as_ref().is_some_and(|next_intent| {
+                    (next_intent.kind, event_channel(&events[next])) == group
+                });
+                if same_group && !routed_events[next] {
+                    routed_events[next] = true;
+                    members.push(next);
+                } else if !batch_by_kind {
+                    break;
+                }
             }
-            let grouped_events = events[event_index..end].to_vec();
-            let grouped_intents: Vec<TileTriggerIntent> = event_intents[event_index..end]
+            let grouped_events = members
                 .iter()
-                .filter_map(Clone::clone)
+                .map(|&index| events[index].clone())
+                .collect::<Vec<_>>();
+            let grouped_intents: Vec<TileTriggerIntent> = members
+                .iter()
+                .filter_map(|&index| event_intents[index].clone())
                 .collect();
             let routed = apply_sampler_assignments_for_instruments_routed(
                 grouped_events,
@@ -222,7 +230,6 @@ impl NativeRunner {
                 sense,
                 midi_drum_channels,
             ));
-            event_index = end;
         }
         Ok(out)
     }

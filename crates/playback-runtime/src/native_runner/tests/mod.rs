@@ -121,6 +121,7 @@ mod layer_trigger_gate_device_replay;
 mod layer_trigger_gate_release;
 mod life_mapping;
 mod link_and_shape_menu;
+mod link_holders;
 mod looper;
 mod menu_edit_dispatch;
 mod menu_navigation;

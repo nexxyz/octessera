@@ -74,7 +74,7 @@ pub(crate) fn link_arp_passes_non_note_events_through() {
 }
 
 #[test]
-pub(crate) fn link_arp_held_source_merges_non_note_events() {
+pub(crate) fn link_arp_held_source_passes_non_note_events_without_replaying_the_held_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.arp.mode = ArpMode::Direct;
     runner.layers[0].link.arp.source = ArpSource::Held;
@@ -90,9 +90,64 @@ pub(crate) fn link_arp_held_source_merges_non_note_events() {
             ..
         }
     )));
+    assert!(musical_note_ons_from_events(&immediate.audio).is_empty());
+
+    let replayed = route(&mut runner, vec![note_on(64)]);
+    assert_eq!(
+        musical_note_ons_from_events(&replayed.audio),
+        vec![(0, 60), (0, 64)]
+    );
+}
+
+#[test]
+pub(crate) fn link_arp_steps_one_batch_across_interleaved_note_offs() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.layers[0].link.arp.mode = ArpMode::Up;
+    runner.layers[0].link.arp.step_interval_steps = 1;
+
+    let immediate = route(&mut runner, vec![note_on(67), note_off(62), note_on(60)]);
+
     assert_eq!(
         musical_note_ons_from_events(&immediate.audio),
         vec![(0, 60)]
+    );
+    let next = runner.take_due_link_events(0);
+    assert_eq!(musical_note_ons_from_events(&next.audio), vec![(0, 67)]);
+}
+
+#[test]
+pub(crate) fn link_arp_rotating_moves_a_two_note_chord_one_place_per_batch() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.layers[0].link.arp.mode = ArpMode::Rotating;
+    runner.layers[0].link.arp.step_interval_steps = 1;
+
+    let firsts = (0..3)
+        .map(|_| {
+            let immediate = route(&mut runner, vec![note_on(60), note_on(64)]);
+            runner.clear_delayed_link_events_for_layer(0);
+            musical_note_ons_from_events(&immediate.audio)
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(firsts, vec![vec![(0, 60)], vec![(0, 64)], vec![(0, 60)]]);
+}
+
+#[test]
+pub(crate) fn link_arp_held_source_does_not_replay_the_held_notes_on_a_release() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.layers[0].link.arp.mode = ArpMode::Direct;
+    runner.layers[0].link.arp.source = ArpSource::Held;
+    route(&mut runner, vec![note_on(60), note_on(64)]);
+    runner.clear_delayed_link_events_for_layer(0);
+
+    let released = route(&mut runner, vec![note_off(64)]);
+    assert!(musical_note_ons_from_events(&released.audio).is_empty());
+    assert!(runner.take_due_link_events(0).is_empty());
+
+    let pressed = route(&mut runner, vec![note_on(67)]);
+    assert_eq!(
+        musical_note_ons_from_events(&pressed.audio),
+        vec![(0, 60), (0, 67)]
     );
 }
 

@@ -127,6 +127,20 @@ impl NativeBehavior {
         !matches!(self, NativeBehavior::None | NativeBehavior::Sequencer)
     }
 
+    /// Whether Link plays Hold events for this behavior's tiles that stay lit through a step.
+    /// The play behaviors and the games shape their own events, so they get none.
+    pub fn reports_stable_tiles(self) -> bool {
+        !matches!(
+            self,
+            NativeBehavior::None
+                | NativeBehavior::Keys
+                | NativeBehavior::Looper
+                | NativeBehavior::Sequencer
+                | NativeBehavior::Pong
+                | NativeBehavior::Blockout
+        )
+    }
+
     pub fn grid_interaction(self) -> Option<GridInteraction> {
         match self {
             NativeBehavior::Keys => native_impl::grid_interaction_for_keys(),

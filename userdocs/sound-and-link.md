@@ -27,7 +27,7 @@ Under **Events**, three moments in a tile's life can each trigger something:
 | Event | When it fires | Usual job |
 |---|---|---|
 | **On** | A tile turns on | `note on` |
-| **Hold** | A tile stays on | Often `none`; `note on` for droning, insistent layers |
+| **Hold** | A tile stays on through a step | Often `none`; `note on` for droning, insistent layers |
 | **Off** | A tile turns off | `note off`, so held notes stop |
 
 Each event has an **Inst** (instrument slot 1 to 8), a **Trig** (`none`,
@@ -35,9 +35,15 @@ Each event has an **Inst** (instrument slot 1 to 8), a **Trig** (`none`,
 (0 to 8 extra repeats, one tick apart). Delay and Retrig are a cheap way to
 turn one blip into a little echo figure without touching an effect.
 
-**Event Triggers** switches the whole event path off for the layer without
-losing its settings. **State Notes** lets the layer also play from its current
-state on every transport tick.
+**Event Triggers** switches On and Off off for the layer without losing their
+settings. **State Notes** does the same for Hold, which fires at every step for
+each tile that stays lit. The play behaviors (`keys`, `looper`, `sequencer`) and
+the games make their own events, so Hold stays quiet on them.
+
+On an instrument in `hold` mode, a pitch sounds once however many tiles play
+it, and it ends only when the last of them turns off. Turn **Root** or
+**1st Note** while a note hangs and it still ends cleanly when its tile goes
+dark.
 
 ### Scanning: a playhead over the grid
 
@@ -48,6 +54,10 @@ it plays **Instrument** with **Action**; crossing a dark tile can fire the
 separate **Empty Inst** / **Empty Act** pair, handy for release notes or a
 ghostly counter-rhythm. **Sections** (1, 2, 4 or 8) splits the sweep into
 shorter lanes, so one grid becomes several short loops.
+
+On a `hold` instrument the cursor plays tiles like a piano roll: lit steps in a
+row on one pitch make one long note, and the first dark step ends it. A
+`oneshot` instrument hits again on every lit step.
 
 Scanning suits slow, sculptural worlds like `dla`, `coral` and `vines`: their
 shape becomes a sequence instead of a trickle of birth events.
@@ -74,8 +84,8 @@ one chord, so even chaos sounds like it meant it.
 **X Axis** and **Y Axis** turn where a tile sits into how it sounds. Each lane
 has its own **Enabled** switch.
 
-- **Pitch Steps** moves the pitch by **Steps** (-16 to 16) per tile along that
-  axis. **Restart Section** turns scan sections into little grids of their own:
+- **Pitch Steps** moves the pitch by **Steps** (-16 to 16) notes of the set per
+  tile along that axis, so `1` walks up the scale and `-1` walks down it. **Restart Section** turns scan sections into little grids of their own:
   each lane counts from its own edge, so they all play in the same register.
   It works on the axis the lanes split (Y for column sections, X for row
   sections).
