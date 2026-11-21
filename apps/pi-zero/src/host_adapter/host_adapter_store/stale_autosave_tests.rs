@@ -156,11 +156,13 @@ fn save_as_mine(rig: &mut Rig) {
 }
 
 fn load_mine(rig: &mut Rig) -> Vec<HostMessage> {
+    load_preset(rig, "Mine")
+}
+
+fn load_preset(rig: &mut Rig, name: &str) -> Vec<HostMessage> {
     rig.adapter
         .handle_platform_effect(&RuntimePlatformRequest::new(
-            RuntimePlatformEffect::StoreLoadPreset {
-                name: "Mine".into(),
-            },
+            RuntimePlatformEffect::StoreLoadPreset { name: name.into() },
             "load-mine".into(),
             Some(9),
         ))
@@ -199,20 +201,48 @@ fn a_preset_save_under_auto_save_also_writes_the_default_patch() {
     let mut rig = rig(true, false);
     let factory_level = saved_level(&rig, "default.patch.json");
     edit(&mut rig);
-    flush(&mut rig, Instant::now());
+    let now = Instant::now();
+    flush(&mut rig, now);
     assert!(rig.adapter.core.pending_default_save.has_default_pending());
 
-    save_as_mine(&mut rig);
+    rig.runner
+        .test_focus_menu_item("preset.saveAs.save")
+        .unwrap();
+    press(
+        &mut rig.runner,
+        &[
+            json!({"type":"encoder_press","id":"main"}),
+            json!({"type":"encoder_turn","id":"main","delta":1}),
+            json!({"type":"encoder_press","id":"main"}),
+        ],
+    );
+    let refused = rig
+        .adapter
+        .core
+        .take_manual_save(&mut rig.playback, &mut rig.runner);
+    assert!(refused.is_none());
+    let saved = finished_operation(&mut rig, RuntimeOperation::StoreSavePreset);
+    dispatch_all(&mut rig, saved);
     assert!(rig.runner.owes_default_autosave());
-    force_flush(&mut rig);
+    flush(&mut rig, now + Duration::from_millis(10));
+    flush(&mut rig, now + Duration::from_millis(2500));
     finish_default_save(&mut rig);
 
-    let preset_level = saved_level(&rig, "patches/Mine.json");
+    let name = std::fs::read_dir(rig.root.join("store/patches"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .trim_end_matches(".json")
+        .to_string();
+    let preset_level = saved_level(&rig, &format!("patches/{name}.json"));
     assert_ne!(preset_level, factory_level);
     assert_eq!(saved_level(&rig, "default.patch.json"), preset_level);
     assert!(!rig.runner.owes_default_autosave());
     assert!(!rig.adapter.core.pending_default_save.has_default_pending());
-    assert_loaded(&load_mine(&mut rig));
+    assert_loaded(&load_preset(&mut rig, &name));
     let _ = std::fs::remove_dir_all(rig.root);
 }
 

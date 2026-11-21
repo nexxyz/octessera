@@ -121,6 +121,9 @@ impl NativeRunner {
                 {
                     self.retry_config_save_after_restore_failure();
                 }
+                let preset_save_keeps_autosave_owed = operation
+                    == crate::protocol::RuntimeOperation::StoreSavePreset
+                    && self.auto_save_default;
                 if succeeded
                     && is_save_operation
                     && !is_rename
@@ -128,8 +131,7 @@ impl NativeRunner {
                     && operation != crate::protocol::RuntimeOperation::StoreSaveDefault
                     && pending_default_revision != revision
                     && !native_preset_ignored
-                    && !(operation == crate::protocol::RuntimeOperation::StoreSavePreset
-                        && self.auto_save_default)
+                    && !preset_save_keeps_autosave_owed
                 {
                     self.acknowledge_config_save(revision);
                 }

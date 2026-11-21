@@ -444,3 +444,36 @@ fn a_finished_save_under_the_draft_name_drafts_a_fresh_name_for_the_next_save_as
         &runner.patch_store.preset_draft_name
     ));
 }
+
+fn dirty_after_preset_save(auto_save: bool, native: bool) -> bool {
+    let (mut runner, mut runtime, mut host, request) = prepare_native_save();
+    runner.auto_save_default = auto_save;
+    let (request_id, revision) = if native {
+        assert!(runner.attach_native_preset_catalog(
+            request.request_id(),
+            request.revision(),
+            vec!["Other".into(), "Source".into(), "Target".into()],
+        ));
+        (request.request_id().to_string(), request.revision())
+    } else {
+        runner.pending.native_preset_write = None;
+        runner.mark_config_dirty();
+        ("desktop-save".to_string(), runner.config_revision)
+    };
+    runtime
+        .dispatch_host_message_music_first(
+            save_result(&request_id, revision, "Target"),
+            &mut runner,
+            &mut host,
+        )
+        .unwrap();
+    runner.config_dirty
+}
+
+#[test]
+fn a_saved_preset_leaves_the_patch_owing_its_autosave_only_with_auto_save_on() {
+    for native in [true, false] {
+        assert!(dirty_after_preset_save(true, native), "native: {native}");
+        assert!(!dirty_after_preset_save(false, native), "native: {native}");
+    }
+}
