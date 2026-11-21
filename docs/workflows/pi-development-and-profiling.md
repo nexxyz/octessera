@@ -321,8 +321,9 @@ usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
   advancing playback stream, no Octessera errors or failed units, and unchanged
   live store hashes.
 - The rest run detached (about 42 minutes, no SSH until they end) on the real
-  service through a temporary `95-octessera-scenarios.conf` drop-in and a cloned
-  store. `board-keys.py` types on a uinput keyboard; the Raspberry uses the
+  service through a temporary `95-octessera-scenarios.conf` drop-in under
+  `/run/systemd/system/octessera.service.d/` (a reboot clears it; it sorts after
+  `90-octessera-dev.conf`) and a cloned store. `board-keys.py` types on a uinput keyboard; the Raspberry uses the
   Bluetooth bus, so Bluetooth must be on there.
 - `save_restore` changes Grid Bright, Button Bright, Num Style and BPM through
   the menu, restarts, checks the saved files, then turns one more detent to show
@@ -402,30 +403,38 @@ usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
   no error line other than the sandbox's refusals, the service active at the
   end, and the clone loading after a restart. RSS is only reported, because it
   warms up for 20 minutes (see `soak`).
-- `resets` (Auto Save on) runs Empty Patch, then Factory Patch, turns Grid and
-  Button Bright up two detents each, runs Factory System, declines the
-  restart, and stops and starts the service. After Empty Patch every layer
-  must be `none`; after Factory Patch the saved patch must equal the live
-  factory patch (delay times derived from BPM aside). After the restart, the
-  changed System values must be back at `config/generated/pi/default.json`'s,
-  so the exit save did not write the old ones back. Exactly one
-  `system.json.pre-reset-*` copy must be kept, and a root loop polling every
-  20 ms must never find `system.json` missing.
-- `bad_stores` starts on three clones. A System file without
-  `midi.notesIn` (as saved before the key existed) must load, and a Save
-  System must write Notes In on. A System file with an unknown key and a patch
-  cut to half its bytes must each stop at the restore screen: the journal
-  announces it once, systemd does not restart the app, and the files stay
-  byte-identical. The screen's choices take only the hardware encoders, so
-  the scenario cannot pick one; `store_fault/tests.rs` covers what each choice
-  writes.
-- `full_card` moves the clone onto a 16 MB ext4 loop image (the stores share
-  the root file system), fills it to 48 kB free and, with Auto Save on, runs
-  Save As and turns Grid Bright and BPM. Every `.json` in the clone must stay
-  non-empty and parseable, and the journal must name the full card. After the
-  filler is removed, the retried autosave must write the new BPM and a second
-  Save As must land, both in the same process. A recording is not part of it:
-  recordings go to the media folders, not the store.
+- `resets`, `bad_stores` and `full_card` run in the `fuzz` sandbox.
+- `resets` (Auto Save on, the clone's USB and audio outputs at factory values,
+  so Factory System asks root for no device change) runs Empty Patch, then
+  Factory Patch, turns Grid and Button Bright up two detents each, runs
+  Factory System, declines the restart, and stops and starts the service.
+  After Empty Patch every layer must be `none`; after Factory Patch the saved
+  patch must hold the patch half of `config/generated/pi/default.json` (delay
+  times derived from BPM aside). After the restart, the changed System values
+  must be back at that file's, so the exit save did not write the old ones
+  back. Exactly one new `system.json.pre-reset-*` copy must be kept, as a copy
+  (its inode is not the old `system.json`'s), and a root loop polling every
+  20 ms must never find `system.json` missing. On the Raspberry, Factory
+  System turns Bluetooth off and with it the uinput keyboard, so the decline
+  is never typed and the dialog stays open; the app's MainPID must be the same
+  before and after Factory System either way.
+- `bad_stores` starts on four clones. A System file without `midi.notesIn`
+  (as saved before the key existed) must load, and a Save System must write
+  Notes In on. A System file with an unknown top-level key, one with an
+  unknown key in `runtimeConfig`, and a patch cut to half its bytes must each
+  stop at the restore screen: the journal announces it once, systemd does not
+  restart the app, and the files stay byte-identical. The screen's choices
+  take only the hardware encoders, so the scenario cannot pick one;
+  `store_fault/tests.rs` covers what each choice writes.
+- `full_card` copies the clone onto a 16 MB ext4 loop image (the stores share
+  the root file system; the copy must match), fills it to 48 kB free and, with
+  Auto Save on, runs Save As and turns Grid Bright and BPM. Every `.json` in
+  the clone must stay non-empty and parseable; the small System file must take
+  the new Grid Bright while the 157 kB patch keeps its old BPM, and the journal
+  must say `No space left` for the BPM edit. After the filler is removed, the
+  retried autosave must write the new BPM and a second Save As must add one
+  preset, both in the same process. A recording is not part of it: recordings
+  go to the media folders, not the store.
 
 Two UAT cases are not scenarios. Bindings across an FX type change are runner
 logic, covered by `a_bus_slot_binding_keeps_the_patch_valid_after_the_slot_type_changes`
@@ -508,4 +517,7 @@ on the Orange, `Octessera Line In` on the Raspberry).
 Each run writes its evidence and a `summary.txt` of PASS/FAIL lines to
 `target/board-scenarios/<board>-<stamp>/`. Afterwards the payload stops any
 `board-keys.py` or updater switch it started, restores the service, removes
-the drop-in, clone and recordings, and checks the live store.
+the drop-in, clone and recordings, and checks the live store (every file in
+it, `patches/` and `backups/` included). Every run also gets a `restore`
+check: each payload's last line must read `service=active
+live_store_unchanged=yes dropin_left=no gadget_restored=yes clone_mounted=no`.

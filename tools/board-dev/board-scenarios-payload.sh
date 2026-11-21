@@ -7,7 +7,7 @@
 #
 #   board-scenarios-payload.sh <rpi|opi> <root> boot
 #   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap presets
-#     stop_save show_mode update_fail fuzz
+#     stop_save show_mode update_fail fuzz resets bad_stores full_card
 #   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_audio|usb_audio_fx
 # Root reads privileged files; the redirects deliberately write as the unprivileged payload user.
 # shellcheck disable=SC2024
@@ -24,7 +24,7 @@ else
   gadget_unit=octessera-orange-usb-gadget.service
   media="/var/lib/octessera/recordings /var/lib/octessera/screen-recordings"
 fi
-hashes() { sudo -n find "$live" -maxdepth 1 -name '*.json' -exec sha256sum {} + | sort -k2; }
+hashes() { sudo -n find "$live" -type f -exec sha256sum {} + | sort -k2; }
 gadget_functions() { sudo -n sh -c 'ls /sys/kernel/config/usb_gadget/*/configs/*/ 2>/dev/null' | tr '\n' ' '; }
 
 if [ "$mode" = boot ]; then
@@ -48,7 +48,14 @@ fi
 soak_seconds=$4
 shift 4
 store=/var/lib/octessera/study-stores/scenarios-${root##*-}
-dropin=/etc/systemd/system/octessera.service.d/95-octessera-scenarios.conf
+# Under /run, so a reboot clears it; it still sorts after the /etc 90-octessera-dev.conf drop-in.
+dropin=/run/systemd/system/octessera.service.d/95-octessera-scenarios.conf
+# Keeps the service away from root's power, device-apply, update, setup-portal, Orange
+# storage-control (SD2 transfer) and Live Show Mode paths.
+sandbox="NoNewPrivileges=yes
+InaccessiblePaths=-/run/octessera-device-apply -/run/octessera-update -/run/octessera-setup-request/inbox
+InaccessiblePaths=-/run/octessera-orange-storage-control -/var/lib/octessera/show-hold
+InaccessiblePaths=-/usr/bin/systemctl -/usr/sbin/reboot -/usr/sbin/poweroff"
 trace=/sys/kernel/tracing/instances/octessera-scenarios
 display="esc*8 up*10 down*10 enter up*20 down*7 enter down*20"
 link="esc*8 up*10 down enter up*20"
@@ -128,10 +135,12 @@ prepare() {
 }
 cleanup() {
   set +e
+  touch "$root/poll.stop"
   # Nothing of the scenario may go on typing or switching releases once the drop-in is gone.
-  sudo -n pkill -f "$root/board-keys.py"
-  sudo -n pkill -f "$root/octessera-update switch"
-  for _ in $(seq 1 20); do pgrep -f "$root/(board-keys.py|octessera-update)" >/dev/null || break; sleep 0.5; done
+  local typing="^(sudo -n )?python3 $root/board-keys\.py " switching="^(sudo -n env .* )?python3 $root/octessera-update switch "
+  sudo -n pkill -f "$typing"
+  sudo -n pkill -f "$switching"
+  for _ in $(seq 1 20); do pgrep -f "$typing|$switching" >/dev/null || break; sleep 0.5; done
   if sudo -n test -d "$trace"; then
     sudo -n sh -c "echo 0 > $trace/events/spi/spi_transfer_start/enable"
     sudo -n rmdir "$trace"
@@ -147,7 +156,7 @@ cleanup() {
   # shellcheck disable=SC2086
   sudo -n find $media -type f -newer "$root/started" -print -delete >> host.log 2>&1
   for _ in $(seq 1 30); do [ "$(systemctl is-active "$service")" = active ] && break; sleep 1; done
-  echo "restore service=$(systemctl is-active "$service") live_store_unchanged=$([ "$(hashes)" = "$original" ] && echo yes || echo NO) dropin_left=$(test -e "$dropin" && echo yes || echo no) gadget_restored=$([ "$(gadget_functions)" = "$gadget_original" ] && echo yes || echo NO)" >> host.log
+  echo "restore service=$(systemctl is-active "$service") live_store_unchanged=$([ "$(hashes)" = "$original" ] && echo yes || echo NO) dropin_left=$(test -e "$dropin" && echo yes || echo no) gadget_restored=$([ "$(gadget_functions)" = "$gadget_original" ] && echo yes || echo NO) clone_mounted=$(grep -q " $store " /proc/self/mountinfo && echo yes || echo no)" >> host.log
   touch "$root/done"
 }
 
@@ -209,53 +218,25 @@ keymap() {
   keys keymap "c v b n m , . / alt+c alt+f alt+r alt+4 alt+; wait:12"
   snapshot keymap
 }
-# One line per state: the saved patch's BPM and Note Length, the presets it matches, and a hash per
-# preset file; presets-diff.log lists where the saved patch differs from preset A.
-preset_state() {
-  sudo -n python3 - "$store" "$1" >> presets.log <<'PY'
-import hashlib, json, sys
-from pathlib import Path
-store = Path(sys.argv[1])
-presets = sorted((store / "patches").glob("*.json"))
-files = " ".join(f"{p.stem}={hashlib.sha256(p.read_bytes()).hexdigest()[:16]}" for p in presets)
-def music(path):
-    """A runtimeConfig without the delay times a note-mode delay derives from BPM: the runtime
-    recomputes those on load (the factory patch stores 273 ms for a 1/8 at 120 BPM)."""
-    config = json.loads(path.read_text())["runtimeConfig"]
-    for bus in config.get("mixer", {}).get("buses", []):
-        for slot in bus.values():
-            if isinstance(slot, dict) and slot.get("params", {}).get("timeMode") == "note":
-                slot["params"].pop("timeMs", None)
-    return config
-saved = music(store / "default.patch.json")
-# The saved patch is a preset's when it holds every runtimeConfig value of that preset.
-loaded = [p.stem for p in presets if all(saved.get(k) == v for k, v in music(p).items())]
-def differ(a, b, path=""):
-    if isinstance(a, dict) and isinstance(b, dict):
-        return [d for k in sorted(set(a) | set(b)) for d in differ(a.get(k), b.get(k), f"{path}.{k}")]
-    if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
-        return [d for i, (x, y) in enumerate(zip(a, b)) for d in differ(x, y, f"{path}[{i}]")]
-    return [] if a == b else [f"{path}={json.dumps(a)}->{json.dumps(b)}"]
-if (store / "patches" / "A.json").exists():
-    with open("presets-diff.log", "a") as out:
-        a = music(store / "patches" / "A.json")
-        out.write(f"{sys.argv[2]} {' '.join(differ(a, saved)[:20])}\n")
-print(f"{sys.argv[2]} bpm={saved['transport']['bpm']} note={saved['sound']['noteLengthMs']} matches={','.join(loaded) or '-'} {files}")
-PY
-}
-# Types one preset step and waits until the store changed and then held still for 0.5 s.
-preset_step() {
-  local before now settled
-  before=$(sudo -n sh -c "sha256sum $store/patches/*.json $store/default.patch.json")
-  keys "preset_$1" "$2"
+# One line of facts about the clone per state (board-scenarios-state.py).
+preset_state() { sudo -n python3 "$root/board-scenarios-state.py" presets "$store" "$1" "$root/presets-diff.log" >> presets.log; }
+store_state() { sudo -n python3 "$root/board-scenarios-state.py" store "$store" "$1" >> stores.log; }
+clone_hashes() { sudo -n sh -c "sha256sum $store/*.json $store/patches/*.json 2>/dev/null"; }
+# Types the keys $3, waits up to 15 s for the clone to change and hold still for 0.5 s, then logs
+# the state with $1 under the label $2.
+settled_step() {
+  local before now settled=""
+  before=$(clone_hashes)
+  keys "$2" "$3"
   for _ in $(seq 1 30); do
-    now=$(sudo -n sh -c "sha256sum $store/patches/*.json $store/default.patch.json")
-    [ "$now" != "$before" ] && [ "$now" = "${settled:-}" ] && break
+    now=$(clone_hashes)
+    [ "$now" != "$before" ] && [ "$now" = "$settled" ] && break
     settled=$now
     sleep 0.5
   done
-  preset_state "$1"
+  "$1" "$2"
 }
+preset_step() { settled_step preset_state "$@"; }
 # Text edits only append at the end of a name, so: Save As AC (the draft A comes from picking A in
 # Rename), BPM +15, Load A over that unsaved change, Rename AC to ACD, Rename A onto AB with the
 # overwrite confirmed, Delete ACD. Every confirm takes its last option.
@@ -321,10 +302,7 @@ rss() { sudo -n awk '/VmRSS/{print $2}' "/proc/$(systemctl show -p MainPID --val
 fuzz() {
   configure autoSaveDefault=false dimTimerSeconds=0 screenSleepSeconds=0
   local seed=${OCTESSERA_SCENARIO_FUZZ_SEED:-$(date +%s)} start_sandbox restarted=no
-  start_sandbox="NoNewPrivileges=yes
-InaccessiblePaths=-/run/octessera-device-apply -/run/octessera-update -/run/octessera-setup-request/inbox
-InaccessiblePaths=-/run/octessera-orange-storage-control -/var/lib/octessera/show-hold
-InaccessiblePaths=-/usr/bin/systemctl -/usr/sbin/reboot -/usr/sbin/poweroff"
+  start_sandbox=$sandbox
   start OCTESSERA_TIMING_AUTOPLAY=1 || return
   echo "start seed=$seed pid=$(systemctl show -p MainPID --value "$service") rss_kb=$(rss)" >> fuzz.log
   keys fuzz "random:$seed" 300

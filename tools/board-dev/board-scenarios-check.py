@@ -256,8 +256,7 @@ def fuzz(board, out):
         if "panicked" in text or (exited and exited.groups() != ("exited", "75")
                                   and not (exited.group(1) == "exited" and any(t - 10 <= r <= t for r in refused))):
             problems.append(f"{t:.1f} {text}")
-    sandboxed = ("Permission denied", "no new privileges", "power lifecycle failed", "power request")
-    problems += [line for line in errors(rows) if not any(cause in line for cause in sandboxed)]
+    problems += [line for line in errors(rows) if not any(r - 1 <= float(line.split()[0]) <= r + 1 for r in refused)]
     if end["active"] != "active" or restart["ready"] != "yes":
         problems.append(f"the service is {end['active']} after the fuzz, and ready after a restart: {restart['ready']}")
     restarts = sum("Main process exited" in text for _, _, text in rows)
@@ -414,6 +413,18 @@ def usb_audio(board, out):
                     f"for {last:.2f} s, CLIP lit in {lit} of those frames, cleared "
                     f"{cleared if cleared is None else round(cleared, 2)} s after the last clipped sample")
     return problems, "; ".join(evidence)
+
+
+RESTORED = "service=active live_store_unchanged=yes dropin_left=no gadget_restored=yes clone_mounted=no"
+
+
+def restore(board, out):
+    lines = [line.removeprefix("restore ") for line in (out / "host.log").read_text().splitlines()
+             if line.startswith("restore ")]
+    problems = [f"a payload left the board as: {line}" for line in lines if line != RESTORED]
+    if not lines:
+        problems.append("no payload reported its restore")
+    return problems, f"{len(lines)} payload run(s) restored"
 
 
 def main():

@@ -1,12 +1,16 @@
 """Checks for the scenarios that reset, damage or fill the cloned store (board-scenarios-stores.sh);
 each reads the key=value lines in stores.log."""
+import importlib.util
 import json
 from pathlib import Path
 
 from board_scenarios_evidence import fields, journal, marks, window_errors
 
-FACTORY_CONFIG = Path(__file__).resolve().parents[2] / "config" / "generated" / "pi" / "default.json"
-RESET_KEYS = ("gridBrightness", "buttonBrightness", "autoSaveDefault", "dimTimerSeconds", "screenSleepSeconds")
+HERE = Path(__file__).resolve().parent
+FACTORY_CONFIG = HERE.parents[1] / "config" / "generated" / "pi" / "default.json"
+_state = importlib.util.spec_from_file_location("board_scenarios_state", HERE / "board-scenarios-state.py")
+state = importlib.util.module_from_spec(_state)
+_state.loader.exec_module(state)
 
 
 def store_lines(out):
@@ -23,68 +27,86 @@ def store_facts(out):
     return dict(pair.split("=", 1) for line in store_lines(out) for pair in line.split() if "=" in pair)
 
 
+def factory_patch_problems(saved_path):
+    """The saved patch must hold the patch half of config/generated/pi/default.json."""
+    saved = state.music(saved_path)
+    factory = state.music(FACTORY_CONFIG)
+    unknown = sorted(set(saved) - set(factory))
+    differs = state.differ({k: factory[k] for k in saved if k in factory}, {k: saved[k] for k in saved if k in factory})
+    return ([f"keys the factory config lacks: {unknown}"] if unknown else []) + \
+        ([f"differs from the factory config: {differs[:5]}"] if differs else [])
+
+
 def resets(board, out):
-    rows = store_rows(out)
+    rows, facts = store_rows(out), store_facts(out)
     factory = json.loads(FACTORY_CONFIG.read_text())["runtimeConfig"]
-    expected = {key: json.dumps(factory[key], separators=(",", ":")) for key in RESET_KEYS}
-    before, edited, restarted = rows["factory"], rows["system_edit"], rows["restarted"]
-    missing = store_facts(out)["missing"]
+    expected = {key: json.dumps(factory[key], separators=(",", ":")) for key in state.SYSTEM_KEYS}
+    initial, before, edited, restarted = rows["initial"], rows["factory"], rows["system_edit"], rows["restarted"]
+    new_aside = set(restarted["pre_reset_inodes"].split(",")) - set(initial["pre_reset_inodes"].split(","))
     problems = []
     if rows["empty"].get("behaviors") != "none":
         problems.append(f"Empty Patch saved layers {rows['empty'].get('behaviors')}, not all none")
-    if rows["factory"].get("factory_patch") != "yes":
-        problems.append("Factory Patch did not save the factory patch")
+    problems += [f"Factory Patch: {p}" for p in factory_patch_problems(out / "resets-factory-patch.json")]
     if [int(edited[k]) - int(before[k]) for k in ("gridBrightness", "buttonBrightness")] != [10, 10]:
         problems.append("the two System edits were not saved")
-    changed = {key: restarted.get(key) for key in RESET_KEYS if restarted.get(key) != expected[key]}
+    if facts["pid_before_reset"] != facts["pid_after_reset"]:
+        problems.append("the app restarted during Factory System although the restart was declined")
+    changed = {key: restarted.get(key) for key in state.SYSTEM_KEYS if restarted.get(key) != expected[key]}
     if changed:
         problems.append(f"after Factory System and a restart these differ from factory {expected}: {changed}")
-    if restarted.get("pre_reset") != "1":
-        problems.append(f"{restarted.get('pre_reset')} set-aside copies of system.json, not 1")
-    if missing != "0":
-        problems.append(f"system.json was missing in {missing} of the 20 ms polls")
+    if int(restarted["pre_reset"]) - int(initial["pre_reset"]) != 1:
+        problems.append(f"{int(restarted['pre_reset']) - int(initial['pre_reset'])} new set-aside copies, not 1")
+    if edited["system_inode"] in new_aside:
+        problems.append("system.json was renamed aside instead of copied")
+    if facts["missing"] != "0":
+        problems.append(f"system.json was missing in {facts['missing']} of the 20 ms polls")
     problems += window_errors(out, "resets")
-    return problems, (f"empty layers {rows['empty'].get('behaviors')}, factory patch {rows['factory'].get('factory_patch')}, "
-                      f"after Factory System and restart {[restarted.get(k) for k in RESET_KEYS]}, "
-                      f"{restarted.get('pre_reset')} set aside, {missing} missing polls")
+    return problems, (f"empty layers {rows['empty'].get('behaviors')}, after Factory System and restart "
+                      f"{[restarted.get(k) for k in state.SYSTEM_KEYS]}, {len(new_aside)} new copy set aside, "
+                      f"pid {facts['pid_before_reset']} -> {facts['pid_after_reset']}, {facts['missing']} missing polls")
 
 
 def bad_stores(board, out):
     """The restore screen's choices take only the hardware encoders, so the recovery pick is not
     driven; the announcement, the restart count and the kept files are."""
     rows = store_rows(out)
+    broken = ("unknown_key", "unknown_runtime_key", "truncated_patch")
     problems = []
     if rows["old_system_saved"].get("notesIn") != "true":
         problems.append(f"a System file without notesIn saved notesIn {rows['old_system_saved'].get('notesIn')}")
-    for name in ("unknown_key", "truncated_patch"):
+    for name in broken:
         row = rows[name]
         if (row["announced"], row["restarts"], row["active"], row["files_intact"]) != ("1", "0", "active", "yes"):
             problems.append(f"{name}: announced {row['announced']}x, {row['restarts']} restarts, {row['active']}, "
                             f"files intact {row['files_intact']}")
-    shown = "; ".join(f"{name} {dict((k, v) for k, v in rows[name].items() if k != 'message')}"
-                      for name in ("unknown_key", "truncated_patch"))
+    shown = "; ".join(f"{name} {dict((k, v) for k, v in rows[name].items() if k != 'message')}" for name in broken)
     return problems, f"{shown}; old System file saved notesIn {rows['old_system_saved'].get('notesIn')}"
 
 
 def full_card(board, out):
-    rows = store_rows(out)
-    facts = store_facts(out)
+    rows, facts = store_rows(out), store_facts(out)
     found = marks(out)
-    storage = [text for t, _, text in journal(out / "journal.log")
-               if found["full_card_begin"] <= t <= found["full_card_end"]
+    rows_journal = journal(out / "journal.log")
+    storage = [text for t, _, text in rows_journal if found["full_card_begin"] <= t <= found["full_card_end"]
                and ("No space left" in text or "domain=storage" in text)]
+    full_edit_errors = [text for t, _, text in rows_journal
+                        if found["full_edits_begin"] <= t <= found["full_freed"] and "No space left" in text]
+    full, edits, freed, saved = rows["full_save_as"], rows["full_edits"], rows["freed_autosave"], rows["freed_save_as"]
     problems = []
-    if int(facts["free_kb"]) > 64:
-        problems.append(f"the card image kept {facts['free_kb']} kB free")
+    if rows["filled"]["copied"] != "yes" or int(rows["filled"]["free_kb"]) > 64:
+        problems.append(f"the card image: copied {rows['filled']['copied']}, {rows['filled']['free_kb']} kB free")
     for step in ("full_save_as", "full_edits", "freed_autosave", "freed_save_as"):
         if rows[step].get("broken") != "-":
             problems.append(f"after {step}: broken files {rows[step].get('broken')}")
-    if not storage:
-        problems.append("the journal never named the full card")
-    if int(rows["freed_autosave"]["bpm"]) != int(rows["full_save_as"]["bpm"]) + 15:
-        problems.append(f"after freeing space the autosave kept BPM {rows['freed_autosave']['bpm']}")
-    if facts["same_pid"] != "yes" or facts["presets"] == "0":
-        problems.append(f"after freeing space: same process {facts['same_pid']}, {facts['presets']} presets saved")
-    return problems, (f"{facts['free_kb']} kB free, {len(storage)} storage lines (first: {storage[:1]}), "
-                      f"temporary files {rows['freed_save_as'].get('temporary')}, BPM after freeing "
-                      f"{rows['freed_autosave']['bpm']}, {facts['presets']} presets, same process {facts['same_pid']}")
+    if edits["bpm"] != full["bpm"] or int(edits["gridBrightness"]) != int(full["gridBrightness"]) + 10:
+        problems.append(f"while full: BPM {full['bpm']} -> {edits['bpm']} (must stay), Grid Bright "
+                        f"{full['gridBrightness']} -> {edits['gridBrightness']} (the small System file must land)")
+    if not storage or not full_edit_errors:
+        problems.append(f"the journal named the full card {len(storage)}x, {len(full_edit_errors)}x for the BPM edit")
+    if float(freed["bpm"]) != float(full["bpm"]) + 15:
+        problems.append(f"after freeing space the autosave kept BPM {freed['bpm']}")
+    if facts["same_pid"] != "yes" or int(saved["presets"]) != int(edits["presets"]) + 1:
+        problems.append(f"after freeing space: same process {facts['same_pid']}, presets {edits['presets']} -> {saved['presets']}")
+    return problems, (f"{rows['filled']['free_kb']} kB free, {len(storage)} storage lines (first: {storage[:1]}), "
+                      f"temporary files {saved.get('temporary')}, BPM {full['bpm']} while full, {freed['bpm']} after "
+                      f"freeing, presets {edits['presets']} -> {saved['presets']}, same process {facts['same_pid']}")

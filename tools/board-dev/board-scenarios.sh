@@ -31,7 +31,7 @@ mkdir -p "$out"
 upload() {
   remote ssh "mkdir -m 755 $root"
   for file in board-scenarios-payload.sh board-scenarios-system.sh board-scenarios-stores.sh board-keys.py \
-    board-scenarios-store.py; do
+    board-scenarios-store.py board-scenarios-state.py; do
     remote scp "$(local_path "tools/board-dev/$file")" "$target:$root/$file" >/dev/null
   done
   remote scp "$(local_path tools/device-update/octessera-update)" "$target:$root/octessera-update" >/dev/null
@@ -85,7 +85,7 @@ done
 if [[ " ${scenarios[*]} " == *" boot "* ]]; then
   live=/home/pi/presets
   [ "$board" = opi ] && live=/var/lib/octessera/presets
-  remote ssh "sudo -n find $live -maxdepth 1 -name '*.json' -exec sha256sum {} + | sort -k2" > "$out/live-hashes-before.log"
+  remote ssh "sudo -n find $live -type f -exec sha256sum {} + | sort -k2" > "$out/live-hashes-before.log"
   remote ssh "sudo -n systemctl reboot" || true
   echo "rebooting $board; no SSH for 90 s"
   sleep 90
@@ -138,5 +138,8 @@ for scenario in usb_midi usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio
   fi
 done
 
-python tools/board-dev/board-scenarios-check.py "$board" "$out" "${scenarios[@]}" | tee "$out/summary.txt"
+# Every payload run ends with a restore line; the restore check reads them all.
+checks=("${scenarios[@]}")
+[[ " ${scenarios[*]} " == " boot " ]] || checks+=(restore)
+python tools/board-dev/board-scenarios-check.py "$board" "$out" "${checks[@]}" | tee "$out/summary.txt"
 ! grep -q '^FAIL' "$out/summary.txt"

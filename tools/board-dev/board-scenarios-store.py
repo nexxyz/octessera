@@ -14,8 +14,11 @@ setups:
                   with Hold, tile (x, y) playing note 60 + x + 8y
   usb_notes_in    the usb_midi rig; slot 1 a Synth with Hold, L1 steps slot 5, a MIDI Inst. on
                   channel 1, on tile (0, 0), which plays note 60
+  resets          Auto Save on, View on Back off, keyboard capture allowed, USB and audio outputs at
+                  their factory values (so Factory System changes no device setting)
   old_system      keyboard capture allowed, System without midi.notesIn (as saved before it existed)
   unknown_key     System with an unknown top-level key
+  unknown_runtime_key  System with an unknown key in runtimeConfig
   truncated_patch the patch cut to half its bytes
   full_card       Auto Save on, View on Back off, keyboard capture allowed
   presets         Auto Save on, View on Back off, keyboard capture allowed; presets A and AB, the
@@ -31,6 +34,9 @@ MIDI_DRUM_TILES = [(0, 1, 38), (4, 1, 42)]
 MIDI_DRUM_MS = 150
 VEL_SCALE = {"invert": False, "key": "sound.velocityScalePct", "kind": "number", "label": "Velocity Scale",
              "max": 200, "min": 0, "step": 1}
+# config/generated/pi/default.json's USB and audio output settings, the ones Factory System writes.
+FACTORY_DEVICE = {"usb": {"dataRole": "gadget", "midiOutEnabled": False},
+                  "audioOutputs": {"dac": True, "hdmi": False, "usb": False}}
 TAPE_STOP = {"fxType": "tape_stop", "params": {"startMs": 300, "stopMs": 200}, "targetKey": "master"}
 
 
@@ -164,13 +170,17 @@ def main():
             path = store / "patches" / f"{name}.json"
             path.write_text(json.dumps(preset, separators=(",", ":")))
             os.chown(path, owner.st_uid, owner.st_gid)
-    elif setup in ("old_system", "unknown_key", "truncated_patch", "full_card"):
+    elif setup in ("resets", "old_system", "unknown_key", "unknown_runtime_key", "truncated_patch", "full_card"):
         allow_keyboard(config)
-        config.update(autoSaveDefault=setup == "full_card", perfViewOnBack=False)
+        config.update(autoSaveDefault=setup in ("resets", "full_card"), perfViewOnBack=False)
+        if setup == "resets":
+            config.update(json.loads(json.dumps(FACTORY_DEVICE)))
         if setup == "old_system":
             del config["midi"]["notesIn"]
         if setup == "unknown_key":
             system["fromTheFuture"] = True
+        if setup == "unknown_runtime_key":
+            config["fromTheFuture"] = True
     elif setup == "keymap":
         config["autoSaveDefault"] = True
         allow_keyboard(config)

@@ -5,6 +5,8 @@ from pathlib import Path
 
 ERROR = re.compile(r"(?i)\b(fail\w*|error|panicked|unavailable)\b")
 BENIGN = ("HDMI framebuffer waiting",)
+# What the payload's sandbox keeps the service away from, as the refusals name it.
+SANDBOXED = ("Wi-Fi switch", "Live Show Mode", "/run/octessera-", "show-hold", "/usr/bin/systemctl", "/usr/sbin/")
 JOURNAL = re.compile(r"^\[\s*([\d.]+)\] \S+ ([^\[:]+)(?:\[\d+\])?: (.*)$")
 
 
@@ -17,11 +19,15 @@ def journal(path):
     return rows
 
 
+def sandbox_refusal(text):
+    return ("Permission denied" in text and any(path in text for path in SANDBOXED)) or "no new privileges" in text
+
+
 def errors(rows, start=0.0, end=float("inf")):
     return [f"{t:.1f} {ident}: {text}" for t, ident, text in rows
             if start <= t <= end and ident.startswith(("octessera", "systemd"))
             and ("octessera" in ident or "octessera" in text)
-            and ERROR.search(text) and not any(b in text for b in BENIGN)]
+            and ERROR.search(text) and not any(b in text for b in BENIGN) and not sandbox_refusal(text)]
 
 
 def marks(out):
