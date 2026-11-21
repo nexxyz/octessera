@@ -1,6 +1,6 @@
 use super::algorithms::{
-    comb_buffers, DelayCache, EqChannelState, FilterLfoCache, ModDelayCache, ModDelayParams,
-    ReverbInputGain, VinylState,
+    comb_buffers, delay_line_state, glitch_state, DelayCache, EqChannelState, FilterLfoCache,
+    ModDelayCache, ModDelayParams, ReverbInputGain, VinylState, DELAY_MAX_MS,
 };
 use super::{BiquadState, FxBusParams};
 
@@ -45,6 +45,9 @@ pub(in crate::synth) enum FxBusState {
         idx: usize,
         read: usize,
         remain: usize,
+        slice: usize,
+        repeating: bool,
+        heard: usize,
         rng: u32,
     },
     AutoPan {
@@ -121,14 +124,7 @@ pub(in crate::synth) fn fx_bus_state_from_params(
     sample_rate: u32,
 ) -> FxBusState {
     match params {
-        FxBusParams::Delay { time_ms, .. } => {
-            let cache = DelayCache::new(*time_ms, sample_rate);
-            FxBusState::Delay {
-                buf: vec![0.0; cache.min_len],
-                idx: 0,
-                cache,
-            }
-        }
+        FxBusParams::Delay { time_ms, .. } => delay_line_state(DELAY_MAX_MS, *time_ms, sample_rate),
         FxBusParams::Tremolo { .. } => FxBusState::Tremolo { phase: 0.0 },
         FxBusParams::ModDelay {
             rate_hz,
@@ -170,13 +166,7 @@ pub(in crate::synth) fn fx_bus_state_from_params(
             lp: [0.0; 4],
             input_gain: ReverbInputGain::default(),
         },
-        FxBusParams::Glitch { .. } => FxBusState::Glitch {
-            buf: vec![0.0; ((sample_rate as f32) * 0.25) as usize],
-            idx: 0,
-            read: 0,
-            remain: 0,
-            rng: 0x1234_abcd,
-        },
+        FxBusParams::Glitch { .. } => glitch_state(sample_rate),
         FxBusParams::AutoPan { .. } => FxBusState::AutoPan {
             phase: 0.0,
             pos: 0.5,

@@ -16,9 +16,9 @@ fn boost() -> FxBusSlotConfig {
     slot("compressor", &[("thresholdDb", 0.0), ("makeupDb", 12.0)])
 }
 
-/// A hard clip at 0.5, scaled back up to full scale.
+/// A hard clip at 0.3 with no added gain.
 fn clip() -> FxBusSlotConfig {
-    slot("distortion", &[("drive", 1.0), ("clip", 0.5)])
+    slot("distortion", &[("drive", 0.0), ("clip", 0.3)])
 }
 
 fn none() -> FxBusSlotConfig {
@@ -53,13 +53,10 @@ fn assert_frame(actual: (f32, f32), expected: (f32, f32)) {
 #[test]
 fn master_slots_run_in_slot_order() {
     let makeup = 10.0_f32.powf(12.0 / 20.0);
-    assert_frame(
-        through(vec![boost(), clip()], 0.2, -0.1),
-        (1.0, -0.1 * makeup / 0.5),
-    );
+    assert_frame(through(vec![boost(), clip()], 0.2, -0.1), (0.3, -0.3));
     assert_frame(
         through(vec![clip(), boost()], 0.2, -0.1),
-        (0.4 * makeup, -0.2 * makeup),
+        (0.2 * makeup, -0.1 * makeup),
     );
 }
 

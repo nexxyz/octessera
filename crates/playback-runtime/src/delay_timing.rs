@@ -4,7 +4,7 @@ use serde_json::{json, Map, Value};
 use crate::timing_units::{note_unit_to_pulses, DEFAULT_NOTE_UNIT, NOTE_UNIT_OPTIONS};
 
 pub(crate) const DELAY_TIME_MIN_MS: i32 = 1;
-pub(crate) const DELAY_TIME_MAX_MS: i32 = 2000;
+pub(crate) const DELAY_TIME_MAX_MS: i32 = 6000;
 
 pub(crate) fn clamp_visible_bpm(value: f64) -> f64 {
     value.clamp(f64::from(MIN_TEMPO_BPM), f64::from(MAX_TEMPO_BPM))

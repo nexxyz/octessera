@@ -60,33 +60,41 @@ fn auto_pan_passes_the_signal_and_moves_its_position_with_the_lfo() {
     }
 }
 
+/// The duck starts dipping at half the threshold and reaches the full amount at it, at every
+/// threshold: 1.0 still ducks under a full-scale source, and 0 waits for -60 dBFS.
 #[test]
-fn duck_cuts_by_the_amount_as_the_source_rises_past_the_threshold() {
-    let (threshold, amount) = (0.1, 0.6);
-    let params = FxBusParams::Duck {
-        source: crate::synth::fx_params::DuckSource::Instrument(1),
-        source_tap: crate::synth::fx_params::DuckSourceTap::Pre,
-        threshold,
-        amount,
-        attack_ms: 1.0,
-        release_ms: 1.0,
-    };
-    for (source, expected_gain) in [
-        (0.05, 1.0),
-        (0.1, 1.0),
-        (0.15, 1.0 - amount * 0.5),
-        (0.2, 1.0 - amount),
-        (0.9, 1.0 - amount),
+fn duck_reaches_the_amount_at_the_threshold_from_half_of_it() {
+    let amount = 0.6;
+    for (threshold, source, depth) in [
+        (0.1, 0.025, 0.0),
+        (0.1, 0.05, 0.0),
+        (0.1, 0.075, 0.5),
+        (0.1, 0.1, 1.0),
+        (0.1, 0.9, 1.0),
+        (0.8, 0.6, 0.5),
+        (0.8, 1.0, 1.0),
+        (1.0, 0.75, 0.5),
+        (1.0, 1.0, 1.0),
+        (0.0, 0.0004, 0.0),
+        (0.0, 0.01, 1.0),
     ] {
+        let params = FxBusParams::Duck {
+            source: crate::synth::fx_params::DuckSource::Instrument(1),
+            source_tap: crate::synth::fx_params::DuckSourceTap::Pre,
+            threshold,
+            amount,
+            attack_ms: 1.0,
+            release_ms: 1.0,
+        };
         let mut state = fx_bus_state_from_params(&params, SAMPLE_RATE);
         let mut output = 0.0;
         for _ in 0..2_000 {
             output = process_fx_bus_slot(&params, &mut state, 0.5, source, SAMPLE_RATE);
         }
+        let expected = 0.5 * (1.0 - amount * depth);
         assert!(
-            (output - 0.5 * expected_gain).abs() < 1.0e-4,
-            "source {source}: output {output}, expected {}",
-            0.5 * expected_gain
+            (output - expected).abs() < 1.0e-4,
+            "threshold {threshold} source {source}: output {output}, expected {expected}"
         );
     }
 }
@@ -106,4 +114,35 @@ fn reverb_without_its_state_passes_the_input_through_without_allocating() {
     assert_eq!(output, 0.5);
     assert_eq!(allocations, 0);
     assert!(matches!(state, FxBusState::None));
+}
+
+fn shape(params: FxBusParams, input: f32) -> f32 {
+    let mut state = fx_bus_state_from_params(&params, SAMPLE_RATE);
+    process_fx_bus_slot(&params, &mut state, input, 0.0, SAMPLE_RATE)
+}
+
+#[test]
+fn distortion_drive_adds_gain_into_a_clip_at_clip() {
+    let distortion = |drive, clip| FxBusParams::Distortion {
+        drive,
+        clip,
+        mix: 1.0,
+    };
+    assert_eq!(shape(distortion(0.0, 0.6), 0.3), 0.3);
+    assert_eq!(shape(distortion(0.0, 0.6), -0.9), -0.6);
+    assert_eq!(shape(distortion(1.0, 0.6), 0.2), 0.4);
+    assert_eq!(shape(distortion(1.0, 0.25), 0.2), 0.25);
+    assert_eq!(shape(distortion(4.0, 1.0), 0.1), 0.5);
+}
+
+#[test]
+fn saturator_drive_zero_is_clean_and_full_scale_stays_full_scale() {
+    let saturator = |drive| FxBusParams::Saturator { drive, mix: 1.0 };
+    assert_eq!(shape(saturator(0.0), 0.4), 0.4);
+    for drive in [0.5_f32, 1.8, 20.0] {
+        assert!((shape(saturator(drive), 1.0) - 1.0).abs() < 1.0e-6);
+        let quiet = shape(saturator(drive), 0.001);
+        let expected = 0.001 * drive / drive.tanh();
+        assert!((quiet / expected - 1.0).abs() < 1.0e-3, "{drive}");
+    }
 }

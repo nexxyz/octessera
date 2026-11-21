@@ -80,7 +80,7 @@ pub(in crate::synth::fx) fn process_vinyl_mono_bus(
 
     let tone_mix = (0.08 + params.warp_depth * 0.24).clamp(0.0, 0.45);
     let drive = 1.0 + params.saturation * 4.0;
-    let wet_l = process_saturator(input * warp, drive, 1.0);
+    let wet_l = (input * warp * drive).tanh();
     let rate = state.rate_constants(sample_rate);
     state.tone_l += (wet_l - state.tone_l) * rate.tone_coef;
     state.tone_r += (wet_l - state.tone_r) * rate.tone_coef;
@@ -110,8 +110,8 @@ pub(in crate::synth::fx) fn process_vinyl_stereo(
 
     let tone_mix = (0.08 + params.warp_depth * 0.24).clamp(0.0, 0.45);
     let drive = 1.0 + params.saturation * 4.0;
-    let wet_l = process_saturator(left * warp, drive, 1.0);
-    let wet_r = process_saturator(right * warp, drive, 1.0);
+    let wet_l = (left * warp * drive).tanh();
+    let wet_r = (right * warp * drive).tanh();
     let rate = state.rate_constants(sample_rate);
     state.tone_l += (wet_l - state.tone_l) * rate.tone_coef;
     state.tone_r += (wet_r - state.tone_r) * rate.tone_coef;

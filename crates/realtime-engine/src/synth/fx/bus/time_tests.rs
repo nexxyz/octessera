@@ -222,11 +222,66 @@ fn glitch_that_never_fires_passes_the_input_through_bit_for_bit() {
 }
 
 #[test]
-fn glitch_that_always_fires_replays_each_previous_slice() {
-    let input = test_tone(SAMPLE_RATE as usize / 2);
-    let output = run(glitch(1.0, 10.0, 1.0), &input, SAMPLE_RATE);
-    for (frame, output) in output.iter().enumerate() {
-        let expected = frame.checked_sub(480).map_or(0.0, |earlier| input[earlier]);
-        assert_eq!(output.to_bits(), expected.to_bits(), "frame {frame}");
+fn glitch_that_always_fires_hears_one_slice_then_keeps_repeating_it() {
+    for slice_ms in [10.0, 500.0] {
+        let slice = (slice_ms * 48.0) as usize;
+        let input = test_tone(slice * 4);
+        let output = run(glitch(1.0, slice_ms, 1.0), &input, SAMPLE_RATE);
+        for frame in 0..slice {
+            assert_eq!(
+                output[frame].to_bits(),
+                input[frame].to_bits(),
+                "frame {frame}"
+            );
+        }
+        for (frame, output) in output.iter().enumerate().skip(slice) {
+            let into_slice = frame % slice;
+            if (96..slice - 96).contains(&into_slice) {
+                assert!(
+                    (output - input[into_slice]).abs() < 1.0e-6,
+                    "{slice_ms} ms frame {frame}"
+                );
+            }
+        }
     }
+}
+
+#[test]
+fn glitch_rolls_chance_once_per_slice() {
+    let slice = 480;
+    let input = test_tone(SAMPLE_RATE as usize * 10);
+    let output = run(glitch(0.25, 10.0, 1.0), &input, SAMPLE_RATE);
+    let repeated: Vec<bool> = output
+        .chunks(slice)
+        .zip(input.chunks(slice))
+        .map(|(output, input)| {
+            let middle = 96..slice - 96;
+            let changed = middle
+                .clone()
+                .filter(|frame| output[*frame] != input[*frame]);
+            let changed = changed.count();
+            assert!(
+                changed == 0 || changed == middle.len(),
+                "a slice is all or nothing"
+            );
+            changed > 0
+        })
+        .collect();
+    let share = repeated.iter().filter(|hit| **hit).count() as f32 / repeated.len() as f32;
+    assert!((0.18..0.32).contains(&share), "repeated share {share}");
+}
+
+#[test]
+fn glitch_fades_each_repeat_in_and_out() {
+    let input = test_tone(SAMPLE_RATE as usize * 2);
+    let output = run(glitch(0.5, 30.0, 1.0), &input, SAMPLE_RATE);
+    let largest_input_step = 0.6 * 0.013 + 0.2 * 0.071;
+    let largest_step = output
+        .windows(2)
+        .map(|pair| (pair[1] - pair[0]).abs())
+        .fold(0.0, f32::max);
+    assert!(
+        largest_step < largest_input_step + 1.6 / 96.0,
+        "step {largest_step}"
+    );
 }

@@ -186,7 +186,7 @@ fn prepared_delay_geometry_grows_and_declines_without_callback_resize() {
         mix: 0.3,
         spread: 0.0,
     };
-    assert_geometry_replacement(small, large, false);
+    assert_geometry_replacement(small, large, true);
     assert_geometry_replacement(large, small, true);
 
     let small = FxBusParams::ModDelay {

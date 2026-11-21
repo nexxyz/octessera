@@ -38,7 +38,7 @@ pub(in crate::synth) fn process_master_fx_slot(
                 makeup_db,
                 mix,
             };
-            let detector = left.abs().max(right.abs()).min(1.0);
+            let detector = left.abs().max(right.abs());
             let gain = compressor_gain(env, detector, &params, sample_rate);
             (
                 mix_sample(left, left * gain, mix),

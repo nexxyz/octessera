@@ -13,6 +13,7 @@ fn prepared_delay_matches_reference_without_callback_growth() {
         cache: DelayCache::new(3.25, 44_100),
     };
 
+    let mut current = 3.25 * 44.1;
     for frame in 0..2048 {
         let time_ms = if frame < 700 {
             3.25
@@ -23,8 +24,14 @@ fn prepared_delay_matches_reference_without_callback_growth() {
         };
         let input = ((frame as f32) * 0.023).sin() * 0.5;
         let actual_out = process_delay(&mut actual, input, time_ms, 0.35, 0.6, 44_100);
-        let expected_out =
-            reference_process_delay(&mut expected, input, time_ms, 0.35, 0.6, 44_100);
+        let expected_out = reference_process_delay(
+            &mut expected,
+            &mut current,
+            input,
+            time_ms,
+            (0.35, 0.6),
+            44_100,
+        );
         assert_eq!(
             actual_out.to_bits(),
             expected_out.to_bits(),
@@ -207,12 +214,13 @@ fn assert_mod_delay_cache(state: &FxBusState, params: &ModDelayParams, sample_ra
     assert_eq!(cache.phase_inc.to_bits(), expected.phase_inc.to_bits());
 }
 
+/// The delay as it grew its line in the callback, with its 50 ms one-pole Time glide.
 fn reference_process_delay(
     state: &mut FxBusState,
+    current: &mut f32,
     input: f32,
     time_ms: f32,
-    feedback: f32,
-    mix: f32,
+    (feedback, mix): (f32, f32),
     sample_rate: u32,
 ) -> f32 {
     let delay_samples = (time_ms / 1000.0) * sample_rate as f32;
@@ -228,7 +236,14 @@ fn reference_process_delay(
     if buf.len() < desired_len.max(2) {
         buf.resize(desired_len.max(2), 0.0);
     }
-    let delayed = reference_read_delay(buf, *idx, delay_samples);
+    let target = delay_samples.min((buf.len() - 1) as f32);
+    let diff = target - *current;
+    *current = if diff.abs() < 0.05 {
+        target
+    } else {
+        *current + diff * (1.0 / (50.0 * sample_rate as f32 / 1000.0))
+    };
+    let delayed = reference_read_delay(buf, *idx, *current);
     buf[*idx] = (input + delayed * feedback).clamp(-2.0, 2.0);
     *idx = (*idx + 1) % buf.len();
     (input * (1.0 - mix) + delayed * mix).clamp(-1.5, 1.5)

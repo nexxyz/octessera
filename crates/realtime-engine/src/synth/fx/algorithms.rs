@@ -17,12 +17,23 @@ pub use comb_bank::REVERB_COMB_LENGTHS;
 pub(in crate::synth) use comb_bank::{
     comb_bank_frame, comb_bank_step, comb_buffers, ReverbInputGain,
 };
-pub(in crate::synth) use delay::process_delay;
+pub(in crate::synth) use delay::{delay_line_state, process_delay, DELAY_MAX_MS};
 pub(super) use delay::{process_mod_delay, DelayCache, ModDelayCache, ModDelayParams};
 pub(super) use eq::{process_eq, process_eq_channel, EqChannelState, EqParams};
 pub(super) use filter_lfo::{process_filter_lfo, FilterLfoCache, FilterLfoParams};
 pub(in crate::synth) use vinyl::VinylState;
 pub(super) use vinyl::{process_vinyl_mono_bus, process_vinyl_stereo, VinylParams};
+
+/// Below this Drive the saturator's curve is a straight line to within 0.01 %.
+const SATURATOR_CLEAN_DRIVE: f32 = 0.01;
+/// The longest Glitch slice; the slot's buffer holds one.
+const GLITCH_MAX_SLICE_MS: f32 = 500.0;
+/// Each repeated glitch slice fades in and out over this long, or a quarter of the slice.
+const GLITCH_FADE_MS: f32 = 2.0;
+/// Duck Threshold 0 still waits for the source to reach -60 dBFS.
+const DUCK_MIN_THRESHOLD: f32 = 0.001;
+/// At 1 bit the crusher keeps only the sign; below -60 dBFS it is silent.
+const ONE_BIT_GATE: f32 = 0.001;
 
 pub(super) struct DuckParams {
     pub(super) threshold: f32,
@@ -44,16 +55,27 @@ pub(super) fn mix_sample(dry: f32, wet: f32, mix: f32) -> f32 {
     dry * (1.0 - mix) + wet * mix
 }
 
+/// `tanh(x * drive) / tanh(drive)`: full scale stays full scale, and a Drive near 0 passes the
+/// sound clean.
 pub(super) fn process_saturator(input: f32, drive: f32, mix: f32) -> f32 {
-    let y = (input * drive).tanh();
+    let y = if drive < SATURATOR_CLEAN_DRIVE {
+        input
+    } else {
+        (input * drive).tanh() / drive.tanh()
+    };
     mix_sample(input, y, mix)
 }
 
+/// Drive is the gain above unity into a hard clip at Clip, so Drive 0 passes the sound clean up
+/// to Clip.
 pub(super) fn process_distortion(input: f32, drive: f32, clip: f32, mix: f32) -> f32 {
-    let y = (input * drive).clamp(-clip, clip) / clip.max(1.0e-6);
+    let y = (input * (1.0 + drive)).clamp(-clip, clip);
     mix_sample(input, y, mix)
 }
 
+/// Chance is rolled once per slice. A hit replays the last slice the buffer heard, and the
+/// buffer stops listening while it replays, so hits in a row keep repeating that slice; a miss
+/// passes one slice through. Nothing repeats before a whole slice has been heard.
 pub(super) fn process_glitch(
     state: &mut FxBusState,
     input: f32,
@@ -67,38 +89,51 @@ pub(super) fn process_glitch(
         idx,
         read,
         remain,
+        slice,
+        repeating,
+        heard,
         rng,
     } = state
     else {
-        *state = FxBusState::Glitch {
-            buf: vec![0.0; ((sample_rate as f32) * 0.25) as usize],
-            idx: 0,
-            read: 0,
-            remain: 0,
-            rng: 0x1234_abcd,
-        };
+        *state = glitch_state(sample_rate);
         return input;
     };
-    buf[*idx] = input;
-    let block = (slice_ms * sample_rate as f32 / 1000.0).round().max(1.0) as usize;
     if *remain == 0 {
+        *slice = ((slice_ms * sample_rate as f32 / 1000.0).round() as usize).clamp(1, buf.len());
         *rng = rng.wrapping_mul(1664525).wrapping_add(1013904223);
         let roll = ((*rng >> 8) as f32) / ((u32::MAX >> 8) as f32);
-        if roll < chance {
-            *read = (*idx + buf.len()).saturating_sub(block.min(buf.len())) % buf.len();
-            *remain = block;
-        }
+        *repeating = roll < chance && *heard >= *slice;
+        *read = (*idx + buf.len() - *slice) % buf.len();
+        *remain = *slice;
     }
-    let wet = if *remain > 0 {
-        let out = buf[*read];
+    *remain -= 1;
+    let wet = if *repeating {
+        let played = *slice - *remain;
+        let fade = (GLITCH_FADE_MS * sample_rate as f32 / 1000.0).min(*slice as f32 * 0.25);
+        let edge = (played.min(*remain + 1) as f32 / fade.max(1.0)).min(1.0);
+        let repeat = buf[*read];
         *read = (*read + 1) % buf.len();
-        *remain -= 1;
-        out
+        input + (repeat - input) * edge
     } else {
+        buf[*idx] = input;
+        *idx = (*idx + 1) % buf.len();
+        *heard = heard.saturating_add(1);
         input
     };
-    *idx = (*idx + 1) % buf.len();
     input * (1.0 - mix) + wet * mix
+}
+
+pub(super) fn glitch_state(sample_rate: u32) -> FxBusState {
+    FxBusState::Glitch {
+        buf: vec![0.0; (GLITCH_MAX_SLICE_MS * sample_rate as f32 / 1000.0).ceil() as usize],
+        idx: 0,
+        read: 0,
+        remain: 0,
+        slice: 1,
+        repeating: false,
+        heard: 0,
+        rng: 0x1234_abcd,
+    }
 }
 
 pub(super) fn process_duck_source(
@@ -117,7 +152,8 @@ pub(super) fn process_duck_source(
     let rel = (params.release_ms / 1000.0 * sample_rate as f32).max(1.0);
     let coef = if x > *env { 1.0 / atk } else { 1.0 / rel };
     *env += (x - *env) * coef;
-    let over = ((*env - params.threshold) / params.threshold.max(1.0e-6)).clamp(0.0, 1.0);
+    let threshold = params.threshold.max(DUCK_MIN_THRESHOLD);
+    let over = (2.0 * *env / threshold - 1.0).clamp(0.0, 1.0);
     input * (1.0 - params.amount * over)
 }
 
@@ -153,8 +189,16 @@ pub(in crate::synth) fn crush_sample(
         *last = input;
     }
     *count = (*count + 1) % rate_div.max(1);
-    let half_levels = (1_u32 << bits.clamp(1, 16)) as f32 * 0.5;
-    let crushed = ((*last * half_levels).round() / half_levels).clamp(-1.0, 1.0);
+    let crushed = if bits <= 1 {
+        if last.abs() < ONE_BIT_GATE {
+            0.0
+        } else {
+            0.5_f32.copysign(*last)
+        }
+    } else {
+        let half_levels = (1_u32 << bits.min(16)) as f32 * 0.5;
+        ((*last * half_levels).round() / half_levels).clamp(-1.0, 1.0)
+    };
     input * (1.0 - mix) + crushed * mix
 }
 
@@ -168,7 +212,7 @@ pub(super) fn process_compressor(
         *state = FxBusState::Compressor { env: 0.0 };
         return input;
     };
-    let gain = compressor_gain(env, input.abs().min(1.0), &params, sample_rate);
+    let gain = compressor_gain(env, input.abs(), &params, sample_rate);
     mix_sample(input, input * gain, params.mix)
 }
 

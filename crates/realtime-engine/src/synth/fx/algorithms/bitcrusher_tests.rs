@@ -37,7 +37,7 @@ fn the_crusher_is_symmetric_around_zero() {
 #[test]
 fn bit_depth_sets_the_step_and_rounds_to_the_nearest_level() {
     let ramp: Vec<f32> = (0..=1000).map(|index| index as f32 / 500.0 - 1.0).collect();
-    for bits in [1, 2, 3, 8] {
+    for bits in [2, 3, 8] {
         let step = 2.0 / (1_u32 << bits) as f32;
         for (input, output) in ramp.iter().zip(crush(&ramp, 1, bits)) {
             let levels = output / step;
@@ -51,6 +51,15 @@ fn bit_depth_sets_the_step_and_rounds_to_the_nearest_level() {
             );
         }
     }
+}
+
+#[test]
+fn one_bit_keeps_only_the_sign_of_anything_above_minus_60_db() {
+    let input = [0.9, 0.2, 0.01, 0.002, 0.0005, 0.0, -0.0005, -0.002, -0.3];
+    assert_eq!(
+        crush(&input, 1, 1),
+        [0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, -0.5, -0.5]
+    );
 }
 
 #[test]

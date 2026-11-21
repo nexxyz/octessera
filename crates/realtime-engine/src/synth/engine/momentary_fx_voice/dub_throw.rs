@@ -1,13 +1,11 @@
 use super::{pct_param, pulses_len, synced_len, synced_pulses, GainRamp, ENVELOPE_MS};
-use crate::synth::fx::{fx_bus_state_from_params, process_delay, FxBusState};
-use crate::synth::fx_params::FxBusParams;
+use crate::synth::fx::{delay_line_state, process_delay, FxBusState};
 use crate::synth::types::MIN_TEMPO_BPM;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
 /// Echoes below this level (-80 dB) count as gone.
 const SILENT_LEVEL: f32 = 1.0e-4;
-const TIME_GLIDE_MS: f32 = 50.0;
 /// A tail still ringing this long after release fades out over `TAIL_FADE_MS`, so a long, high
 /// feedback throw does not hold one of the two Play FX slots for a minute.
 const TAIL_LIMIT_SECONDS: u32 = 10;
@@ -42,8 +40,6 @@ pub(in crate::synth::engine) struct DubThrowVoice {
     delay_l: FxBusState,
     delay_r: FxBusState,
     max_len: f32,
-    current_len: f32,
-    glide: f32,
     send: GainRamp,
     releasing: bool,
     quiet_frames: u32,
@@ -61,19 +57,13 @@ impl DubThrowVoice {
     ) -> Self {
         let pulses = synced_pulses(params_map, "timePulses", DEFAULT_PULSES).max(LONGEST_PULSES);
         let max_len = pulses_len(pulses, MIN_TEMPO_BPM, sample_rate);
-        let line = FxBusParams::Delay {
-            time_ms: max_len * 1_000.0 / sample_rate as f32,
-            feedback: 0.0,
-            mix: 1.0,
-            spread: 0.0,
-        };
+        let longest_ms = max_len * 1_000.0 / sample_rate as f32;
+        let time_ms = params.delay_len.min(max_len) * 1_000.0 / sample_rate as f32;
         Self {
             params,
-            delay_l: fx_bus_state_from_params(&line, sample_rate),
-            delay_r: fx_bus_state_from_params(&line, sample_rate),
+            delay_l: delay_line_state(longest_ms, time_ms, sample_rate),
+            delay_r: delay_line_state(longest_ms, time_ms, sample_rate),
             max_len,
-            current_len: params.delay_len.min(max_len),
-            glide: 1.0 / (TIME_GLIDE_MS * sample_rate as f32 / 1_000.0),
             send: GainRamp::new(0.0, ENVELOPE_MS, sample_rate),
             releasing: false,
             quiet_frames: 0,
@@ -97,17 +87,14 @@ impl DubThrowVoice {
     pub(super) fn finished(&self) -> bool {
         self.releasing
             && self.send.value() <= 0.0
-            && (self.quiet_frames as f32 > self.current_len + 64.0 || self.tail.value() <= 0.0)
+            && (self.quiet_frames as f32 > self.delay_len() + 64.0 || self.tail.value() <= 0.0)
+    }
+
+    fn delay_len(&self) -> f32 {
+        self.params.delay_len.min(self.max_len)
     }
 
     pub(super) fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
-        let target = self.params.delay_len.min(self.max_len);
-        let diff = target - self.current_len;
-        self.current_len = if diff.abs() < 0.05 {
-            target
-        } else {
-            self.current_len + diff * self.glide
-        };
         let send = self.send.toward(if self.releasing { 0.0 } else { 1.0 });
         if self.releasing {
             self.tail_frames = self.tail_frames.saturating_add(1);
@@ -117,7 +104,7 @@ impl DubThrowVoice {
         } else {
             1.0
         });
-        let time_ms = self.current_len * 1_000.0 / self.sample_rate as f32;
+        let time_ms = self.delay_len() * 1_000.0 / self.sample_rate as f32;
         let feedback = self.params.feedback;
         let rate = self.sample_rate;
         let wet_l = process_delay(&mut self.delay_l, left * send, time_ms, feedback, 1.0, rate);

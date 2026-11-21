@@ -1262,7 +1262,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Everything else switches at once: envelope times and sustain, waveforms, octaves, filter and FX
   types, FM Ratio and Fine, values a voice reads only when it starts (Pluck pick, dispersion, and
   body; drum per-sound values; Sampler Tune, Gain, and Velocity), FX Rates, Attack and Release,
-  Glitch Chance and Slice, Bitcrusher Bits and Rate Div, and Delay Time, which rebuilds its slot.
+  Glitch Chance and Slice, and Bitcrusher Bits and Rate Div.
+- Delay Time, in ms or as a note (up to 6 s, a 1/1 at 40 BPM), glides to a new value like tape,
+  on a 50 ms curve; the echoes already in the line keep playing.
 - Patch and config loads, slot rebuilds, and instrument type changes land on their values without
   a glide.
 

@@ -40,7 +40,7 @@ const fn param(
 }
 
 const MIX: FxParam = param("mixPct", "Mix", 0, 100, 1, 1.0, 100.0);
-pub(crate) const DELAY_TIME_MS: FxParam = param("timeMs", "Time", 1, 2000, 5, 1.0, 250.0);
+pub(crate) const DELAY_TIME_MS: FxParam = param("timeMs", "Time", 1, 6000, 5, 1.0, 250.0);
 
 /// Vibrato, Chorus and Flanger share their rows and ranges; only the defaults differ.
 const fn modulation(mix: f64, depth_ms: f64, base_ms: f64, feedback: f64) -> [FxParam; 5] {

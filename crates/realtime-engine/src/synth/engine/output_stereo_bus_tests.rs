@@ -24,7 +24,7 @@ fn delay_spread_creates_lr_difference_and_preserves_mono_sum() {
     mono.note_on(0, 36, 127, 0);
 
     let mut saw_difference = false;
-    for frame in 0..32 {
+    for frame in 0..1024 {
         let (left, right) = spread.next_stereo_sample();
         let (mono_left, mono_right) = mono.next_stereo_sample();
         if (left - right).abs() > 1.0e-6 {
@@ -54,7 +54,7 @@ fn delay_spread_before_downstream_mono_slot_widens_final_output() {
     engine.note_on(0, 36, 127, 0);
 
     let mut saw_difference = false;
-    for _ in 0..32 {
+    for _ in 0..1024 {
         let (left, right) = engine.next_stereo_sample();
         saw_difference |= (left - right).abs() > 1.0e-6;
     }

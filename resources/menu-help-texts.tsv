@@ -603,7 +603,7 @@ play_fx_smooth	Menu > Play > FX > Smooth	key:play.fx.params.smoothPct	number	Smo
 play_fx_delay_time	Menu > Play > FX > Time	key:play.fx.params.delayNote	number	Time	The echo time of the dub throw, as a note value from 1/16T to 1/2.	It follows the tempo like Rate.
 play_fx_feedback	Menu > Play > FX > Feedback	key:play.fx.params.feedbackPct	number	Feedback	How much of each echo comes back, 0 to 90.	The echoes keep trailing off after you let go.
 play_fx_size	Menu > Play > FX > Size	key:play.fx.params.sizePct	number	Size	Sets the wash reverb size from 0 (short tail) to 100 (long swell).	Stored per grid tile when Map to Grid is used.
-play_fx_bits	Menu > Play > FX > Bits	key:play.fx.params.bits	number	Bits	Sets the crush bit depth (1-16). Fewer bits sound grittier.	Stored per grid tile when Map to Grid is used.
+play_fx_bits	Menu > Play > FX > Bits	key:play.fx.params.bits	number	Bits	Sets the crush bit depth (1-16). Fewer bits sound grittier.	1 bit keeps only the sign, a fuzzy square wave. Stored per grid tile when Map to Grid is used.
 play_fx_downsample	Menu > Play > FX > Downsample	key:play.fx.params.rateDiv	number	Downsample	Sets the crush sample-rate divider (1-32). Higher values hold each sample longer for aliasing crunch.	Stored per grid tile when Map to Grid is used.
 native_behavior_id	*	key:behaviorId	group	Behavior	Picks the little world this layer runs.	Choose a category, then a behavior. Only this layer changes.
 native_layer_behavior_id	*	key:layers.*.behaviorId	group	Layer Behavior	Opens the behavior browser for this layer.	Choose a category, then choose a behavior. Selection updates that layer's Build rows without switching the active layer.
@@ -816,30 +816,30 @@ native_fx_attack	Menu > Shape > FX Buses > B*: * > Slot *: * > Attack		number	At
 native_fx_attack_duck	Menu > Shape > FX Buses > B*: * > Slot *: Duck > Attack		number	Attack	Sets Duck attack time; accepted values are 1–500 ms.	Short values respond faster.
 native_fx_release	Menu > Shape > FX Buses > B*: * > Slot *: * > Release		number	Release	Sets how quickly this effect returns after release or input falls away.	Longer values decay more slowly.
 native_fx_release_duck	Menu > Shape > FX Buses > B*: * > Slot *: Duck > Release		number	Release	Sets Duck release time; accepted values are 1–5000 ms.	Longer values decay more slowly.
-native_fx_threshold	*	key:mixer.buses.*.slot*.params.threshold	number	Threshold	Sets the normalized trigger level for this effect from 0 to 1.	Lower values trigger more easily.
+native_fx_threshold	*	key:mixer.buses.*.slot*.params.threshold	number	Threshold	The source level, 0 to 1, where Duck reaches its full Amount; it starts dipping at half that.	Lower values duck sooner; 0 ducks on anything above -60 dB.
 native_fx_threshold_db	*	key:mixer.*.slots.*.params.thresholdDb	number	Threshold dB	Sets compressor threshold in dB.	Signals above this level are reduced.
 native_fx_mix	*	key:mixer.*.slots.*.params.mixPct	number	Mix	Sets wet/dry mix for this effect.	0 is dry; 100 is fully wet.
 native_fx_time_mode	*	key:mixer.buses.*.slot*.params.timeMode	enum	Time Mode	ms sets a fixed delay time; note follows the tempo.	Only the matching time row shows.
 native_fx_time_note	*	key:mixer.buses.*.slot*.params.timeNote	enum	Time Note	The delay time as a note, from 1/32T to 1/1 (T means triplet).	It follows the tempo.
-native_fx_time	*	key:mixer.buses.*.slot*.params.timeMs	number	Delay Time	Sets delay time in milliseconds; shown in ms mode.	Longer values create wider echoes.
+native_fx_time	*	key:mixer.buses.*.slot*.params.timeMs	number	Delay Time	Sets delay time in milliseconds, up to 6 seconds; shown in ms mode.	A change glides to the new time like tape, and the echoes keep going.
 native_fx_spread	*	key:mixer.buses.*.slot*.params.spreadPct	number	Delay Spread	Widens Delay at the FX bus output.	0% keeps the current mono bus output; Mix 0 produces no spread.
 native_fx_feedback	*	key:mixer.buses.*.slot*.params.feedback	number	Feedback	Sets how much output feeds back into the effect.	Higher values increase repeats or resonance.
 native_fx_rate_hz	*	key:mixer.*.slots.*.params.rateHz	number	Rate	Sets modulation rate in Hertz.	Higher rates move faster.
 native_fx_depth_pct	*	key:mixer.buses.*.slot*.params.depthPct	number	Depth	Sets modulation depth as a percentage.	Higher values create stronger movement.
 native_fx_depth_ms	*	key:mixer.buses.*.slot*.params.depthMs	number	Depth	Sets modulation depth in milliseconds.	Used by chorus, flanger, and vibrato style effects.
 native_fx_base_ms	*	key:mixer.buses.*.slot*.params.baseMs	number	Base	Sets the base delay time in milliseconds.	Depth is applied around this base.
-native_fx_drive	*	key:mixer.*.slots.*.params.drive	number	Drive	Sets nonlinear drive amount.	Higher values add more saturation or distortion.
-native_fx_clip	*	key:mixer.*.slots.*.params.clip	number	Clip	Sets distortion clipping threshold.	Lower values clip harder.
-native_fx_bits	*	key:mixer.buses.*.slot*.params.bits	number	Bits	Sets bit depth for bitcrushing.	Lower values sound rougher.
+native_fx_drive	*	key:mixer.*.slots.*.params.drive	number	Drive	Sets the gain into the saturation or clipping.	0 passes the sound clean; higher values add more grit.
+native_fx_clip	*	key:mixer.*.slots.*.params.clip	number	Clip	The level the distortion clips at.	Lower values clip harder and sound quieter.
+native_fx_bits	*	key:mixer.buses.*.slot*.params.bits	number	Bits	Sets bit depth for bitcrushing.	Lower values sound rougher; 1 bit keeps only the sign, a fuzzy square wave.
 native_fx_rate_div	*	key:mixer.buses.*.slot*.params.rateDiv	number	Rate Div	Sets sample-rate reduction divisor.	Higher values reduce more aggressively.
-native_fx_global_bits	*	key:mixer.master.slots.*.params.bits	number	Bits	Sets bit depth for bitcrushing the main mix.	Lower values sound rougher.
+native_fx_global_bits	*	key:mixer.master.slots.*.params.bits	number	Bits	Sets bit depth for bitcrushing the main mix.	Lower values sound rougher; 1 bit keeps only the sign, a fuzzy square wave.
 native_fx_global_rate_div	*	key:mixer.master.slots.*.params.rateDiv	number	Rate Div	Sets sample-rate reduction divisor for the main mix.	Higher values reduce more aggressively.
 native_fx_center_hz	*	key:mixer.buses.*.slot*.params.centerHz	number	Center Hz	Sets the center frequency for filter modulation.	This anchors the sweep range.
 native_fx_q	*	key:mixer.buses.*.slot*.params.q	number	Q	Sets filter resonance/Q.	Higher values emphasize the cutoff region.
 native_fx_decay	*	key:mixer.buses.*.slot*.params.decay	number	Decay	Sets reverb feedback decay.	Displayed as approximate tail time.
 native_fx_damp	*	key:mixer.buses.*.slot*.params.damp	number	Damp	Sets reverb high-frequency damping.	Higher values darken the tail faster.
-native_fx_chance	*	key:mixer.buses.*.slot*.params.chancePct	number	Chance	Sets glitch trigger probability.	Higher values glitch more often.
-native_fx_slice	*	key:mixer.buses.*.slot*.params.sliceMs	number	Slice	Sets glitch slice length.	Shorter slices sound tighter and more fragmented.
+native_fx_chance	*	key:mixer.buses.*.slot*.params.chancePct	number	Chance	The chance that each slice repeats.	A slice that repeats again keeps looping; at 100% it holds one slice.
+native_fx_slice	*	key:mixer.buses.*.slot*.params.sliceMs	number	Slice	Sets glitch slice length, 5 to 500 ms.	Shorter slices sound tighter and more fragmented.
 native_fx_ratio	*	key:mixer.*.slots.*.params.ratio	number	Ratio	Sets compressor ratio.	Higher ratios reduce peaks more strongly.
 native_fx_makeup	*	key:mixer.*.slots.*.params.makeupDb	number	Makeup	Adds gain after compression.	Use it to recover level after gain reduction.
 native_fx_low_gain	*	key:mixer.*.slots.*.params.lowGainDb	number	Low Gain	Adjusts low-band EQ gain.	Negative cuts lows; positive boosts lows.
@@ -861,8 +861,8 @@ native_fx_bus_mid_gain	*	key:mixer.*.slot*.params.midGainDb	number	Mid Gain	Adju
 native_fx_bus_high_gain	*	key:mixer.*.slot*.params.highGainDb	number	High Gain	Adjusts high-band EQ gain.	Negative cuts highs; positive boosts highs.
 native_fx_bus_mid_freq	*	key:mixer.*.slot*.params.midFreqHz	number	Mid Frequency	Sets the EQ mid-band center frequency.	Move it to target different tonal ranges.
 native_fx_bus_mid_q	*	key:mixer.*.slot*.params.midQ	number	Mid Q	Sets the EQ mid-band width.	Higher values make a narrower band.
-native_fx_bus_clip	*	key:mixer.*.slot*.params.clip	number	Clip	Sets distortion clipping threshold.	Lower values clip harder.
-native_fx_bus_drive	*	key:mixer.*.slot*.params.drive	number	Drive	Sets nonlinear drive amount.	Higher values add more saturation or distortion.
+native_fx_bus_clip	*	key:mixer.*.slot*.params.clip	number	Clip	The level the distortion clips at.	Lower values clip harder and sound quieter.
+native_fx_bus_drive	*	key:mixer.*.slot*.params.drive	number	Drive	Sets the gain into the saturation or clipping.	0 passes the sound clean; higher values add more grit.
 native_fx_bus_mix	*	key:mixer.*.slot*.params.mixPct	number	Mix	Sets wet/dry mix for this effect.	0 is dry; 100 is fully wet.
 native_fx_bus_rate_hz	*	key:mixer.*.slot*.params.rateHz	number	Rate	Sets modulation rate in Hertz.	Higher rates move faster.
 native_fx_global_attack	*	key:mixer.master.slots.*.params.attackMs	number	Attack	Sets how quickly this global effect reacts.	Short values respond faster.

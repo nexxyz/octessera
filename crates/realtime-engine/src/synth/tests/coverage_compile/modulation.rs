@@ -19,7 +19,7 @@ fn compiles_fx_bus_params_with_expected_defaults_and_clamps() {
     match compile_fx_bus_params(&fx_config(
         "delay",
         BTreeMap::from([
-            ("timeMs".to_string(), json!(5_000.0)),
+            ("timeMs".to_string(), json!(9_000.0)),
             ("feedback".to_string(), json!(5.0)),
             ("mixPct".to_string(), json!(-5.0)),
         ]),
@@ -30,7 +30,7 @@ fn compiles_fx_bus_params_with_expected_defaults_and_clamps() {
             mix,
             spread,
         } => {
-            assert_close(time_ms, 2_000.0);
+            assert_close(time_ms, 6_000.0);
             assert_close(feedback, 0.98);
             assert_close(mix, 0.0);
             assert_close(spread, 0.0);

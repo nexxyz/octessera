@@ -115,3 +115,19 @@ fn the_detector_falls_63_percent_of_a_step_after_one_release_time() {
         "detector {level}, expected {expected}"
     );
 }
+
+#[test]
+fn a_level_above_full_scale_still_compresses_on_the_ratio() {
+    let params = params(-12.0, 4.0, 0.0, 1.0);
+    for level in [1.0, 1.5, 2.0] {
+        let output = compress(&mut fresh(), &[level; 48_000], &params);
+        let settled = output[output.len() - 1] / level;
+        let expected = expected_gain(level, &params);
+        assert!(
+            (db(settled) - db(expected)).abs() < 0.05,
+            "level {level}: gain {} dB, expected {} dB",
+            db(settled),
+            db(expected)
+        );
+    }
+}

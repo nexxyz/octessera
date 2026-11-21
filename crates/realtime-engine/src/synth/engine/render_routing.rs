@@ -2,12 +2,17 @@ use super::duck_source::resolve_duck_source;
 use super::*;
 
 const FX_BUS_SPREAD_DELAY_MS: f32 = 7.0;
-const FX_BUS_SPREAD_SIDE_GAIN: f32 = 0.35;
+const FX_BUS_SPREAD_SIDE_GAIN: f32 = 0.5;
+/// The side signal is high-passed here (12 dB per octave), so the bass stays centered.
+const FX_BUS_SPREAD_LOW_CUT_HZ: f32 = 400.0;
 
+/// Widens a bus by adding a delayed, high-passed copy to the left and taking it from the right.
+/// The copy's phase against the direct sound turns with frequency, so neither side wins overall.
 #[derive(Clone, Debug)]
 pub(super) struct FxBusOutputSpreadState {
     buf: Vec<f32>,
     idx: usize,
+    low_cut: BiquadState,
 }
 
 impl FxBusOutputSpreadState {
@@ -15,9 +20,17 @@ impl FxBusOutputSpreadState {
         let len = ((FX_BUS_SPREAD_DELAY_MS / 1000.0) * sample_rate as f32)
             .round()
             .max(1.0) as usize;
+        let mut low_cut = BiquadState::new();
+        low_cut.prepare(
+            FilterType::Highpass,
+            FX_BUS_SPREAD_LOW_CUT_HZ,
+            std::f32::consts::FRAC_1_SQRT_2,
+            sample_rate,
+        );
         Self {
             buf: vec![0.0; len],
             idx: 0,
+            low_cut,
         }
     }
 
@@ -29,7 +42,8 @@ impl FxBusOutputSpreadState {
         let delayed = self.buf[self.idx];
         self.buf[self.idx] = mono;
         self.idx = (self.idx + 1) % self.buf.len();
-        let side = ((mono - delayed) * spread * FX_BUS_SPREAD_SIDE_GAIN).clamp(-0.5, 0.5);
+        let side = (self.low_cut.process_prepared(delayed) * spread * FX_BUS_SPREAD_SIDE_GAIN)
+            .clamp(-0.5, 0.5);
         let (center_l, center_r) = pan_gains_float(0.5);
         (
             (mono * center_l + side).clamp(-1.5, 1.5),
@@ -39,6 +53,7 @@ impl FxBusOutputSpreadState {
 
     pub(super) fn silence(&mut self) {
         self.buf.fill(0.0);
+        self.low_cut.clear_history();
     }
 
     #[cfg(all(test, feature = "routing-tree-executor"))]
@@ -315,3 +330,6 @@ pub(super) fn render_bus_stereo_output(
         (output.mono * gain_l * volume, output.mono * gain_r * volume)
     }
 }
+
+#[cfg(test)]
+mod spread_balance_tests;
