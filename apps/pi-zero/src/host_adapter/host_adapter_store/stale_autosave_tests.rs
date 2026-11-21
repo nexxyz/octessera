@@ -226,3 +226,38 @@ fn a_backup_alone_is_still_written_when_auto_save_is_off() {
     finished_operation(&mut rig, RuntimeOperation::StoreSaveBackup);
     let _ = std::fs::remove_dir_all(rig.root);
 }
+
+#[test]
+fn with_auto_save_on_a_loaded_preset_becomes_the_saved_default_patch() {
+    let mut rig = rig(true, false);
+    let level = |rig: &Rig| {
+        let saved: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(rig.root.join("store/default.patch.json")).unwrap(),
+        )
+        .unwrap();
+        saved["runtimeConfig"]["instruments"][0]["synth"]["osc1"]["levelPct"].clone()
+    };
+    let factory_level = level(&rig);
+    edit(&mut rig);
+    save_as_mine(&mut rig);
+    assert_eq!(level(&rig), factory_level);
+
+    for message in load_mine(&mut rig) {
+        rig.playback
+            .dispatch_host_message_music_first(message, &mut rig.runner, &mut rig.adapter)
+            .unwrap();
+    }
+    std::thread::sleep(Duration::from_millis(160));
+    let now = Instant::now();
+    flush(&mut rig, now);
+    rig.adapter.core.flush_native_persistence_at(
+        &mut rig.playback,
+        &mut rig.runner,
+        now + Duration::from_secs(3),
+        false,
+    );
+    finished_operation(&mut rig, RuntimeOperation::StoreSaveDefault);
+
+    assert_ne!(level(&rig), factory_level);
+    let _ = std::fs::remove_dir_all(rig.root);
+}
