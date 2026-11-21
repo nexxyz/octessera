@@ -171,6 +171,33 @@ fn tap_averages_the_last_four_taps_and_resets_after_two_seconds() {
 }
 
 #[test]
+fn tap_ignores_a_missed_tap_and_follows_a_new_tempo_after_two_gaps() {
+    let mut runner = tempo_runner();
+    let start = Instant::now();
+    let tap = |runner: &mut NativeRunner, ms: u64| {
+        runner.handle_play_tempo_press_at(0, 7, start + Duration::from_millis(ms));
+    };
+    for ms in [0, 500, 1000] {
+        tap(&mut runner, ms);
+    }
+    assert_eq!(runner.transport.bpm, 120.0);
+
+    tap(&mut runner, 2000);
+    assert_eq!(runner.transport.bpm, 120.0, "a missed tap is an outlier");
+
+    tap(&mut runner, 2300);
+    assert_eq!(
+        runner.transport.bpm, 120.0,
+        "one quick gap is an outlier too"
+    );
+    tap(&mut runner, 2600);
+    assert_eq!(
+        runner.transport.bpm, 200.0,
+        "two agreeing gaps set the new tempo"
+    );
+}
+
+#[test]
 fn tap_tile_pulses_with_the_beat_only_while_playing() {
     let mut runner = tempo_runner();
     let stopped = led_rgb(dim_rgb(platform_core::palette::GREEN, 6));

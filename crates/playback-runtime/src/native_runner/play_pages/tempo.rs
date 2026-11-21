@@ -8,6 +8,8 @@ use super::super::{
 
 const TAP_RESET: Duration = Duration::from_secs(2);
 const TAP_WINDOW: usize = 4;
+/// How far a tap gap may sit from the median gap, as a share of it, and still count.
+const TAP_OUTLIER_SHARE: f64 = 0.25;
 const TAP_TILE: (usize, usize) = (0, GRID_HEIGHT - 1);
 const LOWEST_TEMPO_ROW: usize = 3;
 const NUDGE_ROW: usize = 2;
@@ -140,15 +142,42 @@ impl NativeRunner {
         if taps.len() > TAP_WINDOW {
             taps.remove(0);
         }
-        let intervals = taps.len().saturating_sub(1);
-        if intervals == 0 {
+        if taps.len() < 2 {
             self.show_toast("Tap");
             return;
         }
-        let beat = now.saturating_duration_since(taps[0]).as_secs_f64() / intervals as f64;
+        let beat = tap_beat(taps);
         let bpm = if beat > 0.0 { 60.0 / beat } else { 240.0 };
         self.set_tempo_from_grid(bpm.round().min(240.0) as i32, "Tap");
     }
+}
+
+/// The beat of the taps, in seconds: the average of the gaps within a quarter of their median, so
+/// a missed or doubled tap does not pull the tempo. When no gap agrees with the others the tempo
+/// changed, so only the newest gap counts and the older taps go.
+fn tap_beat(taps: &mut Vec<Instant>) -> f64 {
+    let gaps = taps
+        .windows(2)
+        .map(|pair| pair[1].saturating_duration_since(pair[0]).as_secs_f64())
+        .collect::<Vec<_>>();
+    let mut sorted = gaps.clone();
+    sorted.sort_by(f64::total_cmp);
+    let middle = sorted.len() / 2;
+    let median = if sorted.len() % 2 == 0 {
+        (sorted[middle - 1] + sorted[middle]) / 2.0
+    } else {
+        sorted[middle]
+    };
+    let kept = gaps
+        .iter()
+        .copied()
+        .filter(|gap| (gap - median).abs() <= median * TAP_OUTLIER_SHARE)
+        .collect::<Vec<_>>();
+    if kept.is_empty() {
+        taps.drain(..taps.len() - 2);
+        return gaps[gaps.len() - 1];
+    }
+    kept.iter().sum::<f64>() / kept.len() as f64
 }
 
 /// The BPM a tempo tile sets; the top-left tile is Tap and has none.

@@ -173,8 +173,11 @@ The menu lists the technical bank, then the musical bank.
 - A tempo tile or nudge sets `Link > BPM` through the same path as the menu edit, at once and
   phase-continuous: the clock keeps its position and runs on at the new rate. BPM stays in
   `40..240`. Toast: `Tempo 120`.
-- Tap: the BPM is the average beat of the last four taps, set from the second tap on and clamped
-  to `40..240` (`Tap 117`); the first tap only toasts `Tap`. A gap over 2 s starts over.
+- Tap: the BPM is the average gap of the last four taps, set from the second tap on and clamped
+  to `40..240` (`Tap 117`); the first tap only toasts `Tap`. Gaps more than a quarter away from
+  their median are left out, so one missed or doubled tap does not pull the tempo; when no gap
+  agrees with the others, only the newest counts and the older taps go, so two agreeing gaps at
+  a new tempo take over. A gap over 2 s starts over.
 - Swing rows set `Link > Swing A` and `Swing B` with Pan-style two-tile markers: value `n` lights
   columns `n-1` and `n`, so `4` lights the middle pair and both middle columns set `4`. Toast
   `Swing 4:5`. Equal values are straight.
