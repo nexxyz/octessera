@@ -174,6 +174,52 @@ fn the_restore_question_outranks_an_open_confirmation_dialog_until_it_is_answere
 }
 
 #[test]
+fn the_restore_question_wakes_the_screen_keeps_it_awake_and_sits_above_an_error() {
+    use std::time::{Duration, Instant};
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    runner.apply_store_result(ready_result()).unwrap();
+    runner.display.ui.screen_sleep_seconds = 2;
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(3);
+    runner.messages_with_snapshot().unwrap();
+    runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    let asleep = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(asleep["display"]["off"], true);
+
+    runner
+        .apply_store_result(transfer_result(
+            RuntimeUserDataTransferPhase::ConfirmRestore,
+        ))
+        .unwrap();
+    runner.display.last_interaction_at = Instant::now() - Duration::from_secs(3);
+    let asking = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(asking["display"]["off"], false);
+    assert_eq!(asking["display"]["splash"], "");
+    assert_eq!(asking["display"]["title"], "Restore backup?");
+    runner
+        .apply_store_result(RuntimeStoreResult::RuntimeFailure {
+            error: crate::RuntimeErrorFacts::new(
+                crate::RuntimeErrorDomain::Storage,
+                crate::RuntimeErrorCode::OperationFailed,
+                crate::RuntimeOperation::StoreSaveDefault,
+                Some("No space left on device".into()),
+            ),
+        })
+        .unwrap();
+    let asking = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(asking["display"]["title"], "Restore backup?");
+    send_main(
+        &mut runner,
+        json!({ "type": "encoder_press", "id": "main" }),
+    );
+    assert!(runner.display.runtime_error_presentation.is_some());
+
+    runner.apply_store_result(ready_result()).unwrap();
+    let answered = snapshot_from(&runner.messages_with_snapshot().unwrap());
+    assert_eq!(answered["display"]["title"], "CAN'T SAVE");
+}
+
+#[test]
 pub(crate) fn closed_status_clears_and_unsupported_is_dismissible() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_store_result(ready_result()).unwrap();

@@ -25,6 +25,10 @@ impl NativeRunner {
             self.display.user_data_transfer = None;
             return;
         }
+        if status.phase == RuntimeUserDataTransferPhase::ConfirmRestore {
+            // The board takes the next Main or Back as the answer, so the question must be lit.
+            self.record_display_interaction();
+        }
         self.display.user_data_transfer = Some(NativeUserDataTransferState {
             status,
             request_id,

@@ -118,11 +118,11 @@ impl NativeRunner {
             }
             self.pending.suppress_snapshot_response = false;
         }
-        if force_error_presentation || self.display.runtime_error_presentation.is_some() {
-            return self.handle_runtime_error_presentation_input(input, force_error_presentation);
-        }
         if self.restore_confirmation().is_some() {
             return self.handle_user_data_transfer_modal_input(input);
+        }
+        if force_error_presentation || self.display.runtime_error_presentation.is_some() {
+            return self.handle_runtime_error_presentation_input(input, force_error_presentation);
         }
         if self.display.user_data_restore.is_some() {
             return self.handle_user_data_restore_input(input);

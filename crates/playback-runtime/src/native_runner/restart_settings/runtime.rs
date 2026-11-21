@@ -126,6 +126,7 @@ impl NativeRunner {
             return;
         }
         self.display.confirm_dialog = Some(saving_dialog());
+        self.forget_shown_save_failure(&crate::RuntimeOperation::StoreSaveSystem);
         self.outbox
             .push_platform_effect(RuntimePlatformEffect::StoreSaveSystem { payload });
     }

@@ -89,7 +89,10 @@ impl NativeRunner {
             .setup_portal
             .as_ref()
             .is_some_and(|setup| setup.visible);
-        if !setup_visible && self.display.user_data_restore.is_none() {
+        if !setup_visible
+            && self.display.user_data_restore.is_none()
+            && self.restore_confirmation().is_none()
+        {
             if let Some(error) = &self.display.runtime_error_presentation {
                 display.body_layout = OledDisplayLayout::Rows;
                 display.title = error.title.clone();

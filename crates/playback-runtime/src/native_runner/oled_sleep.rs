@@ -69,6 +69,7 @@ impl NativeRunner {
         }
         if self.display.oled_mode == NativeOledMode::Normal
             && !self.display.held_inputs.any_at(now)
+            && self.restore_confirmation().is_none()
             && now.duration_since(self.display.last_interaction_at)
                 >= Duration::from_secs(u64::from(self.display.ui.screen_sleep_seconds))
         {

@@ -740,7 +740,10 @@ behavior primary red), so a mute never reads as a section color.
    `Export: N items skipped` over the Backup / Restore card. An accepted restore upload turns the
    card, shown again if Back had hidden it, into `Restore backup?` / `Replaces the` /
    `music on here.` / `Main: Restore` / `Back: Cancel` with no selected row; Main applies, Back
-   cancels, and a cancel or the two-minute timeout returns to the plain card.
+   cancels, and a cancel or the two-minute timeout returns to the plain card. Because the board
+   takes the next Main or Back as the answer, the question wakes the OLED, keeps it from
+   sleeping, and ranks above every screen except a running restore, including error screens,
+   which show once it is answered.
 6. System info and help. On the boards, Sys. Info shows `IP: unavailable` and `MAC: unavailable`
    unless `wlan0` is up with a carrier (associated) and holds a usable IPv4 address.
 7. A Shape signal view or the performance view, then the menu, with the footer. Context toasts
