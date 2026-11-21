@@ -113,6 +113,7 @@ mod input_events;
 mod input_events_midi;
 mod instrument_binding_targets;
 mod instrument_fast_bindings;
+mod instrument_option_sweep;
 mod instruments;
 mod layer_replacement;
 mod layer_select_presentation;
