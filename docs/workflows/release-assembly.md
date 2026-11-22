@@ -92,8 +92,8 @@ way. Newly added units are installed but not enabled. A file a later release
 drops from its set stays on the board, so a release that needs one gone ships
 an empty or neutral replacement instead. A power cut during the switch can
 leave the new release running with the old root files; Rollback puts the board
-back. Sudoers, initramfs, Armbian, kernel, device-tree, and image changes still
-need a reflash.
+back, and the next Apply installs the new release's files. Sudoers, initramfs,
+Armbian, kernel, device-tree, and image changes still need a reflash.
 
 Image release materials must account for source duties covering pinned upstream
 inputs and Octessera source, patches, configuration, and build scripts. Keep

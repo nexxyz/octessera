@@ -266,11 +266,13 @@ def snapshot_store(store: Path, version: str) -> None:
     fsync_directory(snapshot)
 
 
-def restore_store(store: Path, version: str) -> None:
+def restore_store(store: Path, version: str, exact: bool = False) -> None:
     snapshot = ROOT / "releases" / version / "store-snapshot"
     for name in STORE_FILES:
         if (snapshot / name).is_file():
             copy_file(snapshot / name, store / name)
+        elif exact:
+            (store / name).unlink(missing_ok=True)
     fsync_directory(store)
 
 
@@ -292,18 +294,9 @@ def unchanged_since_rollback(store: Path) -> bool:
 def mark_restored(store: Path) -> None:
     temporary = RESTORED_MARK.with_suffix(".tmp")
     temporary.write_text(json.dumps(store_hashes(store)), encoding="utf-8")
+    os.sync()
     os.replace(temporary, RESTORED_MARK)
     fsync_directory(ROOT)
-
-
-def put_back_store(store: Path, version: str) -> None:
-    snapshot = ROOT / "releases" / version / "store-snapshot"
-    for name in STORE_FILES:
-        if (snapshot / name).is_file():
-            copy_file(snapshot / name, store / name)
-        else:
-            (store / name).unlink(missing_ok=True)
-    fsync_directory(store)
 
 
 def root_files(directory: Path) -> list[Path]:
@@ -315,6 +308,8 @@ def install_root_files(version: str, leaving: str) -> None:
     aside = ROOT / "releases" / leaving / "root-replaced"
     added = ROOT / "releases" / leaving / "root-added"
     files = root_files(source)
+    (ROOT / "releases" / version / "root-added").unlink(missing_ok=True)
+    shutil.rmtree(ROOT / "releases" / version / "root-replaced", ignore_errors=True)
     if files and not added.exists():
         shutil.rmtree(aside, ignore_errors=True)
         for relative in files:
@@ -322,7 +317,9 @@ def install_root_files(version: str, leaving: str) -> None:
                 copy_file(SYSTEM_ROOT / relative, aside / relative)
         temporary = added.with_suffix(".tmp")
         temporary.write_text("".join(f"{path.as_posix()}\n" for path in files if not (aside / path).is_file()), encoding="utf-8")
+        os.sync()
         os.replace(temporary, added)
+        fsync_directory(added.parent)
     for relative in files:
         copy_file(source / relative, SYSTEM_ROOT / relative)
     os.sync()
@@ -415,7 +412,8 @@ def switch(version: str) -> str:
         if old_version == version:
             raise UpdateError(f"v{version} is already current")
         store = store_dir()
-        returning = (ROOT / "releases" / version / "root-added").exists()
+        going_back = is_newer(old_version, version)
+        returning = going_back and (target / "root-added").exists()
         try:
             if systemctl("stop", SERVICE) != 0:
                 raise UpdateError("Could not stop Octessera")
@@ -424,7 +422,6 @@ def switch(version: str) -> str:
             systemctl("restart", "--no-block", SERVICE)
             raise UpdateError(f"Could not save the settings; staying on v{old_version}") from error
         try:
-            going_back = is_newer(old_version, version)
             if going_back or unchanged_since_rollback(store):
                 restore_store(store, version)
             set_links(str(target), old_current)
@@ -448,7 +445,7 @@ def switch(version: str) -> str:
         except UpdateError as error:
             print(f"could not stop v{version}: {error}", file=sys.stderr)
         try:
-            put_back_store(store, old_version)
+            restore_store(store, old_version, exact=True)
         except OSError as error:
             print(f"could not put the v{old_version} settings back: {error}", file=sys.stderr)
         try:

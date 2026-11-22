@@ -51,6 +51,7 @@ class UpdaterTests(unittest.TestCase):
         self.install_release("1.0.0", b"healthy 1.0.0")
         os.symlink(self.root / "releases/1.0.0", self.root / "current")
         (self.work / "repo").mkdir()
+        subprocess.run(["git", "init", "-q", str(self.work / "repo")], check=True)
         for name in ("LICENSE", "NOTICE"):
             (self.work / "repo" / name).write_text(f"{name} fixture\n", encoding="utf-8")
         for tree in IMAGE_TREES.values():
@@ -96,6 +97,7 @@ class UpdaterTests(unittest.TestCase):
         path = self.work / "repo" / tree / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.work / "repo"), "add", "--", str(path)], check=True)
 
     def write_staged(self, profile):
         for source in STAGED_FILES[profile].values():
@@ -241,6 +243,25 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(self.system_files(), {**STAGED_SYSTEM_FILES, "etc/systemd/system/octessera.service": ("unit 1.1.0", 0o644)})
         self.assertEqual((self.root / "releases/1.0.0/root-replaced/etc/systemd/system/octessera.service").read_text(encoding="utf-8"), "unit 1.0.0")
+
+    def test_rollback_after_a_cut_update_and_apply_again_install_each_versions_system_files(self):
+        older = self.root / "releases/1.0.0/root/etc/systemd/system/octessera.service"
+        older.parent.mkdir(parents=True)
+        older.write_text("unit 1.0.0", encoding="utf-8")
+        self.publish("1.1.0")
+        self.assertEqual(self.invoke("apply").returncode, 0)
+        os.symlink(self.root / "releases/1.0.0", self.root / "previous")
+        (self.root / "current").unlink()
+        os.symlink(self.root / "releases/1.1.0", self.root / "current")
+        self.assertEqual(self.invoke("rollback").returncode, 0)
+        self.assertEqual(self.invoke("switch", "1.0.0").returncode, 0)
+        self.assertEqual(self.system_files(), {"etc/systemd/system/octessera.service": ("unit 1.0.0", 0o644)})
+        self.assertEqual(self.invoke("switch", "1.1.0").returncode, 0)
+        self.assertEqual(self.system_files(), {**STAGED_SYSTEM_FILES, "etc/systemd/system/octessera.service": ("unit 1.1.0", 0o644)})
+        self.assertFalse((self.root / "releases/1.1.0/root-added").exists())
+        self.assertFalse((self.root / "releases/1.1.0/root-replaced").exists())
+        self.assertEqual(self.invoke("switch", "1.0.0").returncode, 0)
+        self.assertEqual(self.system_files(), {"etc/systemd/system/octessera.service": ("unit 1.0.0", 0o644)})
 
     def test_switch_commits_a_healthy_release_and_prunes_old_ones(self):
         self.install_release("0.9.0", b"healthy 0.9.0")
@@ -427,6 +448,16 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(modes[RASPBERRY]["usr/local/sbin/octessera-sd-card"], 0o755)
         self.assertEqual(modes[ORANGE]["usr/local/sbin/octessera-update"], 0o755)
         self.assertEqual(modes[ORANGE]["usr/local/lib/octessera/device_config.py"], 0o644)
+
+    def test_packager_leaves_out_untracked_image_staging(self):
+        staged = self.work / "repo" / IMAGE_TREES[RASPBERRY] / "usr/local/bin/octessera-pi"
+        staged.parent.mkdir(parents=True)
+        staged.write_text("staged runtime", encoding="utf-8")
+        archive, _ = self.publish("1.1.0")
+        with zipfile.ZipFile(archive) as bundle:
+            names = bundle.namelist()
+        self.assertIn("root/etc/systemd/system/octessera.service", names)
+        self.assertNotIn("root/usr/local/bin/octessera-pi", names)
 
     def test_packager_rejects_an_incomplete_runtime_bundle(self):
         runtime = self.work / "incomplete"

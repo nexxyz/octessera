@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import re
 import stat
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -47,10 +48,11 @@ def root_files(repository_root: Path, profile: str) -> list[tuple[str, Path, int
     tree = repository_root / IMAGE_TREES[profile]
     if not tree.is_dir():
         raise ValueError(f"Image tree is missing: {tree}")
+    tracked = subprocess.run(["git", "-C", str(repository_root), "ls-files", "-z", "--", IMAGE_TREES[profile]], capture_output=True, check=True).stdout
     sources = {
-        source.relative_to(tree).as_posix(): source
-        for source in tree.rglob("*")
-        if source.is_symlink() or not source.is_dir()
+        Path(name).relative_to(IMAGE_TREES[profile]).as_posix(): repository_root / name
+        for name in tracked.decode("utf-8").split("\0")
+        if name
     }
     sources.update({relative: repository_root / source for relative, source in STAGED_FILES[profile].items()})
     files = []
@@ -102,7 +104,7 @@ def main() -> int:
     arguments = parser.parse_args()
     try:
         package_bundle(arguments.runtime_bundle, arguments.output_dir, arguments.repository_root, arguments.board_profile, arguments.tag, arguments.version)
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
         raise SystemExit(str(error)) from error
     return 0
 

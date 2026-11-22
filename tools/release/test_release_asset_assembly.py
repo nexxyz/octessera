@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -53,6 +54,8 @@ class ReleaseAssetAssemblyTests(unittest.TestCase):
             ):
                 (root / relative).parent.mkdir(parents=True, exist_ok=True)
                 (root / relative).write_bytes(relative.encode("utf-8"))
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
             bundle = root / "runtime"
             bundle.mkdir()
             binary = bundle / "octessera-pi"
