@@ -216,21 +216,22 @@ fn seed_random_cells(cells: &mut [u8], count: usize) {
     }
 }
 
-/// Plants `count` firing cells as a two-row clump, so even a high Fire Threshold finds a resting
-/// cell with enough firing neighbors.
+/// Plants `count` firing cells as one clump, two rows deep and up to four wide, growing more rows
+/// past eight cells, so even a high Fire Threshold finds a resting cell with enough firing
+/// neighbors. The clump stays whole inside the grid.
 fn seed_scheduled_cells(
     cells: &mut [u8],
     trigger_types: &mut [TileTriggerType],
     count: usize,
     step: usize,
 ) {
-    let width = count.div_ceil(2).min(4);
+    let width = count.div_ceil(2).clamp(1, 4);
+    let rows = count.div_ceil(width).min(GRID_HEIGHT);
     let start = step % TILE_COUNT;
-    let (sx, sy) = (start % GRID_WIDTH, start / GRID_WIDTH);
-    for offset in 0..count {
-        let x = (sx + offset % width) % GRID_WIDTH;
-        let y = (sy + offset / width) % GRID_HEIGHT;
-        let index = grid_index(x, y);
+    let sx = (start % GRID_WIDTH).min(GRID_WIDTH - width);
+    let sy = (start / GRID_WIDTH).min(GRID_HEIGHT - rows);
+    for offset in 0..count.min(width * rows) {
+        let index = grid_index(sx + offset % width, sy + offset / width);
         if cells[index] == 0 {
             cells[index] = 1;
             trigger_types[index] = TileTriggerType::Activate;

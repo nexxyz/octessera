@@ -170,7 +170,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase. Th
 | brain | Fire Threshold: [1..4] | number, step 1 (default 2) |
 | brain | Seed Interval: [0..30] | number, step 1 (default 2; 0 disables scheduled seeding) |
 | brain | Spawn Step: [0..63] | number, step 1 (default 0) |
-| brain | Spawn Count: [0..20] | number, step 1 (default 2); a scheduled seed lights Spawn Count plus Fire Threshold minus 1 cells as a clump up to 4 wide, so even Fire Threshold 4 can wake a cell |
+| brain | Spawn Count: [0..20] | number, step 1 (default 2); a scheduled seed lights Spawn Count plus Fire Threshold minus 1 cells as one clump two rows deep and up to 4 wide (more rows past 8 cells), kept whole inside the grid, so even Fire Threshold 4 can wake a cell |
 | brain | !Seed Random | action |
 | cyclic | States: [3..8] | number, step 1 (default 4) |
 | cyclic | Threshold: [1..8] | number, step 1 (default 1); at Range 1 a side neighbor counts 2 and a corner 1, so all eight values differ |

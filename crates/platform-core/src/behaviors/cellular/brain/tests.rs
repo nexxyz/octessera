@@ -169,3 +169,24 @@ fn manual_seeding_uses_the_spawn_count_and_scheduled_seeding_adds_the_fire_thres
         20 + scheduled.fire_threshold - 1
     );
 }
+
+#[test]
+fn a_scheduled_clump_at_the_corner_stays_whole() {
+    let mut cells = vec![0; TILE_COUNT];
+    let mut triggers = vec![TileTriggerType::None; TILE_COUNT];
+    seed_scheduled_cells(&mut cells, &mut triggers, 5, TILE_COUNT - 1);
+    let lit = (0..TILE_COUNT)
+        .filter(|index| cells[*index] == 1)
+        .collect::<Vec<_>>();
+    assert_eq!(lit.len(), 5);
+    let xs = lit
+        .iter()
+        .map(|index| index % GRID_WIDTH)
+        .collect::<Vec<_>>();
+    let ys = lit
+        .iter()
+        .map(|index| index / GRID_WIDTH)
+        .collect::<Vec<_>>();
+    assert!(xs.iter().max().unwrap() - xs.iter().min().unwrap() < 3);
+    assert!(ys.iter().max().unwrap() - ys.iter().min().unwrap() < 2);
+}
