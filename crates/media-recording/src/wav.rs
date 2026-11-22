@@ -25,7 +25,44 @@ pub(crate) fn write_recording(
     state: Arc<IngressState>,
     max_frames: u64,
 ) -> Result<RecordingOutcome, RecordingError> {
-    let mut writer = WavWriter::new(file, partial_path.clone(), final_path)?;
+    let writer = WavWriter::new(file, partial_path, final_path)?;
+    let (writer, frames, gap_count, gap_frames) =
+        write_take(writer, &rx, &stop, &state, max_frames)?;
+    state.accepting.store(false, Ordering::Release);
+    writer.finish(
+        frames,
+        gap_count,
+        gap_frames,
+        state.overflow_chunks.load(Ordering::Acquire),
+        state.overflow_frames.load(Ordering::Acquire),
+    )
+}
+
+/// Writes the take's audio. A take that fails before a whole audio frame reached the file
+/// leaves no file; one that fails later keeps its partial file for repair.
+pub(crate) fn write_take<W: Write + Seek>(
+    mut writer: WavWriter<W>,
+    rx: &Receiver<RecordingChunk>,
+    stop: &AtomicBool,
+    state: &IngressState,
+    max_frames: u64,
+) -> Result<(WavWriter<W>, u64, u64, u64), RecordingError> {
+    match write_frames(&mut writer, rx, stop, state, max_frames) {
+        Ok((frames, gap_count, gap_frames)) => Ok((writer, frames, gap_count, gap_frames)),
+        Err(error) => {
+            writer.discard_if_silent();
+            Err(error)
+        }
+    }
+}
+
+fn write_frames<W: Write + Seek>(
+    writer: &mut WavWriter<W>,
+    rx: &Receiver<RecordingChunk>,
+    stop: &AtomicBool,
+    state: &IngressState,
+    max_frames: u64,
+) -> Result<(u64, u64, u64), RecordingError> {
     let mut next_frame = 0_u64;
     let mut gap_count = 0_u64;
     let mut gap_frames = 0_u64;
@@ -73,25 +110,18 @@ pub(crate) fn write_recording(
         writer.write_silence(gap)?;
         next_frame = cursor;
     }
-    state.accepting.store(false, Ordering::Release);
-    writer.finish(
-        next_frame,
-        gap_count,
-        gap_frames,
-        state.overflow_chunks.load(Ordering::Acquire),
-        state.overflow_frames.load(Ordering::Acquire),
-    )
+    Ok((next_frame, gap_count, gap_frames))
 }
 
-struct WavWriter {
-    file: File,
+pub(crate) struct WavWriter<W> {
+    file: W,
     partial_path: PathBuf,
     final_path: PathBuf,
 }
 
-impl WavWriter {
-    fn new(
-        mut file: File,
+impl<W: Write + Seek> WavWriter<W> {
+    pub(crate) fn new(
+        mut file: W,
         partial_path: PathBuf,
         final_path: PathBuf,
     ) -> Result<Self, RecordingError> {
@@ -134,6 +164,19 @@ impl WavWriter {
         Ok(())
     }
 
+    fn discard_if_silent(mut self) {
+        let silent = self
+            .file
+            .stream_position()
+            .is_ok_and(|end| end < HEADER_BYTES + FRAME_BYTES);
+        drop(self.file);
+        if silent {
+            let _ = fs::remove_file(&self.partial_path);
+        }
+    }
+}
+
+impl WavWriter<File> {
     fn finish(
         mut self,
         frames: u64,
