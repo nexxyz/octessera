@@ -100,11 +100,10 @@ pub fn crystal_growth_on_tick(
     normalize_state(&mut state);
     let previous = visible(&state.cells);
     age_and_dissolve(&mut state);
-    thin_if_crowded(&mut state);
-    let surviving = visible(&state.cells);
-    grow_candidates(&mut state, &surviving);
+    grow_candidates(&mut state, &previous);
     scheduled_seed(&mut state);
     force_reseed_if_empty(&mut state, &previous);
+    thin_if_full(&mut state);
     state.tick_counter = state.tick_counter.saturating_add(1);
     state.trigger_types = triggers_from_visible(&previous, &visible(&state.cells));
     state
@@ -306,11 +305,14 @@ fn age_and_dissolve(state: &mut CrystalGrowthState) {
     }
 }
 
-fn grow_candidates(state: &mut CrystalGrowthState, surviving: &[bool]) {
+/// Crystals grow from the crystals still standing into tiles that were already empty when the
+/// tick began, so a crystal that dissolves leaves its hole open for at least one tick.
+fn grow_candidates(state: &mut CrystalGrowthState, previous: &[bool]) {
+    let surviving = visible(&state.cells);
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
-            if state.cells[index] != EMPTY || !has_neighbor(surviving, x, y, &state.symmetry) {
+            if previous[index] || !has_neighbor(&surviving, x, y, &state.symmetry) {
                 continue;
             }
             if hash(state.tick_counter, index) % 100 < u64::from(state.growth_chance_pct) {
@@ -320,16 +322,13 @@ fn grow_candidates(state: &mut CrystalGrowthState, surviving: &[bool]) {
     }
 }
 
-fn thin_if_crowded(state: &mut CrystalGrowthState) {
-    if state.cells.iter().filter(|cell| **cell != EMPTY).count() <= TILE_COUNT - 8 {
+fn thin_if_full(state: &mut CrystalGrowthState) {
+    if state.cells.contains(&EMPTY) {
         return;
     }
-    for index in 0..TILE_COUNT {
-        if state.cells[index] != EMPTY && hash(state.tick_counter + 11, index).is_multiple_of(8) {
-            state.cells[index] = EMPTY;
-            state.ages[index] = 0;
-        }
-    }
+    let index = deterministic_index(state.tick_counter + 11, TILE_COUNT);
+    state.cells[index] = EMPTY;
+    state.ages[index] = 0;
 }
 
 fn deterministic_index(tick: u64, len: usize) -> usize {

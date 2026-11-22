@@ -97,7 +97,11 @@ pub(crate) const CADENCE: &[Row] = &[
         "a tip moves or retires every tick; only a shatter's few-tick dissolve is quiet",
     ),
     row("coral", Within(48), "colonies grow, break off and regrow"),
-    row("crystal_growth", Within(8), "clusters grow and reseed"),
+    row(
+        "crystal_growth",
+        Within(16),
+        "a full grid thins one crystal at a time and old crystals age out",
+    ),
     row("dla", Within(8), "walkers keep sticking"),
     row("physarum", Within(8), "agents keep moving"),
     row("vines", Within(32), "tendrils grow, branch and prune back"),

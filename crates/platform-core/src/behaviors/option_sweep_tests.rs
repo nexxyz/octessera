@@ -231,24 +231,6 @@ const EXPECTED: &[(&str, &str)] = &[
         "open: radii past the grid",
     ),
     ("cracks: stressPct=0 untouched stays empty", OFF),
-    (
-        "crystal_growth: growthChancePct=100 untouched saturates",
-        EXTREME,
-    ),
-    (
-        "crystal_growth: growthChancePct=100 pressed saturates",
-        EXTREME,
-    ),
-    // Open. Now: crowding thins crystals before any cell ages out, so Cell Life never acts.
-    // After (proposal): thin only once the grid is nearly full, so old crystals age out first.
-    (
-        "crystal_growth: cellLife=0 and 128 play the same",
-        "open: crowding thins first",
-    ),
-    (
-        "crystal_growth: cellLife=128 and 256 play the same",
-        "open: crowding thins first",
-    ),
     ("bounce: maxBalls=60 and 100 play the same", CAP),
     ("bubbles: spawnInterval=0 untouched stays empty", OFF),
     ("bubbles: spawnInterval=0 pressed dies out", OFF),

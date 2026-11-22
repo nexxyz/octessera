@@ -227,7 +227,7 @@ fn default_tail_stays_bounded_and_non_terminal() {
         } else {
             0
         };
-        assert!(same <= 2);
+        assert!(same <= 12);
         assert!(terminal <= 2);
         let bursts = state
             .trigger_types
@@ -242,4 +242,36 @@ fn default_tail_stays_bounded_and_non_terminal() {
         assert!(bursts <= 24);
         previous = next;
     }
+}
+
+#[test]
+fn a_full_grid_thins_one_crystal_and_leaves_its_hole_open_for_the_tick() {
+    let mut context = context();
+    let mut state = empty_state("cross");
+    state.growth_chance_pct = 100;
+    state.cells = vec![1; TILE_COUNT];
+    let state = crystal_growth_on_tick(state, &mut context);
+    assert_eq!(state.cells.iter().filter(|cell| **cell == EMPTY).count(), 1);
+    let deactivated = state
+        .trigger_types
+        .iter()
+        .filter(|trigger| **trigger == TileTriggerType::Deactivate)
+        .count();
+    assert_eq!(deactivated, 1);
+}
+
+#[test]
+fn a_nearly_full_grid_is_not_thinned_so_its_crystals_age_out() {
+    let mut context = context();
+    let mut state = empty_state("cross");
+    state.growth_chance_pct = 0;
+    state.cell_life = 3;
+    state.cells = vec![1; TILE_COUNT];
+    state.cells[0] = EMPTY;
+    for _ in 0..2 {
+        state = crystal_growth_on_tick(state, &mut context);
+        assert_eq!(state.cells.iter().filter(|cell| **cell == EMPTY).count(), 1);
+    }
+    let state = crystal_growth_on_tick(state, &mut context);
+    assert!(state.cells.iter().filter(|cell| **cell != EMPTY).count() <= 1);
 }
