@@ -124,7 +124,7 @@ impl SynthEngine {
                 sample_rate: self.sample_rate,
             },
             SourceRenderOutput {
-                slot_out: &mut scratch.sample_slot_out,
+                slot_out: &mut scratch.slot_out,
                 slot_active: &mut scratch.sample_active,
                 active_slots: &mut self.active_sample_slots,
             },
@@ -142,7 +142,7 @@ impl SynthEngine {
                 level_ramps: self.instrument_param_glides.level_ramps,
             },
             SourceRenderOutput {
-                slot_out: &mut scratch.synth_slot_out,
+                slot_out: &mut scratch.slot_out,
                 slot_active: &mut scratch.synth_active,
                 active_slots: &mut self.active_synth_slots,
             },
@@ -150,11 +150,9 @@ impl SynthEngine {
         scratch.inline_source_executor = Some(executor);
         let signal = self.signal_tap.selected();
         if let Some(SignalSource::Instrument(slot)) = signal {
-            let scratch = &self.block_slot_scratch;
-            let block = scratch.sample_slot_out[slot][..frames]
+            let block = self.block_slot_scratch.slot_out[slot][..frames]
                 .iter()
-                .zip(&scratch.synth_slot_out[slot][..frames])
-                .map(|(sample, synth)| sample + synth);
+                .copied();
             self.signal_tap.publish_mono(block, self.sample_rate);
         }
         match signal {
@@ -179,14 +177,11 @@ impl SynthEngine {
             let mut sample_active = false;
             let mut synth_active = false;
             for (slot, out) in slot_out.iter_mut().enumerate() {
-                *out += self.block_slot_scratch.sample_slot_out[slot][frame];
+                *out += self.block_slot_scratch.slot_out[slot][frame];
                 sample_active |= self.block_slot_scratch.sample_active[slot][frame];
-            }
-            let (preview, preview_active) = self.render_preview_sample_voices();
-            for (slot, out) in slot_out.iter_mut().enumerate() {
-                *out += self.block_slot_scratch.synth_slot_out[slot][frame];
                 synth_active |= self.block_slot_scratch.synth_active[slot][frame];
             }
+            let (preview, preview_active) = self.render_preview_sample_voices();
             let (left, right) = self.finish_serial_frame::<TAP>(
                 slot_out,
                 sample_active,

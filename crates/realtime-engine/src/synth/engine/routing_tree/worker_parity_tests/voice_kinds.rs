@@ -54,6 +54,37 @@ fn glide_voice_param(engine: &mut SynthEngine, kind: &str) -> ScalarMutation {
 }
 
 #[test]
+fn a_slot_sounding_synth_and_sample_voices_renders_the_same_on_the_routing_tree_workers() {
+    for rate in RATES {
+        for route in ["direct", "fx_bus_1"] {
+            let label = format!("synth and sample voices via {route} at {rate} Hz");
+            let mut routed = SynthEngine::new(rate);
+            let mut inline = SynthEngine::new(rate);
+            for engine in [&mut routed, &mut inline] {
+                engine.set_instruments(one_instrument_config("synth", route));
+                drop(engine.set_sample_banks(one_shot_banks()));
+                // Sample voices join the synth's in one slot, as a type-change tail would.
+                engine.slot_kind[0] = InstrumentKind::Sample;
+                for (tile, pitch_cents) in [(0, 0), (1, 700)] {
+                    engine.tile_hit(0, 0, tile, pitch_cents, 110);
+                }
+                engine.slot_kind[0] = InstrumentKind::Synth;
+                for (note, velocity) in [(60, 100), (67, 90), (72, 80)] {
+                    engine.note_on(0, note, velocity, 300);
+                }
+                let voices = engine.profile_snapshot();
+                assert_eq!(
+                    (voices.active_synth_voices, voices.active_sample_voices),
+                    (3, 2),
+                    "{label} voices"
+                );
+            }
+            assert_worker_render_matches_inline(&mut routed, &mut inline, &label, |_, _, _| {});
+        }
+    }
+}
+
+#[test]
 fn every_voice_kind_renders_the_same_on_the_routing_tree_workers() {
     for rate in RATES {
         for kind in KINDS {

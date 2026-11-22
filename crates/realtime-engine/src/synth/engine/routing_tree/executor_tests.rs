@@ -63,8 +63,7 @@ fn routing_tree_reuses_canonical_source_kernels() {
         let _ = reference.render_preview_sample_voices();
         reference.render_synth_voices(&mut expected);
         for (slot, expected_sample) in expected.iter().enumerate() {
-            let actual = tree.block_slot_scratch.sample_slot_out[slot][frame]
-                + tree.block_slot_scratch.synth_slot_out[slot][frame];
+            let actual = tree.block_slot_scratch.slot_out[slot][frame];
             assert_eq!(actual, *expected_sample, "slot {slot}, frame {frame}");
         }
     }
@@ -258,7 +257,7 @@ fn routing_tree_duck_sources_use_raw_instrument_and_pre_chain_bus_inputs() {
     assert_eq!(actual_right[0], expected_right);
     assert_momentary_state_matches(&tree, &reference);
     assert_eq!(
-        tree.block_slot_scratch.sample_slot_out[1][0],
+        tree.block_slot_scratch.slot_out[1][0],
         raw_instrument_source
     );
     let (instrument_attack, bus_attack) = match (

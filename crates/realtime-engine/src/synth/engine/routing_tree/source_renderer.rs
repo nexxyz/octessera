@@ -28,7 +28,8 @@ impl RoutingTreeSourceBlockScratch {
 }
 
 /// Renders the bank's voices, adding each straight into its instrument's `slot_out` in the inline
-/// executor's order (every partition's lanes in turn), so both paths round their sums alike.
+/// executor's order (sample voices, then synth voices, every partition's lanes in turn), so both
+/// paths round their sums alike.
 pub(super) fn render_routing_tree_sources(
     bank: &mut RoutingTreeSourceBank,
     frames: usize,
@@ -39,6 +40,21 @@ pub(super) fn render_routing_tree_sources(
     slot_out: &mut [Vec<f32>; INSTRUMENT_SLOT_COUNT],
 ) {
     let mut sum = SlotBlockSum::new(slot_out);
+    let mut sample_prefix = 0;
+    for lane in partition_order(SAMPLE_VOICE_LANE_CAPACITY) {
+        let voice = &mut bank.sample[lane];
+        if !voice.active {
+            continue;
+        }
+        let rendered = sum_sample_voice(
+            voice,
+            frames,
+            sample_rate,
+            &mut scratch.voice_block,
+            &mut sum,
+        );
+        sample_prefix = sample_prefix.max(rendered);
+    }
     for lane in partition_order(SYNTH_VOICE_LANE_CAPACITY) {
         let voice = &mut bank.synth[lane];
         if !voice.active {
@@ -57,21 +73,6 @@ pub(super) fn render_routing_tree_sources(
             &mut scratch.voice_block,
             &mut sum,
         );
-    }
-    let mut sample_prefix = 0;
-    for lane in partition_order(SAMPLE_VOICE_LANE_CAPACITY) {
-        let voice = &mut bank.sample[lane];
-        if !voice.active {
-            continue;
-        }
-        let rendered = sum_sample_voice(
-            voice,
-            frames,
-            sample_rate,
-            &mut scratch.voice_block,
-            &mut sum,
-        );
-        sample_prefix = sample_prefix.max(rendered);
     }
     scratch.rendered_prefix = sum.longest_prefix().max(sample_prefix).min(frames);
 }

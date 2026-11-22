@@ -87,14 +87,11 @@ impl SynthEngine {
             let mut sample_active = false;
             let mut synth_active = false;
             for (slot, output) in slot_out.iter_mut().enumerate() {
-                *output = self.block_slot_scratch.sample_slot_out[slot][frame];
+                *output = self.block_slot_scratch.slot_out[slot][frame];
                 sample_active |= self.block_slot_scratch.sample_active[slot][frame];
-            }
-            let (preview, preview_active) = self.render_preview_sample_voices();
-            for (slot, output) in slot_out.iter_mut().enumerate() {
-                *output += self.block_slot_scratch.synth_slot_out[slot][frame];
                 synth_active |= self.block_slot_scratch.synth_active[slot][frame];
             }
+            let (preview, preview_active) = self.render_preview_sample_voices();
             self.block_slot_scratch.source_active[frame] =
                 sample_active || preview_active || synth_active;
             self.stage_routing_tree_frame(frame, &slot_out);
@@ -161,7 +158,7 @@ impl SynthEngine {
                     sample_rate: self.sample_rate,
                 },
                 SourceRenderOutput {
-                    slot_out: &mut scratch.sample_slot_out,
+                    slot_out: &mut scratch.slot_out,
                     slot_active: &mut scratch.sample_active,
                     active_slots: &mut self.active_sample_slots,
                 },
@@ -185,7 +182,7 @@ impl SynthEngine {
                 level_ramps: self.instrument_param_glides.level_ramps,
             },
             SourceRenderOutput {
-                slot_out: &mut scratch.synth_slot_out,
+                slot_out: &mut scratch.slot_out,
                 slot_active: &mut scratch.synth_active,
                 active_slots: &mut self.active_synth_slots,
             },
