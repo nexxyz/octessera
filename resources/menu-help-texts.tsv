@@ -142,7 +142,7 @@ layer_vines_prune	*	key:layers.*.build.behaviorConfig.pruneAge	number	Prune Age	
 layer_vines_light	*	key:layers.*.build.behaviorConfig.lightBiasPct	number	Light Bias	Weights growth upward toward brighter space.	Set it low for more sideways wandering.
 life_spawn_shared_vines_seed	*	action:behavior_action:plantSeed	action	Plant Seed	Plants vine tips along the bottom edge.	The new tiles play as they appear.
 life_spawn_shared_vines_prune	*	action:behavior_action:pruneVines	action	Prune Vines	Removes up to eight of the oldest non-tip vine tiles.	Each removed tile fires its Off event, so mapped notes can stop.
-layer_fractal_zoom	*	key:layers.*.build.behaviorConfig.zoomRatePct	number	Zoom Rate	Sets how quickly Fractal Explorer zooms inward.	Higher values move through regions faster.
+layer_fractal_zoom	*	key:layers.*.build.behaviorConfig.zoomRatePct	number	Zoom Rate	Sets how quickly Fractal Explorer zooms inward.	Higher values move through regions faster; a dive that runs out of detail flies on to the next region.
 layer_fractal_drift	*	key:layers.*.build.behaviorConfig.driftPct	number	Drift	Sets how strongly the fractal center follows its regional drift vector.	Use it for slow scanning or restless travel.
 layer_fractal_iterations	*	key:layers.*.build.behaviorConfig.iterationLimit	number	Iteration Limit	Sets the bounded iteration depth for each sampled grid tile.	Higher values reveal finer detail at a higher cost.
 layer_fractal_mode	*	key:layers.*.build.behaviorConfig.fractalMode	enum	Fractal Mode	The field Fractal Explorer zooms and drifts through: mandelbrot (the z²+c escape set) or julia (one fixed c).	

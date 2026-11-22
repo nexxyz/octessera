@@ -303,13 +303,6 @@ const EXPECTED: &[(&str, &str)] = &[
         HELD_ZOOM,
     ),
     ("fractal_explorer: zoomRatePct=0 pressed freezes", HELD_ZOOM),
-    ("fractal_explorer: zoomRatePct=54 untouched freezes", BROKEN),
-    ("fractal_explorer: zoomRatePct=54 pressed freezes", BROKEN),
-    (
-        "fractal_explorer: zoomRatePct=100 untouched freezes",
-        BROKEN,
-    ),
-    ("fractal_explorer: zoomRatePct=100 pressed freezes", BROKEN),
     ("maze_growth: carvePct=0 pressed freezes", OFF),
     ("coral: growthPct=0 untouched freezes", OFF),
     ("coral: growthPct=0 pressed freezes", OFF),

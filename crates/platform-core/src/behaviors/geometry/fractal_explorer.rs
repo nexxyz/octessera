@@ -11,6 +11,7 @@ use serde_json::Value;
 
 const SCALE: i32 = 1024;
 const MIN_ZOOM: u16 = 4;
+const DEEPEST_ZOOM: u16 = 512;
 const MODES: &[&str] = &["mandelbrot", "julia"];
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -140,7 +141,9 @@ pub fn fractal_explorer_on_tick(
     normalize(&mut s);
     let mut prev = s.classes.clone();
     let next_zoom = next_zoom(s.zoom, s.zoom_rate_pct);
-    if next_zoom == s.zoom && s.drift_pct == 0 {
+    if next_zoom > DEEPEST_ZOOM {
+        jump_to_interesting_region(&mut s);
+    } else if next_zoom == s.zoom && s.drift_pct == 0 {
         sample_classes(&mut s);
         if !is_interesting(&s.classes) {
             jump_to_interesting_region(&mut s);
@@ -449,7 +452,7 @@ fn jump_region(s: &mut FractalExplorerState) {
     s.drift_y = r.3;
     s.julia_cx = r.4;
     s.julia_cy = r.5;
-    s.zoom = 1024
+    s.zoom = 12
 }
 fn triggers(p: &[u8], n: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
     let mut t = (0..TILE_COUNT)
