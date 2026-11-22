@@ -13,7 +13,7 @@ from board_scenarios_evidence import errors, fields, first, journal, marks, wind
 # Dispatched by name through globals() in main().
 from board_scenarios_store_checks import bad_stores, full_card, resets  # noqa: F401
 from board_scenarios_usb_checks import (  # noqa: F401
-    tempo_mod, usb_audio, usb_audio_fx, usb_hold_trig, usb_looper, usb_midi, usb_midi_cc, usb_notes_in)
+    tempo_mod, usb_audio, usb_audio_fx, usb_echo_repeat, usb_hold_trig, usb_looper, usb_midi, usb_midi_cc, usb_notes_in)
 
 def boot(board, out):
     host = (out / "boot-host.log").read_text()
@@ -348,7 +348,8 @@ def restore(board, out):
 
 # Cases that fail on a known product bug until its fix lands: XFAIL while they fail, XPASS (drop the
 # entry) once they pass. Neither counts as FAIL.
-EXPECTED_FAIL = {"usb_hold_trig": "review a493f27c item 3: a Hold Trig note never ends with Event Triggers off"}
+EXPECTED_FAIL = {"usb_hold_trig": "review a493f27c item 3: a Hold Trig note never ends with Event Triggers off",
+                 "usb_echo_repeat": "review a493f27c item 2: a repeated pitch echoed back is played again"}
 
 
 def main():

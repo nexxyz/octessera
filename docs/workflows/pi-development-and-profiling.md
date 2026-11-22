@@ -459,7 +459,7 @@ Backup and restore over HTTP needs the transfer code that only the OLED shows;
 `user_data_transfer` and `user_data_restore` tests cover the interrupted upload,
 the staging leftovers and the restore.
 
-`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_hold_trig`, `tempo_mod`, `usb_audio` and `usb_audio_fx` are driven from this
+`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_hold_trig`, `usb_echo_repeat`, `tempo_mod`, `usb_audio` and `usb_audio_fx` are driven from this
 host over the board's USB connection, so plug both boards in and install `python-rtmidi`,
 `sounddevice` and `numpy` (`pip install python-rtmidi sounddevice numpy`);
 `ffmpeg` decodes the recording. The payload waits at a gate for each host
@@ -516,6 +516,16 @@ on the Orange, `Octessera Line In` on the Raspberry).
   Until the fix for review a493f27c item 3 lands it is marked expected-fail:
   the summary says `XFAIL` while it fails and `XPASS` once it passes (then drop
   its entry in `board-scenarios-check.py`); neither counts as FAIL.
+- `usb_echo_repeat` is the `usb_midi` rig with Notes In on and L1 stepping C4
+  every 1/16 on slot 1 (One-Shot Len 150 ms), first a MIDI Inst. on channel 1,
+  then a Synth mirrored by Send MIDI all inst. `host_usb_midi_echo.py` clocks
+  120 BPM for 4 s while it echoes every note back after 3 ms, then sends Stop
+  and echoes for 3 s more: one C4 per step (32) and none after Stop. With the
+  MIDI Inst. it then plays, echo off and stopped, 10 key 60 presses 40 ms
+  apart, which must all be forwarded, and one key 60 press 300 ms after a
+  sequenced C4, which must not be (the 1 s own-note rule). Until the
+  repeated-pitch echo fix lands it is marked expected-fail, like
+  `usb_hold_trig`.
 - `tempo_mod` plays the store's own patch on the board's internal clock with
   Clock Out on USB MIDI, Link LFO 1 on BPM (1/4, depth 75%) and CC1 on BPM.
   `host_usb_midi.py ... tempo_mod` sends no clock: it sweeps CC1 0-127-0 (254

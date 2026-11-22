@@ -24,6 +24,9 @@ setups:
   usb_hold_trig   the usb_midi rig; only the store's Life layer (L1), Event Triggers off, Hold Trig = note on
                   for slot 1, a Synth with Hold, seeded with a diagonal of three cells whose middle one
                   stays lit for one step and then dies with the rest
+  usb_echo_midi   the usb_midi rig; slot 1 a MIDI Inst. on channel 1, Notes In on; L1 steps C4 on slot 1
+                  every 1/16 (all of row 0 plays note 60) with One-Shot Len 150 ms
+  usb_echo_synth  usb_echo_midi with slot 1 a Synth instead, mirrored by Send MIDI all inst.
   tempo_mod       the store's own patch with Auto Save on, internal clock with Clock Out on USB MIDI,
                   Link LFO 1 on BPM (1/4, depth 75%) and CC1 (any channel) on BPM
   presets         Auto Save on, View on Back off, keyboard capture allowed; presets A and AB, the
@@ -175,6 +178,20 @@ def main():
         life["link"]["mapping"]["stable"].update(action="note_on", slot=0)
         life["build"]["savedState"].update(cells=[i in (18, 27, 36) for i in range(64)], triggerTypes=["none"] * 64,
                                            gliderSpawnInterval=0, randomCellsPerTick=0)
+    elif setup in ("usb_echo_midi", "usb_echo_synth"):
+        midi_rig(config)
+        config["midi"]["notesIn"] = True
+        patch_layers(music, {0: (0, {(x, 0) for x in range(8)})})
+        layer = music["layers"][0]
+        layer["build"]["stepRate"] = "1/16"
+        chromatic(layer)
+        layer["link"].update(scanUnit="1/16", oneShotLengthMs=150)
+        layer["link"]["x"]["pitch"]["steps"] = 0
+        if setup == "usb_echo_midi":
+            instruments[0].update(type="midi", name="MIDI", autoName=True)
+            instruments[0]["midi"].update(enabled=True, channel=1)
+        else:
+            instruments[0].update(type="synth", name="Synth", autoName=True, noteBehavior="oneshot")
     elif setup == "tempo_mod":
         config.update(autoSaveDefault=True, perfViewOnBack=False)
         allow_keyboard(config)

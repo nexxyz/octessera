@@ -147,3 +147,12 @@ def usb_audio(board, out):
 
 def usb_hold_trig(board, out):
     return host_midi(out, "usb_hold_trig")
+
+
+def usb_echo_repeat(board, out):
+    problems, evidence = [], []
+    for setup in ("usb_echo_midi", "usb_echo_synth"):
+        more, shown = host_midi(out, setup)
+        problems += [f"{setup}: {p}" for p in more]
+        evidence.append(f"{setup} {shown}")
+    return problems, "; ".join(evidence)

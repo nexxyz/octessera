@@ -343,4 +343,5 @@ def main():
         print(f"  - {problem}")
 
 
-main()
+if __name__ == "__main__":
+    main()

@@ -8,7 +8,7 @@
 #   board-scenarios-payload.sh <rpi|opi> <root> boot
 #   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap presets
 #     stop_save show_mode update_fail fuzz resets bad_stores full_card
-#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_hold_trig|tempo_mod|usb_audio|usb_audio_fx
+#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_hold_trig|usb_echo_repeat|tempo_mod|usb_audio|usb_audio_fx
 # Root reads privileged files; the redirects deliberately write as the unprivileged payload user.
 # shellcheck disable=SC2024
 set -u
@@ -348,6 +348,15 @@ usb_midi_phase() {
 usb_midi_cc() { usb_midi_phase usb_midi_cc; }
 usb_notes_in() { usb_midi_phase usb_notes_in; }
 usb_hold_trig() { usb_midi_phase usb_hold_trig; }
+# The echo cases, with slot 1 a MIDI Inst. and then a mirrored Synth.
+usb_echo_repeat() {
+  usb_midi_phase usb_echo_midi || return
+  # The clone's USB settings stay the same, so the gadget is not rebuilt a second time.
+  prepare usb_echo_synth
+  start OCTESSERA_RUNTIME_TIMING_TRACE=1 || return
+  sleep 5
+  gate usb_echo_synth
+}
 # The store's own patch plays on the board's clock while the host sweeps CC1 over BPM against a BPM
 # LFO; after the host is done, Stop, and the saved patch must hold the last CC's BPM.
 tempo_mod() {
