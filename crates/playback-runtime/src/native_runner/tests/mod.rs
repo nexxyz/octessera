@@ -147,6 +147,7 @@ mod modulation_runtime;
 mod modulation_runtime_commands;
 mod modulation_runtime_fx;
 mod name_edit_flow;
+mod note_lifetime_timeline;
 mod note_set_runtime;
 mod note_sets;
 mod numeric_binding_round_trip;

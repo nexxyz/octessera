@@ -74,7 +74,7 @@ pub(crate) fn factory_variant_timeline() -> String {
     timeline(payload, true)
 }
 
-fn push_line(lines: &mut Vec<String>, pulse: u32, messages: &[RunnerMessage]) {
+pub(crate) fn push_line(lines: &mut Vec<String>, pulse: u32, messages: &[RunnerMessage]) {
     let mut words = Vec::new();
     for message in messages {
         match message {
