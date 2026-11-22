@@ -202,7 +202,7 @@ pub(super) fn process_glitch(
 
 /// A zeroed buffer with every page written, so the audio thread never takes the page faults of
 /// a lazily mapped allocation; the Pi locks memory only as it is first touched.
-fn resident_zeros(len: usize) -> Vec<f32> {
+pub(in crate::synth) fn resident_zeros(len: usize) -> Vec<f32> {
     const PAGE_SAMPLES: usize = 4096 / std::mem::size_of::<f32>();
     let mut buf = vec![0.0; len];
     for sample in buf.iter_mut().step_by(PAGE_SAMPLES) {

@@ -1,4 +1,5 @@
 use super::{param_f32, pct_param, GainRamp, ENVELOPE_MS};
+use crate::synth::fx::resident_zeros;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -39,8 +40,8 @@ impl StutterVoice {
         let ramp_len = ((sample_rate as f32 * 0.002) as usize).max(1);
         Self {
             params,
-            left: vec![0.0; sample_rate as usize + ramp_len],
-            right: vec![0.0; sample_rate as usize + ramp_len],
+            left: resident_zeros(sample_rate as usize + ramp_len),
+            right: resident_zeros(sample_rate as usize + ramp_len),
             write: 0,
             ready: false,
             ramp_len,

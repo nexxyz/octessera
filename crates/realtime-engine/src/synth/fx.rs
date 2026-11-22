@@ -11,7 +11,7 @@ mod state;
 pub use algorithms::REVERB_COMB_LENGTHS;
 pub(super) use algorithms::{
     comb_bank_frame, comb_buffers, delay_line_state, process_bitcrusher, process_delay,
-    DELAY_MAX_MS,
+    resident_zeros, DELAY_MAX_MS,
 };
 pub(super) use bus::process_fx_bus_slot;
 pub(super) use master::process_master_fx_slot;
