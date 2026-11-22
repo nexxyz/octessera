@@ -118,7 +118,7 @@ fn malformed_saved_state_normalizes_vectors_parameters_and_counters() {
 }
 
 #[test]
-fn manual_and_scheduled_seeding_use_exact_configured_counts() {
+fn manual_seeding_uses_the_spawn_count_and_scheduled_seeding_adds_the_fire_threshold() {
     let mut context = BehaviorContext::new(120.0);
     let state = brain_init(serde_json::json!({
         "cells": [],
@@ -166,6 +166,6 @@ fn manual_and_scheduled_seeding_use_exact_configured_counts() {
     let scheduled = brain_on_tick(scheduled, &mut context);
     assert_eq!(
         scheduled.cells.iter().filter(|cell| **cell == 1).count(),
-        20
+        20 + scheduled.fire_threshold - 1
     );
 }
