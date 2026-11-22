@@ -108,6 +108,7 @@ pub fn vines_on_tick(mut state: VinesState, _: &mut BehaviorContext) -> VinesSta
     let prev_ages = state.ages.clone();
     let mut reserved = [false; TILE_COUNT];
     let mut forced = Vec::new();
+    let mut empty = prev.iter().filter(|tile| **tile == EMPTY).count();
     for i in 0..TILE_COUNT {
         if prev[i] != EMPTY {
             state.ages[i] = prev_ages[i].saturating_add(1)
@@ -127,17 +128,21 @@ pub fn vines_on_tick(mut state: VinesState, _: &mut BehaviorContext) -> VinesSta
                 state.ages[i] = 0;
                 continue;
             }
-            if tile_roll_pct(state.tick_counter, i, 11) < u32::from(state.growth_pct) {
+            if empty > 1 && tile_roll_pct(state.tick_counter, i, 11) < u32::from(state.growth_pct) {
                 let dest = first_unreserved(&candidates, &reserved);
                 if let Some(dest) = dest {
                     reserved[dest] = true;
                     state.tiles[i] = STEM;
                     state.ages[i] = 0;
                     plant_with_energy(&mut state, dest, 200);
-                    if tile_roll_pct(state.tick_counter, i, 29) < u32::from(state.branch_pct) {
+                    empty -= 1;
+                    if empty > 1
+                        && tile_roll_pct(state.tick_counter, i, 29) < u32::from(state.branch_pct)
+                    {
                         if let Some(branch) = first_unreserved(&candidates, &reserved) {
                             reserved[branch] = true;
                             plant_with_energy(&mut state, branch, 200);
+                            empty -= 1;
                         }
                     }
                 }
