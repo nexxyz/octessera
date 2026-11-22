@@ -54,6 +54,8 @@ impl UserDataTransferService {
         let worker = thread::Builder::new()
             .name("octessera-user-data-restore".into())
             .spawn(move || {
+                let archive_was_there =
+                    pre_restore_archive_exists(&inner.store_dir, &worker_session);
                 let result = (|| {
                     drop(
                         inner
@@ -87,7 +89,9 @@ impl UserDataTransferService {
                 }
                 inner.store_write_barrier.finish(result.is_ok());
                 remove_stage_root(&worker_stage_root);
-                let phase = restore_finished_phase(&result, &inner.store_dir, &worker_session);
+                let pre_restore_kept = !archive_was_there
+                    && pre_restore_archive_exists(&inner.store_dir, &worker_session);
+                let phase = restore_finished_phase(&result, pre_restore_kept);
                 if let Ok(mut state) = inner.state.lock() {
                     state.restore = RestoreState::Finished {
                         session: worker_session,
@@ -131,23 +135,25 @@ fn fail_restore_start(inner: &Arc<TransferInner>, stage_root: &Path, session: St
 
 fn restore_finished_phase(
     result: &Result<(), String>,
-    store_dir: &Path,
-    session: &str,
+    pre_restore_kept: bool,
 ) -> RuntimeUserDataRestorePhase {
-    let pre_restore_kept = || {
-        store_dir.parent().is_some_and(|parent| {
-            let staging = parent.join(crate::user_data_restore::STAGING_DIR_NAME);
-            crate::user_data_restore::pre_restore_backup_path(&staging, session).exists()
-        })
-    };
     match result {
         Ok(()) => RuntimeUserDataRestorePhase::Succeeded,
         Err(error) if error == crate::user_data_restore::EARLIER_RESTORE_UNFINISHED => {
             RuntimeUserDataRestorePhase::EarlierRestoreUnfinished
         }
-        Err(_) if pre_restore_kept() => RuntimeUserDataRestorePhase::Failed,
+        Err(_) if pre_restore_kept => RuntimeUserDataRestorePhase::Failed,
         Err(_) => RuntimeUserDataRestorePhase::FailedUnchanged,
     }
+}
+
+/// Whether this session's pre-restore archive is on the card; a failed restore that put the live
+/// data back removes the one it wrote.
+fn pre_restore_archive_exists(store_dir: &Path, session: &str) -> bool {
+    store_dir.parent().is_some_and(|parent| {
+        let staging = parent.join(crate::user_data_restore::STAGING_DIR_NAME);
+        crate::user_data_restore::pre_restore_backup_path(&staging, session).exists()
+    })
 }
 
 fn restore_finished_status(result: &Result<(), String>) -> &'static str {
