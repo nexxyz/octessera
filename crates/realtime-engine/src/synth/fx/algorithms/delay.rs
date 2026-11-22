@@ -20,8 +20,9 @@ pub(in crate::synth) struct DelayCache {
     time_ms: f32,
     sample_rate: u32,
     delay_samples: f32,
-    current_samples: f32,
-    glide: f32,
+    /// In f64 so the glide's last steps still move it on a six-second line.
+    current_samples: f64,
+    glide: f64,
     pub(in crate::synth) min_len: usize,
 }
 
@@ -33,8 +34,8 @@ impl DelayCache {
             time_ms,
             sample_rate,
             delay_samples,
-            current_samples: delay_samples,
-            glide: 1.0 / (DELAY_TIME_GLIDE_MS * sample_rate as f32 / 1000.0),
+            current_samples: f64::from(delay_samples),
+            glide: 1.0 / f64::from(DELAY_TIME_GLIDE_MS * sample_rate as f32 / 1000.0),
             min_len: desired_len.max(2),
         }
     }
@@ -62,18 +63,19 @@ impl DelayCache {
 
     #[cfg(test)]
     pub(in crate::synth) fn current_samples(&self) -> f32 {
-        self.current_samples
+        self.current_samples as f32
     }
 
     fn glide(&mut self, len: usize) -> f32 {
-        let target = self.delay_samples.min((len - 1) as f32);
+        let target = f64::from(self.delay_samples.min((len - 1) as f32));
         let diff = target - self.current_samples;
-        self.current_samples = if diff.abs() < 0.05 {
+        let next = self.current_samples + diff * self.glide;
+        self.current_samples = if diff.abs() < 0.05 || next == self.current_samples {
             target
         } else {
-            self.current_samples + diff * self.glide
+            next
         };
-        self.current_samples
+        self.current_samples as f32
     }
 }
 

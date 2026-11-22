@@ -78,3 +78,18 @@ fn a_load_lands_a_kept_line_on_its_time_at_once_and_keeps_the_echoes() {
         .fold(0.0_f32, |peak, (_, sample)| peak.max(sample.abs()));
     assert!(elsewhere < 0.01, "no glide smears it: {elsewhere}");
 }
+
+#[test]
+fn a_time_change_glides_all_the_way_onto_the_new_time() {
+    for (from_ms, to_ms) in [(100.0, 250.0), (100.0, 6_000.0), (6_000.0, 5_000.0)] {
+        let mut state = fx_bus_state_from_params(&delay(from_ms, 0.0), SAMPLE_RATE);
+        for _ in 0..SAMPLE_RATE * 2 {
+            process_delay(&mut state, 0.0, to_ms, 0.0, 1.0, SAMPLE_RATE);
+        }
+        let FxBusState::Delay { cache, .. } = &state else {
+            panic!("a delay line");
+        };
+        let target = to_ms / 1_000.0 * SAMPLE_RATE as f32;
+        assert_eq!(cache.current_samples(), target, "{from_ms} to {to_ms} ms");
+    }
+}
