@@ -1458,10 +1458,18 @@ Held notes (instruments in `hold` mode):
 - One pitch on one instrument sounds once. Each tile that plays it, the scan line, and note-ons
   without a tile count as holders; the note-off waits for the last holder, so two tiles on one
   pitch never cut each other.
-- An Off event ends the note its tile started, even when a mapping change (Root, Set, 1st Note,
-  Low/High Note, Pitch Steps) or modulation has moved that tile to another pitch since. A note-on
-  from a tile on a new pitch ends that tile's old note first.
+- An Off `note off` ends every note its tile holds, on any instrument (a Hold Inst hold ends even
+  when Off Inst names another slot), and even when a mapping change (Root, Set, 1st Note, Low/High
+  Note, Pitch Steps) or modulation has moved that tile to another pitch since. A note-on from a
+  tile on a new pitch ends that tile's old note first.
+- Hold, scan and empty-scan `note off` triggers repeat every step, so they only send a note-off
+  when they end a note the layer holds.
+- Changing an instrument's type, resetting it or changing its MIDI route cuts its voices and
+  forgets its held pitches on every layer, so the next note-on sounds again.
+- The count is per layer. Two layers, or a layer and Notes In, holding one pitch on one instrument
+  still share one voice, and the first note-off ends it for both.
 - On a scanning layer the scan line is compared with the step before, pitch by pitch: a pitch the
   line starts playing begins a note, a pitch it keeps playing holds, and a pitch it no longer plays
-  ends at that step. Lit steps in a row therefore play one long note, and the next lap plays the
-  same notes again. `oneshot` instruments still hit on every lit step.
+  ends at that step, also on a step that finds scanning switched off. Lit steps in a row
+  therefore play one long note, and the next lap plays the same notes again. `oneshot`
+  instruments still hit on every lit step.

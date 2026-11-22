@@ -109,6 +109,15 @@ impl NativeRunner {
             .get_mut(layer_index)
             .map(|layer| layer.engine.drain_held_notes(usize::MAX))
             .unwrap_or_default();
+        self.release_layer_engine_notes(layer_index, notes);
+    }
+
+    /// Routes note-offs the layer's engine let go of outside a step, as a drain does.
+    pub(super) fn release_layer_engine_notes(
+        &mut self,
+        layer_index: usize,
+        notes: Vec<platform_core::MusicalEvent>,
+    ) {
         if notes.is_empty() {
             return;
         }

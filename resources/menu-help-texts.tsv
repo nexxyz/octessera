@@ -194,7 +194,7 @@ targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrumen
 map_activate_action	*	key:layers.*.link.mapping.activate.action	enum	On Trig	What a tile does when it lights up: none, note on or note off.	note on starts a note; note off ends a held one.
 map_activate_slot	*	key:layers.*.link.mapping.activate.slot	enum	On Inst	The instrument a tile plays when it turns on: I1 to I8, or none.	The label shows what that slot holds now.
 map_stable_action	*	key:layers.*.link.mapping.stable.action	enum	Hold Trig	What a tile does at each step it stays lit: none, note on or note off.	note on repeats a one-shot and keeps a hold note going. Play and game behaviors send none.
-map_stable_slot	*	key:layers.*.link.mapping.stable.slot	enum	Hold Inst	The instrument a tile plays while it stays on: I1 to I8, or none.	Usually none; pick one for droning, insistent layers.
+map_stable_slot	*	key:layers.*.link.mapping.stable.slot	enum	Hold Inst	The instrument a tile plays while it stays on: I1 to I8, or none.	A hold note here ends when Off Trig sends note off, on any Off Inst.
 map_deactivate_action	*	key:layers.*.link.mapping.deactivate.action	enum	Off Trig	What a tile does when it goes dark: none, note on or note off.	note off ends a held note; note on plays one.
 map_deactivate_slot	*	key:layers.*.link.mapping.deactivate.slot	enum	Off Inst	The instrument that hears a tile turn off, usually to stop its note: I1 to I8, or none.	The label shows what that slot holds now.
 map_scanned_action	*	key:layers.*.link.mapping.scanned.action	enum	Action	What a lit tile does when the scan reaches it: none, note on or note off.	note on plays it; note off ends a held note.
@@ -315,7 +315,7 @@ link_mappings_x_invert_1	*	key:layers.*.paramMods.x.0.invert	bool	Slot 1 Invert	
 link_mappings_x_invert_2	*	key:layers.*.paramMods.x.1.invert	bool	Slot 2 Invert	Flips Slot 2: the left edge gives high values, the right edge low ones.	
 link_mappings_y_invert_1	*	key:layers.*.paramMods.y.0.invert	bool	Slot 1 Invert	Flips Slot 1: the bottom gives high values, the top low ones.	
 link_mappings_y_invert_2	*	key:layers.*.paramMods.y.1.invert	bool	Slot 2 Invert	Flips Slot 2: the bottom gives high values, the top low ones.	
-inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Mode	oneshot plays each note for its Note Length; hold sounds until a note off.	Pair hold with Off Trig or Empty Act set to note off.
+inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Mode	oneshot plays each note for a set length; hold sounds until a note off.	Pair hold with Off Trig set to note off; a scan ends hold notes itself.
 inst_midi_enabled	*	key:instruments.*.midi.enabled	bool	MIDI Enabled	Enables this slot's external MIDI note output.	Global MIDI and an output port must also be enabled.
 inst_midi_channel	*	key:instruments.*.midi.channel	number	MIDI Channel	The MIDI channel this slot sends on, 1 to 16.	Match it to the channel your synth listens on.
 osc_wave	*	key:instruments.*.synth.osc*.waveform	enum	Oscillator Wave	The oscillator's waveform: sine is smooth, triangle soft, saw bright, square hollow.	pulse is a square shaped by Pulse Width.
@@ -373,7 +373,7 @@ recording_start_audio_oled	System > Recording	action:recording.startAudioOled	ac
 recording_stop	System > Recording	action:recording.stop	action	Stop	Stops the active WAV or Audio+Video AVI and finalizes it.	Manual stop shows Recording saved or Recording incomplete; complete files use .wav/.avi and damaged takes use .incomplete.*.
 autosave_default	*	key:autoSaveDefault	bool	Auto Save Default	When On, your changes save to the startup patch by themselves, a moment after you make them.	Turning it On doesn't save anything yet; your next edit does.
 rolling_backups	*	key:rollingBackups	bool	Backups	Keeps backup copies of your settings, at most every five minutes.	The latest 20 are kept, and a recovery save is written on shutdown or reboot.
-note_length	*	key:sound.noteLengthMs	number	Note Length	How long a note plays when nothing else sets its length.	Notes in hold mode wait for their note off instead.
+note_length	*	key:sound.noteLengthMs	number	Note Length	How long a one-shot note from a MIDI keyboard plays.	Link notes keep fixed lengths for now; MIDI slots use MIDI Duration.
 velocity_scale	*	key:sound.velocityScalePct	number	Vel Scale	Scales velocity values globally after mapping.	Use to tame or boost overall dynamic output.
 ui_group	Menu > System > Display		group	Display	OLED, grid and button lighting, display helpers, and HDMI video.	These do not change musical generation.
 controls_action	Menu > System > Basic Help	action:system.controlsHelp	action	Basic Help	Opens a quick reference for core hardware gestures.	Covers help, Back, transport, Fn and Shift+Fn grid navigation, the layer mute, Fn+Aux binding and the Fn+Main Aux map.

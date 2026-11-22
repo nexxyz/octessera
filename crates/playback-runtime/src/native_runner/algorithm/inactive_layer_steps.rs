@@ -63,7 +63,8 @@ impl NativeRunner {
         while self.transport.layer_pulse_accumulators[index] >= step_pulses {
             self.transport.layer_pulse_accumulators[index] -= step_pulses;
             let offset = self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);
-            self.layers[index].engine.advance_interpretation_tick();
+            let released = self.layers[index].engine.advance_interpretation_tick();
+            self.release_layer_engine_notes(index, released);
             self.count_step_and_sound_due_link_events(index, offset, events);
             modulation_updates.push((index, Vec::new()));
         }

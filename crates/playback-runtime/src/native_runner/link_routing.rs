@@ -169,70 +169,118 @@ impl NativeRunner {
             ));
         }
         let mut out = RoutedMusicalEvents::default();
-        let midi_drum_channels = super::midi_drum::midi_drum_channels(instruments);
-        // An arp orders one step's notes as one batch, so it gathers them across the
-        // interleaved note-offs; without an arp each run of one kind routes on its own.
-        let batch_by_kind = sense.is_some_and(|link| link.arp.mode != ArpMode::None);
-        let mut routed_events = vec![false; events.len()];
-        for event_index in 0..events.len() {
-            if std::mem::replace(&mut routed_events[event_index], true) {
-                continue;
+        let context = GroupRouting {
+            layer_index,
+            instruments,
+            sense,
+            transpose_offset,
+            midi_drum_channels: super::midi_drum::midi_drum_channels(instruments),
+        };
+        if sense.is_some_and(|link| link.arp.mode != ArpMode::None) {
+            for group in arp_batches(&events, event_intents) {
+                let grouped_events = group.iter().map(|&index| events[index].clone()).collect();
+                let grouped_intents = group
+                    .iter()
+                    .filter_map(|&index| event_intents[index].clone())
+                    .collect::<Vec<_>>();
+                out.extend(self.route_group(&context, grouped_events, &grouped_intents));
             }
+            return Ok(out);
+        }
+        let mut event_index = 0;
+        while event_index < events.len() {
             let Some(Some(intent)) = event_intents.get(event_index) else {
-                let routed = apply_sampler_assignments_for_instruments_routed(
-                    vec![events[event_index].clone()],
-                    &[],
-                    0,
-                    instruments,
-                    sense,
-                    transpose_offset,
-                    self.transpose.active_notes.get_mut(layer_index),
-                );
-                self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
-                out.extend(routed);
+                let event = vec![events[event_index].clone()];
+                out.extend(self.route_group(&context, event, &[]));
+                event_index += 1;
                 continue;
             };
-            let group = (intent.kind, event_channel(&events[event_index]));
-            let mut members = vec![event_index];
-            for next in event_index + 1..events.len() {
-                let same_group = event_intents[next].as_ref().is_some_and(|next_intent| {
-                    (next_intent.kind, event_channel(&events[next])) == group
-                });
-                if same_group && !routed_events[next] {
-                    routed_events[next] = true;
-                    members.push(next);
-                } else if !batch_by_kind {
-                    break;
-                }
+            let mapping_context = event_channel(&events[event_index]);
+            let mut end = event_index + 1;
+            while end < events.len()
+                && event_intents
+                    .get(end)
+                    .and_then(Clone::clone)
+                    .is_some_and(|next| {
+                        next.kind == intent.kind && event_channel(&events[end]) == mapping_context
+                    })
+            {
+                end += 1;
             }
-            let grouped_events = members
+            let grouped_intents: Vec<TileTriggerIntent> = event_intents[event_index..end]
                 .iter()
-                .map(|&index| events[index].clone())
-                .collect::<Vec<_>>();
-            let grouped_intents: Vec<TileTriggerIntent> = members
-                .iter()
-                .filter_map(|&index| event_intents[index].clone())
+                .filter_map(Clone::clone)
                 .collect();
-            let routed = apply_sampler_assignments_for_instruments_routed(
-                grouped_events,
-                &grouped_intents,
-                0,
-                instruments,
-                sense,
-                transpose_offset,
-                self.transpose.active_notes.get_mut(layer_index),
-            );
-            let routed = dedupe_note_ons_in_group(routed, instruments);
-            out.extend(self.apply_link_timing_with_sense(
-                layer_index,
-                &grouped_intents,
-                routed,
-                sense,
-                midi_drum_channels,
-            ));
+            let grouped_events = events[event_index..end].to_vec();
+            out.extend(self.route_group(&context, grouped_events, &grouped_intents));
+            event_index = end;
         }
         Ok(out)
     }
+
+    /// Routes one group of a step's events: one kind on one instrument, or one event that
+    /// carries no tile.
+    fn route_group(
+        &mut self,
+        context: &GroupRouting<'_>,
+        events: Vec<MusicalEvent>,
+        intents: &[TileTriggerIntent],
+    ) -> RoutedMusicalEvents {
+        let layer_index = context.layer_index;
+        let routed = apply_sampler_assignments_for_instruments_routed(
+            events,
+            intents,
+            0,
+            context.instruments,
+            context.sense,
+            context.transpose_offset,
+            self.transpose.active_notes.get_mut(layer_index),
+        );
+        if intents.is_empty() {
+            self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
+            return routed;
+        }
+        let routed = dedupe_note_ons_in_group(routed, context.instruments);
+        self.apply_link_timing_with_sense(
+            layer_index,
+            intents,
+            routed,
+            context.sense,
+            context.midi_drum_channels,
+        )
+    }
+}
+
+struct GroupRouting<'a> {
+    layer_index: usize,
+    instruments: &'a [super::NativeInstrumentSlot],
+    sense: Option<&'a super::NativeLinkLayer>,
+    transpose_offset: i8,
+    midi_drum_channels: u16,
+}
+
+/// An arp orders one step's notes as one batch, so its groups gather every event of one kind and
+/// instrument across the step. Events without a tile go first, then the groups that start with a
+/// note-off, so a release never lands after a note-on of the same pitch.
+fn arp_batches(events: &[MusicalEvent], intents: &[Option<TileTriggerIntent>]) -> Vec<Vec<usize>> {
+    let mut batches: Vec<((TileTriggerKind, u8), Vec<usize>)> = Vec::new();
+    let mut untagged = Vec::new();
+    for (index, event) in events.iter().enumerate() {
+        let Some(Some(intent)) = intents.get(index) else {
+            untagged.push(vec![index]);
+            continue;
+        };
+        let group = (intent.kind, event_channel(event));
+        match batches.iter_mut().find(|(key, _)| *key == group) {
+            Some((_, members)) => members.push(index),
+            None => batches.push((group, vec![index])),
+        }
+    }
+    let (releases, rest): (Vec<_>, Vec<_>) = batches
+        .into_iter()
+        .map(|(_, members)| members)
+        .partition(|members| matches!(events[members[0]], MusicalEvent::NoteOff { .. }));
+    untagged.into_iter().chain(releases).chain(rest).collect()
 }
 
 fn dedupe_note_ons_in_group(

@@ -192,7 +192,7 @@ wander in by accident.
   never nudged onto a step. How hard you play comes through, and the slot's
   velocity sensitivity does the rest.
 - A `hold` slot keeps the note until you let go of the key. A `oneshot` slot
-  plays its usual note length, and letting go early ends it early.
+  plays for **Notes > Note Length**, and letting go early ends it early.
 - A Drum slot plays the voice whose Sound has that General MIDI note (kick 36,
   snare 38, closed hat 42 and so on), and a Sampler plays its slots 1 to 8 on
   notes 36 to 43 (other keys stay quiet on a Sampler). Same numbers as Send
@@ -244,9 +244,13 @@ point at them.
   Sampler have **Kit > Load**. Loading asks first and only changes that slot.
   The list below says what each one is for, and so does *Shift* + *Fn* +
   **Main** on its row.
-- **Note Mode.** `oneshot` gives each trigger a finite note. `hold` keeps the
-  note sounding until a matching `note off`, which is what Off events and the
-  scan's empty action are for. Drum hits are always one-shot.
+- **Note Mode.** `oneshot` gives each trigger a finite note: a MIDI slot plays
+  its **MIDI Duration**, other slots play fixed Link lengths for now (150 ms
+  for On, 130 ms for Hold and scan hits, 90 ms for Off and empty hits), and
+  **Note Length** sets the notes you play from a MIDI keyboard. An Off event
+  set to `note off` can still end a one-shot early. `hold` keeps the note
+  sounding until its tile's Off event, or on a scan until the first dark step.
+  Drum hits are always one-shot.
 - **Envelopes.** Attack, Decay, Sustain and Release do what they say, and
   Decay runs after the attack whatever the attack length. A sampler's Amp Env
   starts out flat (no attack, full sustain, a 5 ms release) and its filter

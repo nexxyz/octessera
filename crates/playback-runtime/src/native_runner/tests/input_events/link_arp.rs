@@ -152,6 +152,22 @@ pub(crate) fn link_arp_held_source_does_not_replay_the_held_notes_on_a_release()
 }
 
 #[test]
+pub(crate) fn link_arp_releases_a_pitch_before_the_same_step_plays_it_again() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.layers[0].link.arp.mode = ArpMode::Direct;
+    runner.layers[0].link.arp.source = ArpSource::Held;
+    route(&mut runner, vec![note_on(60)]);
+
+    route(&mut runner, vec![note_on(60), note_off(60)]);
+    let replayed = route(&mut runner, vec![note_on(64)]);
+
+    assert_eq!(
+        musical_note_ons_from_events(&replayed.audio),
+        vec![(0, 60), (0, 64)]
+    );
+}
+
+#[test]
 pub(crate) fn link_arp_octave_spread_expands_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.arp.mode = ArpMode::OctaveSpread;

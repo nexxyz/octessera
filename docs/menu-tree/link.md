@@ -214,7 +214,8 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   `gatePct`, and `octaveSpread`.
 - Sources: `simultaneous` routed note-on batches, or `held` notes tracked by playback-runtime.
   Unsupported sources normalize to `simultaneous`. A batch is every note-on of one kind and
-  instrument in one step, even with note-offs between them. `held` replays the held set on a batch
+  instrument in one step, even with note-offs between them; the step's releases route before its
+  note-ons, so a pitch released and struck in one step stays held. `held` replays the held set on a batch
   that starts a note; a batch that only releases notes replays nothing. `held` tracks notes of
   `hold` instruments only, so on a `oneshot` instrument it plays nothing.
 - `rotating` starts each batch one note further along than the batch before.

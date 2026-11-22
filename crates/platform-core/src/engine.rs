@@ -282,9 +282,16 @@ impl NativeLayerEngine {
         self.tick = tick;
     }
 
-    /// Counts one step without ticking the behavior.
-    pub fn advance_interpretation_tick(&mut self) {
+    /// Counts one step without ticking the behavior and returns the note-offs of scan-held notes
+    /// that the step no longer plays.
+    pub fn advance_interpretation_tick(&mut self) -> Vec<MusicalEvent> {
         self.tick = self.tick.saturating_add(1);
+        self.held_notes.release_unscanned()
+    }
+
+    /// Forgets what this layer holds on `channel` once the runner has cut those voices itself.
+    pub fn forget_held_channel(&mut self, channel: u8) {
+        self.held_notes.forget_channel(channel);
     }
 
     pub fn state(&self) -> &NativeBehaviorState {

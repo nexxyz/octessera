@@ -124,3 +124,77 @@ fn a_scan_held_pitch_ends_on_the_first_step_that_does_not_play_it() {
         note: 60,
     }));
 }
+
+fn tile_intent(kind: TileTriggerKind) -> Option<TileTriggerIntent> {
+    Some(TileTriggerIntent {
+        x: 3,
+        y: 4,
+        degree: 0,
+        kind,
+    })
+}
+
+fn off(channel: u8, note: u8) -> MusicalEvent {
+    MusicalEvent::NoteOff { channel, note }
+}
+
+#[test]
+fn a_tiles_off_event_ends_its_hold_on_another_instrument() {
+    let mut held = HeldNotes::default();
+    let behaviors = [
+        NoteBehavior::Oneshot,
+        NoteBehavior::Oneshot,
+        NoteBehavior::Hold,
+    ];
+    let mut hold_on_i3 = on(60);
+    if let MusicalEvent::NoteOn { channel, .. } = &mut hold_on_i3 {
+        *channel = 2;
+    }
+    held.apply(
+        &[hold_on_i3],
+        vec![tile_intent(TileTriggerKind::Stable)],
+        &behaviors,
+    );
+
+    let released = held.apply(
+        &[off(0, 60)],
+        vec![tile_intent(TileTriggerKind::Deactivate)],
+        &behaviors,
+    );
+
+    assert_eq!(released.events, vec![off(2, 60), off(0, 60)]);
+    assert!(!held.contains(&HeldNote {
+        channel: 2,
+        note: 60,
+    }));
+}
+
+#[test]
+fn a_hold_trigger_note_off_sounds_only_when_it_ends_a_held_note() {
+    let mut held = HeldNotes::default();
+    let hold = [NoteBehavior::Hold];
+    let stable = || vec![tile_intent(TileTriggerKind::Stable)];
+
+    assert!(held.apply(&[off(0, 60)], stable(), &hold).events.is_empty());
+    held.apply(
+        &[on(60)],
+        vec![tile_intent(TileTriggerKind::Activate)],
+        &hold,
+    );
+    assert_eq!(
+        held.apply(&[off(0, 60)], stable(), &hold).events,
+        vec![off(0, 60)]
+    );
+}
+
+#[test]
+fn a_forgotten_channel_sounds_its_next_note_on_again() {
+    let mut held = HeldNotes::default();
+    let hold = [NoteBehavior::Hold];
+    let press = || vec![tile_intent(TileTriggerKind::Activate)];
+    held.apply(&[on(60)], press(), &hold);
+
+    held.forget_channel(0);
+
+    assert_eq!(held.apply(&[on(60)], press(), &hold).events.len(), 1);
+}
