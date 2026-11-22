@@ -99,8 +99,8 @@ pub(crate) const CADENCE: &[Row] = &[
     row("coral", Within(48), "colonies grow, break off and regrow"),
     row(
         "crystal_growth",
-        Within(16),
-        "a full grid thins one crystal at a time and old crystals age out",
+        Within(18),
+        "a nearly full grid breaks off a crystal every 3 ticks and old crystals age out",
     ),
     row("dla", Within(8), "walkers keep sticking"),
     row("physarum", Within(8), "agents keep moving"),

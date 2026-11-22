@@ -12,6 +12,8 @@ use serde_json::Value;
 const EMPTY: u8 = 0;
 const MAX_PHASE: u8 = 4;
 const SYMMETRIES: &[&str] = &["cross", "diagonal", "snowflake"];
+const NEARLY_FULL_EMPTY_TILES: usize = 4;
+const THIN_EVERY_TICKS: u64 = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CrystalGrowthState {
@@ -101,9 +103,9 @@ pub fn crystal_growth_on_tick(
     let previous = visible(&state.cells);
     age_and_dissolve(&mut state);
     grow_candidates(&mut state, &previous);
-    scheduled_seed(&mut state);
+    scheduled_seed(&mut state, &previous);
     force_reseed_if_empty(&mut state, &previous);
-    thin_if_full(&mut state);
+    thin_if_nearly_full(&mut state);
     state.tick_counter = state.tick_counter.saturating_add(1);
     state.trigger_types = triggers_from_visible(&previous, &visible(&state.cells));
     state
@@ -280,12 +282,12 @@ fn force_reseed_if_empty(state: &mut CrystalGrowthState, avoid: &[bool]) {
     }
 }
 
-fn scheduled_seed(state: &mut CrystalGrowthState) {
+fn scheduled_seed(state: &mut CrystalGrowthState, previous: &[bool]) {
     if state.seed_interval > 0
         && state.tick_counter % u64::from(state.seed_interval)
             == u64::from(state.seed_step % state.seed_interval)
     {
-        seed_random(state);
+        seed_random_avoiding(state, previous);
     }
 }
 
@@ -306,27 +308,40 @@ fn age_and_dissolve(state: &mut CrystalGrowthState) {
 }
 
 /// Crystals grow from the crystals still standing into tiles that were already empty when the
-/// tick began, so a crystal that dissolves leaves its hole open for at least one tick.
+/// tick began, so a crystal that dissolves leaves its hole open for at least one tick. Growth
+/// always leaves one tile open.
 fn grow_candidates(state: &mut CrystalGrowthState, previous: &[bool]) {
     let surviving = visible(&state.cells);
+    let mut empty = surviving.iter().filter(|lit| !**lit).count();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
             if previous[index] || !has_neighbor(&surviving, x, y, &state.symmetry) {
                 continue;
             }
-            if hash(state.tick_counter, index) % 100 < u64::from(state.growth_chance_pct) {
+            if empty > 1
+                && hash(state.tick_counter, index) % 100 < u64::from(state.growth_chance_pct)
+            {
                 seed_at(state, index);
+                empty -= 1;
             }
         }
     }
 }
 
-fn thin_if_full(state: &mut CrystalGrowthState) {
-    if state.cells.contains(&EMPTY) {
+/// A full grid (only a seed or press fills the last tile) breaks off one crystal at once and a
+/// nearly full one every few ticks, slowly enough that most crystals live until Cell Life ages
+/// them out.
+fn thin_if_nearly_full(state: &mut CrystalGrowthState) {
+    let lit = (0..TILE_COUNT)
+        .filter(|index| state.cells[*index] != EMPTY)
+        .collect::<Vec<_>>();
+    let full = lit.len() == TILE_COUNT;
+    let nearly_full = lit.len() + NEARLY_FULL_EMPTY_TILES > TILE_COUNT;
+    if !full && !(nearly_full && state.tick_counter.is_multiple_of(THIN_EVERY_TICKS)) {
         return;
     }
-    let index = deterministic_index(state.tick_counter + 11, TILE_COUNT);
+    let index = lit[deterministic_index(state.tick_counter + 11, lit.len())];
     state.cells[index] = EMPTY;
     state.ages[index] = 0;
 }

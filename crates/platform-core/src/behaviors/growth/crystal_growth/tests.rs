@@ -227,7 +227,7 @@ fn default_tail_stays_bounded_and_non_terminal() {
         } else {
             0
         };
-        assert!(same <= 12);
+        assert!(same <= 4);
         assert!(terminal <= 2);
         let bursts = state
             .trigger_types
@@ -245,13 +245,17 @@ fn default_tail_stays_bounded_and_non_terminal() {
 }
 
 #[test]
-fn a_full_grid_thins_one_crystal_and_leaves_its_hole_open_for_the_tick() {
+fn a_full_grid_breaks_off_a_crystal_at_once_and_a_nearly_full_one_every_three_ticks() {
     let mut context = context();
     let mut state = empty_state("cross");
-    state.growth_chance_pct = 100;
+    state.growth_chance_pct = 0;
     state.cells = vec![1; TILE_COUNT];
+    for _ in 0..3 {
+        state = crystal_growth_on_tick(state, &mut context);
+        assert_eq!(state.cells.iter().filter(|cell| **cell == EMPTY).count(), 1);
+    }
     let state = crystal_growth_on_tick(state, &mut context);
-    assert_eq!(state.cells.iter().filter(|cell| **cell == EMPTY).count(), 1);
+    assert_eq!(state.cells.iter().filter(|cell| **cell == EMPTY).count(), 2);
     let deactivated = state
         .trigger_types
         .iter()
@@ -261,17 +265,31 @@ fn a_full_grid_thins_one_crystal_and_leaves_its_hole_open_for_the_tick() {
 }
 
 #[test]
-fn a_nearly_full_grid_is_not_thinned_so_its_crystals_age_out() {
+fn a_grid_with_four_holes_is_not_thinned_so_its_crystals_age_out() {
     let mut context = context();
     let mut state = empty_state("cross");
     state.growth_chance_pct = 0;
     state.cell_life = 3;
     state.cells = vec![1; TILE_COUNT];
-    state.cells[0] = EMPTY;
+    for index in 0..4 {
+        state.cells[index] = EMPTY;
+    }
     for _ in 0..2 {
         state = crystal_growth_on_tick(state, &mut context);
-        assert_eq!(state.cells.iter().filter(|cell| **cell == EMPTY).count(), 1);
+        assert_eq!(state.cells.iter().filter(|cell| **cell == EMPTY).count(), 4);
     }
     let state = crystal_growth_on_tick(state, &mut context);
     assert!(state.cells.iter().filter(|cell| **cell != EMPTY).count() <= 1);
+}
+
+#[test]
+fn growth_leaves_the_last_tile_open() {
+    let mut context = context();
+    let mut state = empty_state("cross");
+    state.cells = vec![1; TILE_COUNT];
+    state.cells[0] = EMPTY;
+    state.tick_counter = 1;
+    let state = crystal_growth_on_tick(state, &mut context);
+    assert_eq!(state.cells[0], EMPTY);
+    assert_eq!(state.cells.iter().filter(|cell| **cell == EMPTY).count(), 1);
 }
