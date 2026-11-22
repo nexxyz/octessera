@@ -165,6 +165,19 @@ fn drift_bias_breaks_close_ties_without_overwhelming_score() {
     );
 }
 
+#[test]
+fn a_dive_past_the_deepest_zoom_starts_over_without_a_trigger_burst() {
+    let mut s =
+        fractal_explorer_init(serde_json::json!({ "zoom": DEEPEST_ZOOM, "zoomRatePct": 100 }))
+            .unwrap();
+    s = fractal_explorer_on_tick(s, &mut ctx());
+    assert!(s.zoom < DEEPEST_ZOOM);
+    assert!(s
+        .trigger_types
+        .iter()
+        .all(|trigger| *trigger != TileTriggerType::Activate));
+}
+
 fn assert_mixed(s: &FractalExplorerState) {
     let visible = s.classes.iter().filter(|class| **class != 0).count();
     assert!((4..=TILE_COUNT - 4).contains(&visible));

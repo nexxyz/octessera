@@ -143,6 +143,7 @@ pub fn fractal_explorer_on_tick(
     let next_zoom = next_zoom(s.zoom, s.zoom_rate_pct);
     if next_zoom > DEEPEST_ZOOM {
         jump_to_interesting_region(&mut s);
+        prev = s.classes.clone();
     } else if next_zoom == s.zoom && s.drift_pct == 0 {
         sample_classes(&mut s);
         if !is_interesting(&s.classes) {
