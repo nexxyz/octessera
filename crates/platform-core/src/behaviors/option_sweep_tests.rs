@@ -245,24 +245,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("ink: autoDropInterval=0 untouched dies out", OFF),
     ("ink: autoDropInterval=0 pressed dies out", OFF),
     ("raindrops: spawnStep=0 and 63 play the same", OFFSET),
-    ("reaction_diffusion: killPct=0 untouched saturates", EXTREME),
-    ("reaction_diffusion: killPct=0 pressed saturates", EXTREME),
-    (
-        "reaction_diffusion: diffusionPct=100 untouched saturates",
-        EXTREME,
-    ),
-    (
-        "reaction_diffusion: diffusionPct=100 pressed saturates",
-        EXTREME,
-    ),
-    (
-        "reaction_diffusion: reactionPct=100 untouched saturates",
-        EXTREME,
-    ),
-    (
-        "reaction_diffusion: reactionPct=100 pressed saturates",
-        EXTREME,
-    ),
     ("rivers: rainPct=0 untouched dies out", OFF),
     ("rivers: rainPct=0 pressed dies out", OFF),
     ("rivers: evaporationPct=100 untouched stays empty", EXTREME),
@@ -326,8 +308,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ),
     ("twinkle: fadeChancePct=0 untouched freezes", NO_FADE),
     ("twinkle: fadeChancePct=0 pressed freezes", NO_FADE),
-    ("reaction_diffusion: killPct=31 untouched saturates", BROKEN),
-    ("reaction_diffusion: killPct=31 pressed saturates", BROKEN),
     ("rivers: evaporationPct=54 untouched stays empty", BROKEN),
     ("rivers: evaporationPct=54 pressed dies out", BROKEN),
     (

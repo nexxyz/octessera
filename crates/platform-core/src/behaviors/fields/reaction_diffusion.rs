@@ -116,11 +116,11 @@ pub fn reaction_diffusion_on_tick(
     let pb = state.b.clone();
     let mut na = pa.clone();
     let mut nb = pb.clone();
-    let feed = f32::from(state.feed_pct) / 1000.0;
-    let kill = f32::from(state.kill_pct) / 1000.0;
-    let diffusion_a = f32::from(state.diffusion_pct) / 100.0;
+    let feed = band(state.feed_pct, 0.02, 0.1);
+    let kill = band(state.kill_pct, 0.052, 0.092);
+    let diffusion_a = band(state.diffusion_pct, 0.0, 0.8);
     let diffusion_b = diffusion_a / 3.0;
-    let reaction_scale = f32::from(state.reaction_pct) / 50.0;
+    let reaction_scale = band(state.reaction_pct, 0.7, 1.3);
     let mut rng = crate::behavior_random::rng();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
@@ -185,9 +185,9 @@ fn from_config(v: Value) -> ReactionDiffusionState {
         a: norm(c.a, 255),
         b: norm(c.b, 0),
         trigger_types: restore_trigger_types(c.trigger_types),
-        feed_pct: num(c.feed_pct, 60, 100),
-        kill_pct: num(c.kill_pct, 62, 100),
-        diffusion_pct: num(c.diffusion_pct, 60, 100),
+        feed_pct: num(c.feed_pct, 50, 100),
+        kill_pct: num(c.kill_pct, 25, 100),
+        diffusion_pct: num(c.diffusion_pct, 75, 100),
         reaction_pct: num(c.reaction_pct, 50, 100),
         seed_interval: num(c.seed_interval, 8, 64),
         spawn_step: num(c.spawn_step, 2, 63),
@@ -206,6 +206,10 @@ fn normalize(s: &mut ReactionDiffusionState) {
     s.reaction_pct = s.reaction_pct.min(100);
     s.seed_interval = s.seed_interval.min(64);
     s.spawn_step = s.spawn_step.min(63)
+}
+/// A knob's 0-100 % spread over the band where the chemicals neither fill nor empty the grid.
+fn band(pct: u8, low: f32, high: f32) -> f32 {
+    low + (high - low) * f32::from(pct) / 100.0
 }
 fn norm(v: Option<Vec<Value>>, d: u8) -> Vec<u8> {
     let mut o = v
