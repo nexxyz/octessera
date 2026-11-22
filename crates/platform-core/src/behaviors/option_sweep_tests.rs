@@ -12,6 +12,8 @@ use serde_json::{json, Map, Value};
 const TICKS: usize = 300;
 const PRESS_TICK: usize = 12;
 const SEEDS: [u64; 3] = [7, 1, 2];
+/// The tile every pressed run taps, then corners and edges a game or full world may be using.
+const PRESS_TILES: [(usize, usize); 5] = [(3, 4), (0, 0), (7, 0), (0, 7), (7, 7)];
 const TILES: usize = GRID_WIDTH * GRID_HEIGHT;
 const SATURATED: usize = TILES - 5;
 const FROZEN_BELOW: usize = 4;
@@ -38,7 +40,12 @@ fn frame(behavior: NativeBehavior, state: &super::NativeBehaviorState) -> Frame 
 
 /// The frames of `TICKS` ticks, plus one at the press tick; with `press`, that frame shows a tap
 /// on one tile while it is held.
-fn run(behavior: NativeBehavior, config: Value, press: bool, seed: u64) -> Frames {
+fn run(
+    behavior: NativeBehavior,
+    config: Value,
+    press: Option<(usize, usize)>,
+    seed: u64,
+) -> Frames {
     let mut random = LayerRandom::new(Some(seed));
     random.scope(|| {
         let mut context = BehaviorContext::new(120.0);
@@ -46,13 +53,13 @@ fn run(behavior: NativeBehavior, config: Value, press: bool, seed: u64) -> Frame
         let mut frames = Vec::with_capacity(TICKS + 1);
         for tick in 0..TICKS {
             if tick == PRESS_TICK {
-                if press {
-                    let input = DeviceInput::GridPress { x: 3, y: 4 };
+                if let Some((x, y)) = press {
+                    let input = DeviceInput::GridPress { x, y };
                     state = behavior.on_input(state, input, &mut context).unwrap();
                 }
                 frames.push(frame(behavior, &state));
-                if press {
-                    let input = DeviceInput::GridRelease { x: 3, y: 4 };
+                if let Some((x, y)) = press {
+                    let input = DeviceInput::GridRelease { x, y };
                     state = behavior.on_input(state, input, &mut context).unwrap();
                 }
             }
@@ -140,7 +147,12 @@ fn sweep_findings(id: &str) -> Vec<String> {
         }
     };
     let base = Value::Object(defaults.clone());
-    if !play && run(behavior, base.clone(), false, SEEDS[0]) == run(behavior, base, true, SEEDS[0])
+    let untouched = run(behavior, base.clone(), None, SEEDS[0]);
+    let pressed = |tile| run(behavior, base.clone(), Some(tile), SEEDS[0]);
+    if !play
+        && PRESS_TILES
+            .into_iter()
+            .all(|tile| pressed(tile) == untouched)
     {
         find("a press changes nothing".into());
     }
@@ -151,8 +163,8 @@ fn sweep_findings(id: &str) -> Vec<String> {
         for value in &values {
             let config = config_with(&defaults, key, value);
             for seed in SEEDS {
-                let untouched = run(behavior, config.clone(), false, seed);
-                let pressed = run(behavior, config.clone(), true, seed);
+                let untouched = run(behavior, config.clone(), None, seed);
+                let pressed = run(behavior, config.clone(), Some(PRESS_TILES[0]), seed);
                 for (label, frames) in [("untouched", &untouched), ("pressed", &pressed)] {
                     if play && label == "untouched" {
                         continue;
@@ -202,9 +214,9 @@ const HELD_ZOOM: &str = "0 holds the zoom: Drift alone sways between two views";
 const ROW_ACCENT: &str =
     "changes only the trigger a cleared row sends; few rows clear in 300 ticks";
 const SPAWN_COUNT: &str = "only with Spawn Count above 0";
-const PRESS_NOOP: &str = "the tapped tile already holds a block, paddle or crystal at that moment";
 const RARE_BURN: &str = "the forest only burns below a few trees now and then";
-const DEAD_ZONE: &str = "a known dead zone: neighboring values play alike, left for a later pass";
+const RALLY_CHANCE: &str =
+    "a chance rolled once a rally: none of this run's rallies rolls between 80 and 90";
 const UNDRAWN: &str = "sequencer pages only differ once they are drawn on";
 const LIFE_AT_REST: &str =
     "with no spawning, Life settles into still lifes and blinkers or dies out, and rests until pressed";
@@ -330,7 +342,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("reaction_diffusion: seedInterval=0 untouched dies out", OFF),
     ("reaction_diffusion: seedInterval=0 pressed dies out", OFF),
     ("cracks: stressPct=0 pressed freezes", OFF),
-    ("crystal_growth: a press changes nothing", PRESS_NOOP),
     ("crystal_growth: seedStep=31 and 63 play the same", OFFSET),
     ("dla: spawnStep=31 and 63 play the same", OFFSET),
     ("bounce: maxBalls=30 and 60 play the same", CAP),
@@ -339,9 +350,10 @@ const EXPECTED: &[(&str, &str)] = &[
     ("bubbles: maxBubbles=12 and 24 play the same", CAP),
     ("bubbles: maxBubbles=24 and 44 play the same", CAP),
     ("bubbles: maxBubbles=44 and 64 play the same", CAP),
-    ("blockout: a press changes nothing", PRESS_NOOP),
-    ("blockout: cpuSkillPct=80 and 90 play the same", DEAD_ZONE),
-    ("pong: a press changes nothing", PRESS_NOOP),
+    (
+        "blockout: cpuSkillPct=80 and 90 play the same",
+        RALLY_CHANCE,
+    ),
 ];
 
 #[test]
