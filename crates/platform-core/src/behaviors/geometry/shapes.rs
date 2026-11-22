@@ -203,11 +203,13 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
         }
     }
     let tick_counter = state.tick_counter + 1;
+    let filled_growing = state.pulse_shape == "filled" && !pulses.is_empty();
     if state.auto_pulse_interval > 0
+        && !filled_growing
         && (tick_counter - 1) % state.auto_pulse_interval
             == state.spawn_step % state.auto_pulse_interval
     {
-        let (x, y) = deterministic_point(tick_counter);
+        let (x, y) = random_point();
         for index in shape_tiles(&state.pulse_shape, x, y, 0) {
             lifetimes[index] = state.lifespan;
         }
@@ -219,7 +221,7 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
         });
     }
     if lifetimes.iter().all(|life| *life == 0) {
-        let (x, y) = deterministic_point(tick_counter + 1);
+        let (x, y) = random_point();
         for index in shape_tiles(&state.pulse_shape, x, y, 0) {
             lifetimes[index] = state.lifespan;
         }
@@ -280,10 +282,6 @@ pub fn shapes_config_menu() -> Vec<BehaviorConfigItem> {
         number_item("spawnStep", "Spawn Step", 0, 63, 1),
         action_item("spawnPulse", "Spawn Pulse"),
     ]
-}
-
-fn deterministic_point(tick: usize) -> (usize, usize) {
-    ((tick * 3 + 1) % GRID_WIDTH, (tick * 5 + 2) % GRID_HEIGHT)
 }
 
 pub(crate) fn random_point_for_dla() -> (usize, usize) {

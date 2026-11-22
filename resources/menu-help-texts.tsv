@@ -889,7 +889,7 @@ layer_blockout_row_spawn	*	key:layers.*.build.behaviorConfig.rowSpawn	enum	Row S
 life_spawn_shared_serve	*	action:behavior_action:serve	action	Serve	Serves a fresh ball right away.	Pong serves from the middle, Blockout from just above the paddle.
 life_spawn_shared_new_wall	*	action:behavior_action:newWall	action	New Wall	Builds the full starting wall again and serves.	With Row Spawn new, the whole wall fires On events.
 layer_shapes_lifespan	*	key:layers.*.build.behaviorConfig.lifespan	number	Lifespan	How many steps each tile a growing shape reaches stays lit.	Longer lifespans leave longer trails; Max Radius sets how big a shape grows.
-layer_shapes_spawn_interval	*	key:layers.*.build.behaviorConfig.autoPulseInterval	number	Spawn Interval	Starts a new shape every this many steps.	Off starts shapes only when you press the grid.
+layer_shapes_spawn_interval	*	key:layers.*.build.behaviorConfig.autoPulseInterval	number	Spawn Interval	Starts a new shape at a random tile every this many steps.	Off starts shapes only when you press the grid; a filled shape waits until the last one has finished growing.
 layer_raindrops_splash_radius	*	key:layers.*.build.behaviorConfig.splashRadius	number	Splash Radius	How far a raindrop's ripple travels.	Off keeps splashes to the tile they land on.
 link_axis_slot_x	*	key:param:*:x:*	group	X Slot	Picks a setting that follows a tile's left-right position.	Pick (none) to clear it.
 link_axis_slot_y	*	key:param:*:y:*	group	Y Slot	Picks a setting that follows a tile's bottom-top position.	Pick (none) to clear it.

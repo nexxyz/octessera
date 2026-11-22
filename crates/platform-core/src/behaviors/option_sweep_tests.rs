@@ -323,8 +323,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ),
     ("fractal_explorer: zoomRatePct=100 pressed freezes", BROKEN),
     ("maze_growth: carvePct=0 pressed freezes", OFF),
-    ("shapes: lifespan=12 untouched freezes", BROKEN),
-    ("shapes: lifespan=12 pressed freezes", BROKEN),
     ("coral: growthPct=0 untouched freezes", OFF),
     ("coral: growthPct=0 pressed freezes", OFF),
     ("coral: growthPct=67 untouched saturates", CORAL_FILLS),
