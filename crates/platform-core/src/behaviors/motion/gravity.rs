@@ -2,6 +2,7 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::tile_roll_pct;
 use crate::behaviors::native_impl::config_items::{action_item, enum_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
@@ -271,9 +272,7 @@ fn destination(
     if let Some(dest) = offset(x, y, gx, gy).filter(|dest| next[*dest] == EMPTY) {
         return Some(dest);
     }
-    if hash(state.tick_counter, index, &state.gravity_dir) % 100
-        >= u64::from(state.slide_chance_pct)
-    {
+    if tile_roll_pct(state.tick_counter, index, 7) >= u32::from(state.slide_chance_pct) {
         return None;
     }
     let sides = side_vectors(&state.gravity_dir);
@@ -313,12 +312,15 @@ fn spawn_edge(state: &mut GravityState, force: bool) {
 }
 
 fn spawn_edge_skipping(state: &mut GravityState, force: bool, skip: &[bool]) {
+    let filled = state.tiles.iter().filter(|tile| **tile == SAND).count();
+    if !force && filled >= TILE_COUNT * 3 / 4 {
+        return;
+    }
     for index in source_edge(&state.gravity_dir) {
         if !skip.get(index).copied().unwrap_or(false)
             && state.tiles[index] == EMPTY
             && (force
-                || hash(state.tick_counter, index, &state.gravity_dir) % 100
-                    < u64::from(state.spawn_rate_pct))
+                || tile_roll_pct(state.tick_counter, index, 13) < u32::from(state.spawn_rate_pct))
         {
             state.tiles[index] = SAND;
             state.age[index] = 0;
@@ -334,17 +336,13 @@ fn clear_bottom(state: &mut GravityState) {
 }
 fn drain_settled_edge(state: &mut GravityState) {
     let filled = state.tiles.iter().filter(|tile| **tile == SAND).count();
-    if filled < TILE_COUNT - 2 {
+    if filled <= TILE_COUNT / 2 {
         return;
     }
-    let edge = dest_edge(&state.gravity_dir);
-    let start = (state.tick_counter as usize) % edge.len();
-    for offset in 0..edge.len() {
-        let index = edge[(start + offset) % edge.len()];
+    for index in dest_edge(&state.gravity_dir) {
         if state.tiles[index] == SAND && state.age[index] >= state.settle_age {
             state.tiles[index] = EMPTY;
             state.age[index] = 0;
-            return;
         }
     }
 }
@@ -382,12 +380,6 @@ fn dest_edge(dir: &str) -> Vec<usize> {
             .map(|y| grid_index(GRID_WIDTH - 1, y))
             .collect(),
     }
-}
-fn hash(tick: u64, index: usize, dir: &str) -> u64 {
-    let tick = tick ^ crate::behavior_random::salt();
-    tick.wrapping_mul(1_103_515_245)
-        .wrapping_add(index as u64 * 97)
-        .wrapping_add(dir.as_bytes()[0] as u64)
 }
 fn triggers(prev: &[u8], next: &[u8]) -> Vec<TileTriggerType> {
     (0..TILE_COUNT)
