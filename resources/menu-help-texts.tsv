@@ -641,7 +641,7 @@ native_behavior_select_chords	*	action:behavior_select:chords	action	Chords	Buil
 native_behavior_select_contour	*	action:behavior_select:contour	action	Contour	Shapes pitch motion around rising and falling curves.	Use it when the melody's outline matters more than any one note.
 native_behavior_select_cadence	*	action:behavior_select:cadence	action	Cadence	Leans phrases toward arrival and release points.	Good for making algorithmic layers feel like they breathe in sections.
 native_behavior_select_phrase	*	action:behavior_select:phrase	action	Phrase	Builds longer musical gestures from smaller choices.	Use it for a layer that should speak in sentences, not ticks.
-native_behavior_select_life	*	action:behavior_select:life	action	Life	Runs Conway-style cellular life on the grid.	Tiny seeds settle, explode or blink; a world that stands still or dies out for 8 steps gets a glider.
+native_behavior_select_life	*	action:behavior_select:life	action	Life	Runs Conway-style cellular life on the grid.	Tiny seeds can settle, explode, or blink into musical events.
 native_behavior_select_brain	*	action:behavior_select:brain	action	Brain	Uses three-state cellular rules with firing and recovery.	Good for waves of activity that leave afterimages behind.
 native_behavior_select_cyclic	*	action:behavior_select:cyclic	action	Cyclic	Cells advance to the next state when enough nearby cells already have that state; the lit tiles are the moving fronts.	States sets the cycle count; Threshold and Range control how readily fronts advance.
 native_behavior_select_forest_fire	*	action:behavior_select:forest_fire	action	Forest Fire	Lets growth and ignition compete across the grid.	Sparse sparks can become crackling bursts and then empty space again.

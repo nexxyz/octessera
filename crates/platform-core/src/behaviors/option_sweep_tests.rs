@@ -147,6 +147,8 @@ const EXTREME: &str =
 const CAP: &str = "a cap: only reached after many presses or minutes of spawning";
 const OFFSET: &str = "an offset within the spawn interval: values a whole interval apart match";
 const UNDRAWN: &str = "sequencer pages only differ once they are drawn on";
+const LIFE_AT_REST: &str =
+    "the press breaks the blinker; with no spawning, a world that dies out rests until pressed";
 
 /// Every finding the sweep makes on purpose, word for word, with its reason. A new finding fails,
 /// even for an option listed here, and so does an entry that is no longer found, so a fix shows
@@ -167,6 +169,12 @@ const EXPECTED: &[(&str, &str)] = &[
         "only with Spawn Count above 0",
     ),
     ("life: spawnStep=0 and 63 play the same", OFFSET),
+    ("life: randomCellsPerTick=0 pressed dies out", LIFE_AT_REST),
+    ("life: randomTickInterval=1 pressed dies out", LIFE_AT_REST),
+    ("life: randomTickInterval=20 pressed dies out", LIFE_AT_REST),
+    ("life: gliderSpawnInterval=0 pressed dies out", LIFE_AT_REST),
+    ("life: spawnStep=0 pressed dies out", LIFE_AT_REST),
+    ("life: spawnStep=63 pressed dies out", LIFE_AT_REST),
     ("twinkle: birthChancePct=0 untouched dies out", OFF),
     ("twinkle: birthChancePct=0 pressed dies out", OFF),
     ("ink: fadePct=0 untouched saturates", EXTREME),
