@@ -89,11 +89,7 @@ pub fn vines_on_input(
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "plantSeed" =>
         {
-            for (x, y) in [(3, 0), (4, 0), (3, 1)] {
-                let index = grid_index(x, y);
-                plant(&mut state, index);
-                forced.push(index);
-            }
+            plant_seeds(&mut state, &mut forced)
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "pruneVines" =>
@@ -123,14 +119,12 @@ pub fn vines_on_tick(mut state: VinesState, _: &mut BehaviorContext) -> VinesSta
             if prev[i] != TIP {
                 continue;
             }
-            let candidates = candidates(
-                &prev,
-                x,
-                y,
-                u32::from(prev_energy[i]),
-                u32::from(state.light_bias_pct),
-            );
+            let sunward =
+                tile_roll_pct(state.tick_counter, i, 53) < u32::from(state.light_bias_pct);
+            let candidates = candidates(&prev, x, y, u32::from(prev_energy[i]), sunward);
             if candidates.is_empty() {
+                state.tiles[i] = STEM;
+                state.ages[i] = 0;
                 continue;
             }
             if tile_roll_pct(state.tick_counter, i, 11) < u32::from(state.growth_pct) {
@@ -156,16 +150,15 @@ pub fn vines_on_tick(mut state: VinesState, _: &mut BehaviorContext) -> VinesSta
             state.energy[i] /= 2;
             state.ages[i] = 0;
             forced.push(i);
-        } else if state.tiles[i] == LEAF
-            && state.ages[i] >= state.prune_age / 2
-            && tile_roll_pct(state.tick_counter, i, 47) < u32::from(state.growth_pct)
-        {
+        } else if state.tiles[i] == LEAF && state.ages[i] >= state.prune_age / 2 {
             state.tiles[i] = EMPTY;
             state.energy[i] = 0;
             state.ages[i] = 0
         }
     }
-    thin_full_frame(&mut state);
+    if !state.tiles.contains(&TIP) {
+        plant_seeds(&mut state, &mut forced);
+    }
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers_with_forced(&prev, &state.tiles, &forced);
     state
@@ -250,6 +243,13 @@ fn num(v: Option<Value>, d: u8, max: u8) -> u8 {
         .map(|v| v.min(max.into()) as u8)
         .unwrap_or(d)
 }
+fn plant_seeds(s: &mut VinesState, forced: &mut Vec<usize>) {
+    for (x, y) in [(3, 0), (4, 0), (3, 1)] {
+        let index = grid_index(x, y);
+        plant(s, index);
+        forced.push(index);
+    }
+}
 fn plant(s: &mut VinesState, i: usize) {
     plant_with_energy(s, i, 220)
 }
@@ -270,25 +270,9 @@ fn prune_action(s: &mut VinesState) {
         s.ages[i] = 0
     }
 }
-fn thin_full_frame(s: &mut VinesState) {
-    if s.tiles.contains(&EMPTY) {
-        return;
-    }
-    let mut removed = 0;
-    for offset in 0..TILE_COUNT {
-        let i = ((s.tick_counter as usize * 13) + offset) % TILE_COUNT;
-        if removed >= 4 {
-            break;
-        }
-        if s.tiles[i] != TIP || tile_roll_pct(s.tick_counter, i, 67) < 25 {
-            s.tiles[i] = EMPTY;
-            s.energy[i] = 0;
-            s.ages[i] = 0;
-            removed += 1;
-        }
-    }
-}
-fn candidates(tiles: &[u8], x: usize, y: usize, source_energy: u32, light_bias: u32) -> Vec<usize> {
+/// The empty neighbors a tip can grow into, best first: the sunniest when it reaches for the
+/// light, else the most open.
+fn candidates(tiles: &[u8], x: usize, y: usize, source_energy: u32, sunward: bool) -> Vec<usize> {
     let mut out = Vec::new();
     for (dx, dy) in [
         (0, 1),
@@ -309,20 +293,10 @@ fn candidates(tiles: &[u8], x: usize, y: usize, source_energy: u32, light_bias: 
             }
         }
     }
-    out.sort_by(|a, b| {
-        score(tiles, *b, source_energy, light_bias).cmp(&score(
-            tiles,
-            *a,
-            source_energy,
-            light_bias,
-        ))
-    });
+    let openness =
+        |i: usize| empty_neighbors(tiles, i % GRID_WIDTH, i / GRID_WIDTH) * 10 + source_energy / 8;
+    out.sort_by_key(|i| std::cmp::Reverse((sunward.then_some(i / GRID_WIDTH), openness(*i))));
     out
-}
-fn score(tiles: &[u8], i: usize, source_energy: u32, light_bias: u32) -> u32 {
-    let x = i % GRID_WIDTH;
-    let y = i / GRID_WIDTH;
-    empty_neighbors(tiles, x, y) * 10 + y as u32 * light_bias / 10 + source_energy / 8
 }
 fn empty_neighbors(tiles: &[u8], x: usize, y: usize) -> u32 {
     let mut c = 0;

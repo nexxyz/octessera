@@ -159,3 +159,19 @@ fn default_avoids_consecutive_extremes_and_bounded_triggers() {
         assert!(bursts <= 16);
     }
 }
+
+#[test]
+fn a_boxed_in_tip_stops_and_a_vine_with_no_tips_is_planted_again() {
+    let mut tiles = vec![STEM; TILE_COUNT];
+    tiles[grid_index(4, 4)] = TIP;
+    let state = vines_init(json!({"tiles": tiles, "pruneAge": 64})).unwrap();
+    let next = vines_on_tick(state, &mut context());
+    assert_eq!(next.tiles[grid_index(4, 4)], STEM);
+    for (x, y) in [(3, 0), (4, 0), (3, 1)] {
+        assert_eq!(next.tiles[grid_index(x, y)], TIP);
+        assert_eq!(
+            next.trigger_types[grid_index(x, y)],
+            TileTriggerType::Activate
+        );
+    }
+}

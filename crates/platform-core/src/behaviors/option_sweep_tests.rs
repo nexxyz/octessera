@@ -204,7 +204,6 @@ const ROW_ACCENT: &str =
 const SPAWN_COUNT: &str = "only with Spawn Count above 0";
 const PRESS_NOOP: &str = "the tapped tile already holds a block, paddle or crystal at that moment";
 const DEAD_ZONE: &str = "a known dead zone: neighboring values play alike, left for a later pass";
-const VINES_FILL: &str = "a known fault: above Branch 12 the vines cover 59 or more tiles";
 const UNDRAWN: &str = "sequencer pages only differ once they are drawn on";
 const LIFE_AT_REST: &str =
     "with no spawning, Life settles into still lifes and blinkers or dies out, and rests until pressed";
@@ -347,10 +346,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("crystal_growth: a press changes nothing", PRESS_NOOP),
     ("crystal_growth: seedStep=31 and 63 play the same", OFFSET),
     ("dla: spawnStep=31 and 63 play the same", OFFSET),
-    ("vines: branchPct=100 untouched saturates", VINES_FILL),
-    ("vines: branchPct=100 pressed saturates", VINES_FILL),
-    ("vines: lightBiasPct=0 and 25 play the same", DEAD_ZONE),
-    ("vines: lightBiasPct=50 and 75 play the same", DEAD_ZONE),
     ("bounce: maxBalls=30 and 60 play the same", CAP),
     ("bounce: maxBalls=60 and 80 play the same", CAP),
     ("bounce: maxBalls=80 and 100 play the same", CAP),

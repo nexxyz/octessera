@@ -138,8 +138,8 @@ layer_physarum_deposit	*	key:layers.*.build.behaviorConfig.depositAmount	number	
 layer_physarum_evap	*	key:layers.*.build.behaviorConfig.evaporationPct	number	Evaporation	Sets how quickly Physarum slime trails fade or Rivers water dries.	Higher values clear old paths or dry streams sooner; even 100 leaves Rivers a trickle.
 life_spawn_shared_physarum_food	*	action:behavior_action:relocateFood	action	Relocate Food	Moves the food to the next layout without playing a note.	The slime follows the new scent over the next steps.
 life_spawn_shared_physarum_seed	*	action:behavior_action:seedSlime	action	Seed Slime	Gathers the slime into one cluster again; the food stays.	The new slime tiles play as they appear.
-layer_vines_prune	*	key:layers.*.build.behaviorConfig.pruneAge	number	Prune Age	Sets how long stems age before turning into leaves and pruning back.	Lower values shed sooner; full vines also drop a few old tiles to keep gaps open.
-layer_vines_light	*	key:layers.*.build.behaviorConfig.lightBiasPct	number	Light Bias	Weights growth upward toward brighter space.	Set it low for more sideways wandering.
+layer_vines_prune	*	key:layers.*.build.behaviorConfig.pruneAge	number	Prune Age	Sets how long stems age before turning into leaves; leaves fall after half that.	Lower values shed sooner and keep the vines sparse.
+layer_vines_light	*	key:layers.*.build.behaviorConfig.lightBiasPct	number	Light Bias	The chance a growing tip reaches up for the light instead of into the most open space.	Set it low for more sideways wandering.
 life_spawn_shared_vines_seed	*	action:behavior_action:plantSeed	action	Plant Seed	Plants vine tips along the bottom edge.	The new tiles play as they appear.
 life_spawn_shared_vines_prune	*	action:behavior_action:pruneVines	action	Prune Vines	Removes up to eight of the oldest non-tip vine tiles.	Each removed tile fires its Off event, so mapped notes can stop.
 layer_fractal_zoom	*	key:layers.*.build.behaviorConfig.zoomRatePct	number	Zoom Rate	Sets how quickly Fractal Explorer zooms inward.	Higher values move through regions faster; a dive that runs out of detail flies on to the next region.
