@@ -371,10 +371,10 @@ fn reference_osc_sample(cfg: OscConfig, base_freq: f32, phase: &mut f32, sample_
         WaveformId::Sine => crate::sine::sin_turns(*phase),
         WaveformId::Triangle => 4.0 * (*phase - 0.5).abs() - 1.0,
         WaveformId::Saw => 2.0 * *phase - 1.0 - poly_blep(*phase, inc),
-        WaveformId::Square => pulse_sample(*phase, 0.5, 1.0, inc),
+        WaveformId::Square => pulse_sample(*phase, 0.5, inc),
         WaveformId::Pulse => {
             let duty = (cfg.pulse_width_pct / 100.0).clamp(0.05, 0.95);
-            pulse_sample(*phase, duty, pulse_gain(duty), inc)
+            pulse_sample(*phase, duty, inc)
         }
     };
 

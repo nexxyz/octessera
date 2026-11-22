@@ -5,7 +5,7 @@ use std::f32::consts::TAU;
 mod oscillator;
 pub(super) mod synth_voice_render;
 
-use oscillator::{osc_sample_precomputed, pulse_gain};
+use oscillator::osc_sample_precomputed;
 
 #[derive(Clone, Copy)]
 pub(super) struct SynthVoiceRenderConfig {
@@ -49,8 +49,6 @@ struct OscRenderConfig {
     detune_mul: f32,
     level: f32,
     pulse_duty: f32,
-    /// Keeps the DC-free pulse inside ±1: `1 / (1 + |2 x duty - 1|)`.
-    pulse_gain: f32,
 }
 
 #[derive(Clone, Copy)]
@@ -137,14 +135,12 @@ impl SynthVoiceRenderConfig {
 
 impl OscRenderConfig {
     fn from_config(cfg: OscConfig) -> Self {
-        let pulse_duty = (cfg.pulse_width_pct / 100.0).clamp(0.05, 0.95);
         Self {
             waveform: cfg.waveform,
             octave_mul: 2.0_f32.powi(cfg.octave.clamp(-2, 2)),
             detune_mul: 2.0_f32.powf(cfg.detune_cents.clamp(-1200.0, 1200.0) / 1200.0),
             level: (cfg.level_pct / 100.0).clamp(0.0, 1.0),
-            pulse_duty,
-            pulse_gain: pulse_gain(pulse_duty),
+            pulse_duty: (cfg.pulse_width_pct / 100.0).clamp(0.05, 0.95),
         }
     }
 

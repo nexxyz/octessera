@@ -11,28 +11,24 @@ pub(super) fn osc_sample_precomputed(cfg: OscRenderConfig, inc: f32, phase: &mut
         WaveformId::Sine => sin_turns(*phase),
         WaveformId::Triangle => 4.0 * (*phase - 0.5).abs() - 1.0,
         WaveformId::Saw => 2.0 * *phase - 1.0 - poly_blep(*phase, inc),
-        WaveformId::Square => pulse_sample(*phase, 0.5, 1.0, inc),
-        WaveformId::Pulse => pulse_sample(*phase, cfg.pulse_duty, cfg.pulse_gain, inc),
+        WaveformId::Square => pulse_sample(*phase, 0.5, inc),
+        WaveformId::Pulse => pulse_sample(*phase, cfg.pulse_duty, inc),
     };
 
     raw * cfg.level
 }
 
-pub(super) fn pulse_gain(duty: f32) -> f32 {
-    1.0 / (1.0 + (2.0 * duty - 1.0).abs())
-}
-
-/// A band-limited pulse with its DC removed, so a narrow pulse sits around zero like a square
-/// does, scaled by `gain` to peak at ±1.
+/// A band-limited ±1 pulse with its DC removed, so a narrow pulse sits around zero like a square
+/// does and sounds as loud as the full-swing pulse it is; its short side peaks above 1.
 #[inline(always)]
-pub(super) fn pulse_sample(phase: f32, duty: f32, gain: f32, inc: f32) -> f32 {
+pub(super) fn pulse_sample(phase: f32, duty: f32, inc: f32) -> f32 {
     let dc = 2.0 * duty - 1.0;
     let (naive, since_fall) = if phase < duty {
         (1.0 - dc, phase - duty + 1.0)
     } else {
         (-1.0 - dc, phase - duty)
     };
-    (naive + poly_blep(phase, inc) - poly_blep(since_fall, inc)) * gain
+    naive + poly_blep(phase, inc) - poly_blep(since_fall, inc)
 }
 
 /// Band-limits a unit step at phase 0 over one sample on either side of it.
