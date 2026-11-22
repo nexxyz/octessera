@@ -184,3 +184,24 @@ fn grid_presses_keep_the_pattern_seed_in_range_across_save_and_reload() {
         behavior.render_model(&state).unwrap().tiles
     );
 }
+
+#[test]
+fn every_lane_rolls_its_extra_hit_against_variation() {
+    for id in ["polyrhythm", "euclid"] {
+        let mut patterns = HashSet::new();
+        for variation in (0..=100).step_by(5) {
+            let config = serde_json::json!({ "variationPct": variation, "seed": 401 });
+            let mut state = pattern_init(id, config).unwrap();
+            let mut frames = Vec::new();
+            for _ in 0..64 {
+                state = crate::behaviors::pattern_music::pattern_on_tick(
+                    state,
+                    &mut BehaviorContext::new(120.0),
+                );
+                frames.push(state.tiles.clone());
+            }
+            patterns.insert(frames);
+        }
+        assert!(patterns.len() > 6, "{id}: {} patterns", patterns.len());
+    }
+}

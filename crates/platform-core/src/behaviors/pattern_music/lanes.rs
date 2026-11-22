@@ -198,7 +198,7 @@ fn density_hits(state: &PatternBehaviorState, steps: u64) -> u64 {
 }
 
 fn lane_hits(state: &PatternBehaviorState, steps: usize, y: usize) -> usize {
-    let varied = (state.seed as usize + y * 3) % (state.variation_pct as usize / 20 + 1);
+    let varied = usize::from(hash(state.seed, 0, y, 0) % 100 < u32::from(state.variation_pct));
     (((steps * state.density_pct as usize) / 100) + varied).clamp(1, steps.saturating_sub(1).max(1))
 }
 
