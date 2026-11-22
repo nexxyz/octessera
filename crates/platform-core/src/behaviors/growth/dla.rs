@@ -39,6 +39,7 @@ struct DlaConfig {
 
 const DEFAULT_CELL_LIFE: usize = 96;
 const MAX_CELL_LIFE: usize = 256;
+const MAX_CLUSTER: usize = 50;
 const WALKER_STEPS: usize = 4 * TILE_COUNT;
 /// Walkers released per spawn until one sticks.
 const WALKERS: usize = 8;
@@ -177,8 +178,10 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
             cells.fill(false);
             ages.fill(0);
             seed_starter_cluster(&mut cells, &mut ages);
-        } else if let Some((x, y)) = release_walkers(&cells) {
-            set_cluster_cell(&mut cells, &mut ages, x, y);
+        } else if cells.iter().filter(|cell| **cell).count() < MAX_CLUSTER {
+            if let Some((x, y)) = release_walkers(&cells) {
+                set_cluster_cell(&mut cells, &mut ages, x, y);
+            }
         }
     }
     if cell_life > 0 {

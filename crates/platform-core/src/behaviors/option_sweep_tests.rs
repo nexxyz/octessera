@@ -205,7 +205,6 @@ const LOOP: &str = "a loop of States frames: the waves settle into spirals that 
 const HELD_ZOOM: &str = "0 holds the zoom: Drift alone sways between two views";
 const ROW_ACCENT: &str =
     "changes only the trigger a cleared row sends; few rows clear in 300 ticks";
-const DLA_FILLS: &str = "a known fault: long Cell Life or Spawn Interval 1 fills the grid";
 const UNDRAWN: &str = "sequencer pages only differ once they are drawn on";
 const LIFE_AT_REST: &str =
     "with no spawning, Life settles into still lifes and blinkers or dies out, and rests until pressed";
@@ -301,12 +300,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("coral: growthPct=0 pressed freezes", OFF),
     ("crystal_growth: cellLife=0 untouched saturates", FOREVER),
     ("crystal_growth: cellLife=0 pressed saturates", FOREVER),
-    ("dla: spawnInterval=1 untouched saturates", DLA_FILLS),
-    ("dla: spawnInterval=1 pressed saturates", DLA_FILLS),
-    ("dla: cellLife=176 untouched saturates", DLA_FILLS),
-    ("dla: cellLife=176 pressed saturates", DLA_FILLS),
-    ("dla: cellLife=256 untouched saturates", DLA_FILLS),
-    ("dla: cellLife=256 pressed saturates", DLA_FILLS),
     ("vines: growthPct=0 untouched freezes", OFF),
     ("vines: growthPct=0 pressed freezes", OFF),
     ("sand_ripples: windStrengthPct=0 untouched freezes", CALM),
