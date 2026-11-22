@@ -12,6 +12,7 @@ impl NativeRunner {
         let midi_start = self.transpose.pending_note_offs.midi.len();
         let tiles_start = self.transpose.pending_note_offs.tiles.len();
         self.clear_delayed_link_events_for_layer(layer_index);
+        self.clear_link_arp_state_for_layer(layer_index);
         self.drain_layer_engine_notes(layer_index);
         self.drain_play_transpose_layers_for_layer_disable(layer_index);
         let mut drained = RoutedMusicalEvents {

@@ -105,6 +105,7 @@ impl NativeRunner {
                     events: tick.events,
                     event_intents: &tick.event_intents,
                     transpose_offset,
+                    lit_tiles: &tick.model.tiles,
                 },
             )?;
             self.track_emitted_route_notes(index, &tick_events);

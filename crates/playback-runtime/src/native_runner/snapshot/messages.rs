@@ -337,6 +337,7 @@ impl NativeRunner {
                 events: result.events,
                 event_intents: &result.event_intents,
                 transpose_offset,
+                lit_tiles: &result.model.tiles,
             },
         )?;
         self.track_emitted_route_notes(layer_index, &events);

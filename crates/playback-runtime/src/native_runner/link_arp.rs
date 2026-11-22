@@ -57,7 +57,7 @@ impl NativeRunner {
         &mut self,
         layer_index: usize,
         timing: LinkEventTiming,
-        lights_tiles: bool,
+        lit: Vec<LinkArpHeldNote>,
         link: &NativeLinkLayer,
         mut routed: RoutedMusicalEvents,
         midi_drum_channels: u16,
@@ -70,7 +70,7 @@ impl NativeRunner {
             matches!(event, MusicalEvent::NoteOn { channel, .. } if midi_drum_channels & 1 << channel != 0)
         });
         routed.midi = midi;
-        self.update_link_arp_held_notes(layer_index, &routed, lights_tiles);
+        self.update_link_arp_held_notes(layer_index, &routed, lit);
         self.update_link_arp_held_tiles(layer_index, &routed);
         let source_routed = if arp.source == ArpSource::Held && starts_a_note(&routed) {
             let mut source = non_note_routed_events(&routed);
@@ -125,69 +125,6 @@ impl NativeRunner {
             });
         }
         held.extend(held_hits);
-    }
-
-    /// A note is held from its note-on to its note-off: a Hold note, or a one-shot that `lights`
-    /// a tile, which stays held while the tile is lit.
-    fn update_link_arp_held_notes(
-        &mut self,
-        layer_index: usize,
-        routed: &RoutedMusicalEvents,
-        lights: bool,
-    ) {
-        let Some(held) = self.link_arp.held_notes.get_mut(layer_index) else {
-            return;
-        };
-        for (audio, events) in [(true, &routed.audio), (false, &routed.midi)] {
-            for event in events {
-                match event {
-                    MusicalEvent::NoteOn {
-                        channel,
-                        note,
-                        velocity,
-                        duration_ms,
-                    } if duration_ms.is_none() || lights => {
-                        held.retain(|held| {
-                            !(held.audio == audio && held.channel == *channel && held.note == *note)
-                        });
-                        held.push(LinkArpHeldNote {
-                            audio,
-                            channel: *channel,
-                            note: *note,
-                            velocity: *velocity,
-                        });
-                    }
-                    MusicalEvent::NoteOff { channel, note } => held.retain(|held| {
-                        !(held.audio == audio && held.channel == *channel && held.note == *note)
-                    }),
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    fn held_notes_as_routed(&self, layer_index: usize) -> RoutedMusicalEvents {
-        let mut routed = RoutedMusicalEvents::default();
-        for held in self
-            .link_arp
-            .held_notes
-            .get(layer_index)
-            .into_iter()
-            .flatten()
-        {
-            let event = MusicalEvent::NoteOn {
-                channel: held.channel,
-                note: held.note,
-                velocity: held.velocity,
-                duration_ms: None,
-            };
-            if held.audio {
-                routed.audio.push(event);
-            } else {
-                routed.midi.push(event);
-            }
-        }
-        routed
     }
 
     fn arp_routed_events(

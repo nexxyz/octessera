@@ -397,12 +397,14 @@ pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_
         channel: 0,
         note: 60,
         velocity: 100,
+        tile: None,
     });
     runner.link_arp.held_notes[1].push(LinkArpHeldNote {
         audio: true,
         channel: 0,
         note: 64,
         velocity: 100,
+        tile: None,
     });
     runner.link_arp.rotating_phase[0] = 3;
     runner.link_arp.rotating_phase[1] = 7;

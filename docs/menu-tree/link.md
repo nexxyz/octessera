@@ -250,8 +250,11 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   instrument in one step, even with note-offs between them; the step's releases route before its
   note-ons, so a pitch released and struck in one step stays held. `held` replays the held set on a batch
   that starts a note; a batch that only releases notes replays nothing. `held` holds a `hold`
-  instrument's notes from note-on to note-off, and a `oneshot` instrument's notes while their tile
-  is lit, from its On note-on to its Off note-off; one-shot Hold and scan hits are not held.
+  instrument's notes from note-on to note-off, and a `oneshot` instrument's notes per tile while
+  the tile is lit, from its On until it goes dark, whatever Off Trig or Prob Note Off do; a pitch
+  two lit tiles share sounds once and stays held until both are dark. One-shot Hold and scan hits
+  are not held. Stop, a layer trigger gate turned off, a behavior change and a patch load clear
+  the held set.
 - `rotating` starts each batch one note further along than the batch before.
 - `none` keeps the normal Link path. Other modes emit finite note-ons lasting
   `noteLengthMs * gatePct / 100`, never shorter than 10 ms, and create no held notes; strum-like

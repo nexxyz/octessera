@@ -301,6 +301,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
         channel: 0,
         note: 99,
         velocity: 100,
+        tile: None,
     });
     add_tile(&mut runner, 0, 0);
     arm_boundary(&mut runner, 95);

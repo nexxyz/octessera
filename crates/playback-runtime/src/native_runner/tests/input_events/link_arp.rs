@@ -359,6 +359,7 @@ fn routed_random_arp_draws_from_the_seeded_layer_stream() {
                     events: vec![note_on(60), note_on(64), note_on(67)],
                     event_intents: &intents,
                     transpose_offset: 0,
+                    lit_tiles: &[],
                 },
             )
             .unwrap();
@@ -396,6 +397,7 @@ fn route(
                 events,
                 event_intents: &intents,
                 transpose_offset: 0,
+                lit_tiles: &[],
             },
         )
         .unwrap()

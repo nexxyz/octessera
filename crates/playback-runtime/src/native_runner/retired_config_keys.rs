@@ -88,10 +88,12 @@ mod tests {
         let runtime = &mut old_patch["runtimeConfig"];
         runtime["sound"]["noteLengthMs"] = json!(120);
         runtime["instruments"][4]["midi"]["durationMs"] = json!(200);
-        runtime["layers"][1]["link"]
-            .as_object_mut()
-            .unwrap()
-            .remove("oneShotLengthMs");
+        for layer in runtime["layers"].as_array_mut().unwrap() {
+            layer["link"]
+                .as_object_mut()
+                .unwrap()
+                .remove("oneShotLengthMs");
+        }
 
         let composed = compose_local_system_patch_documents(&documents.system, &old_patch)
             .expect("a patch from before One-Shot Len loads");
@@ -100,8 +102,9 @@ mod tests {
         assert!(runtime["instruments"][4]["midi"]
             .get("durationMs")
             .is_none());
-        assert_eq!(runtime["layers"][1]["link"]["oneShotLengthMs"], json!(150));
-        assert_eq!(runtime["layers"][3]["link"]["oneShotLengthMs"], json!(130));
+        for layer in runtime["layers"].as_array().unwrap() {
+            assert_eq!(layer["link"]["oneShotLengthMs"], json!(150));
+        }
     }
 
     #[test]

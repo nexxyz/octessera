@@ -63,6 +63,7 @@ fn route(
                 events,
                 event_intents: intents,
                 transpose_offset: 0,
+                lit_tiles: &[],
             },
         )
         .unwrap()

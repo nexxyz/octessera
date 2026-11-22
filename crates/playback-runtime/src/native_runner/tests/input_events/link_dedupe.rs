@@ -314,6 +314,7 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
                 events: vec![expected.clone()],
                 event_intents: &[Some(activate)],
                 transpose_offset: 0,
+                lit_tiles: &[],
             },
         )
         .unwrap();

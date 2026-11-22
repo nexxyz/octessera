@@ -1,6 +1,9 @@
+use super::link_arp_held::lit_one_shot_notes;
 use super::modulation::sampler::event_channel;
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
-use super::{ArpMode, DelayedRoutedEvents, LinkEventTiming, NativeRunner};
+use super::{
+    ArpMode, ArpSource, DelayedRoutedEvents, LinkArpHeldNote, LinkEventTiming, NativeRunner,
+};
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, TileTriggerIntent, TileTriggerKind};
@@ -10,6 +13,8 @@ pub(super) struct LinkRoutingInput<'a> {
     pub(super) events: Vec<MusicalEvent>,
     pub(super) event_intents: &'a [Option<TileTriggerIntent>],
     pub(super) transpose_offset: i8,
+    /// The layer's grid after the step, which a held Arp reads for the tiles still lit.
+    pub(super) lit_tiles: &'a [bool],
 }
 
 impl NativeRunner {
@@ -47,6 +52,7 @@ impl NativeRunner {
         layer_index: usize,
         intents: &[TileTriggerIntent],
         routed: RoutedMusicalEvents,
+        lit: Vec<LinkArpHeldNote>,
         sense: Option<&super::NativeLinkLayer>,
         midi_drum_channels: u16,
     ) -> RoutedMusicalEvents {
@@ -66,13 +72,10 @@ impl NativeRunner {
             timing.retrigger_count
         };
         if let Some(link) = sense.filter(|link| link.arp.mode != ArpMode::None) {
-            let lights_tiles = intents
-                .first()
-                .is_some_and(|intent| intent.kind == TileTriggerKind::Activate);
             return self.apply_link_arp_timing(
                 layer_index,
                 timing,
-                lights_tiles,
+                lit,
                 link,
                 routed,
                 midi_drum_channels,
@@ -137,6 +140,7 @@ impl NativeRunner {
         layer_index: usize,
         input: LinkRoutingInput<'_>,
     ) -> Result<RoutedMusicalEvents, String> {
+        self.release_dark_link_arp_tiles(layer_index, input.lit_tiles);
         let instruments = std::mem::take(&mut self.instruments);
         let layers = std::mem::take(&mut self.layers);
         let routed = self.route_with_instruments(
@@ -163,6 +167,7 @@ impl NativeRunner {
             events,
             event_intents,
             transpose_offset,
+            ..
         } = input;
         if events.len() != event_intents.len() {
             return Err(format!(
@@ -230,15 +235,30 @@ impl NativeRunner {
         intents: &[TileTriggerIntent],
     ) -> RoutedMusicalEvents {
         let layer_index = context.layer_index;
-        let routed = apply_sampler_assignments_for_instruments_routed(
-            events,
-            intents,
-            0,
-            context.instruments,
-            context.sense,
-            context.transpose_offset,
-            self.transpose.active_notes.get_mut(layer_index),
-        );
+        let mut route = |events, intents: &[TileTriggerIntent]| {
+            apply_sampler_assignments_for_instruments_routed(
+                events,
+                intents,
+                0,
+                context.instruments,
+                context.sense,
+                context.transpose_offset,
+                self.transpose.active_notes.get_mut(layer_index),
+            )
+        };
+        let mut lit = Vec::new();
+        let routed = if lights_held_arp_tiles(context.sense, intents) {
+            // One tile at a time, so each One-Shot note keeps the tile that lit it.
+            let mut routed = RoutedMusicalEvents::default();
+            for (event, intent) in events.into_iter().zip(intents) {
+                let one = route(vec![event], std::slice::from_ref(intent));
+                lit.extend(lit_one_shot_notes(&one, intent, context.midi_drum_channels));
+                routed.extend(one);
+            }
+            routed
+        } else {
+            route(events, intents)
+        };
         if intents.is_empty() {
             self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
             return routed;
@@ -248,10 +268,22 @@ impl NativeRunner {
             layer_index,
             intents,
             routed,
+            lit,
             context.sense,
             context.midi_drum_channels,
         )
     }
+}
+
+/// An On batch on a layer whose Arp plays held notes, which lights the tiles it holds.
+fn lights_held_arp_tiles(
+    sense: Option<&super::NativeLinkLayer>,
+    intents: &[TileTriggerIntent],
+) -> bool {
+    sense.is_some_and(|link| link.arp.mode != ArpMode::None && link.arp.source == ArpSource::Held)
+        && intents
+            .first()
+            .is_some_and(|intent| intent.kind == TileTriggerKind::Activate)
 }
 
 struct GroupRouting<'a> {

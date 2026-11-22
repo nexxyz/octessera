@@ -147,6 +147,7 @@ fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_
                 events: vec![note(), note()],
                 event_intents: &[Some(intent(2, 0)), Some(intent(3, 0))],
                 transpose_offset: 12,
+                lit_tiles: &[],
             },
         )
         .unwrap();
@@ -181,6 +182,7 @@ fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_
                 ],
                 event_intents: &[Some(intent(2, 0)), Some(intent(3, 0)), Some(intent(2, 0))],
                 transpose_offset: 0,
+                lit_tiles: &[],
             },
         )
         .unwrap();

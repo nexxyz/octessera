@@ -108,6 +108,7 @@ mod layer_state;
 mod led_color;
 mod lfo_sub_pulse;
 mod link_arp;
+mod link_arp_held;
 mod link_arp_mode;
 mod link_routing;
 mod link_scan;
