@@ -193,3 +193,31 @@ fn a_forward_loop_with_little_or_no_sample_before_it_lasts_exactly_the_loop() {
         assert_eq!(marks, expected, "Loop Start {start_pct}%");
     }
 }
+
+#[test]
+fn a_pitched_forward_loop_from_the_first_frame_lasts_exactly_the_loop_and_dips_smoothly() {
+    let wave = |frame: usize| (frame as f32 * std::f32::consts::TAU / 97.3).sin();
+    let uneven = buffer((0..10_000).map(wave).collect());
+    let view = SampleBufferView::from_buffer(&uneven);
+    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, &uneven);
+    let step = 1.37;
+    let reads = (0..30_000)
+        .map(|_| cursor.read::<Hermite>(&view, &mut pos, step).unwrap())
+        .collect::<Vec<_>>();
+    let travelled = 30_000.0 * step;
+    assert!((pos - travelled % 10_000.0).abs() < 1.0e-6, "at {pos}");
+    let natural = std::f32::consts::TAU / 97.3 * step as f32;
+    let largest = reads
+        .windows(2)
+        .map(|pair| (pair[1] - pair[0]).abs())
+        .fold(0.0_f32, f32::max);
+    assert!(largest < natural * 1.5, "seam steps by {largest}");
+}
+
+#[test]
+fn a_forward_loop_of_a_few_frames_from_the_first_frame_plays_every_frame_at_full_level() {
+    let flat = buffer(vec![1.0; 300]);
+    let view = SampleBufferView::from_buffer(&flat);
+    let (mut cursor, mut pos) = forward_loop(0.0, 1.0, &flat);
+    assert!((0..30).all(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0) == Some(1.0)));
+}

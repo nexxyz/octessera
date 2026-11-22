@@ -276,6 +276,76 @@ fn glitch_at_full_chance_crossfades_each_repeat_into_its_own_start_without_live_
     }
 }
 
+/// Glitch at Mix 100% with Chance and Slice set frame by frame.
+fn run_glitch(input: &[f32], settings: impl Fn(usize) -> (f32, f32)) -> Vec<f32> {
+    let mut state = fx_bus_state_from_params(&glitch(0.0, 10.0, 1.0), SAMPLE_RATE);
+    input
+        .iter()
+        .enumerate()
+        .map(|(frame, sample)| {
+            let (chance, slice_ms) = settings(frame);
+            crate::synth::fx::algorithms::process_glitch(
+                &mut state,
+                *sample,
+                chance,
+                slice_ms,
+                1.0,
+                SAMPLE_RATE,
+            )
+        })
+        .collect()
+}
+
+fn largest_step(output: &[f32]) -> f32 {
+    output
+        .windows(2)
+        .map(|pair| (pair[1] - pair[0]).abs())
+        .fold(0.0, f32::max)
+}
+
+#[test]
+fn glitch_run_followed_by_a_miss_fades_back_to_the_input_and_then_passes_it_exactly() {
+    let slice = 480;
+    let input = test_tone(slice * 6);
+    let output = run_glitch(&input, |frame| {
+        (if frame < slice * 2 + 100 { 1.0 } else { 0.0 }, 10.0)
+    });
+    assert_ne!(
+        output[slice * 2 + 200],
+        input[slice * 2 + 200],
+        "a run of two repeats"
+    );
+    for frame in slice * 3..slice * 6 {
+        assert_eq!(
+            output[frame].to_bits(),
+            input[frame].to_bits(),
+            "frame {frame}"
+        );
+    }
+    let largest_input_step = 0.6 * 0.013 + 0.2 * 0.071;
+    let step = largest_step(&output);
+    assert!(step < largest_input_step + 1.6 / 96.0, "step {step}");
+}
+
+#[test]
+fn glitch_slice_changed_mid_run_keeps_repeating_smoothly_at_the_new_length() {
+    let slice = 480;
+    let input = test_tone(slice * 12);
+    let output = run_glitch(&input, |frame| {
+        (1.0, if frame < slice * 2 + 100 { 10.0 } else { 5.0 })
+    });
+    for frame in slice * 6..slice * 11 {
+        assert_eq!(
+            output[frame].to_bits(),
+            output[frame + slice / 2].to_bits(),
+            "frame {frame}"
+        );
+    }
+    let largest_input_step = 0.6 * 0.013 + 0.2 * 0.071;
+    let step = largest_step(&output[slice + 96..]);
+    assert!(step < largest_input_step + 1.6 / 60.0, "step {step}");
+}
+
 #[test]
 fn glitch_rolls_chance_once_per_slice() {
     let slice = 480;

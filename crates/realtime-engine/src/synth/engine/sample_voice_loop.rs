@@ -87,7 +87,9 @@ impl SampleVoiceLoop {
         let cursor = if playback.loop_mode == SampleLoopMode::Forward {
             let seconds = |seconds: f64| (seconds * f64::from(buffer.sample_rate)).round();
             let dips = loop_start < seconds(LOOP_DIP_SECONDS);
-            let fade = if dips {
+            let fade = if loop_frames < 4.0 {
+                0.0
+            } else if dips {
                 seconds(LOOP_DIP_SECONDS)
             } else {
                 seconds(LOOP_CROSSFADE_SECONDS).min(loop_start)
