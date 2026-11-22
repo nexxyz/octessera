@@ -474,3 +474,17 @@ fn ending_the_sound_of_held_notes_keeps_who_holds_them() {
     }));
     assert_eq!(held.take_sounding(0, 60), None);
 }
+
+#[test]
+fn a_drained_tile_that_plays_one_shot_sounds_its_next_hold_off() {
+    let mut held = HeldNotes::default();
+    let press = || vec![tile_intent(TileTriggerKind::Activate)];
+    let release = || vec![tile_intent(TileTriggerKind::Deactivate)];
+    held.apply(&[on(60)], press(), &[NoteBehavior::Hold]);
+    held.drain(usize::MAX);
+
+    held.apply(&[on(60)], press(), &[NoteBehavior::Oneshot]);
+    let released = held.apply(&[off(0, 60)], release(), &[NoteBehavior::Hold]);
+
+    assert_eq!(released.events, vec![off(0, 60)]);
+}

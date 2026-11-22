@@ -289,6 +289,13 @@ impl HeldNotes {
                 } if hold(channel) => {
                     self.hold(HeldNote { channel, note }, velocity, intent, &mut out);
                 }
+                MusicalEvent::NoteOn { .. } => {
+                    // A tile that plays again has left its drain behind, on any instrument.
+                    if let Holder::Tile(tile) = holder(intent.as_ref()) {
+                        self.drained_tiles.remove(&tile);
+                    }
+                    out.push(event.clone(), intent);
+                }
                 MusicalEvent::NoteOff { channel, note } => {
                     let key = HeldNote { channel, note };
                     match deactivating_tile(intent.as_ref()) {
