@@ -209,27 +209,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("wave: autoImpulseInterval=0 untouched dies out", OFF),
     ("wave: autoImpulseInterval=0 pressed dies out", OFF),
     ("wave: spawnStep=3 and 63 play the same", OFFSET),
-    // Open. Now: a filled disk lights only the ring it newly reaches, the same tiles as `ring`.
-    // After (proposal): light the whole disk while it grows, with a smaller default Max Radius so
-    // it does not flood the grid.
-    (
-        "shapes: pulseShape=\"ring\" and \"filled\" play the same",
-        "open: filled plays as ring",
-    ),
-    (
-        "shapes: lifespan=12 untouched saturates",
-        "the longest trails keep the grid lit",
-    ),
-    (
-        "shapes: lifespan=12 pressed saturates",
-        "the longest trails keep the grid lit",
-    ),
-    // Open. Now: any radius past about 10 already covers the grid, so 12 to 32 play alike.
-    // After (proposal): narrow Max Radius to 4..12, normalizing the board stores first.
-    (
-        "shapes: maxRadius=12 and 32 play the same",
-        "open: radii past the grid",
-    ),
     ("cracks: stressPct=0 untouched stays empty", OFF),
     ("bounce: maxBalls=60 and 100 play the same", CAP),
     ("bubbles: spawnInterval=0 untouched stays empty", OFF),

@@ -72,3 +72,20 @@ fn default_avoids_consecutive_empty_or_full_frames() {
         );
     }
 }
+
+#[test]
+fn a_filled_shape_lights_its_whole_disk_while_it_grows() {
+    let mut context = BehaviorContext::new(120.0);
+    let config = serde_json::json!({ "lifespan": 1, "maxRadius": 4, "autoPulseInterval": 0 });
+    for (shape, center_lit) in [("filled", true), ("ring", false)] {
+        let mut config = config.clone();
+        config["pulseShape"] = shape.into();
+        let mut state = shapes_init(config).unwrap();
+        for _ in 0..2 {
+            state = shapes_on_tick(state, &mut context);
+        }
+        assert_eq!(state.pulses[0].radius, 2);
+        assert_eq!(state.lifetimes[grid_index(4, 4)] > 0, center_lit, "{shape}");
+        assert!(state.lifetimes[grid_index(6, 4)] > 0, "{shape}");
+    }
+}

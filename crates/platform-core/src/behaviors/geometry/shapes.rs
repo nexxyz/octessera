@@ -10,6 +10,10 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+const DEFAULT_MAX_RADIUS: usize = 4;
+/// Past this radius a shape grown from any tile already covers the grid.
+const MAX_RADIUS: usize = 12;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Pulse {
     pub ox: usize,
@@ -69,13 +73,13 @@ pub fn shapes_init(config: Value) -> Result<ShapesState, String> {
             ox: GRID_WIDTH / 2,
             oy: GRID_HEIGHT / 2,
             radius: 0,
-            max_radius: config.max_radius.unwrap_or(12),
+            max_radius: config.max_radius.unwrap_or(DEFAULT_MAX_RADIUS),
         }],
         lifetimes,
         trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         pulse_shape: config.pulse_shape.unwrap_or_else(|| "ring".into()),
         lifespan: config.lifespan.unwrap_or(3),
-        max_radius: config.max_radius.unwrap_or(12),
+        max_radius: config.max_radius.unwrap_or(DEFAULT_MAX_RADIUS),
         auto_pulse_interval: config.auto_pulse_interval.unwrap_or(4),
         spawn_step: config.spawn_step.unwrap_or(2).min(63),
         tick_counter: 0,
@@ -173,12 +177,11 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
     for pulse in &state.pulses {
         let radius = pulse.radius + 1;
         if radius <= pulse.max_radius {
-            let prev = shape_tiles(
-                &state.pulse_shape,
-                pulse.ox,
-                pulse.oy,
-                radius.saturating_sub(1),
-            );
+            let prev = if state.pulse_shape == "filled" {
+                Vec::new()
+            } else {
+                shape_tiles(&state.pulse_shape, pulse.ox, pulse.oy, radius - 1)
+            };
             for index in shape_tiles(&state.pulse_shape, pulse.ox, pulse.oy, radius) {
                 if !prev.contains(&index) {
                     lifetimes[index] = state.lifespan;
@@ -257,7 +260,7 @@ pub fn shapes_config_menu() -> Vec<BehaviorConfigItem> {
             &["ring", "filled", "diamond", "cross", "x"],
         ),
         number_item("lifespan", "Lifespan", 1, 12, 1),
-        number_item("maxRadius", "Max Radius", 4, 32, 1),
+        number_item("maxRadius", "Max Radius", 4, MAX_RADIUS as i32, 1),
         number_item("autoPulseInterval", "Spawn Interval", 0, 20, 1),
         number_item("spawnStep", "Spawn Step", 0, 63, 1),
         action_item("spawnPulse", "Spawn Pulse"),

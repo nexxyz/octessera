@@ -244,9 +244,9 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase. Th
 | sand_ripples | !Gust | action |
 | sand_ripples | !Shift Wind | action |
 | sand_ripples | !Seed Dunes | action |
-| shapes | Shape: [ring, filled, diamond, cross, x] | enum (default ring) |
+| shapes | Shape: [ring, filled, diamond, cross, x] | enum (default ring); `filled` relights its whole disk every tick it grows, the others light only the tiles their edge newly reaches |
 | shapes | Lifespan: [1..12] | number, step 1 (default 3) |
-| shapes | Max Radius: [4..32] | number, step 1 (default 12) |
+| shapes | Max Radius: [4..12] | number, step 1 (default 4) |
 | shapes | Spawn Interval: [0..20] | number, step 1 (default 4; 0 disables scheduled pulses) |
 | shapes | Spawn Step: [0..63] | number, step 1 (default 2) |
 | shapes | !Spawn Pulse | action |
