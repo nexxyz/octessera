@@ -248,7 +248,7 @@ impl PlayFxConfig {
         })
     }
 
-    pub(super) fn audio_params(&self, bpm: f64) -> BTreeMap<String, Value> {
+    pub(in crate::native_runner) fn audio_params(&self, bpm: f64) -> BTreeMap<String, Value> {
         self.synced_audio_params(bpm)
             .unwrap_or_else(|| self.audio_param_values())
     }
