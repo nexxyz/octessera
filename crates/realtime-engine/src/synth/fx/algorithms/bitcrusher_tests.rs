@@ -82,3 +82,10 @@ fn the_mix_blends_the_dry_and_crushed_signal() {
     let output = process_bitcrusher(&mut state, 0.3, 1, 2, 0.25);
     assert!((output - (0.75 * 0.3 + 0.25 * 0.5)).abs() < 1.0e-6);
 }
+
+#[test]
+fn a_level_above_full_scale_is_quantized_not_clipped_so_master_volume_can_still_bring_it_down() {
+    let crushed = crush(&[1.4, -1.6], 1, 16);
+    assert!((crushed[0] - 1.4).abs() < 1.0e-4, "{crushed:?}");
+    assert!((crushed[1] + 1.6).abs() < 1.0e-4, "{crushed:?}");
+}

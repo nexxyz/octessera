@@ -298,7 +298,7 @@ pub(in crate::synth) fn crush_sample(
         }
     } else {
         let half_levels = (1_u32 << bits.min(16)) as f32 * 0.5;
-        ((*last * half_levels).round() / half_levels).clamp(-1.0, 1.0)
+        (*last * half_levels).round() / half_levels
     };
     input * (1.0 - mix) + crushed * mix
 }
