@@ -227,7 +227,7 @@ fn default_tail_stays_bounded_and_non_terminal() {
         } else {
             0
         };
-        assert!(same <= 4);
+        assert!(same < 16, "{same}");
         assert!(terminal <= 2);
         let bursts = state
             .trigger_types

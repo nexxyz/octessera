@@ -14,6 +14,7 @@ const MAX_PHASE: u8 = 4;
 const SYMMETRIES: &[&str] = &["cross", "diagonal", "snowflake"];
 const NEARLY_FULL_EMPTY_TILES: usize = 4;
 const THIN_EVERY_TICKS: u64 = 3;
+const GROWING_TICKS: u16 = 8;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CrystalGrowthState {
@@ -307,16 +308,19 @@ fn age_and_dissolve(state: &mut CrystalGrowthState) {
     }
 }
 
-/// Crystals grow from the crystals still standing into tiles that were already empty when the
-/// tick began, so a crystal that dissolves leaves its hole open for at least one tick. Growth
-/// always leaves one tile open.
+/// Crystals grow for their first few ticks from the crystals still standing into tiles that were
+/// already empty when the tick began, so a crystal that dissolves leaves its hole open until a
+/// seed lands nearby. Growth always leaves one tile open.
 fn grow_candidates(state: &mut CrystalGrowthState, previous: &[bool]) {
     let surviving = visible(&state.cells);
     let mut empty = surviving.iter().filter(|lit| !**lit).count();
+    let growing = (0..TILE_COUNT)
+        .map(|index| surviving[index] && state.ages[index] < GROWING_TICKS)
+        .collect::<Vec<_>>();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
-            if previous[index] || !has_neighbor(&surviving, x, y, &state.symmetry) {
+            if previous[index] || !has_neighbor(&growing, x, y, &state.symmetry) {
                 continue;
             }
             if empty > 1

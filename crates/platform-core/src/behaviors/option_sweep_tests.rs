@@ -321,24 +321,8 @@ const EXPECTED: &[(&str, &str)] = &[
     ("coral: breakawayAge=47 pressed saturates", CORAL_FILLS),
     ("coral: breakawayAge=64 untouched saturates", CORAL_FILLS),
     ("coral: breakawayAge=64 pressed saturates", CORAL_FILLS),
-    (
-        "crystal_growth: growthChancePct=100 untouched saturates",
-        BROKEN,
-    ),
-    (
-        "crystal_growth: growthChancePct=100 pressed saturates",
-        BROKEN,
-    ),
     ("crystal_growth: cellLife=0 untouched saturates", FOREVER),
     ("crystal_growth: cellLife=0 pressed saturates", FOREVER),
-    (
-        "crystal_growth: symmetry=\"diagonal\" untouched saturates",
-        BROKEN,
-    ),
-    (
-        "crystal_growth: symmetry=\"diagonal\" pressed saturates",
-        BROKEN,
-    ),
     ("dla: spawnInterval=1 untouched saturates", DLA_FILLS),
     ("dla: spawnInterval=1 pressed saturates", DLA_FILLS),
     ("dla: cellLife=176 untouched saturates", DLA_FILLS),
