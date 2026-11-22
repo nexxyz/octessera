@@ -52,6 +52,12 @@ fn validate_scalar(key: &str, value: &Value, path: &str) -> Result<(), String> {
         "scanSections" => unsigned_range(value, path, 1, 8)?,
         "delaySteps" => unsigned_range(value, path, 0, 16)?,
         "retriggerCount" => unsigned_range(value, path, 0, 8)?,
+        "gainPct" if path.ends_with(".sample.amp.gainPct") => unsigned_range(
+            value,
+            path,
+            0,
+            u64::from(crate::native_menu::SAMPLE_GAIN_MAX_PCT),
+        )?,
         "depthPct" | "gainPct" | "velocitySensitivityPct" => unsigned_range(value, path, 0, 100)?,
         "channel" => unsigned_range(value, path, 0, 16)?,
         "durationMs" => unsigned_range(value, path, 10, 5000)?,

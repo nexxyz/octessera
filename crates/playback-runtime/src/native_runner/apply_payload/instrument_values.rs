@@ -3,7 +3,7 @@ use super::super::{
     NativeSampleAssignment, NativeSamplePlayback, NativeTileStamp, SampleDto, SampleSlotDto,
     TileStampDto, GRID_HEIGHT, GRID_WIDTH, SAMPLE_SLOT_COUNT,
 };
-use crate::native_menu::{SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT};
+use crate::native_menu::{SAMPLE_GAIN_MAX_PCT, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT};
 use platform_core::NoteBehavior;
 use serde_json::json;
 
@@ -138,7 +138,7 @@ fn apply_sample_payload(sample: &SampleDto, instrument: &mut NativeInstrumentSlo
     }
     if let Some(amp) = &sample.amp {
         if let Some(gain) = amp.gain_pct {
-            instrument.sample_gain_pct = gain.min(100);
+            instrument.sample_gain_pct = gain.min(SAMPLE_GAIN_MAX_PCT);
         }
         if let Some(velocity_sens) = amp.velocity_sensitivity_pct {
             instrument.sample_amp_velocity_sensitivity_pct = velocity_sens.min(100);

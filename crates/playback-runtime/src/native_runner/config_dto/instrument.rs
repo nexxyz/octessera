@@ -107,7 +107,7 @@ pub struct SampleAssignmentDto {
 #[serde(rename_all = "camelCase")]
 pub struct SampleAmpDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) gain_pct: Option<u8>,
+    pub(in crate::native_runner) gain_pct: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) velocity_sensitivity_pct: Option<u8>,
 }

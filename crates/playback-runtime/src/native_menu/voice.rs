@@ -69,7 +69,7 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) synth_gain_pct: u8,
     pub(super) synth_filter_resonance: u8,
     pub(super) sample_tune_semis: i8,
-    pub(super) sample_gain_pct: u8,
+    pub(super) sample_gain_pct: u16,
     pub(super) sample_base_velocity: u8,
     pub(super) sample_amp_velocity_sensitivity_pct: u8,
     pub(super) sample_velocity_levels_enabled: bool,

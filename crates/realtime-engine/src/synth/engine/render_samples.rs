@@ -5,6 +5,9 @@ use super::source_worker_placement;
 use super::voice_budget::split_steal;
 use super::*;
 
+/// Sampler voices sit at the synth voices' level: Gain 100% plays a sample at ×0.35.
+const SAMPLE_VOICE_HEADROOM: f32 = 0.35;
+
 impl SynthEngine {
     pub(super) fn sample_note_on(&mut self, slot: usize, midi_note: u8, velocity: u8) {
         self.sample_voice_on(slot, sample_slot_for_note(midi_note), None, 0, velocity);
@@ -93,7 +96,9 @@ impl SynthEngine {
         }
         let vel = (velocity.max(1) as f32 / 127.0).clamp(0.0, 1.0);
         let vel_sens = (velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
-        let gain = (gain_pct / 100.0).clamp(0.0, 2.0) * ((1.0 - vel_sens) + vel_sens * vel);
+        let gain = (gain_pct / 100.0).clamp(0.0, 3.0)
+            * ((1.0 - vel_sens) + vel_sens * vel)
+            * SAMPLE_VOICE_HEADROOM;
         let pitch_semis = tune_semis + f32::from(pitch_cents) / 100.0;
         let step = 2.0_f64.powf(f64::from(pitch_semis) / 12.0) * f64::from(sample_rate)
             / f64::from(self.sample_rate);

@@ -4,7 +4,7 @@ use super::super::{
     NativeSampleAvailability, Value,
 };
 use crate::instrument_presets::instrument_preset_config;
-use crate::native_menu::{FactoryLoadKind, SAMPLER_KITS};
+use crate::native_menu::{FactoryLoadKind, SAMPLER_KITS, SAMPLER_KIT_GAIN_PCT};
 
 /// What a factory load puts into a slot: a family's preset config or a Sampler kit's paths.
 enum FactoryLoad {
@@ -76,6 +76,7 @@ impl NativeRunner {
             FactoryLoad::SampleKit(paths) => {
                 instrument.sample_paths = paths.iter().map(|path| Some((*path).into())).collect();
                 instrument.sample_playback = Default::default();
+                instrument.sample_gain_pct = SAMPLER_KIT_GAIN_PCT;
                 self.sample_availability[slot].fill(NativeSampleAvailability::Unknown);
             }
         }

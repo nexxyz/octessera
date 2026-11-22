@@ -239,3 +239,17 @@ fn sample_preview_plays_the_file_untouched_whatever_the_slot_does() {
     assert_eq!(neutral, shaped, "no sampler setting reaches the preview");
     assert!(neutral[500] != 0.0);
 }
+
+#[test]
+fn sampler_gain_takes_the_synth_headroom_so_286_pct_plays_the_file_at_its_level() {
+    let steady = |gain: f32| {
+        let mut engine = sampler_engine(SampleShapeConfig::default(), vec![0.5; RATE as usize]);
+        engine.sample_banks[0].gain_pct = gain;
+        engine.note_on(0, 36, 127, 50_000);
+        render(&mut engine, ms(100.0))[ms(50.0)] / std::f32::consts::FRAC_1_SQRT_2
+    };
+
+    assert!((steady(100.0) - 0.5 * 0.35).abs() < 1e-4);
+    assert!((steady(286.0) - 0.5 * 1.001).abs() < 1e-4);
+    assert_eq!(steady(400.0), steady(300.0));
+}

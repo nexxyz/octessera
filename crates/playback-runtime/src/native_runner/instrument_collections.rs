@@ -98,7 +98,7 @@ pub(super) fn instrument_sample_tune_semis(instruments: &[NativeInstrumentSlot])
         .collect()
 }
 
-pub(super) fn instrument_sample_gain_pct(instruments: &[NativeInstrumentSlot]) -> Vec<u8> {
+pub(super) fn instrument_sample_gain_pct(instruments: &[NativeInstrumentSlot]) -> Vec<u16> {
     instruments
         .iter()
         .map(|instrument| instrument.sample_gain_pct)

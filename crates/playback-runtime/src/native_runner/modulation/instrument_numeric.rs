@@ -2,7 +2,7 @@ use super::super::{
     cutoff_display_to_hz, set_json_path_number, synth_numeric_field, NativeInstrumentSlot, Value,
     PAN_POSITION_COUNT,
 };
-use crate::native_menu::FILTER_RESONANCE;
+use crate::native_menu::{FILTER_RESONANCE, SAMPLE_GAIN_MAX_PCT};
 
 pub(in crate::native_runner) fn apply_instrument_numeric_binding_value(
     instrument: &mut NativeInstrumentSlot,
@@ -103,7 +103,10 @@ pub(in crate::native_runner) fn apply_instrument_numeric_binding_value(
             );
         }
         "sample.tuneSemis" => instrument.sample_tune_semis = value.round().clamp(-24.0, 24.0) as i8,
-        "sample.amp.gainPct" => instrument.sample_gain_pct = value.round().clamp(0.0, 100.0) as u8,
+        "sample.amp.gainPct" => {
+            instrument.sample_gain_pct =
+                value.round().clamp(0.0, f64::from(SAMPLE_GAIN_MAX_PCT)) as u16
+        }
         "sample.amp.velocitySensitivityPct" => {
             instrument.sample_amp_velocity_sensitivity_pct = value.round().clamp(0.0, 100.0) as u8
         }

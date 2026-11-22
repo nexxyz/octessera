@@ -1,4 +1,5 @@
 use super::super::{cutoff_display_to_hz, set_json_path_number, PAN_POSITION_COUNT};
+use crate::native_menu::SAMPLE_GAIN_MAX_PCT;
 
 pub(in crate::native_runner) fn parse_indexed_key(value: &str) -> Option<(usize, &str)> {
     let (index, suffix) = value.split_once('.')?;
@@ -117,7 +118,7 @@ pub(super) fn fast_sample_gain(
     value: i32,
     instrument: &mut super::super::NativeInstrumentSlot,
 ) -> Option<f32> {
-    let value = value.clamp(0, 100) as u8;
+    let value = value.clamp(0, i32::from(SAMPLE_GAIN_MAX_PCT)) as u16;
     if instrument.sample_gain_pct == value {
         None
     } else {

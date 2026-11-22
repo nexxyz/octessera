@@ -179,6 +179,10 @@ fn custom_names_and_inactive_type_blocks_survive_factory_loads_and_portable_roun
     assert_eq!(current.selected_sample_slot, original.selected_sample_slot);
     assert_eq!(current.sample_tune_semis, original.sample_tune_semis);
     assert_eq!(
+        current.sample_gain_pct, 286,
+        "a kit plays at its recorded level"
+    );
+    assert_eq!(
         current.sample_velocity_levels_enabled,
         original.sample_velocity_levels_enabled
     );

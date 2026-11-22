@@ -23,7 +23,7 @@ pub(super) struct NativeInstrumentSlot {
     pub(super) drum_config: Value,
     pub(super) synth_gain_pct: u8,
     pub(super) sample_tune_semis: i8,
-    pub(super) sample_gain_pct: u8,
+    pub(super) sample_gain_pct: u16,
     pub(super) sample_amp_env: Value,
     pub(super) sample_filter: Value,
     pub(super) sample_filter_env: Value,

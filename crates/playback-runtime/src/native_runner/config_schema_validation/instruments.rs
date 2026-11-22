@@ -159,7 +159,8 @@ fn validate_sample(instrument: &Map<String, Value>, path: &str) -> Result<(), St
         }
     }
     if let Some(amp) = object_field(sample, "amp", &path)? {
-        unsigned_field(amp, "gainPct", &format!("{path}.amp"), 0, 100)?;
+        let max = u64::from(crate::native_menu::SAMPLE_GAIN_MAX_PCT);
+        unsigned_field(amp, "gainPct", &format!("{path}.amp"), 0, max)?;
         unsigned_field(
             amp,
             "velocitySensitivityPct",

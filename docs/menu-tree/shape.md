@@ -65,7 +65,7 @@ Shape
 │   │   │   ├── Tune: [-24..24] st               ← slot-wide
 │   │   │   ├── Follow Transp.: [on | off]       ← default off
 │   │   │   ├── Follow Pitch: [on | off]         ← default off
-│   │   │   ├── Gain: [0..100]
+│   │   │   ├── Gain: [0..300] %                 ← default 100 (a synth's level); 286 plays a sample as recorded
 │   │   │   ├── Base Vel: [1..127]               ← used by Base-level tiles
 │   │   │   ├── Vel Levels: [on | off]
 │   │   │   ├── Vel Levels (group)               ← High / Medium / Low [1..127]; only while Vel Levels is on
@@ -210,9 +210,11 @@ Shape
   (only while Loop is not off), Tile Tune, Tile Fine, Tile Level (only while Vel Levels is on),
   Assign, Tune, Follow Transp., Follow Pitch, Gain, Base Vel, the Vel Levels switch, the Vel
   Levels group (only while on), Filter, Vel Sens, Amp Env, Filter Env.
-- SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths and reset each sample
-  slot's Start and Loop rows to their defaults. Tile assignments and levels, the selected Sample
-  Slot, and the other sample settings stay.
+- SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths, reset each sample
+  slot's Start and Loop rows to their defaults, and set Gain to 286%. Tile assignments and levels,
+  the selected Sample Slot, and the other sample settings stay.
+- Sampler voices share the synth voices' x0.35 headroom: Gain 100% sits at an Init synth's level
+  and 286% plays a sample at its recorded level, as the factory kits and the factory I2 do.
 - Start, Loop, Loop Start, and Loop End belong to the selected sample slot and save with it as
   `instruments[i].sample.slots[n].startPct`, `loop`, `loopStartPct`, and `loopEndPct`; the other
   Sampler rows are slot-wide. All four are percent of the sample's length.

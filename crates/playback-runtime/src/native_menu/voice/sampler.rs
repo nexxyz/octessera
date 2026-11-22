@@ -8,7 +8,8 @@ use super::{
 };
 use crate::native_menu::{
     sample_display_name, NativeMenuPick, NativeMenuValue, NativeSampleAvailability,
-    NativeSamplePlayback, SAMPLER_KITS, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
+    NativeSamplePlayback, SAMPLER_KITS, SAMPLE_GAIN_MAX_PCT, SAMPLE_LOOP_MODES,
+    SAMPLE_START_MAX_PCT,
 };
 use crate::native_menu::{FactoryLoadKind, PlatformAction};
 use crate::native_menu::{FILTER_ENV_AMOUNT_PCT, FILTER_KEY_TRACKING_PCT, FILTER_RESONANCE};
@@ -87,7 +88,7 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             format!("{prefix}.sample.amp.gainPct"),
             i32::from(config.sample_gain_pct),
             0,
-            100,
+            i32::from(SAMPLE_GAIN_MAX_PCT),
             1,
         ),
         number_item(

@@ -55,7 +55,7 @@ pub struct NativeMenuConfig {
     pub instrument_synth_gain_pct: Vec<u8>,
     pub instrument_synth_filter_resonance: Vec<u8>,
     pub instrument_sample_tune_semis: Vec<i8>,
-    pub instrument_sample_gain_pct: Vec<u8>,
+    pub instrument_sample_gain_pct: Vec<u16>,
     pub instrument_sample_base_velocity: Vec<u8>,
     pub instrument_sample_amp_velocity_sensitivity_pct: Vec<u8>,
     pub instrument_sample_velocity_levels_enabled: Vec<bool>,
@@ -378,6 +378,11 @@ pub const SAMPLER_KITS: [(&str, &str, [&str; 8]); 3] = [
 ];
 /// Start and Loop Start stop one percent short of the sample's end, so a loop is never empty.
 pub const SAMPLE_START_MAX_PCT: u8 = 99;
+/// Sampler voices take the synth's ×0.35 headroom, so Gain reaches 300% to play a sample above
+/// its recorded level.
+pub const SAMPLE_GAIN_MAX_PCT: u16 = 300;
+/// The Gain a factory Sampler kit load sets: its samples at their recorded level (286 × 0.35).
+pub const SAMPLER_KIT_GAIN_PCT: u16 = 286;
 
 impl Default for NativeSamplePlayback {
     fn default() -> Self {

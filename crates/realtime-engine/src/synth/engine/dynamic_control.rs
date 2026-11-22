@@ -221,7 +221,7 @@ impl SynthEngine {
                     set_clamped_f32(&mut bank.tune_semis, value, -24.0, 24.0, 1.0)
                 }
                 SampleBankParamId::AmpGainPct => {
-                    set_clamped_f32(&mut bank.gain_pct, value, 0.0, 100.0, 1.0)
+                    set_clamped_f32(&mut bank.gain_pct, value, 0.0, 300.0, 1.0)
                 }
                 SampleBankParamId::AmpVelocitySensitivityPct => {
                     set_clamped_f32(&mut bank.velocity_sensitivity_pct, value, 0.0, 100.0, 1.0)
