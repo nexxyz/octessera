@@ -376,11 +376,11 @@ usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
 - `show_mode` starts a show from the menu, rewrites its length to 70 s as the
   runtime would, and bind-mounts the installed `octessera-show-hold-apply`
   with only its step changed to 20 s, so the re-arm runs four times. At 45 s
-  (after which it restarts the service) the show must have banked 40 s with a
-  release timer armed; at 100 s `length` and `elapsed` must be gone, the radio
+  (after which it restarts the service) the show must have banked 40 s with
+  exactly one release timer armed; at 100 s `length` and `elapsed` must be gone, the radio
   unblocked, the Raspberry's network-health timer active again and no release
   run failed in the journal. A second show ended from the menu must unblock
-  the radio within 5 s. The board is off Wi-Fi for about two minutes; the
+  the radio within 5 s and leave no `length` and no release timer. The board is off Wi-Fi for about two minutes; the
   cleanup ends any show it left.
 - `update_fail` runs this tree's `octessera-update switch` against scratch
   releases beside the clone, with the service's binary pointed at their
@@ -395,10 +395,13 @@ usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
   last restart on the release it ended on must load the clone. The journal is
   not checked for errors: the failing releases log them by design. The real
   `/opt/octessera` links are never touched.
-- `fuzz` types 600 seeded random taps on repeat for 5 minutes on the store's
-  own patch: grid keys with and without Alt, the dials, Back, Play, Shift and
-  Fn chords and short holds. Set `OCTESSERA_SCENARIO_FUZZ_SEED` to replay a
-  seed from the summary. The drop-in keeps the service away from root's power,
+- `fuzz` types random taps for 5 minutes on the store's own patch, 600 per
+  round, each round seeded with the run's seed plus the round number: grid keys
+  with and without Alt, the dials, Back, Play, Shift and Fn chords and short
+  holds. Set `OCTESSERA_SCENARIO_FUZZ_SEED` to replay a seed from the summary.
+  It ends with one known edit, Grid Bright two detents, which must reach the
+  clone: a walk that switched the keyboard off (Bluetooth, on the Raspberry)
+  would otherwise make the rest a silent no-op. The drop-in keeps the service away from root's power,
   device-apply, update, setup-portal, Orange storage-control (SD2 transfer)
   and Live Show Mode paths. It needs no panic, no exit other than the restart
   request (75) except a plain exit right after such a refused power request,
@@ -448,7 +451,7 @@ Backup and restore over HTTP needs the transfer code that only the OLED shows;
 `user_data_transfer` and `user_data_restore` tests cover the interrupted upload,
 the staging leftovers and the restore.
 
-`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `tempo_mod`, `usb_audio` and `usb_audio_fx` are driven from this
+`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_hold_trig`, `tempo_mod`, `usb_audio` and `usb_audio_fx` are driven from this
 host over the board's USB connection, so plug both boards in and install `python-rtmidi`,
 `sounddevice` and `numpy` (`pip install python-rtmidi sounddevice numpy`);
 `ffmpeg` decodes the recording. The payload waits at a gate for each host
@@ -497,6 +500,14 @@ on the Orange, `Octessera Line In` on the Raspberry).
   Stop and Panic while held (`stop_releases_held_keyboard_notes_including_forwarded_midi_ones`,
   `panic_releases_held_keyboard_notes`), and the Sampler's note range
   (`a_sampler_slot_plays_only_notes_36_to_43`).
+- `usb_hold_trig` is the `usb_midi` rig with only the store's Life layer: Event
+  Triggers off, Hold Trig = note on for slot 1, a Synth with Hold, seeded with
+  a diagonal of three cells whose middle one stays lit for one step and then
+  dies. `host_usb_midi.py ... hold_trig` clocks 100 BPM for 6 s. The mirrored
+  Hold note must end while the clock still runs, at least 1 s before Stop.
+  Until the fix for review a493f27c item 3 lands it is marked expected-fail:
+  the summary says `XFAIL` while it fails and `XPASS` once it passes (then drop
+  its entry in `board-scenarios-check.py`); neither counts as FAIL.
 - `tempo_mod` plays the store's own patch on the board's internal clock with
   Clock Out on USB MIDI, Link LFO 1 on BPM (1/4, depth 75%) and CC1 on BPM.
   `host_usb_midi.py ... tempo_mod` sends no clock: it sweeps CC1 0-127-0 (254

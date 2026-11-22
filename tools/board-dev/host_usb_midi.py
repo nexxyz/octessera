@@ -1,13 +1,14 @@
 """Closed-loop USB MIDI timing test against a board running the usb_midi scenario (run on the host).
 
-usage: host_usb_midi.py <Raspberry|Orange> <straight|swing|cc|looper|notes_in|tempo_mod> <result.json>
+usage: host_usb_midi.py <Raspberry|Orange> <straight|swing|cc|looper|notes_in|hold_trig|tempo_mod> <result.json>
 straight: Start, 24 PPQN clock at 100 BPM for 120 s, 140 BPM for 60 s, Stop. swing: 100 BPM for 30 s
 with the board on Swing 4:5. cc: 100 BPM for 36 s with CC1 at 16, 48 and 96 for 12 s each; the board
 maps CC1 to Vel Scale, so the mirrored Drum's velocity must follow each value from the next step on.
 looper: 100 BPM for four passes of an 8-step 1/8 Looper, keyboard notes on channel 1 at Start, early
 in step 3 and late in step 5, and one more after Stop. notes_in: 20 keyboard notes, 10 with every
 note echoed back after 5 ms, a key released just after the sequenced note-off of the same note, then
-10 echoed after 80 ms and Stop. tempo_mod: no clock; on the board's own clock, with an LFO and CC1 both
+10 echoed after 80 ms and Stop. hold_trig: 100 BPM for 6 s while the board's Life layer lights one tile
+for a step and goes dark; its Hold note must end while the clock still runs. tempo_mod: no clock; on the board's own clock, with an LFO and CC1 both
 on BPM, four fast CC1 sweeps, the last held at 64, then 6 s of the board's clock out. Every incoming message is stamped with perf_counter while the same loop
 sends the clock, so the stamps share the clock's time base. Intervals near a clock pulse the host
 itself sent more than 1 ms late are left out of the interval checks and counted. Needs python-rtmidi.
@@ -248,9 +249,23 @@ def analyze_tempo(run):
     return problems, metrics
 
 
+def analyze_hold_trig(run):
+    """Every mirrored Hold note must end while the clock still runs, at least 1 s before Stop."""
+    found = [n for n in notes(run["received"]) if n[0] == DRUM]
+    hanging = [n for n in found if n[3] is None or n[3] > run["stop"] - 1.0]
+    metrics = {"notes": [[n[1], round(n[2] - run["start"], 3), None if n[3] is None else round(n[3] - run["start"], 3)]
+                         for n in found], "stop_s": round(run["stop"] - run["start"], 3)}
+    problems = [] if found else ["no Hold note sounded: the case did not set up its tile"]
+    if hanging:
+        problems.append(f"{len(hanging)} Hold notes still sounded 1 s before Stop, after the grid went dark: {metrics['notes'][:4]}")
+    return problems, metrics
+
+
 def analyze(run, phase):
     if phase == "tempo_mod":
         return analyze_tempo(run)
+    if phase == "hold_trig":
+        return analyze_hold_trig(run)
     if phase == "cc":
         return analyze_cc(run)
     if phase in ("looper", "notes_in"):
@@ -314,7 +329,7 @@ def main():
     name, phase, result = sys.argv[1:4]
     segments = {"straight": [(100, 120), (140, 60)], "swing": [(100, 30)], "cc": [(100, 36)],
                 "looper": [(100, LOOPER_PLAYED_S)], "notes_in": [(100, NOTES_PLAYED_S)],
-                "tempo_mod": [(None, TEMPO_LISTEN_S)]}[phase]
+                "hold_trig": [(100, 6)], "tempo_mod": [(None, TEMPO_LISTEN_S)]}[phase]
     sends = {"cc": [(t, [0xB0, 1, value]) for t, value in CC_STEPS],
              "looper": keys([(t, note) for t, note, _ in LOOPER_TAPS], HOLD_S),
              "notes_in": keys(NOTES_PLAIN + NOTES_ECHO_5 + NOTES_ECHO_80) + [(HELD_KEY_S, [0x90, 60, 100])],

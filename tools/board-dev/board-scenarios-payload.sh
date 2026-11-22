@@ -8,7 +8,7 @@
 #   board-scenarios-payload.sh <rpi|opi> <root> boot
 #   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap presets
 #     stop_save show_mode update_fail fuzz resets bad_stores full_card
-#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|tempo_mod|usb_audio|usb_audio_fx
+#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_hold_trig|tempo_mod|usb_audio|usb_audio_fx
 # Root reads privileged files; the redirects deliberately write as the unprivileged payload user.
 # shellcheck disable=SC2024
 set -u
@@ -300,19 +300,30 @@ stop_save() {
   rec=$(sudo -n find "$recordings" -maxdepth 1 -type f -name '*.wav' ! -name '*.partial.wav' -newer "$root/stop-rec-started" | tail -n 1)
   [ -n "$rec" ] && sudo -n cat "$rec" > stop-recording.media
 }
+system_value() {
+  sudo -n python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["runtimeConfig"][sys.argv[2]])' \
+    "$store/system.json" "$1"
+}
 rss() { sudo -n awk '/VmRSS/{print $2}' "/proc/$(systemctl show -p MainPID --value "$service")/status"; }
 # Five minutes of seeded random input on the store's own patch. The service cannot reach root's
 # power, device-apply, update, setup-portal, Orange storage-control (SD2 transfer) or Live Show
 # Mode paths while it runs. A restart afterwards shows the clone still loads.
 fuzz() {
-  configure autoSaveDefault=false dimTimerSeconds=0 screenSleepSeconds=0
-  local seed=${OCTESSERA_SCENARIO_FUZZ_SEED:-$(date +%s)} start_sandbox restarted=no
+  configure autoSaveDefault=false dimTimerSeconds=0 screenSleepSeconds=0 perfViewOnBack=false
+  local seed=${OCTESSERA_SCENARIO_FUZZ_SEED:-$(date +%s)} start_sandbox restarted=no grid turn expected
   start_sandbox=$sandbox
   start OCTESSERA_TIMING_AUTOPLAY=1 || return
   echo "start seed=$seed pid=$(systemctl show -p MainPID --value "$service") rss_kb=$(rss)" >> fuzz.log
   keys fuzz "random:$seed" 300
   echo "end pid=$(systemctl show -p MainPID --value "$service") rss_kb=$(rss) active=$(systemctl is-active "$service")" >> fuzz.log
   mark fuzz_typed
+  # One known edit at the end: a walk that switched the keyboard off (Bluetooth on the Raspberry)
+  # would have made the rest a no-op, and this edit would not land.
+  grid=$(system_value gridBrightness)
+  if [ "$grid" -ge 55 ]; then turn=left expected=$((grid - 10)); else turn=right expected=$((grid + 10)); fi
+  keys fuzz_edit "$display up*2 enter $turn*2 enter"
+  for _ in $(seq 1 20); do [ "$(system_value gridBrightness)" = "$expected" ] && break; sleep 0.5; done
+  echo "edit before=$grid expected=$expected after=$(system_value gridBrightness)" >> fuzz.log
   start OCTESSERA_TIMING_AUTOPLAY=1 && restarted=yes
   echo "restart ready=$restarted" >> fuzz.log
 }
@@ -336,6 +347,7 @@ usb_midi_phase() {
 }
 usb_midi_cc() { usb_midi_phase usb_midi_cc; }
 usb_notes_in() { usb_midi_phase usb_notes_in; }
+usb_hold_trig() { usb_midi_phase usb_hold_trig; }
 # The store's own patch plays on the board's clock while the host sweeps CC1 over BPM against a BPM
 # LFO; after the host is done, Stop, and the saved patch must hold the last CC's BPM.
 tempo_mod() {

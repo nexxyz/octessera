@@ -12,6 +12,8 @@ from pathlib import Path
 from board_scenarios_evidence import errors, fields, first, journal, marks, window_counts, window_errors
 # Dispatched by name through globals() in main().
 from board_scenarios_store_checks import bad_stores, full_card, resets  # noqa: F401
+from board_scenarios_usb_checks import (  # noqa: F401
+    tempo_mod, usb_audio, usb_audio_fx, usb_hold_trig, usb_looper, usb_midi, usb_midi_cc, usb_notes_in)
 
 def boot(board, out):
     host = (out / "boot-host.log").read_text()
@@ -245,7 +247,8 @@ def fuzz(board, out):
     """No crash and no exit but the restart request (75): only a plain exit right after a power request
     the sandbox refused is the sandbox's doing. Error lines from the sandbox's refusals are excused;
     any other one fails. RSS is reported: it warms up for the soak's 20 minutes."""
-    start, end, restart = (fields(line)[1] for line in (out / "fuzz.log").read_text().splitlines()[:3])
+    logged = dict(fields(line) for line in (out / "fuzz.log").read_text().splitlines())
+    start, end, edit, restart = logged["start"], logged["end"], logged["edit"], logged["restart"]
     found = marks(out)
     rows = [r for r in journal(out / "journal.log") if found["fuzz_begin"] <= r[0] <= found["fuzz_typed"]]
     problems, refused = [], []
@@ -260,9 +263,13 @@ def fuzz(board, out):
                  if not any(r - 1 <= float(line.split()[0]) <= r + 1 for r in refused)]
     if end["active"] != "active" or restart["ready"] != "yes":
         problems.append(f"the service is {end['active']} after the fuzz, and ready after a restart: {restart['ready']}")
+    if edit["after"] != edit["expected"]:
+        problems.append(f"the closing Grid Bright edit did not land ({edit['before']} -> {edit['after']}, not "
+                        f"{edit['expected']}): the walk left the keyboard or the menu unusable")
     restarts = sum("Main process exited" in text for _, _, text in rows)
     return problems, (f"seed {start['seed']}, {restarts} app exits, {len(errors(rows, sandboxed=True))} error lines, RSS "
-                      f"{start['rss_kb']} -> {end['rss_kb']} kB (pid {start['pid']} -> {end['pid']})")
+                      f"{start['rss_kb']} -> {end['rss_kb']} kB (pid {start['pid']} -> {end['pid']}), closing edit "
+                      f"{edit['before']} -> {edit['after']}")
 
 
 def show_mode(board, out):
@@ -270,8 +277,8 @@ def show_mode(board, out):
     problems = []
     if rows["started"]["wlan_blocked"] != "yes" or rows["second_started"]["wlan_blocked"] != "yes":
         problems.append("Start 48h did not block the radio")
-    at45, at100, ended = rows["at45"], rows["at100"], rows["ended"]
-    if at45["elapsed"] != "40" or at45["release_timers"] == "0" or at45["wlan_blocked"] != "yes":
+    at45, at100, ended, after_end = rows["at45"], rows["at100"], rows["ended"], rows["after_end"]
+    if at45["elapsed"] != "40" or at45["release_timers"] != "1" or at45["wlan_blocked"] != "yes":
         problems.append(f"at 45 s: banked {at45['elapsed']} s (not 40), {at45['release_timers']} release timers")
     if at100["length"] or at100["elapsed"] or at100["wlan_blocked"] != "no":
         problems.append(f"the 70 s show did not end by itself: {at100}")
@@ -282,10 +289,13 @@ def show_mode(board, out):
     problems += [f"journal: {line}" for line in failed]
     if ended["wlan_blocked"] != "no" or int(ended["after"].rstrip("s")) > 5:
         problems.append(f"End left the radio blocked for {ended['after']}")
+    if after_end["release_timers"] != "0" or after_end["length"]:
+        problems.append(f"after End: {after_end['release_timers']} release timers, length '{after_end['length']}'")
     problems += window_errors(out, "show_mode")
     return problems, (f"at 45 s banked {at45['elapsed']} s with {at45['release_timers']} release timer(s); at 100 s "
                       f"length '{at100['length']}', radio blocked {at100['wlan_blocked']}, health timer "
-                      f"{at100['health_timer']}; End unblocked the radio after {ended['after']}")
+                      f"{at100['health_timer']}; End unblocked the radio after {ended['after']} and left "
+                      f"{after_end['release_timers']} release timers")
 
 
 UPDATE_STEPS = {"good": ("0", "0.9.91", "Now running v0.9.91"), "back": ("0", "0.9.90", "Now running v0.9.90"),
@@ -310,144 +320,6 @@ def update_fail(board, out):
     return problems, "; ".join(evidence)
 
 
-def usb_midi(board, out):
-    problems, evidence = [], []
-    for phase, gate in (("straight", "usb_midi"), ("swing", "usb_midi_swing")):
-        result = json.loads((out / f"usb-midi-{phase}.json").read_text())
-        underruns, late, worst, journal_errors = window_counts(out, f"{gate}_ready", f"{gate}_go")
-        problems += [f"{phase}: {p}" for p in result["problems"] + journal_errors]
-        if underruns or late:
-            problems.append(f"{phase}: {underruns} underruns and {late} late timed events (timing smoke: 0 and 0)")
-        evidence.append(f"{phase} {json.dumps(result['metrics'])}, {underruns} underruns, {late} late timed events, "
-                        f"worst runtime_late {worst}us")
-    return problems, "; ".join(evidence)
-
-
-def host_midi(out, scenario):
-    result = json.loads((out / f"usb-midi-{scenario.removeprefix('usb_').removeprefix('midi_')}.json").read_text())
-    underruns, late, worst, journal_errors = window_counts(out, f"{scenario}_ready", f"{scenario}_go")
-    problems = result["problems"] + journal_errors
-    if underruns or late:
-        problems.append(f"{underruns} underruns and {late} late timed events (timing smoke: 0 and 0)")
-    return problems, (f"{json.dumps(result['metrics'])}, {underruns} underruns, {late} late timed events, "
-                      f"worst runtime_late {worst}us")
-
-
-def usb_midi_cc(board, out):
-    return host_midi(out, "usb_midi_cc")
-
-
-def usb_notes_in(board, out):
-    return host_midi(out, "usb_notes_in")
-
-
-def weighted(stats):
-    """avg and max over (n, avg, max) samples, the avg weighted by n."""
-    total = sum(n for n, _, _ in stats)
-    return (round(sum(n * avg for n, avg, _ in stats) / total) if total else None,
-            max((top for _, _, top in stats), default=None))
-
-
-def tempo_mod(board, out):
-    """The host's clock-out checks, one pulse per runtime dispatch at most, and the saved BPM: the
-    last CC's held value, not an LFO value. The peak tempo is 240 BPM (96 pulses/s, one every
-    10.4 ms) and the runtime dispatches every 8 ms, so a second pulse in one dispatch means the
-    runtime fell behind; the timing smoke baseline is 1."""
-    problems, evidence = host_midi(out, "tempo_mod")
-    found = marks(out)
-    rows = [text for t, _, text in journal(out / "journal.log")
-            if found["tempo_mod_ready"] <= t <= found["tempo_mod_go"]]
-    timing = [m for text in rows for m in [re.search(
-        r"runtime-timing playing .* max_pulses=(\d+) .* dispatch=\[n=(\d+) avg_us=(\d+) max_us=(\d+)\]", text)] if m]
-    late = [m for text in rows for m in [re.search(r"runtime_late=n=(\d+) avg=(\d+)us max=(\d+)us", text)] if m]
-    max_pulses = max((int(m.group(1)) for m in timing), default=None)
-    dispatch = weighted([(int(m.group(2)), int(m.group(3)), int(m.group(4))) for m in timing])
-    lateness = weighted([(int(m.group(1)), int(m.group(2)), int(m.group(3))) for m in late])
-    held = json.loads((out / "usb-midi-tempo_mod.json").read_text())["metrics"]["held_bpm"]
-    saved = json.loads((out / "tempo-patch.json").read_text())["runtimeConfig"]["transport"]["bpm"]
-    if max_pulses is None or max_pulses > 1:
-        problems.append(f"max_pulses per dispatch {max_pulses}, not 1")
-    if abs(saved - held) > 1:
-        problems.append(f"the saved patch plays BPM {saved}, not the last CC's {held}")
-    return problems, (f"{evidence}; max_pulses {max_pulses}; dispatch avg/max {dispatch[0]}/{dispatch[1]} us; "
-                      f"runtime_late avg/max {lateness[0]}/{lateness[1]} us; saved BPM {saved} (held {held})")
-
-
-def usb_looper(board, out):
-    """The host's timing checks, plus the autosaved steps: one press and one release per tapped tile
-    (note 60 + tile), each press on the step it must land on."""
-    problems, evidence = host_midi(out, "usb_looper")
-    layer = json.loads((out / "looper-patch.json").read_text())["runtimeConfig"]["layers"][0]
-    steps = layer["build"]["savedState"]["steps"]
-    found = {}
-    for index, events in enumerate(steps):
-        for event in events:
-            found.setdefault(event["tile"], []).append((event["kind"], index))
-    expected = {0: 0, 1: 2, 2: 5, 3: 0}
-    for tile, step in expected.items():
-        kinds = sorted(kind for kind, _ in found.get(tile, []))
-        if kinds != ["press", "release"] or (("press", step) not in found[tile]):
-            problems.append(f"tile {tile}: saved {found.get(tile)}, not one press on step {step} and one release")
-    if set(found) - set(expected):
-        problems.append(f"unexpected tiles saved: {sorted(set(found) - set(expected))}")
-    return problems, f"{evidence}; saved {found}"
-
-
-def usb_audio_fx(board, out):
-    result = json.loads((out / "usb-audio-fx.json").read_text())
-    underruns, _, worst, _ = window_counts(out, "fx_hold", "fx_release")
-    problems = result["problems"] + window_errors(out, "usb_audio_fx")
-    if underruns:
-        problems.append(f"{underruns} underruns while the tape stop was held")
-    return problems, f"{json.dumps(result['metrics'])}, {underruns} underruns, worst runtime_late {worst}us"
-
-
-def clip_frames(avi):
-    probe = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-of", "json", str(avi)],
-                                      capture_output=True, check=True).stdout)
-    video = next(s for s in probe["streams"] if s["codec_type"] == "video")
-    width, height = int(video["width"]), int(video["height"])
-    rgb = subprocess.run(["ffmpeg", "-v", "error", "-i", str(avi), "-map", "0:v", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
-                         capture_output=True, check=True).stdout
-    size = width * height * 3
-    red = []
-    for start in range(0, len(rgb) - size + 1, size):
-        hits = 0
-        for y in range(0, 5):
-            row = rgb[start + (y * width + 88) * 3:start + (y * width + 104) * 3]
-            hits += sum(1 for i in range(0, len(row), 3) if row[i] > 128 and row[i + 1] < 64 and row[i + 2] < 64)
-        red.append(hits > 0)
-    return red
-
-
-def usb_audio(board, out):
-    problems, evidence = [], []
-    for take in ("level", "clip"):
-        result = json.loads((out / f"usb-audio-{take}.json").read_text())
-        problems += [f"{take}: {p}" for p in result["problems"]]
-        evidence.append(f"{take} {json.dumps(result['metrics'])}")
-    underruns, late, worst, journal_errors = window_counts(out, "usb_audio_ready", "usb_audio_go")
-    problems += journal_errors
-    if underruns:
-        problems.append(f"{underruns} underruns during the level take")
-    red = clip_frames(out / "clip.avi")
-    pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(out / "clip.avi"), "-map", "0:a", "-f", "s16le", "-ac", "1", "-"],
-                         capture_output=True, check=True).stdout
-    samples = memoryview(pcm).cast("h")
-    clipped = [i for i in range(0, len(samples), 64) if max(map(abs, samples[i:i + 64])) >= 32767]
-    last = clipped[-1] / 44100 if clipped else 0.0
-    lit = sum(red[: int(last * 20)])
-    cleared = next((i / 20 - last for i in range(int(last * 20), len(red)) if not any(red[i:i + 20])), None)
-    if not clipped or lit < (last - 1) * 20 * 0.9:
-        problems.append(f"CLIP lit in only {lit} of the {int(last * 20)} frames while the take clipped")
-    if cleared is None or not 2.0 <= cleared <= 3.0:
-        problems.append(f"CLIP cleared {cleared} s after the last clipped sample, not 2-3 s")
-    evidence.append(f"{underruns} underruns, {late} late timed events, worst runtime_late {worst}us; recording clipped "
-                    f"for {last:.2f} s, CLIP lit in {lit} of those frames, cleared "
-                    f"{cleared if cleared is None else round(cleared, 2)} s after the last clipped sample")
-    return problems, "; ".join(evidence)
-
-
 RESTORED = "service=active live_store_unchanged=yes dropin_left=no gadget_restored=yes clone_mounted=no"
 
 
@@ -461,6 +333,11 @@ def restore(board, out):
     return problems, f"{len(lines)} of {len(launches)} payload run(s) restored"
 
 
+# Cases that fail on a known product bug until its fix lands: XFAIL while they fail, XPASS (drop the
+# entry) once they pass. Neither counts as FAIL.
+EXPECTED_FAIL = {"usb_hold_trig": "review a493f27c item 3: a Hold Trig note never ends with Event Triggers off"}
+
+
 def main():
     board, out, scenarios = sys.argv[1], Path(sys.argv[2]), sys.argv[3:]
     for name in scenarios:
@@ -469,6 +346,9 @@ def main():
         except (OSError, KeyError, ValueError, StopIteration, AttributeError, subprocess.CalledProcessError) as error:
             problems, evidence = [f"evidence missing or unreadable: {error!r}"], ""
         verdict = "FAIL" if problems else "PASS"
+        if name in EXPECTED_FAIL:
+            verdict = "XFAIL" if problems else "XPASS"
+            evidence = f"{evidence} (expected to fail: {EXPECTED_FAIL[name]})"
         print(f"{verdict} {name}: {evidence}")
         for problem in problems:
             print(f"  - {problem}")

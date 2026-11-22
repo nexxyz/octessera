@@ -21,6 +21,9 @@ setups:
   unknown_runtime_key  System with an unknown key in runtimeConfig
   truncated_patch the patch cut to half its bytes
   full_card       Auto Save on, View on Back off, keyboard capture allowed
+  usb_hold_trig   the usb_midi rig; only the store's Life layer (L1), Event Triggers off, Hold Trig = note on
+                  for slot 1, a Synth with Hold, seeded with a diagonal of three cells whose middle one
+                  stays lit for one step and then dies with the rest
   tempo_mod       the store's own patch with Auto Save on, internal clock with Clock Out on USB MIDI,
                   Link LFO 1 on BPM (1/4, depth 75%) and CC1 (any channel) on BPM
   presets         Auto Save on, View on Back off, keyboard capture allowed; presets A and AB, the
@@ -159,6 +162,19 @@ def main():
             instruments[4].update(type="midi", name="MIDI", autoName=True)
             instruments[4]["midi"].update(enabled=True, channel=1)
         chromatic(music["layers"][0])
+    elif setup == "usb_hold_trig":
+        midi_rig(config)
+        life = json.loads(json.dumps(music["layers"][0]))
+        if life["build"]["behaviorId"] != "life":
+            sys.exit("usb_hold_trig needs the store's L1 to be Life")
+        patch_layers(music, {})
+        music["layers"][0] = life
+        music.update(activeBehavior="life", activeLayerIndex=0)
+        instruments[0].update(type="synth", name="Synth", autoName=True, noteBehavior="hold")
+        life["link"].update(eventEnabled=False, stateNotesEnabled=True)
+        life["link"]["mapping"]["stable"].update(action="note_on", slot=0)
+        life["build"]["savedState"].update(cells=[i in (18, 27, 36) for i in range(64)], triggerTypes=["none"] * 64,
+                                           gliderSpawnInterval=0, randomCellsPerTick=0)
     elif setup == "tempo_mod":
         config.update(autoSaveDefault=True, perfViewOnBack=False)
         allow_keyboard(config)

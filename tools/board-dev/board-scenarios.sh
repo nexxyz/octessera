@@ -7,7 +7,7 @@
 #   tools/board-dev/board-scenarios.sh rpi pi@<PI_HOST> [scenario ...]
 #   tools/board-dev/board-scenarios.sh opi octessera@<ORANGE_HOST> [scenario ...]
 # Scenarios: boot save_restore recording oled soak keymap presets stop_save show_mode update_fail fuzz
-# resets bad_stores full_card usb_midi usb_midi_cc usb_looper usb_notes_in tempo_mod usb_audio
+# resets bad_stores full_card usb_midi usb_midi_cc usb_looper usb_notes_in usb_hold_trig tempo_mod usb_audio
 # usb_audio_fx (default: all). boot really reboots the board and only reads the live service; the
 # others run detached on a cloned store. The usb_ ones and tempo_mod are driven from this host over
 # the board's USB connection (host_usb_midi.py, host_usb_audio.py) and use SSH only between their measurements; the rest use none
@@ -19,7 +19,7 @@ shift 2
 [[ "$board" == rpi || "$board" == opi ]] || { echo "board must be rpi or opi" >&2; exit 2; }
 scenarios=("$@")
 [ ${#scenarios[@]} -gt 0 ] || scenarios=(boot save_restore recording oled soak keymap presets stop_save show_mode update_fail fuzz resets bad_stores full_card usb_midi
-  usb_midi_cc usb_looper usb_notes_in tempo_mod usb_audio usb_audio_fx)
+  usb_midi_cc usb_looper usb_notes_in usb_hold_trig tempo_mod usb_audio usb_audio_fx)
 soak_seconds=${OCTESSERA_SCENARIO_SOAK_SECONDS:-1500}
 cd "$(git rev-parse --show-toplevel)"
 port=Raspberry
@@ -78,7 +78,7 @@ for scenario in "${scenarios[@]}"; do
     resets) run+=("$scenario"); wait=$((wait + 120)) ;;
     bad_stores) run+=("$scenario"); wait=$((wait + 150)) ;;
     full_card) run+=("$scenario"); wait=$((wait + 120)) ;;
-    usb_midi | usb_midi_cc | usb_looper | usb_notes_in | tempo_mod | usb_audio | usb_audio_fx) ;;
+    usb_midi | usb_midi_cc | usb_looper | usb_notes_in | usb_hold_trig | tempo_mod | usb_audio | usb_audio_fx) ;;
     *) echo "unknown scenario: $scenario" >&2; exit 2 ;;
   esac
 done
@@ -110,7 +110,7 @@ if [ ${#run[@]} -gt 0 ]; then
     stop-recording.media show.log show-journal.log update.log fuzz.log stores.log poll.log resets-factory-patch.json
 fi
 
-for scenario in usb_midi usb_midi_cc usb_looper usb_notes_in tempo_mod usb_audio usb_audio_fx; do
+for scenario in usb_midi usb_midi_cc usb_looper usb_notes_in usb_hold_trig tempo_mod usb_audio usb_audio_fx; do
   [[ " ${scenarios[*]} " == *" $scenario "* ]] || continue
   upload
   remote ssh "setsid nohup taskset -c 0 bash $root/board-scenarios-payload.sh $board $root run 0 $scenario > $root/host.log 2>&1 < /dev/null &"
@@ -123,7 +123,7 @@ for scenario in usb_midi usb_midi_cc usb_looper usb_notes_in tempo_mod usb_audio
       open_gate "$gate"
     done
     collect
-  elif [[ "$scenario" == usb_midi_cc || "$scenario" == usb_looper || "$scenario" == usb_notes_in || "$scenario" == tempo_mod ]]; then
+  elif [[ " usb_midi_cc usb_looper usb_notes_in usb_hold_trig tempo_mod " == *" $scenario "* ]]; then
     phase=${scenario#usb_}
     phase=${phase#midi_}
     await_gate "$scenario" && { python tools/board-dev/host_usb_midi.py "$port" "$phase" "$out/usb-midi-$phase.json" || true; }

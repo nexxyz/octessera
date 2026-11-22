@@ -3,7 +3,7 @@
 usage: board-keys.py <usb|bt> <mark-log> <label> "<steps>" [seconds]
 steps: space-separated tokens: a key name with an optional *N repeat, wait:<s>, gap:<s> (pause after
 each tap, default 0.12), hold:<key>:<s> (holds one key down that long), or mark:<name> (writes
-"<uptime> <label>_<name>" to the mark log), or random:<seed> (600 seeded random taps: grid keys with
+"<uptime> <label>_<name>" to the mark log), or random:<seed> (600 random taps seeded with seed + the repeat number: grid keys with
 and without Alt, the dials, Back, Play, Shift and Fn chords and short holds). A key may be a chord like
 alt+r: the modifiers are held around each tap. Grid keys use their US keycaps (4..0 -,
 r..p [, f..l ; ', c..m , . /). With seconds, the steps repeat until that much time has passed.
@@ -63,9 +63,9 @@ def main():
     time.sleep(3.0)
     gap = 0.12
     end = time.monotonic() + seconds
-    tokens = [tap for token in steps.split()
-              for tap in (random_taps(int(token[7:])) if token.startswith("random:") else [token])]
-    while True:
+    for loop in range(1_000_000):
+        tokens = [tap for token in steps.split()
+                  for tap in (random_taps(int(token[7:]) + loop) if token.startswith("random:") else [token])]
         for token in tokens:
             kind, _, value = token.partition(":")
             if kind == "wait":
