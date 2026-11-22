@@ -73,7 +73,7 @@ fn clave_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
     let page = (state.phase / state.cycle_length as u64) as usize;
     let span = state.cycle_length.max(8) as usize;
     let shifted =
-        y >= 4 && hash(state.seed, 0, y, page as u64) % 100 < u32::from(state.variation_pct);
+        y >= 1 && hash(state.seed, 0, y, page as u64) % 100 < u32::from(state.variation_pct);
     let variation_shift = if shifted {
         (state.seed as usize + y) % 3 + 1
     } else {
@@ -81,7 +81,13 @@ fn clave_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
     };
     let step = (x + y % 2 + page + variation_shift + state.seed as usize) % span;
     let clave_step = (step * 16 / span) % 16;
-    (CELL.contains(&clave_step) && y <= (density_lanes(state) + 2).min(GRID_HEIGHT - 1))
+    let lanes = 3 + fractional_count(
+        state,
+        usize::from(state.density_pct) * 25 / 4,
+        0,
+        page as u64,
+    );
+    (CELL.contains(&clave_step) && y < lanes)
         || (y == 7 && clave_step == 8)
         || scan_breath(state, x, y)
 }
@@ -149,7 +155,7 @@ fn contour_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
     let page = state.phase / state.cycle_length as u64;
     let center = ((page + x as u64 + state.seed as u64) % 14) as i32;
     let folded = if center > 7 { 14 - center } else { center } as usize;
-    let width = (state.density_pct as usize * 3 + 50) / 100;
+    let width = fractional_count(state, state.density_pct as usize * 3, x, page);
     let counter_line = hash(state.seed, x, 0, page) % 100 < u32::from(state.variation_pct) / 2;
     y.abs_diff(folded.min(GRID_HEIGHT - 1)) <= width
         || (counter_line && y == (folded + 3).min(GRID_HEIGHT - 1))
@@ -162,11 +168,10 @@ fn cadence_lanes(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
     let bar = step / 4;
     let lifted = hash(state.seed, bar, 0, page) % 100 < u32::from(state.variation_pct);
     let root = match bar {
-        0 => 0,
         1 => 3,
-        2 => 4 + usize::from(lifted),
+        2 => 4,
         _ => 0,
-    };
+    } + usize::from(lifted);
     let density = u32::from(state.density_pct);
     let tone = |salt: usize| hash(state.seed, x, salt, page) % 100;
     y == root
@@ -206,8 +211,18 @@ fn lane_hits(state: &PatternBehaviorState, steps: usize, y: usize) -> usize {
     (((steps * state.density_pct as usize) / 100) + varied).clamp(1, steps.saturating_sub(1).max(1))
 }
 
+/// Density's share of the eight lanes; the lane a fraction reaches into plays on that share of
+/// the pages, so every percent counts.
 fn density_lanes(state: &PatternBehaviorState) -> usize {
-    ((GRID_HEIGHT * state.density_pct as usize + 50) / 100).clamp(1, GRID_HEIGHT - 1)
+    let page = state.phase / state.cycle_length as u64;
+    fractional_count(state, GRID_HEIGHT * state.density_pct as usize, 0, page)
+        .clamp(1, GRID_HEIGHT - 1)
+}
+
+/// `hundredths / 100`, its fraction rounded up or down by a roll for column `x` on `page`.
+fn fractional_count(state: &PatternBehaviorState, hundredths: usize, x: usize, page: u64) -> usize {
+    let extra = (hash(state.seed, x, GRID_HEIGHT, page) % 100) < (hundredths % 100) as u32;
+    hundredths / 100 + usize::from(extra)
 }
 
 /// The lane step a column plays on the current page: each page continues the lanes where the

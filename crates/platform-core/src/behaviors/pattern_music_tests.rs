@@ -205,3 +205,33 @@ fn each_lane_rolls_up_to_five_extra_hits_against_variation() {
         assert!(patterns.len() > 14, "{id}: {} patterns", patterns.len());
     }
 }
+
+fn frames_at(id: &str, config: Value) -> Vec<Vec<bool>> {
+    let mut state = pattern_init(id, config).unwrap();
+    (0..512)
+        .map(|_| {
+            state = crate::behaviors::pattern_music::pattern_on_tick(
+                state.clone(),
+                &mut BehaviorContext::new(120.0),
+            );
+            state.tiles.clone()
+        })
+        .collect()
+}
+
+#[test]
+fn every_density_and_variation_step_changes_the_pattern() {
+    for (id, key, values) in [
+        ("breaks", "densityPct", (10..=80).step_by(5)),
+        ("clave", "densityPct", (10..=80).step_by(5)),
+        ("contour", "densityPct", (10..=80).step_by(5)),
+        ("clave", "variationPct", (0..=100).step_by(5)),
+        ("cadence", "variationPct", (0..=100).step_by(5)),
+    ] {
+        let steps = values.clone().count();
+        let patterns = values
+            .map(|value| frames_at(id, serde_json::json!({ key: value, "seed": 401 })))
+            .collect::<HashSet<_>>();
+        assert_eq!(patterns.len(), steps, "{id} {key}");
+    }
+}
