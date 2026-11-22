@@ -135,12 +135,14 @@ pub fn keys_on_tick(state: KeysState, _context: &mut BehaviorContext) -> KeysSta
     let mut tiles = state.tiles.clone();
     let mut trigger_types = vec![TileTriggerType::None; TILE_COUNT];
     for index in 0..TILE_COUNT {
-        let sounding = state.held_tiles[index] || state.pressed_tiles.get(index) == Some(&true);
+        let pressed = state.pressed_tiles.get(index) == Some(&true);
+        let sounding = state.held_tiles[index] || pressed;
         match (sounding, state.tiles[index]) {
             (true, false) => {
                 tiles[index] = true;
                 trigger_types[index] = TileTriggerType::Activate;
             }
+            (true, true) if pressed => trigger_types[index] = TileTriggerType::Activate,
             (false, true) => {
                 tiles[index] = false;
                 trigger_types[index] = TileTriggerType::Deactivate;
@@ -299,6 +301,33 @@ mod tests {
         let ended = keys_on_tick(played, &mut context);
         assert!(!ended.tiles[index]);
         assert_eq!(ended.trigger_types[index], TileTriggerType::Deactivate);
+    }
+
+    #[test]
+    fn step_mode_plays_a_tap_on_a_still_lit_tile_again_each_step() {
+        let mut context = context();
+        let mut state = keys_init(serde_json::json!({ "quantize": "step" })).unwrap();
+        let index = grid_index(1, 1);
+        for step in 0..3 {
+            state = keys_on_input(state, DeviceInput::GridPress { x: 1, y: 1 }, &mut context);
+            state = keys_on_input(state, DeviceInput::GridRelease { x: 1, y: 1 }, &mut context);
+            state = keys_on_tick(state, &mut context);
+            assert!(state.tiles[index]);
+            assert_eq!(
+                state.trigger_types[index],
+                TileTriggerType::Activate,
+                "step {step}"
+            );
+        }
+        state = keys_on_input(state, DeviceInput::GridPress { x: 1, y: 1 }, &mut context);
+        state = keys_on_tick(state, &mut context);
+        assert_eq!(state.trigger_types[index], TileTriggerType::Activate);
+        state = keys_on_tick(state, &mut context);
+        assert_eq!(
+            state.trigger_types[index],
+            TileTriggerType::Stable,
+            "a key held on keeps its note"
+        );
     }
 
     #[test]

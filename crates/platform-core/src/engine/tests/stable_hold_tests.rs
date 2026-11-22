@@ -198,3 +198,28 @@ fn a_forgotten_channel_sounds_its_next_note_on_again() {
 
     assert_eq!(held.apply(&[on(60)], press(), &hold).events.len(), 1);
 }
+
+#[test]
+fn step_quantized_keys_play_a_tap_on_a_still_sounding_tile_every_step() {
+    let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
+        behavior: NativeBehavior::Keys,
+        behavior_config: serde_json::json!({ "quantize": "step" }),
+        ..base_config()
+    })
+    .unwrap();
+    for step in 0..4 {
+        engine
+            .on_input(DeviceInput::GridPress { x: 1, y: 1 }, 120.0)
+            .unwrap();
+        engine
+            .on_input(DeviceInput::GridRelease { x: 1, y: 1 }, 120.0)
+            .unwrap();
+        let tick = engine.tick(120.0).unwrap();
+        let note_ons = tick
+            .events
+            .iter()
+            .filter(|event| matches!(event, MusicalEvent::NoteOn { .. }))
+            .count();
+        assert_eq!(note_ons, 1, "step {step}: {:?}", tick.events);
+    }
+}
