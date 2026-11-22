@@ -135,7 +135,7 @@ layer_physarum_agents	*	key:layers.*.build.behaviorConfig.agentCount	number	Agen
 layer_physarum_sense	*	key:layers.*.build.behaviorConfig.senseDistance	number	Sense Distance	Sets how far agents sample trail and food.	Short sensing makes tighter wandering.
 layer_physarum_turn	*	key:layers.*.build.behaviorConfig.turnBiasPct	number	Turn Bias	Sets how decisively agents turn toward stronger samples.	Higher values make food and trails more persuasive.
 layer_physarum_deposit	*	key:layers.*.build.behaviorConfig.depositAmount	number	Deposit Amount	Sets how much trail each agent leaves behind.	Stronger deposits stay visible longer.
-layer_physarum_evap	*	key:layers.*.build.behaviorConfig.evaporationPct	number	Evaporation	Sets how quickly Physarum slime trails fade or Rivers water dries.	Higher values clear old paths or dry streams sooner; edges remain clipped.
+layer_physarum_evap	*	key:layers.*.build.behaviorConfig.evaporationPct	number	Evaporation	Sets how quickly Physarum slime trails fade or Rivers water dries.	Higher values clear old paths or dry streams sooner; even 100 leaves Rivers a trickle.
 life_spawn_shared_physarum_food	*	action:behavior_action:relocateFood	action	Relocate Food	Moves the food to the next layout without playing a note.	The slime follows the new scent over the next steps.
 life_spawn_shared_physarum_seed	*	action:behavior_action:seedSlime	action	Seed Slime	Gathers the slime into one cluster again; the food stays.	The new slime tiles play as they appear.
 layer_vines_prune	*	key:layers.*.build.behaviorConfig.pruneAge	number	Prune Age	Sets how long stems age before turning into leaves and pruning back.	Lower values shed sooner; full vines also drop a few old tiles to keep gaps open.

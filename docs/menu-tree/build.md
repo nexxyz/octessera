@@ -285,7 +285,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase. Th
 | rivers | Rain: [0..100] | number, step 1 (default 20) |
 | rivers | Flow: [0..100] | number, step 1 (default 50) |
 | rivers | Erosion: [0..100] | number, step 1 (default 15) |
-| rivers | Evaporation: [0..100] | number, step 1 (default 8) |
+| rivers | Evaporation: [0..100] | number, step 1 (default 50); 100 dries 16% of each tile's water a tick |
 | rivers | !Rain Burst | action |
 | rivers | !Reset Terrain | action |
 | kuramoto | Coupling: [0..100] | number, step 1 (default 10) |

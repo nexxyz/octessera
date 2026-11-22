@@ -195,8 +195,7 @@ fn sweep_findings(id: &str) -> Vec<String> {
 }
 
 const OFF: &str = "0 is off: the world was told to rest";
-const EXTREME: &str =
-    "a physical extreme: no fade, damping or kill fills the grid, full evaporation dries it";
+const EXTREME: &str = "a physical extreme: with no fade or damping the grid fills";
 const CAP: &str = "a cap: only reached after many presses or minutes of spawning";
 const OFFSET: &str = "an offset within the spawn interval: values a whole interval apart match";
 const NO_FADE: &str = "0 is off: nothing fades, so the lit tiles stand still";
@@ -208,7 +207,6 @@ const ROW_ACCENT: &str =
     "changes only the trigger a cleared row sends; few rows clear in 300 ticks";
 const CORAL_FILLS: &str = "a known fault: away from its defaults the reef fills the grid";
 const DLA_FILLS: &str = "a known fault: long Cell Life or Spawn Interval 1 fills the grid";
-const BROKEN: &str = "a known fault its behavior's own fix removes";
 const UNDRAWN: &str = "sequencer pages only differ once they are drawn on";
 const LIFE_AT_REST: &str =
     "with no spawning, Life settles into still lifes and blinkers or dies out, and rests until pressed";
@@ -247,8 +245,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("raindrops: spawnStep=0 and 63 play the same", OFFSET),
     ("rivers: rainPct=0 untouched dies out", OFF),
     ("rivers: rainPct=0 pressed dies out", OFF),
-    ("rivers: evaporationPct=100 untouched stays empty", EXTREME),
-    ("rivers: evaporationPct=100 pressed dies out", EXTREME),
     ("wave: dampingPct=0 untouched saturates", EXTREME),
     ("wave: dampingPct=0 pressed saturates", EXTREME),
     ("wave: autoImpulseInterval=0 untouched dies out", OFF),
@@ -296,8 +292,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("life: spawnStep=63 untouched freezes", LIFE_AT_REST),
     ("twinkle: fadeChancePct=0 untouched freezes", NO_FADE),
     ("twinkle: fadeChancePct=0 pressed freezes", NO_FADE),
-    ("rivers: evaporationPct=54 untouched stays empty", BROKEN),
-    ("rivers: evaporationPct=54 pressed dies out", BROKEN),
     (
         "fractal_explorer: zoomRatePct=0 untouched freezes",
         HELD_ZOOM,

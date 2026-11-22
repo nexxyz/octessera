@@ -160,7 +160,8 @@ pub fn rivers_on_tick(mut state: RiversState, _: &mut BehaviorContext) -> Rivers
     }
     for i in 0..TILE_COUNT {
         if state.evaporation_pct > 0 && nw[i] > 0 {
-            let evap = (u16::from(nw[i]) * u16::from(state.evaporation_pct) / 100).max(1) as u8;
+            let evap =
+                (u32::from(nw[i]) * u32::from(state.evaporation_pct) * 16 / 10_000).max(1) as u8;
             nw[i] = nw[i].saturating_sub(evap)
         }
         if ns[i] > 0 && tile_roll_pct(state.tick_counter, i, 29) < u32::from(state.erosion_pct) {
@@ -212,7 +213,7 @@ fn from_config(v: Value) -> RiversState {
         rain_pct: num(c.rain_pct, 20),
         flow_pct: num(c.flow_pct, 50),
         erosion_pct: num(c.erosion_pct, 15),
-        evaporation_pct: num(c.evaporation_pct, 8),
+        evaporation_pct: num(c.evaporation_pct, 50),
         tick_counter: 0,
         erosion_count: 0,
     };

@@ -106,7 +106,7 @@ fn flow_erosion_evaporation_status() {
     )
     .unwrap();
     let ticked = rivers_on_tick(state, &mut ctx);
-    assert_eq!(ticked.water[0], 0);
+    assert!(ticked.water[0] < VISIBLE);
     assert_eq!(ticked.trigger_types[0], TileTriggerType::Deactivate);
 }
 
