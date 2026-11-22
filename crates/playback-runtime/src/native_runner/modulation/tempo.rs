@@ -45,19 +45,27 @@ impl NativeRunner {
         changed
     }
 
+    /// A held source sets the tempo or swing and its row, so the encoder steps from there.
     pub(super) fn apply_tempo_binding(&mut self, key: &str, value: Value) -> bool {
         let Some(value) = value.as_f64() else {
             return false;
         };
-        if key == "transport.bpm" {
+        let changed = if key == "transport.bpm" {
             self.set_transport_bpm(value.round())
         } else {
             self.set_transport_swing(key, value.round() as i32)
+        };
+        if changed {
+            if let Some(value) = self.tempo_base_value(key) {
+                self.menu
+                    .set_number_value_for_key(key, value.round() as i32);
+            }
         }
+        changed
     }
 
     /// The set tempo or swing a modulation composes around.
-    pub(super) fn tempo_base_value(&self, key: &str) -> Option<f64> {
+    pub(in crate::native_runner) fn tempo_base_value(&self, key: &str) -> Option<f64> {
         match key {
             "transport.bpm" => Some(self.transport.bpm),
             "transport.swingA" => Some(f64::from(self.transport.swing_a)),

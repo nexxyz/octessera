@@ -1,6 +1,7 @@
 //! BPM and Swing as CC In, XY and LFO targets: held sources set the tempo like a menu edit, LFOs
 //! ride on the clock without touching the saved tempo.
 
+use super::audio_restart_persistence::{press, turn};
 use super::in_place_menu_actions::press_key;
 use super::*;
 use crate::native_runner::modulation::source::ModulationSourceId;
@@ -78,7 +79,53 @@ fn lfo_on(runner: &mut NativeRunner, key: &str, period: &str, depth: i32) {
         .apply_or_schedule_menu_key("linkLfos.0.depthPct")
         .unwrap();
     assert_eq!(i32::from(runner.link_lfos[0].depth_pct), depth);
-    runner.link_lfos[0].enabled = true;
+    runner
+        .menu
+        .set_bool_value_for_key("linkLfos.0.enabled", true);
+    runner
+        .apply_or_schedule_menu_key("linkLfos.0.enabled")
+        .unwrap();
+    assert!(runner.link_lfos[0].enabled);
+}
+
+fn pulse(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+    runner
+        .send(HostMessage::TransportPulseStep {
+            pulses: 1,
+            source: SyncSource::Internal,
+            at_ppqn_pulse: None,
+            request_snapshot: Some(false),
+        })
+        .unwrap()
+}
+
+fn sent_commands(messages: &[RunnerMessage]) -> Vec<RuntimeAudioCommand> {
+    messages
+        .iter()
+        .flat_map(|message| match message {
+            RunnerMessage::AudioCommands { commands } => commands.clone(),
+            RunnerMessage::PlatformEffects { effects } => effects
+                .iter()
+                .filter_map(|effect| match effect {
+                    RuntimePlatformEffect::AudioCommand { command } => Some(command.clone()),
+                    _ => None,
+                })
+                .collect(),
+            _ => Vec::new(),
+        })
+        .collect()
+}
+
+/// An LFO on BPM, five pulses in, so the clock runs off the set tempo.
+fn runner_with_moving_bpm_lfo() -> NativeRunner {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    lfo_on(&mut runner, "transport.bpm", "1/4", 50);
+    press_play(&mut runner);
+    for _ in 0..5 {
+        pulse(&mut runner);
+    }
+    assert!((runner.clock_bpm() - runner.transport.bpm).abs() > 1.0);
+    runner
 }
 
 #[test]
@@ -171,20 +218,14 @@ fn an_lfo_on_bpm_moves_the_clock_but_not_the_saved_tempo() {
     runner.fast_autosave_marks = 0;
 
     let mut clock = Vec::new();
+    let mut before = runner.clock_bpm();
     for _ in 0..24 {
-        let messages = runner
-            .send(HostMessage::TransportPulseStep {
-                pulses: 1,
-                source: SyncSource::Internal,
-                at_ppqn_pulse: None,
-                request_snapshot: Some(false),
-            })
-            .unwrap();
-        assert_eq!(
-            published_bpm(&messages).unwrap_or(runner.clock_bpm()),
-            runner.clock_bpm()
-        );
-        clock.push(runner.clock_bpm());
+        let messages = pulse(&mut runner);
+        if runner.clock_bpm() != before {
+            assert_eq!(published_bpm(&messages), Some(runner.clock_bpm()));
+        }
+        before = runner.clock_bpm();
+        clock.push(before);
     }
     let (low, high) = clock.iter().fold((f64::MAX, f64::MIN), |(low, high), bpm| {
         (low.min(*bpm), high.max(*bpm))
@@ -363,4 +404,118 @@ fn under_external_clock_an_lfo_on_bpm_does_nothing() {
         runner.send_midi_realtime_clock(1).unwrap();
         assert_eq!(runner.clock_bpm(), runner.transport.bpm);
     }
+}
+
+fn click_row(runner: &mut NativeRunner, key: &str, delta: i32) -> i32 {
+    assert!(runner.menu.focus_item_key(key), "{key}");
+    press(runner);
+    turn(runner, delta);
+    press(runner);
+    runner.menu.number_for_key(key).unwrap()
+}
+
+/// The encoder steps from the tempo a CC left, as it does from a row the menu set there.
+#[test]
+fn one_encoder_click_after_a_cc_steps_from_the_cc_tempo() {
+    for (key, cc_value, shown, delta) in [
+        ("transport.bpm", 127, 240, -1),
+        ("transport.swingA", 127, 7, -1),
+        ("transport.swingB", 0, 1, 1),
+    ] {
+        let mut by_menu = midi_runner();
+        set_menu_number(&mut by_menu, key, shown);
+        let expected = click_row(&mut by_menu, key, delta);
+        assert_ne!(expected, shown, "{key}");
+
+        let mut runner = midi_runner();
+        map_cc(&mut runner, 0, key);
+        send_cc(&mut runner, 1, cc_value);
+        assert_eq!(runner.menu.number_for_key(key), Some(shown), "{key}");
+        assert_eq!(click_row(&mut runner, key, delta), expected, "{key}");
+        assert_eq!(
+            runner.tempo_base_value(key),
+            Some(f64::from(expected)),
+            "{key}"
+        );
+    }
+}
+
+#[test]
+fn a_bpm_lfo_leaves_note_mode_delays_and_held_play_fx_on_the_set_tempo() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[0].params = json!({ "timeMode": "note", "timeNote": "1/8", "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    runner.menu.rebuild(runner.menu_config());
+    runner.play_fx_assignments.push(NativePlayFxAssignment {
+        x: 0,
+        y: 0,
+        config: literal_play_fx(
+            json!({ "fxType": "dub_throw", "targetKey": "master", "params": { "delayNote": 3 } }),
+        ),
+    });
+    lfo_on(&mut runner, "transport.bpm", "1/4", 50);
+    press_play(&mut runner);
+    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Fx);
+    let held = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 0, "y": 0 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(
+        sent_commands(&held)
+            .iter()
+            .any(|command| matches!(command, RuntimeAudioCommand::MomentaryFxStart { .. })),
+        "the dub throw is held"
+    );
+
+    let mut clock = Vec::new();
+    for _ in 0..24 {
+        let commands = sent_commands(&pulse(&mut runner));
+        clock.push(runner.clock_bpm());
+        assert!(
+            !commands.iter().any(|command| matches!(
+                command,
+                RuntimeAudioCommand::MomentaryFxUpdate { .. }
+                    | RuntimeAudioCommand::SetFxBusParam {
+                        param: realtime_engine::synth::FxParamId::TimeMs,
+                        ..
+                    }
+            )),
+            "{commands:?}"
+        );
+    }
+    assert!(
+        clock.iter().any(|bpm| (bpm - 120.0).abs() > 20.0),
+        "{clock:?}"
+    );
+    assert_eq!(runner.fx_buses[0].slots[0].params["timeMs"], 250);
+    assert_eq!(runner.play_fx_tempo_bpm(), 120.0);
+}
+
+#[test]
+fn a_patch_clear_drops_the_bpm_lfo_from_the_clock() {
+    let mut runner = runner_with_moving_bpm_lfo();
+    runner.clear_patch_state().unwrap();
+    assert_eq!(runner.clock_bpm(), runner.transport.bpm);
+    assert_eq!(runner.transport.bpm, 120.0);
+}
+
+#[test]
+fn a_patch_load_puts_the_clock_on_the_loaded_tempo() {
+    let mut runner = runner_with_moving_bpm_lfo();
+    let mut payload = runner.config_payload();
+    payload["runtimeConfig"]["transport"]["bpm"] = json!(90);
+    runner.apply_config_payload(payload.clone()).unwrap();
+    assert_eq!(runner.transport.bpm, 90.0);
+    let offset = runner.clock_bpm() - 90.0;
+    assert!(
+        offset.abs() > 1.0 && offset.abs() <= 50.0,
+        "the kept LFO rides 90: {offset}"
+    );
+
+    payload["runtimeConfig"]["linkLfos"][0]["enabled"] = json!(false);
+    runner.apply_config_payload(payload).unwrap();
+    assert!(!runner.link_lfos[0].enabled);
+    assert_eq!(runner.clock_bpm(), 90.0);
 }
