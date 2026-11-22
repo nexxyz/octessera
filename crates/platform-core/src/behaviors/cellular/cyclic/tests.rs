@@ -229,19 +229,42 @@ fn at_range_one_side_neighbors_count_twice_and_corners_once() {
 }
 
 #[test]
-fn a_stray_cell_changes_each_tick_without_counting_as_movement() {
-    let state = cyclic_deserialize(serde_json::json!({
+fn only_a_world_where_every_cell_cycles_gets_a_stray_cell() {
+    let calm = cyclic_deserialize(serde_json::json!({
         "states": 4, "threshold": 8, "range": 1, "cells": []
     }))
     .unwrap();
-    let mut seen = std::collections::HashSet::new();
+    let stripes = (0..TILE_COUNT)
+        .map(|index| (index % GRID_WIDTH + index / GRID_WIDTH) % 3)
+        .collect::<Vec<_>>();
+    let cycling = cyclic_deserialize(serde_json::json!({
+        "states": 3, "threshold": 1, "range": 1, "cells": stripes
+    }))
+    .unwrap();
+    let advanced = cycling
+        .cells
+        .iter()
+        .map(|cell| (cell + 1) % 3)
+        .collect::<Vec<_>>();
+    let mut strays = 0;
     for seed in 1..=8 {
-        let next = crate::behavior_random::LayerRandom::new(Some(seed))
-            .scope(|| cyclic_on_tick(state.clone(), &mut context()));
-        assert!(next.ages.iter().all(|age| *age == 1));
-        seen.insert(next.cells);
+        crate::behavior_random::LayerRandom::new(Some(seed)).scope(|| {
+            assert_eq!(
+                cyclic_on_tick(calm.clone(), &mut context()).cells,
+                calm.cells
+            );
+            let next = cyclic_on_tick(cycling.clone(), &mut context());
+            let changed = next
+                .cells
+                .iter()
+                .zip(&advanced)
+                .filter(|(a, b)| a != b)
+                .count();
+            assert!(changed <= 1);
+            strays += changed;
+        });
     }
-    assert!(seen.len() > 1);
+    assert!(strays > 0);
 }
 #[test]
 fn only_the_front_state_lights_its_tile() {
