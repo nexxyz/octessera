@@ -179,7 +179,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase. Th
 | forest_fire | Tree Density: [0..100] | number, step 1 (default 34) |
 | forest_fire | Grow Chance: [0..100] | number, step 1 (default 5) |
 | forest_fire | Spread Chance: [0..100] | number, step 1 (default 70) |
-| forest_fire | Reseed Thresh.: [0..100] | number, step 1 (default 15); percent of the Tree Density target below which the forest is topped back up to that target |
+| forest_fire | Reseed Thresh.: [0..100] | number, step 1 (default 10); 0 never replants; 1 to 100 replant up to the Tree Density target once the forest falls below 40 to 100 % of it, the floor's fraction of a tree rolled each tick |
 | forest_fire | Lightning: [0..20] | number, step 1 (default 1; per-thousand chance) |
 | forest_fire | !Ignite Random | action |
 | predator_prey | Grass Grow: [0..100] | number, step 1 (default 45); 100 regrows a third of the empty tiles each tick |

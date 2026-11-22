@@ -1,6 +1,7 @@
 //! Every Build option at its minimum, default and maximum and halfway between: the tile frames of
-//! a few hundred ticks, untouched and after one press, must change from value to value and, for
-//! each of three random streams, must neither stay empty, nearly fill the grid nor freeze.
+//! a few hundred ticks on each of five random streams, untouched and after one press, must change
+//! from value to value on at least one stream and, on each, must neither stay empty, nearly fill
+//! the grid nor freeze.
 use super::{behavior_catalog, get_native_behavior, NativeBehavior};
 use crate::behavior::{
     BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext, DeviceInput, TileTriggerType,
@@ -11,7 +12,7 @@ use serde_json::{json, Map, Value};
 
 const TICKS: usize = 300;
 const PRESS_TICK: usize = 12;
-const SEEDS: [u64; 3] = [7, 1, 2];
+const SEEDS: [u64; 5] = [7, 1, 2, 3, 4];
 /// The tile every pressed run taps, then corners and edges a game or full world may be using.
 const PRESS_TILES: [(usize, usize); 5] = [(3, 4), (0, 0), (7, 0), (0, 7), (7, 7)];
 const TILES: usize = GRID_WIDTH * GRID_HEIGHT;
@@ -162,6 +163,7 @@ fn sweep_findings(id: &str) -> Vec<String> {
         let mut traces = Vec::new();
         for value in &values {
             let config = config_with(&defaults, key, value);
+            let mut runs = Vec::new();
             for seed in SEEDS {
                 let untouched = run(behavior, config.clone(), None, seed);
                 let pressed = run(behavior, config.clone(), Some(PRESS_TILES[0]), seed);
@@ -180,22 +182,23 @@ fn sweep_findings(id: &str) -> Vec<String> {
                         find(format!("{key}={value} {label} freezes"));
                     }
                 }
-                if seed == SEEDS[0] {
-                    traces.push((value, untouched, pressed));
-                }
+                runs.push((untouched, pressed));
             }
+            traces.push((value, runs));
         }
         for pair in traces.windows(2) {
-            let [(previous, previous_untouched, previous_pressed), (value, untouched, pressed)] =
-                pair
-            else {
+            let [(previous, previous_runs), (value, runs)] = pair else {
                 unreachable!()
             };
             let same = |a: &Frames, b: &Frames| match play {
                 true => a == b,
                 false => !differ(a, b),
             };
-            if same(untouched, previous_untouched) && same(pressed, previous_pressed) {
+            let all_same = runs
+                .iter()
+                .zip(previous_runs)
+                .all(|((u, p), (pu, pp))| same(u, pu) && same(p, pp));
+            if all_same {
                 find(format!("{key}={previous} and {value} play the same"));
             }
         }
@@ -214,9 +217,6 @@ const HELD_ZOOM: &str = "0 holds the zoom: Drift alone sways between two views";
 const ROW_ACCENT: &str =
     "changes only the trigger a cleared row sends; few rows clear in 300 ticks";
 const SPAWN_COUNT: &str = "only with Spawn Count above 0";
-const RARE_BURN: &str = "the forest only burns below a few trees now and then";
-const RALLY_CHANCE: &str =
-    "a chance rolled once a rally: none of this run's rallies rolls between 80 and 90";
 const UNDRAWN: &str = "sequencer pages only differ once they are drawn on";
 const LIFE_AT_REST: &str =
     "with no spawning, Life settles into still lifes and blinkers or dies out, and rests until pressed";
@@ -253,7 +253,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("gravity: spawnRatePct=0 untouched stays empty", OFF),
     ("gravity: spawnRatePct=0 pressed dies out", OFF),
     ("forest_fire: growChancePct=0 untouched freezes", OFF),
-    ("forest_fire: growChancePct=0 pressed freezes", OFF),
     ("forest_fire: spreadChancePct=0 untouched saturates", OFF),
     (
         "forest_fire: lightningChancePerThousand=0 untouched saturates",
@@ -326,10 +325,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("brain: spawnStep=31 and 63 play the same", OFFSET),
     ("forest_fire: spreadChancePct=0 pressed saturates", OFF),
     (
-        "forest_fire: reseedThresholdPct=7 and 15 play the same",
-        RARE_BURN,
-    ),
-    (
         "life: randomTickInterval=1 and 10 play the same",
         SPAWN_COUNT,
     ),
@@ -350,10 +345,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("bubbles: maxBubbles=12 and 24 play the same", CAP),
     ("bubbles: maxBubbles=24 and 44 play the same", CAP),
     ("bubbles: maxBubbles=44 and 64 play the same", CAP),
-    (
-        "blockout: cpuSkillPct=80 and 90 play the same",
-        RALLY_CHANCE,
-    ),
 ];
 
 #[test]
