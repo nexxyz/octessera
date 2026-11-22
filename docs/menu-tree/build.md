@@ -173,7 +173,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase. Th
 | brain | Spawn Count: [0..20] | number, step 1 (default 2) |
 | brain | !Seed Random | action |
 | cyclic | States: [3..8] | number, step 1 (default 4) |
-| cyclic | Threshold: [1..8] | number, step 1 (default 1) |
+| cyclic | Threshold: [1..8] | number, step 1 (default 1); at Range 1, with only 8 neighbors, each two steps count as one neighbor (1-2 need 1, 7-8 need 4) |
 | cyclic | Range: [1..2] | number, step 1 (default 1) |
 | cyclic | !Seed Cycle | action |
 | forest_fire | Tree Density: [0..100] | number, step 1 (default 34) |

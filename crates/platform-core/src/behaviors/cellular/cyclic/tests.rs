@@ -197,14 +197,33 @@ fn cells_without_a_successor_neighbor_stay_and_age() {
         grid_index(2, 3),
         grid_index(3, 3),
     ];
-    for (value, index) in [0, 1, 2, 3].into_iter().zip(cycle) {
+    for (value, index) in [0, 1, 2, 0].into_iter().zip(cycle) {
         state.cells[index] = value;
     }
 
     let next = cyclic_on_tick(state, &mut context());
 
-    assert_eq!(cycle.map(|index| next.cells[index]), [0, 1, 2, 3]);
+    assert_eq!(cycle.map(|index| next.cells[index]), [0, 1, 2, 0]);
     assert!(cycle.iter().all(|index| next.ages[*index] == 1));
+}
+
+#[test]
+fn at_range_one_threshold_counts_its_eight_neighbors_in_pairs() {
+    for (threshold, advances) in [(7, true), (8, true), (8, false)] {
+        let mut state = cyclic_deserialize(serde_json::json!({
+            "states": 4, "threshold": threshold, "range": 1, "cells": []
+        }))
+        .unwrap();
+        let successors = if advances { 4 } else { 3 };
+        for (x, y) in [(3, 5), (4, 5), (5, 5), (3, 4)]
+            .into_iter()
+            .take(successors)
+        {
+            state.cells[grid_index(x, y)] = 1;
+        }
+        let next = cyclic_on_tick(state, &mut context());
+        assert_eq!(next.cells[grid_index(4, 4)] == 1, advances, "{threshold}");
+    }
 }
 
 #[test]

@@ -82,11 +82,15 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
     let previous = state.cells.clone();
     let mut next = state.cells.clone();
     let mut ages = state.ages.clone();
+    let threshold = match state.range {
+        1 => state.threshold.div_ceil(2),
+        _ => state.threshold,
+    };
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
             let target = (previous[index] + 1) % state.states;
-            if count_neighbors(&previous, x, y, target, state.range) >= state.threshold {
+            if count_neighbors(&previous, x, y, target, state.range) >= threshold {
                 next[index] = target;
                 ages[index] = 0;
             } else {
