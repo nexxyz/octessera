@@ -400,3 +400,23 @@ fn a_setting_an_action_turned_stays_turned_at_the_next_settings_change() {
     );
     assert_eq!(runner.menu.value_for_key(key).as_deref(), Some("left"));
 }
+
+#[test]
+fn a_shifted_wind_stays_shifted_at_the_next_settings_change() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner
+        .execute_menu_action(NativeMenuAction::SelectBehavior("sand_ripples".into()))
+        .unwrap();
+    runner.menu.rebuild(runner.menu_config());
+    press_key(&mut runner, "layers.0.build.behaviorConfig.shiftWind");
+    assert_eq!(runner.layer_behavior_config(0)["windDir"], "north");
+
+    runner
+        .edit_menu_key("layers.0.build.behaviorConfig.windStrengthPct", 1)
+        .unwrap();
+
+    assert_eq!(
+        runner.serialized_state_for_layer(0).unwrap()["windDir"],
+        "north"
+    );
+}

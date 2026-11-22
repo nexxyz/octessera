@@ -123,6 +123,17 @@ impl NativeBehavior {
         }
     }
 
+    /// Saved settings that a behavior action turns but that have no settings row of their own; a
+    /// settings change keeps them like the rows.
+    pub fn action_setting_keys(self) -> &'static [&'static str] {
+        match self {
+            NativeBehavior::Ising => &["fieldSign"],
+            NativeBehavior::Physarum => &["foodPattern"],
+            NativeBehavior::SandRipples => &["windDir"],
+            _ => &[],
+        }
+    }
+
     pub fn interpret_input_transitions(self) -> bool {
         !matches!(self, NativeBehavior::None | NativeBehavior::Sequencer)
     }

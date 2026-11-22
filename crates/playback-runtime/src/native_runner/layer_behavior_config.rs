@@ -146,8 +146,8 @@ impl NativeRunner {
         Ok(true)
     }
 
-    /// The layer's settings rows (not its actions) and their values in the behavior state: what a
-    /// behavior action may turn. Empty for a looper, whose Punch keeps its mode itself, and for a
+    /// The layer's settings rows (not its actions), plus the settings its actions own without a
+    /// row, and their values in the behavior state: what a behavior action may turn. Empty for a looper, whose Punch keeps its mode itself, and for a
     /// behavior without settings rows, so neither pays for a serialization.
     pub(super) fn behavior_setting_values(&self, layer_index: usize) -> Vec<(String, Value)> {
         let Some(layer) = self.layers.get(layer_index) else {
@@ -165,6 +165,12 @@ impl NativeRunner {
             .into_iter()
             .filter(|item| item.item_type != platform_core::BehaviorConfigItemType::Action)
             .map(|item| item.key)
+            .chain(
+                behavior
+                    .action_setting_keys()
+                    .iter()
+                    .map(|key| key.to_string()),
+            )
             .collect::<Vec<_>>();
         if keys.is_empty() {
             return Vec::new();
@@ -177,7 +183,7 @@ impl NativeRunner {
             .collect()
     }
 
-    /// Keeps the settings rows a behavior action turned, such as Gravity Dir or Fractal, in the
+    /// Keeps the settings a behavior action turned, such as Gravity Dir or the wind direction, in the
     /// layer's behavior config, so the next settings change starts from them instead of turning
     /// them back.
     pub(super) fn keep_behavior_action_settings(
