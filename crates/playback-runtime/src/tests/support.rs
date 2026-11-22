@@ -287,7 +287,7 @@ impl HostAdapter for FakeHost {
     }
 }
 
-pub(super) fn set_runtime_playing(runtime: &mut crate::PlaybackRuntime, host: &mut FakeHost) {
+pub(crate) fn set_runtime_playing(runtime: &mut crate::PlaybackRuntime, host: &mut FakeHost) {
     runtime
         .ingest_runner_messages(
             vec![RunnerMessage::RuntimeStatus {

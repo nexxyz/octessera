@@ -131,6 +131,7 @@ mod menu_navigation;
 mod menu_navigation_state;
 mod midi_cc_in;
 mod midi_drum;
+mod midi_echo_loop;
 mod midi_input_music_first;
 mod midi_note_in;
 mod midi_note_in_guards;

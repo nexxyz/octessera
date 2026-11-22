@@ -58,7 +58,7 @@ impl CoreRunner for SequencerRunner {
 }
 
 #[test]
-fn a_sequenced_note_echoed_back_is_dropped_but_other_notes_reach_the_runner() {
+fn a_note_the_runtime_played_drops_its_channel_and_key_from_midi_in_for_a_second() {
     let mut runtime = midi_out_runtime();
     let mut runner = SequencerRunner::default();
     let start = Instant::now();
@@ -69,43 +69,36 @@ fn a_sequenced_note_echoed_back_is_dropped_but_other_notes_reach_the_runner() {
     set_runtime_playing(&mut runtime, &mut host);
     host.midi_message_at.clear();
     runtime.advance(100, &mut runner, &mut host).unwrap();
-    let sent = host
-        .midi_messages
-        .iter()
-        .position(|bytes| bytes == &vec![0x92, 64, 90])
-        .expect("the sequencer note goes out");
-    let sent_at = host.midi_message_at[sent].expect("a sequenced note is stamped");
-    runner.keyboard.clear();
-
-    host.clock = Some(sent_at - Duration::from_millis(1));
-    dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 90]);
-    assert_eq!(
-        runner.keyboard.len(),
-        1,
-        "not on the wire yet, so not an echo"
-    );
-
-    host.clock = Some(sent_at + Duration::from_millis(5));
-    dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 90]);
-    assert_eq!(runner.keyboard.len(), 1, "its echo is dropped");
-
-    dispatch_note(&mut runtime, &mut runner, &mut host, [0x90, 60, 100]);
-    assert_eq!(runner.keyboard.len(), 2, "an unrelated keyboard note plays");
-
-    let last_sent_at = host
+    let sent_at = host
         .midi_messages
         .iter()
         .zip(&host.midi_message_at)
         .filter(|(bytes, _)| *bytes == &vec![0x92, 64, 90])
         .filter_map(|(_, at)| *at)
         .max()
-        .unwrap();
-    host.clock = Some(last_sent_at + Duration::from_millis(151));
+        .expect("the sequencer note goes out stamped");
+    runner.keyboard.clear();
+
+    host.clock = Some(sent_at + Duration::from_millis(5));
+    dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 90]);
+    assert!(runner.keyboard.is_empty(), "its echo is dropped");
+    host.clock = Some(sent_at + Duration::from_millis(400));
+    dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 1]);
+    assert!(
+        runner.keyboard.is_empty(),
+        "a slow echo at any velocity is dropped"
+    );
+
+    dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 65, 90]);
+    dispatch_note(&mut runtime, &mut runner, &mut host, [0x93, 64, 90]);
+    assert_eq!(runner.keyboard.len(), 2, "another key or channel plays");
+
+    host.clock = Some(sent_at + Duration::from_millis(1_001));
     dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 90]);
     assert_eq!(
         runner.keyboard.len(),
         3,
-        "after the window it is a played note"
+        "a second after the runtime's note that key plays again"
     );
 }
 
@@ -144,7 +137,7 @@ fn a_key_up_right_after_a_sequenced_note_off_on_the_same_note_reaches_the_runner
 }
 
 #[test]
-fn a_key_up_forgets_the_sent_note_so_the_next_identical_press_plays() {
+fn a_player_pressing_a_key_the_runtime_played_within_a_second_is_not_heard() {
     let mut runtime = midi_out_runtime();
     let mut runner = SequencerRunner::default();
     let start = Instant::now();
@@ -155,22 +148,27 @@ fn a_key_up_forgets_the_sent_note_so_the_next_identical_press_plays() {
     set_runtime_playing(&mut runtime, &mut host);
     host.midi_message_at.clear();
     runtime.advance(100, &mut runner, &mut host).unwrap();
-    let sent = host
+    let sent_at = host
         .midi_messages
         .iter()
-        .position(|bytes| bytes == &vec![0x92, 64, 90])
-        .expect("the sequencer note goes out");
-    let sent_at = host.midi_message_at[sent].expect("a sequenced note is stamped");
+        .zip(&host.midi_message_at)
+        .filter(|(bytes, _)| *bytes == &vec![0x92, 64, 90])
+        .filter_map(|(_, at)| *at)
+        .max()
+        .expect("the sequencer note goes out stamped");
     runner.keyboard.clear();
 
-    host.clock = Some(sent_at + Duration::from_millis(2));
+    host.clock = Some(sent_at + Duration::from_millis(300));
+    dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 110]);
+    host.clock = Some(sent_at + Duration::from_millis(400));
     dispatch_note(&mut runtime, &mut runner, &mut host, [0x82, 64, 0]);
-    host.clock = Some(sent_at + Duration::from_millis(10));
-    dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 90]);
-
     assert_eq!(
-        runner.keyboard.len(),
-        2,
-        "no echo came before the key-up, so the next press of that key is a played note"
+        runner.keyboard,
+        vec![HostMessage::MidiNote {
+            channel: 2,
+            note: 64,
+            velocity: 0,
+        }],
+        "the press can't be told from an echo, so it is dropped; its key-up still arrives"
     );
 }

@@ -4,30 +4,45 @@
 use super::MidiNote;
 use std::time::{Duration, Instant};
 
-/// How long after a note-on leaves MIDI out an identical incoming note-on counts as its echo. A
-/// match needs the same velocity too, so a slow DAW thru still matches and a player rarely does.
-const ECHO_WINDOW: Duration = Duration::from_millis(150);
+/// For about this long after this runtime plays a note-on of its own (a layer's note, a Keys
+/// press or a Send MIDI copy) on MIDI out, an incoming note-on on that channel and key is taken as
+/// its echo, whatever its velocity, and dropped. No device echo or DAW thru is slower.
+const PLAYED_WINDOW: Duration = Duration::from_secs(1);
 
-/// Every note-on sent lives here from being scheduled until the echo window after it goes out.
-/// Eight slots with four-note chords are 32 note-ons per step, so 64 entries hold two full busy
-/// steps. Faster steps can overwrite a live entry; that note's echo then plays once, and its own
-/// forward is remembered, so it cannot loop.
-const SENT_NOTE_SLOTS: usize = 64;
+/// How long after a keyboard note is passed on to MIDI out an identical incoming note-on counts as
+/// its echo. A match needs the same velocity too, and a key-up forgets the passed-on note, so a
+/// player repeating a key always plays.
+const RELAY_WINDOW: Duration = Duration::from_millis(150);
+
+/// Keyboard notes passed on to MIDI out are played by hand, so 64 hold many busy chords.
+const RELAYED_NOTE_SLOTS: usize = 64;
+
+const KEYS: usize = 16 * 128;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct SentMidiNotes {
-    /// Each note-on with the instant the MIDI sender puts it on the wire.
-    notes: [Option<(MidiNote, Instant)>; SENT_NOTE_SLOTS],
+    /// The wire instant of the latest note-on this runtime played itself, per channel and key.
+    played: Box<[Option<Instant>]>,
+    /// Each keyboard note passed on to MIDI out, with the instant it goes on the wire.
+    relayed: [Option<(MidiNote, Instant)>; RELAYED_NOTE_SLOTS],
     next: usize,
+    /// True while the runtime sends what a MIDI In note played.
+    pub(super) relaying: bool,
 }
 
 impl Default for SentMidiNotes {
     fn default() -> Self {
         Self {
-            notes: [None; SENT_NOTE_SLOTS],
+            played: vec![None; KEYS].into_boxed_slice(),
+            relayed: [None; RELAYED_NOTE_SLOTS],
             next: 0,
+            relaying: false,
         }
     }
+}
+
+fn key(note: MidiNote) -> usize {
+    usize::from(note.channel & 0x0F) * 128 + usize::from(note.note & 0x7F)
 }
 
 impl SentMidiNotes {
@@ -38,18 +53,23 @@ impl SentMidiNotes {
         let Some(note) = MidiNote::parse(bytes).filter(|note| note.velocity > 0) else {
             return;
         };
-        self.notes[self.next] = Some((note, at));
-        self.next = (self.next + 1) % SENT_NOTE_SLOTS;
+        if self.relaying {
+            self.relayed[self.next] = Some((note, at));
+            self.next = (self.next + 1) % RELAYED_NOTE_SLOTS;
+        } else {
+            self.played[key(note)] = Some(at);
+        }
     }
 
-    /// True, and forgets it, when `note` repeats a note-on sent at most the echo window before
-    /// `now`. A note scheduled for later has not gone out yet, so nothing can echo it. An incoming
-    /// note-off forgets the note-ons sent for that key: a device echoes a note-on before its
-    /// note-off, so whatever is still remembered then was never echoed, and the player's next
-    /// press of that key must not be taken for its echo.
+    /// True when `note` is the echo of a note-on sent to MIDI out: any note-on on a channel and
+    /// key this runtime played itself within the played window (one scheduled for later counts
+    /// too), or one identical to a passed-on keyboard note within the relay window, which it
+    /// forgets. An incoming note-off forgets the passed-on note-ons for that key, so the player's
+    /// next press of it plays; it leaves the runtime's own notes alone, as a device echoes a
+    /// retrigger's note-off just before its note-on.
     pub(super) fn take_echo(&mut self, note: MidiNote, now: Instant) -> bool {
         if note.velocity == 0 {
-            for slot in &mut self.notes {
+            for slot in &mut self.relayed {
                 if slot
                     .is_some_and(|(sent, _)| (sent.channel, sent.note) == (note.channel, note.note))
                 {
@@ -58,9 +78,14 @@ impl SentMidiNotes {
             }
             return false;
         }
-        let Some(slot) = self.notes.iter_mut().find(|slot| {
+        if self.played[key(note)]
+            .is_some_and(|at| at.checked_add(PLAYED_WINDOW).is_none_or(|end| now <= end))
+        {
+            return true;
+        }
+        let Some(slot) = self.relayed.iter_mut().find(|slot| {
             slot.is_some_and(|(sent, at)| {
-                sent == note && at <= now && now.duration_since(at) <= ECHO_WINDOW
+                sent == note && at <= now && now.duration_since(at) <= RELAY_WINDOW
             })
         }) else {
             return false;

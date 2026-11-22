@@ -207,11 +207,15 @@ wander in by accident.
 - A `MIDI Inst.` or `MIDI Drum` slot passes the note on to its own channel on
   MIDI out, as long as it's enabled. Handy for playing outboard gear through
   Octessera without re-patching cables. Gear that echoes its input straight
-  back is fine too: anything Octessera sends to MIDI out (your keys, MIDI
-  parts, Send MIDI copies) that comes back identical within a blink (150 ms) is
-  recognized as our own echo and ignored, so it can't bounce around forever.
-  Letting go of a key always counts, echo or not, and pressing it again
-  always plays.
+  back is fine too. When Octessera plays a note on MIDI out itself (MIDI
+  parts, Keys presses, Send MIDI copies), a note coming back on that channel
+  and key within a second counts as our own echo and is ignored, so it can't
+  bounce around forever. The catch: if you play that very
+  key on that channel within the same second, you won't hear it. A key you
+  play through to MIDI out only ignores an identical copy within a blink
+  (150 ms), so drumming one pad fast always plays every hit; gear that takes
+  longer than that to send your keys back will bounce them around, so keep
+  its thru off. Letting go of a key always counts, echo or not.
 - Stop, Pause, Panic and loading a patch let go of every key you're still
   holding, notes passed on to MIDI out included, so nothing gets stuck.
 - **Recording into a Looper.** Every `looper` layer that is overdubbing and
