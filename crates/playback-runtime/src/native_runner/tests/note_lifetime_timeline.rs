@@ -227,6 +227,22 @@ fn life(title: &str, hold: bool, setup: impl FnOnce(&mut Script)) -> String {
     script.finish(title)
 }
 
+/// On plays the One-Shot instrument 1 and Hold Trig the Hold instrument 2, both under a held
+/// Direct Arp, so the Arp's held set mixes lit One-Shot tiles and held notes.
+fn mixed_held_arp() -> String {
+    let mut script = Script::new("life", |runner| {
+        runner.instruments[1].kind = InstrumentType::Synth;
+    });
+    script.turn("instruments.1.noteBehavior", 1);
+    hold_trig(&mut script);
+    script.runner.layers[0].link.stable_slot = 1;
+    script.runner.refresh_active_mapping_config();
+    script.set("layers.0.link.arp.mode", "direct");
+    script.set("layers.0.link.arp.source", "held");
+    script.pulses(16 * STEP);
+    script.finish("life held arp direct on a one-shot On and a hold Hold Trig")
+}
+
 fn hold_trig(script: &mut Script) {
     script.set("layers.0.link.mapping.stable.action", "note_on");
 }
@@ -327,6 +343,7 @@ pub(crate) fn note_lifetime_timeline() -> String {
             false,
             scanning_held_arp,
         ),
+        mixed_held_arp(),
         looper_on_hold(),
         stop_while_held("stop while held on a hold synth", |_| {}),
         stop_while_held("stop while held on a hold MIDI Inst.", midi_slot),

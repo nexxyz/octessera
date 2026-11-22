@@ -439,6 +439,7 @@ pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_
         note: 60,
         velocity: 100,
         tile: 0,
+        onset: 0,
     });
     runner.link_arp.held_notes[1].push(LinkArpHeldNote {
         audio: true,
@@ -446,6 +447,7 @@ pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_
         note: 64,
         velocity: 100,
         tile: 0,
+        onset: 0,
     });
     runner.link_arp.rotating_phase[0] = 3;
     runner.link_arp.rotating_phase[1] = 7;

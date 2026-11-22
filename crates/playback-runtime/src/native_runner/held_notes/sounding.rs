@@ -54,27 +54,49 @@ impl HeldNotes {
 
     /// Remembers that a held Arp replays the held note-on of `channel` and `note`, as the newest.
     pub(in crate::native_runner) fn record_replay(&mut self, channel: u8, note: u8, velocity: u8) {
-        let onset = self.next_onset;
-        self.next_onset += 1;
+        let onset = self.take_onset();
         self.notes
             .entry(HeldNote { channel, note })
             .or_default()
             .replay = Some(Replay { onset, velocity });
     }
 
-    /// The held notes a held Arp replays, oldest first, as `(channel, note, velocity)` in the
-    /// pitches Link sent.
-    pub(in crate::native_runner) fn replays(&self) -> Vec<(u8, u8, u8)> {
-        let mut replays = self
-            .notes
+    /// The next start in the order a held Arp replays, which its lit One-Shot notes share.
+    pub(in crate::native_runner) fn take_onset(&mut self) -> u64 {
+        let onset = self.next_onset;
+        self.next_onset += 1;
+        onset
+    }
+
+    /// The held note a held Arp replays next after start `after`, as `(onset, channel, note,
+    /// velocity)` in the pitch Link sent.
+    pub(in crate::native_runner) fn next_replay(
+        &self,
+        after: Option<u64>,
+    ) -> Option<(u64, u8, u8, u8)> {
+        self.notes
             .iter()
-            .filter_map(|(key, entry)| entry.replay.map(|replay| (replay, key)))
-            .collect::<Vec<_>>();
-        replays.sort_by_key(|(replay, _)| replay.onset);
+            .filter_map(|(key, entry)| {
+                let replay = entry.replay?;
+                (after.is_none_or(|after| replay.onset > after)).then_some((
+                    replay.onset,
+                    key.channel,
+                    key.note,
+                    replay.velocity,
+                ))
+            })
+            .min_by_key(|(onset, ..)| *onset)
+    }
+
+    #[cfg(test)]
+    pub(in crate::native_runner) fn replays(&self) -> Vec<(u8, u8, u8)> {
+        let mut replays = Vec::new();
+        let mut after = None;
+        while let Some((onset, channel, note, velocity)) = self.next_replay(after) {
+            replays.push((channel, note, velocity));
+            after = Some(onset);
+        }
         replays
-            .into_iter()
-            .map(|(replay, key)| (key.channel, key.note, replay.velocity))
-            .collect()
     }
 
     /// Lets a held Arp forget every note it replays; the notes keep sounding.

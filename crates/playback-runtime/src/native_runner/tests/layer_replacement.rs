@@ -314,6 +314,7 @@ fn assert_replacement_releases_held_note(midi: bool) {
         note: 60,
         velocity: 100,
         tile: 0,
+        onset: 0,
     });
 
     runner
@@ -352,6 +353,7 @@ pub(crate) fn fast_layer_edit_clears_only_the_target_link_arp_state() {
         note: 60,
         velocity: 100,
         tile: 0,
+        onset: 0,
     });
     runner.link_arp.held_notes[1].push(LinkArpHeldNote {
         audio: true,
@@ -359,6 +361,7 @@ pub(crate) fn fast_layer_edit_clears_only_the_target_link_arp_state() {
         note: 64,
         velocity: 100,
         tile: 0,
+        onset: 0,
     });
     let key = "layers.0.build.behaviorConfig.randomCellsPerTick";
     assert!(runner.menu.focus_item_key(key));
@@ -390,6 +393,7 @@ pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
         note: 60,
         velocity: 100,
         tile: 0,
+        onset: 0,
     });
 
     let before_engine = runner.layers[1].engine.state().clone();

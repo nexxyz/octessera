@@ -150,6 +150,8 @@ pub(super) struct LinkArpHeldNote {
     pub(super) velocity: u8,
     /// The lit tile holding the One-Shot note.
     pub(super) tile: usize,
+    /// When it started, in the order the layer's held notes share.
+    pub(super) onset: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

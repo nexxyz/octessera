@@ -58,6 +58,7 @@ pub(crate) fn link_arp_menu_apply_paths_round_trip_held_source() {
         note: 60,
         velocity: 96,
         tile: 0,
+        onset: 0,
     });
     runner.menu.turn_key("layers.0.link.arp.mode", -2);
     assert!(runner.apply_menu_key_fast("layers.0.link.arp.mode"));

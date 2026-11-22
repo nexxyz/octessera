@@ -20,13 +20,17 @@ impl NativeRunner {
         layer_index: usize,
         lit: Vec<LinkArpHeldNote>,
     ) {
-        let Some(held) = self.link_arp.held_notes.get_mut(layer_index) else {
+        let (Some(held), Some(ledger)) = (
+            self.link_arp.held_notes.get_mut(layer_index),
+            self.held_notes.get_mut(layer_index),
+        ) else {
             return;
         };
-        for note in lit {
+        for mut note in lit {
             held.retain(|held| {
                 (held.tile, held.audio, held.channel) != (note.tile, note.audio, note.channel)
             });
+            note.onset = ledger.take_onset();
             held.push(note);
         }
     }
@@ -39,21 +43,21 @@ impl NativeRunner {
         instruments: &[NativeInstrumentSlot],
         transpose_offset: i8,
     ) -> RoutedMusicalEvents {
-        let replays = self
-            .held_notes
-            .get(layer_index)
-            .map(|held| held.replays())
-            .unwrap_or_default();
-        let replayed = replays.into_iter().filter_map(|(channel, note, velocity)| {
-            replayed_note_on(instruments, channel, note, velocity, transpose_offset)
-        });
+        let held = self.held_notes.get(layer_index);
         let lit = self
             .link_arp
             .held_notes
             .get(layer_index)
-            .map_or(&[][..], Vec::as_slice)
-            .iter()
-            .map(|note| {
+            .map_or(&[][..], Vec::as_slice);
+        let mut routed = RoutedMusicalEvents::default();
+        let (mut lit_index, mut after) = (0, None);
+        loop {
+            let replay = held.and_then(|held| held.next_replay(after));
+            let next_lit = lit
+                .get(lit_index)
+                .filter(|note| replay.is_none_or(|(onset, ..)| note.onset < onset));
+            let (audio, event) = if let Some(note) = next_lit {
+                lit_index += 1;
                 let event = MusicalEvent::NoteOn {
                     channel: note.channel,
                     note: note.note,
@@ -61,21 +65,26 @@ impl NativeRunner {
                     duration_ms: None,
                 };
                 (note.audio, event)
-            });
-        let mut routed = RoutedMusicalEvents::default();
-        let mut seen = Vec::new();
-        for (audio, event) in replayed.chain(lit) {
+            } else if let Some((onset, channel, note, velocity)) = replay {
+                after = Some(onset);
+                match replayed_note_on(instruments, channel, note, velocity, transpose_offset) {
+                    Some(replayed) => replayed,
+                    None => continue,
+                }
+            } else {
+                break;
+            };
+            let lane = if audio {
+                &mut routed.audio
+            } else {
+                &mut routed.midi
+            };
             let MusicalEvent::NoteOn { channel, note, .. } = event else {
                 continue;
             };
-            if seen.contains(&(audio, channel, note)) {
-                continue;
-            }
-            seen.push((audio, channel, note));
-            if audio {
-                routed.audio.push(event);
-            } else {
-                routed.midi.push(event);
+            let sounds = |other: &MusicalEvent| matches!(other, MusicalEvent::NoteOn { channel: c, note: n, .. } if (*c, *n) == (channel, note));
+            if !lane.iter().any(sounds) {
+                lane.push(event);
             }
         }
         routed
@@ -106,6 +115,7 @@ pub(super) fn lit_one_shot_notes<'a>(
                 note,
                 velocity,
                 tile,
+                onset: 0,
             }),
             _ => None,
         })
