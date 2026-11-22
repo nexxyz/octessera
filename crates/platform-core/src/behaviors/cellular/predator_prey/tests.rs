@@ -139,20 +139,7 @@ fn trigger_precedence_preserves_deactivation_and_quiet_grass() {
 }
 
 #[test]
-fn relief_reseed_uses_final_tile_before_assigning_trigger() {
-    let mut c = ctx();
-    let mut state = empty();
-    state.tiles.fill(PREDATOR);
-    state.energy.fill(state.starve_ticks);
-
-    let next = predator_prey_on_tick(state, &mut c);
-
-    assert_eq!(next.tiles[0], HERBIVORE);
-    assert_eq!(next.trigger_types[0], TileTriggerType::Activate);
-}
-
-#[test]
-fn nudge_and_reseed_do_not_leave_stale_deactivations() {
+fn a_reseed_leaves_no_stale_deactivations() {
     let mut c = ctx();
     let state = empty();
     let next = predator_prey_on_tick(state, &mut c);
@@ -161,10 +148,10 @@ fn nudge_and_reseed_do_not_leave_stale_deactivations() {
         .trigger_types
         .iter()
         .all(|trigger| *trigger != TileTriggerType::Deactivate));
-    assert_eq!(next.tiles[0], HERBIVORE);
-    assert_eq!(next.tiles[1], PREDATOR);
-    assert_eq!(next.trigger_types[0], TileTriggerType::Activate);
-    assert_eq!(next.trigger_types[1], TileTriggerType::Activate);
+    for animal in [HERBIVORE, PREDATOR] {
+        let index = next.tiles.iter().position(|tile| *tile == animal).unwrap();
+        assert_eq!(next.trigger_types[index], TileTriggerType::Activate);
+    }
 }
 
 #[test]
@@ -230,8 +217,10 @@ fn births_and_reseeded_animals_force_activate() {
         }),
         &mut c,
     );
-    assert_eq!(n.trigger_types[0], TileTriggerType::Activate);
-    assert_eq!(n.trigger_types[1], TileTriggerType::Activate);
+    for animal in [HERBIVORE, PREDATOR] {
+        let index = n.tiles.iter().position(|tile| *tile == animal).unwrap();
+        assert_eq!(n.trigger_types[index], TileTriggerType::Activate);
+    }
 }
 
 #[test]
@@ -265,38 +254,6 @@ fn starvation_conflict_nonwrap_and_reseed() {
 }
 
 #[test]
-fn full_grass_grid_reopens_without_firehose() {
-    let mut c = ctx();
-    let mut s = empty();
-    s.tiles.fill(GRASS);
-    s.grass_grow_chance_pct = 100;
-
-    let n = predator_prey_on_tick(s, &mut c);
-
-    assert!(n.tiles.contains(&EMPTY));
-    assert!(
-        n.trigger_types
-            .iter()
-            .filter(|trigger| **trigger == TileTriggerType::Deactivate)
-            .count()
-            <= 4
-    );
-}
-
-#[test]
-fn static_visibility_nudge_removal_deactivates_removed_tile() {
-    let previous = vec![GRASS; TILE_COUNT];
-    let mut next = previous.clone();
-    let mut energy = vec![0; TILE_COUNT];
-
-    let removed = nudge_static_visibility(&previous, &mut next, &mut energy);
-    assert_eq!(removed, Some(0));
-    let trigger_types = triggers_with_deactivations(&previous, &next, &[], &[], &[0]);
-    assert_eq!(next[0], EMPTY);
-    assert_eq!(trigger_types[0], TileTriggerType::Deactivate);
-}
-
-#[test]
 fn default_run_avoids_consecutive_empty_or_full_frames() {
     let mut c = ctx();
     let mut s = predator_prey_init(Value::Null).unwrap();
@@ -319,4 +276,17 @@ fn default_run_avoids_consecutive_empty_or_full_frames() {
         assert!(empty_run <= 1);
         assert!(full_run <= 1);
     }
+}
+
+#[test]
+fn reseeded_animals_land_on_random_open_tiles() {
+    let places = (1..=8)
+        .map(|seed| {
+            crate::behavior_random::LayerRandom::new(Some(seed)).scope(|| {
+                let next = predator_prey_on_tick(empty(), &mut ctx());
+                next.tiles.iter().position(|tile| *tile == HERBIVORE)
+            })
+        })
+        .collect::<std::collections::HashSet<_>>();
+    assert!(places.len() > 1);
 }

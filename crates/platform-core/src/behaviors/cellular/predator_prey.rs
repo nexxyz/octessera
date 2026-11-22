@@ -13,8 +13,8 @@ use serde_json::Value;
 mod simulation;
 
 use simulation::{
-    reseed_extinct, starter, triggers, triggers_from_tiles, triggers_from_tiles_forced,
-    triggers_with_deactivations, ActorStep, StepBuffers,
+    reseed_extinct, starter, triggers, triggers_from_tiles, triggers_from_tiles_forced, ActorStep,
+    StepBuffers,
 };
 
 pub(super) const EMPTY: u8 = 0;
@@ -61,7 +61,7 @@ pub fn predator_prey_init(config: Value) -> Result<PredatorPreyState, String> {
         tiles: norm_tiles(config.tiles.map(array_values).unwrap_or_default()),
         energy: norm_energy(config.energy.map(array_values).unwrap_or_default()),
         trigger_types: restore_trigger_types(parse_triggers(config.trigger_types)),
-        grass_grow_chance_pct: num(config.grass_grow_chance_pct, 15, 100),
+        grass_grow_chance_pct: num(config.grass_grow_chance_pct, 45, 100),
         herbivore_reproduce_pct: num(config.herbivore_reproduce_pct, 15, 100),
         predator_reproduce_pct: num(config.predator_reproduce_pct, 8, 100),
         starve_ticks: num(config.starve_ticks, 8, 32).max(1),
@@ -81,7 +81,7 @@ pub fn predator_prey_deserialize(data: Value) -> Result<PredatorPreyState, Strin
         tiles: norm_tiles(config.tiles.map(array_values).unwrap_or_default()),
         energy: norm_energy(config.energy.map(array_values).unwrap_or_default()),
         trigger_types: restore_trigger_types(parse_triggers(config.trigger_types)),
-        grass_grow_chance_pct: num(config.grass_grow_chance_pct, 15, 100),
+        grass_grow_chance_pct: num(config.grass_grow_chance_pct, 45, 100),
         herbivore_reproduce_pct: num(config.herbivore_reproduce_pct, 15, 100),
         predator_reproduce_pct: num(config.predator_reproduce_pct, 8, 100),
         starve_ticks: num(config.starve_ticks, 8, 32).max(1),
@@ -182,69 +182,15 @@ pub fn predator_prey_on_tick(
     }
     let mut rng = crate::behavior_random::rng();
     for tile in next.iter_mut().take(TILE_COUNT) {
-        if *tile == EMPTY && rng.gen_range(0..100) < state.grass_grow_chance_pct {
+        if *tile == EMPTY && rng.gen_range(0..300) < u16::from(state.grass_grow_chance_pct) {
             *tile = GRASS;
         }
-    }
-    let nudged = nudge_static_visibility(&prev, &mut next, &mut energy);
-    let relieved = relieve_full_grid(&mut next, &mut energy);
-    let mut force_deactivate = relieved;
-    if let Some(index) = nudged {
-        force_deactivate.push(index);
     }
     state.tiles = next;
     state.energy = energy;
     force_activate.extend(reseed_extinct(&mut state));
-    state.trigger_types = triggers_with_deactivations(
-        &prev,
-        &state.tiles,
-        &bursts,
-        &force_activate,
-        &force_deactivate,
-    );
+    state.trigger_types = triggers(&prev, &state.tiles, &bursts, &force_activate);
     state
-}
-
-fn relieve_full_grid(tiles: &mut [u8], energy: &mut [u8]) -> Vec<usize> {
-    let empty_count = tiles.iter().filter(|tile| **tile == EMPTY).count();
-    if empty_count >= 3 {
-        return Vec::new();
-    }
-    let target_relief = 4usize.saturating_sub(empty_count);
-    let mut relieved = tiles
-        .iter()
-        .enumerate()
-        .filter_map(|(index, tile)| (*tile == GRASS).then_some(index))
-        .take(target_relief)
-        .collect::<Vec<_>>();
-    if relieved.is_empty() {
-        relieved = (0..TILE_COUNT).step_by(17).take(target_relief).collect();
-    }
-    for index in &relieved {
-        tiles[*index] = EMPTY;
-        energy[*index] = 0;
-    }
-    relieved
-}
-
-fn nudge_static_visibility(previous: &[u8], tiles: &mut [u8], energy: &mut [u8]) -> Option<usize> {
-    if !previous
-        .iter()
-        .zip(tiles.iter())
-        .all(|(previous, next)| (*previous != EMPTY) == (*next != EMPTY))
-    {
-        return None;
-    }
-    if let Some(index) = tiles.iter().position(|tile| *tile == EMPTY) {
-        tiles[index] = GRASS;
-        return None;
-    }
-    if let Some(index) = tiles.iter().position(|tile| *tile == GRASS) {
-        tiles[index] = EMPTY;
-        energy[index] = 0;
-        return Some(index);
-    }
-    None
 }
 
 pub fn predator_prey_render_model(state: &PredatorPreyState) -> BehaviorRenderModel {

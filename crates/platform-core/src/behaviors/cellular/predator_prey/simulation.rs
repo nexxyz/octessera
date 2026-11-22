@@ -184,16 +184,6 @@ pub(super) fn triggers(
     bursts: &[usize],
     force_activate: &[usize],
 ) -> Vec<TileTriggerType> {
-    triggers_with_deactivations(prev, next, bursts, force_activate, &[])
-}
-
-pub(super) fn triggers_with_deactivations(
-    prev: &[u8],
-    next: &[u8],
-    bursts: &[usize],
-    force_activate: &[usize],
-    force_deactivate: &[usize],
-) -> Vec<TileTriggerType> {
     let mut triggers = (0..TILE_COUNT)
         .map(|index| transition_trigger(prev[index], next[index]))
         .collect::<Vec<_>>();
@@ -201,17 +191,6 @@ pub(super) fn triggers_with_deactivations(
         .iter()
         .map(|trigger| TriggerPriority::from_trigger(*trigger))
         .collect::<Vec<_>>();
-    for index in force_deactivate {
-        if *index < TILE_COUNT && prev[*index] != EMPTY && next[*index] == EMPTY {
-            apply_trigger(
-                &mut triggers,
-                &mut priorities,
-                *index,
-                TileTriggerType::Deactivate,
-                TriggerPriority::Deactivate,
-            );
-        }
-    }
     for index in bursts {
         apply_trigger(
             &mut triggers,
@@ -298,17 +277,16 @@ pub(super) fn reseed_extinct(state: &mut PredatorPreyState) -> Vec<usize> {
 }
 
 fn seed_one(state: &mut PredatorPreyState, tile: u8) -> Option<usize> {
-    if let Some(index) = state
-        .tiles
-        .iter()
-        .position(|current| *current == GRASS || *current == EMPTY)
-    {
-        state.tiles[index] = tile;
-        state.energy[index] = state.starve_ticks;
-        Some(index)
-    } else {
-        None
+    let open = (0..TILE_COUNT)
+        .filter(|index| matches!(state.tiles[*index], GRASS | EMPTY))
+        .collect::<Vec<_>>();
+    if open.is_empty() {
+        return None;
     }
+    let index = open[crate::behavior_random::rng().gen_range(0..open.len())];
+    state.tiles[index] = tile;
+    state.energy[index] = state.starve_ticks;
+    Some(index)
 }
 
 pub(super) fn starter(state: &mut PredatorPreyState) -> Vec<usize> {

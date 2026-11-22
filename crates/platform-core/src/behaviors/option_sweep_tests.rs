@@ -294,18 +294,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("life: spawnStep=31 untouched freezes", LIFE_AT_REST),
     ("life: spawnStep=31 pressed dies out", LIFE_AT_REST),
     ("life: spawnStep=63 untouched freezes", LIFE_AT_REST),
-    (
-        "predator_prey: grassGrowChancePct=100 untouched saturates",
-        BROKEN,
-    ),
-    (
-        "predator_prey: grassGrowChancePct=100 pressed saturates",
-        BROKEN,
-    ),
-    (
-        "predator_prey: predatorReproducePct=0 untouched saturates",
-        BROKEN,
-    ),
     ("twinkle: fadeChancePct=0 untouched freezes", NO_FADE),
     ("twinkle: fadeChancePct=0 pressed freezes", NO_FADE),
     ("rivers: evaporationPct=54 untouched stays empty", BROKEN),
