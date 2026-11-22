@@ -504,9 +504,11 @@ on the Orange, `Octessera Line In` on the Raspberry).
   and records the board's clock out. From 1 s after the last CC, the clock
   must average the held BPM (40 + 64/127 × 200, about 140.8) within 3 BPM per
   pulse and still swing by at least 20 BPM (the LFO). The journal must show no
-  underruns or late timed events and at most 3 pulses per runtime dispatch
-  while the host plays; after Stop, the saved patch must hold the held BPM
-  within 1, not an LFO value.
+  underruns or late timed events and at most 1 pulse per runtime dispatch
+  while the host plays (the peak 240 BPM pulses every 10.4 ms, the runtime
+  dispatches every 8 ms); the summary also gives dispatch and runtime_late
+  avg/max for comparison with the timing smoke. After Stop, the saved patch
+  must hold the held BPM within 1, not an LFO value.
 - `usb_audio` turns USB Audio on in the clone and rebuilds the USB gadget from
   it (the cleanup rebuilds it from the live store). `host_usb_audio.py` waits
   for the capture device and records 90 s of the store's own patch through

@@ -341,21 +341,36 @@ def usb_notes_in(board, out):
     return host_midi(out, "usb_notes_in")
 
 
+def weighted(stats):
+    """avg and max over (n, avg, max) samples, the avg weighted by n."""
+    total = sum(n for n, _, _ in stats)
+    return (round(sum(n * avg for n, avg, _ in stats) / total) if total else None,
+            max((top for _, _, top in stats), default=None))
+
+
 def tempo_mod(board, out):
-    """The host's clock-out checks, at most 3 pulses per runtime dispatch, and the saved BPM: the
-    last CC's held value, not an LFO value."""
+    """The host's clock-out checks, one pulse per runtime dispatch at most, and the saved BPM: the
+    last CC's held value, not an LFO value. The peak tempo is 240 BPM (96 pulses/s, one every
+    10.4 ms) and the runtime dispatches every 8 ms, so a second pulse in one dispatch means the
+    runtime fell behind; the timing smoke baseline is 1."""
     problems, evidence = host_midi(out, "tempo_mod")
     found = marks(out)
-    max_pulses = max((int(m.group(1)) for t, _, text in journal(out / "journal.log")
-                      if found["tempo_mod_ready"] <= t <= found["tempo_mod_go"]
-                      for m in [re.search(r"runtime-timing playing .* max_pulses=(\d+)", text)] if m), default=None)
+    rows = [text for t, _, text in journal(out / "journal.log")
+            if found["tempo_mod_ready"] <= t <= found["tempo_mod_go"]]
+    timing = [m for text in rows for m in [re.search(
+        r"runtime-timing playing .* max_pulses=(\d+) .* dispatch=\[n=(\d+) avg_us=(\d+) max_us=(\d+)\]", text)] if m]
+    late = [m for text in rows for m in [re.search(r"runtime_late=n=(\d+) avg=(\d+)us max=(\d+)us", text)] if m]
+    max_pulses = max((int(m.group(1)) for m in timing), default=None)
+    dispatch = weighted([(int(m.group(2)), int(m.group(3)), int(m.group(4))) for m in timing])
+    lateness = weighted([(int(m.group(1)), int(m.group(2)), int(m.group(3))) for m in late])
     held = json.loads((out / "usb-midi-tempo_mod.json").read_text())["metrics"]["held_bpm"]
     saved = json.loads((out / "tempo-patch.json").read_text())["runtimeConfig"]["transport"]["bpm"]
-    if max_pulses is None or max_pulses > 3:
-        problems.append(f"max_pulses per dispatch {max_pulses}, not at most 3")
+    if max_pulses is None or max_pulses > 1:
+        problems.append(f"max_pulses per dispatch {max_pulses}, not 1")
     if abs(saved - held) > 1:
         problems.append(f"the saved patch plays BPM {saved}, not the last CC's {held}")
-    return problems, f"{evidence}; max_pulses {max_pulses}; saved BPM {saved} (held {held})"
+    return problems, (f"{evidence}; max_pulses {max_pulses}; dispatch avg/max {dispatch[0]}/{dispatch[1]} us; "
+                      f"runtime_late avg/max {lateness[0]}/{lateness[1]} us; saved BPM {saved} (held {held})")
 
 
 def usb_looper(board, out):
