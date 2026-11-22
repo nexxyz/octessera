@@ -35,8 +35,6 @@ pub(super) fn link_layer_payload(
             "outOfRange": layer.out_of_range
         },
         "x": {
-            "from": layer.x_from,
-            "to": layer.x_to,
             "pitch": {
                 "enabled": layer.x_pitch_enabled,
                 "steps": layer.x_pitch_steps,
@@ -47,8 +45,6 @@ pub(super) fn link_layer_payload(
             "filterResonance": value_lane_payload(&layer.x_filter_resonance)
         },
         "y": {
-            "from": layer.y_from,
-            "to": layer.y_to,
             "pitch": {
                 "enabled": layer.y_pitch_enabled,
                 "steps": layer.y_pitch_steps,

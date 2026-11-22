@@ -324,8 +324,6 @@ fn typed_layer_values(index: usize) -> Vec<(String, Value)> {
         ("/link/arp/noteLengthMs".into(), json!(100 + i * 10)),
         ("/link/arp/gatePct".into(), json!(40 + i)),
         ("/link/arp/octaveSpread".into(), json!(i % 4)),
-        ("/link/x/from".into(), json!(i % 3)),
-        ("/link/x/to".into(), json!(7 - i % 3)),
         ("/link/x/pitch/steps".into(), json!(i - 4)),
         (
             "/link/x/pitch/restartEachSection".into(),

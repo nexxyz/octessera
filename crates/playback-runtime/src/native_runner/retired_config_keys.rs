@@ -10,7 +10,7 @@ type RetiredKey = (
     fn(&Value) -> bool,
 );
 
-const RETIRED_RUNTIME_KEYS: [RetiredKey; 4] = [
+const RETIRED_RUNTIME_KEYS: [RetiredKey; 8] = [
     (SYSTEM_DOCUMENT, &["auxBindings"], holds_no_binding),
     (SYSTEM_DOCUMENT, &["shiftAuxBindings"], holds_no_binding),
     (PATCH_DOCUMENTS, &["sound", "noteLengthMs"], |_| true),
@@ -19,13 +19,30 @@ const RETIRED_RUNTIME_KEYS: [RetiredKey; 4] = [
         &["instruments", "*", "midi", "durationMs"],
         |_| true,
     ),
+    (
+        PATCH_DOCUMENTS,
+        &["layers", "*", "link", "x", "from"],
+        |_| true,
+    ),
+    (PATCH_DOCUMENTS, &["layers", "*", "link", "x", "to"], |_| {
+        true
+    }),
+    (
+        PATCH_DOCUMENTS,
+        &["layers", "*", "link", "y", "from"],
+        |_| true,
+    ),
+    (PATCH_DOCUMENTS, &["layers", "*", "link", "y", "to"], |_| {
+        true
+    }),
 ];
 
 /// Loading drops each runtime key in `RETIRED_RUNTIME_KEYS` from documents of the listed kinds
 /// when its saved value passes the entry's check (a `*` step stands for every array item): a
 /// System saved by 0.8.14 still carries empty Aux banks that only the patch owns now, while a
 /// System with real bindings stays rejected, and a patch's global Note Length and per-slot MIDI
-/// Duration went when each layer's Link got its One-Shot Len. Use an entry only for a value that
+/// Duration went when each layer's Link got its One-Shot Len, and each Link axis's layer-wide
+/// From/To never had a row or any effect. Use an entry only for a value that
 /// can go; anything a save still needs means normalizing the existing stores.
 pub(crate) fn without_retired_keys(document: &Value) -> Value {
     without_runtime_keys(document, &RETIRED_RUNTIME_KEYS)
@@ -149,6 +166,28 @@ mod tests {
         assert!(runtime["sound"].get("noteLengthMs").is_none());
         for layer in runtime["layers"].as_array().unwrap() {
             assert_eq!(layer["link"]["oneShotLengthMs"], json!(150));
+        }
+    }
+
+    #[test]
+    fn a_patch_saved_with_layer_axis_from_and_to_loads_without_them() {
+        let full: Value = serde_json::from_str(PI_DEFAULT).unwrap();
+        let documents = split_system_patch_documents(&full).unwrap();
+        let mut old_patch = documents.patch.clone();
+        for layer in old_patch["runtimeConfig"]["layers"].as_array_mut().unwrap() {
+            for axis in ["x", "y"] {
+                layer["link"][axis]["from"] = json!(0);
+                layer["link"][axis]["to"] = json!(7);
+            }
+        }
+
+        let composed = compose_local_system_patch_documents(&documents.system, &old_patch)
+            .expect("a patch with the old axis From/To loads");
+        for layer in composed["runtimeConfig"]["layers"].as_array().unwrap() {
+            for axis in ["x", "y"] {
+                assert!(layer["link"][axis].get("from").is_none());
+                assert!(layer["link"][axis].get("to").is_none());
+            }
         }
     }
 

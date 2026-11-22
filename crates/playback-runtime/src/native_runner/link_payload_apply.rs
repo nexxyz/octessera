@@ -55,7 +55,6 @@ pub(super) fn apply_link_payload(layer: &mut NativeLinkLayer, payload: &LinkDto)
     if let Some(axis) = &payload.x {
         apply_axis_payload(
             axis,
-            (&mut layer.x_from, &mut layer.x_to),
             (
                 &mut layer.x_pitch_enabled,
                 &mut layer.x_pitch_steps,
@@ -71,7 +70,6 @@ pub(super) fn apply_link_payload(layer: &mut NativeLinkLayer, payload: &LinkDto)
     if let Some(axis) = &payload.y {
         apply_axis_payload(
             axis,
-            (&mut layer.y_from, &mut layer.y_to),
             (
                 &mut layer.y_pitch_enabled,
                 &mut layer.y_pitch_steps,
@@ -223,12 +221,9 @@ fn apply_pitch_payload(layer: &mut NativeLinkLayer, pitch: &PitchDto) {
 
 fn apply_axis_payload(
     axis: &AxisDto,
-    (from, to): (&mut u8, &mut u8),
     (pitch_enabled, pitch_steps, pitch_restart_each_section): (&mut bool, &mut i32, &mut bool),
     [velocity, filter_cutoff, filter_resonance]: [&mut NativeValueLane; 3],
 ) {
-    assign(axis.from.map(|value| value.min(7)), from);
-    assign(axis.to.map(|value| value.min(7)), to);
     if let Some(pitch) = &axis.pitch {
         assign(pitch.enabled, pitch_enabled);
         assign(pitch.steps.map(|value| value.clamp(-16, 16)), pitch_steps);

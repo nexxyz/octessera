@@ -269,11 +269,8 @@ pub(crate) fn every_saved_link_key_is_swept_in_some_context() {
         ),
         &mut unswept,
     );
-    // The painted grid is not a row; the Probability context paints it. The layer-wide axis
-    // From/To are saved but have no row and play no part in Link.
-    for field in ["triggerProbabilityMap", "x.from", "x.to", "y.from", "y.to"] {
-        unswept.remove(&format!("{PREFIX}{field}"));
-    }
+    // The painted grid is not a row; the Probability context paints it.
+    unswept.remove(&format!("{PREFIX}triggerProbabilityMap"));
     for context in CONTEXTS {
         let mut rows = Vec::new();
         link_rows(&runner_in(context).menu.root, &mut rows);

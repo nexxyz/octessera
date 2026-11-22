@@ -170,8 +170,6 @@ fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
 }
 
 fn validate_axis(axis: &Map<String, Value>, path: &str) -> Result<(), String> {
-    unsigned_field(axis, "from", path, 0, 7)?;
-    unsigned_field(axis, "to", path, 0, 7)?;
     if let Some(pitch) = object_field(axis, "pitch", path)? {
         bool_field(pitch, "enabled", &format!("{path}.pitch"))?;
         signed_field(pitch, "steps", &format!("{path}.pitch"), -16, 16)?;

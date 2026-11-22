@@ -153,13 +153,11 @@
         "gridOffset": 0,
         "to": 90
       },
-      "from": 0,
       "pitch": {
         "enabled": true,
         "restartEachSection": false,
         "steps": 0
       },
-      "to": 7,
       "velocity": {
         "curve": "linear",
         "enabled": false,
@@ -183,13 +181,11 @@
         "gridOffset": 0,
         "to": 90
       },
-      "from": 0,
       "pitch": {
         "enabled": true,
         "restartEachSection": false,
         "steps": 1
       },
-      "to": 7,
       "velocity": {
         "curve": "linear",
         "enabled": false,

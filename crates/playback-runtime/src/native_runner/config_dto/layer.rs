@@ -136,10 +136,6 @@ pub struct PitchDto {
 #[serde(rename_all = "camelCase")]
 pub struct AxisDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) from: Option<u8>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) to: Option<u8>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) pitch: Option<PitchAxisDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) velocity: Option<ValueLaneDto>,
