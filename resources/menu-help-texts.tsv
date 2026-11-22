@@ -841,7 +841,7 @@ native_fx_damp	*	key:mixer.buses.*.slot*.params.damp	number	Damp	Sets reverb hig
 native_fx_chance	*	key:mixer.buses.*.slot*.params.chancePct	number	Chance	The chance that each slice repeats.	A slice that repeats again keeps looping; at 100% it holds one slice.
 native_fx_slice	*	key:mixer.buses.*.slot*.params.sliceMs	number	Slice	Sets glitch slice length, 5 to 500 ms.	Shorter slices sound tighter and more fragmented.
 native_fx_ratio	*	key:mixer.*.slots.*.params.ratio	number	Ratio	Sets compressor ratio.	Higher ratios reduce peaks more strongly.
-native_fx_makeup	*	key:mixer.*.slots.*.params.makeupDb	number	Makeup	Adds gain after compression.	Use it to recover level after gain reduction.
+native_fx_makeup	*	key:mixer.*.slots.*.params.makeupDb	number	Makeup	Adds up to 18 dB of gain after compression.	Use it to recover level after gain reduction.
 native_fx_low_gain	*	key:mixer.*.slots.*.params.lowGainDb	number	Low Gain	Adjusts low-band EQ gain.	Negative cuts lows; positive boosts lows.
 native_fx_mid_gain	*	key:mixer.*.slots.*.params.midGainDb	number	Mid Gain	Adjusts mid-band EQ gain.	Negative cuts mids; positive boosts mids.
 native_fx_high_gain	*	key:mixer.*.slots.*.params.highGainDb	number	High Gain	Adjusts high-band EQ gain.	Negative cuts highs; positive boosts highs.
@@ -855,7 +855,7 @@ native_fx_bus_crackle	*	key:mixer.buses.*.slot*.params.cracklePct	number	Crackle
 native_fx_bus_warp	*	key:mixer.buses.*.slot*.params.warpDepthPct	number	Warp Depth	Sets vinyl pitch/time warp depth.	Higher values add more wobble.
 native_fx_bus_threshold_db	*	key:mixer.*.slot*.params.thresholdDb	number	Threshold dB	Sets compressor threshold in dB.	Signals above this level are reduced.
 native_fx_bus_ratio	*	key:mixer.*.slot*.params.ratio	number	Ratio	Sets compressor ratio.	Higher ratios reduce peaks more strongly.
-native_fx_bus_makeup	*	key:mixer.*.slot*.params.makeupDb	number	Makeup	Adds gain after compression.	Use it to recover level after gain reduction.
+native_fx_bus_makeup	*	key:mixer.*.slot*.params.makeupDb	number	Makeup	Adds up to 18 dB of gain after compression.	Use it to recover level after gain reduction.
 native_fx_bus_low_gain	*	key:mixer.*.slot*.params.lowGainDb	number	Low Gain	Adjusts low-band EQ gain.	Negative cuts lows; positive boosts lows.
 native_fx_bus_mid_gain	*	key:mixer.*.slot*.params.midGainDb	number	Mid Gain	Adjusts mid-band EQ gain.	Negative cuts mids; positive boosts mids.
 native_fx_bus_high_gain	*	key:mixer.*.slot*.params.highGainDb	number	High Gain	Adjusts high-band EQ gain.	Negative cuts highs; positive boosts highs.

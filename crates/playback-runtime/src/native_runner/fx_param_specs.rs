@@ -146,7 +146,7 @@ const FX_PARAMS: [(&str, &[FxParam]); 17] = [
             param("ratio", "Ratio", 2, 40, 1, 2.0, 4.0),
             param("attackMs", "Attack", 1, 200, 1, 1.0, 10.0),
             param("releaseMs", "Release", 5, 2000, 5, 1.0, 100.0),
-            param("makeupDb", "Makeup", 0, 48, 1, 2.0, 0.0),
+            param("makeupDb", "Makeup", 0, 36, 1, 2.0, 0.0),
             MIX,
         ],
     ),

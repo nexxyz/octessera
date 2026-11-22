@@ -74,7 +74,7 @@ const EXPECTED: &[(&str, FxParamId, f32, f32, f32)] = &[
     ("compressor", FxParamId::Ratio, 1.0, 20.0, 4.0),
     ("compressor", FxParamId::AttackMs, 1.0, 200.0, 10.0),
     ("compressor", FxParamId::ReleaseMs, 5.0, 2000.0, 100.0),
-    ("compressor", FxParamId::MakeupDb, 0.0, 24.0, 0.0),
+    ("compressor", FxParamId::MakeupDb, 0.0, 18.0, 0.0),
     ("compressor", FxParamId::MixPct, 0.0, 100.0, 100.0),
     ("eq", FxParamId::LowGainDb, -12.0, 12.0, 0.0),
     ("eq", FxParamId::MidGainDb, -12.0, 12.0, 0.0),
