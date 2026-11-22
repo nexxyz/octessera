@@ -102,7 +102,7 @@ layer_orbit_orbit	*	key:layers.*.build.behaviorConfig.orbitPct	number	Orbit	Sets
 layer_orbit_repel	*	key:layers.*.build.behaviorConfig.repelMode	enum	Repel Mode	off pulls particles toward the attractor; always pushes them away.	Orbit's sideways swirl applies either way.
 life_spawn_shared_orbit_reset	*	action:behavior_action:resetOrbit	action	Reset Orbit	Puts the particles back in a ring around the center.	The new spots play once.
 life_spawn_shared_orbit_nudge	*	action:behavior_action:nudgeAttractor	action	Nudge Attractor	Gives the attractor a little push.	The particles follow over the next steps.
-layer_sand_wind	*	key:layers.*.build.behaviorConfig.windStrengthPct	number	Wind Strength	Sets how much sand moves downwind each tick.	Gust gives the next tick an extra shove.
+layer_sand_wind	*	key:layers.*.build.behaviorConfig.windStrengthPct	number	Wind Strength	Sets how much sand moves downwind each tick; sand blown past the edge is gone.	0 is calm and the dunes rest; Gust gives the next tick an extra shove.
 layer_sand_deposition	*	key:layers.*.build.behaviorConfig.depositionPct	number	Deposition	Sets how often blown sand raises the crest it lands on to its own height.	High values leave standing ridges downwind; crests decay slowly when not refreshed.
 layer_sand_erosion	*	key:layers.*.build.behaviorConfig.erosionPct	number	Erosion	Sets Sand Ripples grain pickup and Rivers terrain erosion chance.	Higher values intensify transport or terrain change; both behaviors keep movement inside grid edges.
 life_spawn_shared_sand_gust	*	action:behavior_action:gust	action	Gust	Adds one tick of stronger wind without immediate notes.	The next tick may move more grains.

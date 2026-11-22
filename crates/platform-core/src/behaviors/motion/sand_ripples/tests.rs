@@ -87,7 +87,7 @@ fn input_actions() {
     )
 }
 #[test]
-fn transport_decay_and_nonwrap() {
+fn transport_decay_and_sand_leaving_at_the_downwind_edge() {
     let mut ctx = context();
     let mut sand = vec![0; TILE_COUNT];
     sand[grid_index(0, 0)] = 100;
@@ -111,8 +111,9 @@ fn transport_decay_and_nonwrap() {
     )
     .unwrap();
     let t = sand_ripples_on_tick(s, &mut ctx);
-    assert_eq!(t.sand[grid_index(7, 0)], 100);
-    let s = sand_ripples_init(json!({"crest":[16],"erosionPct":0})).unwrap();
+    assert_eq!(t.sand[grid_index(7, 0)], 75);
+    assert_eq!(t.sand[grid_index(0, 1)], 0);
+    let s = sand_ripples_init(json!({"crest":[16],"windStrengthPct":0})).unwrap();
     let t = sand_ripples_on_tick(s, &mut ctx);
     assert_eq!(t.crest[0], 15);
     assert_eq!(t.trigger_types[0], TileTriggerType::Deactivate)

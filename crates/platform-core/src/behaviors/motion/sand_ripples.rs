@@ -12,6 +12,7 @@ use serde_json::Value;
 
 const VISIBLE: u8 = 16;
 const ACTIVATE: u8 = 64;
+const RENEW_BELOW: usize = 16;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SandRipplesState {
@@ -134,22 +135,22 @@ pub fn sand_ripples_on_tick(mut s: SandRipplesState, _: &mut BehaviorContext) ->
         if ps[i] <= pc[i] / 2 || tile_roll_pct(s.tick_counter, i, 7) >= u32::from(s.erosion_pct) {
             continue;
         }
-        if let Some(d) = downwind(i, &s.wind_dir) {
-            let amt = (u16::from(ps[i]) * u16::from(wind) / 100 / 4)
-                .max(1)
-                .min(u16::from(ps[i])) as u8;
-            ns[i] = ns[i].saturating_sub(amt);
-            ns[d] = ns[d].saturating_add(amt);
-            forced.push(d);
-            if tile_roll_pct(s.tick_counter, d, 17) < u32::from(s.deposition_pct) {
-                nc[d] = nc[d].max(ps[i])
-            }
+        let amt = (u16::from(ps[i]) * u16::from(wind) / 100 / 4)
+            .max(1)
+            .min(u16::from(ps[i])) as u8;
+        ns[i] = ns[i].saturating_sub(amt);
+        let Some(d) = downwind(i, &s.wind_dir) else {
+            continue;
+        };
+        ns[d] = ns[d].saturating_add(amt);
+        forced.push(d);
+        if tile_roll_pct(s.tick_counter, d, 17) < u32::from(s.deposition_pct) {
+            nc[d] = nc[d].max(ps[i])
         }
     }
-    if wind > 0 && visible_tiles(&prev) == visible_tiles(&rendered_values(&ns, &nc)) {
+    if wind > 0 && visible_count(&rendered_values(&ns, &nc)) < RENEW_BELOW {
         renew_one_dune(&mut ns, &mut nc, s.tick_counter, &mut forced);
     }
-    prevent_full_saturation(&mut ns, &mut nc, s.tick_counter, &mut forced);
     s.sand = ns;
     s.crest = nc;
     s.gust_ticks = s.gust_ticks.saturating_sub(1);
@@ -272,18 +273,6 @@ fn renew_one_dune(sand: &mut [u8], crest: &mut [u8], tick: u64, forced: &mut Vec
     crest[index] = crest[index].max(72);
     forced.push(index);
 }
-fn prevent_full_saturation(sand: &mut [u8], crest: &mut [u8], tick: u64, forced: &mut Vec<usize>) {
-    if !rendered_values(sand, crest)
-        .iter()
-        .all(|value| *value >= VISIBLE)
-    {
-        return;
-    }
-    let index = ((tick as usize) * 11) % TILE_COUNT;
-    sand[index] = 0;
-    crest[index] = 0;
-    forced.push(index);
-}
 fn downwind(i: usize, w: &str) -> Option<usize> {
     let x = i % GRID_WIDTH;
     let y = i / GRID_WIDTH;
@@ -305,8 +294,8 @@ fn rendered(s: &SandRipplesState) -> Vec<u8> {
 fn rendered_values(sand: &[u8], crest: &[u8]) -> Vec<u8> {
     (0..TILE_COUNT).map(|i| sand[i].max(crest[i])).collect()
 }
-fn visible_tiles(values: &[u8]) -> Vec<bool> {
-    values.iter().map(|value| *value >= VISIBLE).collect()
+fn visible_count(values: &[u8]) -> usize {
+    values.iter().filter(|value| **value >= VISIBLE).count()
 }
 fn rendered_tile(s: &SandRipplesState, i: usize) -> u8 {
     s.sand[i].max(s.crest[i])
