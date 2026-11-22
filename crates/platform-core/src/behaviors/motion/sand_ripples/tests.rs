@@ -161,3 +161,17 @@ fn default_self_sustains_with_bounded_renewal() {
     assert!(terminal_same <= 2);
     assert!(final_frames.windows(2).any(|window| window[0] != window[1]));
 }
+#[test]
+fn a_deposit_raises_the_crest_to_the_sand_height_it_carried() {
+    for (deposition, crest) in [(0, 0), (100, 200)] {
+        let mut ctx = context();
+        let s = sand_ripples_init(json!({
+            "sand": [200], "crest": [1], "windDir": "east",
+            "windStrengthPct": 100, "erosionPct": 100, "depositionPct": deposition
+        }))
+        .unwrap();
+        let s = sand_ripples_on_tick(s, &mut ctx);
+        assert_eq!(s.sand[..2], [150, 50]);
+        assert_eq!(s.crest[1], crest);
+    }
+}

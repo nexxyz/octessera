@@ -256,13 +256,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("bubbles: maxBubbles=24 and 64 play the same", CAP),
     ("gravity: spawnRatePct=0 untouched stays empty", OFF),
     ("gravity: spawnRatePct=0 pressed dies out", OFF),
-    // Open. Now: a deposit adds half a moved grain to a crest that rarely rises above the sand it
-    // rides on, so Deposition never shows. After (proposal): a deposit raises the crest to the
-    // sand height it carried, so high Deposition leaves standing ridges.
-    (
-        "sand_ripples: depositionPct=0 and 35 play the same",
-        "open: crests stay under the sand",
-    ),
 ];
 
 #[test]

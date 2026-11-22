@@ -142,7 +142,7 @@ pub fn sand_ripples_on_tick(mut s: SandRipplesState, _: &mut BehaviorContext) ->
             ns[d] = ns[d].saturating_add(amt);
             forced.push(d);
             if tile_roll_pct(s.tick_counter, d, 17) < u32::from(s.deposition_pct) {
-                nc[d] = nc[d].saturating_add((amt / 2).max(1))
+                nc[d] = nc[d].max(ps[i])
             }
         }
     }
