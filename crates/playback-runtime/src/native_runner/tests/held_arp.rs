@@ -37,14 +37,13 @@ pub(crate) fn a_scanning_hold_layer_forgets_the_pitches_the_scan_line_has_passed
     let mut held_any = false;
     for _ in 0..2 * GRID_WIDTH {
         step(&mut runner);
-        let sounding = &runner.transpose.active_notes[0];
+        let sounding = runner.held_notes[0].sounding_keys();
         let held = &runner.link_arp.held_notes[0];
         held_any |= !held.is_empty();
         assert!(
             held.iter()
-                .all(|note| sounding.contains_key(&(note.channel, note.note))),
-            "the Arp holds only sounding pitches: {held:?} vs {:?}",
-            sounding.keys().collect::<Vec<_>>()
+                .all(|note| sounding.contains(&(note.channel, note.note))),
+            "the Arp holds only sounding pitches: {held:?} vs {sounding:?}"
         );
     }
     assert!(held_any, "the scan line holds the block's pitches");

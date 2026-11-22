@@ -323,7 +323,6 @@ fn fm_scalar_outbox_coalesces_and_replacement_advances_generation() {
 #[test]
 fn fm_held_notes_transpose_and_route_to_internal_audio_on_the_original_slot() {
     use crate::native_runner::modulation::sampler::apply_sampler_assignments_for_instruments_routed;
-    use std::collections::BTreeMap;
 
     let mut instrument = NativeInstrumentSlot::new(0);
     instrument.kind = InstrumentType::Fm;
@@ -338,7 +337,7 @@ fn fm_held_notes_transpose_and_route_to_internal_audio_on_the_original_slot() {
         degree: 0,
         kind: platform_core::TileTriggerKind::Activate,
     };
-    let mut held = BTreeMap::new();
+    let mut held = crate::native_runner::held_notes::HeldNotes::default();
     let note_on = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
             channel: 0,

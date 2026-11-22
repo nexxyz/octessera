@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_runner::modulation::RoutedMusicalEvents;
 use platform_core::{
     default_mapping_config, AxisStrategy, DeviceInput, GlobalSoundConfig,
     InterpretationEventProfile, InterpretationStateProfile, NativeBehavior, NativeLayerEngine,
@@ -419,4 +420,57 @@ fn a_forgotten_channel_sounds_its_next_note_on_again() {
     held.forget_channel(0);
 
     assert_eq!(held.apply(&[on(60)], press(), &hold).events.len(), 1);
+}
+
+fn sounds_as(note: u8) -> TransposedHeldNote {
+    TransposedHeldNote {
+        routed_channel: 0,
+        routed_note: note,
+        routed_to_midi: false,
+        sampler_tile: None,
+    }
+}
+
+#[test]
+fn a_note_off_routed_after_its_last_holder_lets_go_still_finds_its_sound() {
+    let mut held = HeldNotes::default();
+    let hold = [NoteBehavior::Hold];
+    held.apply(
+        &[on(60)],
+        vec![tile_intent(TileTriggerKind::Activate)],
+        &hold,
+    );
+    held.record_sounding(0, 60, sounds_as(67));
+
+    let released = held.apply(
+        &[off(0, 60)],
+        vec![tile_intent(TileTriggerKind::Deactivate)],
+        &hold,
+    );
+
+    assert_eq!(released.events, vec![off(0, 60)]);
+    assert_eq!(held.take_sounding(0, 60), Some(sounds_as(67)));
+    assert!(held.is_empty());
+}
+
+#[test]
+fn ending_the_sound_of_held_notes_keeps_who_holds_them() {
+    let mut held = HeldNotes::default();
+    let hold = [NoteBehavior::Hold];
+    held.apply(
+        &[on(60)],
+        vec![tile_intent(TileTriggerKind::Activate)],
+        &hold,
+    );
+    held.record_sounding(0, 60, sounds_as(67));
+
+    let mut ended = RoutedMusicalEvents::default();
+    held.release_sounding(None, &mut ended);
+
+    assert_eq!(ended.audio, vec![off(0, 67)]);
+    assert!(held.contains(&HeldNote {
+        channel: 0,
+        note: 60,
+    }));
+    assert_eq!(held.take_sounding(0, 60), None);
 }

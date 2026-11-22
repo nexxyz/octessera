@@ -1,8 +1,8 @@
 use super::super::NativeLinkLayer;
+use crate::native_runner::held_notes::HeldNotes;
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, NoteBehavior, TileTriggerIntent};
-use std::collections::BTreeMap;
 
 mod tile_hits;
 pub(in crate::native_runner) use tile_hits::{drum_hit_for_intent, tile_release};
@@ -86,7 +86,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
     instruments: &[super::super::NativeInstrumentSlot],
     sense: Option<&NativeLinkLayer>,
     transpose_offset: i8,
-    mut active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
+    mut held_notes: Option<&mut HeldNotes>,
 ) -> RoutedMusicalEvents {
     let mut routed = RoutedMusicalEvents {
         audio: Vec::with_capacity(events.len()),
@@ -97,7 +97,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
             event.clone(),
             instruments,
             &mut routed,
-            active_transpose_notes.as_deref_mut(),
+            held_notes.as_deref_mut(),
         );
     }
     for (intent_index, event) in events.iter().skip(mapped_event_offset).enumerate() {
@@ -106,7 +106,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                 event.clone(),
                 instruments,
                 &mut routed,
-                active_transpose_notes.as_deref_mut(),
+                held_notes.as_deref_mut(),
             );
             continue;
         };
@@ -163,13 +163,15 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                             *note,
                         )
                     };
-                    if let (Some(hit), None, Some(active_notes), InstrumentType::Sampler) = (
+                    if let (Some(hit), None, Some(held), InstrumentType::Sampler) = (
                         &hit,
                         *duration_ms,
-                        active_transpose_notes.as_deref_mut(),
+                        held_notes.as_deref_mut(),
                         instrument.kind,
                     ) {
-                        active_notes.entry((channel, *note)).or_default().push(
+                        held.record_sounding(
+                            channel,
+                            *note,
                             TransposedHeldNote {
                                 routed_channel: channel,
                                 routed_note: *note,
@@ -186,18 +188,13 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                         let tile = tile_hits::tile_index(intent.x, intent.y);
                         // On a Hold Sampler a pitch two tiles share sounds the first tile's
                         // sample and ends with the last tile's note-off.
-                        let mut held = take_held_tile(
-                            active_transpose_notes.as_deref_mut(),
-                            channel,
-                            *note,
-                            tile,
-                        );
+                        let mut held = held_notes
+                            .as_deref_mut()
+                            .and_then(|held| held.take_sounding_tile(channel, *note, tile));
                         if held.is_none() && instrument.note_behavior == NoteBehavior::Hold {
-                            held = take_held_note(
-                                active_transpose_notes.as_deref_mut(),
-                                channel,
-                                *note,
-                            );
+                            held = held_notes
+                                .as_deref_mut()
+                                .and_then(|held| held.take_sounding(channel, *note));
                         }
                         match held {
                             Some(held) => held.release_into(&mut routed),
@@ -218,13 +215,13 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                 sense,
                 instruments,
                 transpose_offset,
-                active_transpose_notes.as_deref_mut(),
+                held_notes.as_deref_mut(),
             ),
             MusicalEvent::NoteOff { .. } => prepare_note_off_with_intent(
                 &mut event,
                 instruments,
                 transpose_offset,
-                active_transpose_notes.as_deref_mut(),
+                held_notes.as_deref_mut(),
                 &mut route,
             ),
             MusicalEvent::Cc { .. } => {
@@ -250,7 +247,7 @@ fn prepare_note_on_with_intent(
     sense: Option<&NativeLinkLayer>,
     instruments: &[super::super::NativeInstrumentSlot],
     transpose_offset: i8,
-    active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
+    held_notes: Option<&mut HeldNotes>,
 ) -> bool {
     let MusicalEvent::NoteOn {
         channel,
@@ -297,11 +294,8 @@ fn prepare_note_on_with_intent(
         | InstrumentType::MidiDrum => None,
     };
     if duration_ms.is_none() {
-        if let (Some(active_notes), Some(held_note)) = (active_transpose_notes, held_note) {
-            active_notes
-                .entry((original_channel, original_note))
-                .or_default()
-                .push(held_note);
+        if let (Some(held), Some(held_note)) = (held_notes, held_note) {
+            held.record_sounding(original_channel, original_note, held_note);
         }
     }
     false
@@ -311,7 +305,7 @@ fn prepare_note_off_with_intent(
     event: &mut MusicalEvent,
     instruments: &[super::super::NativeInstrumentSlot],
     transpose_offset: i8,
-    active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
+    held_notes: Option<&mut HeldNotes>,
     route: &mut InstrumentRoute,
 ) -> bool {
     let MusicalEvent::NoteOff { channel, note } = event else {
@@ -319,7 +313,8 @@ fn prepare_note_off_with_intent(
     };
     let original_channel = *channel;
     let original_note = *note;
-    if let Some(held_note) = take_held_note(active_transpose_notes, original_channel, original_note)
+    if let Some(held_note) =
+        held_notes.and_then(|held| held.take_sounding(original_channel, original_note))
     {
         *channel = held_note.routed_channel;
         *note = held_note.routed_note;
@@ -410,13 +405,13 @@ fn route_event_without_intent_with_held_transpose(
     event: MusicalEvent,
     instruments: &[super::super::NativeInstrumentSlot],
     out: &mut RoutedMusicalEvents,
-    active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
+    held_notes: Option<&mut HeldNotes>,
 ) {
     let MusicalEvent::NoteOff { channel, note } = event else {
         route_event_without_intent(event, instruments, &mut out.audio, &mut out.midi);
         return;
     };
-    match take_held_note(active_transpose_notes, channel, note) {
+    match held_notes.and_then(|held| held.take_sounding(channel, note)) {
         Some(held_note) => held_note.release_into(out),
         None => route_event_without_intent(
             MusicalEvent::NoteOff { channel, note },
@@ -425,40 +420,6 @@ fn route_event_without_intent_with_held_transpose(
             &mut out.midi,
         ),
     }
-}
-
-fn take_held_tile(
-    active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
-    channel: u8,
-    note: u8,
-    tile: u8,
-) -> Option<TransposedHeldNote> {
-    let active_notes = active_transpose_notes?;
-    let key = (channel, note);
-    let notes = active_notes.get_mut(&key)?;
-    let index = notes.iter().position(|held| {
-        held.sampler_tile
-            .is_some_and(|(_, held_tile)| held_tile == tile)
-    })?;
-    let held_note = notes.remove(index);
-    if notes.is_empty() {
-        active_notes.remove(&key);
-    }
-    Some(held_note)
-}
-
-fn take_held_note(
-    active_transpose_notes: Option<&mut BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
-    channel: u8,
-    note: u8,
-) -> Option<TransposedHeldNote> {
-    let active_notes = active_transpose_notes?;
-    let key = (channel, note);
-    let held_note = active_notes.get_mut(&key).and_then(|notes| notes.pop());
-    if active_notes.get(&key).is_some_and(|notes| notes.is_empty()) {
-        active_notes.remove(&key);
-    }
-    held_note
 }
 
 pub(in crate::native_runner) fn event_channel(event: &MusicalEvent) -> u8 {

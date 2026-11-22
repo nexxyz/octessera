@@ -139,15 +139,15 @@ impl NativeRunner {
             &instruments,
             sense.as_ref(),
             transpose_offset,
-            self.transpose.active_notes.get_mut(layer_index),
+            self.held_notes.get_mut(layer_index),
         )
     }
 
     pub(super) fn clear_layer_replacement_state(&mut self, layer_index: usize) {
         self.clear_delayed_link_events_for_layer(layer_index);
         self.clear_link_arp_state_for_layer(layer_index);
-        if let Some(active_notes) = self.transpose.active_notes.get_mut(layer_index) {
-            active_notes.clear();
+        if let Some(held) = self.held_notes.get_mut(layer_index) {
+            held.clear_sounding();
         }
     }
 

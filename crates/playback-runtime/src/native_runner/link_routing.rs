@@ -243,7 +243,7 @@ impl NativeRunner {
                 context.instruments,
                 context.sense,
                 context.transpose_offset,
-                self.transpose.active_notes.get_mut(layer_index),
+                self.held_notes.get_mut(layer_index),
             )
         };
         let mut lit = Vec::new();

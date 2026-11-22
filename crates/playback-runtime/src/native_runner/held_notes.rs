@@ -1,6 +1,7 @@
-//! What a layer's Hold instruments hold. Link sends every note-on with its One-Shot Len and
-//! every note-off with its tile; each instrument's Note Mode decides here whether a note-on
-//! starts a hit that ends itself or a note that sounds until its last holder lets go.
+//! A layer's one ledger of held notes. Link sends every note-on with its One-Shot Len and every
+//! note-off with its tile; each instrument's Note Mode decides here whether a note-on is a hit
+//! that ends itself or a note that sounds until its last holder lets go, and each held note keeps
+//! what its instrument sounds for it, so its note-off ends that sound after a transpose too.
 
 use platform_core::{
     compute_degree, InterpretationProfile, MusicalEvent, NoteBehavior, TileTriggerIntent,
@@ -8,7 +9,10 @@ use platform_core::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::modulation::sampler::TransposedHeldNote;
 use super::NativeRunner;
+
+mod sounding;
 
 impl NativeRunner {
     /// Lets the Hold instruments of `layer_index` hold what its engine just played; after a step,
@@ -87,11 +91,19 @@ impl NoteBehaviorWithIntentsResult {
     }
 }
 
+/// One pitch of one instrument: who holds it and what its instrument sounds for it. A note that
+/// is no longer held keeps its sound until its note-off has been routed or a drain ends it.
+#[derive(Debug, Default)]
+struct HeldEntry {
+    holders: Holders,
+    sounding: Vec<TransposedHeldNote>,
+}
+
 /// The notes a layer holds on its Hold instruments, counted per channel and note so that one
 /// pitch sounds once and ends only when its last holder lets go.
 #[derive(Debug, Default)]
 pub(super) struct HeldNotes {
-    notes: BTreeMap<HeldNote, Holders>,
+    notes: BTreeMap<HeldNote, HeldEntry>,
     scanned_this_step: BTreeSet<HeldNote>,
     drained_tiles: BTreeSet<usize>,
 }
@@ -99,23 +111,64 @@ pub(super) struct HeldNotes {
 impl HeldNotes {
     #[cfg(test)]
     pub(super) fn contains(&self, key: &HeldNote) -> bool {
-        self.notes.contains_key(key)
+        self.is_held(*key)
+    }
+
+    #[cfg(test)]
+    pub(super) fn is_empty(&self) -> bool {
+        self.notes.is_empty()
     }
 
     pub(super) fn drain(&mut self, max_notes: usize) -> Vec<MusicalEvent> {
         let keys = self
             .notes
-            .keys()
-            .copied()
+            .iter()
+            .filter(|(_, entry)| !entry.holders.is_empty())
+            .map(|(key, _)| *key)
             .take(max_notes)
             .collect::<Vec<_>>();
         for key in &keys {
-            if let Some(holders) = self.notes.remove(key) {
+            if let Some(entry) = self.notes.get_mut(key) {
+                let holders = std::mem::take(&mut entry.holders);
                 self.drained_tiles.extend(holders.tiles);
             }
+            self.remove_if_idle(*key);
             self.scanned_this_step.remove(key);
         }
         keys.into_iter().map(note_off).collect()
+    }
+
+    fn is_held(&self, key: HeldNote) -> bool {
+        self.notes
+            .get(&key)
+            .is_some_and(|entry| !entry.holders.is_empty())
+    }
+
+    fn holders_mut(&mut self, key: HeldNote) -> Option<&mut Holders> {
+        self.notes
+            .get_mut(&key)
+            .map(|entry| &mut entry.holders)
+            .filter(|holders| !holders.is_empty())
+    }
+
+    /// Ends every hold on `key` and says whether there was one.
+    fn let_go(&mut self, key: HeldNote) -> bool {
+        let Some(holders) = self.holders_mut(key) else {
+            return false;
+        };
+        *holders = Holders::default();
+        self.remove_if_idle(key);
+        true
+    }
+
+    fn remove_if_idle(&mut self, key: HeldNote) {
+        if self
+            .notes
+            .get(&key)
+            .is_some_and(|entry| entry.holders.is_empty() && entry.sounding.is_empty())
+        {
+            self.notes.remove(&key);
+        }
     }
 
     /// Ends what a step let go of: with Event Triggers off, the notes of tiles gone dark as Hold
@@ -150,12 +203,13 @@ impl HeldNotes {
     pub(super) fn release_unscanned(&mut self) -> Vec<MusicalEvent> {
         let scanned = &self.scanned_this_step;
         let mut released = Vec::new();
-        self.notes.retain(|key, holders| {
+        self.notes.retain(|key, entry| {
+            let holders = &mut entry.holders;
             if holders.scan && !scanned.contains(key) {
                 holders.scan = false;
                 if holders.is_empty() {
                     released.push(note_off(*key));
-                    return false;
+                    return !entry.sounding.is_empty();
                 }
             }
             true
@@ -169,7 +223,8 @@ impl HeldNotes {
     fn release_dark_tiles(&mut self, lit: &[bool]) -> Vec<(usize, MusicalEvent)> {
         let is_lit = |tile: &usize| lit.get(*tile).copied() == Some(true);
         let mut released = Vec::new();
-        self.notes.retain(|key, holders| {
+        self.notes.retain(|key, entry| {
+            let holders = &mut entry.holders;
             let Some(&tile) = holders.tiles.iter().find(|tile| !is_lit(tile)) else {
                 return true;
             };
@@ -178,15 +233,20 @@ impl HeldNotes {
                 return true;
             }
             released.push((tile, note_off(*key)));
-            false
+            !entry.sounding.is_empty()
         });
         released
     }
 
-    /// Forgets the notes held on `channel` after its voices were cut some other way, so the next
-    /// note-on for one of those pitches sounds again.
+    /// Forgets who holds the notes on `channel` after its voices were cut some other way, so the
+    /// next note-on for one of those pitches sounds again.
     pub(super) fn forget_channel(&mut self, channel: u8) {
-        self.notes.retain(|key, _| key.channel != channel);
+        self.notes.retain(|key, entry| {
+            if key.channel == channel {
+                entry.holders = Holders::default();
+            }
+            !entry.holders.is_empty() || !entry.sounding.is_empty()
+        });
         self.scanned_this_step.retain(|key| key.channel != channel);
     }
 
@@ -221,7 +281,7 @@ impl HeldNotes {
                         }
                         None if hold(channel) => self.release(key, intent, &mut out),
                         None => {
-                            self.notes.remove(&key);
+                            self.let_go(key);
                             out.push(event.clone(), intent);
                         }
                     }
@@ -253,15 +313,15 @@ impl HeldNotes {
             }
             Holder::Untracked => {}
         }
-        let holders = self.notes.entry(key).or_default();
-        let sounding = !holders.is_empty();
+        let holders = &mut self.notes.entry(key).or_default().holders;
+        let held = !holders.is_empty();
         match holder {
             Holder::Tile(tile) if !holders.tiles.contains(&tile) => holders.tiles.push(tile),
             Holder::Tile(_) => {}
             Holder::Scan => holders.scan = true,
             Holder::Untracked => holders.untracked = holders.untracked.saturating_add(1),
         }
-        if !sounding {
+        if !held {
             out.push(
                 MusicalEvent::NoteOn {
                     channel: key.channel,
@@ -292,16 +352,16 @@ impl HeldNotes {
                 }
             }
             Some(TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty) => {
-                if self.notes.remove(&key).is_some() {
+                if self.let_go(key) {
                     out.push(note_off(key), intent);
                 }
             }
             Some(_) => {
-                self.notes.remove(&key);
+                self.let_go(key);
                 out.push(note_off(key), intent);
             }
             None => {
-                let Some(holders) = self.notes.get_mut(&key) else {
+                let Some(holders) = self.holders_mut(key) else {
                     out.push(note_off(key), intent);
                     return;
                 };
@@ -311,7 +371,7 @@ impl HeldNotes {
                     *holders = Holders::default();
                 }
                 if holders.is_empty() {
-                    self.notes.remove(&key);
+                    self.remove_if_idle(key);
                     out.push(note_off(key), intent);
                 }
             }
@@ -331,7 +391,7 @@ impl HeldNotes {
         let held = self
             .notes
             .iter()
-            .filter(|(_, holders)| holders.tiles.contains(&tile))
+            .filter(|(_, entry)| entry.holders.tiles.contains(&tile))
             .map(|(held, _)| *held)
             .collect::<Vec<_>>();
         for held_key in &held {
@@ -345,9 +405,9 @@ impl HeldNotes {
             return;
         }
         if !hold {
-            self.notes.remove(&key);
+            self.let_go(key);
             out.push(note_off(key), intent);
-        } else if !self.notes.contains_key(&key) {
+        } else if !self.is_held(key) {
             out.push(note_off(key), intent);
         }
     }
@@ -359,12 +419,12 @@ impl HeldNotes {
         intent: Option<TileTriggerIntent>,
         out: &mut NoteBehaviorWithIntentsResult,
     ) {
-        let Some(holders) = self.notes.get_mut(&key) else {
+        let Some(holders) = self.holders_mut(key) else {
             return;
         };
         holders.tiles.retain(|held| *held != tile);
         if holders.is_empty() {
-            self.notes.remove(&key);
+            self.remove_if_idle(key);
             out.push(note_off(key), intent);
         }
     }
@@ -372,7 +432,7 @@ impl HeldNotes {
     fn tile_note(&self, channel: u8, tile: usize) -> Option<HeldNote> {
         self.notes
             .iter()
-            .find(|(key, holders)| key.channel == channel && holders.tiles.contains(&tile))
+            .find(|(key, entry)| key.channel == channel && entry.holders.tiles.contains(&tile))
             .map(|(key, _)| *key)
     }
 }

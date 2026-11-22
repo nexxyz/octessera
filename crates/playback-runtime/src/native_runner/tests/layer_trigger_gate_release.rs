@@ -65,7 +65,7 @@ pub(crate) fn disabling_layer_drains_internal_synth_note_with_transpose_routing(
     assert!(released_events
         .iter()
         .all(|event| matches!(event, MusicalEvent::NoteOff { .. })));
-    assert!(runner.transpose.active_notes[0].is_empty());
+    assert!(runner.held_notes[0].is_empty());
 }
 
 #[test]

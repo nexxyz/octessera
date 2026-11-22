@@ -77,20 +77,14 @@ impl NativeRunner {
         }
     }
 
-    /// A sampler tile is sustained when its note-on was recorded in the layer's held-note map;
-    /// one-shot tiles are not, and are never released by layer drains.
+    /// A sampler tile is sustained when a note the layer holds sounds it; one-shot tiles are
+    /// not, and are never released by layer drains.
     pub(super) fn is_held_tile(&self, layer_index: usize, hit: &TileHit) -> bool {
         hit.velocity > 0
             && self
-                .transpose
-                .active_notes
+                .held_notes
                 .get(layer_index)
-                .is_some_and(|notes| {
-                    notes.values().flatten().any(|held| {
-                        held.routed_channel == hit.instrument_slot
-                            && held.sampler_tile == Some((hit.voice, hit.tile))
-                    })
-                })
+                .is_some_and(|held| held.sounds_tile(hit.instrument_slot, hit.voice, hit.tile))
     }
 
     /// Stop's backstop: All Notes Off on every external MIDI channel that sounded since the last

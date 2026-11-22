@@ -1,10 +1,8 @@
 use super::led_color::LedColor;
-use super::modulation::sampler::TransposedHeldNote;
 use super::{
     InstrumentType, NativeRunner, RoutedMusicalEvents, TriggerAction, GRID_HEIGHT, GRID_WIDTH,
     LAYER_COUNT,
 };
-use std::collections::BTreeMap;
 
 pub(super) fn play_transpose_offset_at(x: usize, y: usize) -> Option<i8> {
     if x == 0 || y == 0 || y == 7 || x >= GRID_WIDTH || y >= GRID_HEIGHT {
@@ -32,13 +30,12 @@ pub(super) fn play_transpose_offset_at(x: usize, y: usize) -> Option<i8> {
 }
 
 /// The Transpose page's live state per layer, never saved: the selection, the on/off state and
-/// offset, the transposed notes still held, and the note-offs a retarget leaves to send.
+/// offset, and the note-offs a retarget leaves to send.
 #[derive(Clone, Debug)]
 pub(super) struct PlayTranspose {
     pub(super) selected: Vec<bool>,
     pub(super) enabled: Vec<bool>,
     pub(super) offsets: Vec<i8>,
-    pub(super) active_notes: Vec<BTreeMap<(u8, u8), Vec<TransposedHeldNote>>>,
     pub(super) pending_note_offs: RoutedMusicalEvents,
 }
 
@@ -48,7 +45,6 @@ impl Default for PlayTranspose {
             selected: vec![true; LAYER_COUNT],
             enabled: vec![true; LAYER_COUNT],
             offsets: vec![0; LAYER_COUNT],
-            active_notes: vec![BTreeMap::new(); LAYER_COUNT],
             pending_note_offs: RoutedMusicalEvents::default(),
         }
     }
@@ -176,40 +172,23 @@ impl NativeRunner {
     }
 
     pub(super) fn drain_all_play_transpose_notes(&mut self) {
-        let layers = (0..self.transpose.active_notes.len()).collect::<Vec<_>>();
+        let layers = (0..self.held_notes.len()).collect::<Vec<_>>();
         self.drain_play_transpose_layers(&layers);
     }
 
     pub(super) fn drain_play_transpose_instrument_notes(&mut self, instrument_index: usize) {
-        let mut drained_by_layer = Vec::new();
-        for (layer_index, active_notes) in self.transpose.active_notes.iter_mut().enumerate() {
-            let mut layer_drained = RoutedMusicalEvents::default();
-            let keys = active_notes
-                .keys()
-                .copied()
-                .filter(|(channel, _)| usize::from(*channel) == instrument_index)
-                .collect::<Vec<_>>();
-            for key in keys {
-                let Some(held_notes) = active_notes.remove(&key) else {
-                    continue;
-                };
-                for held_note in held_notes {
-                    held_note.release_into(&mut layer_drained);
-                }
-            }
-            if !layer_drained.is_empty() {
-                drained_by_layer.push((layer_index, layer_drained));
-            }
-        }
+        let channel = instrument_index as u8;
         let mut drained = RoutedMusicalEvents::default();
-        for (layer_index, layer_drained) in drained_by_layer {
-            self.forget_layer_owned_route_note_offs(layer_index, &layer_drained);
-            drained.extend(layer_drained);
+        for layer_index in 0..self.held_notes.len() {
+            let mut layer_drained = RoutedMusicalEvents::default();
+            self.held_notes[layer_index].release_sounding(Some(channel), &mut layer_drained);
+            self.held_notes[layer_index].forget_channel(channel);
+            if !layer_drained.is_empty() {
+                self.forget_layer_owned_route_note_offs(layer_index, &layer_drained);
+                drained.extend(layer_drained);
+            }
         }
         self.transpose.pending_note_offs.extend(drained);
-        for held in &mut self.held_notes {
-            held.forget_channel(instrument_index as u8);
-        }
     }
 
     pub(super) fn drain_play_transpose_layers(&mut self, layers: &[usize]) {
@@ -224,14 +203,10 @@ impl NativeRunner {
         let mut drained = RoutedMusicalEvents::default();
         for layer in layers {
             let mut layer_drained = RoutedMusicalEvents::default();
-            let Some(active_notes) = self.transpose.active_notes.get_mut(*layer) else {
+            let Some(held) = self.held_notes.get_mut(*layer) else {
                 continue;
             };
-            for held_notes in std::mem::take(active_notes).into_values() {
-                for held_note in held_notes {
-                    held_note.release_into(&mut layer_drained);
-                }
-            }
+            held.release_sounding(None, &mut layer_drained);
             if forget_ownership {
                 self.forget_layer_owned_route_note_offs(*layer, &layer_drained);
             }

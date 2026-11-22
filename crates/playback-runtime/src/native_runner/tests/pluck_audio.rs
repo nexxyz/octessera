@@ -46,7 +46,6 @@ fn pluck_outbox_scalar_serde_and_replacement_generation() {
 #[test]
 fn pluck_transposed_held_notes_keep_internal_slot_and_mixer_route() {
     use crate::native_runner::modulation::sampler::apply_sampler_assignments_for_instruments_routed;
-    use std::collections::BTreeMap;
 
     let mut instrument = NativeInstrumentSlot::new(0);
     instrument.kind = InstrumentType::Pluck;
@@ -61,7 +60,7 @@ fn pluck_transposed_held_notes_keep_internal_slot_and_mixer_route() {
         degree: 0,
         kind: platform_core::TileTriggerKind::Activate,
     };
-    let mut held = BTreeMap::new();
+    let mut held = crate::native_runner::held_notes::HeldNotes::default();
     let note_on = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
             channel: 0,
