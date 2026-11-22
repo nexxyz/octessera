@@ -341,6 +341,23 @@ def usb_notes_in(board, out):
     return host_midi(out, "usb_notes_in")
 
 
+def tempo_mod(board, out):
+    """The host's clock-out checks, at most 3 pulses per runtime dispatch, and the saved BPM: the
+    last CC's held value, not an LFO value."""
+    problems, evidence = host_midi(out, "tempo_mod")
+    found = marks(out)
+    max_pulses = max((int(m.group(1)) for t, _, text in journal(out / "journal.log")
+                      if found["tempo_mod_ready"] <= t <= found["tempo_mod_go"]
+                      for m in [re.search(r"runtime-timing playing .* max_pulses=(\d+)", text)] if m), default=None)
+    held = json.loads((out / "usb-midi-tempo_mod.json").read_text())["metrics"]["held_bpm"]
+    saved = json.loads((out / "tempo-patch.json").read_text())["runtimeConfig"]["transport"]["bpm"]
+    if max_pulses is None or max_pulses > 3:
+        problems.append(f"max_pulses per dispatch {max_pulses}, not at most 3")
+    if abs(saved - held) > 1:
+        problems.append(f"the saved patch plays BPM {saved}, not the last CC's {held}")
+    return problems, f"{evidence}; max_pulses {max_pulses}; saved BPM {saved} (held {held})"
+
+
 def usb_looper(board, out):
     """The host's timing checks, plus the autosaved steps: one press and one release per tapped tile
     (note 60 + tile), each press on the step it must land on."""

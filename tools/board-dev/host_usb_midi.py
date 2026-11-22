@@ -1,13 +1,14 @@
 """Closed-loop USB MIDI timing test against a board running the usb_midi scenario (run on the host).
 
-usage: host_usb_midi.py <Raspberry|Orange> <straight|swing|cc|looper|notes_in> <result.json>
+usage: host_usb_midi.py <Raspberry|Orange> <straight|swing|cc|looper|notes_in|tempo_mod> <result.json>
 straight: Start, 24 PPQN clock at 100 BPM for 120 s, 140 BPM for 60 s, Stop. swing: 100 BPM for 30 s
 with the board on Swing 4:5. cc: 100 BPM for 36 s with CC1 at 16, 48 and 96 for 12 s each; the board
 maps CC1 to Vel Scale, so the mirrored Drum's velocity must follow each value from the next step on.
 looper: 100 BPM for four passes of an 8-step 1/8 Looper, keyboard notes on channel 1 at Start, early
 in step 3 and late in step 5, and one more after Stop. notes_in: 20 keyboard notes, 10 with every
 note echoed back after 5 ms, a key released just after the sequenced note-off of the same note, then
-10 echoed after 80 ms and Stop. Every incoming message is stamped with perf_counter while the same loop
+10 echoed after 80 ms and Stop. tempo_mod: no clock; on the board's own clock, with an LFO and CC1 both
+on BPM, four fast CC1 sweeps, the last held at 64, then 6 s of the board's clock out. Every incoming message is stamped with perf_counter while the same loop
 sends the clock, so the stamps share the clock's time base. Intervals near a clock pulse the host
 itself sent more than 1 ms late are left out of the interval checks and counted. Needs python-rtmidi.
 """
@@ -38,15 +39,21 @@ NOTES_PLAYED_S = 19.2
 # Key 60 is held from 10.5 s; the sequenced note 60 sounds at 12.0 s for 150 ms.
 HELD_KEY_S, SEQUENCED_OFF_S = 10.5, (12.08, 12.5)
 HELD_KEY_RELEASED = []
+# tempo_mod: CC1 sweeps 0-127-0 (254 messages in about 1 s) every 3 s on the board's own clock, the last
+# one stopping at 64, which CC In maps to BPM 40 + 64/127 * 200.
+TEMPO_SWEEP_STEP_S, TEMPO_SWEEPS, TEMPO_HELD_CC = 0.004, 4, 64
+TEMPO_HELD_BPM = 40 + TEMPO_HELD_CC / 127 * 200
+TEMPO_LISTEN_S = 2.0 + 3.0 * TEMPO_SWEEPS + 6.0
 
 
 def port(ports, name):
     return next(i for i, label in enumerate(ports) if name in label and "Octessera" in label)
 
 
-def drive(name, segments, sends=(), react=None):
+def drive(name, segments, sends=(), react=None, clock=True):
     """Plays Start, the clock segments and Stop, then listens for 3 s. sends holds (seconds after Start,
-    message) pairs; react(seconds after Start, message) returns (delay, message) pairs to send back."""
+    message) pairs; react(seconds after Start, message) returns (delay, message) pairs to send back.
+    Without clock it only sends and listens for the segments' length, leaving the board on its own clock."""
     ctypes.windll.winmm.timeBeginPeriod(1)
     ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), 0x80)
     ctypes.windll.kernel32.SetThreadPriority(ctypes.windll.kernel32.GetCurrentThread(), 15)
@@ -72,6 +79,12 @@ def drive(name, segments, sends=(), react=None):
                 sent_log.append((time.perf_counter(), reply))
 
     until(origin)
+    if not clock:
+        until(origin + sum(seconds for _, seconds in segments))
+        midi_in.close_port()
+        midi_out.close_port()
+        return {"start": origin, "stop": time.perf_counter(), "ticks": [], "changes": [], "received": received,
+                "host_late": [], "sent": sent_log, "ccs": [(t, m[2]) for t, m in sent_log if m[0] == 0xB0]}
     midi_out.send_message([0xFA])
     sent = time.perf_counter()
     due = sent
@@ -204,7 +217,40 @@ def analyze_notes_in(run):
     return problems, metrics
 
 
+def tempo_sweeps():
+    sends, at = [], 2.0
+    for sweep in range(TEMPO_SWEEPS):
+        down = range(126, TEMPO_HELD_CC - 1, -1) if sweep == TEMPO_SWEEPS - 1 else range(126, -1, -1)
+        for value in [*range(0, 128), *down]:
+            sends.append((at, [0xB0, 1, value]))
+            at += TEMPO_SWEEP_STEP_S
+        at += 2.0
+    return sends
+
+
+def analyze_tempo(run):
+    """From one second after the last CC on, the board's clock out (LFO on BPM, 1/4) must swing and
+    average the held BPM per pulse."""
+    problems = []
+    pulses = [t for t, message in run["received"] if message[0] == 0xF8 and t > run["ccs"][-1][0] + 1.0]
+    bpms = [60 / 24 / (b - a) for a, b in zip(pulses, pulses[1:]) if b > a]
+    beats = [statistics.fmean(bpms[i:i + 24]) for i in range(0, len(bpms) - 23, 24)]
+    metrics = {"ccs_sent": len(run["ccs"]), "last_cc": run["ccs"][-1][1], "held_bpm": round(TEMPO_HELD_BPM, 2),
+               "pulses_after_hold": len(pulses), "mean_bpm": round(statistics.fmean(bpms), 2) if bpms else None,
+               "beat_bpm_span": [round(min(beats), 1), round(max(beats), 1)] if beats else None,
+               "pulse_bpm_span": [round(min(bpms), 1), round(max(bpms), 1)] if bpms else None}
+    if len(pulses) < 24 * 4:
+        problems.append(f"only {len(pulses)} clock pulses came back after the last CC")
+    elif abs(metrics["mean_bpm"] - TEMPO_HELD_BPM) > 3:
+        problems.append(f"the clock averaged {metrics['mean_bpm']} BPM, not the held {TEMPO_HELD_BPM:.1f}")
+    if bpms and max(bpms) - min(bpms) < 20:
+        problems.append(f"the clock stayed within {metrics['pulse_bpm_span']} BPM: the LFO did not move it")
+    return problems, metrics
+
+
 def analyze(run, phase):
+    if phase == "tempo_mod":
+        return analyze_tempo(run)
     if phase == "cc":
         return analyze_cc(run)
     if phase in ("looper", "notes_in"):
@@ -267,11 +313,13 @@ def analyze(run, phase):
 def main():
     name, phase, result = sys.argv[1:4]
     segments = {"straight": [(100, 120), (140, 60)], "swing": [(100, 30)], "cc": [(100, 36)],
-                "looper": [(100, LOOPER_PLAYED_S)], "notes_in": [(100, NOTES_PLAYED_S)]}[phase]
+                "looper": [(100, LOOPER_PLAYED_S)], "notes_in": [(100, NOTES_PLAYED_S)],
+                "tempo_mod": [(None, TEMPO_LISTEN_S)]}[phase]
     sends = {"cc": [(t, [0xB0, 1, value]) for t, value in CC_STEPS],
              "looper": keys([(t, note) for t, note, _ in LOOPER_TAPS], HOLD_S),
-             "notes_in": keys(NOTES_PLAIN + NOTES_ECHO_5 + NOTES_ECHO_80) + [(HELD_KEY_S, [0x90, 60, 100])]}.get(phase, ())
-    run = drive(name, segments, sends, echo_notes if phase == "notes_in" else None)
+             "notes_in": keys(NOTES_PLAIN + NOTES_ECHO_5 + NOTES_ECHO_80) + [(HELD_KEY_S, [0x90, 60, 100])],
+             "tempo_mod": tempo_sweeps()}.get(phase, ())
+    run = drive(name, segments, sends, echo_notes if phase == "notes_in" else None, clock=phase != "tempo_mod")
     problems, metrics = analyze(run, phase)
     with open(result, "w") as out:
         json.dump({"phase": phase, "problems": problems, "metrics": metrics, "run": run}, out)

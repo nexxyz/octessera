@@ -21,6 +21,8 @@ setups:
   unknown_runtime_key  System with an unknown key in runtimeConfig
   truncated_patch the patch cut to half its bytes
   full_card       Auto Save on, View on Back off, keyboard capture allowed
+  tempo_mod       the store's own patch with Auto Save on, internal clock with Clock Out on USB MIDI,
+                  Link LFO 1 on BPM (1/4, depth 75%) and CC1 (any channel) on BPM
   presets         Auto Save on, View on Back off, keyboard capture allowed; presets A and AB, the
                   store's patch with L1 One-Shot Len 301 and 302 ms (BPM would also move the
                   tempo-synced delay times the runtime derives from it)
@@ -37,6 +39,7 @@ VEL_SCALE = {"invert": False, "key": "sound.velocityScalePct", "kind": "number",
 # config/generated/pi/default.json's USB and audio output settings, the ones Factory System writes.
 FACTORY_DEVICE = {"usb": {"dataRole": "gadget", "midiOutEnabled": False},
                   "audioOutputs": {"dac": True, "hdmi": False, "usb": False}}
+BPM = {"invert": False, "key": "transport.bpm", "kind": "number", "label": "BPM", "max": 240, "min": 40, "step": 1}
 TAPE_STOP = {"fxType": "tape_stop", "params": {"startMs": 300, "stopMs": 200}, "targetKey": "master"}
 
 
@@ -156,6 +159,14 @@ def main():
             instruments[4].update(type="midi", name="MIDI", autoName=True)
             instruments[4]["midi"].update(enabled=True, channel=1)
         chromatic(music["layers"][0])
+    elif setup == "tempo_mod":
+        config.update(autoSaveDefault=True, perfViewOnBack=False)
+        allow_keyboard(config)
+        config["midi"].update(enabled=True, syncMode="internal", clockInEnabled=False, clockOutEnabled=True,
+                              respondToStartStop=False)
+        config["usb"]["midiOutEnabled"] = True
+        music["linkLfos"][0].update(enabled=True, period="1/4", depthPct=75, target=BPM)
+        music["midiCcMappings"][0].update(cc=1, channel=0, target=BPM)
     elif setup == "presets":
         # Back on the home page would toggle the performance view, so how many Back presses reach the
         # home page would depend on the menu depth each step ends at.

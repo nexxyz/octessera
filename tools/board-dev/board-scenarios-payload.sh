@@ -8,7 +8,7 @@
 #   board-scenarios-payload.sh <rpi|opi> <root> boot
 #   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap presets
 #     stop_save show_mode update_fail fuzz resets bad_stores full_card
-#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_audio|usb_audio_fx
+#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|tempo_mod|usb_audio|usb_audio_fx
 # Root reads privileged files; the redirects deliberately write as the unprivileged payload user.
 # shellcheck disable=SC2024
 set -u
@@ -336,6 +336,17 @@ usb_midi_phase() {
 }
 usb_midi_cc() { usb_midi_phase usb_midi_cc; }
 usb_notes_in() { usb_midi_phase usb_notes_in; }
+# The store's own patch plays on the board's clock while the host sweeps CC1 over BPM against a BPM
+# LFO; after the host is done, Stop, and the saved patch must hold the last CC's BPM.
+tempo_mod() {
+  prepare tempo_mod
+  gadget_from_clone
+  start OCTESSERA_TIMING_AUTOPLAY=1 OCTESSERA_RUNTIME_TIMING_TRACE=1 OCTESSERA_PI_UI_PROFILE=1 || return
+  sleep 5
+  gate tempo_mod || return
+  keys tempo_stop "space wait:4"
+  snapshot tempo
+}
 usb_looper() {
   usb_midi_phase usb_looper || return
   # Auto Save writes the recorded steps: wait for the four presses and releases.

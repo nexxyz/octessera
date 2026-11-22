@@ -448,7 +448,7 @@ Backup and restore over HTTP needs the transfer code that only the OLED shows;
 `user_data_transfer` and `user_data_restore` tests cover the interrupted upload,
 the staging leftovers and the restore.
 
-`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_audio` and `usb_audio_fx` are driven from this
+`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `tempo_mod`, `usb_audio` and `usb_audio_fx` are driven from this
 host over the board's USB connection, so plug both boards in and install `python-rtmidi`,
 `sounddevice` and `numpy` (`pip install python-rtmidi sounddevice numpy`);
 `ffmpeg` decodes the recording. The payload waits at a gate for each host
@@ -497,6 +497,16 @@ on the Orange, `Octessera Line In` on the Raspberry).
   Stop and Panic while held (`stop_releases_held_keyboard_notes_including_forwarded_midi_ones`,
   `panic_releases_held_keyboard_notes`), and the Sampler's note range
   (`a_sampler_slot_plays_only_notes_36_to_43`).
+- `tempo_mod` plays the store's own patch on the board's internal clock with
+  Clock Out on USB MIDI, Link LFO 1 on BPM (1/4, depth 75%) and CC1 on BPM.
+  `host_usb_midi.py ... tempo_mod` sends no clock: it sweeps CC1 0-127-0 (254
+  messages in about 1 s) four times, 3 s apart, the last sweep stopping at 64,
+  and records the board's clock out. From 1 s after the last CC, the clock
+  must average the held BPM (40 + 64/127 × 200, about 140.8) within 3 BPM per
+  pulse and still swing by at least 20 BPM (the LFO). The journal must show no
+  underruns or late timed events and at most 3 pulses per runtime dispatch
+  while the host plays; after Stop, the saved patch must hold the held BPM
+  within 1, not an LFO value.
 - `usb_audio` turns USB Audio on in the clone and rebuilds the USB gadget from
   it (the cleanup rebuilds it from the live store). `host_usb_audio.py` waits
   for the capture device and records 90 s of the store's own patch through
