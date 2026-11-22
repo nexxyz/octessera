@@ -1,3 +1,4 @@
+use super::oscillator::{poly_blep, pulse_sample};
 use super::*;
 
 #[test]

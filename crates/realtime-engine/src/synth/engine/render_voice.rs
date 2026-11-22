@@ -2,7 +2,10 @@ use super::*;
 use crate::sine::sin_turns;
 use std::f32::consts::TAU;
 
+mod oscillator;
 pub(super) mod synth_voice_render;
+
+use oscillator::{osc_sample_precomputed, pulse_gain};
 
 #[derive(Clone, Copy)]
 pub(super) struct SynthVoiceRenderConfig {
@@ -388,52 +391,6 @@ pub(super) fn pluck_source_sample(
         dry
     } else {
         dry + 0.5 * v.pluck.body_amount * v.pluck.body.process_prepared(dry)
-    }
-}
-
-#[inline(always)]
-fn osc_sample_precomputed(cfg: OscRenderConfig, inc: f32, phase: &mut f32) -> f32 {
-    *phase = (*phase + inc).fract();
-
-    let raw = match cfg.waveform {
-        WaveformId::Sine => sin_turns(*phase),
-        WaveformId::Triangle => 4.0 * (*phase - 0.5).abs() - 1.0,
-        WaveformId::Saw => 2.0 * *phase - 1.0 - poly_blep(*phase, inc),
-        WaveformId::Square => pulse_sample(*phase, 0.5, 1.0, inc),
-        WaveformId::Pulse => pulse_sample(*phase, cfg.pulse_duty, cfg.pulse_gain, inc),
-    };
-
-    raw * cfg.level
-}
-
-fn pulse_gain(duty: f32) -> f32 {
-    1.0 / (1.0 + (2.0 * duty - 1.0).abs())
-}
-
-/// A band-limited pulse with its DC removed, so a narrow pulse sits around zero like a square
-/// does, scaled by `gain` to peak at ±1.
-#[inline(always)]
-fn pulse_sample(phase: f32, duty: f32, gain: f32, inc: f32) -> f32 {
-    let dc = 2.0 * duty - 1.0;
-    let (naive, since_fall) = if phase < duty {
-        (1.0 - dc, phase - duty + 1.0)
-    } else {
-        (-1.0 - dc, phase - duty)
-    };
-    (naive + poly_blep(phase, inc) - poly_blep(since_fall, inc)) * gain
-}
-
-/// Band-limits a unit step at phase 0 over one sample on either side of it.
-#[inline(always)]
-fn poly_blep(phase: f32, inc: f32) -> f32 {
-    if phase < inc {
-        let x = phase / inc;
-        2.0 * x - x * x - 1.0
-    } else if phase > 1.0 - inc {
-        let x = (phase - 1.0) / inc;
-        x * x + 2.0 * x + 1.0
-    } else {
-        0.0
     }
 }
 
