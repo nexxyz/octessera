@@ -439,3 +439,36 @@ pub(crate) fn a_menu_edit_during_a_glide_keeps_the_key_until_the_next_press() {
         .unwrap();
     assert_eq!(runner.instruments[0].volume, 0, "a new press takes it back");
 }
+
+#[test]
+pub(crate) fn a_glide_edit_retimes_xy_without_taking_its_key_back() {
+    let mut runner = runner_with_xy();
+    runner.xy.y_binding = None;
+    runner.xy.smoothing_ms = 0;
+    runner.instruments[0].volume = 0;
+    let start = Instant::now();
+    runner.handle_play_xy_press_at(7, 0, start);
+    assert_eq!(runner.instruments[0].volume, 100);
+    runner
+        .menu
+        .set_number_value_for_key("instruments.0.mixer.volume", 40);
+    runner
+        .apply_or_schedule_menu_key("instruments.0.mixer.volume")
+        .unwrap();
+    assert_eq!(runner.instruments[0].volume, 40);
+
+    runner
+        .menu
+        .set_number_value_for_key("play.xy.smoothingMs", 120);
+    runner
+        .apply_or_schedule_menu_key("play.xy.smoothingMs")
+        .unwrap();
+    assert_eq!(runner.xy.smoothing_ms, 120);
+    assert_eq!(
+        runner.instruments[0].volume, 40,
+        "the Glide edit keeps the edit"
+    );
+    assert!(!runner
+        .modulation_process
+        .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
+}

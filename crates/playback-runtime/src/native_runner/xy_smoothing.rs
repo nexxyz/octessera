@@ -26,8 +26,9 @@ impl NativeRunner {
         .min()
     }
 
-    pub(super) fn retarget_xy_runtime_sources_at(&mut self, now: Instant, force: bool) -> bool {
-        let targets = [
+    /// The mapped axis positions the touch marker stands for, after Invert X/Y.
+    fn xy_axis_targets(&self) -> [f32; 2] {
+        [
             if self.xy.invert_x {
                 1.0 - self.xy.touch.display_x
             } else {
@@ -38,7 +39,11 @@ impl NativeRunner {
             } else {
                 self.xy.touch.display_y
             },
-        ];
+        ]
+    }
+
+    pub(super) fn retarget_xy_runtime_sources_at(&mut self, now: Instant, force: bool) -> bool {
+        let targets = self.xy_axis_targets();
         self.retarget_xy_axis(true, targets[0], now, force);
         self.retarget_xy_axis(false, targets[1], now, force);
         if force {
@@ -50,7 +55,10 @@ impl NativeRunner {
 
     pub(super) fn set_xy_smoothing_ms_at(&mut self, value: u64, now: Instant) -> bool {
         self.xy.smoothing_ms = normalize_xy_smoothing_ms(value);
-        self.retarget_xy_runtime_sources_at(now, true)
+        let [x, y] = self.xy_axis_targets();
+        self.retarget_xy_axis(true, x, now, true);
+        self.retarget_xy_axis(false, y, now, true);
+        self.glide_xy_runtime_sources([self.xy.touch.x, self.xy.touch.y])
     }
 
     pub(super) fn advance_xy_smoothing_at(&mut self, now: Instant) -> Result<(), String> {
