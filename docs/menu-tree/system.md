@@ -178,7 +178,7 @@ nothing changes until Confirm.
 
 | Action | Title | Text |
 |---|---|---|
-| Load Preset / Library Load | `Confirm Load` | `Load preset <name>? Unsaved changes are lost.` (with Auto Save on: `Your current patch is saved first.`) |
+| Load Preset / Library Load | `Confirm Load` | `Load preset <name>? Unsaved changes are lost.` (with Auto Save on: `It replaces your saved patch. Save As first to keep it.`) |
 | Library Delete | `Confirm Delete` | `Delete preset <name>?` |
 | Save As > Save | `Confirm Save` | `Save preset <name>?`, or `Overwrite preset <name>?` when a preset already has that name; after a save, Save As drafts a fresh name |
 | Save Current | `Confirm Save` | `Overwrite preset <name>?` |

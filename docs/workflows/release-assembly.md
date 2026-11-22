@@ -88,7 +88,7 @@ unpacks it to `/opt/octessera/releases/<version>`, and starts
 runs `systemctl daemon-reload`, restarts `octessera.service`, and swaps
 everything back if the runtime is not active with its readiness marker within
 60 seconds. Rollback to the previous release puts its saved files back the same
-way. Newly added units are installed but not enabled. A file a later release
+way. Newly added units are installed but not enabled. Changed timer, path, udev and tmpfiles files take effect at the next reboot. A file a later release
 drops from its set stays on the board, so a release that needs one gone ships
 an empty or neutral replacement instead. A power cut during the switch can
 leave the new release running with the old root files; Rollback puts the board

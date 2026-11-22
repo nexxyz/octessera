@@ -87,6 +87,7 @@ impl UserDataTransferService {
                 }
                 inner.store_write_barrier.finish(result.is_ok());
                 remove_stage_root(&worker_stage_root);
+                let phase = restore_finished_phase(&result, &inner.store_dir, &worker_session);
                 if let Ok(mut state) = inner.state.lock() {
                     state.restore = RestoreState::Finished {
                         session: worker_session,
@@ -95,9 +96,7 @@ impl UserDataTransferService {
                     super::queue_runtime_status(
                         &mut state,
                         RuntimeStoreResult::UserDataRestoreStatus {
-                            status: RuntimeUserDataRestoreStatus {
-                                phase: restore_finished_phase(&result),
-                            },
+                            status: RuntimeUserDataRestoreStatus { phase },
                         },
                     );
                 }
@@ -123,20 +122,31 @@ fn fail_restore_start(inner: &Arc<TransferInner>, stage_root: &Path, session: St
             &mut state,
             RuntimeStoreResult::UserDataRestoreStatus {
                 status: RuntimeUserDataRestoreStatus {
-                    phase: RuntimeUserDataRestorePhase::Failed,
+                    phase: RuntimeUserDataRestorePhase::FailedUnchanged,
                 },
             },
         );
     }
 }
 
-fn restore_finished_phase(result: &Result<(), String>) -> RuntimeUserDataRestorePhase {
+fn restore_finished_phase(
+    result: &Result<(), String>,
+    store_dir: &Path,
+    session: &str,
+) -> RuntimeUserDataRestorePhase {
+    let pre_restore_kept = || {
+        store_dir.parent().is_some_and(|parent| {
+            let staging = parent.join(crate::user_data_restore::STAGING_DIR_NAME);
+            crate::user_data_restore::pre_restore_backup_path(&staging, session).exists()
+        })
+    };
     match result {
         Ok(()) => RuntimeUserDataRestorePhase::Succeeded,
         Err(error) if error == crate::user_data_restore::EARLIER_RESTORE_UNFINISHED => {
             RuntimeUserDataRestorePhase::EarlierRestoreUnfinished
         }
-        Err(_) => RuntimeUserDataRestorePhase::Failed,
+        Err(_) if pre_restore_kept() => RuntimeUserDataRestorePhase::Failed,
+        Err(_) => RuntimeUserDataRestorePhase::FailedUnchanged,
     }
 }
 

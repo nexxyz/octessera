@@ -40,9 +40,11 @@ impl NativeRunner {
                     (
                         RuntimeUserDataRestorePhase::Succeeded
                             | RuntimeUserDataRestorePhase::Failed
+                            | RuntimeUserDataRestorePhase::FailedUnchanged
                             | RuntimeUserDataRestorePhase::EarlierRestoreUnfinished,
                         RuntimeUserDataRestorePhase::Succeeded
                             | RuntimeUserDataRestorePhase::Failed
+                            | RuntimeUserDataRestorePhase::FailedUnchanged
                             | RuntimeUserDataRestorePhase::EarlierRestoreUnfinished
                     )
                 )
@@ -55,6 +57,7 @@ impl NativeRunner {
             RuntimeUserDataRestorePhase::Restoring
                 | RuntimeUserDataRestorePhase::Succeeded
                 | RuntimeUserDataRestorePhase::Failed
+                | RuntimeUserDataRestorePhase::FailedUnchanged
                 | RuntimeUserDataRestorePhase::EarlierRestoreUnfinished
         ) {
             self.abandon_pending_default_write();
@@ -243,6 +246,7 @@ fn restore_phase_rank(phase: &RuntimeUserDataRestorePhase) -> u8 {
         RuntimeUserDataRestorePhase::Restoring => 0,
         RuntimeUserDataRestorePhase::Succeeded
         | RuntimeUserDataRestorePhase::Failed
+        | RuntimeUserDataRestorePhase::FailedUnchanged
         | RuntimeUserDataRestorePhase::EarlierRestoreUnfinished => 1,
     }
 }

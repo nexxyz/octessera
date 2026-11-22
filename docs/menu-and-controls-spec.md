@@ -751,7 +751,10 @@ behavior primary red), so a mute never reads as a section color.
    runner's error screens, which show once it is answered. A runtime-latched error is drawn
    over everything, so while one is up the board passes Main and Back to it instead of
    answering; the question shows again once it is dismissed. The answer, the restore's
-   progress and its result wake the OLED as well.
+   progress and its result wake the OLED as well. A failed restore reads `Restore failed` over
+   `Nothing was` / `changed.` / `Close` when the live data is as it was (it failed before the
+   pre-restore archive was written, or put everything back and removed that archive), and over
+   `Pre-restore kept` / `Close` when the archive stays.
 6. System info and help. On the boards, Sys. Info shows `IP: unavailable` and `MAC: unavailable`
    unless `wlan0` is up with a carrier (associated) and holds a usable IPv4 address.
 7. A Shape signal view or the performance view, then the menu, with the footer. Context toasts

@@ -1,6 +1,6 @@
 use super::tests::snapshot_from;
 use super::*;
-use crate::native_menu::PlatformAction;
+use crate::native_menu::{NativeMenuAction, PlatformAction};
 
 fn input(runner: &mut NativeRunner, input: Value) -> Vec<RunnerMessage> {
     runner
@@ -414,6 +414,23 @@ fn the_saved_patch_dialog_says_auto_save_leaves_nothing_older_to_go_back_to() {
         assert_eq!(dialog.lines.join(" "), expected);
         assert!(dialog.lines.len() <= OLED_BODY_ROWS - 2);
     }
+}
+
+#[test]
+fn the_preset_load_dialog_with_auto_save_says_it_replaces_the_saved_patch() {
+    let mut runner = preset_runner();
+    runner.auto_save_default = true;
+    let name = "ABCDEFGHIJKLMN";
+    let dialog = runner
+        .confirmation_for_action(&NativeMenuAction::PlatformEffect(
+            PlatformAction::PresetLoad(name.into()),
+        ))
+        .unwrap();
+    assert_eq!(
+        dialog.lines.join(" "),
+        format!("Load preset {name}? It replaces your saved patch. Save As first to keep it.")
+    );
+    assert!(dialog.lines.len() <= OLED_BODY_ROWS - 2);
 }
 
 /// The Pi side of a native autosave: write the current revision and report success.

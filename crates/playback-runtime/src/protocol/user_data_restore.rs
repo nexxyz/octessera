@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 pub enum RuntimeUserDataRestorePhase {
     Restoring,
     Succeeded,
+    /// Failed after the live data may have changed; the pre-restore archive stays.
     Failed,
+    /// Failed with the live data as it was before.
+    FailedUnchanged,
     /// Refused before it started: an earlier restore left staging that only a restart finishes.
     EarlierRestoreUnfinished,
 }

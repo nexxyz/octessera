@@ -23,6 +23,11 @@ pub(super) fn user_data_restore_display(state: &NativeUserDataRestoreState) -> D
             vec!["Pre-restore kept".into(), "Close".into()],
             Some(1),
         ),
+        RuntimeUserDataRestorePhase::FailedUnchanged => (
+            "Restore failed".into(),
+            vec!["Nothing was".into(), "changed.".into(), "Close".into()],
+            Some(2),
+        ),
         RuntimeUserDataRestorePhase::EarlierRestoreUnfinished => (
             "Restore blocked".into(),
             vec![

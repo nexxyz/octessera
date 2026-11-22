@@ -26,6 +26,12 @@ pub(crate) const STAGING_DIR_NAME: &str = ".octessera-restore";
 pub(crate) const EARLIER_RESTORE_UNFINISHED: &str =
     "an earlier restore is still unfinished; restart Octessera to finish it, then restore again";
 
+/// The archive of the live data a restore writes before it changes anything. A failed restore
+/// that put the live data back removes it, so it is left only when the live data may have changed.
+pub(crate) fn pre_restore_backup_path(staging: &Path, session: &str) -> PathBuf {
+    staging.join(format!("octessera-pre-restore-{session}.oct"))
+}
+
 /// The live folders a restore replaces.
 #[derive(Clone, Copy)]
 pub(crate) struct UserDataDirs<'a> {
@@ -76,7 +82,7 @@ pub(crate) fn restore(
     ) {
         return Err(EARLIER_RESTORE_UNFINISHED.into());
     }
-    let backup_path = staging.join(format!("octessera-pre-restore-{session}.oct"));
+    let backup_path = pre_restore_backup_path(&staging, session);
     if fs::symlink_metadata(&backup_path).is_ok() {
         return Err(format!(
             "pre-restore backup already exists: {}",

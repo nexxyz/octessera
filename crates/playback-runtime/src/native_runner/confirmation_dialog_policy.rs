@@ -136,7 +136,7 @@ impl NativeRunner {
 
     fn load_consequence(&self) -> &'static str {
         if self.auto_save_default {
-            "Your current patch is saved first."
+            "It replaces your saved patch. Save As first to keep it."
         } else {
             "Unsaved changes are lost."
         }

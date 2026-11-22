@@ -35,5 +35,7 @@ little hook that blanks the OLED at shutdown. The board keeps the old pieces
 next to the old version, so a failed start or a Rollback puts them back too.
 Your presets, samples and recordings stay where they are. The operating
 system, kernel, boot setup and sudo rules only change when you flash a new
-image, and a board flashed before 0.8.15 needs one fresh image before it can
-take updates again.
+image, and a board flashed with an image from before this release (beta images
+included) needs one fresh image before it can take updates again. A few of the
+updated pieces, like timers and device rules, only kick in after the next
+restart.

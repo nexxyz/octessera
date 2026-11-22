@@ -277,6 +277,31 @@ pub(crate) fn restore_failure_is_distinct_and_terminal_status_does_not_rewind() 
 }
 
 #[test]
+fn a_restore_that_failed_before_changing_anything_says_nothing_was_changed_and_closes() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let messages = runner
+        .send(HostMessage::RuntimeResult {
+            result: restore_status(RuntimeUserDataRestorePhase::FailedUnchanged),
+        })
+        .unwrap();
+    assert_eq!(
+        snapshot_from(&messages)["display"]["title"],
+        "Restore failed"
+    );
+    assert_eq!(
+        display_lines(&messages),
+        vec!["Nothing was", "changed.", "Close"]
+    );
+    runner
+        .send(HostMessage::DeviceInput {
+            input: json!({"type":"encoder_press","id":"main"}),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(runner.display.user_data_restore.is_none());
+}
+
+#[test]
 fn a_restore_refused_by_an_unfinished_one_says_so_and_closes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let messages = runner

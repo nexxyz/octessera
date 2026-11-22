@@ -128,6 +128,22 @@ fn staging_that_finishes_after_close_never_arms_and_reopen_never_waits_for_it() 
     let _ = fs::remove_dir_all(root);
 }
 
+fn restore_phases(service: &UserDataTransferService) -> Vec<RuntimeUserDataRestorePhase> {
+    std::iter::from_fn(|| service.take_runtime_status())
+        .filter_map(|message| match message {
+            playback_runtime::HostMessage::RuntimeResult {
+                result: playback_runtime::RuntimeStoreResult::Identified { result, .. },
+            } => match *result {
+                playback_runtime::RuntimeStoreResult::UserDataRestoreStatus { status } => {
+                    Some(status.phase)
+                }
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
+}
+
 #[test]
 fn a_restore_refused_by_unfinished_staging_reports_its_own_phase() {
     let (service, root) = restore_service("unfinished-staging");
@@ -157,27 +173,45 @@ fn a_restore_refused_by_unfinished_staging_reports_its_own_phase() {
         "{status_body}"
     );
 
-    let phases = std::iter::from_fn(|| service.take_runtime_status())
-        .filter_map(|message| match message {
-            playback_runtime::HostMessage::RuntimeResult {
-                result: playback_runtime::RuntimeStoreResult::Identified { result, .. },
-            } => match *result {
-                playback_runtime::RuntimeStoreResult::UserDataRestoreStatus { status } => {
-                    Some(status.phase)
-                }
-                _ => None,
-            },
-            _ => None,
-        })
-        .collect::<Vec<_>>();
     assert_eq!(
-        phases,
+        restore_phases(&service),
         vec![
-            playback_runtime::RuntimeUserDataRestorePhase::Restoring,
-            playback_runtime::RuntimeUserDataRestorePhase::EarlierRestoreUnfinished
+            RuntimeUserDataRestorePhase::Restoring,
+            RuntimeUserDataRestorePhase::EarlierRestoreUnfinished
         ]
     );
     assert!(leftover.exists());
+    service.stop();
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_restore_that_fails_before_its_pre_restore_copy_reports_nothing_changed() {
+    let (service, root) = restore_service("fails-early");
+    service.set_restore_preflight(std::sync::Arc::new(|| {
+        Err("restore blocked: audio recording is active; stop recording before restore".into())
+    }));
+    let identity = RuntimePlatformRequest::new(
+        RuntimePlatformEffect::SetupPortalOpen,
+        "fails-early".into(),
+        None,
+    );
+    service.start_session(Some(&identity)).unwrap();
+    let code = service.test_code().unwrap();
+
+    assert_eq!(upload(&service, &code), 202);
+    press(
+        &service,
+        serde_json::json!({"type":"encoder_press","id":"main"}),
+    );
+    service.join_restore_worker();
+    assert_eq!(
+        restore_phases(&service),
+        vec![
+            RuntimeUserDataRestorePhase::Restoring,
+            RuntimeUserDataRestorePhase::FailedUnchanged
+        ]
+    );
     service.stop();
     let _ = fs::remove_dir_all(root);
 }
