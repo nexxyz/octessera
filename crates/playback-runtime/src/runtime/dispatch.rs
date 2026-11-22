@@ -77,7 +77,18 @@ impl PlaybackRuntime {
                     continue;
                 }
             }
-            let relaying = matches!(next, HostMessage::MidiNote { .. });
+            let relaying = match next {
+                HostMessage::MidiNote {
+                    channel,
+                    note,
+                    velocity,
+                } => Some(super::MidiNote {
+                    channel,
+                    note,
+                    velocity,
+                }),
+                _ => None,
+            };
             let gated_error = match &next {
                 HostMessage::DeviceInput { input, .. } => self
                     .latched_errors
@@ -159,9 +170,9 @@ impl PlaybackRuntime {
                 .dispatch_profile
                 .as_ref()
                 .and_then(|profile| profile.start());
-            self.sent_midi_notes.relaying = relaying;
+            self.relaying_note = relaying;
             let ingest = self.ingest_core_messages(responses, runner, host);
-            self.sent_midi_notes.relaying = false;
+            self.relaying_note = None;
             let ingest = ingest?;
             if let Some(profile) = self.dispatch_profile.as_mut() {
                 profile.record(Stage::Ingest, ingest_started);

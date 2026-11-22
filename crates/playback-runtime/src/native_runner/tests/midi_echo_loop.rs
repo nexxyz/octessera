@@ -8,8 +8,6 @@ use crate::{
 };
 use std::time::{Duration, Instant};
 
-/// Echo latency of the device on MIDI out; it sends everything back in order.
-const ECHO_MS: u64 = 4;
 /// One 1/16 step at 120 BPM, shorter than the default 150 ms One-Shot Len.
 const STEP_PULSES: u64 = 6;
 const ONE_SHOT_MS: u32 = 150;
@@ -129,6 +127,8 @@ struct EchoRig {
     ms: u64,
     seen: usize,
     in_flight: std::collections::VecDeque<(Instant, [u8; 3])>,
+    /// Echo latency of the device on MIDI out; it sends everything back in order.
+    echo_ms: u64,
 }
 
 impl EchoRig {
@@ -149,6 +149,7 @@ impl EchoRig {
             ms: 0,
             seen: 0,
             in_flight: Default::default(),
+            echo_ms: 4,
         }
     }
 
@@ -187,7 +188,7 @@ impl EchoRig {
     fn echo_due(&mut self, now: Instant) {
         self.collect_sent();
         while let Some(&(at, bytes)) = self.in_flight.front() {
-            if at + Duration::from_millis(ECHO_MS) > now {
+            if at + Duration::from_millis(self.echo_ms) > now {
                 break;
             }
             self.in_flight.pop_front();
@@ -283,5 +284,37 @@ fn a_fixed_velocity_pad_repeating_a_key_plays_every_hit_without_an_echoing_devic
         if !midi {
             assert_eq!(rig.keyboard_audio_notes(), 10, "every hit sounds");
         }
+    }
+}
+
+#[test]
+fn a_key_held_through_a_slow_thru_plays_once_and_its_echoes_stay_harmless() {
+    for midi in [true, false] {
+        let mut rig = EchoRig::new(midi);
+        rig.layer.playing = false;
+        rig.echo_ms = 300;
+        let play = |rig: &mut EchoRig, bytes: [u8; 3]| {
+            let message: HostMessage = MidiNote::parse(&bytes).unwrap().into();
+            rig.runtime
+                .dispatch_host_message(message, &mut rig.layer, &mut rig.host)
+                .unwrap();
+            rig.collect_sent();
+        };
+        play(&mut rig, [0x90, 60, 100]);
+        rig.run_for(1_000);
+        assert_eq!(rig.midi_note_ons(), 1, "midi={midi}: its echo is dropped");
+        play(&mut rig, [0x80, 60, 0]);
+        rig.run_for(2_000);
+        assert_eq!(rig.midi_note_ons(), 1, "midi={midi}: nothing loops");
+        if !midi {
+            assert_eq!(rig.keyboard_audio_notes(), 1);
+        }
+        let offs = rig
+            .host
+            .midi_messages
+            .iter()
+            .filter(|bytes| bytes.len() == 3 && bytes[0] & 0xF0 == 0x80)
+            .count();
+        assert_eq!(offs, 1, "midi={midi}: the echoed key-up releases nothing");
     }
 }

@@ -209,6 +209,9 @@ pub struct PlaybackRuntime {
     sounding_notes: sounding_notes::SoundingNotes,
     mirrored_held_notes: internal_note_mirror::MirroredHeldNotes,
     sent_midi_notes: midi_echo::SentMidiNotes,
+    /// The MIDI In note whose reply is being sent; what passes it on to MIDI out has its key and
+    /// velocity.
+    relaying_note: Option<MidiNote>,
     request_next_snapshot: bool,
     next_request_id: u64,
     oled: oled::RuntimeOled,

@@ -31,6 +31,7 @@ impl PlaybackRuntime {
             sounding_notes: Default::default(),
             mirrored_held_notes: Default::default(),
             sent_midi_notes: Default::default(),
+            relaying_note: None,
             request_next_snapshot: false,
             next_request_id: 0,
             oled: super::oled::RuntimeOled::default(),

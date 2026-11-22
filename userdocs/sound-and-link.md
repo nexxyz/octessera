@@ -212,10 +212,11 @@ wander in by accident.
   and key within a second counts as our own echo and is ignored, so it can't
   bounce around forever. The catch: if you play that very
   key on that channel within the same second, you won't hear it. A key you
-  play through to MIDI out only ignores an identical copy within a blink
-  (150 ms), so drumming one pad fast always plays every hit; gear that takes
-  longer than that to send your keys back will bounce them around, so keep
-  its thru off. Letting go of a key always counts, echo or not.
+  play through to MIDI out ignores an identical copy only while you're still
+  holding it, so drumming one pad fast always plays every hit. A quick tap
+  through gear that's slow to send it back can still bounce around; if you
+  hear that, hold keys a little longer or turn that thru off. Letting go of a
+  key always counts, echo or not.
 - Stop, Pause, Panic and loading a patch let go of every key you're still
   holding, notes passed on to MIDI out included, so nothing gets stuck.
 - **Recording into a Looper.** Every `looper` layer that is overdubbing and

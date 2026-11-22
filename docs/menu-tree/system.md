@@ -290,11 +290,12 @@ A note's one-shot length is set per layer by `Link > L*: > One-Shot Len`.
   forward, no recording. That is any note-on on a channel and key Octessera played itself (MIDI
   Inst. and MIDI Drum parts, Keys presses, Send MIDI `all inst.` copies) less than a second before,
   at any velocity, so even a slow thru cannot loop them; a key really played on that channel and
-  key within that second is not heard. For keys forwarded from MIDI In, only an identical note-on
-  (channel, note, velocity) within 150 ms is the echo, so a thru slower than that loops a forwarded
-  key. Note-offs always get through, so a real
-  key-up is never lost, and a key-up forgets that key's forwarded note-ons, so pressing it again
-  always plays. Stop, Pause,
+  key within that second is not heard. For keys forwarded from MIDI In, an identical note-on
+  (channel, note, velocity) arriving while that key is still down is the echo, since a real repeat
+  needs a key-up first; only a tap released before a slower thru sends it back can loop. Note-offs
+  always get through, so a real key-up is never lost, and a key-up forgets that key's forwarded
+  note-ons, so pressing it again plays, unless Octessera itself played that channel and key less
+  than a second before. Stop, Pause,
   Panic, a patch load, MIDI Active off and Notes In off release every held keyboard note, forwarded
   ones too. Every Looper layer that is overdubbing and whose Link plays that slot records the note
   as a press and release of the lowest-index tile its current Link mapping plays as that note (after

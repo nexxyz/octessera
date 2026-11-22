@@ -1,4 +1,4 @@
-use super::{HostAdapter, PlaybackRuntime, ScheduledMidiMessage};
+use super::{HostAdapter, MidiNote, PlaybackRuntime, ScheduledMidiMessage};
 use crate::protocol::{
     RuntimeAdapterError, RuntimeErrorDomain, RuntimeOperation, RuntimeRecovery, RuntimeStatus,
     RuntimeStatusState, RuntimeTransportState, SyncSource,
@@ -255,8 +255,13 @@ impl PlaybackRuntime {
     ) -> Result<(), RuntimeAdapterError> {
         match host.handle_midi_message(bytes, at) {
             Ok(()) => {
+                let relayed = self.relaying_note.is_some_and(|played| {
+                    MidiNote::parse(bytes).is_some_and(|sent| {
+                        (sent.note, sent.velocity) == (played.note, played.velocity)
+                    })
+                });
                 self.sent_midi_notes
-                    .remember(bytes, at.unwrap_or_else(|| host.now()));
+                    .remember(bytes, at.unwrap_or_else(|| host.now()), relayed);
                 self.clear_error(operation);
                 Ok(())
             }
