@@ -90,6 +90,9 @@ impl NativeRunner {
             "sound.noteLengthMs" => self.apply_note_length_binding(value),
             "sound.velocityScalePct" => self.apply_velocity_scale_binding(value),
             "sound.voiceStealingMode" => self.apply_voice_stealing_binding(value),
+            "transport.bpm" | "transport.swingA" | "transport.swingB" => {
+                self.apply_tempo_binding(key, value)
+            }
             _ => self.apply_routed_param_binding_value(key, value, behavior_deltas),
         }
     }
@@ -290,4 +293,5 @@ pub(super) mod sampler;
 pub(super) mod source;
 pub(super) mod target;
 mod target_table;
+pub(super) mod tempo;
 pub(super) mod value;

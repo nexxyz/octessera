@@ -86,7 +86,7 @@ impl NativeRunner {
         engine.set_global_sound(self.global_sound.clone());
         engine.set_interpretation_profile(profile);
         engine.set_mapping_config(mapping);
-        let bpm = self.transport.bpm as f32;
+        let bpm = self.clock_bpm() as f32;
         while self.transport.layer_pulse_accumulators[index] >= step_pulses {
             self.transport.layer_pulse_accumulators[index] -= step_pulses;
             let offset = self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);

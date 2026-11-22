@@ -202,6 +202,7 @@ pub(super) struct NativeTransportState {
     /// When the internal clock's last pulse arrived, and the step inside it the short LFOs are at.
     pub(super) lfo_pulse_at: Option<std::time::Instant>,
     pub(super) lfo_sub_pulse: u8,
+    pub(super) tempo_lfo: super::modulation::tempo::TempoLfo,
     /// External MIDI channels, one bit each, that sounded a note since the last Stop.
     pub(super) midi_channels_sounded: u16,
 }
@@ -233,6 +234,7 @@ impl NativeTransportState {
             layer_counted_steps: [0; LAYER_COUNT],
             lfo_pulse_at: None,
             lfo_sub_pulse: 0,
+            tempo_lfo: Default::default(),
             midi_channels_sounded: 0,
         }
     }

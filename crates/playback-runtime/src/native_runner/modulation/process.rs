@@ -10,6 +10,7 @@ pub(in crate::native_runner) use super::process_sources::ModulationProcessState;
 use super::process_values::{canonical_clamp, persistent_base_value, stepped_binding_value};
 use super::source::ModulationSourceId;
 use super::target::{classify_key, TargetMode, TargetValueKind};
+use super::tempo::{is_tempo_key, TEMPO_KEYS};
 use std::collections::{BTreeMap, BTreeSet};
 
 impl ModulationProcessState {
@@ -151,6 +152,7 @@ impl ModulationProcessState {
             mark_persistent_dirty,
         );
 
+        let mut tempo_lfo = Vec::new();
         for (key, (binding, delta)) in lfo_deltas {
             if dirty_only && !force && !dirty_keys.contains(&key) {
                 continue;
@@ -164,12 +166,19 @@ impl ModulationProcessState {
                 .copied()
                 .or_else(|| resolved.get(&key).and_then(|(_, value)| value.as_f64()))
                 .unwrap_or(base);
-            audio_values.insert(
-                key,
-                canonical_clamp(binding.min, binding.max, persistent + delta),
-            );
+            let value = canonical_clamp(binding.min, binding.max, persistent + delta);
+            if is_tempo_key(&key) {
+                tempo_lfo.push((key.clone(), value));
+            }
+            audio_values.insert(key, value);
             endpoints.insert(endpoint.clone());
             transient_endpoints.insert(endpoint);
+        }
+        for key in TEMPO_KEYS {
+            if full_recomposition || dirty_keys.contains(key) {
+                let value = tempo_lfo.iter().find(|(lfo_key, _)| lfo_key == key);
+                runner.set_tempo_lfo(key, value.map(|(_, value)| *value));
+            }
         }
         self.cleanup_base_state(full_recomposition, &dirty_keys);
         let active_endpoints = self.active_endpoints.clone();
@@ -434,6 +443,7 @@ impl NativeRunner {
 
     pub(in crate::native_runner) fn clear_all_modulation_sources(&mut self) {
         self.modulation_process.clear_all();
+        self.clear_tempo_lfo();
     }
 
     pub(in crate::native_runner) fn invalidate_lfo_audio_cache(&mut self) {

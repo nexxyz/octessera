@@ -29,7 +29,7 @@ impl NativeRunner {
     ) -> Result<platform_core::NativeInputResult, String> {
         let paused = self.transport.transport != RuntimeTransportState::Playing
             && !self.input_events_while_paused;
-        let bpm = self.transport.bpm as f32;
+        let bpm = self.clock_bpm() as f32;
         let mut rng = self.probability_rng(layer_index);
         let phase = self.layer_step_phase(layer_index);
         let layer = self
@@ -62,13 +62,12 @@ impl NativeRunner {
     ) -> Result<platform_core::NativeTickResult, String> {
         let layer_index = self.active_layer_index;
         let mut rng = self.probability_rng(layer_index);
+        let bpm = self.clock_bpm() as f32;
         let layer = &mut self.layers[layer_index];
         let (link, probability_map) = (&layer.link, &layer.trigger_probability_map);
-        let result = layer
-            .engine
-            .tick_filtered(self.transport.bpm as f32, |intent| {
-                trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
-            })?;
+        let result = layer.engine.tick_filtered(bpm, |intent| {
+            trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
+        })?;
         self.store_probability_rng(layer_index, rng);
         Ok(result)
     }
@@ -205,7 +204,8 @@ impl NativeRunner {
     }
 
     pub(super) fn swing(&self) -> Swing {
-        Swing::new(self.transport.swing_a, self.transport.swing_b)
+        let (a, b) = self.clock_swing();
+        Swing::new(a, b)
     }
 
     /// A swing change waits for the next beat: within a beat every ratio emits the same steps, so
@@ -239,11 +239,7 @@ impl NativeRunner {
             .transport
             .swung_ppqn_pulse
             .saturating_sub(u64::from(accumulator));
-        swing.offset_nanos(
-            warped,
-            self.transport.current_ppqn_pulse,
-            self.transport.bpm,
-        )
+        swing.offset_nanos(warped, self.transport.current_ppqn_pulse, self.clock_bpm())
     }
 
     fn advance_active_layer(&mut self, events: &mut RoutedMusicalEvents) -> Result<(), String> {

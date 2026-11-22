@@ -180,11 +180,7 @@ impl NativeRunner {
         let Some(bpm) = self.menu.number_for_key("transport.bpm") else {
             return false;
         };
-        let bpm = crate::delay_timing::clamp_visible_bpm(f64::from(bpm));
-        if (self.transport.bpm - bpm).abs() > f64::EPSILON {
-            self.transport.bpm = bpm;
-            self.retime_note_mode_bus_delays();
-            self.retime_held_play_fx();
+        if self.set_transport_bpm(f64::from(bpm)) {
             self.rebase_and_recompose_modulation_key("transport.bpm");
             self.mark_fast_autosave_dirty();
         }
@@ -195,14 +191,7 @@ impl NativeRunner {
         let Some(value) = self.menu.number_for_key(key) else {
             return false;
         };
-        let value = value.clamp(1, 7) as u8;
-        let swing = if key == "transport.swingA" {
-            &mut self.transport.swing_a
-        } else {
-            &mut self.transport.swing_b
-        };
-        if *swing != value {
-            *swing = value;
+        if self.set_transport_swing(key, value) {
             self.rebase_and_recompose_modulation_key(key);
             self.mark_fast_autosave_dirty();
         }

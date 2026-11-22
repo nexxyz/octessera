@@ -54,6 +54,9 @@ pub(crate) fn is_live_link_lfo_target(key: &str) -> bool {
     if value_kind != TargetValueKind::Numeric || mode != TargetMode::Numeric {
         return false;
     }
+    if super::tempo::is_tempo_key(key) {
+        return true;
+    }
     if let Some((_index, slot, field)) = parse_fx_bus_binding_key(key) {
         return match (slot, field) {
             ("bus", "panPos" | "volume") => true,

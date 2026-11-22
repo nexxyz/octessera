@@ -145,6 +145,11 @@ Tempo, swing and the LFOs live at the top of **Link**, not under a layer.
   us when the next pulse will come. External MIDI clock out stays straight.
   A new ratio kicks in at the next beat, so twisting it mid-beat won't flam.
   The Tempo Play page has both rows on the grid.
+- BPM and both Swing rows are targets too, under **Link** in the usual list. Put
+  the tempo on a CC knob or the XY pad and it goes where you leave it, saved
+  like any other setting. Put it on an LFO and the music breathes faster and
+  slower around the BPM you set, which stays put. Under an external clock the
+  other device keeps the pace, so a tempo knob only changes the BPM row.
 - **LFOs** has eight global sine LFOs. Switch one **Enabled**, pick a
   **Target** (the list only offers parameters that are safe to wobble while
   playing), a **Period** in note lengths (up to eight bars) and a **Depth**. An LFO adds its

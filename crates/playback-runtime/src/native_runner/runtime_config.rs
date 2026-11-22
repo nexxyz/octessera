@@ -6,7 +6,7 @@ use super::{NativeRunner, INSTRUMENT_COUNT};
 impl NativeRunner {
     fn runtime_config(&self) -> RuntimeConfig {
         RuntimeConfig {
-            bpm: self.transport.bpm,
+            bpm: self.clock_bpm(),
             sync_source: self.transport.sync_source.clone(),
             midi_clock_out_enabled: self.midi.clock_out_enabled,
             midi_out_enabled: self.midi.enabled

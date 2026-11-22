@@ -100,6 +100,9 @@ fn instrument_audio_command_for_kind(
 }
 
 pub(in crate::native_runner) fn audio_base_value(runner: &NativeRunner, key: &str) -> Option<f64> {
+    if let Some(value) = runner.tempo_base_value(key) {
+        return Some(value);
+    }
     if let Some((index, field)) = super::keys::parse_instrument_binding_key(key) {
         let instrument = runner.instruments.get(index)?;
         return match field {

@@ -135,8 +135,9 @@ pub(super) fn supported_param_binding_key(key: &str) -> bool {
     if matches!(
         key,
         "sound.noteLengthMs" | "sound.velocityScalePct" | "sound.voiceStealingMode"
-    ) || key.starts_with("layers.")
-        && (key.ends_with(".algorithmStep") || key.contains(".build.behaviorConfig."))
+    ) || super::modulation::tempo::is_tempo_key(key)
+        || key.starts_with("layers.")
+            && (key.ends_with(".algorithmStep") || key.contains(".build.behaviorConfig."))
     {
         return true;
     }

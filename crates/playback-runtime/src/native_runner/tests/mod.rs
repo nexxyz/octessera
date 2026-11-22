@@ -206,6 +206,7 @@ mod structural_draft;
 mod swing_timing;
 mod synth_param_contract;
 mod system_scalar_contract;
+mod tempo_modulation;
 mod transport_origins;
 mod transport_phase_resets;
 mod trigger_gates;

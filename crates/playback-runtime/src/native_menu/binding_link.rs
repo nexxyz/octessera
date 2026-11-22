@@ -2,6 +2,42 @@ use super::binding_link_axis::{link_axis_binding_group, link_axis_lane_binding_g
 use super::binding_tree::binding_action;
 use super::{group, NativeMenuConfig, NativeMenuItem};
 
+/// BPM and Swing, which head the Link menu as they head its picker list.
+pub(super) fn tempo_binding_items(target: &str) -> Vec<NativeMenuItem> {
+    vec![
+        binding_action(
+            "BPM",
+            "transport.bpm",
+            "number",
+            Some(40),
+            Some(240),
+            Some(1),
+            vec![],
+            target,
+        ),
+        binding_action(
+            "Swing A",
+            "transport.swingA",
+            "number",
+            Some(1),
+            Some(7),
+            Some(1),
+            vec![],
+            target,
+        ),
+        binding_action(
+            "Swing B",
+            "transport.swingB",
+            "number",
+            Some(1),
+            Some(7),
+            Some(1),
+            vec![],
+            target,
+        ),
+    ]
+}
+
 pub(super) fn link_binding_group(
     index: usize,
     label: &str,

@@ -48,7 +48,7 @@ fn classify_global_key(key: &str) -> Option<(TargetValueKind, TargetMode, Endpoi
     let (value_kind, mode) = match key {
         "algorithmStep" => (TargetValueKind::Enum, TargetMode::Discrete),
         "transport.bpm" | "transport.swingA" | "transport.swingB" => {
-            (TargetValueKind::Numeric, TargetMode::Discrete)
+            (TargetValueKind::Numeric, TargetMode::Numeric)
         }
         "sound.noteLengthMs" | "sound.velocityScalePct" => {
             (TargetValueKind::Numeric, TargetMode::Discrete)

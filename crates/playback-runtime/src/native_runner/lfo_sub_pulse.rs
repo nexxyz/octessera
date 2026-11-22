@@ -62,7 +62,7 @@ impl NativeRunner {
         let Some(pulse_at) = self.transport.lfo_pulse_at else {
             return 0;
         };
-        let pulse_seconds = 60.0 / (self.transport.bpm.max(1.0) * crate::runtime::PPQN);
+        let pulse_seconds = 60.0 / (self.clock_bpm().max(1.0) * crate::runtime::PPQN);
         let elapsed = self
             .display
             .transients

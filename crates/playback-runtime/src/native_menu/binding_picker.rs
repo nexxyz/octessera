@@ -1,5 +1,5 @@
 use super::binding_behavior::behavior_binding_groups;
-use super::binding_link::link_binding_group;
+use super::binding_link::{link_binding_group, tempo_binding_items};
 use super::binding_picker_rows::show_picker_binding;
 use super::binding_picker_voice::instrument_binding_groups;
 use super::binding_tree::{binding_action, binding_group_from_items, binding_tree_from_menu_item};
@@ -192,15 +192,17 @@ pub(super) fn parameter_tree_groups(
         ));
     }
 
-    let link_groups = config
-        .layer_labels
-        .iter()
-        .enumerate()
-        .filter_map(|(index, label)| link_binding_group(index, label, config, target))
+    let link_groups = tempo_binding_items(target)
+        .into_iter()
+        .chain(
+            config
+                .layer_labels
+                .iter()
+                .enumerate()
+                .filter_map(|(index, label)| link_binding_group(index, label, config, target)),
+        )
         .collect::<Vec<_>>();
-    if !link_groups.is_empty() {
-        groups.push(keyed_group(LINK_LABEL, "binding.group.link", link_groups));
-    }
+    groups.push(keyed_group(LINK_LABEL, "binding.group.link", link_groups));
 
     let instrument_groups = instrument_binding_groups(config, target);
     let mut voice_children = Vec::new();
