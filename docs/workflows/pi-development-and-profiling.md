@@ -513,9 +513,8 @@ on the Orange, `Octessera Line In` on the Raspberry).
   a diagonal of three cells whose middle one stays lit for one step and then
   dies. `host_usb_midi.py ... hold_trig` clocks 100 BPM for 6 s. The mirrored
   Hold note must end while the clock still runs, at least 1 s before Stop.
-  Until the fix for review a493f27c item 3 lands it is marked expected-fail:
-  the summary says `XFAIL` while it fails and `XPASS` once it passes (then drop
-  its entry in `board-scenarios-check.py`); neither counts as FAIL.
+  A case listed in `EXPECTED_FAIL` in `board-scenarios-check.py` reports
+  `XFAIL` while it fails and `XPASS` once it passes; neither counts as FAIL.
 - `usb_echo_repeat` is the `usb_midi` rig with Notes In on and L1 stepping C4
   every 1/16 on slot 1 (One-Shot Len 150 ms), first a MIDI Inst. on channel 1,
   then a Synth mirrored by Send MIDI all inst. `host_usb_midi_echo.py` clocks
