@@ -153,8 +153,9 @@ changes to playback, menus, Link mapping, MIDI, instruments or FX.
 The save loaders reject any key or value the current model does not know, and
 any required key a store lacks. A new saved key therefore gets an entry with its
 default in `native_runner/added_config_keys.rs`, and loading fills it in for every
-System or Patch saved before it existed (boards, desktop, the restore screen and
-user-data restore all compose through the same loader). A key that only needs to
+System or Patch saved before it existed (boot composes the saved documents, and
+preset load, backup restore and export all prepare a patch through
+`prepare_patch_payload`; both apply the two lists). A key that only needs to
 go gets an entry in `native_runner/retired_config_keys.rs`. Both lists keep their
 entries for good. `crates/playback-runtime/tests/fixtures/saved_stores/` keeps a
 store from each released version (add `system.json` and `default.patch.json` for

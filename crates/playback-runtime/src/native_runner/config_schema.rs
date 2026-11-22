@@ -1,7 +1,7 @@
 use super::{
     patch_payload_from_payload, strip_device_audio_fields, validate_audio_outputs,
     validate_canonical_lfo_bank_shape, validate_config_payload, validate_portable_patch_fields,
-    ConfigDto, Value, INSTRUMENT_COUNT,
+    with_added_keys, without_retired_keys, ConfigDto, Value, INSTRUMENT_COUNT,
 };
 
 mod derived_names;
@@ -62,6 +62,7 @@ pub(super) fn prepare_patch_payload(
     input: Value,
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
+    let input = with_added_keys(&without_retired_keys(&input));
     let (mut input, source_revision) = parse_envelope(input, PATCH_KIND)?;
     validate_canonical_lfo_bank_shape(&input)?;
     let mut validation_template = current.clone();

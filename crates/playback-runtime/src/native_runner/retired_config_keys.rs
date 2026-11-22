@@ -58,6 +58,7 @@ mod tests {
     use super::super::added_config_keys::SYSTEM_DOCUMENTS;
     use super::super::{compose_local_system_patch_documents, split_system_patch_documents};
     use super::without_runtime_keys;
+    use crate::runtime::CoreRunner;
     use serde_json::{json, Value};
 
     const PI_DEFAULT: &str = include_str!("../../../../config/generated/pi/default.json");
@@ -102,6 +103,50 @@ mod tests {
         assert!(runtime["instruments"][4]["midi"]
             .get("durationMs")
             .is_none());
+        for layer in runtime["layers"].as_array().unwrap() {
+            assert_eq!(layer["link"]["oneShotLengthMs"], json!(150));
+        }
+    }
+
+    #[test]
+    fn a_preset_and_a_backup_with_a_retired_key_load() {
+        let full: Value = serde_json::from_str(PI_DEFAULT).unwrap();
+        let documents = split_system_patch_documents(&full).unwrap();
+        let mut old_patch = documents.patch.clone();
+        let runtime = &mut old_patch["runtimeConfig"];
+        runtime["sound"]["noteLengthMs"] = json!(120);
+        for layer in runtime["layers"].as_array_mut().unwrap() {
+            layer["link"]
+                .as_object_mut()
+                .unwrap()
+                .remove("oneShotLengthMs");
+        }
+
+        let mut runner = crate::NativeRunner::new(crate::NativeRunnerConfig::default()).unwrap();
+        runner
+            .send(crate::HostMessage::RuntimeResult {
+                result: crate::RuntimeStoreResult::LoadPresetResult {
+                    name: "Old".into(),
+                    payload: Some(old_patch.clone()),
+                },
+            })
+            .unwrap();
+        assert_eq!(
+            runner.patch_store.current_preset_name.as_deref(),
+            Some("Old")
+        );
+
+        let restored = crate::user_data_bundle::reconstruct_user_data_archive(
+            &full,
+            &documents.system,
+            &documents.patch,
+            &old_patch,
+            &old_patch,
+            &crate::UserPreferenceDelta::empty(),
+        )
+        .expect("a backup with a retired key restores");
+        let runtime = &restored.current_patch["runtimeConfig"];
+        assert!(runtime["sound"].get("noteLengthMs").is_none());
         for layer in runtime["layers"].as_array().unwrap() {
             assert_eq!(layer["link"]["oneShotLengthMs"], json!(150));
         }
