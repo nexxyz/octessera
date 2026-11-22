@@ -22,7 +22,6 @@ pub(super) fn validate_sound(runtime: &Map<String, Value>) -> Result<(), String>
     let Some(sound) = object_field(runtime, "sound", "runtimeConfig")? else {
         return Ok(());
     };
-    unsigned_field(sound, "noteLengthMs", "runtimeConfig.sound", 30, 2000)?;
     enum_field(
         sound,
         "velocityCurve",
@@ -97,7 +96,6 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
             bool_field(midi, "enabled", &midi_path)?;
             unsigned_field(midi, "channel", &midi_path, 1, 16)?;
             unsigned_field(midi, "velocity", &midi_path, 1, 127)?;
-            unsigned_field(midi, "durationMs", &midi_path, 10, 2000)?;
         }
     }
     Ok(())

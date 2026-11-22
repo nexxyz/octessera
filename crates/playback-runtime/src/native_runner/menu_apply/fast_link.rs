@@ -58,6 +58,7 @@ impl NativeRunner {
         } else if suffix.starts_with("link.triggerProbability")
             || suffix.starts_with("link.pitch.")
             || suffix == "link.seeded"
+            || suffix == "link.oneShotLengthMs"
         {
             let prefix = format!("layers.{index}.link");
             super::link_fx::apply_link_probability_and_pitch_menu_state(&self.menu, layer, &prefix)

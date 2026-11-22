@@ -76,8 +76,7 @@ Shape
 │   │   ├── MIDI (group)                         ← type midi
 │   │   │   ├── Enabled: [on | off]
 │   │   │   ├── Channel: [1..16]
-│   │   │   ├── Velocity: [1..127]
-│   │   │   └── Duration: [10..2000] ms (time steps)
+│   │   │   └── Velocity: [1..127]
 │   │   ├── MIDI Drum (group)                    ← type midi_drum
 │   │   │   ├── Enabled: [on | off]              ← default off
 │   │   │   ├── Channel: [1..16]                 ← default 10

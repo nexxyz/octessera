@@ -50,7 +50,7 @@ fn system_store_result_handoff_preserves_due_patch_persistence_intent() {
         );
         runner.register_platform_request(&request);
 
-        assert!(runner.menu.focus_item_key("sound.noteLengthMs"));
+        assert!(runner.menu.focus_item_key("sound.velocityScalePct"));
         let _ = send_device_input(
             &mut runner,
             json!({ "type": "encoder_press", "id": "main" }),

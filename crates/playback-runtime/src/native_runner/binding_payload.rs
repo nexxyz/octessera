@@ -132,10 +132,8 @@ pub(super) fn sanitize_binding_user_range(binding: &mut NativeParamBinding) {
 }
 
 pub(super) fn supported_param_binding_key(key: &str) -> bool {
-    if matches!(
-        key,
-        "sound.noteLengthMs" | "sound.velocityScalePct" | "sound.voiceStealingMode"
-    ) || super::modulation::tempo::is_tempo_key(key)
+    if matches!(key, "sound.velocityScalePct" | "sound.voiceStealingMode")
+        || super::modulation::tempo::is_tempo_key(key)
         || key.starts_with("layers.")
             && (key.ends_with(".algorithmStep") || key.contains(".build.behaviorConfig."))
     {
@@ -257,7 +255,6 @@ fn supported_instrument_binding_field(field: &str) -> bool {
             | "midi.enabled"
             | "midi.channel"
             | "midi.velocity"
-            | "midi.durationMs"
     )
 }
 

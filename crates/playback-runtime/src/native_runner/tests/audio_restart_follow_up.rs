@@ -329,7 +329,7 @@ fn assert_focused_sound_row_fits(runner: &mut NativeRunner, key: &str) {
     let snapshot = runner.snapshot().unwrap();
     let expected_title = match key {
         "masterVolume" => "/SYS/Audio",
-        "sound.noteLengthMs" | "sound.velocityScalePct" | "sound.velocityCurve" => "/SYS/Notes",
+        "sound.velocityScalePct" | "sound.velocityCurve" => "/SYS/Notes",
         _ => "/SYS/Audio",
     };
     assert_eq!(snapshot["display"]["title"], expected_title);
@@ -346,7 +346,6 @@ fn every_sound_key_and_value_fits_for_both_capability_variants() {
     let mut standard = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     for key in [
         "masterVolume",
-        "sound.noteLengthMs",
         "sound.velocityScalePct",
         "sound.velocityCurve",
         "sound.voiceStealingMode",
@@ -361,7 +360,6 @@ fn every_sound_key_and_value_fits_for_both_capability_variants() {
     .unwrap();
     for key in [
         "masterVolume",
-        "sound.noteLengthMs",
         "sound.velocityScalePct",
         "sound.velocityCurve",
         "sound.voiceStealingMode",

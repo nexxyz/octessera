@@ -49,14 +49,6 @@ pub(super) fn system_group(config: &NativeMenuConfig, sync_index: usize) -> Nati
             "Notes",
             vec![
                 number_item(
-                    "Note Length",
-                    "sound.noteLengthMs",
-                    i32::from(config.note_length_ms),
-                    30,
-                    2000,
-                    10,
-                ),
-                number_item(
                     "Vel Scale",
                     "sound.velocityScalePct",
                     i32::from(config.velocity_scale_pct),

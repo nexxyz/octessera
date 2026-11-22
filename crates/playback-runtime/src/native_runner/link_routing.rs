@@ -66,10 +66,13 @@ impl NativeRunner {
             timing.retrigger_count
         };
         if let Some(link) = sense.filter(|link| link.arp.mode != ArpMode::None) {
+            let lights_tiles = intents
+                .first()
+                .is_some_and(|intent| intent.kind == TileTriggerKind::Activate);
             return self.apply_link_arp_timing(
                 layer_index,
                 timing,
-                timing.retrigger_count,
+                lights_tiles,
                 link,
                 routed,
                 midi_drum_channels,

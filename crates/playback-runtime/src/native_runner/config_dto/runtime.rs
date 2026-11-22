@@ -259,8 +259,6 @@ pub struct TransportDto {
 #[serde(rename_all = "camelCase")]
 pub struct SoundDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) note_length_ms: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) velocity_scale_pct: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) velocity_curve: Option<String>,

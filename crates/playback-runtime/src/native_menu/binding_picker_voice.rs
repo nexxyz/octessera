@@ -196,11 +196,6 @@ pub(super) fn instrument_binding_source(
             .get(index)
             .copied()
             .unwrap_or(100),
-        midi_duration_ms: config
-            .instrument_midi_duration_ms
-            .get(index)
-            .copied()
-            .unwrap_or(250),
         sample_browser: config
             .sample_browser
             .as_ref()

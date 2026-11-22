@@ -161,7 +161,7 @@ pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     assert_eq!(runner.layers[0].link.x_pitch_steps, 0);
     assert_eq!(runner.layers[0].link.y_pitch_steps, 1);
     assert_eq!(runner.display.ui.master_volume, 73);
-    assert_eq!(runner.global_sound.note_length_ms, 120);
+    assert_eq!(runner.layers[0].link.one_shot_length_ms, 150);
     assert!(!runner.auto_save_default);
     assert!(runner.layers[0]
         .trigger_probability_map

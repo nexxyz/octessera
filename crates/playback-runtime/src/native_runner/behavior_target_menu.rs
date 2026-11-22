@@ -305,8 +305,13 @@ fn behavior_state_enum_default(
     }
 }
 
+/// The layer of a Build target (`layers.N.build.*` or `layers.N.algorithmStep`); a Link or Play
+/// key on a layer is an ordinary menu row.
 pub(super) fn parse_generated_behavior_target_layer_index(key: &str) -> Option<usize> {
     let rest = key.strip_prefix("layers.")?;
-    let (index, _) = rest.split_once('.')?;
+    let (index, field) = rest.split_once('.')?;
+    if field != "algorithmStep" && !field.starts_with("build.") {
+        return None;
+    }
     index.parse().ok()
 }

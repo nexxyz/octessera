@@ -22,7 +22,7 @@ setups:
   truncated_patch the patch cut to half its bytes
   full_card       Auto Save on, View on Back off, keyboard capture allowed
   presets         Auto Save on, View on Back off, keyboard capture allowed; presets A and AB, the
-                  store's patch with Note Length 301 and 302 ms (BPM would also move the
+                  store's patch with L1 One-Shot Len 301 and 302 ms (BPM would also move the
                   tempo-synced delay times the runtime derives from it)
 """
 import json
@@ -142,7 +142,7 @@ def main():
             slots = music["mixer"]["master"]["slots"]
             slots[:] = [{"params": {"attackMs": 36, "makeupDb": 12, "mixPct": 100, "ratio": 1, "releaseMs": 100,
                                     "thresholdDb": 0}, "type": "compressor"}] + [{"params": {}, "type": "none"}] * (len(slots) - 1)
-            music["sound"].update(noteLengthMs=240, velocityScalePct=200)
+            music["sound"].update(velocityScalePct=200)
     elif setup in ("usb_looper", "usb_notes_in"):
         midi_rig(config)
         instruments[0].update(type="synth", name="Synth", autoName=True, noteBehavior="hold")
@@ -154,7 +154,7 @@ def main():
         else:
             patch_layers(music, {0: (4, {(0, 0)})})
             instruments[4].update(type="midi", name="MIDI", autoName=True)
-            instruments[4]["midi"].update(enabled=True, channel=1, durationMs=150)
+            instruments[4]["midi"].update(enabled=True, channel=1)
         chromatic(music["layers"][0])
     elif setup == "presets":
         # Back on the home page would toggle the performance view, so how many Back presses reach the
@@ -166,7 +166,7 @@ def main():
         os.chown(store / "patches", owner.st_uid, owner.st_gid)
         for name, note_length in (("A", 301), ("AB", 302)):
             preset = json.loads(json.dumps(patch))
-            preset["runtimeConfig"]["sound"]["noteLengthMs"] = note_length
+            preset["runtimeConfig"]["layers"][0]["link"]["oneShotLengthMs"] = note_length
             path = store / "patches" / f"{name}.json"
             path.write_text(json.dumps(preset, separators=(",", ":")))
             os.chown(path, owner.st_uid, owner.st_gid)

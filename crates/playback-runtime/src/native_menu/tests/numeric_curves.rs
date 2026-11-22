@@ -19,7 +19,7 @@ fn times_frequencies_and_rates_get_curved_encoder_steps() {
     let time = NumberCurve::Time { units_per_ms: 1 };
     assert_eq!(curve_of(&menu, "instruments.0.fm.ampEnv.attackMs"), time);
     assert_eq!(curve_of(&menu, "instruments.0.fm.indexEnv.releaseMs"), time);
-    assert_eq!(curve_of(&menu, "sound.noteLengthMs"), time);
+    assert_eq!(curve_of(&menu, "layers.0.link.oneShotLengthMs"), time);
     assert_eq!(
         curve_of(&menu, "instruments.0.fm.filter.cutoffHz"),
         NumberCurve::Linear

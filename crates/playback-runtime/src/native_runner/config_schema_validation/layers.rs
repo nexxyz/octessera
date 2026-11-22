@@ -116,6 +116,7 @@ fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
     for key in ["triggerProbabilityLowPct", "triggerProbabilityHighPct"] {
         unsigned_field(link, key, path, 0, 100)?;
     }
+    unsigned_field(link, "oneShotLengthMs", path, 10, 2000)?;
     if let Some(map) = array_field(link, "triggerProbabilityMap", path, 64)? {
         for (index, value) in map.iter().enumerate() {
             enum_value(

@@ -241,7 +241,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     source_runtime["midi"]["inId"] = json!("source-in");
     source_runtime["auxBindings"] = json!({
         "aux1": {
-            "turnKey": "sound.noteLengthMs",
+            "turnKey": "layers.0.link.oneShotLengthMs",
             "pressAction": { "kind": "behavior_action", "actionType": "source.patch" , "layer": 0 }
         },
         "aux2": {
@@ -372,12 +372,7 @@ pub(crate) fn config_field_partition_is_exact_against_a_distinct_canonical_base(
     );
     assert_eq!(
         keys(&portable["runtimeConfig"]["sound"]),
-        expected(&[
-            "noteLengthMs",
-            "velocityScalePct",
-            "velocityCurve",
-            "voiceStealingMode",
-        ])
+        expected(&["velocityScalePct", "velocityCurve", "voiceStealingMode",])
     );
     assert_eq!(
         keys(&device["runtimeConfig"]["sound"]),

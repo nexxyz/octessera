@@ -61,8 +61,7 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
         "midi": {
             "enabled": instrument.midi_enabled,
             "channel": instrument.midi_channel,
-            "velocity": instrument.midi_velocity,
-            "durationMs": instrument.midi_duration_ms
+            "velocity": instrument.midi_velocity
         },
         "midiDrum": instrument.midi_drum.payload(),
         "mixer": {

@@ -294,6 +294,7 @@ const PULSES_FIELDS: &[&str] = &[
     "triggerProbabilityLowPct",
     "triggerProbabilityHighPct",
     "triggerProbabilityNoteOffs",
+    "oneShotLengthMs",
     "pitch.lowestNote",
     "pitch.highestNote",
     "pitch.startingNote",

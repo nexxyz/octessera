@@ -87,7 +87,6 @@ impl NativeRunner {
     ) -> bool {
         match key {
             "algorithmStep" => self.apply_algorithm_step_binding(value),
-            "sound.noteLengthMs" => self.apply_note_length_binding(value),
             "sound.velocityScalePct" => self.apply_velocity_scale_binding(value),
             "sound.voiceStealingMode" => self.apply_voice_stealing_binding(value),
             "transport.bpm" | "transport.swingA" | "transport.swingB" => {
@@ -110,17 +109,6 @@ impl NativeRunner {
         } else {
             false
         }
-    }
-
-    fn apply_note_length_binding(&mut self, value: Value) -> bool {
-        if let Some(value) = value.as_f64() {
-            let value = value.round().clamp(30.0, 2000.0) as u32;
-            if self.global_sound.note_length_ms != value {
-                self.global_sound.note_length_ms = value;
-                return true;
-            }
-        }
-        false
     }
 
     fn apply_velocity_scale_binding(&mut self, value: Value) -> bool {

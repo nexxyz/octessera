@@ -351,7 +351,7 @@ usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
   Left Alt + `;`. The autosaved tiles must be exactly the world-space set
   (x 0..7, y 0), (0, 4..7) and (6, 5).
 - `presets` starts on a clone with presets `A` and `AB` (the store's patch
-  with Note Length 301 and 302 ms; BPM would also move the tempo-synced delay
+  with L1 One-Shot Len 301 and 302 ms; BPM would also move the tempo-synced delay
   times the runtime derives from it), Auto Save on and View on Back off (so
   Back presses always land in the menu). A name edit only appends at the end,
   so the names grow rather than change. Without Refresh List it runs Save As
@@ -361,7 +361,7 @@ usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
   step it waits for the store to change and then stay unchanged for 3 s,
   longer than the 2.15 s autosave coalesce window, so a save still owed from
   the step before is not taken for this step's own. The edit must save
-  BPM + 15; after the load the saved patch must have Note Length 301 and hold
+  BPM + 15; after the load the saved patch must have One-Shot Len 301 and hold
   every value of `A`'s `runtimeConfig` (`presets-diff.log` lists any
   difference); `ACD` must be byte-identical to the saved `AC`, and `AB` to the
   original `A`; only `AB` may be left.

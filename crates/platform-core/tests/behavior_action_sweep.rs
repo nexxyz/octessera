@@ -81,7 +81,6 @@ fn native_layer_engine_mutators_and_scan_modes_are_publicly_stable() {
         global_sound: GlobalSoundConfig {
             velocity_scale_pct: 100,
             velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 42,
         },
         note_behaviors: vec![NoteBehavior::Oneshot; 16],
         layer_index: 2,
@@ -103,7 +102,6 @@ fn native_layer_engine_mutators_and_scan_modes_are_publicly_stable() {
     engine.set_global_sound(GlobalSoundConfig {
         velocity_scale_pct: 100,
         velocity_curve: VelocityCurve::Linear,
-        note_length_ms: 42,
     });
     engine.set_note_behaviors(vec![NoteBehavior::Hold; 16]);
 

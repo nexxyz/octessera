@@ -385,7 +385,8 @@ change; only the distance per detent does.
   platform: channel 1..8 plays I1..I8 at once, at the note's velocity, through the same live event
   path as a Keys press (never step-quantized); channels 9..16 are ignored. Internal slots sound
   through the audio engine (a Drum slot plays the voice whose Sound has that GM note, a Sampler
-  slot 1..8 for notes 36..43, other notes nothing); an enabled MIDI Inst. or MIDI Drum slot forwards the note to its
+  slot 1..8 for notes 36..43, other notes nothing) and sound while the key is held, One-Shot slots
+  too, until its note-off or the instrument's own decay; an enabled MIDI Inst. or MIDI Drum slot forwards the note to its
   own MIDI channel; an identical note-on (channel, note, velocity) arriving within 150 ms of any note-on sent to MIDI out (forwarded, sequenced or mirrored; timed notes count from when they go on the wire) is its echo and is dropped; note-offs are never dropped, and an incoming note-off forgets the sent note-ons for its key, so the next press of that key always plays. Stop, Pause, Panic, a patch load, MIDI Active off and Notes In off send a
   note-off for every held keyboard note, forwarded ones included. Each overdubbing Looper whose
   Link Activate plays that slot records the note as a press and release of the lowest-index tile
@@ -627,7 +628,7 @@ behavior primary red), so a mute never reads as a section color.
   colour (black on the bar), clips with `..` by `x=116`, 3 columns before the right-aligned `>`,
   and on the selected row scrolls like a long label. A picker's breadcrumb shows only its label
   (`/B/L1: life/Beh.`).
-- A picked target shows its menu label (`Trn: Note Length`, `Current: Note Length`) even when its
+- A picked target shows its menu label (`Trn: One-Shot Len`, `Current: One-Shot Len`) even when its
   saved binding kept only the key; the label comes from the picker's own entry. A `Clk`/`S+Clk`
   picker shows the bound action's name (`Clk: Map FX`): its own entry's label, else the label of
   the menu row that runs it, and updates in place when a click binding changes.
@@ -1495,4 +1496,5 @@ Held notes (instruments in `hold` mode):
   line starts playing begins a note, a pitch it keeps playing holds, and a pitch it no longer plays
   ends at that step, also on a step that finds scanning switched off. Lit steps in a row
   therefore play one long note, and the next lap plays the same notes again. `oneshot`
-  instruments still hit on every lit step.
+  instruments still hit on every lit step, each hit lasting the layer's `Link > One-Shot Len`
+  (MIDI Inst. slots too).

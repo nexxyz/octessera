@@ -338,11 +338,6 @@ pub(super) fn instrument_item(
             .get(index)
             .copied()
             .unwrap_or(100),
-        midi_duration_ms: config
-            .instrument_midi_duration_ms
-            .get(index)
-            .copied()
-            .unwrap_or(120),
         sample_browser: config.sample_browser.as_ref(),
     });
     item.breadcrumb = Some(instrument_breadcrumb_label(config, index, label));

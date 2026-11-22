@@ -250,7 +250,6 @@ fn typed_instrument_values(index: usize) -> Vec<(String, Value)> {
         ("/midi/enabled".into(), json!(index.is_multiple_of(2))),
         ("/midi/channel".into(), json!(i + 3)),
         ("/midi/velocity".into(), json!(60 + i)),
-        ("/midi/durationMs".into(), json!(90 + i * 20)),
         ("/sample/selectedSlot".into(), json!(7 - i)),
         ("/sample/baseVelocity".into(), json!(70 + i)),
         ("/sample/tuneSemis".into(), json!(i - 4)),
@@ -306,6 +305,7 @@ fn typed_layer_values(index: usize) -> Vec<(String, Value)> {
         ("/link/stateNotesEnabled".into(), json!(index % 3 == 1)),
         ("/link/triggerProbabilityLowPct".into(), json!(10 + i)),
         ("/link/triggerProbabilityHighPct".into(), json!(70 + i)),
+        ("/link/oneShotLengthMs".into(), json!(90 + i * 20)),
         (
             "/link/triggerProbabilityNoteOffs".into(),
             json!(index % 3 == 2),

@@ -62,7 +62,6 @@ impl PresentationScene {
                 "displayBrightness": ui.display_brightness, "gridBrightness": ui.grid_brightness,
                 "buttonBrightness": ui.button_brightness, "masterVolume": ui.master_volume,
                 "sound": {
-                    "noteLengthMs": sound.note_length_ms,
                     "velocityScalePct": sound.velocity_scale_pct,
                     "velocityCurve": super::super::super::velocity_curve_id(sound.velocity_curve),
                     "voiceStealingMode": self.voice_stealing_mode

@@ -155,5 +155,5 @@ fn every_offered_link_bus_and_sound_target_writes_the_value_its_menu_row_shows()
     let sound = assert_targets_with_prefix(&mut runner, "sound.");
     assert!(link >= 4, "link offered {link}");
     assert!(buses >= 2, "bus mixer offered {buses}");
-    assert!(sound >= 2, "sound offered {sound}");
+    assert!(sound >= 1, "sound offered {sound}");
 }

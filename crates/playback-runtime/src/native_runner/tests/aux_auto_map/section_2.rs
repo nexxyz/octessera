@@ -362,13 +362,13 @@ pub(crate) fn shift_fn_aux_binds_shift_bank_and_fn_aux_binds_plain_bank() {
 pub(crate) fn shift_aux_bindings_round_trip() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.shift_aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("sound.noteLengthMs".into()),
+        turn_key: Some("layers.0.link.oneShotLengthMs".into()),
         press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic)),
     });
     let payload = runner.config_payload();
     assert_eq!(
         payload["runtimeConfig"]["shiftAuxBindings"]["aux1"]["turnKey"],
-        "sound.noteLengthMs"
+        "layers.0.link.oneShotLengthMs"
     );
 
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -379,6 +379,6 @@ pub(crate) fn shift_aux_bindings_round_trip() {
             .unwrap()
             .turn_key
             .as_deref(),
-        Some("sound.noteLengthMs")
+        Some("layers.0.link.oneShotLengthMs")
     );
 }

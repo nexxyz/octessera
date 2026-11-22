@@ -6,7 +6,7 @@ use super::modulation::RoutedMusicalEvents;
 use super::{InstrumentType, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, LAYER_COUNT};
 use crate::protocol::{RunnerMessage, TileHit};
 use crate::runtime::MidiNote;
-use platform_core::{MusicalEvent, NoteBehavior, StepPhase};
+use platform_core::{MusicalEvent, StepPhase};
 use realtime_engine::synth::SAMPLE_SLOTS_PER_INSTRUMENT;
 use serde_json::Value;
 
@@ -54,19 +54,17 @@ impl NativeRunner {
             return;
         };
         let kind = instrument.kind;
-        let duration_ms = (instrument.note_behavior == NoteBehavior::Oneshot)
-            .then_some(self.global_sound.note_length_ms);
-        let on = |channel, duration_ms| MusicalEvent::NoteOn {
+        let on = |channel| MusicalEvent::NoteOn {
             channel,
             note: note.note,
             velocity: note.velocity,
-            duration_ms,
+            duration_ms: None,
         };
         let mut stamped_tile = None;
         // Some(MIDI out channel) for a held note, None for a one-shot drum hit.
         let held = match kind {
             InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck => {
-                routed.audio.push(on(slot, duration_ms));
+                routed.audio.push(on(slot));
                 Some(None)
             }
             InstrumentType::Sampler => {
@@ -74,7 +72,7 @@ impl NativeRunner {
                 if sample_slot >= SAMPLE_SLOTS_PER_INSTRUMENT {
                     return;
                 }
-                routed.audio.push(on(slot, duration_ms));
+                routed.audio.push(on(slot));
                 stamped_tile = Some(lowest_stamp(
                     instrument.sample_assignments.iter().filter_map(|stamp| {
                         (stamp.sample_slot == sample_slot).then_some((stamp.x, stamp.y))
@@ -101,7 +99,7 @@ impl NativeRunner {
                         }),
                     ));
                 }
-                routed.midi.push(on(channel, None));
+                routed.midi.push(on(channel));
                 self.transport.midi_channels_sounded |= 1 << channel;
                 Some(Some(channel))
             }

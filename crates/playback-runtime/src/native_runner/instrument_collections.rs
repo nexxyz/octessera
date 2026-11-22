@@ -207,10 +207,3 @@ pub(super) fn instrument_midi_velocity(instruments: &[NativeInstrumentSlot]) -> 
         .map(|instrument| instrument.midi_velocity)
         .collect()
 }
-
-pub(super) fn instrument_midi_duration_ms(instruments: &[NativeInstrumentSlot]) -> Vec<u16> {
-    instruments
-        .iter()
-        .map(|instrument| instrument.midi_duration_ms)
-        .collect()
-}

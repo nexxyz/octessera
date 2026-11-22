@@ -9,7 +9,7 @@ pub(crate) fn patch_load_brings_its_own_aux_layout_including_system_targets() {
         press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic)),
     });
     source.aux_bindings[1] = Some(NativeAuxBinding {
-        turn_key: Some("sound.noteLengthMs".into()),
+        turn_key: Some("layers.0.link.oneShotLengthMs".into()),
         press_action: Some(NativeMenuAction::PlatformEffect(PlatformAction::PlayFxMap)),
     });
     source.shift_aux_bindings[0] = Some(NativeAuxBinding {

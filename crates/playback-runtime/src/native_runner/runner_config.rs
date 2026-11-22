@@ -46,7 +46,6 @@ impl Default for NativeRunnerConfig {
             global_sound: GlobalSoundConfig {
                 velocity_scale_pct: 100,
                 velocity_curve: VelocityCurve::Linear,
-                note_length_ms: 120,
             },
             note_behaviors: vec![NoteBehavior::Oneshot; 16],
             sync_source: SyncSource::Internal,

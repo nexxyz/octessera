@@ -263,10 +263,10 @@ pub(crate) fn global_sound_and_note_behavior_modulation_syncs_engine_once() {
         invert: false,
     });
     runner.layers[0].param_mods.x[1] = Some(NativeParamBinding {
-        key: "sound.noteLengthMs".into(),
-        label: Some("Note Length".into()),
+        key: "sound.velocityScalePct".into(),
+        label: Some("Velocity Scale".into()),
         kind: "number".into(),
-        min: Some(30.0),
+        min: Some(0.0),
         max: Some(2000.0),
         step: Some(10.0),
         user_min: None,
@@ -288,7 +288,7 @@ pub(crate) fn global_sound_and_note_behavior_modulation_syncs_engine_once() {
 
     assert_eq!(runner.instruments[0].note_behavior, NoteBehavior::Hold);
     assert_eq!(runner.note_behaviors[0], platform_core::NoteBehavior::Hold);
-    assert_eq!(runner.global_sound.note_length_ms, 2000);
+    assert_eq!(runner.global_sound.velocity_scale_pct, 200);
     assert_eq!(runner.engine_runtime_sync_calls, 1);
 }
 

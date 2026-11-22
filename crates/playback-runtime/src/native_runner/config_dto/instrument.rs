@@ -315,8 +315,6 @@ pub struct MidiInstrumentDto {
     pub(in crate::native_runner) channel: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) velocity: Option<u8>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) duration_ms: Option<u16>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

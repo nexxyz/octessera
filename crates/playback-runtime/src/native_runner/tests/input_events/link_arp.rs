@@ -239,13 +239,15 @@ pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
 }
 
 #[test]
-pub(crate) fn link_arp_held_source_ignores_finite_notes_and_resets_state() {
+pub(crate) fn link_arp_held_source_holds_a_lit_one_shot_until_its_tile_goes_dark() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.arp.mode = ArpMode::Up;
     runner.layers[0].link.arp.source = ArpSource::Held;
 
-    let finite = route(&mut runner, vec![finite_input_note_on(60)]);
-    assert!(finite.audio.is_empty());
+    let lit = route(&mut runner, vec![finite_input_note_on(60)]);
+    assert_eq!(musical_note_ons_from_events(&lit.audio), vec![(0, 60)]);
+    assert_eq!(runner.link_arp.held_notes[0].len(), 1);
+    route(&mut runner, vec![note_off(60)]);
     assert!(runner.link_arp.held_notes[0].is_empty());
 
     route(&mut runner, vec![note_on(64)]);

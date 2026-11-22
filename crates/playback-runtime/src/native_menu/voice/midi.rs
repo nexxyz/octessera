@@ -25,14 +25,6 @@ pub(super) fn midi_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
                 127,
                 1,
             ),
-            number_item(
-                "Duration",
-                format!("{prefix}.midi.durationMs"),
-                i32::from(config.midi_duration_ms),
-                10,
-                2000,
-                10,
-            ),
         ],
     )
 }

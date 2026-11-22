@@ -81,14 +81,14 @@ pub(crate) fn link_spec_rows_include_probability_mapping_and_axis_controls() {
     assert!(contains_set_binding(
         &menu.item_for_key("param:0:x:0").unwrap(),
         "param:0:x:0",
-        "sound.noteLengthMs"
+        "layers.0.link.oneShotLengthMs"
     ));
 
     assert!(layer.children.iter().any(|item| item.label == "Y Axis"));
     assert!(contains_set_binding(
         &menu.item_for_key("param:0:y:0").unwrap(),
         "param:0:y:0",
-        "sound.noteLengthMs"
+        "layers.0.link.oneShotLengthMs"
     ));
 }
 

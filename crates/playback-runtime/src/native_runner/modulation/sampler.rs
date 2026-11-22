@@ -273,9 +273,6 @@ fn prepare_note_on_with_intent(
         InstrumentType::Midi if instrument.midi_enabled => {
             transpose_note(note, transpose_offset);
             *channel = instrument.midi_channel.saturating_sub(1).min(15);
-            if duration_ms.is_some() {
-                *duration_ms = Some(u32::from(instrument.midi_duration_ms));
-            }
             Some(TransposedHeldNote {
                 routed_channel: *channel,
                 routed_note: *note,

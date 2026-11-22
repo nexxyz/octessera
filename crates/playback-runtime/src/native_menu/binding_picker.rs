@@ -262,16 +262,6 @@ pub(super) fn play_fx_binding_group(
 fn sound_binding_items(target: &str) -> Vec<NativeMenuItem> {
     vec![
         binding_action(
-            "Note Length",
-            "sound.noteLengthMs",
-            "number",
-            Some(30),
-            Some(2000),
-            Some(10),
-            vec![],
-            target,
-        ),
-        binding_action(
             "Velocity Scale",
             "sound.velocityScalePct",
             "number",

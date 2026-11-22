@@ -272,17 +272,15 @@ pub(crate) fn static_navigation_memory_restores_allowed_system_groups() {
     menu.open_labels(&["System"]);
     menu.select_label("Notes");
     let _ = menu.press();
-    let snapshot = menu.snapshot();
-    let selected_row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[selected_row], "  Note Length 150ms");
+    assert_eq!(menu.current_label(), Some("Vel Scale"));
 
     menu.turn(1);
-    assert_eq!(menu.current_label(), Some("Vel Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Curve"));
     menu.back();
     assert_eq!(menu.current_label(), Some("Notes"));
 
     let _ = menu.press();
-    assert_eq!(menu.current_label(), Some("Vel Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Curve"));
 }
 
 #[test]
@@ -294,13 +292,13 @@ pub(crate) fn static_navigation_memory_clears_on_rebuild() {
     menu.turn(1);
     menu.back();
     let _ = menu.press();
-    assert_eq!(menu.current_label(), Some("Vel Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Curve"));
 
     menu.rebuild(config());
     menu.open_labels(&["System"]);
     menu.select_label("Notes");
     let _ = menu.press();
-    assert_eq!(menu.current_label(), Some("Note Length"));
+    assert_eq!(menu.current_label(), Some("Vel Scale"));
 }
 
 #[test]
@@ -310,17 +308,17 @@ pub(crate) fn static_navigation_memory_back_while_editing_stays_in_group() {
     menu.select_label("Notes");
     let _ = menu.press();
     menu.turn(1);
-    assert_eq!(menu.current_label(), Some("Vel Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Curve"));
 
     let _ = menu.press();
     assert!(menu.state.editing);
     menu.back();
     assert!(!menu.state.editing);
     assert_eq!(menu.snapshot().path, "/SYS/Notes");
-    assert_eq!(menu.current_label(), Some("Vel Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Curve"));
 
     menu.back();
     assert_eq!(menu.current_label(), Some("Notes"));
     let _ = menu.press();
-    assert_eq!(menu.current_label(), Some("Vel Scale"));
+    assert_eq!(menu.current_label(), Some("Vel Curve"));
 }

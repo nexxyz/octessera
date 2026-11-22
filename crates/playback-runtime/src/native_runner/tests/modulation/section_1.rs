@@ -145,7 +145,7 @@ pub(crate) fn global_lfo_menu_uses_keyed_slots_and_target_only_fast_paths() {
 #[test]
 pub(crate) fn lfo_assignment_rejects_exclusive_and_lfo_config_targets() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    for key in ["sound.noteLengthMs", "linkLfos.1.depthPct"] {
+    for key in ["layers.0.link.oneShotLengthMs", "linkLfos.1.depthPct"] {
         runner.set_param_binding_target(
             "linkLfos.0.target",
             Some(NativeParamBinding {

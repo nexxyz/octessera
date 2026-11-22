@@ -33,7 +33,6 @@ pub struct NativeConfigSnapshot {
     global_fx_params: Vec<Value>,
     master_volume: u8,
     random_seed: u16,
-    note_length_ms: u32,
     velocity_scale_pct: u16,
     velocity_curve: VelocityCurve,
     voice_stealing_mode: VoiceStealingMode,
@@ -170,7 +169,6 @@ impl NativeConfigSnapshot {
                 "masterVolume": self.master_volume,
                 "randomSeed": self.random_seed,
                 "sound": {
-                    "noteLengthMs": self.note_length_ms,
                     "velocityScalePct": self.velocity_scale_pct,
                     "velocityCurve": velocity_curve_id(self.velocity_curve),
                     "voiceStealingMode": self.voice_stealing_mode,
@@ -295,7 +293,6 @@ impl NativeConfigSnapshot {
             global_fx_params: runner.global_fx_params.clone(),
             master_volume: runner.display.ui.master_volume,
             random_seed: runner.random_seed,
-            note_length_ms: runner.global_sound.note_length_ms,
             velocity_scale_pct: runner.global_sound.velocity_scale_pct,
             velocity_curve: runner.global_sound.velocity_curve,
             voice_stealing_mode: runner.voice_stealing_mode,

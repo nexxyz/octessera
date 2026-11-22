@@ -76,9 +76,6 @@ impl NativeRunner {
         let Some(sound) = &runtime.sound else {
             return Ok(());
         };
-        if let Some(value) = sound.note_length_ms {
-            self.global_sound.note_length_ms = value.clamp(30, 2000);
-        }
         if let Some(value) = sound.velocity_scale_pct {
             self.global_sound.velocity_scale_pct = value.min(200);
         }

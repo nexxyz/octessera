@@ -84,7 +84,7 @@ pub(crate) fn a_parameter_picker_points_at_its_binding_and_opens_on_its_path() {
     assert_eq!(runner.menu.current_label(), Some("System"));
     press_main(&mut runner);
     press_main(&mut runner);
-    assert_eq!(runner.menu.current_label(), Some("Note Length"));
+    assert_eq!(runner.menu.current_label(), Some("Velocity Scale"));
     press_main(&mut runner);
     assert_eq!(runner.menu.current_key(), Some("aux:0:turn"));
     assert_eq!(selected_row(&turn_main(&mut runner, 0))["kind"], "picker");
@@ -102,8 +102,8 @@ pub(crate) fn a_parameter_picker_points_at_its_binding_and_opens_on_its_path() {
             && row["active"].is_null()));
     press_main(&mut runner);
     let snapshot = press_main(&mut runner);
-    assert_eq!(runner.menu.current_label(), Some("Note Length"));
-    assert_eq!(active_labels(&snapshot), ["Note Length"]);
+    assert_eq!(runner.menu.current_label(), Some("Velocity Scale"));
+    assert_eq!(active_labels(&snapshot), ["Velocity Scale"]);
 }
 
 #[test]
@@ -217,31 +217,31 @@ pub(crate) fn picker_list_entries_pick_without_an_action_mark() {
     assert_eq!(row_kind(&snapshot, "life"), "entry");
 
     runner.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("sound.noteLengthMs".into()),
+        turn_key: Some("layers.0.link.oneShotLengthMs".into()),
         press_action: None,
     });
     runner.menu.rebuild(runner.menu_config());
     assert!(runner.menu.focus_item_key("aux:0:turn"));
     let snapshot = press_main(&mut runner);
     assert_eq!(row_kind(&snapshot, "(none)"), "entry");
-    assert_eq!(row_kind(&snapshot, "Current: Note Length"), "action");
+    assert_eq!(row_kind(&snapshot, "Current: One-Shot Len"), "action");
 }
 
 #[test]
 pub(crate) fn a_binding_restored_from_saved_config_shows_its_menu_label() {
     let mut saved = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     saved.aux_bindings[0] = Some(NativeAuxBinding {
-        turn_key: Some("sound.noteLengthMs".into()),
+        turn_key: Some("layers.0.link.oneShotLengthMs".into()),
         press_action: None,
     });
     let payload = saved.config_payload();
 
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.apply_config_payload(payload).unwrap();
-    assert_eq!(label_for_key(&runner, "aux:0:turn"), "Trn: Note Length");
+    assert_eq!(label_for_key(&runner, "aux:0:turn"), "Trn: One-Shot Len");
     assert_eq!(
         label_for_key(&runner, "aux:0:turn.current"),
-        "Current: Note Length"
+        "Current: One-Shot Len"
     );
 }
 

@@ -96,7 +96,6 @@ pub(super) const INSTRUMENT_FIELDS: &[&str] = &[
     "midi.enabled",
     "midi.channel",
     "midi.velocity",
-    "midi.durationMs",
 ];
 
 pub(super) const INSTRUMENT_ENUM_FIELDS: &[&str] = &[

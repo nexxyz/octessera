@@ -255,7 +255,8 @@ fn jack_required_output_rejects_system_document_before_mutation() {
 fn conflicting_aux_system_claim_is_rejected_without_mutation() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut full = runner.config_payload();
-    full["runtimeConfig"]["shiftAuxBindings"]["aux2"]["turnKey"] = json!("sound.noteLengthMs");
+    full["runtimeConfig"]["shiftAuxBindings"]["aux2"]["turnKey"] =
+        json!("layers.0.link.oneShotLengthMs");
     let documents = split_system_patch_documents(&full).unwrap();
     runner
         .apply_patch_payload_preserving_device(documents.patch)
@@ -311,7 +312,7 @@ fn system_aux_device_sides_merge_with_patch_sides() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let mut full = runner.config_payload();
     full["runtimeConfig"]["auxBindings"]["aux1"] = json!({
-        "turnKey": "sound.noteLengthMs",
+        "turnKey": "layers.0.link.oneShotLengthMs",
         "pressAction": { "kind": "platform_effect", "action": "midi.panic" }
     });
     full["runtimeConfig"]["shiftAuxBindings"]["aux2"] = json!({

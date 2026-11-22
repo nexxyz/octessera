@@ -27,6 +27,7 @@ pub(super) fn link_layer_config(layer: &NativeLinkLayer) -> NativeLinkLayerConfi
         trigger_probability_low_pct: layer.trigger_probability_low_pct,
         trigger_probability_high_pct: layer.trigger_probability_high_pct,
         trigger_probability_note_offs: layer.trigger_probability_note_offs,
+        one_shot_length_ms: layer.one_shot_length_ms,
         state_notes_enabled: layer.state_notes_enabled,
         seeded: layer.seeded,
         lowest_note: layer.lowest_note,

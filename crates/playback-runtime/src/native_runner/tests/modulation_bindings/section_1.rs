@@ -139,9 +139,9 @@ pub(crate) fn generated_selector_trees_expose_representative_bindings() {
     runner.menu.rebuild(runner.menu_config());
 
     for (target, expected_key) in [
-        ("param:0:x:0", "sound.noteLengthMs"),
-        ("aux:0:turn", "sound.noteLengthMs"),
-        ("xy:x", "sound.noteLengthMs"),
+        ("param:0:x:0", "layers.0.link.oneShotLengthMs"),
+        ("aux:0:turn", "layers.0.link.oneShotLengthMs"),
+        ("xy:x", "layers.0.link.oneShotLengthMs"),
     ] {
         let picker = runner.menu.item_for_key(target).expect("picker target");
         let mut keys = Vec::new();

@@ -29,13 +29,5 @@ pub(super) fn apply_midi_menu_fields(
             changed = true;
         }
     }
-    if let Some(duration_ms) = menu.number_for_key(&format!("instruments.{index}.midi.durationMs"))
-    {
-        let duration_ms = duration_ms.clamp(10, 2000) as u16;
-        if instrument.midi_duration_ms != duration_ms {
-            instrument.midi_duration_ms = duration_ms;
-            changed = true;
-        }
-    }
     changed
 }

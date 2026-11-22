@@ -41,9 +41,9 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
         },
     );
     assert_validation_error(
-        "sound note length",
-        "runtimeConfig.sound.noteLengthMs is outside the supported range",
-        |payload| payload["runtimeConfig"]["sound"]["noteLengthMs"] = json!(29),
+        "link one-shot length",
+        "runtimeConfig.layers[0].link.oneShotLengthMs is outside the supported range",
+        |payload| payload["runtimeConfig"]["layers"][0]["link"]["oneShotLengthMs"] = json!(9),
     );
     assert_validation_error(
         "mixer bus volume",
@@ -105,11 +105,6 @@ pub(crate) fn validation_matrix_preserves_domain_fields_and_error_paths() {
         "instrument volume",
         "runtimeConfig.instruments[0].mixer.volume is outside the supported range",
         |payload| payload["runtimeConfig"]["instruments"][0]["mixer"]["volume"] = json!(101),
-    );
-    assert_validation_error(
-        "MIDI note duration",
-        "runtimeConfig.instruments[0].midi.durationMs is outside the supported range",
-        |payload| payload["runtimeConfig"]["instruments"][0]["midi"]["durationMs"] = json!(2001),
     );
     assert_validation_error(
         "global modulation transient",

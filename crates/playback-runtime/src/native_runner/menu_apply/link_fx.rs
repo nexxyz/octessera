@@ -317,6 +317,10 @@ pub(super) fn apply_link_probability_and_pitch_menu_state(
         &format!("{prefix}.pitch.startingNote"),
         127,
     );
+    if let Some(value) = menu.number_for_key(&format!("{prefix}.oneShotLengthMs")) {
+        changed |=
+            super::fast::value_changed(&mut layer.one_shot_length_ms, value.clamp(10, 2000) as u16);
+    }
     changed |= set_string_from_menu(menu, &mut layer.scale, &format!("{prefix}.pitch.scale"));
     changed |= set_string_from_menu(menu, &mut layer.root, &format!("{prefix}.pitch.root"));
     changed |= set_wire_from_menu(

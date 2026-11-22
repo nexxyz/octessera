@@ -37,11 +37,8 @@ pub(super) fn apply_persistent_modulation_values(
             behavior_keys.entry(index).or_default().push(key.clone());
         } else {
             changed_keys.insert(key.clone());
-            sync_engine_runtime |= matches!(
-                key.as_str(),
-                "sound.noteLengthMs" | "sound.velocityScalePct"
-            ) || key.starts_with("instruments.")
-                && key.ends_with(".noteBehavior");
+            sync_engine_runtime |= key == "sound.velocityScalePct"
+                || key.starts_with("instruments.") && key.ends_with(".noteBehavior");
             refresh_active_link |= super::keys::parse_link_binding_key(key)
                 .is_some_and(|(index, _)| index == runner.active_layer_index);
         }

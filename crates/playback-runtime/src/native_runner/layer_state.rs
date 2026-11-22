@@ -46,17 +46,23 @@ impl NativeRunner {
         mapping.range_mode = sense.out_of_range;
         mapping.scale = platform_core::expand_note_set(&sense.scale, &sense.root)
             .expect("validated note set and root");
-        mapping.activate = trigger_target(sense.activate_slot, sense.activate_action, 96, 150);
+        let length = u32::from(sense.one_shot_length_ms);
+        mapping.activate = trigger_target(sense.activate_slot, sense.activate_action, 96, length);
         let stable_action = if sense.state_notes_enabled {
             sense.stable_action
         } else {
             TriggerAction::None
         };
-        mapping.stable = trigger_target(sense.stable_slot, stable_action, 88, 130);
-        mapping.deactivate = trigger_target(sense.deactivate_slot, sense.deactivate_action, 68, 90);
-        mapping.scanned = trigger_target(sense.scanned_slot, sense.scanned_action, 88, 130);
-        mapping.scanned_empty =
-            trigger_target(sense.scanned_empty_slot, sense.scanned_empty_action, 68, 90);
+        mapping.stable = trigger_target(sense.stable_slot, stable_action, 88, length);
+        mapping.deactivate =
+            trigger_target(sense.deactivate_slot, sense.deactivate_action, 68, length);
+        mapping.scanned = trigger_target(sense.scanned_slot, sense.scanned_action, 88, length);
+        mapping.scanned_empty = trigger_target(
+            sense.scanned_empty_slot,
+            sense.scanned_empty_action,
+            68,
+            length,
+        );
         mapping
     }
 

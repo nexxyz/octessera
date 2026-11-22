@@ -9,8 +9,8 @@ use super::link_sections::{
 };
 use super::note_mapping::note_mapping_group;
 use super::{
-    bool_item, group, parameter_picker_group, NativeLinkArpConfig, NativeLinkLayerConfig,
-    NativeMenuConfig, NativeMenuItem, NativeValueLaneConfig,
+    bool_item, group, number_item, parameter_picker_group, NativeLinkArpConfig,
+    NativeLinkLayerConfig, NativeMenuConfig, NativeMenuItem, NativeValueLaneConfig,
 };
 pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
     NativeLinkLayerConfig {
@@ -39,6 +39,7 @@ pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
         trigger_probability_low_pct: 0,
         trigger_probability_high_pct: 100,
         trigger_probability_note_offs: false,
+        one_shot_length_ms: 150,
         state_notes_enabled: true,
         seeded: false,
         lowest_note: 24,
@@ -102,6 +103,14 @@ pub(super) fn link_layer_group(
             events_group(&prefix, sense, &instrument_options),
             trigger_probability_group(index, &prefix, sense),
             note_mapping_group(index, &prefix, sense),
+            number_item(
+                "One-Shot Len",
+                format!("{prefix}.oneShotLengthMs"),
+                i32::from(sense.one_shot_length_ms),
+                10,
+                2000,
+                10,
+            ),
             axis_group_with_param_mods(
                 index,
                 &format!("{prefix}.x"),

@@ -93,7 +93,6 @@ pub(super) fn instrument_numeric_value(
         "sample.velocityLevels.low" => f64::from(instrument.sample_velocity_low),
         "midi.channel" => f64::from(instrument.midi_channel),
         "midi.velocity" => f64::from(instrument.midi_velocity),
-        "midi.durationMs" => f64::from(instrument.midi_duration_ms),
         _ => return None,
     };
     Some(value)

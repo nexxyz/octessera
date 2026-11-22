@@ -249,6 +249,7 @@ link_trigger_probability_mode	Menu > Link > L*: * > Trigger Prob. > Mode	key:lay
 link_trigger_probability_low	Menu > Link > L*: * > Trigger Prob. > Prob Low	key:layers.*.link.triggerProbabilityLowPct	number	Low Probability	Sets the low custom trigger probability percentage from 0 to 100.	Clamped so it never exceeds High Prob.
 link_trigger_probability_high	Menu > Link > L*: * > Trigger Prob. > Prob High	key:layers.*.link.triggerProbabilityHighPct	number	High Probability	Sets the high custom trigger probability percentage from 0 to 100.	Clamped so it is never below Low Prob.
 link_trigger_probability_note_offs	Menu > Link > L*: * > Trigger Prob. > Prob Note Off	key:layers.*.link.triggerProbabilityNoteOffs	bool	Note-Off Probability	When on, note-offs roll trigger probability and the Trigger Gate like any other trigger.	Off by default, so held notes always release.
+link_one_shot_length	Menu > Link > L*: * > One-Shot Len	key:layers.*.link.oneShotLengthMs	number	One-Shot Len	How long this layer's notes last on a One-Shot instrument.	Hold instruments ignore it and end at the Off note; Arp uses its own Length.
 link_trigger_probability_map	Menu > Link > L*: * > Trigger Prob. > Map Probability Grid	action:trigger_probability_assign_enter	action	Map Probability Grid	Edits the saved per-tile probability map for this layer.	Tiles cycle zero, low, high, full; Shift applies rows and Shift+Fn columns.
 link_lfos_group	Menu > Link > LFOs		group	LFOs	Eight LFOs that wobble any setting you point them at.	They belong to the whole patch, not to one layer.
 link_lfo_group	Menu > Link > LFOs > LFO*		group	LFO	One LFO: a slow wave in time with the tempo.	Pick a Target, a Period and a Depth, then switch it on.
@@ -315,7 +316,7 @@ link_mappings_x_invert_1	*	key:layers.*.paramMods.x.0.invert	bool	Slot 1 Invert	
 link_mappings_x_invert_2	*	key:layers.*.paramMods.x.1.invert	bool	Slot 2 Invert	Flips Slot 2: the left edge gives high values, the right edge low ones.	
 link_mappings_y_invert_1	*	key:layers.*.paramMods.y.0.invert	bool	Slot 1 Invert	Flips Slot 1: the bottom gives high values, the top low ones.	
 link_mappings_y_invert_2	*	key:layers.*.paramMods.y.1.invert	bool	Slot 2 Invert	Flips Slot 2: the bottom gives high values, the top low ones.	
-inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Mode	oneshot plays each note for a set length; hold sounds until a note off.	Pair hold with Off Trig set to note off; a scan ends hold notes itself.
+inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Mode	oneshot plays each Link note for its layer's One-Shot Len; hold sounds until a note off.	Pair hold with Off Trig set to note off; a scan ends hold notes itself.
 inst_midi_enabled	*	key:instruments.*.midi.enabled	bool	MIDI Enabled	Enables this slot's external MIDI note output.	Global MIDI and an output port must also be enabled.
 inst_midi_channel	*	key:instruments.*.midi.channel	number	MIDI Channel	The MIDI channel this slot sends on, 1 to 16.	Match it to the channel your synth listens on.
 osc_wave	*	key:instruments.*.synth.osc*.waveform	enum	Oscillator Wave	The oscillator's waveform: sine is smooth, triangle soft, saw bright, square hollow.	pulse is a square shaped by Pulse Width.
@@ -373,7 +374,6 @@ recording_start_audio_oled	System > Recording	action:recording.startAudioOled	ac
 recording_stop	System > Recording	action:recording.stop	action	Stop	Stops the active WAV or Audio+Video AVI and finalizes it.	Manual stop shows Recording saved or Recording incomplete; complete files use .wav/.avi and damaged takes use .incomplete.*.
 autosave_default	*	key:autoSaveDefault	bool	Auto Save Default	When On, your changes save to the startup patch by themselves, a moment after you make them.	Turning it On doesn't save anything yet; your next edit does.
 rolling_backups	*	key:rollingBackups	bool	Backups	Keeps backup copies of your settings, at most every five minutes.	The latest 20 are kept, and a recovery save is written on shutdown or reboot.
-note_length	*	key:sound.noteLengthMs	number	Note Length	How long a one-shot note from a MIDI keyboard plays.	Link notes keep fixed lengths for now; MIDI slots use MIDI Duration.
 velocity_scale	*	key:sound.velocityScalePct	number	Vel Scale	Scales velocity values globally after mapping.	Use to tame or boost overall dynamic output.
 ui_group	Menu > System > Display		group	Display	OLED, grid and button lighting, display helpers, and HDMI video.	These do not change musical generation.
 controls_action	Menu > System > Basic Help	action:system.controlsHelp	action	Basic Help	Opens a quick reference for core hardware gestures.	Covers help, Back, transport, Fn and Shift+Fn grid navigation, the layer mute, Fn+Aux binding and the Fn+Main Aux map.
@@ -681,7 +681,7 @@ native_binding_group_shape	*	key:binding.group.shape	group	Shape Targets	Instrum
 native_binding_group_instruments	*	key:binding.group.instruments	group	Instruments	Targets from individual instrument slots.	Pick a slot, then bind synth, sample, MIDI, mixer, or routing parameters.
 native_binding_group_play_fx	*	key:binding.group.play_fx	group	Play FX	Targets from live performance FX pages.	Bind these when aux or grid gestures should push performance effects.
 native_binding_group_system	*	key:binding.group.system	group	System Targets	Global sound settings that are safe to modulate.	These apply outside a single behavior or instrument slot.
-native_binding_group_sound	*	key:binding.group.sound	group	Sound	Note length, velocity scale and polyphony.	Handy for performance controls over all notes.
+native_binding_group_sound	*	key:binding.group.sound	group	Sound	Velocity scale and polyphony.	Handy for performance controls over all notes.
 native_param_clear	*	action:param_clear	action	(none)	Clears this control, so it moves nothing.	
 native_midi_enabled	Menu > System > MIDI > MIDI Active	key:midiEnabled	bool	MIDI Active	Switches all MIDI in and out on or off.	Pick the ports under MIDI Host.
 native_midi_send_instruments	Menu > System > MIDI > Send MIDI	key:midi.sendInstruments	enum	Send MIDI	MIDI inst.: only MIDI Inst. and MIDI Drum slots send MIDI. all inst.: the internal sounds send their notes too.	Internal slots send on channels 1 to 8; drums use GM notes.
@@ -719,7 +719,6 @@ native_sampler_filter_env_amt	*	key:instruments.*.sample.filter.envAmountPct	num
 native_sampler_filter_keytrack	*	key:instruments.*.sample.filter.keyTrackingPct	number	Sample Filter Key Tracking	Sets how sampler filter cutoff follows played pitch.	Higher values keep timbre more consistent across pitch.
 native_instrument_type	*	key:instruments.*.type	enum	Type	What this slot plays: Synth, FM, Plucked, Drum and Sampler sound here; MIDI Inst. and MIDI Drum play outside gear.	None is silent.
 native_midi_velocity	*	key:instruments.*.midi.velocity	number	MIDI Velocity	Sets fixed outgoing note velocity for this MIDI instrument slot.	Use when Link should drive pitch/timing but not velocity dynamics.
-native_midi_duration	*	key:instruments.*.midi.durationMs	number	MIDI Duration	Sets default outgoing MIDI note length in milliseconds.	Useful for shaping external MIDI staccato or sustain.
 native_midi_drum_group	Menu > Shape > Instruments > Instrument * > MIDI Drum		group	MIDI Drum	Turns Link hits on stamped tiles into MIDI notes for external drum gear.	It sends MIDI only, never sound or audio FX. Unstamped tiles stay silent.
 native_midi_drum_enabled	*	key:instruments.*.midiDrum.enabled	bool	MIDI Drum Enabled	Turns this MIDI Drum's note output on or off.	System > MIDI > MIDI Active and a MIDI output must be on too. Mix mute silences it.
 native_midi_drum_channel	*	key:instruments.*.midiDrum.channel	number	MIDI Drum Channel	The MIDI channel its notes go out on, 1 to 16.	Channel 10 is where General MIDI gear keeps its drums.

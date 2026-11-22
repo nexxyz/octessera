@@ -189,7 +189,6 @@ pub(in crate::native_runner) fn apply_instrument_numeric_binding_value(
         ),
         "midi.channel" => instrument.midi_channel = value.round().clamp(1.0, 16.0) as u8,
         "midi.velocity" => instrument.midi_velocity = value.round().clamp(1.0, 127.0) as u8,
-        "midi.durationMs" => instrument.midi_duration_ms = value.round().clamp(10.0, 2000.0) as u16,
         _ => return false,
     }
     true

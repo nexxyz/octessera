@@ -74,6 +74,7 @@ Link
 │   │   │   └── Symmetric (group)                 ← `..` first, then: Whole Tone | Octatonic H-W | Octatonic W-H
 │   │   ├── Root: [C | C# | D | D# | E | F | F# | G | G# | A | A# | B]  default C
 │   │   └── Out of Range: [clamp | wrap]          default wrap
+│   ├── One-Shot Len: [10..2000] ms (time steps)  default 150; used by One-Shot instruments only
 │   ├── X Axis (group)
 │   │   ├── Slot 1: <target | (none)> (picker)    ← parameter picker with Range Min/Range Max for numeric bindings
 │   │   ├── Slot 1 Invert: [on | off]
@@ -161,6 +162,15 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   before clamp/wrap. `wrap` wraps within that concrete note list, so wrapped notes stay in the set.
   Play Transpose applies downstream.
 
+## One-Shot Len
+
+- Stored as `layers.N.link.oneShotLengthMs` (10..2000 ms, default 150) and saved with the patch.
+  Every note the layer plays on a `oneshot` instrument lasts this long, MIDI Inst. slots
+  included; a `hold` instrument ignores it and ends the note at its note-off. Arp notes keep the
+  Arp's own Length, Sampler and Drum hits play their sample or voice, and MIDI Drum its own
+  Duration.
+- A bindable, Discrete modulation target (`Trn: One-Shot Len`); it is not offered to LFOs.
+
 ## X/Y axes
 
 - `Slot 1` and `Slot 2` assign per-layer X/Y modulation targets through the shared parameter picker
@@ -239,8 +249,9 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   Unsupported sources normalize to `simultaneous`. A batch is every note-on of one kind and
   instrument in one step, even with note-offs between them; the step's releases route before its
   note-ons, so a pitch released and struck in one step stays held. `held` replays the held set on a batch
-  that starts a note; a batch that only releases notes replays nothing. `held` tracks notes of
-  `hold` instruments only, so on a `oneshot` instrument it plays nothing.
+  that starts a note; a batch that only releases notes replays nothing. `held` holds a `hold`
+  instrument's notes from note-on to note-off, and a `oneshot` instrument's notes while their tile
+  is lit, from its On note-on to its Off note-off; one-shot Hold and scan hits are not held.
 - `rotating` starts each batch one note further along than the batch before.
 - `none` keeps the normal Link path. Other modes emit finite note-ons lasting
   `noteLengthMs * gatePct / 100`, never shorter than 10 ms, and create no held notes; strum-like
@@ -251,7 +262,7 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 ## Aux Mappings
 
 - Each `Aux N` group holds four pickers, labelled with the current binding's menu name (for
-  example `Trn: Note Length`, `Clk: Map FX`): `Trn`, `Clk`, `S+Trn`, and `S+Clk` (the last two
+  example `Trn: One-Shot Len`, `Clk: Map FX`): `Trn`, `Clk`, `S+Trn`, and `S+Clk` (the last two
   write the shifted bank).
 - `Trn` pickers are the shared parameter picker without `Range Min`/`Range Max`.
 - `Clk` pickers list `(none)`, `Current` when bound, a `Behavior` group with the active layer's

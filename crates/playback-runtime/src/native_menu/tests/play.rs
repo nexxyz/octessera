@@ -270,7 +270,7 @@ pub(crate) fn parameter_picker_exposes_binding_actions_for_aux_param_and_xy_targ
     assert!(contains_set_binding(
         &menu.browsable_root(),
         "aux:0:turn",
-        "sound.noteLengthMs"
+        "layers.0.link.oneShotLengthMs"
     ));
     assert!(contains_set_binding(
         &menu.browsable_root(),
@@ -315,7 +315,7 @@ pub(crate) fn link_lfo_picker_only_exposes_live_safe_targets() {
     assert!(!contains_set_binding(
         &menu.browsable_root(),
         target,
-        "sound.noteLengthMs"
+        "layers.0.link.oneShotLengthMs"
     ));
     assert!(!contains_set_binding(
         &menu.browsable_root(),

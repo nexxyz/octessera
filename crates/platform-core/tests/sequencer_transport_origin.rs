@@ -27,7 +27,6 @@ fn scanning_engine() -> NativeLayerEngine {
         global_sound: platform_core::GlobalSoundConfig {
             velocity_scale_pct: 100,
             velocity_curve: platform_core::VelocityCurve::Linear,
-            note_length_ms: 120,
         },
         note_behaviors: vec![NoteBehavior::Oneshot; 16],
         layer_index: 0,

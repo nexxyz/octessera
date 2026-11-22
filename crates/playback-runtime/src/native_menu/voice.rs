@@ -89,7 +89,6 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) midi_enabled: bool,
     pub(super) midi_channel: u8,
     pub(super) midi_velocity: u8,
-    pub(super) midi_duration_ms: u16,
     pub(super) sample_browser: Option<&'a NativeSampleBrowserConfig>,
 }
 

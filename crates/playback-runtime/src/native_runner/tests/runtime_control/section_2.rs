@@ -143,28 +143,6 @@ pub(crate) fn trigger_probability_grid_editor_cycles_tile_row_and_column() {
 #[test]
 pub(crate) fn system_sound_menu_updates_global_sound_config() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(runner.menu.focus_item_key("sound.noteLengthMs"));
-    runner.menu.state.editing = true;
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_fn", "pressed": true }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 3, "id": "main" }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    let _ = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "button_fn", "pressed": false }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    assert_eq!(runner.global_sound.note_length_ms, 135);
-
     assert!(runner.menu.focus_item_key("sound.velocityScalePct"));
     runner.menu.state.editing = true;
     let _ = runner

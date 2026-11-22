@@ -115,9 +115,11 @@ fn channel_one_plays_slot_one_live_with_its_velocity_and_channel_nine_is_ignored
     let messages = send_note(&mut runner, [0x91, 64, 20]);
     assert_eq!(
         audio(&messages),
-        vec![note_on(1, 64, 20, Some(runner.global_sound.note_length_ms))],
-        "a one-shot slot gets a finite note"
+        vec![note_on(1, 64, 20, None)],
+        "a one-shot slot plays while the key is held"
     );
+    let messages = send_note(&mut runner, [0x81, 64, 0]);
+    assert_eq!(audio(&messages), vec![note_off(1, 64)]);
 
     for status in [0x98, 0x9F] {
         let messages = send_note(&mut runner, [status, 60, 100]);

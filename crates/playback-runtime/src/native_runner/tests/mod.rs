@@ -148,6 +148,7 @@ mod name_edit_flow;
 mod note_set_runtime;
 mod note_sets;
 mod numeric_binding_round_trip;
+mod one_shot_length;
 mod performance_view;
 mod picker_rows;
 mod play_fader_tiles;

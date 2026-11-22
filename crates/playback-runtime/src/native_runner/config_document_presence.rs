@@ -28,7 +28,6 @@ const REQUIRED_RUNTIME_KEYS: &[&str] = &[
 ];
 
 const SOUND_KEYS: &[&str] = &[
-    "noteLengthMs",
     "velocityScalePct",
     "velocityCurve",
     "voiceStealingMode",

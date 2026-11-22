@@ -3,7 +3,7 @@ use super::*;
 #[test]
 pub(crate) fn cursor_only_navigation_does_not_apply_menu_values() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(runner.menu.focus_item_key("sound.noteLengthMs"));
+    assert!(runner.menu.focus_item_key("sound.velocityScalePct"));
     runner.display.ui.master_volume = 12;
 
     let messages = runner

@@ -40,7 +40,6 @@ pub(super) struct NativeInstrumentSlot {
     pub(super) midi_enabled: bool,
     pub(super) midi_channel: u8,
     pub(super) midi_velocity: u8,
-    pub(super) midi_duration_ms: u16,
     pub(super) midi_drum: super::midi_drum::NativeMidiDrum,
 }
 
@@ -137,7 +136,6 @@ impl NativeInstrumentSlot {
             midi_enabled: false,
             midi_channel: 1,
             midi_velocity: 100,
-            midi_duration_ms: 120,
             midi_drum: Default::default(),
         }
     }

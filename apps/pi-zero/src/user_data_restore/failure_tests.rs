@@ -372,7 +372,7 @@ fn restore_rehydrates_canonical_patch_preferences_and_patch_aux_bindings() {
     });
     current_patch["runtimeConfig"]["auxBindings"] = json!({
         "aux1": {
-            "turnKey": "sound.noteLengthMs",
+            "turnKey": "layers.0.link.oneShotLengthMs",
             "pressAction": { "kind": "behavior_action", "actionType": "clear" , "layer": 0 }
         },
         "aux2": {
@@ -416,7 +416,7 @@ fn restore_rehydrates_canonical_patch_preferences_and_patch_aux_bindings() {
     assert_eq!(current["runtimeConfig"]["linkLfos"][0]["depthPct"], 37);
     assert_eq!(
         current["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
-        "sound.noteLengthMs"
+        "layers.0.link.oneShotLengthMs"
     );
     assert_eq!(
         current["runtimeConfig"]["auxBindings"]["aux2"]["turnKey"],

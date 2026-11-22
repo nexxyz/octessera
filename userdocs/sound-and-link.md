@@ -122,7 +122,8 @@ When several notes arrive together, **Arp > Mode** can spread them out: `up`,
 alone.
 
 - **Source** picks notes arriving in one batch (`simultaneous`) or notes the
-  layer is holding (`held`).
+  layer is holding (`held`). On a `oneshot` instrument a tile counts as held
+  while it's lit, so `held` arpeggiates whatever is glowing.
 - **Step**, **Length**, **Gate** and **Octaves** shape the run.
 
 ### Tempo and swing
@@ -197,8 +198,8 @@ wander in by accident.
 - Notes sound the moment you hit the key, as quick as a Keys tile, and they're
   never nudged onto a step. How hard you play comes through, and the slot's
   velocity sensitivity does the rest.
-- A `hold` slot keeps the note until you let go of the key. A `oneshot` slot
-  plays for **Notes > Note Length**, and letting go early ends it early.
+- A note plays for as long as you hold the key, whatever the slot's Note Mode.
+  Let go and it ends, or it fades out on its own first if the sound decays.
 - A Drum slot plays the voice whose Sound has that General MIDI note (kick 36,
   snare 38, closed hat 42 and so on), and a Sampler plays its slots 1 to 8 on
   notes 36 to 43 (other keys stay quiet on a Sampler). Same numbers as Send
@@ -243,18 +244,19 @@ point at them.
 | `Plucked` | A modelled ringing string | **String** > Decay, Brightness and Pick Pos |
 | `Drum` | An eight-voice kit; tiles are stamped with voices | **Kit** > Load, set the **Tile** rows, then **Assign** |
 | `sampler` | Eight WAV slots; tiles are stamped with samples | **Browse** for a sample, set the **Tile** rows, then **Assign** |
-| `MIDI Inst.` | Sends notes to external gear instead of making sound | **MIDI** > Enabled, then Channel, Velocity and Duration |
+| `MIDI Inst.` | Sends notes to external gear instead of making sound | **MIDI** > Enabled, then Channel and Velocity |
 | `MIDI Drum` | Turns stamped tiles into MIDI drum notes for external gear | **MIDI Drum** > Enabled, set **Note** and **Tile Vel**, then **Assign** |
 
 - **Presets and kits.** Synth, FM and Plucked have **Preset > Load**; Drum and
   Sampler have **Kit > Load**. Loading asks first and only changes that slot.
   The list below says what each one is for, and so does *Shift* + *Fn* +
   **Main** on its row.
-- **Note Mode.** `oneshot` gives each trigger a finite note: a MIDI slot plays
-  its **MIDI Duration**, other slots play fixed Link lengths for now (150 ms
-  for On, 130 ms for Hold and scan hits, 90 ms for Off and empty hits), and
-  **Note Length** sets the notes you play from a MIDI keyboard. An Off event
-  set to `note off` can still end a one-shot early. `hold` keeps the note
+- **Note Mode.** `oneshot` gives each trigger a finite note, as long as the
+  playing layer's **Link > One-Shot Len** says (150 ms to start with). That's
+  an arrangement choice, so it lives with the layer: one synth can play
+  staccato blips on one layer and long tones on another. MIDI Inst. slots
+  follow it too. An Off event set to `note off` can still end a one-shot
+  early. `hold` keeps the note
   sounding until its tile's Off event, or on a scan until the first dark step.
   Drum hits are always one-shot.
 - **Envelopes.** Attack, Decay, Sustain and Release do what they say, and

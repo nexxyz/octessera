@@ -36,7 +36,6 @@ System
 │   ├── Audio+Video: (action)           ← synchronized audio, OLED, NeoKeys and grid
 │   └── Stop: (action)                  ← finalize active recording
 ├── Notes (group)
-│   ├── Note Length: [30..2000] ms  default 120
 │   ├── Vel Scale: [0..200] step 5 %  default 100
 │   └── Vel Curve: [linear | soft | hard]
 ├── Audio (group)
@@ -249,8 +248,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
 
 ## Notes
 
-`Note Length`, `Vel Scale`, and `Vel Curve` keep the keys `sound.noteLengthMs`,
-`sound.velocityScalePct`, and `sound.velocityCurve`.
+`Vel Scale` and `Vel Curve` keep the keys `sound.velocityScalePct` and `sound.velocityCurve`.
+A note's one-shot length is set per layer by `Link > L*: > One-Shot Len`.
 
 ## Audio
 
@@ -284,8 +283,8 @@ Live Show Mode > End, MIDI port rows, and Bluetooth rows run without confirmatio
   play the instrument slots live: channel 1..8 plays slot I1..I8, channels 9..16 are ignored. A
   note sounds at once with its own velocity, like a Keys press, not quantized to a step. Synth, FM,
   Plucked and Sampler slots get the note itself (a Sampler plays slot 1..8 for notes 36..43 and ignores other notes); a
-  `hold` slot holds it until the key's note-off, a `oneshot` slot plays the Sound > Note Length and
-  the key's note-off ends it early. A Drum slot plays the voice whose Sound has that GM note. A MIDI
+  note lasts while the key is held, in `hold` and `oneshot` alike: the key's note-off ends it, and
+  the instrument's own decay or sample end can end it sooner. A Drum slot plays the voice whose Sound has that GM note. A MIDI
   Inst. or MIDI Drum slot forwards the note to its own MIDI channel while it is enabled. An incoming
   note-on identical (channel, note, velocity) to any note-on Octessera put on MIDI out in the last
   150 ms (forwarded keys, MIDI Inst. and MIDI Drum parts, Send MIDI `all inst.` copies) is taken as
@@ -572,7 +571,7 @@ Board-only (Raspberry and Orange); desktop reports it as board-only.
   preferences: every `Display` row (ghost tiles, Auto Map, Aux Prio., Auto/Manual Hints, Num Style,
   fonts, Home Visual, View on Back/at Boot, timers, brightness, HDMI Video), master volume, Auto Save/Backups, MIDI
   setup/status/sync, sync source, audio output buffer frames, sample favorites, Paused Events, and
-  the preset name list. `Notes` (Note Length 120 ms, Vel Scale 100, Vel Curve linear) and
+  the preset name list. `Notes` (Vel Scale 100, Vel Curve linear) and
   `Polyphony` (`auto-balanced`) return to their defaults. Aux bindings belong to the patch, so
   all of them are cleared.
 - `Factory Patch` (`factory.load`) opens `Confirm Factory` / `Load the factory patch? Your current patch is replaced. Device settings stay.` and loads the

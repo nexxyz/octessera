@@ -239,6 +239,16 @@ pub(super) fn link_binding_group(
                     ),
                 ],
             ),
+            binding_action(
+                "One-Shot Len",
+                &format!("{prefix}.oneShotLengthMs"),
+                "number",
+                Some(10),
+                Some(2000),
+                Some(10),
+                vec![],
+                target,
+            ),
             link_axis_binding_group(&format!("{prefix}.x"), "X Axis", target),
             link_axis_lane_binding_group(
                 &format!("{prefix}.x.velocity"),

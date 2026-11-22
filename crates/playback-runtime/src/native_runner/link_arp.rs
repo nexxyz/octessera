@@ -57,7 +57,7 @@ impl NativeRunner {
         &mut self,
         layer_index: usize,
         timing: LinkEventTiming,
-        retrigger_count: u8,
+        lights_tiles: bool,
         link: &NativeLinkLayer,
         mut routed: RoutedMusicalEvents,
         midi_drum_channels: u16,
@@ -70,7 +70,7 @@ impl NativeRunner {
             matches!(event, MusicalEvent::NoteOn { channel, .. } if midi_drum_channels & 1 << channel != 0)
         });
         routed.midi = midi;
-        self.update_link_arp_held_notes(layer_index, &routed);
+        self.update_link_arp_held_notes(layer_index, &routed, lights_tiles);
         self.update_link_arp_held_tiles(layer_index, &routed);
         let source_routed = if arp.source == ArpSource::Held && starts_a_note(&routed) {
             let mut source = non_note_routed_events(&routed);
@@ -91,7 +91,7 @@ impl NativeRunner {
             suppress_arp_note_offs(routed)
         };
         let events = self.arp_routed_events(layer_index, source_routed, struck, link);
-        for repeat in 0..=retrigger_count {
+        for repeat in 0..=timing.retrigger_count {
             for (offset, event) in events.iter().cloned() {
                 let remaining_steps = u16::from(timing.delay_steps)
                     .saturating_add(u16::from(repeat))
@@ -127,7 +127,14 @@ impl NativeRunner {
         held.extend(held_hits);
     }
 
-    fn update_link_arp_held_notes(&mut self, layer_index: usize, routed: &RoutedMusicalEvents) {
+    /// A note is held from its note-on to its note-off: a Hold note, or a one-shot that `lights`
+    /// a tile, which stays held while the tile is lit.
+    fn update_link_arp_held_notes(
+        &mut self,
+        layer_index: usize,
+        routed: &RoutedMusicalEvents,
+        lights: bool,
+    ) {
         let Some(held) = self.link_arp.held_notes.get_mut(layer_index) else {
             return;
         };
@@ -138,8 +145,8 @@ impl NativeRunner {
                         channel,
                         note,
                         velocity,
-                        duration_ms: None,
-                    } => {
+                        duration_ms,
+                    } if duration_ms.is_none() || lights => {
                         held.retain(|held| {
                             !(held.audio == audio && held.channel == *channel && held.note == *note)
                         });

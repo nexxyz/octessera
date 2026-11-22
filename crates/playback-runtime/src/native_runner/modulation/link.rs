@@ -41,6 +41,7 @@ pub(in crate::native_runner) fn apply_link_binding_value(
         "triggerProbabilityNoteOffs" => {
             apply_bool_value(&mut layer.trigger_probability_note_offs, value)
         }
+        "oneShotLengthMs" => apply_ranged_value(&mut layer.one_shot_length_ms, value, 10, 2000),
         "pitch.lowestNote" => apply_u8_value(&mut layer.lowest_note, value, 127),
         "pitch.highestNote" => apply_u8_value(&mut layer.highest_note, value, 127),
         "pitch.startingNote" => apply_u8_value(&mut layer.starting_note, value, 127),

@@ -354,14 +354,14 @@ pub(crate) fn affected_behavior_help_targets_keep_one_accurate_row() {
 #[test]
 pub(crate) fn binding_picker_leaves_use_bound_parameter_help_targets() {
     let target = NativeMenuHelpTarget {
-        path: "Menu > Play > XY > X Target > System > Notes > Note Length".into(),
-        key: "key:sound.noteLengthMs".into(),
+        path: "Menu > Play > XY > X Target > Link > L1 > One-Shot Len".into(),
+        key: "key:layers.0.link.oneShotLengthMs".into(),
         kind: "number".into(),
-        label: "Note Length".into(),
+        label: "One-Shot Len".into(),
     };
     let entry = crate::native_help::resolve_native_help_entry(&target).unwrap();
 
-    assert_eq!(entry.key, "key:sound.noteLengthMs");
+    assert_eq!(entry.key, "key:layers.*.link.oneShotLengthMs");
     assert_ne!(entry.key, "action:param_bind");
 }
 

@@ -78,9 +78,6 @@ pub(in crate::native_runner) fn apply_instrument_payload(
         if let Some(velocity) = midi.velocity {
             instrument.midi_velocity = velocity.clamp(1, 127);
         }
-        if let Some(duration_ms) = midi.duration_ms {
-            instrument.midi_duration_ms = duration_ms.clamp(10, 2000);
-        }
     }
     if let Some(midi_drum) = &slot.midi_drum {
         instrument.midi_drum.apply(midi_drum);

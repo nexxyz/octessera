@@ -56,7 +56,8 @@ pub(crate) fn factory_variant_timeline() -> String {
     }
     let midi = &mut config["instruments"][7];
     midi["type"] = json!("midi");
-    midi["midi"] = json!({ "channel": 8, "durationMs": 200, "enabled": true, "velocity": 100 });
+    midi["midi"] = json!({ "channel": 8, "enabled": true, "velocity": 100 });
+    config["layers"][1]["link"]["oneShotLengthMs"] = json!(200);
     for mapping in [
         "activate",
         "deactivate",

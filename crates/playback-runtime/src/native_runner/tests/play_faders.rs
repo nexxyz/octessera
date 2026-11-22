@@ -23,8 +23,8 @@ fn velocity(runner: &NativeRunner) -> u16 {
     runner.global_sound.velocity_scale_pct
 }
 
-fn note_length(runner: &NativeRunner) -> u32 {
-    runner.global_sound.note_length_ms
+fn note_length(runner: &NativeRunner) -> u16 {
+    runner.layers[0].link.one_shot_length_ms
 }
 
 /// Opens the Faders page the hardware way: Fn + the right column's row 5.
@@ -63,7 +63,7 @@ fn faders_runner() -> NativeRunner {
     bind(
         &mut runner,
         "play.faders.0.shiftTarget",
-        "sound.noteLengthMs",
+        "layers.0.link.oneShotLengthMs",
     );
     open_faders(&mut runner);
     runner
@@ -168,7 +168,7 @@ fn shift_presses_set_the_second_target_of_the_column() {
 
     assert_eq!(note_length(&runner), 2000);
     assert_eq!(velocity(&runner), plain_velocity);
-    assert_eq!(toast(&runner), "S+F1: Note Length 2000");
+    assert_eq!(toast(&runner), "S+F1: One-Shot Len 2000");
 }
 
 #[test]
@@ -190,7 +190,7 @@ fn the_bar_follows_the_target_value_in_each_bank() {
         "a menu edit moves the bar"
     );
 
-    set_menu_number(&mut runner, "sound.noteLengthMs", 30);
+    set_menu_number(&mut runner, "layers.0.link.oneShotLengthMs", 10);
     runner.active_play_mode = ActivePlayMode::Page(PlayMode::Faders);
     runner.display.ui.shift_held = true;
     assert_eq!(bar_top(&mut runner, 0, LedColor::MAGENTA), Some(0));

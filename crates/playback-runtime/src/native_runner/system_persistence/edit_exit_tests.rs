@@ -117,7 +117,7 @@ fn unchanged_or_reverted_edits_do_not_save() {
 #[test]
 fn patch_only_parameter_edit_does_not_save_system() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(runner.menu.focus_item_key("sound.noteLengthMs"));
+    assert!(runner.menu.focus_item_key("sound.velocityScalePct"));
     let _ = input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),
@@ -136,7 +136,7 @@ fn patch_only_parameter_edit_does_not_save_system() {
 #[test]
 fn unrelated_midi_status_during_patch_edit_does_not_save_system() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    assert!(runner.menu.focus_item_key("sound.noteLengthMs"));
+    assert!(runner.menu.focus_item_key("sound.velocityScalePct"));
     let _ = input(
         &mut runner,
         json!({ "type": "encoder_press", "id": "main" }),

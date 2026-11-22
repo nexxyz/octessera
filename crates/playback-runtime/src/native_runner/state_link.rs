@@ -28,6 +28,7 @@ impl Default for NativeLinkLayer {
             trigger_probability_low_pct: 25,
             trigger_probability_high_pct: 75,
             trigger_probability_note_offs: false,
+            one_shot_length_ms: DEFAULT_ONE_SHOT_LENGTH_MS,
             state_notes_enabled: true,
             seeded: false,
             lowest_note: 36,
@@ -84,6 +85,8 @@ pub(super) struct NativeLinkLayer {
     pub(super) trigger_probability_low_pct: u8,
     pub(super) trigger_probability_high_pct: u8,
     pub(super) trigger_probability_note_offs: bool,
+    /// How long each note this layer plays on a One-Shot instrument lasts.
+    pub(super) one_shot_length_ms: u16,
     pub(super) state_notes_enabled: bool,
     pub(super) seeded: bool,
     pub(super) lowest_note: u8,
@@ -112,6 +115,9 @@ pub(super) struct NativeLinkLayer {
 }
 
 pub(super) const GLOBAL_LFO_COUNT: usize = 8;
+
+/// The One-Shot Len a layer starts with: the 150 ms a Link On note always played.
+pub(super) const DEFAULT_ONE_SHOT_LENGTH_MS: u16 = 150;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct NativeLinkArp {

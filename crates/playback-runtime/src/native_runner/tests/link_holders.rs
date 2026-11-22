@@ -119,14 +119,15 @@ pub(crate) fn negative_pitch_steps_descend_through_the_set() {
 }
 
 #[test]
-pub(crate) fn a_one_shot_midi_slot_plays_its_midi_duration() {
+pub(crate) fn a_one_shot_midi_slot_plays_the_layer_one_shot_length() {
     let mut runner = keys_runner(0);
     runner.test_set_midi_enabled(true);
     let instrument = &mut runner.instruments[0];
     instrument.kind = InstrumentType::Midi;
     instrument.midi_enabled = true;
     instrument.midi_channel = 2;
-    instrument.midi_duration_ms = 333;
+    runner.layers[0].link.one_shot_length_ms = 333;
+    runner.refresh_active_mapping_config();
 
     let pressed = grid(&mut runner, "grid_press", 2, 3);
 

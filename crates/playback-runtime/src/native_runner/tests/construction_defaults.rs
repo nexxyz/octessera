@@ -14,7 +14,6 @@ fn sequencer_construction_projects_seeded_defaults_into_runtime_and_menu() {
         global_sound: GlobalSoundConfig {
             velocity_scale_pct: 82,
             velocity_curve: VelocityCurve::Hard,
-            note_length_ms: 240,
         },
         ..defaults
     };

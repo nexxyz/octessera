@@ -15,7 +15,7 @@ fn distinct_full_config(source: &str) -> Value {
     runtime["midi"]["outId"] = json!("device-midi-out");
     runtime["midi"]["inId"] = json!("device-midi-in");
     runtime["playMode"] = json!("pan");
-    runtime["sound"]["noteLengthMs"] = json!(777);
+    runtime["layers"][0]["link"]["oneShotLengthMs"] = json!(777);
     runtime["sound"]["velocityScalePct"] = json!(143);
     runtime["transport"]["bpm"] = json!(137.25);
     runtime["instruments"][0]["midi"]["channel"] = json!(13);
@@ -27,7 +27,7 @@ fn distinct_full_config(source: &str) -> Value {
     runtime["layers"][platform_core::LAYER_COUNT - 1]["autoName"] = json!(false);
     runtime["auxBindings"] = json!({
         "aux1": {
-            "turnKey": "sound.noteLengthMs",
+            "turnKey": "layers.0.link.oneShotLengthMs",
             "pressAction": { "kind": "platform_effect", "action": "midi.panic" }
         },
         "aux2": {
@@ -77,7 +77,7 @@ fn assert_round_trip(source: &str) {
         "device-midi-out"
     );
     assert_eq!(
-        documents.patch["runtimeConfig"]["sound"]["noteLengthMs"],
+        documents.patch["runtimeConfig"]["layers"][0]["link"]["oneShotLengthMs"],
         777
     );
     assert_eq!(
@@ -168,7 +168,7 @@ fn assert_round_trip(source: &str) {
     assert_eq!(composed["mappingConfig"], full["mappingConfig"]);
     assert_eq!(
         composed["runtimeConfig"]["auxBindings"]["aux1"]["turnKey"],
-        "sound.noteLengthMs"
+        "layers.0.link.oneShotLengthMs"
     );
     assert_eq!(
         composed["runtimeConfig"]["auxBindings"]["aux1"]["pressAction"]["action"],

@@ -39,8 +39,6 @@ pub struct GlobalSoundConfig {
     pub velocity_scale_pct: u16,
     #[serde(rename = "velocityCurve")]
     pub velocity_curve: VelocityCurve,
-    #[serde(rename = "noteLengthMs")]
-    pub note_length_ms: u32,
 }
 
 pub fn apply_global_sound(
@@ -48,7 +46,6 @@ pub fn apply_global_sound(
     config: &GlobalSoundConfig,
 ) -> Vec<MusicalEvent> {
     let scale = (config.velocity_scale_pct as f32 / 100.0).clamp(0.0, 2.0);
-    let note_length_ms = config.note_length_ms.clamp(1, 10_000);
     events
         .iter()
         .map(|event| match event {
@@ -69,7 +66,7 @@ pub fn apply_global_sound(
                     channel: *channel,
                     note: *note,
                     velocity: next_velocity,
-                    duration_ms: Some(duration_ms.unwrap_or(note_length_ms)),
+                    duration_ms: *duration_ms,
                 }
             }
             _ => event.clone(),
@@ -82,7 +79,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn applies_global_sound_defaults_duration() {
+    fn applies_global_sound_scales_velocity_and_keeps_duration() {
         let events = vec![MusicalEvent::NoteOn {
             channel: 0,
             note: 60,
@@ -90,17 +87,16 @@ mod tests {
             duration_ms: None,
         }];
         let config = GlobalSoundConfig {
-            velocity_scale_pct: 100,
+            velocity_scale_pct: 50,
             velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 180,
         };
         assert_eq!(
             apply_global_sound(&events, &config),
             vec![MusicalEvent::NoteOn {
                 channel: 0,
                 note: 60,
-                velocity: 64,
-                duration_ms: Some(180),
+                velocity: 32,
+                duration_ms: None,
             }]
         );
     }

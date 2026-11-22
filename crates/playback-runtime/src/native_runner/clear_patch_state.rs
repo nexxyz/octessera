@@ -17,7 +17,6 @@ impl NativeRunner {
         self.global_sound = GlobalSoundConfig {
             velocity_scale_pct: 100,
             velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 120,
         };
         self.base_mapping_config = default_mapping_config();
         self.transport.bpm = 120.0;

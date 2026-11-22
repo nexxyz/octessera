@@ -55,7 +55,6 @@ fn finalize_events_applies_global_sound_before_hold_and_preserves_intents() {
         global_sound: GlobalSoundConfig {
             velocity_scale_pct: 150,
             velocity_curve: VelocityCurve::Linear,
-            note_length_ms: 777,
         },
         note_behaviors: vec![NoteBehavior::Hold; 16],
         ..base_config()

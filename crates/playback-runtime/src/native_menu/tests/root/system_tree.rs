@@ -28,7 +28,7 @@ fn desktop_system_tree_has_exact_order() {
     assert_eq!(group_labels(&desktop, "Load Preset"), vec!["(none)"]);
     assert_eq!(
         group_labels(&desktop, "Notes"),
-        vec!["Note Length", "Vel Scale", "Vel Curve"]
+        vec!["Vel Scale", "Vel Curve"]
     );
     assert_eq!(
         group_labels(&desktop, "MIDI"),

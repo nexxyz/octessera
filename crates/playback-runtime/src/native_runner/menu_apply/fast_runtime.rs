@@ -155,10 +155,6 @@ impl NativeRunner {
             "rollingBackups" => Some(self.fast_bool_menu_key(key, |runner, value| {
                 bool_changed(&mut runner.rolling_backups, value)
             })),
-            "sound.noteLengthMs" => Some(self.fast_sound_number_menu_key(key, |runner, value| {
-                let value = value.clamp(30, 2000) as u32;
-                value_changed(&mut runner.global_sound.note_length_ms, value)
-            })),
             "sound.velocityScalePct" => {
                 Some(self.fast_sound_number_menu_key(key, |runner, value| {
                     let value = value.clamp(0, 200) as u16;

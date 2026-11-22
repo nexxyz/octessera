@@ -249,7 +249,6 @@
         "autoName": true,
         "midi": {
           "channel": 1,
-          "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
@@ -405,7 +404,6 @@
         "autoName": true,
         "midi": {
           "channel": 1,
-          "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
@@ -706,7 +704,6 @@
         "autoName": true,
         "midi": {
           "channel": 1,
-          "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
@@ -931,7 +928,6 @@
         },
         "midi": {
           "channel": 1,
-          "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
@@ -1124,7 +1120,6 @@
         },
         "midi": {
           "channel": 1,
-          "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
@@ -1449,7 +1444,6 @@
         },
         "midi": {
           "channel": 1,
-          "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
@@ -1605,7 +1599,6 @@
         "autoName": true,
         "midi": {
           "channel": 1,
-          "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
@@ -1761,7 +1754,6 @@
         "autoName": true,
         "midi": {
           "channel": 1,
-          "durationMs": 120,
           "enabled": false,
           "velocity": 100
         },
@@ -1970,6 +1962,7 @@
               "slot": 0
             }
           },
+          "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
             "lowestNote": 36,
@@ -2392,6 +2385,7 @@
               "slot": 1
             }
           },
+          "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
             "lowestNote": 36,
@@ -2721,6 +2715,7 @@
               "slot": 2
             }
           },
+          "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
             "lowestNote": 36,
@@ -3000,6 +2995,7 @@
               "slot": 3
             }
           },
+          "oneShotLengthMs": 130,
           "pitch": {
             "highestNote": 74,
             "lowestNote": 31,
@@ -3350,6 +3346,7 @@
               "slot": 4
             }
           },
+          "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 86,
             "lowestNote": 48,
@@ -3698,6 +3695,7 @@
               "slot": 5
             }
           },
+          "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
             "lowestNote": 36,
@@ -3906,6 +3904,7 @@
               "slot": 6
             }
           },
+          "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
             "lowestNote": 36,
@@ -4114,6 +4113,7 @@
               "slot": 7
             }
           },
+          "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
             "lowestNote": 36,
@@ -4580,7 +4580,6 @@
       }
     },
     "sound": {
-      "noteLengthMs": 120,
       "optimizeFor": "latency",
       "velocityCurve": "linear",
       "velocityScalePct": 100,

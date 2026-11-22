@@ -50,9 +50,7 @@ fn classify_global_key(key: &str) -> Option<(TargetValueKind, TargetMode, Endpoi
         "transport.bpm" | "transport.swingA" | "transport.swingB" => {
             (TargetValueKind::Numeric, TargetMode::Numeric)
         }
-        "sound.noteLengthMs" | "sound.velocityScalePct" => {
-            (TargetValueKind::Numeric, TargetMode::Discrete)
-        }
+        "sound.velocityScalePct" => (TargetValueKind::Numeric, TargetMode::Discrete),
         "sound.voiceStealingMode" => (TargetValueKind::Enum, TargetMode::Discrete),
         _ => return None,
     };

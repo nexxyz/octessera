@@ -2,7 +2,7 @@
 
 usage: board-scenarios-state.py presets <store-dir> <label> <diff-log>
        board-scenarios-state.py store <store-dir> <label>
-presets: the saved patch's BPM and Note Length, the presets whose every runtimeConfig value it holds,
+presets: the saved patch's BPM and L1 One-Shot Len, the presets whose every runtimeConfig value it holds,
          and a hash per preset file; appends where the saved patch differs from preset A to diff-log.
 store:   the layer behaviors, BPM, the System values the store scenarios change, new set-aside
          copies, the inodes of system.json and its set-aside copies, empty or unparsable .json files
@@ -43,7 +43,7 @@ def presets(store, label, diff_log):
     if (store / "patches" / "A.json").exists():
         with open(diff_log, "a") as out:
             out.write(f"{label} {' '.join(differ(music(store / 'patches' / 'A.json'), saved)[:20])}\n")
-    return [label, f"bpm={saved['transport']['bpm']}", f"note={saved['sound']['noteLengthMs']}",
+    return [label, f"bpm={saved['transport']['bpm']}", f"note={saved['layers'][0]['link']['oneShotLengthMs']}",
             f"matches={','.join(loaded) or '-'}", hashes]
 
 

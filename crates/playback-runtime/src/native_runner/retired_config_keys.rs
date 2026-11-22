@@ -1,21 +1,32 @@
-use super::added_config_keys::is_kind;
+use super::added_config_keys::{for_each_object, is_kind, PATCH_DOCUMENTS};
 use super::config_documents::SYSTEM_DOCUMENT_KIND;
 use serde_json::Value;
 
 const SYSTEM_DOCUMENT: &[&str] = &[SYSTEM_DOCUMENT_KIND];
 
-type RetiredKey = (&'static [&'static str], &'static str, fn(&Value) -> bool);
+type RetiredKey = (
+    &'static [&'static str],
+    &'static [&'static str],
+    fn(&Value) -> bool,
+);
 
-const RETIRED_RUNTIME_KEYS: [RetiredKey; 2] = [
-    (SYSTEM_DOCUMENT, "auxBindings", holds_no_binding),
-    (SYSTEM_DOCUMENT, "shiftAuxBindings", holds_no_binding),
+const RETIRED_RUNTIME_KEYS: [RetiredKey; 4] = [
+    (SYSTEM_DOCUMENT, &["auxBindings"], holds_no_binding),
+    (SYSTEM_DOCUMENT, &["shiftAuxBindings"], holds_no_binding),
+    (PATCH_DOCUMENTS, &["sound", "noteLengthMs"], |_| true),
+    (
+        PATCH_DOCUMENTS,
+        &["instruments", "*", "midi", "durationMs"],
+        |_| true,
+    ),
 ];
 
 /// Loading drops each runtime key in `RETIRED_RUNTIME_KEYS` from documents of the listed kinds
-/// when its saved value passes the entry's check: a System saved by 0.8.14 still carries empty
-/// Aux banks that only the patch owns now, while a System with real bindings stays rejected. Use
-/// an entry only for a value that can go; anything a save still needs means normalizing the
-/// existing stores.
+/// when its saved value passes the entry's check (a `*` step stands for every array item): a
+/// System saved by 0.8.14 still carries empty Aux banks that only the patch owns now, while a
+/// System with real bindings stays rejected, and a patch's global Note Length and per-slot MIDI
+/// Duration went when each layer's Link got its One-Shot Len. Use an entry only for a value that
+/// can go; anything a save still needs means normalizing the existing stores.
 pub(crate) fn without_retired_keys(document: &Value) -> Value {
     without_runtime_keys(document, &RETIRED_RUNTIME_KEYS)
 }
@@ -27,14 +38,16 @@ fn holds_no_binding(bank: &Value) -> bool {
 
 fn without_runtime_keys(document: &Value, keys: &[RetiredKey]) -> Value {
     let mut cleaned = document.clone();
-    if let Some(runtime) = cleaned
-        .get_mut("runtimeConfig")
-        .and_then(Value::as_object_mut)
-    {
-        for (_, key, retire) in keys.iter().filter(|(kinds, ..)| is_kind(document, kinds)) {
-            if runtime.get(*key).is_some_and(retire) {
-                runtime.remove(*key);
-            }
+    if let Some(runtime) = cleaned.get_mut("runtimeConfig") {
+        for (_, path, retire) in keys.iter().filter(|(kinds, ..)| is_kind(document, kinds)) {
+            let Some((key, parents)) = path.split_last() else {
+                continue;
+            };
+            for_each_object(runtime, parents, &mut |parent| {
+                if parent.get(*key).is_some_and(retire) {
+                    parent.remove(*key);
+                }
+            });
         }
     }
     cleaned
@@ -57,7 +70,7 @@ mod tests {
         old_system["runtimeConfig"]["retiredTestKey"] = json!(true);
 
         assert!(compose_local_system_patch_documents(&old_system, &documents.patch).is_err());
-        let keys: [super::RetiredKey; 1] = [(SYSTEM_DOCUMENTS, "retiredTestKey", |_| true)];
+        let keys: [super::RetiredKey; 1] = [(SYSTEM_DOCUMENTS, &["retiredTestKey"], |_| true)];
         let cleaned = without_runtime_keys(&old_system, &keys);
         assert_eq!(cleaned, documents.system);
         assert!(compose_local_system_patch_documents(&cleaned, &documents.patch).is_ok());
@@ -65,6 +78,30 @@ mod tests {
             without_runtime_keys(&documents.patch, &keys),
             documents.patch
         );
+    }
+
+    #[test]
+    fn a_patch_saved_with_note_length_and_midi_duration_loads_with_one_shot_len() {
+        let full: Value = serde_json::from_str(PI_DEFAULT).unwrap();
+        let documents = split_system_patch_documents(&full).unwrap();
+        let mut old_patch = documents.patch.clone();
+        let runtime = &mut old_patch["runtimeConfig"];
+        runtime["sound"]["noteLengthMs"] = json!(120);
+        runtime["instruments"][4]["midi"]["durationMs"] = json!(200);
+        runtime["layers"][1]["link"]
+            .as_object_mut()
+            .unwrap()
+            .remove("oneShotLengthMs");
+
+        let composed = compose_local_system_patch_documents(&documents.system, &old_patch)
+            .expect("a patch from before One-Shot Len loads");
+        let runtime = &composed["runtimeConfig"];
+        assert!(runtime["sound"].get("noteLengthMs").is_none());
+        assert!(runtime["instruments"][4]["midi"]
+            .get("durationMs")
+            .is_none());
+        assert_eq!(runtime["layers"][1]["link"]["oneShotLengthMs"], json!(150));
+        assert_eq!(runtime["layers"][3]["link"]["oneShotLengthMs"], json!(130));
     }
 
     #[test]

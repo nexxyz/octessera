@@ -1,9 +1,8 @@
 use super::config_documents::SYSTEM_DOCUMENT_KIND;
-use super::CONFIG_KIND;
-use serde_json::Value;
+use super::{CONFIG_KIND, DEFAULT_ONE_SHOT_LENGTH_MS};
+use serde_json::{Map, Value};
 
 pub(super) const SYSTEM_DOCUMENTS: &[&str] = &[SYSTEM_DOCUMENT_KIND, CONFIG_KIND];
-#[cfg(test)]
 pub(super) const PATCH_DOCUMENTS: &[&str] = &[super::PATCH_KIND, CONFIG_KIND];
 
 struct AddedKey {
@@ -12,7 +11,7 @@ struct AddedKey {
     default: fn() -> Value,
 }
 
-const ADDED_RUNTIME_KEYS: [AddedKey; 4] = [
+const ADDED_RUNTIME_KEYS: [AddedKey; 5] = [
     AddedKey {
         kinds: SYSTEM_DOCUMENTS,
         path: &["midi", "notesIn"],
@@ -33,12 +32,18 @@ const ADDED_RUNTIME_KEYS: [AddedKey; 4] = [
         path: &["perfViewOnBack"],
         default: || Value::Bool(true),
     },
+    AddedKey {
+        kinds: PATCH_DOCUMENTS,
+        path: &["layers", "*", "link", "oneShotLengthMs"],
+        default: || Value::from(DEFAULT_ONE_SHOT_LENGTH_MS),
+    },
 ];
 
 /// Loading fills each runtime key in `ADDED_RUNTIME_KEYS` with its default when a document of
-/// one of its kinds was saved before the key existed, so an update carries old settings over.
-/// An entry stays for good. Removing, renaming, or re-ranging a saved key still means
-/// normalizing the existing stores, unless the key only needs dropping (`retired_config_keys`).
+/// one of its kinds was saved before the key existed, so an update carries old settings over;
+/// a `*` step stands for every item of an array. An entry stays for good. Removing, renaming,
+/// or re-ranging a saved key still means normalizing the existing stores, unless the key only
+/// needs dropping (`retired_config_keys`).
 /// Patches saved before every instrument carried a tile stamp with a `level` get the
 /// defaults the same way.
 pub(crate) fn with_added_keys(document: &Value) -> Value {
@@ -62,16 +67,38 @@ fn with_runtime_keys(document: &Value, keys: &[AddedKey]) -> Value {
         let Some((name, parents)) = key.path.split_last() else {
             continue;
         };
-        let parent = upgraded.get_mut("runtimeConfig").and_then(|runtime| {
-            parents
-                .iter()
-                .try_fold(runtime, |value, parent| value.get_mut(*parent))
-        });
-        if let Some(object) = parent.and_then(Value::as_object_mut) {
-            object.entry(name.to_string()).or_insert_with(key.default);
+        if let Some(runtime) = upgraded.get_mut("runtimeConfig") {
+            for_each_object(runtime, parents, &mut |object| {
+                object.entry(name.to_string()).or_insert_with(key.default);
+            });
         }
     }
     upgraded
+}
+
+/// Visits every object `path` leads to from `value`, where a `*` step enters each array item.
+pub(super) fn for_each_object(
+    value: &mut Value,
+    path: &[&str],
+    visit: &mut dyn FnMut(&mut Map<String, Value>),
+) {
+    match path.split_first() {
+        None => {
+            if let Some(object) = value.as_object_mut() {
+                visit(object);
+            }
+        }
+        Some((&"*", rest)) => {
+            for item in value.as_array_mut().into_iter().flatten() {
+                for_each_object(item, rest, visit);
+            }
+        }
+        Some((step, rest)) => {
+            if let Some(child) = value.get_mut(*step) {
+                for_each_object(child, rest, visit);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -86,9 +113,13 @@ mod tests {
     const PI_DEFAULT: &str = include_str!("../../../../config/generated/pi/default.json");
     const DESKTOP_DEFAULT: &str = include_str!("../../../../config/generated/desktop/default.json");
 
+    /// The value at `path`, reading a `*` step at the array's first item.
     fn value_at<'a>(document: &'a Value, path: &[&str]) -> Option<&'a Value> {
         path.iter()
-            .try_fold(&document["runtimeConfig"], |value, key| value.get(*key))
+            .try_fold(&document["runtimeConfig"], |value, key| match *key {
+                "*" => value.get(0),
+                key => value.get(key),
+            })
     }
 
     #[test]
