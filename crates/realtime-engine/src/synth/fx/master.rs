@@ -12,6 +12,7 @@ pub(in crate::synth) fn process_master_fx_slot(
         FxBusParams::None => (left, right),
         FxBusParams::Saturator { drive, mix } => {
             let MasterFxState::Saturator(curve) = state else {
+                debug_assert!(false, "a saturator slot without its curve");
                 return (left, right);
             };
             (

@@ -268,12 +268,13 @@ pub(in crate::synth) fn fx_bus_state_can_preserve(
 }
 
 /// A load lands a kept delay line on the loaded Time at once instead of gliding there; the
-/// echoes already in the line keep playing.
+/// echoes already in the line keep playing. A full apply that carries the Time the line is
+/// already heading for leaves a running glide alone.
 pub(in crate::synth) fn land_loaded_delay_time(kept: &mut FxBusState, loaded: &FxBusState) {
     if let (FxBusState::Delay { cache, .. }, FxBusState::Delay { cache: loaded, .. }) =
         (kept, loaded)
     {
-        *cache = *loaded;
+        cache.land(loaded);
     }
 }
 

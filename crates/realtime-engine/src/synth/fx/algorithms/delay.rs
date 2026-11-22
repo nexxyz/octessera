@@ -51,6 +51,20 @@ impl DelayCache {
         }
     }
 
+    /// Takes `loaded` at once when it heads for another Time than this cache does.
+    pub(in crate::synth) fn land(&mut self, loaded: &Self) {
+        if self.time_ms.to_bits() != loaded.time_ms.to_bits()
+            || self.sample_rate != loaded.sample_rate
+        {
+            *self = *loaded;
+        }
+    }
+
+    #[cfg(test)]
+    pub(in crate::synth) fn current_samples(&self) -> f32 {
+        self.current_samples
+    }
+
     fn glide(&mut self, len: usize) -> f32 {
         let target = self.delay_samples.min((len - 1) as f32);
         let diff = target - self.current_samples;

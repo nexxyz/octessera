@@ -27,6 +27,8 @@ mod construction;
 mod control;
 #[cfg(test)]
 mod control_tests;
+#[cfg(test)]
+mod delay_glide_apply_tests;
 mod duck_source;
 mod dynamic_control;
 #[cfg(test)]

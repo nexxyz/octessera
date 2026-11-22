@@ -253,7 +253,7 @@ fn process_fx_paths_stay_finite_across_bus_and_master_slots() {
     ];
 
     for param in bus_params {
-        let mut state = FxBusState::None;
+        let mut state = fx_bus_state_from_params(&param, 48_000);
         let first = process_fx_bus_slot(&param, &mut state, 0.5, 0.5, 48_000);
         let second = process_fx_bus_slot(&param, &mut state, 0.25, 0.5, 48_000);
         assert!(first.is_finite());
@@ -296,7 +296,7 @@ fn process_fx_paths_stay_finite_across_bus_and_master_slots() {
     ];
 
     for param in master_params {
-        let mut state = MasterFxState::None;
+        let mut state = master_fx_state_from_params(&param);
         let first = process_master_fx_slot(&param, &mut state, 0.5, -0.25, 48_000);
         let second = process_master_fx_slot(&param, &mut state, 0.25, -0.5, 48_000);
         assert!(first.0.is_finite() && first.1.is_finite());

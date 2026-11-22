@@ -40,12 +40,11 @@ const ADDED_RUNTIME_KEYS: [AddedKey; 4] = [
 /// An entry stays for good. Removing, renaming, or re-ranging a saved key still means
 /// normalizing the existing stores, unless the key only needs dropping (`retired_config_keys`).
 /// Patches saved before every instrument carried a tile stamp with a `level` get the
-/// defaults the same way, and FX values above a since-narrowed range land on its new top.
+/// defaults the same way.
 pub(crate) fn with_added_keys(document: &Value) -> Value {
     let mut upgraded = with_runtime_keys(document, &ADDED_RUNTIME_KEYS);
     if is_kind(document, &[super::PATCH_KIND, CONFIG_KIND]) {
         super::config_schema::normalize_missing_tile_stamps(&mut upgraded);
-        super::config_schema::clamp_narrowed_fx_params(&mut upgraded);
     }
     upgraded
 }
@@ -119,19 +118,15 @@ mod tests {
     }
 
     #[test]
-    fn a_patch_saved_with_a_distortion_clip_above_the_new_range_still_loads() {
+    fn a_patch_with_a_distortion_clip_above_full_scale_is_refused() {
         let full: Value = serde_json::from_str(PI_DEFAULT).unwrap();
         let documents = split_system_patch_documents(&full).unwrap();
-        let mut old_patch = documents.patch.clone();
-        old_patch["runtimeConfig"]["mixer"]["master"]["slots"][1] =
-            json!({ "type": "distortion", "params": { "drive": 2.5, "clip": 2.0, "mixPct": 100 } });
-
-        let composed = compose_local_system_patch_documents(&documents.system, &old_patch)
-            .expect("an old patch with Clip 2.0 loads");
-        assert_eq!(
-            composed["runtimeConfig"]["mixer"]["master"]["slots"][1]["params"]["clip"],
-            json!(1.0)
-        );
+        let mut patch = documents.patch.clone();
+        let distortion = |clip: f64| json!({ "type": "distortion", "params": { "drive": 2.5, "clip": clip, "mixPct": 100 } });
+        patch["runtimeConfig"]["mixer"]["master"]["slots"][1] = distortion(1.0);
+        assert!(compose_local_system_patch_documents(&documents.system, &patch).is_ok());
+        patch["runtimeConfig"]["mixer"]["master"]["slots"][1] = distortion(2.0);
+        assert!(compose_local_system_patch_documents(&documents.system, &patch).is_err());
     }
 
     #[test]

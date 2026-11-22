@@ -181,3 +181,21 @@ fn effective_numeric_range(
         (max, min)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::apply_fx_param_binding_value;
+    use serde_json::json;
+
+    #[test]
+    fn a_binding_driven_past_clip_s_top_stores_the_top() {
+        let mut params = json!({ "drive": 2.5, "clip": 0.6, "mixPct": 100 });
+        assert!(apply_fx_param_binding_value(
+            "distortion",
+            &mut params,
+            "clip",
+            json!(200.0)
+        ));
+        assert_eq!(params["clip"], json!(1.0));
+    }
+}

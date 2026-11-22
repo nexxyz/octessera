@@ -115,6 +115,7 @@ pub(in crate::synth) fn process_fx_bus_slot(
         ),
         FxBusParams::Saturator { drive, mix } => {
             let FxBusState::Saturator(curve) = state else {
+                debug_assert!(false, "a saturator slot without its curve");
                 return input;
             };
             process_saturator(curve, input, drive, mix)
