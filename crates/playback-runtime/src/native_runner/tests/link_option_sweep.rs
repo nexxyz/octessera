@@ -18,15 +18,22 @@ enum Context {
     Arp,
 }
 
+const CONTEXTS: [Context; 6] = [
+    Context::Events,
+    Context::Probability,
+    Context::Scan,
+    Context::RowScan,
+    Context::Lanes,
+    Context::Arp,
+];
+
 fn context_for(key: &str) -> Context {
     let field = &key[PREFIX.len()..];
     if field.starts_with("arp.") && field != "arp.mode" {
         Context::Arp
     } else if field == "x.pitch.restartEachSection" {
         Context::RowScan
-    } else if field.starts_with("triggerProbability") && field != "triggerProbabilityMode"
-        || field == "seeded"
-    {
+    } else if field.starts_with("triggerProbability") || field == "seeded" {
         Context::Probability
     } else if field.starts_with("scan")
         || field.starts_with("mapping.scanned")
@@ -136,35 +143,36 @@ enum SweepValue {
     Bool(bool),
 }
 
-fn sweep_values(item: &NativeMenuItem) -> Option<Vec<SweepValue>> {
+/// The values a row is tried at and the value it starts from: numbers at both ends, every enum
+/// option, and a flipped bool.
+fn sweep_values(item: &NativeMenuItem) -> Option<(Vec<SweepValue>, SweepValue)> {
     match &item.value {
         NativeMenuValue::Number {
             value, min, max, ..
-        } => Some(vec![
-            SweepValue::Number(*min),
+        } => Some((
+            vec![SweepValue::Number(*min), SweepValue::Number(*max)],
             SweepValue::Number(*value),
-            SweepValue::Number(*max),
-        ]),
-        NativeMenuValue::Enum { options, selected } if options.len() > 1 => Some(vec![
-            SweepValue::Enum(options[0].clone()),
+        )),
+        NativeMenuValue::Enum { options, selected } if options.len() > 1 => Some((
+            options.iter().cloned().map(SweepValue::Enum).collect(),
             SweepValue::Enum(options[*selected].clone()),
-            SweepValue::Enum(options[options.len() - 1].clone()),
-        ]),
-        NativeMenuValue::Bool { value } => Some(vec![
-            SweepValue::Bool(!value),
-            SweepValue::Bool(*value),
-            SweepValue::Bool(!value),
-        ]),
+        )),
+        NativeMenuValue::Bool { value } => {
+            Some((vec![SweepValue::Bool(!value)], SweepValue::Bool(*value)))
+        }
         _ => None,
     }
 }
 
+/// The Link rows with a value, once per key: leaves, and parents such as `Set` whose folders pick
+/// the parent's value.
 fn link_rows(item: &NativeMenuItem, out: &mut Vec<NativeMenuItem>) {
     if item
         .key
         .as_deref()
         .is_some_and(|key| key.starts_with(PREFIX))
-        && item.children.is_empty()
+        && (item.children.is_empty() || matches!(item.value, NativeMenuValue::Enum { .. }))
+        && !out.iter().any(|row| row.key == item.key)
     {
         out.push(item.clone());
     }
@@ -217,19 +225,13 @@ fn dead_rows(context: Context) -> Vec<String> {
         if context_for(&key) != context {
             continue;
         }
-        let Some(values) = sweep_values(&row) else {
+        let Some((values, start)) = sweep_values(&row) else {
             continue;
         };
-        let outputs = values
-            .iter()
-            .map(|value| {
-                let mut runner = runner_in(context);
-                set(&mut runner, &key, value);
-                played(runner)
-            })
-            .collect::<Vec<_>>();
-        for (value, output) in values.iter().zip(&outputs) {
-            if *value != values[1] && *output == baseline {
+        for value in values.iter().filter(|value| **value != start) {
+            let mut runner = runner_in(context);
+            set(&mut runner, &key, value);
+            if played(runner) == baseline {
                 dead.push(format!("{key} = {value:?}"));
             }
         }
@@ -240,6 +242,49 @@ fn dead_rows(context: Context) -> Vec<String> {
 fn assert_every_row_changes_what_plays(context: Context) {
     let dead = dead_rows(context);
     assert!(dead.is_empty(), "{context:?}: {dead:#?}");
+}
+
+fn saved_keys(prefix: &str, value: &Value, out: &mut std::collections::BTreeSet<String>) {
+    match value {
+        Value::Object(fields) => {
+            for (field, value) in fields {
+                saved_keys(&format!("{prefix}{field}."), value, out);
+            }
+        }
+        _ => {
+            out.insert(prefix.trim_end_matches('.').to_string());
+        }
+    }
+}
+
+#[test]
+pub(crate) fn every_saved_link_key_is_swept_in_some_context() {
+    let runner = runner_in(Context::Events);
+    let mut unswept = std::collections::BTreeSet::new();
+    saved_keys(
+        PREFIX,
+        &crate::native_runner::link_payload::link_layer_payload(
+            &runner.layers[0].link,
+            &runner.layers[0].trigger_probability_map,
+        ),
+        &mut unswept,
+    );
+    // The painted grid is not a row; the Probability context paints it. The layer-wide axis
+    // From/To are saved but have no row and play no part in Link.
+    for field in ["triggerProbabilityMap", "x.from", "x.to", "y.from", "y.to"] {
+        unswept.remove(&format!("{PREFIX}{field}"));
+    }
+    for context in CONTEXTS {
+        let mut rows = Vec::new();
+        link_rows(&runner_in(context).menu.root, &mut rows);
+        for row in rows {
+            let key = row.key.clone().unwrap();
+            if context_for(&key) == context && sweep_values(&row).is_some() {
+                unswept.remove(&key);
+            }
+        }
+    }
+    assert!(unswept.is_empty(), "{unswept:#?}");
 }
 
 #[test]
