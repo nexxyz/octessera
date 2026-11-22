@@ -47,12 +47,42 @@ pub(super) fn rig(auto_save: bool, rolling_backups: bool) -> Rig {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.skip_startup_splash();
     crate::runtime_output::initialize_host_state(&mut playback, &mut runner, &mut adapter).unwrap();
-    Rig {
+    let mut rig = Rig {
         adapter,
         runner,
         playback,
         root,
+    };
+    dismiss_latched_errors(&mut rig);
+    rig
+}
+
+/// A host without MIDI latches a runtime error that takes the next presses, so Back clears it first.
+fn dismiss_latched_errors(rig: &mut Rig) {
+    for _ in 0..10 {
+        crate::runtime_dispatch::handle_deferred_host_work(
+            &mut rig.playback,
+            &mut rig.runner,
+            &mut rig.adapter,
+        )
+        .unwrap();
+        if rig.playback.latched_errors().is_empty() {
+            break;
+        }
+        for message in [
+            crate::input::neokey_message(0, true).unwrap(),
+            crate::input::neokey_message(0, false).unwrap(),
+        ] {
+            crate::runtime_dispatch::dispatch(
+                &mut rig.playback,
+                &mut rig.runner,
+                &mut rig.adapter,
+                message,
+            )
+            .unwrap();
+        }
     }
+    assert!(rig.playback.latched_errors().is_empty());
 }
 
 pub(super) fn press(runner: &mut NativeRunner, inputs: &[serde_json::Value]) {
