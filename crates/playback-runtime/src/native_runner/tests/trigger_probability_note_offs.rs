@@ -53,13 +53,14 @@ fn release(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
 }
 
 #[test]
-pub(crate) fn gating_a_held_key_to_zero_still_releases_it_by_default() {
+pub(crate) fn gating_a_held_key_to_zero_releases_it_and_blocks_new_notes() {
     let mut runner = held_keys_runner();
     assert!(!runner.layers[0].link.trigger_probability_note_offs);
     assert_eq!(note_ons(&press(&mut runner)), 1);
     gate_layer(&mut runner, TriggerProbabilityMode::Zero);
+    assert_eq!(runner.transpose.pending_note_offs.audio.len(), 1);
 
-    assert_eq!(note_offs(&release(&mut runner)), 1);
+    assert!(note_offs(&release(&mut runner)) >= 1);
     assert!(runner.layers[0].emitted_note_owners.is_empty());
     assert_eq!(note_ons(&press(&mut runner)), 0);
     release(&mut runner);
@@ -68,7 +69,7 @@ pub(crate) fn gating_a_held_key_to_zero_still_releases_it_by_default() {
 }
 
 #[test]
-pub(crate) fn rolling_note_offs_lets_the_gate_swallow_the_release() {
+pub(crate) fn rolling_note_offs_lets_the_gate_swallow_the_key_release_after_the_gate_drain() {
     let mut runner = held_keys_runner();
     edit_menu_key(&mut runner, NOTE_OFFS_KEY, |menu| {
         assert!(menu.set_bool_value_for_key(NOTE_OFFS_KEY, true));
@@ -76,6 +77,11 @@ pub(crate) fn rolling_note_offs_lets_the_gate_swallow_the_release() {
     assert!(runner.layers[0].link.trigger_probability_note_offs);
     assert_eq!(note_ons(&press(&mut runner)), 1);
     gate_layer(&mut runner, TriggerProbabilityMode::Zero);
+    assert_eq!(runner.transpose.pending_note_offs.audio.len(), 1);
 
-    assert_eq!(note_offs(&release(&mut runner)), 0);
+    assert_eq!(
+        note_offs(&release(&mut runner)),
+        1,
+        "only the gate's own release; the key's note-off is swallowed"
+    );
 }

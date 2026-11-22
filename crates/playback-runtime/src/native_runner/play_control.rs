@@ -194,7 +194,6 @@ impl NativeRunner {
             layer.link.trigger_probability_mode = restore;
             self.show_toast(format!("L{} triggers {}", index + 1, restore.wire_name()));
         } else {
-            self.drain_layer_owned_notes(index);
             self.apply_trigger_gate_mode_to_layer(index, TriggerProbabilityMode::Zero);
             self.layers[index].trigger_gate_restore_mode = Some(current);
             self.show_toast(format!("L{} triggers off", index + 1));

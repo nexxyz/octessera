@@ -4,8 +4,9 @@ use crate::behaviors::{NativeBehavior, NativeBehaviorState};
 use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
 use crate::interpretation::{
     interpret_grid_with_marker_authority, GridSnapshot, InterpretationProfile, TileTriggerIntent,
-    TriggerMarkerAuthority,
+    TileTriggerKind, TriggerMarkerAuthority,
 };
+use crate::interpretation_scan::compute_degree;
 use crate::mapping::{
     activate_tile_for_note, map_intents_to_musical_events, MappingConfig, MappingResult,
     TriggerAction,
@@ -220,9 +221,28 @@ impl NativeLayerEngine {
         let emitted_events = context.emitted_events;
         let finalized = self.finalize_events(&emitted_events, Some(&mapped))?;
         let NoteBehaviorWithIntentsResult {
-            events,
-            event_intents,
+            mut events,
+            mut event_intents,
         } = finalized;
+        if !self.interpretation_profile.event.enabled {
+            // Without Off events nothing else ends a note a tile holds once the tile is dark.
+            for (tile, off) in self.held_notes.release_dark_tiles(&after.tiles) {
+                let (x, y) = (tile % GRID_WIDTH, tile / GRID_WIDTH);
+                events.push(off);
+                event_intents.push(Some(TileTriggerIntent {
+                    x,
+                    y,
+                    kind: TileTriggerKind::Stable,
+                    degree: compute_degree(
+                        GRID_WIDTH,
+                        GRID_HEIGHT,
+                        x,
+                        y,
+                        &self.interpretation_profile,
+                    ),
+                }));
+            }
+        }
         let released = self.held_notes.release_unscanned();
         let (events, event_intents) = if released.is_empty() {
             (events, event_intents)

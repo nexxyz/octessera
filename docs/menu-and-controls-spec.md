@@ -56,7 +56,7 @@ Data sources the spec relies on:
 | Fn + Space | Reset stop | Stops/resets, silences internal audio, and clears held MIDI notes without broad panic. Takes priority over sample preview. |
 | Combined modifier + Space | Reserved | No-op. |
 | Fn + leftmost grid column | Select layer (1..8) | Makes that layer active and leaves any Play overlay. The menu position does not change. |
-| Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Only this disable transition releases held Synth, FM, Plucked, and Sampler notes owned by that layer, plus its external MIDI notes; an already-ringing one-shot Drum hit finishes its decay. Ordinary Play Trigger Gate edits to `0%` only suppress future admissions; triggers mapped to `note off` still pass unless the layer's `Link > Trigger Prob. > Prob Note Off` is on. Other layers are unaffected, and re-enabling does not resurrect released notes. |
+| Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Turning a layer to `0%` releases held Synth, FM, Plucked, and Sampler notes owned by that layer, plus its external MIDI notes, and clears what its Arp holds; an already-ringing one-shot Drum hit finishes its decay. The Play Trigger Gate page and `Link > Trigger Prob. > Mode` do the same when they set a layer to `0%`. While the gate is closed, triggers mapped to `note off` still pass unless the layer's `Link > Trigger Prob. > Prob Note Off` is on. Other layers are unaffected, and re-enabling does not resurrect released notes. |
 | Fn held | Navigation LEDs | Left column: blue = active layer (or, while a Play page is active, every configured layer), green = configured layer, dim gray = `none` layer. A layer whose trigger mode is `0%` shows magenta instead of blue and dim magenta instead of green. See [Grid overlays](#overlays-and-priority). |
 | Fn + rightmost grid column | Select technical Play page | Selects and activates the technical-bank page on that row and moves the menu to it ([banks](menu-tree/play.md#pages-and-navigation)); in the performance view the menu stays at root. Free rows do nothing. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
 | Combined modifier + rightmost grid column | Select musical Play page | The same for the musical bank. |
@@ -1500,7 +1500,12 @@ Held notes (instruments in `hold` mode):
   Note, Pitch Steps) or modulation has moved that tile to another pitch since. A note-on from a
   tile on a new pitch ends that tile's old note first.
 - Hold, scan and empty-scan `note off` triggers repeat every step, so they only send a note-off
-  when they end a note the layer holds.
+  when they end a note the layer holds. A Hold `note off` lets go of its own tile only, so a tile
+  that lights on the same pitch that step keeps sounding.
+- With `Event Triggers` off no Off fires, so a tile that goes dark lets go of the notes it holds
+  at that step.
+- On a Sampler, a pitch two tiles share plays the first tile's sample, and the last tile's
+  note-off ends it.
 - Changing an instrument's type, resetting it or changing its MIDI route cuts its voices and
   forgets its held pitches on every layer, so the next note-on sounds again.
 - The count is per layer. Two layers, or a layer and Notes In, holding one pitch on one instrument

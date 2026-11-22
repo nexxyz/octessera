@@ -105,6 +105,25 @@ impl HeldNotes {
         released
     }
 
+    /// Lets go of the tiles that are dark in `lit` and returns, with its tile, the note-off of
+    /// every note that no holder keeps sounding any more.
+    pub(super) fn release_dark_tiles(&mut self, lit: &[bool]) -> Vec<(usize, MusicalEvent)> {
+        let is_lit = |tile: &usize| lit.get(*tile).copied() == Some(true);
+        let mut released = Vec::new();
+        self.notes.retain(|key, holders| {
+            let Some(&tile) = holders.tiles.iter().find(|tile| !is_lit(tile)) else {
+                return true;
+            };
+            holders.tiles.retain(is_lit);
+            if !holders.is_empty() {
+                return true;
+            }
+            released.push((tile, note_off(*key)));
+            false
+        });
+        released
+    }
+
     /// Forgets the notes held on `channel` after its voices were cut some other way, so the next
     /// note-on for one of those pitches sounds again.
     pub(super) fn forget_channel(&mut self, channel: u8) {
@@ -203,10 +222,16 @@ impl HeldNotes {
     ) {
         match intent.as_ref().map(|intent| intent.kind) {
             // Hold and scan events repeat every step, so their note-off only sounds when it
-            // ends a note this layer holds.
-            Some(
-                TileTriggerKind::Stable | TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty,
-            ) => {
+            // ends a note this layer holds; a Hold note-off lets go of its own tile only.
+            Some(TileTriggerKind::Stable) => {
+                if let Some(tile) = intent
+                    .as_ref()
+                    .map(|intent| intent.y * GRID_WIDTH + intent.x)
+                {
+                    self.release_tile(key, tile, intent, out);
+                }
+            }
+            Some(TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty) => {
                 if self.notes.remove(&key).is_some() {
                     out.push(note_off(key), intent);
                 }

@@ -2,6 +2,7 @@ use super::super::action_bindings::BindingTarget;
 use super::super::modulation::source::ModulationAxis;
 use super::super::{
     instrument_labels, link_layer_config, menu_apply::fast_values::parse_indexed_key, NativeRunner,
+    TriggerProbabilityMode,
 };
 
 impl NativeRunner {
@@ -39,6 +40,7 @@ impl NativeRunner {
             return Some(self.fast_param_mod_invert_key(index, lane, key));
         }
         let layer = self.layers.get_mut(index).map(|layer| &mut layer.link)?;
+        let gate_was_open = layer.trigger_probability_mode != TriggerProbabilityMode::Zero;
         let changed = if suffix.starts_with("link.arp.") {
             let prefix = format!("layers.{index}.link.arp");
             super::link_fx::apply_link_arp_menu_state(&self.menu, layer, &prefix)
@@ -91,6 +93,11 @@ impl NativeRunner {
             }
             if suffix == "link.seeded" {
                 self.restart_link_random_stream(index);
+            }
+            if gate_was_open
+                && self.layers[index].link.trigger_probability_mode == TriggerProbabilityMode::Zero
+            {
+                self.drain_layer_owned_notes(index);
             }
             if index == self.active_layer_index {
                 self.refresh_active_mapping_config();

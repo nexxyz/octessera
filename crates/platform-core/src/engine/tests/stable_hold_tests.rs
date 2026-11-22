@@ -2,9 +2,17 @@ use super::*;
 
 /// A Life block: four cells that stay alive forever.
 fn block_engine(behavior: NativeBehavior, stable: TriggerAction) -> NativeLayerEngine {
+    life_engine(behavior, &[(1, 1), (2, 1), (1, 2), (2, 2)], stable)
+}
+
+fn life_engine(
+    behavior: NativeBehavior,
+    lit: &[(usize, usize)],
+    stable: TriggerAction,
+) -> NativeLayerEngine {
     let mut cells = vec![false; GRID_WIDTH * GRID_HEIGHT];
-    for (x, y) in [(1, 1), (2, 1), (1, 2), (2, 2)] {
-        cells[crate::grid_index(x, y)] = true;
+    for (x, y) in lit {
+        cells[crate::grid_index(*x, *y)] = true;
     }
     let mut mapping_config = default_mapping_config();
     mapping_config.stable.action = stable;
@@ -15,6 +23,35 @@ fn block_engine(behavior: NativeBehavior, stable: TriggerAction) -> NativeLayerE
         ..base_config()
     })
     .unwrap()
+}
+
+#[test]
+fn with_event_triggers_off_a_hold_note_ends_when_its_tile_goes_dark() {
+    // A diagonal of three: only the middle cell lives one more step, then it dies too.
+    let mut engine = life_engine(
+        NativeBehavior::Life,
+        &[(2, 2), (3, 3), (4, 4)],
+        TriggerAction::NoteOn,
+    );
+    let mut profile = engine.interpretation_profile().clone();
+    profile.event.enabled = false;
+    engine.set_interpretation_profile(profile);
+    engine.set_note_behaviors(vec![NoteBehavior::Hold; 16]);
+
+    let first = engine.tick(120.0).unwrap();
+    assert_eq!(stable_note_ons(&first), 1);
+    let MusicalEvent::NoteOn { channel, note, .. } = first.events[0] else {
+        panic!("{:?}", first.events);
+    };
+
+    let second = engine.tick(120.0).unwrap();
+    assert_eq!(second.events, vec![off(channel, note)]);
+    assert_eq!(
+        second.event_intents[0]
+            .as_ref()
+            .map(|intent| (intent.x, intent.y)),
+        Some((3, 3))
+    );
 }
 
 fn stable_note_ons(tick: &NativeTickResult) -> usize {
@@ -185,6 +222,28 @@ fn a_hold_trigger_note_off_sounds_only_when_it_ends_a_held_note() {
         held.apply(&[off(0, 60)], stable(), &hold).events,
         vec![off(0, 60)]
     );
+}
+
+#[test]
+fn a_hold_trigger_note_off_spares_the_tile_that_lights_on_the_same_pitch() {
+    let mut held = HeldNotes::default();
+    let hold = [NoteBehavior::Hold];
+    let other_tile = Some(TileTriggerIntent {
+        x: 5,
+        ..tile_intent(TileTriggerKind::Activate).unwrap()
+    });
+
+    let step = held.apply(
+        &[on(60), off(0, 60)],
+        vec![other_tile, tile_intent(TileTriggerKind::Stable)],
+        &hold,
+    );
+
+    assert_eq!(step.events.len(), 1, "{:?}", step.events);
+    assert!(held.contains(&HeldNote {
+        channel: 0,
+        note: 60,
+    }));
 }
 
 #[test]

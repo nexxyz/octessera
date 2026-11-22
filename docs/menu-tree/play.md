@@ -319,7 +319,8 @@ The `ms` rows use the curved time steps from
   saved with the patch like a menu edit. It does not edit the saved per-tile probability map.
 - Rows are layers in Fn-navigation orientation: bottom row is layer 1.
 - Columns `0..2` set that row's layer to `0%` (magenta), `custom` (yellow), or `100%` (green). The
-  selected mode is bright, the other two dim.
+  selected mode is bright, the other two dim. Setting a layer to `0%` releases its held notes like
+  the `Shift+Fn` toggle below.
 - Columns `3..4` are an unassigned gap. Bottom-row columns `5..7` are always-bright all-layer
   actions: every layer to `0%`, `custom`, or `100%`.
 - Filtering per layer: `zero` blocks all triggers, `full` passes all, `custom` uses the stored

@@ -197,6 +197,64 @@ pub(crate) fn a_scanned_hold_note_lasts_while_its_pitch_stays_lit() {
     assert_eq!(steps[8..], lap[..], "{steps:?}");
 }
 
+/// Event Triggers off leave Hold Trig as the only trigger, so no Off ever comes: a tile going dark
+/// has to end its note, or every tile Life keeps for two steps drones on.
+#[test]
+pub(crate) fn a_hold_trig_note_ends_when_its_tile_goes_dark_with_event_triggers_off() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "life".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    // Clear the seed, then draw a diagonal of three: only its middle lives one more step.
+    let engine = &mut runner.layers[0].engine;
+    let seed = engine.model().unwrap().tiles;
+    let diagonal = [2, 3, 4].map(|xy| xy * GRID_WIDTH + xy);
+    for tile in (0..seed.len()).filter(|tile| seed[*tile] != diagonal.contains(tile)) {
+        let (x, y) = (tile % GRID_WIDTH, tile / GRID_WIDTH);
+        engine
+            .on_input(platform_core::DeviceInput::GridPress { x, y }, 120.0)
+            .unwrap();
+    }
+    menu_turn(&mut runner, "instruments.0.noteBehavior", 1);
+    for (key, value) in [
+        ("layers.0.link.mapping.stable.action", "note_on"),
+        ("layers.0.link.eventEnabled", "false"),
+    ] {
+        let changed = match value {
+            "false" => runner.menu.set_bool_value_for_key(key, false),
+            _ => runner.menu.set_enum_value_for_key(key, value),
+        };
+        assert!(changed, "{key}");
+        runner.apply_or_schedule_menu_key(key).unwrap();
+    }
+    runner.transport.transport = RuntimeTransportState::Playing;
+
+    let mut sounding = std::collections::BTreeSet::new();
+    let mut ended = 0;
+    for _ in 0..4 {
+        let messages = runner
+            .send(HostMessage::TransportPulseStep {
+                pulses: runner.step_pulses_for_layer(0),
+                source: SyncSource::Internal,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+        for (on, note) in on_off(&notes(&messages)) {
+            if on {
+                sounding.insert(note);
+            } else {
+                ended += usize::from(sounding.remove(&note));
+            }
+        }
+        let lit = runner.layers[0].engine.model().unwrap().tiles;
+        let lit = lit.iter().filter(|lit| **lit).count();
+        assert!(sounding.len() <= lit, "{sounding:?} over {lit} lit tiles");
+    }
+    assert!(ended > 0, "dark tiles end their notes");
+}
+
 #[test]
 pub(crate) fn a_held_pitch_sounds_again_after_its_instrument_drops_its_voices() {
     let mut runner = keys_runner(1);

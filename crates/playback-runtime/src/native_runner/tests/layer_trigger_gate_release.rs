@@ -366,8 +366,15 @@ pub(crate) fn transpose_drain_preserves_another_layer_owner_for_final_disable() 
     );
 }
 
+fn note_offs(messages: &[RunnerMessage]) -> usize {
+    routed_events(messages, false)
+        .iter()
+        .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
+        .count()
+}
+
 #[test]
-pub(crate) fn trigger_gate_page_zero_only_blocks_future_admission() {
+pub(crate) fn trigger_gate_page_zero_releases_held_notes_and_blocks_future_admission() {
     let mut runner = held_keys_runner();
     let press = press_note(&mut runner, 2, 3);
     assert!(!routed_events(&press, false).is_empty());
@@ -379,13 +386,31 @@ pub(crate) fn trigger_gate_page_zero_only_blocks_future_admission() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(routed_events(&edit, false)
-        .iter()
-        .all(|event| !matches!(event, MusicalEvent::NoteOff { .. })));
+    assert_eq!(note_offs(&edit), 1);
 
     runner.active_play_mode = ActivePlayMode::None;
     let blocked = press_note(&mut runner, 3, 3);
     assert!(routed_events(&blocked, false).is_empty());
+}
+
+#[test]
+pub(crate) fn trigger_prob_mode_menu_zero_releases_held_notes() {
+    let mut runner = held_keys_runner();
+    press_note(&mut runner, 2, 3);
+
+    assert!(runner
+        .menu
+        .focus_item_key("layers.0.link.triggerProbabilityMode"));
+    runner.menu.state.editing = true;
+    let edit = device_input(
+        &mut runner,
+        json!({ "type": "encoder_turn", "delta": -2, "id": "main" }),
+    );
+    assert_eq!(
+        runner.layers[0].link.trigger_probability_mode,
+        TriggerProbabilityMode::Zero
+    );
+    assert_eq!(note_offs(&edit), 1);
 }
 
 #[test]

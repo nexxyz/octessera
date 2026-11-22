@@ -261,6 +261,13 @@ impl NativeRunner {
         };
         if intents.is_empty() {
             self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
+            if context
+                .sense
+                .is_some_and(|link| link.arp.mode != ArpMode::None)
+            {
+                // Scan note-offs carry no tile, yet still end the pitch they held.
+                self.update_link_arp_held_notes(layer_index, &routed, Vec::new());
+            }
             return routed;
         }
         let routed = dedupe_note_ons_in_group(routed, context.instruments);

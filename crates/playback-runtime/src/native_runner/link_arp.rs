@@ -73,6 +73,8 @@ impl NativeRunner {
         self.update_link_arp_held_notes(layer_index, &routed, lit);
         self.update_link_arp_held_tiles(layer_index, &routed);
         let source_routed = if arp.source == ArpSource::Held && starts_a_note(&routed) {
+            // The new batch replays the whole held set, so the last run's pending notes go.
+            self.clear_delayed_link_events_for_layer(layer_index);
             let mut source = non_note_routed_events(&routed);
             source.tiles = routed
                 .tiles

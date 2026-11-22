@@ -71,20 +71,20 @@ fn route(
 }
 
 #[test]
-fn held_tiles_sharing_a_link_note_release_their_own_tile() {
+fn held_tiles_sharing_a_link_note_end_the_sample_with_the_last_tile() {
     let mut runner = sampler_runner("hold");
-    route(
+    // The engine sounds a shared pitch once, for the first tile, and sends its note-off with the
+    // last tile that goes dark.
+    let started = route(
         &mut runner,
-        vec![held_on(), held_on()],
-        &[
-            Some(intent(1, TileTriggerKind::Activate)),
-            Some(intent(2, TileTriggerKind::Activate)),
-        ],
+        vec![held_on()],
+        &[Some(intent(1, TileTriggerKind::Activate))],
     );
+    assert_eq!(started.iter().map(|hit| hit.tile).collect::<Vec<_>>(), [1]);
     let released = route(
         &mut runner,
         vec![off()],
-        &[Some(intent(1, TileTriggerKind::Deactivate))],
+        &[Some(intent(2, TileTriggerKind::Deactivate))],
     );
     assert_eq!(
         released
@@ -92,14 +92,6 @@ fn held_tiles_sharing_a_link_note_release_their_own_tile() {
             .map(|hit| (hit.tile, hit.velocity))
             .collect::<Vec<_>>(),
         [(1, 0)]
-    );
-    let later = route(&mut runner, vec![off()], &[None]);
-    assert_eq!(
-        later
-            .iter()
-            .map(|hit| (hit.tile, hit.velocity))
-            .collect::<Vec<_>>(),
-        [(2, 0)]
     );
 }
 
