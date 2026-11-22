@@ -22,6 +22,7 @@ pub(in crate::native_runner) struct ModulationProcessState {
     pub(super) active_endpoints: BTreeSet<Endpoint>,
     active_keys: BTreeSet<String>,
     active_endpoint_keys: BTreeMap<Endpoint, BTreeSet<String>>,
+    yielded: BTreeMap<ModulationSourceId, (String, f64)>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -50,6 +51,7 @@ impl ModulationProcessState {
             return self.clear_source(source);
         };
         let normalized = normalized.clamp(0.0, 1.0);
+        self.yielded.remove(&source);
         let value = if mode == TargetMode::Numeric && value_kind == TargetValueKind::Numeric {
             let base = *self
                 .base_values
@@ -185,6 +187,9 @@ impl ModulationProcessState {
     /// LFO still rides the key, so recomposing it sends the edited value.
     pub(in crate::native_runner) fn yield_key_to_edit(&mut self, key: &str) -> bool {
         for held in self.held_sources(key, None) {
+            if let Some(normalized) = self.sources.get(&held).and_then(|held| held.normalized) {
+                self.yielded.insert(held, (key.into(), normalized));
+            }
             self.clear_source(held);
         }
         self.base_values.remove(key);
@@ -196,6 +201,20 @@ impl ModulationProcessState {
             self.dirty_keys.insert(key.into());
         }
         lfo
+    }
+
+    pub(super) fn keys_under(&self, prefix: &str) -> Vec<String> {
+        let mut keys = self
+            .source_keys
+            .keys()
+            .chain(self.base_values.keys())
+            .chain(self.base_discrete.keys())
+            .filter(|key| key.starts_with(prefix))
+            .cloned()
+            .collect::<Vec<_>>();
+        keys.sort_unstable();
+        keys.dedup();
+        keys
     }
 
     /// The held (non-LFO) sources on `key`, other than `except`.
@@ -310,6 +329,17 @@ impl ModulationProcessState {
         self.active_endpoints.clear();
         self.active_keys.clear();
         self.active_endpoint_keys.clear();
+        self.yielded.clear();
+    }
+
+    /// True when `source` last let go of `key` to a manual edit while sitting at `normalized`.
+    pub(in crate::native_runner) fn yielded_at(
+        &self,
+        source: ModulationSourceId,
+        key: &str,
+        normalized: f64,
+    ) -> bool {
+        self.yielded.get(&source) == Some(&(key.into(), normalized))
     }
 
     fn remove_source_key(&mut self, key: &str, source: ModulationSourceId) {

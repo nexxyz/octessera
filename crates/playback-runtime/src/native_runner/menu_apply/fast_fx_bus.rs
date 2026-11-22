@@ -231,6 +231,7 @@ impl NativeRunner {
                 params,
             });
         }
+        self.rebase_modulation_keys_under(&format!("{slot_prefix}.params."));
         true
     }
 
@@ -327,6 +328,7 @@ impl NativeRunner {
                 params,
             });
         }
+        self.rebase_modulation_keys_under(&format!("{slot_prefix}.params."));
         true
     }
 

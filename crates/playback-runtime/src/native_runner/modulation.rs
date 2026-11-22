@@ -62,13 +62,19 @@ impl NativeRunner {
                         source_changed |= self.clear_runtime_source_input(source);
                         continue;
                     };
-                    if let Some(coordinate) = coordinate {
-                        source_changed |= self.set_runtime_source_input(
-                            source,
-                            binding.clone(),
-                            f64::from(axis_norm(coordinate, size, binding.invert)),
-                        );
+                    let Some(coordinate) = coordinate else {
+                        continue;
+                    };
+                    let normalized = f64::from(axis_norm(coordinate, size, binding.invert));
+                    // A manual edit keeps the key until the axis moves to another coordinate.
+                    if self
+                        .modulation_process
+                        .yielded_at(source, &binding.key, normalized)
+                    {
+                        continue;
                     }
+                    source_changed |=
+                        self.set_runtime_source_input(source, binding.clone(), normalized);
                 }
             }
         }

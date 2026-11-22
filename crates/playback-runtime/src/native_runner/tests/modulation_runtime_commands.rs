@@ -353,3 +353,28 @@ pub(crate) fn a_binding_left_behind_by_an_fx_type_change_keeps_the_patch_saveabl
     );
     crate::native_runner::split_local_system_patch_documents(&runner.config_payload()).unwrap();
 }
+
+#[test]
+pub(crate) fn releasing_a_hold_after_an_fx_type_change_keeps_the_new_effects_value() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.fx_buses[0].slots[0].fx_type = "delay".into();
+    runner.fx_buses[0].slots[0].params = json!({ "timeMs": 250, "feedback": 0.35, "mixPct": 35 });
+    let source = crate::native_runner::modulation::source::ModulationSourceId::layer_axis(
+        0,
+        crate::native_runner::modulation::source::ModulationAxis::X,
+        0,
+    )
+    .unwrap();
+    let mix = fx_binding("mixer.buses.0.slot1.params.mixPct", 0.0, 100.0, 1.0);
+    runner.set_runtime_source_input(source, mix, 0.8);
+    runner.process_dirty_modulation_step(false).unwrap();
+
+    let type_key = "mixer.buses.0.slot1.type";
+    assert!(runner.menu.set_enum_value_for_key(type_key, "reverb"));
+    runner.apply_or_schedule_menu_key(type_key).unwrap();
+    assert_eq!(runner.fx_buses[0].slots[0].params["mixPct"], json!(30));
+
+    runner.clear_runtime_source_input(source);
+    runner.process_dirty_modulation_step(false).unwrap();
+    assert_eq!(runner.fx_buses[0].slots[0].params["mixPct"], json!(30));
+}

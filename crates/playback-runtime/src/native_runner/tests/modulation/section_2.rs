@@ -142,3 +142,43 @@ pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_tiles() {
         json!({ "r": 255, "g": 255, "b": 255 })
     );
 }
+
+#[test]
+pub(crate) fn a_menu_edit_keeps_the_key_until_the_layer_axis_moves() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
+        key: "instruments.0.mixer.volume".into(),
+        label: Some("Volume".into()),
+        kind: "number".into(),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: Some(1.0),
+        user_min: None,
+        user_max: None,
+        options: vec![],
+        invert: false,
+    });
+    let tap = |runner: &mut NativeRunner, x: usize, y: usize| {
+        grid_tap(runner, x, y);
+        runner.instruments[0].volume
+    };
+    assert_eq!(tap(&mut runner, 7, 3), 100);
+
+    assert!(runner
+        .menu
+        .set_number_value_for_key("instruments.0.mixer.volume", 40));
+    runner
+        .apply_or_schedule_menu_key("instruments.0.mixer.volume")
+        .unwrap();
+    assert_eq!(tap(&mut runner, 7, 5), 40, "same column: the edit plays");
+    assert_eq!(
+        tap(&mut runner, 0, 5),
+        0,
+        "another column takes the key back"
+    );
+}

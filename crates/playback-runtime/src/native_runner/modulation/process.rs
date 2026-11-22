@@ -313,6 +313,14 @@ impl NativeRunner {
         lfo
     }
 
+    /// An FX type change replaces the slot's parameters: every key under `prefix` yields as to a
+    /// manual edit, so no held source restores the old effect's value into the new one.
+    pub(in crate::native_runner) fn rebase_modulation_keys_under(&mut self, prefix: &str) {
+        for key in self.modulation_process.keys_under(prefix) {
+            self.rebase_and_recompose_modulation_key(&key);
+        }
+    }
+
     pub(in crate::native_runner) fn refresh_xy_runtime_sources(&mut self) {
         let _ = self.set_xy_runtime_sources([self.xy.touch.x, self.xy.touch.y]);
     }

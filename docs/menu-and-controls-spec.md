@@ -1228,7 +1228,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - Manual modulation is last edit wins. A menu edit, Aux turn, or Faders press drops every
   held layer X/Y, Play XY, or MIDI CC source on that key, so the edit is what plays. A held
   source that moves later drops the held source that moved before it, and the next CC or XY move
-  takes the key back. LFOs keep adding on top of whichever value owns the key. Clearing a source
+  takes the key back. A layer X/Y takes the key back when its trigger lands on another column or
+  row; triggers on the coordinate it held leave the edit playing. Changing an FX slot's type
+  counts as an edit of all that slot's parameters. LFOs keep adding on top of whichever value owns the key. Clearing a source
   restores the value from before it took the key. The target's menu row shows the value a held
   source sets, in the row's own units, and the restored value when it lets go, so the next
   encoder click steps from what plays; an LFO's share never reaches the row. The Faders bar shows
