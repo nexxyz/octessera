@@ -8,7 +8,7 @@ fn momentary_filter_sweep_envelope_changes_cutoff_over_time() {
         "sweep".to_string(),
         "filter_sweep".to_string(),
         BTreeMap::from([
-            ("cutoffPct".to_string(), json!(10.0)),
+            ("cutoffPct".to_string(), json!(49.0)),
             ("sweepInMs".to_string(), json!(100.0)),
         ]),
         MomentaryFxTarget::Global,
@@ -34,7 +34,7 @@ fn momentary_filter_sweep_stop_releases_then_removes() {
         "sweep".to_string(),
         "filter_sweep".to_string(),
         BTreeMap::from([
-            ("cutoffPct".to_string(), json!(10.0)),
+            ("cutoffPct".to_string(), json!(49.0)),
             ("sweepInMs".to_string(), json!(50.0)),
             ("sweepOutMs".to_string(), json!(10.0)),
         ]),
@@ -66,7 +66,7 @@ fn momentary_filter_sweep_stop_with_long_sweep_out() {
         "sweep".to_string(),
         "filter_sweep".to_string(),
         BTreeMap::from([
-            ("cutoffPct".to_string(), json!(10.0)),
+            ("cutoffPct".to_string(), json!(49.0)),
             ("sweepInMs".to_string(), json!(10.0)),
             ("sweepOutMs".to_string(), json!(200.0)),
         ]),

@@ -16,14 +16,13 @@ pub(in crate::synth::engine) struct FilterSweepParams {
 }
 
 impl FilterSweepParams {
-    /// Cutoff 0 targets about 120 Hz and 100 about 8 kHz, in octaves below the open cutoff.
+    /// Cutoff 0 targets 120 Hz and 100 targets 8 kHz, evenly in octaves.
     pub(super) fn from_map(params: &BTreeMap<String, Value>, sample_rate: u32) -> Self {
         let in_len = ms_param_len(params, "sweepInMs", 200.0, 10.0, 3_000.0, sample_rate) as f32;
         let out_len = ms_param_len(params, "sweepOutMs", 500.0, 10.0, 3_000.0, sample_rate) as f32;
+        let target_hz = 120.0 * (8_000.0_f32 / 120.0).powf(pct_param(params, "cutoffPct", 76.0));
         Self {
-            target_octaves: ((120.0 + pct_param(params, "cutoffPct", 35.0) * 8_000.0)
-                / OPEN_CUTOFF_HZ)
-                .log2(),
+            target_octaves: (target_hz / OPEN_CUTOFF_HZ).log2(),
             q: 0.5 + pct_param(params, "resonancePct", 70.0) * 11.5,
             sweep_in_step: 1.0 / in_len,
             sweep_out_step: 1.0 / out_len,

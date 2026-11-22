@@ -44,7 +44,7 @@ fn filter_sweep_retarget_glides_in_octaves_from_the_current_cutoff_and_still_rel
         ("sweepOutMs", 100.0),
     ]);
     let next = params(&[
-        ("cutoffPct", 50.0),
+        ("cutoffPct", 84.0),
         ("sweepInMs", 200.0),
         ("sweepOutMs", 100.0),
     ]);
@@ -58,13 +58,13 @@ fn filter_sweep_retarget_glides_in_octaves_from_the_current_cutoff_and_still_rel
     );
     assert!(max_step(&octaves(&gliding)) < 0.001, "no jump");
     let halfway = gliding[glide / 2];
-    let geometric_mean = (120.0_f32 * 4_120.0).sqrt();
+    let geometric_mean = (120.0_f32 * 4_085.7).sqrt();
     assert!(
         (halfway - geometric_mean).abs() < 2.0,
         "even in octaves {halfway}"
     );
     assert!(
-        (gliding[glide] - 4_120.0).abs() < 1.0,
+        (gliding[glide] - 4_085.7).abs() < 1.0,
         "reaches the new target"
     );
     assert!(

@@ -53,7 +53,7 @@ const PLAY_FX_PARAMS: [(&str, &[PlayFxParam]); 11] = [
     (
         "filter_sweep",
         &[
-            param("cutoffPct", "Cutoff", 50, 0, 100, 1),
+            param("cutoffPct", "Cutoff", 84, 0, 100, 1),
             param("resonancePct", "Res", 0, 0, 100, 1),
             param("sweepInMs", "Sweep In", 120, 10, 3000, 10),
             param("sweepOutMs", "Sweep Out", 180, 10, 3000, 10),

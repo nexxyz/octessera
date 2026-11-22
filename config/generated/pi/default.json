@@ -4688,7 +4688,7 @@
           "config": {
             "fxType": "filter_sweep",
             "params": {
-              "cutoffPct": 50,
+              "cutoffPct": 84,
               "resonancePct": 0,
               "sweepInMs": 120,
               "sweepOutMs": 180
@@ -4702,7 +4702,7 @@
           "config": {
             "fxType": "filter_sweep",
             "params": {
-              "cutoffPct": 20,
+              "cutoffPct": 63,
               "resonancePct": 60,
               "sweepInMs": 120,
               "sweepOutMs": 300
@@ -4716,7 +4716,7 @@
           "config": {
             "fxType": "filter_sweep",
             "params": {
-              "cutoffPct": 10,
+              "cutoffPct": 49,
               "resonancePct": 30,
               "sweepInMs": 1500,
               "sweepOutMs": 1500
@@ -4730,7 +4730,7 @@
           "config": {
             "fxType": "filter_sweep",
             "params": {
-              "cutoffPct": 70,
+              "cutoffPct": 92,
               "resonancePct": 80,
               "sweepInMs": 40,
               "sweepOutMs": 80
