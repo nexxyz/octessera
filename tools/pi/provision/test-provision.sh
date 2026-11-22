@@ -153,7 +153,7 @@ done
 chmod +x "$FAKE_BIN"/*
 
 new_fixture() {
-  FIXTURE="$TMP/fixture-$RANDOM"
+  FIXTURE="$(mktemp -d "$TMP/fixture-XXXXXX")"
   mkdir -p "$FIXTURE/boot/firmware" "$FIXTURE/home/pi/presets" "$FIXTURE/etc/octessera" "$FIXTURE/etc/bluetooth" "$FIXTURE/etc/avahi"
   printf '%s\n' '{"kind":"octessera.system","schemaVersion":1,"runtimeConfig":{"audioOutputs":{"dac":true,"usb":false,"hdmi":false},"usb":{"midiOutEnabled":false,"dataRole":"gadget"}}}' > "$FIXTURE/home/pi/presets/system.json"
   printf '%s\n' '{"kind":"octessera.patch","schemaVersion":2,"runtimeConfig":{}}' > "$FIXTURE/home/pi/presets/default.patch.json"
@@ -163,8 +163,8 @@ new_fixture() {
   printf '[server]\nuse-ipv6=yes\n[wide-area]\nenable-wide-area=yes\n[publish]\npublish-workstation=yes\n' > "$FIXTURE/etc/avahi/avahi-daemon.conf"
   printf 'console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet\n' \
     > "$FIXTURE/boot/firmware/cmdline.txt"
-  export FAKE_STATE="$TMP/state-$RANDOM"
-  mkdir -p "$FAKE_STATE"
+  FAKE_STATE="$(mktemp -d "$TMP/state-XXXXXX")"
+  export FAKE_STATE
 }
 
 boot_managed_role() {
