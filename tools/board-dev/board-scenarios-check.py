@@ -348,8 +348,7 @@ def restore(board, out):
 
 # Cases that fail on a known product bug until its fix lands: XFAIL while they fail, XPASS (drop the
 # entry) once they pass. Neither counts as FAIL.
-EXPECTED_FAIL = {"usb_hold_trig": "review a493f27c item 3: a Hold Trig note never ends with Event Triggers off",
-                 "usb_echo_repeat": "review a493f27c item 2: a repeated pitch echoed back is played again"}
+EXPECTED_FAIL = {"usb_hold_trig": "review a493f27c item 3: a Hold Trig note never ends with Event Triggers off"}
 
 
 def main():

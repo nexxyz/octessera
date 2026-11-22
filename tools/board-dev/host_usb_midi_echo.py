@@ -8,6 +8,7 @@ Send MIDI all inst.
    Stop and 3 s more of echo: one C4 per step (32) and none after Stop.
 2. (midi) Echo off, transport stopped: 10 key 60 presses 40 ms apart must all be forwarded.
 3. (midi) A key 60 press 300 ms after a sequenced C4 must not be forwarded (the 1 s own-note rule).
+4. (midi) Key 60 held for 1 s through a 300 ms echo: exactly one forwarded note-on and one note-off.
 """
 import json
 import sys
@@ -66,12 +67,25 @@ def own_note(port):
     return problems, {"own_note_forwarded": len(forwarded)}
 
 
+def held_key(port):
+    """A key held through a slow echo is forwarded once: its echoed note-on comes back while the key
+    is still down and is taken for the echo."""
+    run = drive(port, [(None, 2.5)], [(0.0, [0x90, 60, 100]), (1.0, [0x80, 60, 0])],
+                react=lambda offset, message: [(0.3, message)] if message[0] & 0xE0 == 0x80 else [], clock=False)
+    channel_one = [m for _, m in run["received"] if m[0] & 0xEF == 0x80 and m[1] == 60]
+    ons = sum(1 for m in channel_one if m[0] == 0x90 and m[2] > 0)
+    offs = len(channel_one) - ons
+    problems = [] if (ons, offs) == (1, 1) else [f"a key held through a 300 ms echo was forwarded as {ons} note-ons "
+                                                 f"and {offs} note-offs, not 1 and 1"]
+    return problems, {"held_key_ons": ons, "held_key_offs": offs}
+
+
 def main():
     port, kind, result = sys.argv[1:4]
     run = drive(port, [(120, 4)], react=echo_all)
     problems, metrics = echoed_steps(run)
     if kind == "midi":
-        for part in (pads, own_note):
+        for part in (pads, own_note, held_key):
             more, facts = part(port)
             problems += more
             metrics.update(facts)

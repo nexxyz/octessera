@@ -523,9 +523,9 @@ on the Orange, `Octessera Line In` on the Raspberry).
   and echoes for 3 s more: one C4 per step (32) and none after Stop. With the
   MIDI Inst. it then plays, echo off and stopped, 10 key 60 presses 40 ms
   apart, which must all be forwarded, and one key 60 press 300 ms after a
-  sequenced C4, which must not be (the 1 s own-note rule). Until the
-  repeated-pitch echo fix lands it is marked expected-fail, like
-  `usb_hold_trig`.
+  sequenced C4, which must not be (the 1 s own-note rule), and key 60 held
+  for 1 s through a 300 ms echo, which must be forwarded as exactly one
+  note-on and one note-off.
 - `tempo_mod` plays the store's own patch on the board's internal clock with
   Clock Out on USB MIDI, Link LFO 1 on BPM (1/4, depth 75%) and CC1 on BPM.
   `host_usb_midi.py ... tempo_mod` sends no clock: it sweeps CC1 0-127-0 (254
