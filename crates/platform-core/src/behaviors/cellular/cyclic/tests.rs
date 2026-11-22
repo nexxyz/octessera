@@ -161,14 +161,12 @@ fn a_frozen_world_seeds_itself_again() {
             "states": 8, "threshold": 8, "range": 1, "cells": []
         }))
         .unwrap();
-        state.cells[grid_index(4, 4)] = 3;
-        for _ in 0..STALL_TICKS - 1 {
-            state = cyclic_on_tick(state, &mut context);
-            assert_eq!(state.cells[grid_index(4, 4)], 3);
-        }
-        state = cyclic_on_tick(state, &mut context);
-        assert!(state.ages.iter().all(|age| *age == 0));
-        assert!(state.cells.iter().filter(|cell| **cell != 0).count() > 1);
+        let reseeded = (0..8 * STALL_TICKS).any(|_| {
+            state = cyclic_on_tick(state.clone(), &mut context);
+            state.ages.iter().all(|age| *age == 0)
+                && state.cells.iter().filter(|cell| **cell != 0).count() > 8
+        });
+        assert!(reseeded);
     });
 }
 
@@ -203,29 +201,48 @@ fn cells_without_a_successor_neighbor_stay_and_age() {
 
     let next = cyclic_on_tick(state, &mut context());
 
-    assert_eq!(cycle.map(|index| next.cells[index]), [0, 1, 2, 0]);
+    let moved = cycle
+        .iter()
+        .zip([0, 1, 2, 0])
+        .filter(|(index, value)| next.cells[**index] != *value);
+    assert!(moved.count() <= 1, "only the stray cell may change");
     assert!(cycle.iter().all(|index| next.ages[*index] == 1));
 }
 
 #[test]
-fn at_range_one_threshold_counts_its_eight_neighbors_in_pairs() {
-    for (threshold, advances) in [(7, true), (8, true), (8, false)] {
+fn at_range_one_side_neighbors_count_twice_and_corners_once() {
+    for (threshold, successors, advances) in [(7, 4, true), (7, 3, false), (6, 3, true)] {
         let mut state = cyclic_deserialize(serde_json::json!({
             "states": 4, "threshold": threshold, "range": 1, "cells": []
         }))
         .unwrap();
-        let successors = if advances { 4 } else { 3 };
-        for (x, y) in [(3, 5), (4, 5), (5, 5), (3, 4)]
+        for (x, y) in [(4, 5), (3, 4), (5, 4), (3, 5)]
             .into_iter()
             .take(successors)
         {
             state.cells[grid_index(x, y)] = 1;
         }
-        let next = cyclic_on_tick(state, &mut context());
-        assert_eq!(next.cells[grid_index(4, 4)] == 1, advances, "{threshold}");
+        let count = count_neighbors(&state.cells, 4, 4, 1, 1);
+        assert_eq!(count, [2, 4, 6, 7][successors - 1]);
+        assert_eq!(count >= threshold, advances, "{threshold}");
     }
 }
 
+#[test]
+fn a_stray_cell_changes_each_tick_without_counting_as_movement() {
+    let state = cyclic_deserialize(serde_json::json!({
+        "states": 4, "threshold": 8, "range": 1, "cells": []
+    }))
+    .unwrap();
+    let mut seen = std::collections::HashSet::new();
+    for seed in 1..=8 {
+        let next = crate::behavior_random::LayerRandom::new(Some(seed))
+            .scope(|| cyclic_on_tick(state.clone(), &mut context()));
+        assert!(next.ages.iter().all(|age| *age == 1));
+        seen.insert(next.cells);
+    }
+    assert!(seen.len() > 1);
+}
 #[test]
 fn only_the_front_state_lights_its_tile() {
     let center = grid_index(4, 4);

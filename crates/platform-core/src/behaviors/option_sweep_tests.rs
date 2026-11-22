@@ -201,7 +201,6 @@ const OFFSET: &str = "an offset within the spawn interval: values a whole interv
 const NO_FADE: &str = "0 is off: nothing fades, so the lit tiles stand still";
 const CALM: &str = "0 is off: with no wind or no erosion the dunes rest";
 const FOREVER: &str = "0 is forever: crystals never dissolve, so they fill the grid";
-const LOOP: &str = "a loop of States frames: the waves settle into spirals that cycle every state";
 const HELD_ZOOM: &str = "0 holds the zoom: Drift alone sways between two views";
 const ROW_ACCENT: &str =
     "changes only the trigger a cleared row sends; few rows clear in 300 ticks";
@@ -256,8 +255,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("bubbles: maxBubbles=24 and 64 play the same", CAP),
     ("gravity: spawnRatePct=0 untouched stays empty", OFF),
     ("gravity: spawnRatePct=0 pressed dies out", OFF),
-    ("cyclic: states=3 untouched freezes", LOOP),
-    ("cyclic: states=3 pressed freezes", LOOP),
     ("forest_fire: growChancePct=0 untouched freezes", OFF),
     ("forest_fire: growChancePct=0 pressed freezes", OFF),
     ("forest_fire: spreadChancePct=0 untouched saturates", OFF),

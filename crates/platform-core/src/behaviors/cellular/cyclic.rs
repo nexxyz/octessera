@@ -82,15 +82,11 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
     let previous = state.cells.clone();
     let mut next = state.cells.clone();
     let mut ages = state.ages.clone();
-    let threshold = match state.range {
-        1 => state.threshold.div_ceil(2),
-        _ => state.threshold,
-    };
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
             let target = (previous[index] + 1) % state.states;
-            if count_neighbors(&previous, x, y, target, state.range) >= threshold {
+            if count_neighbors(&previous, x, y, target, state.range) >= state.threshold {
                 next[index] = target;
                 ages[index] = 0;
             } else {
@@ -98,6 +94,9 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
             }
         }
     }
+    let mut rng = crate::behavior_random::rng();
+    let stray = rng.gen_range(0..TILE_COUNT);
+    next[stray] = rng.gen_range(0..state.states);
     state.cells = next;
     state.ages = ages;
     if state.ages.iter().all(|age| *age >= STALL_TICKS) {
@@ -232,7 +231,11 @@ fn count_neighbors(cells: &[u8], x: usize, y: usize, target: u8, range: u8) -> u
             }
             if let (Some(nx), Some(ny)) = (x.checked_add_signed(dx), y.checked_add_signed(dy)) {
                 if nx < GRID_WIDTH && ny < GRID_HEIGHT && cells[grid_index(nx, ny)] == target {
-                    count += 1;
+                    count += if range == 1 && (dx == 0 || dy == 0) {
+                        2
+                    } else {
+                        1
+                    };
                 }
             }
         }
