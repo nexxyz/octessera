@@ -53,6 +53,11 @@ pub(super) fn apply_persistent_modulation_values(
             Err(error) => runner.show_toast(error),
         }
     }
+    for key in &changed_keys {
+        if let Some((_, value)) = resolved.get(key) {
+            show_on_row(runner, key, value);
+        }
+    }
     if sync_engine_runtime {
         runner.sync_engine_runtime_config();
     }
@@ -68,6 +73,27 @@ pub(super) fn apply_persistent_modulation_values(
         runner.mark_fast_autosave_dirty();
     }
     changed_keys
+}
+
+/// A held source sets its target the way a menu edit does, so the row shows what it set and the
+/// encoder steps from there. LFOs never reach here: their rows keep the set value.
+fn show_on_row(runner: &mut NativeRunner, key: &str, value: &Value) {
+    match value {
+        Value::Number(number) => {
+            if let Some(number) = number.as_f64() {
+                runner
+                    .menu
+                    .set_number_value_for_key(key, number.round() as i32);
+            }
+        }
+        Value::String(option) => {
+            runner.menu.set_enum_value_for_key(key, option);
+        }
+        Value::Bool(on) => {
+            runner.menu.set_bool_value_for_key(key, *on);
+        }
+        _ => {}
+    }
 }
 
 pub(super) fn apply_composed_audio_commands(

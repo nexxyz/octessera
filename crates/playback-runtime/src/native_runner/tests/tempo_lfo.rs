@@ -8,7 +8,7 @@ use super::tempo_modulation::{
 use super::*;
 use std::time::{Duration, Instant};
 
-fn lfo_on(runner: &mut NativeRunner, key: &str, period: &str, depth: i32) {
+pub(super) fn lfo_on(runner: &mut NativeRunner, key: &str, period: &str, depth: i32) {
     press_key(runner, &format!("linkLfos.0.target.{key}"));
     assert_eq!(
         runner.link_lfos[0].target.as_ref().map(|t| t.key.as_str()),
@@ -33,7 +33,7 @@ fn lfo_on(runner: &mut NativeRunner, key: &str, period: &str, depth: i32) {
     assert!(runner.link_lfos[0].enabled);
 }
 
-fn pulse(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
+pub(super) fn pulse(runner: &mut NativeRunner) -> Vec<RunnerMessage> {
     runner
         .send(HostMessage::TransportPulseStep {
             pulses: 1,

@@ -112,12 +112,13 @@ pub(crate) fn keyed_layer_algorithm_step_rebases_held_discrete_source() {
     runner.process_dirty_modulation_step(false).unwrap();
     let held_step = crate::timing_units::note_unit_to_pulses("1/1");
     assert_eq!(runner.transport.algorithm_step_pulses, held_step);
+    assert_eq!(runner.menu.value_for_key(key).as_deref(), Some("1/1"));
 
     assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
     runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "encoder_turn", "delta": 1, "id": "main" }),
+            input: json!({ "type": "encoder_turn", "delta": -1, "id": "main" }),
             request_snapshot: None,
         })
         .unwrap();

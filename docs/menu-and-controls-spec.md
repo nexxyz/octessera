@@ -1219,13 +1219,14 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   held layer X/Y, Play XY, or MIDI CC source on that key, so the edit is what plays. A held
   source that moves later drops the held source that moved before it, and the next CC or XY move
   takes the key back. LFOs keep adding on top of whichever value owns the key. Clearing a source
-  restores the value from before it took the key. The Faders bar shows the value of the held
-  source that owns its target.
+  restores the value from before it took the key. The target's menu row shows the value a held
+  source sets, in the row's own units, and the restored value when it lets go, so the next
+  encoder click steps from what plays; an LFO's share never reaches the row. The Faders bar shows
+  the value of the held source that owns its target.
 - `BPM`, `Swing A` and `Swing B` head the picker's `Link` group and take every source. A held
   layer X/Y, Play XY or MIDI CC In source sets them like a BPM or Swing row edit: the clock
-  retimes from its current phase, note-mode delays and held Play FX follow, the row shows the
-  held value so the encoder steps from there, and the held whole value is saved like any held
-  target's. An LFO rides only the clock: the tempo the internal
+  retimes from its current phase, note-mode delays and held Play FX follow, and the row and the
+  save take the held whole value like any held target's. An LFO rides only the clock: the tempo the internal
   clock runs at, behavior ticks and swing offsets, and the swing each next beat takes. The BPM and
   Swing rows, the save, note-mode delays and held Play FX keep the set value, and Stop drops the
   LFO's share. Under external sync the incoming clock sets the pace and an LFO on BPM does

@@ -106,6 +106,7 @@ mod grid_assign_modes;
 mod happy_path;
 mod hardware_test;
 mod hdmi;
+mod held_source_rows;
 mod idle_layer_ticks;
 mod in_place_menu_actions;
 mod in_place_menu_identity;

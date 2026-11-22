@@ -8,13 +8,13 @@ use crate::native_runner::modulation::source::ModulationSourceId;
 use crate::{MidiControlChange, MidiControlChangeBatch};
 use std::time::Instant;
 
-fn midi_runner() -> NativeRunner {
+pub(super) fn midi_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.test_set_midi_enabled(true);
     runner
 }
 
-fn send_cc(runner: &mut NativeRunner, cc: u8, value: u8) -> Vec<RunnerMessage> {
+pub(super) fn send_cc(runner: &mut NativeRunner, cc: u8, value: u8) -> Vec<RunnerMessage> {
     let mut batch = MidiControlChangeBatch::default();
     batch.push(MidiControlChange::parse(&[0xB0, cc, value]).expect("a Control Change"));
     batch
@@ -33,7 +33,7 @@ pub(super) fn set_menu_enum(runner: &mut NativeRunner, key: &str, value: &str) {
     runner.apply_or_schedule_menu_key(key).unwrap();
 }
 
-fn map_cc(runner: &mut NativeRunner, slot: usize, key: &str) {
+pub(super) fn map_cc(runner: &mut NativeRunner, slot: usize, key: &str) {
     press_key(runner, &format!("midiCc.{slot}.target.{key}"));
     assert_eq!(
         runner.midi_cc_mappings[slot]
@@ -177,7 +177,7 @@ fn under_external_clock_a_cc_on_bpm_sets_the_tempo_row_and_the_clock_ignores_it(
     );
 }
 
-fn click_row(runner: &mut NativeRunner, key: &str, delta: i32) -> i32 {
+pub(super) fn click_row(runner: &mut NativeRunner, key: &str, delta: i32) -> i32 {
     assert!(runner.menu.focus_item_key(key), "{key}");
     press(runner);
     turn(runner, delta);
