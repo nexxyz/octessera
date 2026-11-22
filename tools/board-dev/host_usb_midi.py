@@ -37,8 +37,10 @@ NOTES_PLAIN = [(0.5 + 0.3 * i, 62 + i) for i in range(20)]
 NOTES_ECHO_5 = [(7.0 + 0.3 * i, 62 + i) for i in range(10)]
 NOTES_ECHO_80 = [(15.5 + 0.3 * i, 62 + i) for i in range(10)]
 NOTES_PLAYED_S = 19.2
-# Key 60 is held from 10.5 s; the sequenced note 60 sounds at 12.0 s for 150 ms.
-HELD_KEY_S, SEQUENCED_OFF_S = 10.5, (12.08, 12.5)
+# Key 60 is held from 10.75 s; the sequenced note 60 sounds at 9.6 s and 12.0 s for 150 ms. MIDI In drops
+# a note-on of a key Octessera itself played within the last second, so the key waits more than 1 s
+# after the 9.6 s note.
+HELD_KEY_S, SEQUENCED_OFF_S = 10.75, (12.08, 12.5)
 HELD_KEY_RELEASED = []
 # tempo_mod: CC1 sweeps 0-127-0 (254 messages in about 1 s) every 3 s on the board's own clock, the last
 # one stopping at 64, which CC In maps to BPM 40 + 64/127 * 200.

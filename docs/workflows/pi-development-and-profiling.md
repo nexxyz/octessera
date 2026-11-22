@@ -497,7 +497,9 @@ on the Orange, `Octessera Line In` on the Raspberry).
 - `usb_notes_in` is the `usb_midi` rig with slot 1 a Synth with Hold and L1
   stepping slot 5, a MIDI Inst. on channel 1, on a tile that plays note 60.
   The host plays 20 keys, then 10 with every note echoed back after 5 ms,
-  holds key 60 and releases it 2 ms after the sequenced note-off of note 60,
+  holds key 60 (more than 1 s after the last sequenced note 60, since MIDI In
+  drops a note-on of a key Octessera itself played within the last second)
+  and releases it 2 ms after the sequenced note-off of note 60,
   then plays 10 with an 80 ms echo and sends Stop. Every key needs its mirrored
   note-on and a note-off within 1 s of the release, the echoed keys at most 2
   mirrored note-ons each, the held key its mirrored note-off within 1 s, and
