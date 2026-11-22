@@ -8,6 +8,9 @@ use crate::synth::SampleBuffer;
 
 /// The forward loop's seam crossfade, in seconds of the sample itself.
 const LOOP_CROSSFADE_SECONDS: f64 = 0.010;
+/// With less than this much sample before Loop Start, a forward loop's seam dips out and back
+/// in over this long instead of crossfading.
+const LOOP_DIP_SECONDS: f64 = 0.001;
 
 /// How a cursor reads the input at a position. A block picks one for its whole read loop.
 pub(super) trait SampleInterpolation {
@@ -82,18 +85,21 @@ impl SampleVoiceLoop {
         }
         let start = if start >= loop_end { loop_start } else { start };
         let cursor = if playback.loop_mode == SampleLoopMode::Forward {
-            let fade = (LOOP_CROSSFADE_SECONDS * f64::from(buffer.sample_rate))
-                .round()
-                .min((loop_frames / 2.0).floor());
+            let seconds = |seconds: f64| (seconds * f64::from(buffer.sample_rate)).round();
+            let dips = loop_start < seconds(LOOP_DIP_SECONDS);
+            let fade = if dips {
+                seconds(LOOP_DIP_SECONDS)
+            } else {
+                seconds(LOOP_CROSSFADE_SECONDS).min(loop_start)
+            }
+            .min((loop_frames / 2.0).floor());
             Self::Forward(ForwardLoop {
+                start: loop_start,
                 end: loop_end,
                 fade_start: loop_end - fade,
                 inverse_fade: if fade > 0.0 { (1.0 / fade) as f32 } else { 0.0 },
-                jump: if loop_start >= fade {
-                    loop_frames
-                } else {
-                    loop_frames - fade
-                },
+                partner_level: if dips { 0.0 } else { 1.0 },
+                fade_in_end: f64::NEG_INFINITY,
             })
         } else {
             Self::PingPong(PingPongLoop {
@@ -131,17 +137,20 @@ impl SampleCursor for OnceThrough {
     }
 }
 
-/// Loops forward: over the last `fade` frames before Loop End it blends into the frames `jump`
-/// earlier, then jumps back by `jump`, landing where the blend ends, so the seam never steps.
-/// With a full fade of sample before Loop Start, those are the frames just before it and every
-/// pass lasts exactly the loop; without, they are the first frames of the loop, and a pass is
-/// one fade shorter.
+/// Loops forward, every pass lasting exactly the loop. Over the last `fade` frames before Loop
+/// End it blends into the frames just before Loop Start, so the jump back lands where the blend
+/// ends and the seam never steps. With too little sample before Loop Start for that, the seam
+/// dips instead: those last frames fade out and, after each jump back, the first ones fade in.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ForwardLoop {
+    start: f64,
     end: f64,
     fade_start: f64,
     inverse_fade: f32,
-    jump: f64,
+    /// 1 when the seam crossfades into the frames before Loop Start, 0 when it dips.
+    partner_level: f32,
+    /// Where a dipping loop's fade back in ends; before its first jump back, nowhere.
+    fade_in_end: f64,
 }
 
 impl SampleCursor for ForwardLoop {
@@ -153,14 +162,21 @@ impl SampleCursor for ForwardLoop {
         step: f64,
     ) -> Option<f32> {
         let at = *pos;
+        let length = self.end - self.start;
         let mut input = I::at(source, at);
         if at >= self.fade_start {
             let blend = (at - self.fade_start) as f32 * self.inverse_fade;
-            input += (I::at(source, at - self.jump) - input) * blend;
+            let partner = I::at(source, (at - length).max(0.0)) * self.partner_level;
+            input += (partner - input) * blend;
+        } else if at < self.fade_in_end {
+            input *= (at - self.start) as f32 * self.inverse_fade;
         }
         let next = at + step;
         *pos = if next >= self.end {
-            self.end - self.jump + (next - self.end) % self.jump
+            if self.partner_level == 0.0 {
+                self.fade_in_end = self.start + (self.end - self.fade_start);
+            }
+            self.start + (next - self.end) % length
         } else {
             next
         };

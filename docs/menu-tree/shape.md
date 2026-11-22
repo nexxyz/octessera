@@ -221,8 +221,9 @@ Shape
 - Loop (default off) only acts in Note Mode `hold`: a held note keeps looping between Loop Start
   and Loop End until its note-off, then Amp Env's release fades it. In `oneshot` the sample plays
   once to its end whatever Loop says. `forward` runs to Loop End and starts again from Loop Start,
-  crossfading the seam over 10 ms of the sample (less for loops shorter than 20 ms) so it never
-  clicks. `pingpong` (shown `ping-pong`) reverses at Loop End and again at Loop Start; the turn
+  every pass lasting exactly the loop. It crossfades the seam with up to 10 ms of the sample just
+  before Loop Start (less for loops shorter than 20 ms) so it never clicks; with under 1 ms of
+  sample there, as at Loop Start 0 %, the seam instead fades out and back in over 1 ms. `pingpong` (shown `ping-pong`) reverses at Loop End and again at Loop Start; the turn
   mirrors the read position, so the waveform stays continuous. A looping hit that starts past Loop
   End starts at Loop Start. Settings apply from the next hit.
 - Loop Start (`0..99`) and Loop End (`1..100`) stop 1 % short of each other; an edit that would

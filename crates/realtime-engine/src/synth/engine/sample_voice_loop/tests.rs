@@ -150,11 +150,18 @@ fn a_forward_loop_of_whole_cycles_repeats_the_wave_without_drift_or_seam() {
 }
 
 #[test]
-fn a_forward_loop_from_the_first_frame_blends_into_its_own_start_without_a_dip_or_step() {
+fn a_forward_loop_from_the_first_frame_dips_for_a_millisecond_at_its_seam_without_a_step() {
     let flat = buffer(vec![1.0; 10_000]);
     let view = SampleBufferView::from_buffer(&flat);
     let (mut cursor, mut pos) = forward_loop(0.0, 100.0, &flat);
-    assert!((0..30_000).all(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0) == Some(1.0)));
+    let dip = 44;
+    for frame in 0..30_000 {
+        let read = cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap();
+        let from_seam = (frame % 10_000).min(10_000 - frame % 10_000);
+        if from_seam > dip {
+            assert_eq!(read, 1.0, "frame {frame}");
+        }
+    }
 
     let wave = |frame: usize| (frame as f32 * std::f32::consts::TAU / 97.3).sin();
     let uneven = buffer((0..10_000).map(wave).collect());
@@ -169,4 +176,20 @@ fn a_forward_loop_from_the_first_frame_blends_into_its_own_start_without_a_dip_o
         .map(|pair| (pair[1] - pair[0]).abs())
         .fold(0.0_f32, f32::max);
     assert!(largest < natural * 1.5, "seam steps by {largest}");
+}
+
+#[test]
+fn a_forward_loop_with_little_or_no_sample_before_it_lasts_exactly_the_loop() {
+    let mut samples = vec![0.0; 10_000];
+    samples[5_000] = 1.0;
+    let marked = buffer(samples);
+    let view = SampleBufferView::from_buffer(&marked);
+    for (start_pct, length) in [(0.0, 10_000), (0.5, 9_950)] {
+        let (mut cursor, mut pos) = forward_loop(start_pct, 100.0, &marked);
+        let marks = (0..40_000)
+            .filter(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap() == 1.0)
+            .collect::<Vec<usize>>();
+        let expected = (0..4).map(|pass| 5_000 + pass * length).collect::<Vec<_>>();
+        assert_eq!(marks, expected, "Loop Start {start_pct}%");
+    }
 }
