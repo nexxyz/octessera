@@ -20,9 +20,9 @@ exec 9>"$dir/.lock"
 flock 9
 
 if [ -e "$dir/wifi-off" ]; then
-    nmcli radio wifi off
+    nmcli radio wifi off || true
 else
-    nmcli radio wifi on
+    nmcli radio wifi on || true
 fi
 
 # Each tick gets its own unit name: a running tick cannot re-arm a timer under
