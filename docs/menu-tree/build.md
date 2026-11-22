@@ -164,7 +164,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase. Th
 | looper | Length: [1..64] | number, step 1 (default 16) |
 | looper | !Clear Loop | action |
 | weave, Rhythm, Musical | density: [10..80] | number, step 5 (default set per behavior) |
-| weave, Rhythm, Musical | variation: [0..100] | number, step 5 (default set per behavior); in polyrhythm and euclid each lane rolls against it for one extra hit |
+| weave, Rhythm, Musical | variation: [0..100] | number, step 5 (default set per behavior); in polyrhythm and euclid each lane rolls five times against it, one extra hit per roll that lands |
 | weave, Rhythm, Musical | cycle: [4..32] | number, step 1 (default set per behavior) |
 | weave, Rhythm, Musical | seed: [1..9999] | number, step 1 (default set per behavior) |
 | brain | Fire Threshold: [1..4] | number, step 1 (default 2) |

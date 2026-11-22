@@ -186,7 +186,7 @@ fn grid_presses_keep_the_pattern_seed_in_range_across_save_and_reload() {
 }
 
 #[test]
-fn every_lane_rolls_its_extra_hit_against_variation() {
+fn each_lane_rolls_up_to_five_extra_hits_against_variation() {
     for id in ["polyrhythm", "euclid"] {
         let mut patterns = HashSet::new();
         for variation in (0..=100).step_by(5) {
@@ -202,6 +202,6 @@ fn every_lane_rolls_its_extra_hit_against_variation() {
             }
             patterns.insert(frames);
         }
-        assert!(patterns.len() > 6, "{id}: {} patterns", patterns.len());
+        assert!(patterns.len() > 14, "{id}: {} patterns", patterns.len());
     }
 }

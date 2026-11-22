@@ -1,6 +1,8 @@
 use super::PatternBehaviorState;
 use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
 
+const MAX_EXTRA_HITS: usize = 5;
+
 pub(super) fn tile_active(state: &PatternBehaviorState, x: usize, y: usize) -> bool {
     match state.kind.as_str() {
         "weave" => return diagonal_lanes(state, x, y, 2) || crossing_lanes(state, x, y),
@@ -198,7 +200,9 @@ fn density_hits(state: &PatternBehaviorState, steps: u64) -> u64 {
 }
 
 fn lane_hits(state: &PatternBehaviorState, steps: usize, y: usize) -> usize {
-    let varied = usize::from(hash(state.seed, 0, y, 0) % 100 < u32::from(state.variation_pct));
+    let varied = (0..MAX_EXTRA_HITS)
+        .filter(|extra| hash(state.seed, *extra, y, 0) % 100 < u32::from(state.variation_pct))
+        .count();
     (((steps * state.density_pct as usize) / 100) + varied).clamp(1, steps.saturating_sub(1).max(1))
 }
 
