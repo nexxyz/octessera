@@ -167,7 +167,7 @@ Shape
 
 - A ringing string colored by Decay, Brightness, picking, stiffness, and body. The top level has
   eight rows, a full OLED body.
-- String, in order: Decay `100..5000 ms` (default `1500`), Brightness `0..100%` (`65`), Pick Pos
+- String, in order: Decay `100..5000 ms` (default `1070`), Brightness `0..100%` (`65`), Pick Pos
   `5..50%` (`25`), Pick Depth `0..100%` (`65`), Stiffness `0..100%` (`0`), Body Amt `0..100%`
   (`0`), Body Freq `100..2000 Hz` (`500`). The seven rows fit the OLED body.
 - Decay and Brightness edits can reshape ringing notes. Pick Pos, Pick Depth, Stiffness, Body Amt,

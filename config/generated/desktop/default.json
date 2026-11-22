@@ -1050,7 +1050,7 @@
           },
           "filter": {
             "cutoffHz": 873,
-            "envAmountPct": 22,
+            "envAmountPct": 6,
             "keyTrackingPct": 24,
             "resonance": 30,
             "type": "lowpass"

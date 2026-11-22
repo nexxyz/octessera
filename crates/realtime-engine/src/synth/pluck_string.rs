@@ -41,6 +41,8 @@ pub(super) struct PluckState {
     pub(super) seed: u32,
     pub(super) pick_depth: f32,
     pub(super) dispersion_coefficient: f32,
+    /// The Stiffness this string was plucked with; a later edit only shapes the next pluck.
+    dispersion_pct: f32,
     allpass_state: f32,
     pub(super) body_amount: f32,
     pub(super) body_frequency_hz: f32,
@@ -61,6 +63,7 @@ impl PluckState {
             seed: 1,
             pick_depth: 0.65,
             dispersion_coefficient: 0.0,
+            dispersion_pct: 0.0,
             allpass_state: 0.0,
             body_amount: 0.0,
             body_frequency_hz: 500.0,
@@ -107,26 +110,52 @@ impl PluckState {
     /// Picks the dispersion for `dispersion_pct` and sets the delay so the loop, with its current
     /// loss and brightness, closes at `freq_hz`; returns the tuned delay in samples.
     fn tune(&mut self, freq_hz: f32, sample_rate: u32, dispersion_pct: f32) -> f32 {
-        let coefficient = super::pluck_dispersion::coefficient(
-            freq_hz as f64,
-            sample_rate as f64,
-            self.loss as f64,
-            self.brightness as f64,
-            dispersion_pct as f64,
-        );
-        self.dispersion_coefficient = coefficient.unwrap_or(0.0);
+        self.dispersion_pct = dispersion_pct;
+        self.dispersion_coefficient = self.coefficient(freq_hz, sample_rate);
         self.retune(freq_hz, sample_rate)
     }
 
-    /// Sets the delay for the voice's own dispersion, after its loss or brightness moved.
-    pub(super) fn retune(&mut self, freq_hz: f32, sample_rate: u32) -> f32 {
-        if let Some(tuning) = super::pluck_dispersion::delay(
+    fn coefficient(&self, freq_hz: f32, sample_rate: u32) -> f32 {
+        super::pluck_dispersion::coefficient(
             freq_hz as f64,
             sample_rate as f64,
             self.loss as f64,
             self.brightness as f64,
-            self.dispersion_coefficient,
-        ) {
+            self.dispersion_pct as f64,
+        )
+        .unwrap_or(0.0)
+    }
+
+    fn delay_for(
+        &self,
+        freq_hz: f32,
+        sample_rate: u32,
+        coefficient: f32,
+    ) -> Option<super::pluck_dispersion::DispersionTuning> {
+        super::pluck_dispersion::delay(
+            freq_hz as f64,
+            sample_rate as f64,
+            self.loss as f64,
+            self.brightness as f64,
+            coefficient,
+        )
+    }
+
+    /// Sets the delay for the voice's own dispersion, after its loss or brightness moved. When the
+    /// held coefficient no longer lets the loop close, it is picked again for the string's own
+    /// Stiffness before the plain string is the last resort.
+    pub(super) fn retune(&mut self, freq_hz: f32, sample_rate: u32) -> f32 {
+        let held = self.dispersion_coefficient;
+        let tuned = self
+            .delay_for(freq_hz, sample_rate, held)
+            .map(|tuning| (held, tuning))
+            .or_else(|| {
+                let coefficient = self.coefficient(freq_hz, sample_rate);
+                self.delay_for(freq_hz, sample_rate, coefficient)
+                    .map(|tuning| (coefficient, tuning))
+            });
+        if let Some((coefficient, tuning)) = tuned {
+            self.dispersion_coefficient = coefficient;
             self.delay = tuning.delay;
             self.fraction = tuning.fraction;
             self.delay as f32 + self.fraction
