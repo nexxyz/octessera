@@ -11,11 +11,17 @@ struct Script {
 
 impl Script {
     fn new(behavior_id: &str, setup: impl FnOnce(&mut NativeRunner)) -> Self {
-        let mut runner = NativeRunner::new(NativeRunnerConfig {
-            behavior_id: behavior_id.into(),
-            ..NativeRunnerConfig::default()
-        })
-        .unwrap();
+        Self::with_config(
+            NativeRunnerConfig {
+                behavior_id: behavior_id.into(),
+                ..NativeRunnerConfig::default()
+            },
+            setup,
+        )
+    }
+
+    fn with_config(config: NativeRunnerConfig, setup: impl FnOnce(&mut NativeRunner)) -> Self {
+        let mut runner = NativeRunner::new(config).unwrap();
         runner.test_set_midi_enabled(true);
         setup(&mut runner);
         runner.sync_engine_runtime_config();
@@ -238,6 +244,66 @@ fn scanning_held_arp(script: &mut Script) {
     script.set("layers.0.link.arp.source", "held");
 }
 
+fn looper_on_hold() -> String {
+    let config = NativeRunnerConfig {
+        behavior_id: "looper".into(),
+        behavior_config: json!({ "mode": "overdub", "lengthSteps": 4 }),
+        ..NativeRunnerConfig::default()
+    };
+    let mut script = Script::with_config(config, |_| {});
+    script.turn("instruments.0.noteBehavior", 1);
+    script.press(2, 3);
+    script.pulses(STEP);
+    script.press(4, 5);
+    script.pulses(STEP / 2);
+    script.release(2, 3);
+    script.pulses(STEP);
+    script.release(4, 5);
+    script.pulses(12 * STEP);
+    script.finish("looper overdub on a hold synth")
+}
+
+fn stop_while_held(title: &str, setup: impl FnOnce(&mut NativeRunner)) -> String {
+    let mut script = Script::new("keys", setup);
+    script.turn("instruments.0.noteBehavior", 1);
+    script.press(2, 3);
+    script.press(5, 3);
+    script.press(4, 5);
+    script.pulses(STEP);
+    script.input(json!({ "type": "button_s", "pressed": true }));
+    script.pulses(STEP);
+    script.release(2, 3);
+    script.press(1, 1);
+    script.input(json!({ "type": "button_s", "pressed": true }));
+    script.pulses(STEP);
+    script.release(5, 3);
+    script.release(4, 5);
+    script.release(1, 1);
+    script.press(6, 6);
+    script.pulses(STEP);
+    script.release(6, 6);
+    script.pulses(STEP);
+    script.finish(title)
+}
+
+fn patch_load_while_held() -> String {
+    let mut script = Script::new("keys", midi_slot);
+    script.turn("instruments.0.noteBehavior", 1);
+    script.press(2, 3);
+    script.press(4, 5);
+    script.pulses(STEP);
+    let payload = config_with(&script.runner, json!({}));
+    script.runner.apply_config_payload(payload).unwrap();
+    script.pulses(STEP);
+    script.release(2, 3);
+    script.press(1, 1);
+    script.pulses(STEP);
+    script.release(4, 5);
+    script.release(1, 1);
+    script.pulses(STEP);
+    script.finish("patch load while held on a hold MIDI Inst.")
+}
+
 pub(crate) fn note_lifetime_timeline() -> String {
     [
         keys_on("keys on a hold synth", |_| {}, true),
@@ -261,6 +327,10 @@ pub(crate) fn note_lifetime_timeline() -> String {
             false,
             scanning_held_arp,
         ),
+        looper_on_hold(),
+        stop_while_held("stop while held on a hold synth", |_| {}),
+        stop_while_held("stop while held on a hold MIDI Inst.", midi_slot),
+        patch_load_while_held(),
     ]
     .join("")
 }

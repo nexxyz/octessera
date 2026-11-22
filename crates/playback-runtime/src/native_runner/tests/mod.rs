@@ -108,6 +108,7 @@ mod happy_path;
 mod hardware_test;
 mod hdmi;
 mod held_arp;
+mod held_note_copies;
 mod held_source_rows;
 mod idle_layer_ticks;
 mod in_place_menu_actions;
