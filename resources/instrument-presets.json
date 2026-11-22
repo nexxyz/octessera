@@ -53,7 +53,7 @@
       "label": "Bright Pluck",
       "set": {
         "osc1": { "levelPct": 86 },
-        "osc2": { "waveform": "pulse", "levelPct": 52, "octave": 1, "detuneCents": 6, "pulseWidthPct": 30 },
+        "osc2": { "waveform": "pulse", "levelPct": 73, "octave": 1, "detuneCents": 6, "pulseWidthPct": 30 },
         "amp": { "gainPct": 84 },
         "ampEnv": { "attackMs": 3, "sustainPct": 18, "releaseMs": 70 },
         "filter": { "cutoffHz": 7200, "resonance": 34, "envAmountPct": 12, "keyTrackingPct": 34 },
@@ -86,8 +86,8 @@
       "id": "hollow_pwm",
       "label": "Hollow PWM",
       "set": {
-        "osc1": { "waveform": "pulse", "levelPct": 74, "detuneCents": -6, "pulseWidthPct": 34 },
-        "osc2": { "waveform": "pulse", "levelPct": 74, "detuneCents": 6, "pulseWidthPct": 66 },
+        "osc1": { "waveform": "pulse", "levelPct": 98, "detuneCents": -6, "pulseWidthPct": 34 },
+        "osc2": { "waveform": "pulse", "levelPct": 98, "detuneCents": 6, "pulseWidthPct": 66 },
         "amp": { "gainPct": 82, "velocitySensitivityPct": 96 },
         "ampEnv": { "attackMs": 9, "decayMs": 260, "sustainPct": 60 },
         "filter": { "type": "bandpass", "cutoffHz": 2500, "resonance": 48, "envAmountPct": 8, "keyTrackingPct": 28 },
@@ -99,7 +99,7 @@
       "label": "Chip Blip",
       "set": {
         "osc1": { "waveform": "square" },
-        "osc2": { "waveform": "pulse", "levelPct": 35, "octave": 1, "pulseWidthPct": 12 },
+        "osc2": { "waveform": "pulse", "levelPct": 62, "octave": 1, "pulseWidthPct": 12 },
         "ampEnv": { "attackMs": 0, "decayMs": 90, "sustainPct": 40, "releaseMs": 40 },
         "filter": { "cutoffHz": 20000 }
       }
@@ -109,7 +109,7 @@
       "label": "Zap",
       "set": {
         "osc1": { "levelPct": 75 },
-        "osc2": { "waveform": "pulse", "levelPct": 60, "octave": 1, "pulseWidthPct": 25 },
+        "osc2": { "waveform": "pulse", "levelPct": 90, "octave": 1, "pulseWidthPct": 25 },
         "amp": { "gainPct": 62 },
         "ampEnv": { "attackMs": 0, "decayMs": 140, "sustainPct": 0, "releaseMs": 90 },
         "filter": { "cutoffHz": 250, "resonance": 82, "envAmountPct": 19, "keyTrackingPct": 40 },
