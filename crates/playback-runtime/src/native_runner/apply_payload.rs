@@ -128,6 +128,12 @@ impl NativeRunner {
         }
         self.drain_all_layer_notes();
         candidate.transpose.pending_note_offs = self.transpose.pending_note_offs.clone();
+        // The drain ended every held note; its record keeps the tiles' later Offs from ending them
+        // a second time.
+        candidate.held_notes = std::mem::take(&mut self.held_notes);
+        for held in &mut candidate.held_notes {
+            held.forget_replays();
+        }
         candidate.preserve_sample_availability_from(self);
         let focused_key = self.menu.current_key().map(str::to_owned);
         if self.menu.is_built() {

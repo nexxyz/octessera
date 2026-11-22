@@ -303,3 +303,15 @@ pub(crate) fn an_idle_layer_ends_its_scan_hold_once_scanning_stops() {
     assert_eq!(released.len(), held.len(), "{released:?}");
     assert!(released.iter().all(|(on, _)| !on), "{released:?}");
 }
+
+#[test]
+pub(crate) fn a_tile_released_after_its_instrument_drops_its_voices_ends_nothing_again() {
+    let mut runner = keys_runner(1);
+    assert_eq!(grid(&mut runner, "grid_press", 2, 3).len(), 1);
+    runner.drain_play_transpose_instrument_notes(0);
+    let drained = notes(&runner.messages_without_snapshot().unwrap());
+    assert_eq!(on_off(&drained).len(), 1, "{drained:?}");
+
+    let released = grid(&mut runner, "grid_release", 2, 3);
+    assert!(released.is_empty(), "{released:?}");
+}

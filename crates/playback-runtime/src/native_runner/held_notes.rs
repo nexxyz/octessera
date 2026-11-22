@@ -252,11 +252,13 @@ impl HeldNotes {
     }
 
     /// Forgets who holds the notes on `channel` after its voices were cut some other way, so the
-    /// next note-on for one of those pitches sounds again.
+    /// next note-on for one of those pitches sounds again and their tiles' Offs end nothing.
     pub(super) fn forget_channel(&mut self, channel: u8) {
+        let drained = &mut self.drained_tiles;
         self.notes.retain(|key, entry| {
             if key.channel == channel {
-                entry.holders = Holders::default();
+                let holders = std::mem::take(&mut entry.holders);
+                drained.extend(holders.tiles);
             }
             !entry.is_idle()
         });

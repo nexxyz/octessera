@@ -52,9 +52,6 @@ impl NativeRunner {
         if let Some(layer) = self.layers.get_mut(layer_index) {
             layer.engine = next_engine;
         }
-        if let Some(held) = self.held_notes.get_mut(layer_index) {
-            *held = Default::default();
-        }
         Ok(())
     }
 
