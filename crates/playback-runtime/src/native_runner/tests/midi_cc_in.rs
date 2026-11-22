@@ -1,6 +1,7 @@
 use super::audio_restart_persistence::{back, press, turn};
 use super::in_place_menu_actions::press_key;
 use super::*;
+use crate::native_runner::modulation::source::ModulationSourceId;
 use crate::{MidiControlChange, MidiControlChangeBatch};
 
 const VELOCITY_TARGET: &str = "midiCc.0.target.sound.velocityScalePct";
@@ -328,4 +329,27 @@ fn learn_ignores_reset_all_controllers() {
     assert_eq!(runner.midi_cc_mappings[2].cc, 3);
     send_cc_bytes(&mut runner, &[[0xB4, 74, 9]]);
     assert_eq!(runner.midi_cc_mappings[2].cc, 74);
+}
+
+#[test]
+fn a_menu_edit_takes_a_cc_held_play_fx_row_back() {
+    let mut runner = midi_runner();
+    let key = "play.fx.params.mixPct";
+    runner.menu.set_enum_value_for_key("play.fx.type", "freeze");
+    runner.apply_or_schedule_menu_key("play.fx.type").unwrap();
+    runner.make_deferred_work_due_now();
+    let _ = runner.flush_deferred_menu_apply().unwrap();
+    assert!(
+        runner.play_fx_selected.params.contains_key("mixPct"),
+        "{:?}",
+        runner.play_fx_selected
+    );
+    press_key(&mut runner, &format!("midiCc.0.target.{key}"));
+    send_cc_bytes(&mut runner, &[[0xB0, 1, 127]]);
+    assert_eq!(runner.play_fx_selected.params["mixPct"], 100);
+
+    set_menu_number(&mut runner, key, 30);
+    assert_eq!(runner.play_fx_selected.params["mixPct"], 30);
+    let source = ModulationSourceId::midi_cc(0).unwrap();
+    assert!(!runner.modulation_process.has_source(source));
 }

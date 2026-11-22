@@ -176,8 +176,11 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   are excluded. Instrument targets are Volume and Pan, the Synth oscillator levels, detunes and
   pulse widths, Gain, Cutoff and Res; FM Index, Gain, Cutoff and Res; Plucked Gain, Decay,
   Brightness, Cutoff and Res; Drum Gain, Cutoff and Res; and Sampler Gain, Cutoff and Res.
-  Sampler Gain is read when a hit starts, so each hit takes the LFO's value at that moment;
-  Sampler Tune is a whole-semitone setting, so XY, layer axes and CC move it but LFOs do not.
+  Those three are the Sampler rows the engine changes as a single live value: Cutoff and Res
+  glide on sounding hits, and Gain is read when a hit starts, so each hit takes the LFO's value
+  at that moment. Sampler Tune is a whole-semitone setting, so XY, layer axes and CC move it but
+  LFOs do not. The envelopes, the filter envelope, Env Amount, Key Tracking and the velocity
+  levels reach the engine only through a slot reload, which is too heavy to run at LFO rate.
 - `Depth` swings the target around its current value: at 100% the wave reaches half the
   target's range each way, clamped to the range. Claims are validated as described under
   [Modulation](../menu-and-controls-spec.md#modulation).
@@ -185,9 +188,11 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   256 and 512 pulses. Changing an LFO's period scales its phase to the new length, so the wave keeps
   its position in the cycle instead of jumping.
 - LFOs shorter than `1/8` would only get a few clock pulses per wave (`1/32T` is two, so a sine
-  sampled on them is always zero). With the internal clock they also move between pulses, in four
-  steps per pulse placed by the time since the last pulse, so `1/32T` and `1/32` play a whole
-  wave. Under external MIDI clock they move once per incoming pulse.
+  sampled on them is always zero). With the internal clock they also move between pulses, on a
+  quarter-pulse grid, whenever the runtime wakes between two pulses (about every 8 ms on the
+  boards, so two or three extra steps per pulse at 120 BPM). `1/32T` and `1/32` then swing
+  instead of standing still, though a fast wave stays coarse. Under external MIDI clock they move
+  once per incoming pulse.
 - An LFO's phase keeps running while it is off, so switching it back on (from the menu or the LFO
   play page) picks the wave up where a never-switched-off LFO would be, in phrase with the music.
   While off it contributes nothing.

@@ -185,6 +185,7 @@ impl NativeRunner {
             self.transport.bpm = bpm;
             self.retime_note_mode_bus_delays();
             self.retime_held_play_fx();
+            self.rebase_and_recompose_modulation_key("transport.bpm");
             self.mark_fast_autosave_dirty();
         }
         true
@@ -202,6 +203,7 @@ impl NativeRunner {
         };
         if *swing != value {
             *swing = value;
+            self.rebase_and_recompose_modulation_key(key);
             self.mark_fast_autosave_dirty();
         }
         true

@@ -23,6 +23,7 @@ impl PlaybackRuntime {
             }) = &input
             {
                 if *source == crate::protocol::SyncSource::Internal
+                    && (*pulses > 0 || *request_snapshot == Some(true))
                     && self.last_good_status.as_ref().is_some_and(|status| {
                         status.transport == crate::RuntimeTransportState::Playing
                     })

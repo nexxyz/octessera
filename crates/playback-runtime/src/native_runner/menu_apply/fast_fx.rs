@@ -28,6 +28,7 @@ impl NativeRunner {
             if let Some(param) = key.strip_prefix("play.fx.params.") {
                 self.update_held_play_fx_param(param);
             }
+            self.rebase_and_recompose_modulation_key(key);
             self.mark_fast_autosave_dirty();
         }
         true

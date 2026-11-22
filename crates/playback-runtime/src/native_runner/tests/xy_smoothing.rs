@@ -405,3 +405,37 @@ pub(crate) fn xy_reset_center_moves_marker_now_and_glides_mapped_axes() {
     assert_eq!(runner.xy.touch.x, 0.5);
     assert_eq!(runner.xy.touch.y, 0.5);
 }
+
+#[test]
+pub(crate) fn a_menu_edit_during_a_glide_keeps_the_key_until_the_next_press() {
+    let mut runner = runner_with_xy();
+    runner.xy.y_binding = None;
+    runner.xy.smoothing_ms = 200;
+    runner.instruments[0].volume = 0;
+    let start = Instant::now();
+    runner.handle_play_xy_press_at(7, 0, start);
+    runner
+        .advance_xy_smoothing_at(start + Duration::from_millis(50))
+        .unwrap();
+    assert!(runner.instruments[0].volume > 0);
+
+    runner
+        .menu
+        .set_number_value_for_key("instruments.0.mixer.volume", 40);
+    runner
+        .apply_or_schedule_menu_key("instruments.0.mixer.volume")
+        .unwrap();
+    assert_eq!(runner.instruments[0].volume, 40);
+    for ms in [100, 150, 250] {
+        runner
+            .advance_xy_smoothing_at(start + Duration::from_millis(ms))
+            .unwrap();
+        assert_eq!(runner.instruments[0].volume, 40, "the glide at {ms} ms");
+    }
+
+    runner.handle_play_xy_press_at(0, 0, start + Duration::from_millis(300));
+    runner
+        .advance_xy_smoothing_at(start + Duration::from_millis(600))
+        .unwrap();
+    assert_eq!(runner.instruments[0].volume, 0, "a new press takes it back");
+}

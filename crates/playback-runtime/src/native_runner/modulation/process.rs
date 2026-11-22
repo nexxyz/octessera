@@ -324,18 +324,31 @@ impl NativeRunner {
         &mut self,
         normalized: [f32; 2],
     ) -> bool {
-        self.set_xy_runtime_sources_with_force(normalized, false)
+        self.set_xy_runtime_sources_with(normalized, XyTake::WhileTouched)
     }
 
     pub(in crate::native_runner) fn set_xy_runtime_sources_forced(
         &mut self,
         normalized: [f32; 2],
     ) -> bool {
-        self.set_xy_runtime_sources_with_force(normalized, true)
+        self.set_xy_runtime_sources_with(normalized, XyTake::Always)
     }
 
-    fn set_xy_runtime_sources_with_force(&mut self, normalized: [f32; 2], force: bool) -> bool {
-        let active = self.xy.touch.active;
+    /// A glide step moves only the XY sources that still hold their key: a later edit that took
+    /// the key keeps it until the next press.
+    pub(in crate::native_runner) fn glide_xy_runtime_sources(
+        &mut self,
+        normalized: [f32; 2],
+    ) -> bool {
+        self.set_xy_runtime_sources_with(normalized, XyTake::Never)
+    }
+
+    fn set_xy_runtime_sources_with(&mut self, normalized: [f32; 2], take: XyTake) -> bool {
+        let take = match take {
+            XyTake::Always => true,
+            XyTake::WhileTouched => self.xy.touch.active,
+            XyTake::Never => false,
+        };
         let mut changed = false;
         for (source, binding, normalized) in [
             (
@@ -350,7 +363,7 @@ impl NativeRunner {
             ),
         ] {
             if let Some(binding) = binding {
-                if force || active || self.modulation_process.has_source(source) {
+                if take || self.modulation_process.has_source(source) {
                     changed |=
                         self.set_runtime_source_input(source, binding, f64::from(normalized));
                 }
@@ -443,4 +456,11 @@ impl NativeRunner {
         }
         self.process_dirty_modulation_step(false)
     }
+}
+
+/// When setting the XY sources may create one that does not hold its key now.
+enum XyTake {
+    Always,
+    WhileTouched,
+    Never,
 }

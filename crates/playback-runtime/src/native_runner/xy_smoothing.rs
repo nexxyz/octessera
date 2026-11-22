@@ -59,7 +59,7 @@ impl NativeRunner {
         if !(x_changed || y_changed) {
             return Ok(());
         }
-        if self.set_xy_runtime_sources([self.xy.touch.x, self.xy.touch.y]) {
+        if self.glide_xy_runtime_sources([self.xy.touch.x, self.xy.touch.y]) {
             self.process_dirty_modulation_step(true)?;
         }
         Ok(())

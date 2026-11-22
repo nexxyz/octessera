@@ -165,3 +165,47 @@ fn every_period_and_depth_moves_every_kind_of_lfo_target() {
         }
     }
 }
+
+#[test]
+fn an_8_ms_runtime_tick_moves_a_1_32t_lfo_between_its_pulses() {
+    let target = "instruments.0.mixer.volume";
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    set_menu_number(&mut runner, target, 50);
+    press_key(&mut runner, &format!("linkLfos.0.target.{target}"));
+    set_menu_enum(&mut runner, "linkLfos.0.period", "1/32T");
+    set_menu_number(&mut runner, "linkLfos.0.depthPct", 100);
+    runner.link_lfos[0].enabled = true;
+    let mut runtime = crate::PlaybackRuntime::new(crate::RuntimeConfig {
+        bpm: runner.transport.bpm,
+        ..crate::RuntimeConfig::default()
+    });
+    let mut host = crate::tests::support::FakeHost::default();
+    let start = Instant::now();
+    runner.display.transients.set_test_now(start);
+    for pressed in [true, false] {
+        let messages = device_input(
+            &mut runner,
+            json!({ "type": "button_s", "pressed": pressed }),
+        );
+        runtime.ingest_runner_messages(messages, &mut host).unwrap();
+    }
+    assert_eq!(runner.transport.transport, RuntimeTransportState::Playing);
+    host.audio_commands.clear();
+
+    let tick = Duration::from_millis(8);
+    for step in 1..=60 {
+        runner.display.transients.set_test_now(start + tick * step);
+        runtime
+            .advance_duration(tick, &mut runner, &mut host)
+            .unwrap();
+    }
+    let volumes = host
+        .audio_commands
+        .iter()
+        .filter_map(|command| target_value(command, target))
+        .collect::<Vec<_>>();
+    assert!(
+        levels(&volumes) >= 3,
+        "a 1/32T wave, which pulses alone hold at one level, at 8 ms ticks: {volumes:?}"
+    );
+}
