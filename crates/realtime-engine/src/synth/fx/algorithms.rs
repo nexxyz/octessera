@@ -104,9 +104,12 @@ pub(super) fn process_distortion(input: f32, drive: f32, clip: f32, mix: f32) ->
     mix_sample(input, y, mix)
 }
 
-/// Chance is rolled once per slice. A hit replays the last slice the buffer heard, and the
-/// buffer stops listening while it replays, so hits in a row keep repeating that slice; a miss
-/// passes one slice through. Nothing repeats before a whole slice has been heard.
+/// Chance is rolled once per slice, just before the fade at the end of the slice before. A hit
+/// replays the last slice the buffer heard, and the buffer stops listening while it replays, so
+/// hits in a row keep repeating that slice; a miss passes one slice through. Nothing repeats
+/// before a whole slice has been heard. A run of repeats fades in from and out to the input; in
+/// between, each repeat crossfades from the fade's worth of input that followed the slice into
+/// the slice's own start, so the input never comes through mid-run.
 pub(super) fn process_glitch(
     state: &mut FxBusState,
     input: f32,
@@ -124,30 +127,74 @@ pub(super) fn process_glitch(
         repeating,
         heard,
         rng,
+        next_slice,
+        next_repeating,
+        seamless,
+        after,
     } = state
     else {
         return input;
     };
-    if *remain == 0 {
-        *slice = ((slice_ms * sample_rate as f32 / 1000.0).round() as usize).clamp(1, buf.len());
+    let len = buf.len();
+    let fade = |slice: usize| glitch_fade(sample_rate).min(slice as f32 * 0.25);
+    let mut roll_next = |remain: usize, repeating: bool| {
+        let longest = len - glitch_fade(sample_rate).ceil() as usize;
+        let next = ((slice_ms * sample_rate as f32 / 1000.0).round() as usize).clamp(1, longest);
         *rng = rng.wrapping_mul(1664525).wrapping_add(1013904223);
         let roll = ((*rng >> 8) as f32) / ((u32::MAX >> 8) as f32);
-        *repeating = roll < chance && *heard >= *slice;
-        *read = (*idx + buf.len() - *slice) % buf.len();
+        let heard_by_then = if repeating { *heard } else { *heard + remain };
+        let hit = roll < chance && heard_by_then >= next;
+        (next, hit)
+    };
+    if *remain == 0 {
+        if *next_slice == 0 {
+            (*next_slice, *next_repeating) = roll_next(0, *repeating);
+        }
+        *seamless = *repeating && *next_repeating;
+        (*slice, *repeating) = (*next_slice, *next_repeating);
+        (*next_slice, *next_repeating) = (0, false);
+        *read = (*idx + len - *slice) % len;
         *remain = *slice;
+    }
+    if *next_slice == 0 && *remain as f32 <= fade(*slice) + 1.0 {
+        (*next_slice, *next_repeating) = roll_next(*remain, *repeating);
     }
     *remain -= 1;
     let wet = if *repeating {
+        if *after < glitch_fade(sample_rate).ceil() as usize {
+            buf[(*idx + *after) % len] = input;
+            *after += 1;
+        }
+        let fade = fade(*slice).max(1.0);
         let played = *slice - *remain;
-        let fade = (GLITCH_FADE_MS * sample_rate as f32 / 1000.0).min(*slice as f32 * 0.25);
-        let edge = (played.min(*remain + 1) as f32 / fade.max(1.0)).min(1.0);
+        let head = (played as f32 / fade).min(1.0);
+        let tail = if *next_repeating {
+            1.0
+        } else {
+            ((*remain + 1) as f32 / fade).min(1.0)
+        };
         let repeat = buf[*read];
-        *read = (*read + 1) % buf.len();
-        input + (repeat - input) * edge
+        *read = (*read + 1) % len;
+        let from = if *seamless {
+            buf[(*idx + played - 1) % len]
+        } else {
+            input
+        };
+        let faded_in = if head < 1.0 {
+            from + (repeat - from) * head
+        } else {
+            repeat
+        };
+        if tail < 1.0 {
+            input + (faded_in - input) * tail
+        } else {
+            faded_in
+        }
     } else {
         buf[*idx] = input;
         *idx = (*idx + 1) % buf.len();
         *heard = heard.saturating_add(1);
+        *after = 0;
         input
     };
     input * (1.0 - mix) + wet * mix
@@ -167,9 +214,15 @@ fn resident_zeros(len: usize) -> Vec<f32> {
     buf
 }
 
+fn glitch_fade(sample_rate: u32) -> f32 {
+    GLITCH_FADE_MS * sample_rate as f32 / 1000.0
+}
+
+/// Holds the longest slice and the fade before it.
 pub(super) fn glitch_state(sample_rate: u32) -> FxBusState {
+    let longest = (GLITCH_MAX_SLICE_MS * sample_rate as f32 / 1000.0).ceil() as usize;
     FxBusState::Glitch {
-        buf: resident_zeros((GLITCH_MAX_SLICE_MS * sample_rate as f32 / 1000.0).ceil() as usize),
+        buf: resident_zeros(longest + glitch_fade(sample_rate).ceil() as usize),
         idx: 0,
         read: 0,
         remain: 0,
@@ -177,6 +230,10 @@ pub(super) fn glitch_state(sample_rate: u32) -> FxBusState {
         repeating: false,
         heard: 0,
         rng: 0x1234_abcd,
+        next_slice: 0,
+        next_repeating: false,
+        seamless: false,
+        after: 0,
     }
 }
 

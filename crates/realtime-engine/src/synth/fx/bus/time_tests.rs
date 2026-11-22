@@ -247,6 +247,36 @@ fn glitch_that_always_fires_hears_one_slice_then_keeps_repeating_it() {
 }
 
 #[test]
+fn glitch_at_full_chance_crossfades_each_repeat_into_its_own_start_without_live_input() {
+    for slice_ms in [10.0, 500.0] {
+        let slice = (slice_ms * 48.0) as usize;
+        let heard = test_tone(slice * 6);
+        let mut loud = heard.clone();
+        for (frame, sample) in loud.iter_mut().enumerate().skip(slice + 96) {
+            *sample = (frame as f32 * 0.9).sin() * 0.9;
+        }
+        let quiet_after = run(glitch(1.0, slice_ms, 1.0), &heard, SAMPLE_RATE);
+        let loud_after = run(glitch(1.0, slice_ms, 1.0), &loud, SAMPLE_RATE);
+        for frame in slice + 96..slice * 6 {
+            assert_eq!(
+                quiet_after[frame].to_bits(),
+                loud_after[frame].to_bits(),
+                "{slice_ms} ms frame {frame}"
+            );
+        }
+        let largest_input_step = 0.6 * 0.013 + 0.2 * 0.071;
+        let largest_step = quiet_after[slice + 96..]
+            .windows(2)
+            .map(|pair| (pair[1] - pair[0]).abs())
+            .fold(0.0, f32::max);
+        assert!(
+            largest_step < largest_input_step * 1.5,
+            "{slice_ms} ms step {largest_step}"
+        );
+    }
+}
+
+#[test]
 fn glitch_rolls_chance_once_per_slice() {
     let slice = 480;
     let input = test_tone(SAMPLE_RATE as usize * 10);

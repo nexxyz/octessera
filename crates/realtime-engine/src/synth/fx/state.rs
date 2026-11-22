@@ -49,6 +49,13 @@ pub(in crate::synth) enum FxBusState {
         repeating: bool,
         heard: usize,
         rng: u32,
+        /// The next slice's length once it is rolled, near the end of this one; 0 before.
+        next_slice: usize,
+        next_repeating: bool,
+        /// This repeat follows another, so it fades in from the input that followed the slice.
+        seamless: bool,
+        /// How much of that input a run of repeats has kept, just past the slice's end.
+        after: usize,
     },
     AutoPan {
         phase: f32,
@@ -79,10 +86,15 @@ impl FxBusState {
                 remain,
                 repeating,
                 heard,
+                next_slice,
+                next_repeating,
+                seamless,
+                after,
                 ..
             } => {
                 buf.fill(0.0);
-                (*remain, *repeating, *heard) = (0, false, 0);
+                (*remain, *repeating, *heard, *after) = (0, false, 0, 0);
+                (*next_slice, *next_repeating, *seamless) = (0, false, false);
             }
             FxBusState::FilterLfo { filt, .. } => filt.clear_history(),
             FxBusState::Duck { env } | FxBusState::Compressor { env } => *env = 0.0,
