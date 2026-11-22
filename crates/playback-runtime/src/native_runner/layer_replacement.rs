@@ -109,17 +109,18 @@ impl NativeRunner {
             .get_mut(layer_index)
             .map(|layer| layer.engine.drain_held_notes(usize::MAX))
             .unwrap_or_default();
-        self.release_layer_engine_notes(layer_index, notes);
+        let routed = self.route_layer_engine_note_offs(layer_index, notes);
+        self.transpose.pending_note_offs.extend(routed);
     }
 
     /// Routes note-offs the layer's engine let go of outside a step, as a drain does.
-    pub(super) fn release_layer_engine_notes(
+    pub(super) fn route_layer_engine_note_offs(
         &mut self,
         layer_index: usize,
         notes: Vec<platform_core::MusicalEvent>,
-    ) {
+    ) -> super::modulation::RoutedMusicalEvents {
         if notes.is_empty() {
-            return;
+            return super::modulation::RoutedMusicalEvents::default();
         }
         let instruments = self.instruments.clone();
         let sense = self.layers.get(layer_index).map(|layer| layer.link.clone());
@@ -129,7 +130,7 @@ impl NativeRunner {
             .get(layer_index)
             .copied()
             .unwrap_or(0);
-        let routed = apply_sampler_assignments_for_instruments_routed(
+        apply_sampler_assignments_for_instruments_routed(
             notes,
             &[],
             0,
@@ -137,8 +138,7 @@ impl NativeRunner {
             sense.as_ref(),
             transpose_offset,
             self.transpose.active_notes.get_mut(layer_index),
-        );
-        self.transpose.pending_note_offs.extend(routed);
+        )
     }
 
     pub(super) fn clear_layer_replacement_state(&mut self, layer_index: usize) {

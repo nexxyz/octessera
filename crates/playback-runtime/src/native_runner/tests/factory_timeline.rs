@@ -42,15 +42,18 @@ pub(crate) fn factory_timeline() -> String {
     timeline(pi_default(), false)
 }
 
-/// The factory patch with swing, its Sequencer bass on a hold instrument (a held scan), its first
-/// Sequencer on a one-shot MIDI slot and its Life layer holding notes on the Plucked slot from
-/// Hold Trig while On and Off stay on the Synth.
+/// The factory patch with swing, its Sequencer bass moved to a hold slot of its own (a held
+/// scan), its first Sequencer on a one-shot MIDI slot and its Life layer holding notes on another
+/// unshared hold slot from Hold Trig while On and Off stay on the Synth. No two layers share a
+/// hold slot, so the pin keeps out of the per-layer holder count's limit.
 pub(crate) fn factory_variant_timeline() -> String {
     let mut payload = pi_default();
     let config = &mut payload["runtimeConfig"];
     config["transport"]["swingA"] = json!(5);
     config["transport"]["swingB"] = json!(3);
-    config["instruments"][3]["noteBehavior"] = json!("hold");
+    for slot in [3, 4] {
+        config["instruments"][slot]["noteBehavior"] = json!("hold");
+    }
     let midi = &mut config["instruments"][7];
     midi["type"] = json!("midi");
     midi["midi"] = json!({ "channel": 8, "durationMs": 200, "enabled": true, "velocity": 100 });
@@ -62,9 +65,10 @@ pub(crate) fn factory_variant_timeline() -> String {
         "stable",
     ] {
         config["layers"][1]["link"]["mapping"][mapping]["slot"] = json!(7);
+        config["layers"][3]["link"]["mapping"][mapping]["slot"] = json!(4);
     }
     let stable = &mut config["layers"][0]["link"]["mapping"]["stable"];
-    stable["slot"] = json!(2);
+    stable["slot"] = json!(3);
     stable["action"] = json!("note_on");
     timeline(payload, true)
 }
