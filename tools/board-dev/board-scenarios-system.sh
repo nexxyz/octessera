@@ -84,8 +84,8 @@ update_step() {
   sudo -n systemctl reset-failed "$service"
   before=$(sudo -n sha256sum "$store/system.json" "$store/default.patch.json" | cut -c1-64 | tr '\n' ' ')
   since=$SECONDS
-  message=$(sudo -n env OCTESSERA_UPDATE_ROOT="$update_root" OCTESSERA_UPDATE_READY_SECONDS=45 \
-    python3 "$root/octessera-update" switch "$version" 2>&1)
+  message=$(sudo -n env OCTESSERA_UPDATE_ROOT="$update_root" OCTESSERA_UPDATE_SYSTEM_ROOT="$update_root/system" \
+    OCTESSERA_UPDATE_READY_SECONDS=45 python3 "$root/octessera-update" switch "$version" 2>&1)
   rc=$?
   message=${message//$'\n'/ | }
   local took=$((SECONDS - since))
@@ -98,11 +98,26 @@ update_step() {
   after=$(sudo -n sha256sum "$store/system.json" "$store/default.patch.json" | cut -c1-64 | tr '\n' ' ')
   echo "$name rc=$rc took=${took}s ready_after=$((SECONDS - since))s active=$(systemctl is-active "$service")" \
     "current=$(basename "$(readlink "$update_root/current")") store_unchanged=$([ "$before" = "$after" ] && echo yes || echo no)" \
-    "message=$message" >> update.log
+    "$(root_facts) message=$message" >> update.log
 }
-# A scratch release: a link to the binary under test, or a script with the given body.
+# The scratch system root's probe and extra file, and each release's set-aside root files.
+root_facts() {
+  local release
+  printf 'probe=%s extra=%s' "$(sudo -n cat "$update_root/system/$probe" 2>/dev/null || echo -)" \
+    "$(sudo -n test -e "$update_root/system/$probe-extra" && echo yes || echo no)"
+  for release in 0.9.90 0.9.91; do
+    printf ' replaced_%s=%s added_%s=%s' "$release" \
+      "$(sudo -n cat "$update_root/releases/$release/root-replaced/$probe" 2>/dev/null || echo -)" "$release" \
+      "$(sudo -n cat "$update_root/releases/$release/root-added" 2>/dev/null | paste -sd, - | grep . || echo -)"
+  done
+}
+probe=usr/local/sbin/octessera-probe
+# A scratch release: a link to the binary under test, or a script with the given body, and a root/
+# probe holding its version (0.9.91 adds one more file).
 fake_release() {
-  sudo -n install -d -m 0755 "$update_root/releases/$1"
+  sudo -n install -d -m 0755 "$update_root/releases/$1" "$update_root/releases/$1/root/${probe%/*}"
+  echo "$1" | sudo -n tee "$update_root/releases/$1/root/$probe" >/dev/null
+  [ "$1" != 0.9.91 ] || echo extra | sudo -n tee "$update_root/releases/$1/root/$probe-extra" >/dev/null
   if [ "${2:0:1}" = / ]; then
     sudo -n ln -s "$2" "$update_root/releases/$1/octessera-pi"
   else
@@ -120,6 +135,8 @@ update_fail() {
   update_root="$store-update"
   fake_release 0.9.90 "$binary"
   fake_release 0.9.91 "$binary"
+  sudo -n install -d -m 0755 "$update_root/system/${probe%/*}"
+  echo 0.9.90 | sudo -n tee "$update_root/system/$probe" >/dev/null
   sudo -n ln -s "$update_root/releases/0.9.90" "$update_root/current"
   start_exec="$update_root/current/octessera-pi"
   start || return

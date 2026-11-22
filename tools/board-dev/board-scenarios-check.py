@@ -303,6 +303,15 @@ UPDATE_STEPS = {"good": ("0", "0.9.91", "Now running v0.9.91"), "back": ("0", "0
                 "hangs": ("1", "0.9.90", "v0.9.93 did not start; went back to v0.9.90")}
 
 
+EXTRA = "usr/local/sbin/octessera-probe-extra"
+# What the scratch system root and the releases' set-aside root files must hold after each step.
+ROOT_FILES = {"good": {"probe": "0.9.91", "extra": "yes", "replaced_0.9.90": "0.9.90", "added_0.9.90": EXTRA},
+              "back": {"probe": "0.9.90", "extra": "no", "replaced_0.9.90": "-", "added_0.9.90": "-",
+                       "replaced_0.9.91": "-", "added_0.9.91": "-"},
+              "dies": {"probe": "0.9.90", "extra": "no", "added_0.9.90": "-"},
+              "hangs": {"probe": "0.9.90", "extra": "no", "added_0.9.90": "-"}}
+
+
 def update_fail(board, out):
     rows = dict(fields(line) for line in (out / "update.log").read_text().splitlines() if line.split()[0] in UPDATE_STEPS)
     problems, evidence = [], []
@@ -314,7 +323,11 @@ def update_fail(board, out):
             problems.append(f"{name}: service {row['active']}, ready {row['ready_after']} after the switch")
         if row["store_unchanged"] != "yes":
             problems.append(f"{name}: the store changed")
-        evidence.append(f"{name} took {row['took']}, ready {row['ready_after']} later on v{row['current']}")
+        root_files = {key: row.get(key) for key in ROOT_FILES[name]}
+        if root_files != ROOT_FILES[name]:
+            problems.append(f"{name}: root files {root_files}, not {ROOT_FILES[name]}")
+        evidence.append(f"{name} took {row['took']}, ready {row['ready_after']} later on v{row['current']}, "
+                        f"probe {row.get('probe')}")
     if "restart_ready=yes" not in (out / "update.log").read_text().split():
         problems.append("the clone did not load after a restart on the release it ended on")
     return problems, "; ".join(evidence)

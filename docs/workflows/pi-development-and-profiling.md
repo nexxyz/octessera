@@ -392,7 +392,15 @@ usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
   each switch the links must point at a release that runs, the service must be
   ready within 120 s, the clone's `system.json` and `default.patch.json` must
   be byte-identical, and the message must name the version it ended on. A
-  last restart on the release it ended on must load the clone. The journal is
+  last restart on the release it ended on must load the clone. Each fake
+  release also carries `root/usr/local/sbin/octessera-probe` holding its
+  version (0.9.91 one extra file), installed into a scratch system root
+  (`OCTESSERA_UPDATE_SYSTEM_ROOT`, never `/`) that starts with 0.9.90's probe:
+  after `good` the probe reads 0.9.91 and 0.9.90 keeps its probe in
+  `root-replaced/` and lists the extra file in `root-added`; after `back`
+  the probe reads 0.9.90, the extra file is gone and neither release keeps
+  `root-added` or `root-replaced`; after `dies` and `hangs` the probe reads
+  0.9.90, nothing 0.9.91 added is left and 0.9.90 has no `root-added`. The journal is
   not checked for errors: the failing releases log them by design. The real
   `/opt/octessera` links are never touched.
 - `fuzz` types random taps for 5 minutes on the store's own patch, 600 per
