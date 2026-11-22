@@ -141,7 +141,7 @@
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
-            "gainPct": 100,
+            "gainPct": 286,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -289,7 +289,7 @@
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
-            "gainPct": 100,
+            "gainPct": 286,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -614,7 +614,7 @@
         },
         "sample": {
           "amp": {
-            "gainPct": 100,
+            "gainPct": 286,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -799,7 +799,7 @@
         },
         "sample": {
           "amp": {
-            "gainPct": 100,
+            "gainPct": 286,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -947,7 +947,7 @@
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
-            "gainPct": 100,
+            "gainPct": 286,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -1095,7 +1095,7 @@
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
-            "gainPct": 100,
+            "gainPct": 286,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -1243,7 +1243,7 @@
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
-            "gainPct": 100,
+            "gainPct": 286,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
@@ -1391,7 +1391,7 @@
         "noteBehavior": "oneshot",
         "sample": {
           "amp": {
-            "gainPct": 100,
+            "gainPct": 286,
             "velocitySensitivityPct": 100
           },
           "ampEnv": {
