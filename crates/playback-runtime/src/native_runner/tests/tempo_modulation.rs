@@ -335,3 +335,32 @@ fn under_external_clock_a_cc_on_bpm_sets_the_tempo_row_and_the_clock_ignores_it(
         "only the external clock moves it"
     );
 }
+
+#[test]
+fn under_external_clock_an_lfo_on_bpm_does_nothing() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    lfo_on(&mut runner, "transport.bpm", "1/4", 100);
+    press_play(&mut runner);
+    for _ in 0..6 {
+        runner
+            .send(HostMessage::TransportPulseStep {
+                pulses: 1,
+                source: SyncSource::Internal,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+    }
+    assert!(
+        (runner.clock_bpm() - 120.0).abs() > 1.0,
+        "the LFO rides the internal clock"
+    );
+
+    set_menu_enum(&mut runner, "midiSyncMode", "external");
+    assert_eq!(runner.transport.sync_source, SyncSource::External);
+    assert_eq!(runner.clock_bpm(), 120.0);
+    for _ in 0..12 {
+        runner.send_midi_realtime_clock(1).unwrap();
+        assert_eq!(runner.clock_bpm(), runner.transport.bpm);
+    }
+}

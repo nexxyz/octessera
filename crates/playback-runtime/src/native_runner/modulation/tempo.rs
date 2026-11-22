@@ -82,9 +82,13 @@ impl NativeRunner {
         self.transport.tempo_lfo = TempoLfo::default();
     }
 
-    /// The tempo the clock runs at: the set tempo, or what an LFO makes of it.
+    /// The tempo the clock runs at: the set tempo, or what an LFO makes of it. Under external
+    /// sync the incoming clock sets the pace, so an LFO on BPM does nothing.
     pub(in crate::native_runner) fn clock_bpm(&self) -> f64 {
-        self.transport.tempo_lfo.bpm.unwrap_or(self.transport.bpm)
+        match self.transport.tempo_lfo.bpm {
+            Some(bpm) if self.transport.sync_source != super::super::SyncSource::External => bpm,
+            _ => self.transport.bpm,
+        }
     }
 
     /// The swing the next beat takes: the set swing, or what an LFO makes of it.

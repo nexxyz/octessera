@@ -1227,8 +1227,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   value is saved like any held target's. An LFO rides only the clock: the tempo the internal
   clock runs at, behavior ticks and swing offsets, and the swing each next beat takes. The BPM and
   Swing rows, the save, note-mode delays and held Play FX keep the set value, and Stop drops the
-  LFO's share. Under external sync the incoming clock sets the pace; a held source still sets
-  the BPM value as the row does there.
+  LFO's share. Under external sync the incoming clock sets the pace and an LFO on BPM does
+  nothing; a held source still sets the BPM value as the row does there.
 - Changed persistent grid/XY targets from one step share one revision and one delayed autosave
   payload; no immediate full payload or behavior-state serialization is emitted.
 - Config/patch transactions reset candidate modulation state, install all persistent owners, and
