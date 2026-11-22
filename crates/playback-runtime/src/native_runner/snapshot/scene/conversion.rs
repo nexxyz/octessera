@@ -3,6 +3,7 @@ use crate::native_runner::snapshot::audio_settings::audio_payload;
 use crate::native_runner::{
     json, RuntimeTransportState, SyncSource, Value, GRID_HEIGHT, GRID_WIDTH,
 };
+use crate::oled_frame::OledSaveFlash;
 
 impl PresentationScene {
     pub fn into_snapshot(self) -> Value {
@@ -79,7 +80,11 @@ impl PresentationScene {
                 "auxAutoMapEnabled": self.aux_auto_map_enabled,
                 "auxPriority": self.aux_priority,
                 "audioConfigRevision": self.audio_config_revision,
-                "autoSaveFlash": if self.auto_save_flash { "flash" } else { "none" },
+                "autoSaveFlash": match self.save_flash {
+                    OledSaveFlash::Failing => "failing",
+                    OledSaveFlash::Flash => "flash",
+                    _ => "none",
+                },
                 "autoSaveFlashSerial": self.auto_save_flash_serial,
                 "cpuWarnPercent": self.cpu_warn_percent,
                 "transport": {"bpm": transport.bpm, "swingA": transport.swing_a, "swingB": transport.swing_b},

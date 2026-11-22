@@ -135,9 +135,13 @@ impl NativeRunner {
     }
 
     pub(super) fn forget_shown_save_failure(&mut self, operation: &crate::RuntimeOperation) {
+        let shown = self.display.shown_save_failures.len();
         self.display
             .shown_save_failures
             .retain(|shown| shown != operation);
+        if self.display.shown_save_failures.len() != shown {
+            self.display.transients.mark_presentation_due();
+        }
     }
 }
 

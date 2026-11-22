@@ -159,6 +159,19 @@ fn header_icons_sit_left_of_the_cpu_meter_on_the_crumb_line() {
 }
 
 #[test]
+fn a_failing_save_puts_a_red_cross_in_the_save_slot() {
+    let mut input = base();
+    input.save_flash = OledSaveFlash::Failing;
+    let frame = render_oled_frame(&input);
+    let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);
+    for (x, y) in [(113, 0), (117, 0), (115, 2), (113, 4), (117, 4)] {
+        assert_eq!(pixel(&frame, x, y), red, "cross {x},{y}");
+    }
+    assert_eq!(pixel(&frame, 115, 0), 0);
+    assert!((104..112).all(|x| (0..8).all(|y| pixel(&frame, x, y) == 0)));
+}
+
+#[test]
 fn clip_takes_the_crumb_end_in_red_and_shortens_only_a_long_crumb() {
     let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);
     let header = |frame: &[u8], xs: std::ops::Range<usize>| {

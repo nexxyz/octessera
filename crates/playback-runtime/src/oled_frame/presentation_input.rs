@@ -241,6 +241,7 @@ fn save_flash_from_name(value: &str) -> OledSaveFlash {
     match value {
         "none" => OledSaveFlash::None,
         "flash" => OledSaveFlash::Flash,
+        "failing" => OledSaveFlash::Failing,
         _ => OledSaveFlash::Other,
     }
 }

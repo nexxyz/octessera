@@ -444,3 +444,19 @@ fn scene_capture_and_conversion_walltime_diagnostic() {
         );
     }
 }
+
+#[test]
+fn a_failing_save_mark_matches_on_the_board_and_the_desktop() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    runner
+        .display
+        .shown_save_failures
+        .push(crate::RuntimeOperation::StoreSaveDefault);
+    let typed = runner
+        .capture_presentation_scene(false)
+        .unwrap()
+        .oled_presentation_input(Default::default(), None);
+    assert_eq!(typed.save_flash, crate::oled_frame::OledSaveFlash::Failing);
+    assert_typed_oled_matches_legacy(&runner);
+}

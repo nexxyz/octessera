@@ -16,6 +16,7 @@ const MISSED_QUANTUM_X: usize = 106;
 const SAVE_X: usize = 113;
 const CPU_X: usize = 120;
 const SAVE_CHECK: [u8; 5] = [0b00001, 0b00011, 0b10110, 0b11100, 0b01000];
+const SAVE_FAILING: [u8; 5] = [0b10001, 0b01010, 0b00100, 0b01010, 0b10001];
 const MISSED_QUANTUM: [u8; 5] = [0b11111, 0b10001, 0b10101, 0b10001, 0b11111];
 /// The always-lit area rule draws at this share of full colour (burn-in care).
 const STATIC_CHROME_LEVEL: f32 = 0.625;
@@ -54,9 +55,22 @@ pub(super) fn draw_header(frame: &mut [u8], input: &OledPresentationInput) {
     }
     fill_rect(frame, 0, RULE_Y, 128, 1, shade(area, STATIC_CHROME_LEVEL));
     draw_cpu_meter(frame, input);
-    if input.save_flash == OledSaveFlash::Flash {
-        let green = rgb565(palette::GREEN);
-        draw_mask(frame, &SAVE_CHECK, 5, SAVE_X, ICON_Y, green);
+    match input.save_flash {
+        OledSaveFlash::Flash => {
+            draw_mask(
+                frame,
+                &SAVE_CHECK,
+                5,
+                SAVE_X,
+                ICON_Y,
+                rgb565(palette::GREEN),
+            );
+        }
+        OledSaveFlash::Failing => {
+            let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);
+            draw_mask(frame, &SAVE_FAILING, 5, SAVE_X, ICON_Y, red);
+        }
+        OledSaveFlash::None | OledSaveFlash::Other => {}
     }
     if input.metrics.missed_quantum_flash {
         let red = rgb565(palette::BEHAVIOR_PRIMARY_RED);

@@ -32,6 +32,50 @@ fn press_main(runner: &mut NativeRunner) {
         .unwrap();
 }
 
+fn save_mark(runner: &mut NativeRunner) -> Value {
+    runner.snapshot().unwrap()["settings"]["autoSaveFlash"].clone()
+}
+
+#[test]
+fn a_retried_autosave_failure_keeps_the_save_mark_on_the_music_first_path() {
+    let mut runner = super::super::music_first::tests::playing_default();
+    let send = |runner: &mut NativeRunner, id: &str, result: RuntimeStoreResult| {
+        let revision = Some(runner.config_revision);
+        runner.register_default_write_request(id, revision);
+        runner
+            .send_music_first(HostMessage::RuntimeResult {
+                result: result.with_identity(id.into(), revision),
+            })
+            .unwrap()
+    };
+    send(&mut runner, "auto-1", failed_default_save());
+    runner
+        .send_music_first(HostMessage::DeviceInput {
+            input: json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    let failed = send(&mut runner, "auto-2", failed_default_save());
+    assert_eq!(
+        snapshot_from(&failed)["settings"]["autoSaveFlash"],
+        "failing"
+    );
+    assert!(runner.display.runtime_error_presentation.is_none());
+
+    let saved = send(
+        &mut runner,
+        "auto-3",
+        RuntimeStoreResult::SaveDefaultResult {
+            ok: true,
+            is_auto: Some(true),
+        },
+    );
+    assert_ne!(
+        snapshot_from(&saved)["settings"]["autoSaveFlash"],
+        "failing"
+    );
+}
+
 #[test]
 fn a_retried_autosave_failure_shows_once_until_a_save_works_or_the_player_saves() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -44,6 +88,7 @@ fn a_retried_autosave_failure_shows_once_until_a_save_works_or_the_player_saves(
 
     send_save_result(&mut runner, "auto-2", failed_default_save());
     assert!(runner.display.runtime_error_presentation.is_none());
+    assert_eq!(save_mark(&mut runner), "failing");
 
     send_save_result(
         &mut runner,
@@ -53,6 +98,7 @@ fn a_retried_autosave_failure_shows_once_until_a_save_works_or_the_player_saves(
             is_auto: Some(true),
         },
     );
+    assert_eq!(save_mark(&mut runner), "none");
     let after_success = send_save_result(&mut runner, "auto-4", failed_default_save());
     assert_eq!(after_success["display"]["title"], "CAN'T SAVE");
     press_main(&mut runner);

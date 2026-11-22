@@ -326,6 +326,8 @@ pub enum OledSaveFlash {
     #[default]
     None,
     Flash,
+    /// A retried save keeps failing; the first save that works clears it.
+    Failing,
     Other,
 }
 

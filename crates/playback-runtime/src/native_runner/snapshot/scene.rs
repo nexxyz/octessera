@@ -75,7 +75,7 @@ pub struct PresentationScene {
     aux_auto_map_enabled: bool,
     aux_priority: AuxPriority,
     audio_config_revision: u64,
-    auto_save_flash: bool,
+    save_flash: OledSaveFlash,
     auto_save_flash_serial: u64,
     cpu_warn_percent: u8,
     midi_enabled: bool,
@@ -239,7 +239,13 @@ impl NativeRunner {
             aux_auto_map_enabled: self.aux_auto_map_enabled,
             aux_priority: self.aux_priority,
             audio_config_revision: self.audio_revisions.revision,
-            auto_save_flash: self.auto_save_flash_active(),
+            save_flash: if !self.display.shown_save_failures.is_empty() {
+                OledSaveFlash::Failing
+            } else if self.auto_save_flash_active() {
+                OledSaveFlash::Flash
+            } else {
+                OledSaveFlash::None
+            },
             auto_save_flash_serial: self.display.auto_save_flash_serial,
             cpu_warn_percent: self.dsp_config.worker_warning_threshold.percent(),
             midi_enabled: self.midi.enabled,
@@ -319,11 +325,7 @@ impl PresentationScene {
             event_dot_level: self.transient.event_dot_level,
             display_brightness: self.ui.display_brightness,
             cpu_warn_percent: self.cpu_warn_percent,
-            save_flash: if self.auto_save_flash {
-                OledSaveFlash::Flash
-            } else {
-                OledSaveFlash::None
-            },
+            save_flash: self.save_flash.clone(),
             save_flash_serial: self.auto_save_flash_serial,
             aux_hints: self.aux_hints.clone(),
             aux_shift_layer: self.ui.shift_held || self.ui.combined_modifier_held,
