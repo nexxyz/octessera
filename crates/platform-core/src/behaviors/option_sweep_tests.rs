@@ -1,6 +1,6 @@
-//! Every Build option at its minimum, default and maximum: the tile frames of a few hundred ticks,
-//! untouched and after one press, must change from value to value and must neither stay empty nor
-//! fill the grid.
+//! Every Build option at its minimum, default and maximum and halfway between: the tile frames of
+//! a few hundred ticks, untouched and after one press, must change from minimum to default to
+//! maximum and must neither stay empty, nearly fill the grid nor freeze on a few frames.
 use super::{behavior_catalog, get_native_behavior, NativeBehavior};
 use crate::behavior::{
     BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext, DeviceInput, TileTriggerType,
@@ -12,6 +12,9 @@ use serde_json::{json, Map, Value};
 const TICKS: usize = 300;
 const PRESS_TICK: usize = 12;
 const TILES: usize = GRID_WIDTH * GRID_HEIGHT;
+const SATURATED: usize = TILES - 4;
+const FROZEN_BELOW: usize = 4;
+const FAIR_SHARE: usize = 10;
 const PLAY_FAMILY: &[&str] = &["none", "keys", "looper", "sequencer"];
 
 #[derive(PartialEq)]
@@ -58,25 +61,58 @@ fn lit(frame: &Frame) -> usize {
     frame.tiles.iter().filter(|tile| **tile).count()
 }
 
-fn sweep_values(item: &BehaviorConfigItem, default: Option<&Value>) -> Vec<Value> {
-    let mut values = match item.item_type {
-        BehaviorConfigItemType::Number => {
-            let mut values = vec![json!(item.min.unwrap())];
-            values.extend(default.cloned());
-            values.push(json!(item.max.unwrap()));
-            values
+fn distinct_frames(frames: &[Frame]) -> usize {
+    let mut distinct: Vec<&Frame> = Vec::new();
+    for frame in frames {
+        if !distinct.contains(&frame) {
+            distinct.push(frame);
         }
-        BehaviorConfigItemType::Bool => vec![json!(false), json!(true)],
-        BehaviorConfigItemType::Enum => item
-            .options
-            .iter()
-            .flatten()
-            .map(|option| json!(option))
-            .collect(),
-        BehaviorConfigItemType::Action => Vec::new(),
+    }
+    distinct.len()
+}
+
+/// Two runs differ when their lit counts or a fair share of their frames differ.
+fn differ(a: &Frames, b: &Frames) -> bool {
+    let total = |frames: &Frames| frames.iter().map(lit).sum::<usize>();
+    let changed = a.iter().zip(b).filter(|(a, b)| a != b).count();
+    total(a).abs_diff(total(b)) >= a.len() || changed * FAIR_SHARE >= a.len()
+}
+
+/// The values each option is run at, and the subset compared side by side: minimum, default and
+/// maximum, with the points halfway between checked for health only.
+fn sweep_values(item: &BehaviorConfigItem, default: Option<&Value>) -> (Vec<Value>, Vec<Value>) {
+    let (mut values, mut compared) = match item.item_type {
+        BehaviorConfigItemType::Number => {
+            let (min, max) = (item.min.unwrap() as i64, item.max.unwrap() as i64);
+            let default = default.and_then(Value::as_i64);
+            let middle = default.unwrap_or((min + max) / 2);
+            let step = item.step.unwrap_or(1).max(1) as i64;
+            let between = |a: i64, b: i64| min + ((a + b) / 2 - min) / step * step;
+            let values = [min, between(min, middle), middle, between(middle, max), max];
+            let compared = [Some(min), default, Some(max)].into_iter().flatten();
+            (
+                values.map(|value| json!(value)).to_vec(),
+                compared.map(|value| json!(value)).collect(),
+            )
+        }
+        BehaviorConfigItemType::Bool => (
+            vec![json!(false), json!(true)],
+            vec![json!(false), json!(true)],
+        ),
+        BehaviorConfigItemType::Enum => {
+            let options: Vec<Value> = item
+                .options
+                .iter()
+                .flatten()
+                .map(|option| json!(option))
+                .collect();
+            (options.clone(), options)
+        }
+        BehaviorConfigItemType::Action => (Vec::new(), Vec::new()),
     };
     values.dedup();
-    values
+    compared.dedup();
+    (values, compared)
 }
 
 fn config_with(defaults: &Map<String, Value>, key: &str, value: &Value) -> Value {
@@ -105,12 +141,17 @@ fn sweep_findings(id: &str) -> Vec<String> {
     let mut findings = Vec::new();
     let mut find = |text: String| findings.push(format!("{id}: {text}"));
     let base = Value::Object(defaults.clone());
-    if !play && run(behavior, base.clone(), false) == run(behavior, base, true) {
+    if !play
+        && !differ(
+            &run(behavior, base.clone(), false),
+            &run(behavior, base, true),
+        )
+    {
         find("a press changes nothing".into());
     }
     for item in &menu {
         let key = item.key.as_str();
-        let values = sweep_values(item, defaults.get(key));
+        let (values, compared) = sweep_values(item, defaults.get(key));
         let mut traces = Vec::new();
         for value in &values {
             let config = config_with(&defaults, key, value);
@@ -123,17 +164,29 @@ fn sweep_findings(id: &str) -> Vec<String> {
                 let tail = &frames[frames.len() / 2..];
                 if frames.iter().all(|frame| lit(frame) == 0) {
                     find(format!("{key}={value} {label} stays empty"));
-                } else if tail.iter().all(|frame| lit(frame) == TILES) {
+                } else if tail.iter().all(|frame| lit(frame) >= SATURATED) {
                     find(format!("{key}={value} {label} saturates"));
                 } else if !play && tail.iter().all(|frame| lit(frame) == 0) {
                     find(format!("{key}={value} {label} dies out"));
+                } else if !play && distinct_frames(tail) < FROZEN_BELOW {
+                    find(format!("{key}={value} {label} freezes"));
                 }
             }
-            traces.push((untouched, pressed));
+            if compared.contains(value) {
+                traces.push((value, untouched, pressed));
+            }
         }
-        for (index, value) in values.iter().enumerate().skip(1) {
-            if traces[index] == traces[index - 1] {
-                let previous = &values[index - 1];
+        for pair in traces.windows(2) {
+            let [(previous, previous_untouched, previous_pressed), (value, untouched, pressed)] =
+                pair
+            else {
+                unreachable!()
+            };
+            let same = |a: &Frames, b: &Frames| match play {
+                true => a == b,
+                false => !differ(a, b),
+            };
+            if same(untouched, previous_untouched) && same(pressed, previous_pressed) {
                 find(format!("{key}={previous} and {value} play the same"));
             }
         }
@@ -146,9 +199,19 @@ const EXTREME: &str =
     "a physical extreme: no fade, damping or kill fills the grid, full evaporation dries it";
 const CAP: &str = "a cap: only reached after many presses or minutes of spawning";
 const OFFSET: &str = "an offset within the spawn interval: values a whole interval apart match";
+const NO_FADE: &str = "0 is off: nothing fades, so the lit tiles stand still";
+const CALM: &str = "0 is off: with no wind or no erosion the dunes rest";
+const FOREVER: &str = "0 is forever: crystals never dissolve, so they fill the grid";
+const LOOP: &str = "a loop of States frames: the waves settle into spirals that cycle every state";
+const HELD_ZOOM: &str = "0 holds the zoom: Drift alone sways between two views";
+const ROW_ACCENT: &str =
+    "changes only the trigger a cleared row sends; few rows clear in 300 ticks";
+const CORAL_FILLS: &str = "a known fault: away from its defaults the reef fills the grid";
+const DLA_FILLS: &str = "a known fault: long Cell Life or Spawn Interval 1 fills the grid";
+const BROKEN: &str = "a known fault its behavior's own fix removes";
 const UNDRAWN: &str = "sequencer pages only differ once they are drawn on";
 const LIFE_AT_REST: &str =
-    "the press breaks the blinker; with no spawning, a world that dies out rests until pressed";
+    "with no spawning, Life settles into still lifes and blinkers or dies out, and rests until pressed";
 
 /// Every finding the sweep makes on purpose, word for word, with its reason. A new finding fails,
 /// even for an option listed here, and so does an entry that is no longer found, so a fix shows
@@ -217,6 +280,170 @@ const EXPECTED: &[(&str, &str)] = &[
     ("bubbles: maxBubbles=24 and 64 play the same", CAP),
     ("gravity: spawnRatePct=0 untouched stays empty", OFF),
     ("gravity: spawnRatePct=0 pressed dies out", OFF),
+    ("cyclic: states=3 untouched freezes", LOOP),
+    ("cyclic: states=3 pressed freezes", LOOP),
+    ("forest_fire: growChancePct=0 untouched freezes", OFF),
+    ("forest_fire: growChancePct=0 pressed freezes", OFF),
+    ("forest_fire: spreadChancePct=0 untouched saturates", OFF),
+    (
+        "forest_fire: lightningChancePerThousand=0 untouched saturates",
+        OFF,
+    ),
+    (
+        "forest_fire: lightningChancePerThousand=0 pressed saturates",
+        OFF,
+    ),
+    ("life: randomCellsPerTick=0 untouched freezes", LIFE_AT_REST),
+    ("life: randomTickInterval=1 untouched freezes", LIFE_AT_REST),
+    (
+        "life: randomTickInterval=10 untouched freezes",
+        LIFE_AT_REST,
+    ),
+    ("life: randomTickInterval=10 pressed dies out", LIFE_AT_REST),
+    (
+        "life: randomTickInterval=20 untouched freezes",
+        LIFE_AT_REST,
+    ),
+    (
+        "life: gliderSpawnInterval=0 untouched freezes",
+        LIFE_AT_REST,
+    ),
+    ("life: spawnStep=0 untouched freezes", LIFE_AT_REST),
+    ("life: spawnStep=31 untouched freezes", LIFE_AT_REST),
+    ("life: spawnStep=31 pressed dies out", LIFE_AT_REST),
+    ("life: spawnStep=63 untouched freezes", LIFE_AT_REST),
+    (
+        "predator_prey: grassGrowChancePct=100 untouched saturates",
+        BROKEN,
+    ),
+    (
+        "predator_prey: grassGrowChancePct=100 pressed saturates",
+        BROKEN,
+    ),
+    (
+        "predator_prey: predatorReproducePct=0 untouched saturates",
+        BROKEN,
+    ),
+    ("twinkle: fadeChancePct=0 untouched freezes", NO_FADE),
+    ("twinkle: fadeChancePct=0 pressed freezes", NO_FADE),
+    ("reaction_diffusion: killPct=31 untouched saturates", BROKEN),
+    ("reaction_diffusion: killPct=31 pressed saturates", BROKEN),
+    ("rivers: evaporationPct=54 untouched stays empty", BROKEN),
+    ("rivers: evaporationPct=54 pressed dies out", BROKEN),
+    (
+        "fractal_explorer: zoomRatePct=0 untouched freezes",
+        HELD_ZOOM,
+    ),
+    ("fractal_explorer: zoomRatePct=0 pressed freezes", HELD_ZOOM),
+    ("fractal_explorer: zoomRatePct=54 untouched freezes", BROKEN),
+    ("fractal_explorer: zoomRatePct=54 pressed freezes", BROKEN),
+    (
+        "fractal_explorer: zoomRatePct=100 untouched freezes",
+        BROKEN,
+    ),
+    ("fractal_explorer: zoomRatePct=100 pressed freezes", BROKEN),
+    ("maze_growth: carvePct=0 pressed freezes", OFF),
+    ("shapes: lifespan=12 untouched freezes", BROKEN),
+    ("shapes: lifespan=12 pressed freezes", BROKEN),
+    ("coral: growthPct=0 untouched freezes", OFF),
+    ("coral: growthPct=0 pressed freezes", OFF),
+    ("coral: growthPct=67 untouched saturates", CORAL_FILLS),
+    ("coral: growthPct=67 pressed saturates", CORAL_FILLS),
+    ("coral: growthPct=100 untouched saturates", CORAL_FILLS),
+    ("coral: growthPct=100 pressed saturates", CORAL_FILLS),
+    ("coral: competitionPct=0 untouched saturates", CORAL_FILLS),
+    ("coral: competitionPct=0 pressed saturates", CORAL_FILLS),
+    ("coral: competitionPct=10 pressed saturates", CORAL_FILLS),
+    ("coral: competitionPct=100 untouched saturates", CORAL_FILLS),
+    ("coral: breakawayAge=1 untouched saturates", CORAL_FILLS),
+    ("coral: breakawayAge=1 pressed saturates", CORAL_FILLS),
+    ("coral: breakawayAge=15 pressed saturates", CORAL_FILLS),
+    ("coral: breakawayAge=47 untouched saturates", CORAL_FILLS),
+    ("coral: breakawayAge=47 pressed saturates", CORAL_FILLS),
+    ("coral: breakawayAge=64 untouched saturates", CORAL_FILLS),
+    ("coral: breakawayAge=64 pressed saturates", CORAL_FILLS),
+    (
+        "crystal_growth: growthChancePct=100 untouched saturates",
+        BROKEN,
+    ),
+    (
+        "crystal_growth: growthChancePct=100 pressed saturates",
+        BROKEN,
+    ),
+    ("crystal_growth: cellLife=0 untouched saturates", FOREVER),
+    ("crystal_growth: cellLife=0 pressed saturates", FOREVER),
+    (
+        "crystal_growth: symmetry=\"diagonal\" untouched saturates",
+        BROKEN,
+    ),
+    (
+        "crystal_growth: symmetry=\"diagonal\" pressed saturates",
+        BROKEN,
+    ),
+    ("dla: spawnInterval=1 untouched saturates", DLA_FILLS),
+    ("dla: spawnInterval=1 pressed saturates", DLA_FILLS),
+    ("dla: cellLife=176 untouched saturates", DLA_FILLS),
+    ("dla: cellLife=176 pressed saturates", DLA_FILLS),
+    ("dla: cellLife=256 untouched saturates", DLA_FILLS),
+    ("dla: cellLife=256 pressed saturates", DLA_FILLS),
+    ("vines: growthPct=0 untouched freezes", OFF),
+    ("vines: growthPct=0 pressed freezes", OFF),
+    ("gravity: spawnRatePct=60 untouched saturates", BROKEN),
+    ("gravity: spawnRatePct=60 pressed saturates", BROKEN),
+    ("gravity: spawnRatePct=100 untouched saturates", BROKEN),
+    ("gravity: spawnRatePct=100 pressed saturates", BROKEN),
+    ("sand_ripples: windStrengthPct=0 untouched freezes", CALM),
+    ("sand_ripples: windStrengthPct=0 pressed freezes", CALM),
+    (
+        "sand_ripples: windStrengthPct=22 untouched saturates",
+        BROKEN,
+    ),
+    ("sand_ripples: windStrengthPct=22 pressed saturates", BROKEN),
+    (
+        "sand_ripples: windStrengthPct=45 untouched saturates",
+        BROKEN,
+    ),
+    ("sand_ripples: windStrengthPct=45 pressed saturates", BROKEN),
+    (
+        "sand_ripples: windStrengthPct=72 untouched saturates",
+        BROKEN,
+    ),
+    ("sand_ripples: windStrengthPct=72 pressed saturates", BROKEN),
+    (
+        "sand_ripples: windStrengthPct=100 untouched saturates",
+        BROKEN,
+    ),
+    (
+        "sand_ripples: windStrengthPct=100 pressed saturates",
+        BROKEN,
+    ),
+    ("sand_ripples: depositionPct=0 untouched saturates", BROKEN),
+    ("sand_ripples: depositionPct=0 pressed saturates", BROKEN),
+    ("sand_ripples: depositionPct=17 untouched saturates", BROKEN),
+    ("sand_ripples: depositionPct=17 pressed saturates", BROKEN),
+    ("sand_ripples: depositionPct=35 untouched saturates", BROKEN),
+    ("sand_ripples: depositionPct=35 pressed saturates", BROKEN),
+    ("sand_ripples: depositionPct=67 untouched saturates", BROKEN),
+    ("sand_ripples: depositionPct=67 pressed saturates", BROKEN),
+    (
+        "sand_ripples: depositionPct=100 untouched saturates",
+        BROKEN,
+    ),
+    ("sand_ripples: depositionPct=100 pressed saturates", BROKEN),
+    ("sand_ripples: erosionPct=0 untouched saturates", BROKEN),
+    ("sand_ripples: erosionPct=0 pressed saturates", BROKEN),
+    ("sand_ripples: erosionPct=12 untouched saturates", BROKEN),
+    ("sand_ripples: erosionPct=12 pressed saturates", BROKEN),
+    ("sand_ripples: erosionPct=25 untouched saturates", BROKEN),
+    ("sand_ripples: erosionPct=25 pressed saturates", BROKEN),
+    ("sand_ripples: erosionPct=62 untouched saturates", BROKEN),
+    ("sand_ripples: erosionPct=62 pressed saturates", BROKEN),
+    ("sand_ripples: erosionPct=100 untouched saturates", BROKEN),
+    ("sand_ripples: erosionPct=100 pressed saturates", BROKEN),
+    (
+        "blockout: rowSpawn=\"stable\" and \"new\" play the same",
+        ROW_ACCENT,
+    ),
 ];
 
 #[test]
