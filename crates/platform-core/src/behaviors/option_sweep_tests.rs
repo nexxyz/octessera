@@ -203,6 +203,7 @@ const ROW_ACCENT: &str =
     "changes only the trigger a cleared row sends; few rows clear in 300 ticks";
 const SPAWN_COUNT: &str = "only with Spawn Count above 0";
 const PRESS_NOOP: &str = "the tapped tile already holds a block, paddle or crystal at that moment";
+const RARE_BURN: &str = "the forest only burns below a few trees now and then";
 const DEAD_ZONE: &str = "a known dead zone: neighboring values play alike, left for a later pass";
 const UNDRAWN: &str = "sequencer pages only differ once they are drawn on";
 const LIFE_AT_REST: &str =
@@ -318,12 +319,8 @@ const EXPECTED: &[(&str, &str)] = &[
     ("brain: spawnStep=31 and 63 play the same", OFFSET),
     ("forest_fire: spreadChancePct=0 pressed saturates", OFF),
     (
-        "forest_fire: reseedThresholdPct=2 and 5 play the same",
-        DEAD_ZONE,
-    ),
-    (
-        "forest_fire: reseedThresholdPct=52 and 100 play the same",
-        DEAD_ZONE,
+        "forest_fire: reseedThresholdPct=7 and 15 play the same",
+        RARE_BURN,
     ),
     (
         "life: randomTickInterval=1 and 10 play the same",

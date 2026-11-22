@@ -56,7 +56,7 @@ fn state_from_config(config: &Value) -> (ForestFireState, bool) {
         tree_density_pct: number_field(field(config, "treeDensityPct"), 34, 0, 100),
         grow_chance_pct: number_field(field(config, "growChancePct"), 5, 0, 100),
         spread_chance_pct: number_field(field(config, "spreadChancePct"), 70, 0, 100),
-        reseed_threshold_pct: number_field(field(config, "reseedThresholdPct"), 5, 0, 100),
+        reseed_threshold_pct: number_field(field(config, "reseedThresholdPct"), 15, 0, 100),
         lightning_chance_per_thousand: number_field(
             field(config, "lightningChancePerThousand"),
             1,
@@ -230,10 +230,10 @@ fn trigger_for(previous: u8, next: u8) -> TileTriggerType {
 
 fn reseed_if_needed(state: &mut ForestFireState) {
     let mut live = state.cells.iter().filter(|cell| **cell != EMPTY).count();
-    if live * 100 >= TILE_COUNT * state.reseed_threshold_pct as usize {
+    let target = (TILE_COUNT * state.tree_density_pct as usize / 100).max(1);
+    if live * 100 >= target * state.reseed_threshold_pct as usize {
         return;
     }
-    let target = (TILE_COUNT * state.tree_density_pct as usize / 100).max(1);
     let mut empty = state
         .cells
         .iter()
