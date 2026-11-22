@@ -1,3 +1,5 @@
+use crate::synth::fx::resident_zeros;
+
 /// A stereo ring of the most recent input frames, read back at a distance behind the newest.
 #[derive(Clone, Debug)]
 pub(super) struct CaptureRing {
@@ -10,8 +12,8 @@ impl CaptureRing {
     pub(super) fn new(frames: usize) -> Self {
         let frames = frames.max(4);
         Self {
-            left: vec![0.0; frames],
-            right: vec![0.0; frames],
+            left: resident_zeros(frames),
+            right: resident_zeros(frames),
             newest: frames - 1,
         }
     }

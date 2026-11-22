@@ -1,5 +1,5 @@
 use super::{ms_param_len, pct_param, GainRamp, ENVELOPE_MS};
-use crate::synth::fx::{comb_bank_frame, comb_buffers};
+use crate::synth::fx::{comb_bank_frame, comb_buffers, resident_zeros};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -56,7 +56,7 @@ pub(in crate::synth::engine) struct WashVoice {
 
 impl WashVoice {
     pub(super) fn new(params: WashParams, sample_rate: u32) -> Self {
-        let scaled = |n: usize| vec![0.0; (n * sample_rate as usize / 44_100).max(1)];
+        let scaled = |n: usize| resident_zeros((n * sample_rate as usize / 44_100).max(1));
         Self {
             params,
             combs: comb_buffers(COMB_SCALE, sample_rate),

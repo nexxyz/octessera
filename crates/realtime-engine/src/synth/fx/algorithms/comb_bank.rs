@@ -4,7 +4,8 @@ pub const REVERB_COMB_LENGTHS: [usize; 4] = [1557, 1617, 1491, 1422];
 
 /// Empty comb lines at `sample_rate`, `scale` times the shared lengths.
 pub(in crate::synth) fn comb_buffers(scale: usize, sample_rate: u32) -> [Vec<f32>; 4] {
-    REVERB_COMB_LENGTHS.map(|n| vec![0.0; (n * scale * sample_rate as usize / 44_100).max(1)])
+    REVERB_COMB_LENGTHS
+        .map(|n| super::resident_zeros((n * scale * sample_rate as usize / 44_100).max(1)))
 }
 
 const REVERB_FULL_INPUT_DECAY: f32 = 0.9;
