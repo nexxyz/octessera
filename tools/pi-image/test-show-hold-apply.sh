@@ -11,7 +11,7 @@ mkdir -p "$work/bin"
 cat >"$work/bin/stub" <<'EOF'
 #!/bin/sh
 echo "$(basename "$0") $*" >> "$STUB_LOG"
-if [ "$(basename "$0")" = nmcli ] && [ -e "$STUB_LOG.nmcli-fails" ]; then exit 1; fi
+case "$(basename "$0")" in nmcli|rfkill) if [ -e "$STUB_LOG.radio-fails" ]; then exit 1; fi ;; esac
 EOF
 chmod +x "$work/bin/stub"
 for command in nmcli systemctl systemd-run rfkill flock; do
@@ -59,9 +59,9 @@ check_board() {
     expect "tick 300 $(show_id)"
     if [ -e "$dir/elapsed" ]; then fail "a fresh show banked time"; fi
 
-    touch "$STUB_LOG.nmcli-fails"
-    apply || fail "a failing nmcli stopped the apply"
-    rm "$STUB_LOG.nmcli-fails"
+    touch "$STUB_LOG.radio-fails"
+    apply || fail "a failing nmcli or rfkill stopped the apply"
+    rm "$STUB_LOG.radio-fails"
     expect "--on-active=300"
 
     apply tick 300 "$(show_id)"

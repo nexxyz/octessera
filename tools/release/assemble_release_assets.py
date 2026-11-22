@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import stat
+import subprocess
 import sys
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -274,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
             args.release_assets,
             args.version,
         )
-    except (ReleaseArtifactError, ValueError, KeyError, OSError, zipfile.BadZipFile) as error:
+    except (ReleaseArtifactError, ValueError, KeyError, OSError, zipfile.BadZipFile, subprocess.CalledProcessError) as error:
         print(f"release asset verification failed: {error}", file=sys.stderr)
         return 1
     print(f"Verified exact release asset set under {args.release_assets}")

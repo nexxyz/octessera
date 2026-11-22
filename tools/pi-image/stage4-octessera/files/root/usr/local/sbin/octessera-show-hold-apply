@@ -48,13 +48,13 @@ left=$((length - elapsed))
 active=0
 if [ "$left" -gt 0 ]; then
     active=1
-    rfkill block wlan
+    rfkill block wlan || true
     next=$((left < step ? left : step))
     systemd-run --quiet --unit="$release-$(cut -d. -f1 /proc/uptime)-$$" --on-active="$next" \
         --timer-property=AccuracySec=1s /usr/local/sbin/octessera-show-hold-apply tick "$next" "$show"
 else
     rm -f "$dir/length" "$dir/elapsed"
-    rfkill unblock wlan
+    rfkill unblock wlan || true
 fi
 
 # The once-a-minute network check would switch the radio back on, so it only

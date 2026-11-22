@@ -336,6 +336,7 @@ def put_back_root_files(version: str) -> None:
         (SYSTEM_ROOT / path).unlink(missing_ok=True)
     os.sync()
     added.unlink()
+    fsync_directory(added.parent)
     shutil.rmtree(aside, ignore_errors=True)
 
 
