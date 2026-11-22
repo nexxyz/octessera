@@ -112,6 +112,18 @@ fn grid_press_strike_now_and_serialization_are_stable() {
 }
 
 #[test]
+fn a_trail_left_without_a_leader_clears_for_a_new_strike() {
+    let mut tiles = vec![EMPTY; TILE_COUNT];
+    tiles[grid_index(2, 2)] = TRAIL;
+    tiles[grid_index(2, 3)] = TRAIL;
+    let state =
+        lightning_deserialize(serde_json::json!({ "tiles": tiles, "leaders": [] })).unwrap();
+    let ticked = lightning_on_tick(state, &mut BehaviorContext::new(120.0));
+    assert!(!ticked.tiles.contains(&TRAIL));
+    assert_eq!(ticked.leaders.len(), 1);
+}
+
+#[test]
 fn the_default_bolt_flashes_as_one_path_from_edge_to_edge() {
     let mut context = BehaviorContext::new(120.0);
     let mut state = lightning_init(serde_json::json!({})).unwrap();

@@ -177,7 +177,7 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
             cells.fill(false);
             ages.fill(0);
             seed_starter_cluster(&mut cells, &mut ages);
-        } else if let Some((x, y)) = (0..WALKERS).find_map(|_| walk_to_cluster(&cells)) {
+        } else if let Some((x, y)) = release_walkers(&cells) {
             set_cluster_cell(&mut cells, &mut ages, x, y);
         }
     }
@@ -203,11 +203,13 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
     }
 }
 
-/// Releases one walker from a free rim tile (any free tile once the rim is full) and lets it wander until it sits next to the
-/// cluster, where it sticks: the branching growth that gives diffusion-limited aggregation its
-/// name. A walker that finds nothing in its steps is lost, and the next one tries.
-fn walk_to_cluster(cells: &[bool]) -> Option<(usize, usize)> {
-    let mut rng = crate::behavior_random::rng();
+/// Releases walkers from free rim tiles (any free tile once the rim is full), one after another,
+/// until one wanders next to the cluster and sticks: the branching growth that gives
+/// diffusion-limited aggregation its name. Nothing sticks to an empty grid.
+fn release_walkers(cells: &[bool]) -> Option<(usize, usize)> {
+    if !cells.contains(&true) {
+        return None;
+    }
     let free = (0..TILE_COUNT)
         .filter(|index| !cells[*index])
         .collect::<Vec<_>>();
@@ -217,7 +219,15 @@ fn walk_to_cluster(cells: &[bool]) -> Option<(usize, usize)> {
         .filter(|index| on_rim(index % GRID_WIDTH, index / GRID_WIDTH))
         .collect::<Vec<_>>();
     let starts = if rim.is_empty() { &free } else { &rim };
-    let start = *starts.get(rng.gen_range(0..starts.len().max(1)))?;
+    if starts.is_empty() {
+        return None;
+    }
+    (0..WALKERS).find_map(|_| walk_to_cluster(cells, starts))
+}
+
+fn walk_to_cluster(cells: &[bool], starts: &[usize]) -> Option<(usize, usize)> {
+    let mut rng = crate::behavior_random::rng();
+    let start = starts[rng.gen_range(0..starts.len())];
     let (mut x, mut y) = (start % GRID_WIDTH, start / GRID_WIDTH);
     for _ in 0..WALKER_STEPS {
         if has_adjacent_cluster(cells, x, y) {

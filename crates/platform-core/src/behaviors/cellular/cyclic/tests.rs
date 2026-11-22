@@ -95,28 +95,19 @@ fn menu_palette_and_normalization_contract() {
 }
 
 #[test]
-fn grid_press_exact_world_tile_and_wrap_deactivate() {
+fn every_press_lights_its_tile_as_a_front() {
     let mut context = context();
-    let state = empty();
-    let state = cyclic_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
-    assert_eq!(state.cells[grid_index(2, 3)], 1);
-    assert_eq!(
-        state.trigger_types[grid_index(2, 3)],
-        TileTriggerType::Activate
-    );
-
-    let state = cyclic_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
-    assert_eq!(state.cells[grid_index(2, 3)], 2);
-    assert_eq!(
-        state.trigger_types[grid_index(2, 3)],
-        TileTriggerType::Deactivate
-    );
-
-    let mut state = state;
-    state.cells[grid_index(2, 3)] = state.states - 1;
-    let state = cyclic_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
-    assert_eq!(state.cells[grid_index(2, 3)], 0);
-    assert_eq!(state.trigger_types[grid_index(2, 3)], TileTriggerType::None);
+    let mut state = empty();
+    for cell in [0, 1, 2, state.states - 1] {
+        state.cells[grid_index(2, 3)] = cell;
+        state = cyclic_on_input(state, DeviceInput::GridPress { x: 2, y: 3 }, &mut context);
+        assert_eq!(state.cells[grid_index(2, 3)], FRONT, "from {cell}");
+        assert_eq!(
+            state.trigger_types[grid_index(2, 3)],
+            TileTriggerType::Activate,
+            "from {cell}"
+        );
+    }
 }
 
 #[test]

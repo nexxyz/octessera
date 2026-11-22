@@ -56,18 +56,25 @@ pub fn cyclic_on_input(
 ) -> CyclicState {
     normalize(&mut state);
     let previous = state.cells.clone();
-    match input {
+    let pressed = match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
-            advance_cell(&mut state, grid_index(x, y));
+            let index = grid_index(x, y);
+            state.cells[index] = FRONT;
+            state.ages[index] = 0;
+            Some(index)
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "seedCycle" =>
         {
             seed_cycle(&mut state);
+            None
         }
         _ => return state,
-    }
+    };
     state.trigger_types = triggers(&previous, &state.cells);
+    if let Some(index) = pressed {
+        state.trigger_types[index] = TileTriggerType::Activate;
+    }
     state
 }
 
@@ -200,11 +207,6 @@ fn number(value: Option<Value>, default: u8, min: u8, max: u8) -> u8 {
             .unwrap_or(default),
         None => default,
     }
-}
-
-fn advance_cell(state: &mut CyclicState, index: usize) {
-    state.cells[index] = (state.cells[index] + 1) % state.states;
-    state.ages[index] = 0;
 }
 
 /// Scatters every state across the grid: a fresh mix the waves can organize into spirals.

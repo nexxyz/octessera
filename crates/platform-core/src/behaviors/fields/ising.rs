@@ -6,14 +6,42 @@ use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
-use rand::Rng;
+use rand::{Rng, RngCore};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// Temperature 100 is this hot; the 2D Ising critical point (about 2.27) sits near 35.
-const MAX_TEMPERATURE: f32 = 6.5;
-/// Field Strength 100 outweighs all four neighbors.
-const MAX_FIELD: f32 = 4.5;
+/// Energies and temperatures count in 1/200 of one agreeing neighbor, so every setting is a whole
+/// number and the flip odds come out the same on every platform.
+const UNITS_PER_NEIGHBOR: i32 = 200;
+/// Temperature 100 is 6.5 neighbors hot; the 2D Ising critical point (about 2.27) sits near 35.
+const TEMPERATURE_UNITS_PER_PCT: i32 = 13;
+/// Field Strength 100 is 4.5 neighbors, more than all four.
+const FIELD_UNITS_PER_PCT: i32 = 9;
+
+/// The Metropolis odds of a flip that costs `energy`, as a threshold for a `u32` roll: certain when
+/// it frees energy, never at temperature 0, otherwise `exp(-energy / temperature)`, at most a half
+/// so a hot grid does not strobe. The exponential is built from multiplications only, so it is
+/// bit-exact everywhere.
+fn flip_threshold(energy: i32, temperature: i32) -> u32 {
+    if energy < 0 {
+        return u32::MAX;
+    }
+    if temperature == 0 {
+        return 0;
+    }
+    let mut odds = 1.0 - f64::from(energy) / f64::from(temperature) / 1_048_576.0;
+    if odds <= 0.0 {
+        return 0;
+    }
+    for _ in 0..20 {
+        odds *= odds;
+    }
+    (odds.min(0.5) * 4_294_967_296.0) as u32
+}
+
+fn pct_threshold(pct: u32) -> u32 {
+    (u64::from(pct.min(100)) * u64::from(u32::MAX) / 100) as u32
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IsingState {
@@ -106,11 +134,11 @@ pub fn ising_on_tick(mut state: IsingState, _: &mut BehaviorContext) -> IsingSta
     normalize(&mut state);
     let prev = state.spins.clone();
     let mut next = prev.clone();
-    let heat_bonus = if state.heat_ticks > 0 { 35.0 } else { 0.0 };
-    let temperature = f32::from(state.temperature_pct) * MAX_TEMPERATURE / 100.0;
+    let heat_bonus = if state.heat_ticks > 0 { 35 } else { 0 };
+    let temperature = i32::from(state.temperature_pct) * TEMPERATURE_UNITS_PER_PCT;
     let field =
-        f32::from(state.field_sign) * f32::from(state.field_strength_pct) * MAX_FIELD / 100.0;
-    let noise = (f32::from(state.noise_pct) + heat_bonus) / 100.0;
+        i32::from(state.field_sign) * i32::from(state.field_strength_pct) * FIELD_UNITS_PER_PCT;
+    let noise = pct_threshold(u32::from(state.noise_pct) + heat_bonus);
     let parity = (state.tick_counter % 2) as usize;
     let mut rng = crate::behavior_random::rng();
     for y in 0..GRID_HEIGHT {
@@ -119,16 +147,10 @@ pub fn ising_on_tick(mut state: IsingState, _: &mut BehaviorContext) -> IsingSta
                 continue;
             }
             let i = grid_index(x, y);
-            let spin = f32::from(prev[i]);
-            let energy = 2.0 * spin * (neighbor_sum(&prev, x, y) as f32 + field);
-            let accept = if energy < 0.0 {
-                1.0
-            } else if temperature > 0.0 {
-                (-energy / temperature).exp().min(0.5)
-            } else {
-                0.0
-            };
-            if rng.gen::<f32>() < accept || rng.gen::<f32>() < noise {
+            let energy =
+                2 * i32::from(prev[i]) * (neighbor_sum(&prev, x, y) * UNITS_PER_NEIGHBOR + field);
+            let accept = flip_threshold(energy, temperature);
+            if rng.next_u32() < accept || rng.next_u32() < noise {
                 next[i] = -prev[i];
             }
         }

@@ -93,13 +93,8 @@ fn menu_defaults(behavior: NativeBehavior, menu: &[BehaviorConfigItem]) -> Map<S
         .collect()
 }
 
-/// What the sweep saw: the option row (empty for the behavior as a whole) and a description.
-struct Finding {
-    key: String,
-    text: String,
-}
-
-fn sweep_findings(id: &str) -> Vec<Finding> {
+/// What the sweep saw for one behavior, one line per finding.
+fn sweep_findings(id: &str) -> Vec<String> {
     let behavior = get_native_behavior(id).unwrap();
     let menu = behavior
         .config_menu(&behavior.init(Value::Null).unwrap())
@@ -108,15 +103,10 @@ fn sweep_findings(id: &str) -> Vec<Finding> {
     let defaults = menu_defaults(behavior, &menu);
     let play = PLAY_FAMILY.contains(&id);
     let mut findings = Vec::new();
-    let mut find = |key: &str, text: String| {
-        findings.push(Finding {
-            key: key.into(),
-            text: format!("{id}: {text}"),
-        })
-    };
+    let mut find = |text: String| findings.push(format!("{id}: {text}"));
     let base = Value::Object(defaults.clone());
     if !play && run(behavior, base.clone(), false) == run(behavior, base, true) {
-        find("", "a press changes nothing".into());
+        find("a press changes nothing".into());
     }
     for item in &menu {
         let key = item.key.as_str();
@@ -132,11 +122,11 @@ fn sweep_findings(id: &str) -> Vec<Finding> {
                 }
                 let tail = &frames[frames.len() / 2..];
                 if frames.iter().all(|frame| lit(frame) == 0) {
-                    find(key, format!("{key}={value} {label} stays empty"));
+                    find(format!("{key}={value} {label} stays empty"));
                 } else if tail.iter().all(|frame| lit(frame) == TILES) {
-                    find(key, format!("{key}={value} {label} saturates"));
+                    find(format!("{key}={value} {label} saturates"));
                 } else if !play && tail.iter().all(|frame| lit(frame) == 0) {
-                    find(key, format!("{key}={value} {label} dies out"));
+                    find(format!("{key}={value} {label} dies out"));
                 }
             }
             traces.push((untouched, pressed));
@@ -144,157 +134,126 @@ fn sweep_findings(id: &str) -> Vec<Finding> {
         for (index, value) in values.iter().enumerate().skip(1) {
             if traces[index] == traces[index - 1] {
                 let previous = &values[index - 1];
-                find(key, format!("{key}={previous} and {value} play the same"));
+                find(format!("{key}={previous} and {value} play the same"));
             }
         }
     }
     findings
 }
 
-/// Options the sweep flags on purpose, each with the reason. Every entry must still be flagged, so
-/// a fix shows up here as a stale entry to delete.
-const EXPECTED: &[(&str, &str, &str)] = &[
+const OFF: &str = "0 is off: the world was told to rest";
+const EXTREME: &str =
+    "a physical extreme: no fade, damping or kill fills the grid, full evaporation dries it";
+const CAP: &str = "a cap: only reached after many presses or minutes of spawning";
+const OFFSET: &str = "an offset within the spawn interval: values a whole interval apart match";
+const UNDRAWN: &str = "sequencer pages only differ once they are drawn on";
+
+/// Every finding the sweep makes on purpose, word for word, with its reason. A new finding fails,
+/// even for an option listed here, and so does an entry that is no longer found, so a fix shows
+/// up as a stale entry to delete.
+const EXPECTED: &[(&str, &str)] = &[
+    ("sequencer: pagesX=1 and 4 play the same", UNDRAWN),
+    ("sequencer: pagesY=1 and 4 play the same", UNDRAWN),
+    ("sequencer: pageX=1 and 4 play the same", UNDRAWN),
+    ("sequencer: pageY=1 and 4 play the same", UNDRAWN),
+    ("sequencer: advanceSteps=0 and 64 play the same", UNDRAWN),
+    ("ant: maxAnts=50 and 100 play the same", CAP),
+    ("brain: seedInterval=0 untouched stays empty", OFF),
+    ("brain: seedInterval=0 pressed dies out", OFF),
+    ("brain: randomSeedCells=0 untouched stays empty", OFF),
+    ("brain: randomSeedCells=0 pressed dies out", OFF),
     (
-        "sequencer",
-        "pagesX",
-        "pages only differ once they are drawn on",
-    ),
-    (
-        "sequencer",
-        "pagesY",
-        "pages only differ once they are drawn on",
-    ),
-    (
-        "sequencer",
-        "pageX",
-        "pages only differ once they are drawn on",
-    ),
-    (
-        "sequencer",
-        "pageY",
-        "pages only differ once they are drawn on",
-    ),
-    (
-        "sequencer",
-        "advanceSteps",
-        "pages only differ once they are drawn on",
-    ),
-    ("brain", "seedInterval", "0 is off: an unseeded brain rests"),
-    (
-        "brain",
-        "randomSeedCells",
-        "0 is off: an unseeded brain rests",
-    ),
-    ("twinkle", "birthChancePct", "0 is off: no star is born"),
-    ("ink", "autoDropInterval", "0 is off: no drop falls"),
-    (
-        "reaction_diffusion",
-        "killPct",
-        "no kill lets chemical B take the grid",
-    ),
-    (
-        "reaction_diffusion",
-        "diffusionPct",
-        "full diffusion spreads B everywhere",
-    ),
-    (
-        "reaction_diffusion",
-        "reactionPct",
-        "a doubled reaction floods the grid",
-    ),
-    ("rivers", "rainPct", "0 is off: no rain, no river"),
-    (
-        "rivers",
-        "evaporationPct",
-        "full evaporation dries every stream",
-    ),
-    (
-        "wave",
-        "autoImpulseInterval",
-        "0 is off: no impulse strikes",
-    ),
-    (
-        "wave",
-        "dampingPct",
-        "no damping lets the waves fill the grid",
-    ),
-    ("ink", "fadePct", "no fade lets the pigment fill the grid"),
-    (
-        "crystal_growth",
-        "growthChancePct",
-        "certain growth fills the grid",
-    ),
-    ("bubbles", "spawnInterval", "0 is off: no bubble rises"),
-    ("gravity", "spawnRatePct", "0 is off: no sand falls"),
-    (
-        "cracks",
-        "stressPct",
-        "0 is off: an unstressed pane stays clear",
-    ),
-    (
-        "shapes",
-        "lifespan",
-        "the longest trails keep the grid lit, as they should",
-    ),
-    (
-        "ant",
-        "maxAnts",
-        "a cap: only reached after many presses or minutes of spawning",
-    ),
-    (
-        "bounce",
-        "maxBalls",
-        "a cap: only reached after many presses",
-    ),
-    (
-        "bubbles",
-        "maxBubbles",
-        "a cap: only reached after many presses",
-    ),
-    (
-        "life",
-        "randomTickInterval",
+        "life: randomTickInterval=1 and 20 play the same",
         "only with Spawn Count above 0",
     ),
+    ("life: spawnStep=0 and 63 play the same", OFFSET),
+    ("twinkle: birthChancePct=0 untouched dies out", OFF),
+    ("twinkle: birthChancePct=0 pressed dies out", OFF),
+    ("ink: fadePct=0 untouched saturates", EXTREME),
+    ("ink: fadePct=0 pressed saturates", EXTREME),
+    ("ink: autoDropInterval=0 untouched dies out", OFF),
+    ("ink: autoDropInterval=0 pressed dies out", OFF),
+    ("raindrops: spawnStep=0 and 63 play the same", OFFSET),
+    ("reaction_diffusion: killPct=0 untouched saturates", EXTREME),
+    ("reaction_diffusion: killPct=0 pressed saturates", EXTREME),
     (
-        "life",
-        "spawnStep",
-        "an offset within the spawn interval: values a whole interval apart match",
+        "reaction_diffusion: diffusionPct=100 untouched saturates",
+        EXTREME,
     ),
     (
-        "raindrops",
-        "spawnStep",
-        "an offset within the spawn interval: values a whole interval apart match",
+        "reaction_diffusion: diffusionPct=100 pressed saturates",
+        EXTREME,
     ),
     (
-        "wave",
-        "spawnStep",
-        "an offset within the spawn interval: values a whole interval apart match",
+        "reaction_diffusion: reactionPct=100 untouched saturates",
+        EXTREME,
     ),
     (
-        "bubbles",
-        "spawnStep",
-        "an offset within the spawn interval: values a whole interval apart match",
+        "reaction_diffusion: reactionPct=100 pressed saturates",
+        EXTREME,
+    ),
+    ("rivers: rainPct=0 untouched dies out", OFF),
+    ("rivers: rainPct=0 pressed dies out", OFF),
+    ("rivers: evaporationPct=100 untouched stays empty", EXTREME),
+    ("rivers: evaporationPct=100 pressed dies out", EXTREME),
+    ("wave: dampingPct=0 untouched saturates", EXTREME),
+    ("wave: dampingPct=0 pressed saturates", EXTREME),
+    ("wave: autoImpulseInterval=0 untouched dies out", OFF),
+    ("wave: autoImpulseInterval=0 pressed dies out", OFF),
+    ("wave: spawnStep=3 and 63 play the same", OFFSET),
+    // Open. Now: a filled disk lights only the ring it newly reaches, the same tiles as `ring`.
+    // After (proposal): light the whole disk while it grows, with a smaller default Max Radius so
+    // it does not flood the grid.
+    (
+        "shapes: pulseShape=\"ring\" and \"filled\" play the same",
+        "open: filled plays as ring",
     ),
     (
-        "sand_ripples",
-        "depositionPct",
-        "open: crests rarely rise above the sand they ride on",
+        "shapes: lifespan=12 untouched saturates",
+        "the longest trails keep the grid lit",
     ),
     (
-        "crystal_growth",
-        "cellLife",
-        "open: crowding thins crystals before they age out",
+        "shapes: lifespan=12 pressed saturates",
+        "the longest trails keep the grid lit",
+    ),
+    // Open. Now: any radius past about 10 already covers the grid, so 12 to 32 play alike.
+    // After (proposal): narrow Max Radius to 4..12, normalizing the board stores first.
+    (
+        "shapes: maxRadius=12 and 32 play the same",
+        "open: radii past the grid",
+    ),
+    ("cracks: stressPct=0 untouched stays empty", OFF),
+    (
+        "crystal_growth: growthChancePct=100 untouched saturates",
+        EXTREME,
     ),
     (
-        "shapes",
-        "maxRadius",
-        "open: a radius past about 10 covers the whole grid",
+        "crystal_growth: growthChancePct=100 pressed saturates",
+        EXTREME,
+    ),
+    // Open. Now: crowding thins crystals before any cell ages out, so Cell Life never acts.
+    // After (proposal): thin only once the grid is nearly full, so old crystals age out first.
+    (
+        "crystal_growth: cellLife=0 and 128 play the same",
+        "open: crowding thins first",
     ),
     (
-        "shapes",
-        "pulseShape",
-        "open: a growing filled disk lights the same new ring as a ring",
+        "crystal_growth: cellLife=128 and 256 play the same",
+        "open: crowding thins first",
+    ),
+    ("bounce: maxBalls=60 and 100 play the same", CAP),
+    ("bubbles: spawnInterval=0 untouched stays empty", OFF),
+    ("bubbles: spawnInterval=0 pressed dies out", OFF),
+    ("bubbles: spawnStep=0 and 63 play the same", OFFSET),
+    ("bubbles: maxBubbles=24 and 64 play the same", CAP),
+    ("gravity: spawnRatePct=0 untouched stays empty", OFF),
+    ("gravity: spawnRatePct=0 pressed dies out", OFF),
+    // Open. Now: a deposit adds half a moved grain to a crest that rarely rises above the sand it
+    // rides on, so Deposition never shows. After (proposal): a deposit raises the crest to the
+    // sand height it carried, so high Deposition leaves standing ridges.
+    (
+        "sand_ripples: depositionPct=0 and 35 play the same",
+        "open: crests stay under the sand",
     ),
 ];
 
@@ -304,12 +263,9 @@ fn every_build_option_changes_the_world_and_keeps_it_alive() {
     let mut seen = vec![false; EXPECTED.len()];
     for entry in behavior_catalog() {
         for finding in sweep_findings(entry.id) {
-            match EXPECTED
-                .iter()
-                .position(|(id, key, _)| *id == entry.id && *key == finding.key)
-            {
+            match EXPECTED.iter().position(|(text, _)| *text == finding) {
                 Some(index) => seen[index] = true,
-                None => unexpected.push(finding.text),
+                None => unexpected.push(finding),
             }
         }
     }
@@ -317,7 +273,7 @@ fn every_build_option_changes_the_world_and_keeps_it_alive() {
         .iter()
         .zip(seen)
         .filter(|(_, seen)| !seen)
-        .map(|((id, key, _), _)| format!("{id}.{key}"))
+        .map(|((text, _), _)| *text)
         .collect::<Vec<_>>();
     assert!(
         unexpected.is_empty(),
@@ -327,5 +283,13 @@ fn every_build_option_changes_the_world_and_keeps_it_alive() {
 "
         )
     );
-    assert!(stale.is_empty(), "no longer flagged: {}", stale.join(", "));
+    assert!(
+        stale.is_empty(),
+        "no longer found:
+{}",
+        stale.join(
+            "
+"
+        )
+    );
 }

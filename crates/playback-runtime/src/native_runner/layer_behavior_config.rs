@@ -146,26 +146,53 @@ impl NativeRunner {
         Ok(true)
     }
 
-    /// Keeps the settings a behavior action changed, such as a turned gravity or wind direction,
-    /// in the layer's behavior config, so the next settings change starts from them instead of
-    /// turning them back.
+    /// The layer's settings rows (not its actions) and their values in the behavior state: what a
+    /// behavior action may turn. Empty for a looper, whose Punch keeps its mode itself, and for a
+    /// behavior without settings rows, so neither pays for a serialization.
+    pub(super) fn behavior_setting_values(&self, layer_index: usize) -> Vec<(String, Value)> {
+        let Some(layer) = self.layers.get(layer_index) else {
+            return Vec::new();
+        };
+        let behavior = layer.engine.behavior();
+        if behavior == platform_core::NativeBehavior::Looper {
+            return Vec::new();
+        }
+        let keys = behavior
+            .config_menu(layer.engine.state())
+            .ok()
+            .flatten()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|item| item.item_type != platform_core::BehaviorConfigItemType::Action)
+            .map(|item| item.key)
+            .collect::<Vec<_>>();
+        if keys.is_empty() {
+            return Vec::new();
+        }
+        let Ok(state) = self.serialized_state_for_layer(layer_index) else {
+            return Vec::new();
+        };
+        keys.into_iter()
+            .filter_map(|key| Some((key.clone(), state.get(&key)?.clone())))
+            .collect()
+    }
+
+    /// Keeps the settings rows a behavior action turned, such as Gravity Dir or Fractal, in the
+    /// layer's behavior config, so the next settings change starts from them instead of turning
+    /// them back.
     pub(super) fn keep_behavior_action_settings(
         &mut self,
         layer_index: usize,
-        before: &Value,
+        before: &[(String, Value)],
         behavior_id: &str,
     ) {
-        let Ok(after) = self.serialized_state_for_layer(layer_index) else {
+        if before.is_empty() {
             return;
-        };
-        let changed = after
-            .as_object()
+        }
+        let changed = self
+            .behavior_setting_values(layer_index)
             .into_iter()
-            .flatten()
-            .filter(|(key, value)| {
-                !value.is_array() && !value.is_object() && before.get(key.as_str()) != Some(*value)
-            })
-            .map(|(key, value)| (key.clone(), value.clone()))
+            .filter(|setting| !before.contains(setting))
             .collect::<Vec<_>>();
         if changed.is_empty() {
             return;

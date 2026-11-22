@@ -19,6 +19,9 @@ const ACTIVATE: u8 = 80;
 const DX: [i16; 8] = [1, 1, 0, -1, -1, -1, 0, 1];
 const DY: [i16; 8] = [0, 1, 1, 1, 0, -1, -1, -1];
 
+/// Food placed by a press; layout food is 1. The drifting layout never moves pressed food.
+const PRESSED_FOOD: u8 = 2;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PhysarumState {
     pub x: Vec<i16>,
@@ -99,7 +102,7 @@ pub fn physarum_on_input(
     let forced = match input {
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             let i = grid_index(x, y);
-            state.food[i] = 1 - state.food[i];
+            state.food[i] = if state.food[i] > 0 { 0 } else { PRESSED_FOOD };
             vec![]
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
@@ -292,7 +295,7 @@ fn norm_food(v: Option<Vec<Value>>) -> Vec<u8> {
     let mut o = v
         .unwrap_or_default()
         .into_iter()
-        .map(|v| u8::from(v.as_u64().unwrap_or(0) > 0))
+        .map(|v| v.as_u64().unwrap_or(0).min(u64::from(PRESSED_FOOD)) as u8)
         .collect::<Vec<_>>();
     o.resize(TILE_COUNT, 0);
     o.truncate(TILE_COUNT);
@@ -368,7 +371,7 @@ fn sample(s: &PhysarumState, trail: &[u8], food: &[u8], x: i16, y: i16, h: u8) -
     let nx = (x + DX[h as usize] * d).clamp(0, WORLD_MAX_X);
     let ny = (y + DY[h as usize] * d).clamp(0, WORLD_MAX_Y);
     let c = tile(nx, ny);
-    u16::from(trail[c]) + u16::from(food[c]) * 255
+    u16::from(trail[c]) + u16::from(food[c] > 0) * 255
 }
 fn should_turn(s: &PhysarumState, index: usize, side: u16, ahead: u16) -> bool {
     if side <= ahead {
@@ -447,10 +450,13 @@ fn drift_food(s: &mut PhysarumState) {
         return;
     }
     for (x, y) in drifting_food(s.tick_counter.wrapping_sub(1)) {
-        s.food[grid_index(x, y)] = 0;
+        if s.food[grid_index(x, y)] == 1 {
+            s.food[grid_index(x, y)] = 0;
+        }
     }
     for (x, y) in drifting_food(s.tick_counter) {
-        s.food[grid_index(x, y)] = 1;
+        let food = &mut s.food[grid_index(x, y)];
+        *food = (*food).max(1);
     }
 }
 

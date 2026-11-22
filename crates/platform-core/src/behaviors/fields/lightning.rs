@@ -148,6 +148,8 @@ pub fn lightning_on_tick(
             clear(&mut state);
             start_strike(&mut state);
         }
+    } else if state.leaders.is_empty() {
+        start_strike(&mut state);
     } else {
         let snapshot = state.leaders.clone();
         advance_leaders(&mut state, &snapshot);

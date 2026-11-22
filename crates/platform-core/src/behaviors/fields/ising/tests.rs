@@ -135,3 +135,17 @@ fn tick_uses_neighbors_field_heat_and_clipped_edges() {
     );
     assert!(ising_render_model(&ticked).status_line.starts_with("+:"));
 }
+
+#[test]
+fn flip_odds_follow_metropolis_in_whole_units() {
+    let half = 1u32 << 31;
+    assert_eq!(flip_threshold(-1, 0), u32::MAX);
+    assert_eq!(flip_threshold(5, 0), 0);
+    assert_eq!(flip_threshold(0, 100), half);
+    let e_to_minus_one = f64::from(flip_threshold(400, 400)) / 4_294_967_296.0;
+    assert!(
+        (e_to_minus_one - (-1.0f64).exp()).abs() < 1e-4,
+        "{e_to_minus_one}"
+    );
+    assert_eq!(flip_threshold(1_000_000, 1), 0);
+}

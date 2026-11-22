@@ -75,8 +75,11 @@ impl NativeLayerEngine {
         config: NativeLayerEngineConfig,
         state: Value,
     ) -> Result<Self, String> {
-        let state = config.behavior.deserialize(state)?;
-        Self::from_state(config, state)
+        let mut random = LayerRandom::new(config.random_seed);
+        let state = random.scope(|| config.behavior.deserialize(state))?;
+        let mut engine = Self::from_state(config, state)?;
+        engine.random = random;
+        Ok(engine)
     }
 
     fn from_state(

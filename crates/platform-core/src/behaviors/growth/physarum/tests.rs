@@ -14,7 +14,7 @@ fn menu_palette_normalize_serialize() {
     assert_eq!(s.heading[0], 3);
     assert_eq!(s.active_count, MAX_AGENTS);
     assert_eq!(s.trail[0], 255);
-    assert_eq!(s.food[0], 1);
+    assert_eq!(s.food[0], PRESSED_FOOD);
     assert_eq!(s.food_pattern, 3);
     assert!(!s.trigger_types.contains(&TileTriggerType::Activate));
     let v = physarum_serialize(&s).unwrap();
@@ -34,7 +34,7 @@ fn grid_press_food_toggle() {
     let mut c = ctx();
     let s = physarum_init(serde_json::json!({})).unwrap();
     let s = physarum_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
-    assert_eq!(s.food[grid_index(2, 3)], 1);
+    assert_eq!(s.food[grid_index(2, 3)], PRESSED_FOOD);
     assert_eq!(s.trigger_types[grid_index(2, 3)], TileTriggerType::Stable);
     let s = physarum_on_input(s, DeviceInput::GridPress { x: 2, y: 3 }, &mut c);
     assert_eq!(s.food[grid_index(2, 3)], 0);
@@ -208,7 +208,8 @@ fn legacy_config_clamps_inactive_agents_and_round_trips_food_trail() {
     assert_eq!(s.x[2], 0);
     assert_eq!(s.heading[2], 0);
     assert_eq!(s.trail[1], 255);
-    assert_eq!(s.food[1], 1);
+    assert_eq!(s.food[1], PRESSED_FOOD);
+    assert_eq!(s.food[3], 1);
     assert_eq!(s.sense_distance, 1);
     assert_eq!(s.deposit_amount, 1);
     assert_eq!(s.evaporation_pct, 100);
@@ -280,10 +281,12 @@ fn boundary_reflection_covers_left_bottom_edges_and_food_drift() {
 fn pressed_food_stays_while_the_drifting_food_moves() {
     let mut c = ctx();
     let state = physarum_init(serde_json::json!({ "foodPattern": 0 })).unwrap();
-    let mut state = physarum_on_input(state, DeviceInput::GridPress { x: 3, y: 4 }, &mut c);
+    let state = physarum_on_input(state, DeviceInput::GridPress { x: 3, y: 4 }, &mut c);
+    let mut state = physarum_on_input(state, DeviceInput::GridPress { x: 0, y: 2 }, &mut c);
     for _ in 0..12 {
         state = physarum_on_tick(state, &mut c);
-        assert_eq!(state.food[grid_index(3, 4)], 1);
+        assert!(state.food[grid_index(3, 4)] > 0);
+        assert!(state.food[grid_index(0, 2)] > 0);
     }
-    assert_eq!(state.food.iter().filter(|food| **food == 1).count(), 5);
+    assert_eq!(state.food.iter().filter(|food| **food == 1).count(), 4);
 }

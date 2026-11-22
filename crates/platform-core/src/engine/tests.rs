@@ -101,7 +101,7 @@ fn cyclic_consecutive_presses_keep_both_activation_intents() {
         .on_input_with_events(DeviceInput::GridPress { x: 2, y: 3 }, 120.0)
         .unwrap();
     let second = engine
-        .on_input_with_events(DeviceInput::GridPress { x: 5, y: 3 }, 120.0)
+        .on_input_with_events(DeviceInput::GridPress { x: 2, y: 3 }, 120.0)
         .unwrap();
 
     assert_eq!(first.mapped_intents.len(), 1);
