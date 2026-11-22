@@ -315,3 +315,16 @@ pub(crate) fn a_tile_released_after_its_instrument_drops_its_voices_ends_nothing
     let released = grid(&mut runner, "grid_release", 2, 3);
     assert!(released.is_empty(), "{released:?}");
 }
+
+#[test]
+pub(crate) fn a_held_arp_forgets_a_pitch_whose_instrument_dropped_its_voices() {
+    let mut runner = keys_runner(1);
+    runner.layers[0].link.arp.mode = ArpMode::ChordStrike;
+    runner.layers[0].link.arp.source = ArpSource::Held;
+    grid(&mut runner, "grid_press", 2, 3);
+    assert_eq!(runner.held_notes[0].replays().len(), 1);
+
+    runner.drain_play_transpose_instrument_notes(0);
+
+    assert!(runner.held_notes[0].replays().is_empty());
+}

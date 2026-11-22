@@ -259,6 +259,7 @@ impl HeldNotes {
             if key.channel == channel {
                 let holders = std::mem::take(&mut entry.holders);
                 drained.extend(holders.tiles);
+                entry.replay = None;
             }
             !entry.is_idle()
         });
