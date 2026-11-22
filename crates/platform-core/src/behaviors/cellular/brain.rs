@@ -112,7 +112,7 @@ pub fn brain_on_tick(state: BrainState, _context: &mut BehaviorContext) -> Brain
         seed_scheduled_cells(
             &mut cells,
             &mut trigger_types,
-            state.random_seed_cells,
+            state.random_seed_cells + state.fire_threshold - 1,
             step,
         );
     }
@@ -216,23 +216,24 @@ fn seed_random_cells(cells: &mut [u8], count: usize) {
     }
 }
 
+/// Plants `count` firing cells as a two-row clump, so even a high Fire Threshold finds a resting
+/// cell with enough firing neighbors.
 fn seed_scheduled_cells(
     cells: &mut [u8],
     trigger_types: &mut [TileTriggerType],
     count: usize,
     step: usize,
 ) {
+    let width = count.div_ceil(2).min(4);
     let start = step % TILE_COUNT;
-    let mut seeded = 0;
-    for offset in 0..TILE_COUNT {
-        let index = (start + offset) % TILE_COUNT;
+    let (sx, sy) = (start % GRID_WIDTH, start / GRID_WIDTH);
+    for offset in 0..count {
+        let x = (sx + offset % width) % GRID_WIDTH;
+        let y = (sy + offset / width) % GRID_HEIGHT;
+        let index = grid_index(x, y);
         if cells[index] == 0 {
             cells[index] = 1;
             trigger_types[index] = TileTriggerType::Activate;
-            seeded += 1;
-            if seeded == count {
-                break;
-            }
         }
     }
 }

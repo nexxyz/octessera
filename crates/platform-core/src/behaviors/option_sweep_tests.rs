@@ -315,7 +315,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("ant: maxAnts=25 and 50 play the same", CAP),
     ("ant: maxAnts=50 and 75 play the same", CAP),
     ("ant: maxAnts=75 and 100 play the same", CAP),
-    ("brain: fireThreshold=3 and 4 play the same", DEAD_ZONE),
     ("brain: spawnStep=31 and 63 play the same", OFFSET),
     ("forest_fire: spreadChancePct=0 pressed saturates", OFF),
     (
