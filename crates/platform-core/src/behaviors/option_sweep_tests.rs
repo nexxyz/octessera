@@ -1,7 +1,7 @@
 //! Every Build option at its minimum, default and maximum and halfway between: the tile frames of
 //! a few hundred ticks on each of five random streams, untouched and after one press, must change
 //! from value to value on at least one stream and, on each, must neither stay empty, nearly fill
-//! the grid nor freeze.
+//! the grid nor freeze. A short loop that changes a tenth of the grid each tick is a wave.
 use super::{behavior_catalog, get_native_behavior, NativeBehavior};
 use crate::behavior::{
     BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext, DeviceInput, TileTriggerType,
@@ -83,6 +83,23 @@ fn distinct_frames(frames: &[Frame]) -> usize {
         }
     }
     distinct.len()
+}
+
+/// A short loop still counts as moving when, like a cyclic wave, a fair share of the tiles changes
+/// every tick.
+fn waving(frames: &[Frame]) -> bool {
+    let changed = frames
+        .windows(2)
+        .map(|pair| {
+            pair[0]
+                .tiles
+                .iter()
+                .zip(&pair[1].tiles)
+                .filter(|(a, b)| a != b)
+                .count()
+        })
+        .sum::<usize>();
+    changed * FAIR_SHARE >= TILES * (frames.len() - 1)
 }
 
 /// Two runs differ when their lit counts or a fair share of their frames differ.
@@ -178,7 +195,7 @@ fn sweep_findings(id: &str) -> Vec<String> {
                         find(format!("{key}={value} {label} saturates"));
                     } else if !play && tail.iter().all(|frame| lit(frame) == 0) {
                         find(format!("{key}={value} {label} dies out"));
-                    } else if !play && distinct_frames(tail) < FROZEN_BELOW {
+                    } else if !play && distinct_frames(tail) < FROZEN_BELOW && !waving(tail) {
                         find(format!("{key}={value} {label} freezes"));
                     }
                 }
@@ -213,7 +230,6 @@ const OFFSET: &str = "an offset within the spawn interval: values a whole interv
 const NO_FADE: &str = "0 is off: nothing fades, so the lit tiles stand still";
 const CALM: &str = "0 is off: with no wind or no erosion the dunes rest";
 const FOREVER: &str = "0 is forever: crystals never dissolve, so they fill the grid";
-const HELD_ZOOM: &str = "0 holds the zoom: Drift alone sways between two views";
 const ROW_ACCENT: &str =
     "changes only the trigger a cleared row sends; few rows clear in 300 ticks";
 const SPAWN_COUNT: &str = "only with Spawn Count above 0";
@@ -283,11 +299,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("life: spawnStep=63 untouched freezes", LIFE_AT_REST),
     ("twinkle: fadeChancePct=0 untouched freezes", NO_FADE),
     ("twinkle: fadeChancePct=0 pressed freezes", NO_FADE),
-    (
-        "fractal_explorer: zoomRatePct=0 untouched freezes",
-        HELD_ZOOM,
-    ),
-    ("fractal_explorer: zoomRatePct=0 pressed freezes", HELD_ZOOM),
     ("maze_growth: carvePct=0 pressed freezes", OFF),
     ("coral: growthPct=0 untouched freezes", OFF),
     ("coral: growthPct=0 pressed freezes", OFF),

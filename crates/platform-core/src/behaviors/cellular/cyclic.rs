@@ -94,11 +94,6 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
             }
         }
     }
-    if ages.iter().all(|age| *age == 0) {
-        let mut rng = crate::behavior_random::rng();
-        let stray = rng.gen_range(0..TILE_COUNT);
-        next[stray] = rng.gen_range(0..state.states);
-    }
     state.cells = next;
     state.ages = ages;
     if state.ages.iter().all(|age| *age >= STALL_TICKS) {
