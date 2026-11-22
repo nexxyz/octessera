@@ -96,6 +96,7 @@ mod fx_targets;
 mod grid_assign;
 mod grid_coords;
 mod held_inputs;
+mod held_notes;
 mod help_text;
 mod instrument_audio_payload;
 mod instrument_collections;
@@ -341,6 +342,7 @@ pub struct NativeRunner {
     aux_priority: AuxPriority,
     play_live: play_pages::PlayLiveState,
     transpose: play_transpose::PlayTranspose,
+    held_notes: Vec<held_notes::HeldNotes>,
     layers: Vec<NativeLayer>,
     random_seed: u16,
     seeded_link_streams: random_streams::SeededLinkStreams,

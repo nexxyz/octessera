@@ -38,22 +38,34 @@ impl NativeRunner {
             .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?;
         layer.engine.set_step_phase(phase);
         if paused {
-            let model = layer.engine.on_input(input, bpm)?;
+            let mut result = layer.engine.on_input_with_events(input, bpm)?;
+            self.hold_layer_notes(
+                layer_index,
+                &mut result.events,
+                &mut result.event_intents,
+                None,
+            );
             return Ok(platform_core::NativeInputResult {
                 events: Vec::new(),
                 emitted_events: Vec::new(),
                 mapped_intents: Vec::new(),
                 event_intents: Vec::new(),
-                model,
+                model: result.model,
             });
         }
         let (link, probability_map) = (&layer.link, &layer.trigger_probability_map);
-        let result = layer
+        let mut result = layer
             .engine
             .on_input_with_events_filtered(input, bpm, |intent| {
                 trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
             })?;
         self.store_probability_rng(layer_index, rng);
+        self.hold_layer_notes(
+            layer_index,
+            &mut result.events,
+            &mut result.event_intents,
+            None,
+        );
         Ok(result)
     }
 
@@ -65,10 +77,16 @@ impl NativeRunner {
         let bpm = self.clock_bpm() as f32;
         let layer = &mut self.layers[layer_index];
         let (link, probability_map) = (&layer.link, &layer.trigger_probability_map);
-        let result = layer.engine.tick_filtered(bpm, |intent| {
+        let mut result = layer.engine.tick_filtered(bpm, |intent| {
             trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
         })?;
         self.store_probability_rng(layer_index, rng);
+        self.hold_layer_notes(
+            layer_index,
+            &mut result.events,
+            &mut result.event_intents,
+            Some(&result.model.tiles),
+        );
         Ok(result)
     }
 

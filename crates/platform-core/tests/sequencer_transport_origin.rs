@@ -1,7 +1,7 @@
 use platform_core::{
     default_mapping_config, AxisStrategy, InterpretationEventProfile, InterpretationProfile,
     InterpretationStateProfile, NativeBehavior, NativeLayerEngine, NativeLayerEngineConfig,
-    NoteBehavior, TickStrategy,
+    TickStrategy,
 };
 use serde_json::Value;
 
@@ -28,7 +28,6 @@ fn scanning_engine() -> NativeLayerEngine {
             velocity_scale_pct: 100,
             velocity_curve: platform_core::VelocityCurve::Linear,
         },
-        note_behaviors: vec![NoteBehavior::Oneshot; 16],
         layer_index: 0,
         random_seed: None,
     })

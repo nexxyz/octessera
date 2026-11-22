@@ -4,19 +4,15 @@ use crate::behaviors::{NativeBehavior, NativeBehaviorState};
 use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
 use crate::interpretation::{
     interpret_grid_with_marker_authority, GridSnapshot, InterpretationProfile, TileTriggerIntent,
-    TileTriggerKind, TriggerMarkerAuthority,
+    TriggerMarkerAuthority,
 };
-use crate::interpretation_scan::compute_degree;
 use crate::mapping::{
     activate_tile_for_note, map_intents_to_musical_events, MappingConfig, MappingResult,
     TriggerAction,
 };
-use crate::transforms::{apply_global_sound, GlobalSoundConfig, NoteBehavior};
+use crate::transforms::{apply_global_sound, GlobalSoundConfig};
 use crate::MusicalEvent;
-use held_notes::{HeldNotes, NoteBehaviorWithIntentsResult};
 use serde_json::Value;
-
-mod held_notes;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct NativeLayerEngineConfig {
@@ -25,7 +21,6 @@ pub struct NativeLayerEngineConfig {
     pub interpretation_profile: InterpretationProfile,
     pub mapping_config: MappingConfig,
     pub global_sound: GlobalSoundConfig,
-    pub note_behaviors: Vec<NoteBehavior>,
     pub layer_index: usize,
     pub random_seed: Option<u64>,
 }
@@ -54,9 +49,7 @@ pub struct NativeLayerEngine {
     interpretation_profile: InterpretationProfile,
     mapping_config: MappingConfig,
     global_sound: GlobalSoundConfig,
-    note_behaviors: Vec<NoteBehavior>,
     tick: usize,
-    held_notes: HeldNotes,
     random: LayerRandom,
     step_phase: StepPhase,
 }
@@ -93,9 +86,7 @@ impl NativeLayerEngine {
             interpretation_profile: config.interpretation_profile,
             mapping_config: config.mapping_config,
             global_sound: config.global_sound,
-            note_behaviors: config.note_behaviors,
             tick: 0,
-            held_notes: HeldNotes::default(),
             random: LayerRandom::new(config.random_seed),
             step_phase: StepPhase::Stopped,
         })
@@ -169,11 +160,7 @@ impl NativeLayerEngine {
             None
         };
         let emitted_events = context.emitted_events;
-        let finalized = self.finalize_events(&emitted_events, mapped.as_ref())?;
-        let NoteBehaviorWithIntentsResult {
-            events,
-            event_intents,
-        } = finalized;
+        let (events, event_intents) = self.finalize_events(&emitted_events, mapped.as_ref())?;
         let mapped_intents = mapped.map(|mapped| mapped.intents).unwrap_or_default();
         Ok(NativeInputResult {
             events,
@@ -219,38 +206,7 @@ impl NativeLayerEngine {
         self.tick = self.tick.saturating_add(1);
         let mapped = map_intents_to_musical_events(&intents, &self.mapping_config);
         let emitted_events = context.emitted_events;
-        let finalized = self.finalize_events(&emitted_events, Some(&mapped))?;
-        let NoteBehaviorWithIntentsResult {
-            mut events,
-            mut event_intents,
-        } = finalized;
-        if !self.interpretation_profile.event.enabled {
-            // Without Off events nothing else ends a note a tile holds once the tile is dark.
-            for (tile, off) in self.held_notes.release_dark_tiles(&after.tiles) {
-                let (x, y) = (tile % GRID_WIDTH, tile / GRID_WIDTH);
-                events.push(off);
-                event_intents.push(Some(TileTriggerIntent {
-                    x,
-                    y,
-                    kind: TileTriggerKind::Stable,
-                    degree: compute_degree(
-                        GRID_WIDTH,
-                        GRID_HEIGHT,
-                        x,
-                        y,
-                        &self.interpretation_profile,
-                    ),
-                }));
-            }
-        }
-        let released = self.held_notes.release_unscanned();
-        let (events, event_intents) = if released.is_empty() {
-            (events, event_intents)
-        } else {
-            let mut intents = vec![None; released.len()];
-            intents.extend(event_intents);
-            (released.into_iter().chain(events).collect(), intents)
-        };
+        let (events, event_intents) = self.finalize_events(&emitted_events, Some(&mapped))?;
 
         Ok(NativeTickResult {
             emitted_events,
@@ -265,10 +221,6 @@ impl NativeLayerEngine {
         self.behavior.render_model(&self.state)
     }
 
-    pub fn drain_held_notes(&mut self, max_notes: usize) -> Vec<MusicalEvent> {
-        self.held_notes.drain(max_notes)
-    }
-
     pub fn set_mapping_config(&mut self, mapping_config: MappingConfig) {
         self.mapping_config = mapping_config;
     }
@@ -279,10 +231,6 @@ impl NativeLayerEngine {
 
     pub fn set_global_sound(&mut self, global_sound: GlobalSoundConfig) {
         self.global_sound = global_sound;
-    }
-
-    pub fn set_note_behaviors(&mut self, note_behaviors: Vec<NoteBehavior>) {
-        self.note_behaviors = note_behaviors;
     }
 
     pub fn reset_transport_phase(&mut self) {
@@ -305,16 +253,9 @@ impl NativeLayerEngine {
         self.tick = tick;
     }
 
-    /// Counts one step without ticking the behavior and returns the note-offs of scan-held notes
-    /// that the step no longer plays.
-    pub fn advance_interpretation_tick(&mut self) -> Vec<MusicalEvent> {
+    /// Counts one step without ticking the behavior.
+    pub fn advance_interpretation_tick(&mut self) {
         self.tick = self.tick.saturating_add(1);
-        self.held_notes.release_unscanned()
-    }
-
-    /// Forgets what this layer holds on `channel` once the runner has cut those voices itself.
-    pub fn forget_held_channel(&mut self, channel: u8) {
-        self.held_notes.forget_channel(channel);
     }
 
     pub fn state(&self) -> &NativeBehaviorState {
@@ -360,7 +301,7 @@ impl NativeLayerEngine {
         &mut self,
         emitted_events: &[MusicalEvent],
         mapped: Option<&MappingResult>,
-    ) -> Result<NoteBehaviorWithIntentsResult, String> {
+    ) -> Result<(Vec<MusicalEvent>, Vec<Option<TileTriggerIntent>>), String> {
         let mapped_event_len = mapped.map(|mapped| mapped.events.len()).unwrap_or(0);
         let mut events = Vec::with_capacity(emitted_events.len() + mapped_event_len);
         events.extend(emitted_events.iter().cloned());
@@ -371,21 +312,9 @@ impl NativeLayerEngine {
         }
         let events = apply_global_sound(&events, &self.global_sound);
         if events.len() != event_intents.len() {
-            return Err("event intent metadata length mismatch before note behavior".into());
+            return Err("event intent metadata length mismatch after global sound".into());
         }
-        let NoteBehaviorWithIntentsResult {
-            events,
-            event_intents,
-        } = self
-            .held_notes
-            .apply(&events, event_intents, &self.note_behaviors);
-        if events.len() != event_intents.len() {
-            return Err("event intent metadata length mismatch after note behavior".into());
-        }
-        Ok(NoteBehaviorWithIntentsResult {
-            events,
-            event_intents,
-        })
+        Ok((events, event_intents))
     }
 }
 

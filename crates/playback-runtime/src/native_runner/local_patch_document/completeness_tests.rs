@@ -199,9 +199,8 @@ fn setting_only_system_save_remains_available_with_local_samples() {
     assert!(runner.config_dirty);
     assert_eq!(runner.dirty_revision, patch_dirty_revision);
     assert_eq!(
-        runner
-            .active_engine_mut()
-            .drain_held_notes(usize::MAX)
+        runner.held_notes[runner.active_layer_index]
+            .drain(usize::MAX)
             .len(),
         1
     );

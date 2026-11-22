@@ -261,9 +261,8 @@ pub(crate) fn rejected_config_does_not_drain_live_held_notes() {
 
     assert!(runner.apply_config_payload(invalid).is_err());
     assert_eq!(
-        runner
-            .active_engine_mut()
-            .drain_held_notes(usize::MAX)
+        runner.held_notes[runner.active_layer_index]
+            .drain(usize::MAX)
             .len(),
         1
     );

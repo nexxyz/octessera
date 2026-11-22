@@ -123,9 +123,8 @@ fn system_document_changes_device_state_without_disturbing_live_patch_runtime() 
             revision_state
         );
         assert_eq!(
-            runner
-                .active_engine_mut()
-                .drain_held_notes(usize::MAX)
+            runner.held_notes[runner.active_layer_index]
+                .drain(usize::MAX)
                 .len(),
             1
         );
@@ -187,9 +186,8 @@ fn system_audio_changes_queue_existing_config_commands_without_resetting_live_pa
     assert_eq!(runner.pending.pending_save_revision, Some(31));
     assert_eq!(runner.restart_settings, restart_settings);
     assert_eq!(
-        runner
-            .active_engine_mut()
-            .drain_held_notes(usize::MAX)
+        runner.held_notes[runner.active_layer_index]
+            .drain(usize::MAX)
             .len(),
         1
     );

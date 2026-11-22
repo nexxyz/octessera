@@ -7,7 +7,6 @@ impl NativeRunner {
         interpretation_profile: InterpretationProfile,
         mapping_config: platform_core::MappingConfig,
         global_sound: GlobalSoundConfig,
-        note_behaviors: Vec<NoteBehavior>,
         layer_index: usize,
     ) -> Result<NativeLayerEngine, String> {
         NativeLayerEngine::new(NativeLayerEngineConfig {
@@ -16,7 +15,6 @@ impl NativeRunner {
             interpretation_profile,
             mapping_config,
             global_sound,
-            note_behaviors,
             layer_index,
             random_seed: None,
         })
@@ -80,7 +78,6 @@ impl NativeRunner {
         self.note_behaviors = note_behaviors_from_instruments(&self.instruments);
         for layer in &mut self.layers {
             layer.engine.set_global_sound(self.global_sound.clone());
-            layer.engine.set_note_behaviors(self.note_behaviors.clone());
         }
     }
 }

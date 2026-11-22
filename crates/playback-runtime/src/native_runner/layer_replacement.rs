@@ -34,7 +34,6 @@ impl NativeRunner {
             interpretation_profile: self.interpretation_profile_for_layer(layer_index),
             mapping_config: self.mapping_config_for_layer(layer_index),
             global_sound: self.global_sound.clone(),
-            note_behaviors: self.note_behaviors.clone(),
             layer_index,
             random_seed: self.layer_random_seed(layer_index),
         };
@@ -52,6 +51,9 @@ impl NativeRunner {
         self.drain_layer_owned_notes(layer_index);
         if let Some(layer) = self.layers.get_mut(layer_index) {
             layer.engine = next_engine;
+        }
+        if let Some(held) = self.held_notes.get_mut(layer_index) {
+            *held = Default::default();
         }
         Ok(())
     }
@@ -105,9 +107,9 @@ impl NativeRunner {
 
     pub(super) fn drain_layer_engine_notes(&mut self, layer_index: usize) {
         let notes = self
-            .layers
+            .held_notes
             .get_mut(layer_index)
-            .map(|layer| layer.engine.drain_held_notes(usize::MAX))
+            .map(|held| held.drain(usize::MAX))
             .unwrap_or_default();
         let routed = self.route_layer_engine_note_offs(layer_index, notes);
         self.transpose.pending_note_offs.extend(routed);

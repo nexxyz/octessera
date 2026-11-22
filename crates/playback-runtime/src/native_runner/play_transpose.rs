@@ -207,8 +207,8 @@ impl NativeRunner {
             drained.extend(layer_drained);
         }
         self.transpose.pending_note_offs.extend(drained);
-        for layer in &mut self.layers {
-            layer.engine.forget_held_channel(instrument_index as u8);
+        for held in &mut self.held_notes {
+            held.forget_channel(instrument_index as u8);
         }
     }
 

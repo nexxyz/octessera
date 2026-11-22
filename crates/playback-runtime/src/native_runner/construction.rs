@@ -37,7 +37,6 @@ impl NativeRunner {
                 config.interpretation_profile.clone(),
                 config.mapping_config.clone(),
                 config.global_sound.clone(),
-                config.note_behaviors.clone(),
                 index,
             )?;
             layers.push(NativeLayer::new(
@@ -96,6 +95,9 @@ impl NativeRunner {
             aux_priority: seed.aux_priority,
             play_live: Default::default(),
             transpose: Default::default(),
+            held_notes: std::iter::repeat_with(Default::default)
+                .take(LAYER_COUNT)
+                .collect(),
             layers,
             random_seed: super::random_streams::DEFAULT_RANDOM_SEED,
             seeded_link_streams: super::random_streams::SeededLinkStreams::new(

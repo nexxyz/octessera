@@ -170,7 +170,6 @@ impl NativeRunner {
             interpretation_profile: self.interpretation_profile_for_layer(layer_index),
             mapping_config: self.mapping_config_for_layer(layer_index),
             global_sound: self.global_sound.clone(),
-            note_behaviors: self.note_behaviors.clone(),
             layer_index,
             random_seed: None,
         })

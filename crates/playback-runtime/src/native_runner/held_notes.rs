@@ -1,8 +1,36 @@
-use crate::events::MusicalEvent;
-use crate::grid::GRID_WIDTH;
-use crate::interpretation::{TileTriggerIntent, TileTriggerKind};
-use crate::transforms::NoteBehavior;
+//! What a layer's Hold instruments hold. Link sends every note-on with its One-Shot Len and
+//! every note-off with its tile; each instrument's Note Mode decides here whether a note-on
+//! starts a hit that ends itself or a note that sounds until its last holder lets go.
+
+use platform_core::{
+    compute_degree, InterpretationProfile, MusicalEvent, NoteBehavior, TileTriggerIntent,
+    TileTriggerKind, GRID_HEIGHT, GRID_WIDTH,
+};
 use std::collections::{BTreeMap, BTreeSet};
+
+use super::NativeRunner;
+
+impl NativeRunner {
+    /// Lets the Hold instruments of `layer_index` hold what its engine just played; after a step,
+    /// `lit` is the layer's grid, whose dark tiles and passed scan pitches let go.
+    pub(super) fn hold_layer_notes(
+        &mut self,
+        layer_index: usize,
+        events: &mut Vec<MusicalEvent>,
+        event_intents: &mut Vec<Option<TileTriggerIntent>>,
+        lit: Option<&[bool]>,
+    ) {
+        let Some(held) = self.held_notes.get_mut(layer_index) else {
+            return;
+        };
+        let mut step = held.apply(events, std::mem::take(event_intents), &self.note_behaviors);
+        if let (Some(lit), Some(layer)) = (lit, self.layers.get(layer_index)) {
+            held.finish_step(&mut step, lit, layer.engine.interpretation_profile());
+        }
+        *events = step.events;
+        *event_intents = step.event_intents;
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(super) struct HeldNote {
@@ -90,6 +118,34 @@ impl HeldNotes {
         keys.into_iter().map(note_off).collect()
     }
 
+    /// Ends what a step let go of: with Event Triggers off, the notes of tiles gone dark as Hold
+    /// note-offs of their tiles, and ahead of the step's events the scan holds it no longer plays.
+    pub(super) fn finish_step(
+        &mut self,
+        step: &mut NoteBehaviorWithIntentsResult,
+        lit: &[bool],
+        profile: &InterpretationProfile,
+    ) {
+        if !profile.event.enabled {
+            for (tile, off) in self.release_dark_tiles(lit) {
+                let (x, y) = (tile % GRID_WIDTH, tile / GRID_WIDTH);
+                step.events.push(off);
+                step.event_intents.push(Some(TileTriggerIntent {
+                    x,
+                    y,
+                    kind: TileTriggerKind::Stable,
+                    degree: compute_degree(GRID_WIDTH, GRID_HEIGHT, x, y, profile),
+                }));
+            }
+        }
+        let released = self.release_unscanned();
+        if !released.is_empty() {
+            step.event_intents
+                .splice(0..0, std::iter::repeat_n(None, released.len()));
+            step.events.splice(0..0, released);
+        }
+    }
+
     /// Ends the notes the scan line held last step but no longer plays on the same pitch.
     pub(super) fn release_unscanned(&mut self) -> Vec<MusicalEvent> {
         let scanned = &self.scanned_this_step;
@@ -110,7 +166,7 @@ impl HeldNotes {
 
     /// Lets go of the tiles that are dark in `lit` and returns, with its tile, the note-off of
     /// every note that no holder keeps sounding any more.
-    pub(super) fn release_dark_tiles(&mut self, lit: &[bool]) -> Vec<(usize, MusicalEvent)> {
+    fn release_dark_tiles(&mut self, lit: &[bool]) -> Vec<(usize, MusicalEvent)> {
         let is_lit = |tile: &usize| lit.get(*tile).copied() == Some(true);
         let mut released = Vec::new();
         self.notes.retain(|key, holders| {
@@ -333,3 +389,6 @@ fn note_off(key: HeldNote) -> MusicalEvent {
         note: key.note,
     }
 }
+
+#[cfg(test)]
+mod tests;

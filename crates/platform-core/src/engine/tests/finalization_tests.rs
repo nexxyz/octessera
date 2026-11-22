@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn finalize_events_applies_global_sound_before_hold_and_preserves_intents() {
+fn finalize_events_applies_global_sound_and_preserves_intents() {
     let mut context = BehaviorContext::new(120.0);
     context.emit(MusicalEvent::Cc {
         channel: 1,
@@ -37,7 +37,7 @@ fn finalize_events_applies_global_sound_before_hold_and_preserves_intents() {
             },
         ],
         intents: vec![first_intent.clone(), second_intent.clone()],
-        event_intents: vec![first_intent.clone(), second_intent],
+        event_intents: vec![first_intent.clone(), second_intent.clone()],
     };
     let config = NativeLayerEngineConfig {
         behavior: NativeBehavior::None,
@@ -56,14 +56,13 @@ fn finalize_events_applies_global_sound_before_hold_and_preserves_intents() {
             velocity_scale_pct: 150,
             velocity_curve: VelocityCurve::Linear,
         },
-        note_behaviors: vec![NoteBehavior::Hold; 16],
         ..base_config()
     };
     let mut engine = NativeLayerEngine::new(config).unwrap();
 
-    let finalized = engine.finalize_events(&emitted, Some(&mapped)).unwrap();
+    let (events, event_intents) = engine.finalize_events(&emitted, Some(&mapped)).unwrap();
     assert_eq!(
-        finalized.events,
+        events,
         vec![
             MusicalEvent::Cc {
                 channel: 1,
@@ -76,26 +75,27 @@ fn finalize_events_applies_global_sound_before_hold_and_preserves_intents() {
                 velocity: 120,
                 duration_ms: None,
             },
+            MusicalEvent::NoteOn {
+                channel: 0,
+                note: 36,
+                velocity: 127,
+                duration_ms: None,
+            },
         ]
     );
-    assert_eq!(finalized.event_intents, vec![None, Some(first_intent)]);
-    assert!(engine.held_notes.contains(&HeldNote {
-        channel: 0,
-        note: 36,
-    }));
-
-    let emitted_only = engine.finalize_events(&emitted, None).unwrap();
     assert_eq!(
-        emitted_only.events,
+        event_intents,
+        vec![None, Some(first_intent), Some(second_intent)]
+    );
+
+    let (emitted_only, emitted_only_intents) = engine.finalize_events(&emitted, None).unwrap();
+    assert_eq!(
+        emitted_only,
         vec![MusicalEvent::Cc {
             channel: 1,
             controller: 74,
             value: 90,
         }]
     );
-    assert_eq!(emitted_only.event_intents, vec![None]);
-    assert!(engine.held_notes.contains(&HeldNote {
-        channel: 0,
-        note: 36,
-    }));
+    assert_eq!(emitted_only_intents, vec![None]);
 }

@@ -37,7 +37,6 @@ impl NativeRunner {
                     self.interpretation_profile_for_layer(index),
                     self.mapping_config_for_layer(index),
                     self.global_sound.clone(),
-                    self.note_behaviors.clone(),
                     index,
                 )?;
                 Ok(NativeLayer::new(index, "none", Value::Null, engine))
@@ -88,6 +87,9 @@ impl NativeRunner {
         self.transpose.enabled = vec![true; LAYER_COUNT];
         self.transpose.offsets = vec![0; LAYER_COUNT];
         self.transpose.active_notes = vec![BTreeMap::new(); LAYER_COUNT];
+        self.held_notes = std::iter::repeat_with(Default::default)
+            .take(LAYER_COUNT)
+            .collect();
         self.display.help_popup = None;
         self.display.confirm_dialog = None;
         self.pending.pending_menu_apply = None;

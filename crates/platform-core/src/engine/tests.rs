@@ -5,7 +5,6 @@ use crate::interpretation::{
 };
 use crate::mapping::{default_mapping_config, TriggerAction};
 use crate::transforms::{GlobalSoundConfig, VelocityCurve};
-use held_notes::{HeldNote, HeldNotes};
 
 mod finalization_tests;
 mod persistence_tests;
@@ -32,7 +31,6 @@ fn base_config() -> NativeLayerEngineConfig {
             velocity_scale_pct: 100,
             velocity_curve: VelocityCurve::Linear,
         },
-        note_behaviors: vec![NoteBehavior::Oneshot; 16],
         layer_index: 0,
         random_seed: None,
     }
@@ -110,50 +108,6 @@ fn cyclic_consecutive_presses_keep_both_activation_intents() {
 }
 
 #[test]
-fn held_note_drain_is_bounded_and_returns_note_off_events() {
-    let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
-        behavior: NativeBehavior::Cyclic,
-        behavior_config: serde_json::json!({ "cells": [] }),
-        interpretation_profile: InterpretationProfile {
-            id: "held_note_drain".into(),
-            event: InterpretationEventProfile { enabled: true },
-            state: InterpretationStateProfile {
-                enabled: false,
-                tick: TickStrategy::WholeGridTransitions,
-            },
-            x: AxisStrategy::ScaleStep { step: 1 },
-            y: AxisStrategy::ScaleStep { step: 2 },
-        },
-        note_behaviors: vec![NoteBehavior::Hold; 16],
-        ..base_config()
-    })
-    .unwrap();
-
-    engine
-        .on_input_with_events(DeviceInput::GridPress { x: 0, y: 0 }, 120.0)
-        .unwrap();
-    engine
-        .on_input_with_events(DeviceInput::GridPress { x: 1, y: 0 }, 120.0)
-        .unwrap();
-
-    assert_eq!(
-        engine.drain_held_notes(1),
-        vec![MusicalEvent::NoteOff {
-            channel: 0,
-            note: 24,
-        }]
-    );
-    assert_eq!(
-        engine.drain_held_notes(1),
-        vec![MusicalEvent::NoteOff {
-            channel: 0,
-            note: 27,
-        }]
-    );
-    assert!(engine.drain_held_notes(1).is_empty());
-}
-
-#[test]
 fn scan_interpretation_advances_with_engine_ticks() {
     let mut mapping_config = default_mapping_config();
     mapping_config.scanned_empty.action = TriggerAction::NoteOn;
@@ -197,103 +151,6 @@ fn scan_interpretation_advances_with_engine_ticks() {
         after_reset.mapped_intents[0].kind,
         TileTriggerKind::ScannedEmpty
     );
-}
-
-#[test]
-fn note_behavior_suppression_keeps_event_intents_aligned() {
-    let duplicate = TileTriggerIntent {
-        x: 1,
-        y: 1,
-        degree: 0,
-        kind: TileTriggerKind::Activate,
-    };
-    let release = TileTriggerIntent {
-        x: 1,
-        y: 1,
-        degree: 0,
-        kind: TileTriggerKind::Deactivate,
-    };
-
-    let mut held = HeldNotes::default();
-    let first = held.apply(
-        &[MusicalEvent::NoteOn {
-            channel: 0,
-            note: 60,
-            velocity: 96,
-            duration_ms: Some(120),
-        }],
-        vec![Some(duplicate.clone())],
-        &[NoteBehavior::Hold],
-    );
-    assert_eq!(first.events.len(), 1);
-    assert!(held.contains(&HeldNote {
-        channel: 0,
-        note: 60,
-    }));
-
-    let result = held.apply(
-        &[
-            MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 96,
-                duration_ms: Some(120),
-            },
-            MusicalEvent::NoteOff {
-                channel: 0,
-                note: 60,
-            },
-        ],
-        vec![Some(duplicate), Some(release.clone())],
-        &[NoteBehavior::Hold],
-    );
-
-    assert_eq!(
-        result.events,
-        vec![MusicalEvent::NoteOff {
-            channel: 0,
-            note: 60,
-        }]
-    );
-    assert_eq!(result.event_intents, vec![Some(release)]);
-}
-
-#[test]
-fn duplicate_note_ons_keep_distinct_event_intents_for_link_timing() {
-    let activate = TileTriggerIntent {
-        x: 1,
-        y: 1,
-        degree: 0,
-        kind: TileTriggerKind::Activate,
-    };
-    let scanned = TileTriggerIntent {
-        x: 1,
-        y: 1,
-        degree: 0,
-        kind: TileTriggerKind::Scanned,
-    };
-
-    let result = HeldNotes::default().apply(
-        &[
-            MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 80,
-                duration_ms: Some(120),
-            },
-            MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 96,
-                duration_ms: Some(120),
-            },
-        ],
-        vec![Some(activate.clone()), Some(scanned.clone())],
-        &[NoteBehavior::Oneshot],
-    );
-
-    assert_eq!(result.events.len(), 2);
-    assert_eq!(result.event_intents, vec![Some(activate), Some(scanned)]);
 }
 
 #[test]

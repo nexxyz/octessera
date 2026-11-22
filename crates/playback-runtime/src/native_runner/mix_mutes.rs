@@ -164,9 +164,7 @@ impl NativeRunner {
             });
             let released = self.release_layer_owned_route_notes(layer_index, held);
             self.transpose.pending_note_offs.extend(released);
-            self.layers[layer_index]
-                .engine
-                .forget_held_channel(index as u8);
+            self.held_notes[layer_index].forget_channel(index as u8);
         }
     }
 

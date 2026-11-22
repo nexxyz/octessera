@@ -145,7 +145,7 @@ fn section_count(value: Option<usize>, size: usize) -> usize {
     }
 }
 
-pub(crate) fn compute_degree(
+pub fn compute_degree(
     grid_width: usize,
     grid_height: usize,
     x: usize,

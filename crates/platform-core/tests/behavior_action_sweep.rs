@@ -2,8 +2,8 @@ use platform_core::{
     default_mapping_config, get_native_behavior, list_native_behavior_ids, AxisStrategy,
     BehaviorActionInput, BehaviorConfigItemType, BehaviorContext, DeviceInput, GlobalSoundConfig,
     InterpretationEventProfile, InterpretationProfile, InterpretationStateProfile, NativeBehavior,
-    NativeLayerEngine, NativeLayerEngineConfig, NoteBehavior, TickStrategy, VelocityCurve,
-    GRID_HEIGHT, GRID_WIDTH,
+    NativeLayerEngine, NativeLayerEngineConfig, TickStrategy, VelocityCurve, GRID_HEIGHT,
+    GRID_WIDTH,
 };
 use serde_json::Value;
 
@@ -82,7 +82,6 @@ fn native_layer_engine_mutators_and_scan_modes_are_publicly_stable() {
             velocity_scale_pct: 100,
             velocity_curve: VelocityCurve::Linear,
         },
-        note_behaviors: vec![NoteBehavior::Oneshot; 16],
         layer_index: 2,
         random_seed: None,
     })
@@ -103,7 +102,6 @@ fn native_layer_engine_mutators_and_scan_modes_are_publicly_stable() {
         velocity_scale_pct: 100,
         velocity_curve: VelocityCurve::Linear,
     });
-    engine.set_note_behaviors(vec![NoteBehavior::Hold; 16]);
 
     let _ = engine
         .on_input(DeviceInput::GridPress { x: 1, y: 1 }, 120.0)
