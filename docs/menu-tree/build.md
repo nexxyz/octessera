@@ -316,7 +316,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase. Th
 | cracks | Stress: [0..100] | number, step 1 (default 20) |
 | cracks | Branch: [0..100] | number, step 1 (default 18) |
 | cracks | Propagation: [0..100] | number, step 1 (default 100) |
-| cracks | Shatter Threshold: [1..64] | number, step 1 (default 24) |
+| cracks | Shatter Threshold: [1..64] | number, step 1 (default 24); a crack joining opposite edges shatters the pane once it has three quarters of this many crack tiles |
 | cracks | !Impact | action |
 | cracks | !Replace Pane | action |
 | crystal_growth | Growth Chance: [0..100] | number, step 1 (default 45) |

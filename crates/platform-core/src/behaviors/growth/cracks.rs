@@ -167,7 +167,9 @@ pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> Cracks
             }
         }
     }
-    if crack_count(&state) >= usize::from(state.shatter_threshold) || connects_edges(&state) {
+    let cracks = crack_count(&state);
+    let threshold = usize::from(state.shatter_threshold);
+    if cracks >= threshold || cracks * 4 >= threshold * 3 && connects_edges(&state) {
         state.pending_shatter = true;
     }
     nudge_if_static(&mut state, &pc, &ps);

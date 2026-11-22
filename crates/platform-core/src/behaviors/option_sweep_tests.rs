@@ -335,10 +335,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("reaction_diffusion: seedInterval=0 untouched dies out", OFF),
     ("reaction_diffusion: seedInterval=0 pressed dies out", OFF),
     ("cracks: stressPct=0 pressed freezes", OFF),
-    (
-        "cracks: shatterThreshold=44 and 64 play the same",
-        DEAD_ZONE,
-    ),
     ("crystal_growth: a press changes nothing", PRESS_NOOP),
     ("crystal_growth: seedStep=31 and 63 play the same", OFFSET),
     ("dla: spawnStep=31 and 63 play the same", OFFSET),

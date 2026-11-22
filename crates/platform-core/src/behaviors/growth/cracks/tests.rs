@@ -89,26 +89,32 @@ fn propagation_branch_no_wrap_and_stress_stable() {
 }
 
 #[test]
-fn edge_connection_requires_connected_component() {
+fn a_crack_across_the_pane_shatters_it_from_three_quarters_of_the_threshold() {
     let mut c = ctx();
-    let mut disconnected = cracks_init(serde_json::json!({
-        "shatterThreshold": 64, "stressPct": 0, "propagationPct": 0
-    }))
-    .unwrap();
-    disconnected.tiles[grid_index(0, 0)] = CRACK;
-    disconnected.tiles[grid_index(7, 7)] = TIP;
+    let config = serde_json::json!({ "shatterThreshold": 10, "stressPct": 0, "propagationPct": 0 });
+    let mut disconnected = cracks_init(config.clone()).unwrap();
+    for x in 0..4 {
+        disconnected.tiles[grid_index(x, 0)] = CRACK;
+        disconnected.tiles[grid_index(x + 4, 7)] = CRACK;
+    }
     let disconnected = cracks_on_tick(disconnected, &mut c);
     assert!(!disconnected.pending_shatter);
 
-    let mut connected = cracks_init(serde_json::json!({
-        "shatterThreshold": 64, "stressPct": 0, "propagationPct": 0
-    }))
-    .unwrap();
+    let mut connected = cracks_init(config).unwrap();
     for y in 0..GRID_HEIGHT {
         connected.tiles[grid_index(2, y)] = CRACK;
     }
     let connected = cracks_on_tick(connected, &mut c);
     assert!(connected.pending_shatter);
+
+    let mut short = cracks_init(serde_json::json!({
+        "shatterThreshold": 64, "stressPct": 0, "propagationPct": 0
+    }))
+    .unwrap();
+    for y in 0..GRID_HEIGHT {
+        short.tiles[grid_index(2, y)] = CRACK;
+    }
+    assert!(!cracks_on_tick(short, &mut c).pending_shatter);
 }
 
 #[test]

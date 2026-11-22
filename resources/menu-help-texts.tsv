@@ -128,7 +128,7 @@ life_spawn_shared_coral_seed	*	action:behavior_action:seedCoral	action	Seed Cora
 life_spawn_shared_coral_break	*	action:behavior_action:breakCoral	action	Break Coral	Removes old skeletons and exposed colony tiles.	Each removed living tile fires its Off event, so mapped notes can stop.
 layer_cracks_branch	*	key:layers.*.build.behaviorConfig.branchPct	number	Branch	Sets the chance for Cracks or Vines to create an extra branch from a propagating tip.	Higher values make wider fractures or fuller tendrils; reservations keep each grid update bounded.
 layer_cracks_propagation	*	key:layers.*.build.behaviorConfig.propagationPct	number	Propagation	Sets the chance each crack tip advances on a tick.	Higher values make cracks run faster.
-layer_cracks_shatter	*	key:layers.*.build.behaviorConfig.shatterThreshold	number	Shatter Threshold	Sets how many crack tiles trigger a pending pane shatter.	The pane clears in bounded staged passes instead of one large wipe.
+layer_cracks_shatter	*	key:layers.*.build.behaviorConfig.shatterThreshold	number	Shatter Threshold	Sets how many crack tiles trigger a pending pane shatter; a crack across the pane needs three quarters of that.	The pane clears in bounded staged passes instead of one large wipe.
 life_spawn_shared_cracks_impact	*	action:behavior_action:impact	action	Impact	Hits the middle of the glass.	Use it to start a fracture in quiet glass.
 life_spawn_shared_cracks_replace	*	action:behavior_action:replacePane	action	Replace Pane	Clears cracks and stress from the pane.	Visible tiles emit deactivate as the glass is replaced.
 layer_physarum_agents	*	key:layers.*.build.behaviorConfig.agentCount	number	Agent Count	Sets how many slime agents are active.	More agents lay down denser trails.
