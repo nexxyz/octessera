@@ -1,3 +1,4 @@
+use super::link_routing::GroupRouting;
 use super::modulation::RoutedMusicalEvents;
 use super::{
     ArpMode, ArpSource, DelayedRoutedEvents, LinkArpHeldNote, LinkEventTiming, NativeLinkArp,
@@ -34,6 +35,9 @@ impl NativeRunner {
         for held in &mut self.link_arp.held_notes {
             held.clear();
         }
+        for held in &mut self.held_notes {
+            held.forget_replays();
+        }
         for held in &mut self.link_arp.held_tiles {
             held.clear();
         }
@@ -45,6 +49,9 @@ impl NativeRunner {
         if let Some(held) = self.link_arp.held_notes.get_mut(layer_index) {
             held.clear();
         }
+        if let Some(held) = self.held_notes.get_mut(layer_index) {
+            held.forget_replays();
+        }
         if let Some(held) = self.link_arp.held_tiles.get_mut(layer_index) {
             held.clear();
         }
@@ -55,13 +62,13 @@ impl NativeRunner {
 
     pub(super) fn apply_link_arp_timing(
         &mut self,
-        layer_index: usize,
+        context: &GroupRouting<'_>,
         timing: LinkEventTiming,
         lit: Vec<LinkArpHeldNote>,
         link: &NativeLinkLayer,
         mut routed: RoutedMusicalEvents,
-        midi_drum_channels: u16,
     ) -> RoutedMusicalEvents {
+        let (layer_index, midi_drum_channels) = (context.layer_index, context.midi_drum_channels);
         let arp = &link.arp;
         let mut immediate = RoutedMusicalEvents::default();
         // A MIDI Drum note-on is a struck tile: the arp re-times it like a Drum hit, never
@@ -70,7 +77,7 @@ impl NativeRunner {
             matches!(event, MusicalEvent::NoteOn { channel, .. } if midi_drum_channels & 1 << channel != 0)
         });
         routed.midi = midi;
-        self.update_link_arp_held_notes(layer_index, &routed, lit);
+        self.update_link_arp_lit_notes(layer_index, lit);
         self.update_link_arp_held_tiles(layer_index, &routed);
         let source_routed = if arp.source == ArpSource::Held && starts_a_note(&routed) {
             // The new batch replays the whole held set, so the last run's pending notes go.
@@ -82,7 +89,11 @@ impl NativeRunner {
                 .filter(|hit| hit.velocity > 0 && !self.is_held_tile(layer_index, hit))
                 .cloned()
                 .collect();
-            source.extend(self.held_notes_as_routed(layer_index));
+            source.extend(self.held_notes_as_routed(
+                layer_index,
+                context.instruments,
+                context.transpose_offset,
+            ));
             if let Some(held) = self.link_arp.held_tiles.get(layer_index) {
                 source.tiles.extend(held.iter().cloned());
             }

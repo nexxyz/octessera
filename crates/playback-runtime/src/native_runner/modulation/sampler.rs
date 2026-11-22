@@ -296,6 +296,7 @@ fn prepare_note_on_with_intent(
     if duration_ms.is_none() {
         if let (Some(held), Some(held_note)) = (held_notes, held_note) {
             held.record_sounding(original_channel, original_note, held_note);
+            held.record_replay(original_channel, original_note, *velocity);
         }
     }
     false
@@ -314,7 +315,7 @@ fn prepare_note_off_with_intent(
     let original_channel = *channel;
     let original_note = *note;
     if let Some(held_note) =
-        held_notes.and_then(|held| held.take_sounding(original_channel, original_note))
+        held_notes.and_then(|held| held.end_sounding(original_channel, original_note))
     {
         *channel = held_note.routed_channel;
         *note = held_note.routed_note;
@@ -343,6 +344,35 @@ fn prepare_note_off_with_intent(
         | InstrumentType::MidiDrum => {}
     }
     false
+}
+
+/// The note-on a held Arp replays for the held `note` Link sent on `channel`, routed and
+/// transposed as the instrument plays it now; None when the instrument plays no pitched note.
+pub(in crate::native_runner) fn replayed_note_on(
+    instruments: &[super::super::NativeInstrumentSlot],
+    channel: u8,
+    mut note: u8,
+    velocity: u8,
+    transpose_offset: i8,
+) -> Option<(bool, MusicalEvent)> {
+    let instrument = instruments.get(channel as usize)?;
+    let (audio, channel) = match (instrument.kind, instrument_route(instruments, channel)) {
+        (InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck, _) => (true, channel),
+        (InstrumentType::Midi, InstrumentRoute::ExternalMidi) if instrument.midi_enabled => {
+            (false, instrument.midi_channel.saturating_sub(1).min(15))
+        }
+        _ => return None,
+    };
+    transpose_note(&mut note, transpose_offset);
+    Some((
+        audio,
+        MusicalEvent::NoteOn {
+            channel,
+            note,
+            velocity,
+            duration_ms: None,
+        },
+    ))
 }
 
 fn transpose_note(note: &mut u8, offset: i8) {
@@ -411,7 +441,7 @@ fn route_event_without_intent_with_held_transpose(
         route_event_without_intent(event, instruments, &mut out.audio, &mut out.midi);
         return;
     };
-    match held_notes.and_then(|held| held.take_sounding(channel, note)) {
+    match held_notes.and_then(|held| held.end_sounding(channel, note)) {
         Some(held_note) => held_note.release_into(out),
         None => route_event_without_intent(
             MusicalEvent::NoteOff { channel, note },

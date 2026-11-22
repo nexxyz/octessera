@@ -100,7 +100,7 @@ pub(crate) fn changed_note_set_drops_held_modulation_clears_link_state_and_delay
         channel: 0,
         note: 60,
         velocity: 100,
-        tile: None,
+        tile: 0,
     });
     runner.link_arp.rotating_phase[0] = 7;
     runner.link_arp.random_state = 123;

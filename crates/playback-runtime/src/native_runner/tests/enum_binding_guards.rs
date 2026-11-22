@@ -222,7 +222,7 @@ fn link_arp_bindings_write_the_arp_and_clear_its_held_notes() {
             channel: 0,
             note: 60,
             velocity: 96,
-            tile: None,
+            tile: 0,
         });
         let changed = runner.layers[0].link.arp.mode != mode;
         write(&mut runner, "layers.0.link.arp.mode", mode.wire_name());

@@ -49,13 +49,12 @@ impl NativeRunner {
 
     fn apply_link_timing_with_sense(
         &mut self,
-        layer_index: usize,
+        context: &GroupRouting<'_>,
         intents: &[TileTriggerIntent],
         routed: RoutedMusicalEvents,
         lit: Vec<LinkArpHeldNote>,
-        sense: Option<&super::NativeLinkLayer>,
-        midi_drum_channels: u16,
     ) -> RoutedMusicalEvents {
+        let (layer_index, sense) = (context.layer_index, context.sense);
         if routed.is_empty() {
             return routed;
         }
@@ -72,14 +71,7 @@ impl NativeRunner {
             timing.retrigger_count
         };
         if let Some(link) = sense.filter(|link| link.arp.mode != ArpMode::None) {
-            return self.apply_link_arp_timing(
-                layer_index,
-                timing,
-                lit,
-                link,
-                routed,
-                midi_drum_channels,
-            );
+            return self.apply_link_arp_timing(context, timing, lit, link, routed);
         }
         if timing.delay_steps == 0 && retrigger_count == 0 {
             return routed;
@@ -261,36 +253,10 @@ impl NativeRunner {
         };
         if intents.is_empty() {
             self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
-            if context
-                .sense
-                .is_some_and(|link| link.arp.mode != ArpMode::None)
-            {
-                // Scan note-offs carry no tile, yet still end the pitch they held.
-                let note_offs = |events: &[MusicalEvent]| {
-                    events
-                        .iter()
-                        .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
-                        .cloned()
-                        .collect()
-                };
-                let released = RoutedMusicalEvents {
-                    audio: note_offs(&routed.audio),
-                    midi: note_offs(&routed.midi),
-                    tiles: Vec::new(),
-                };
-                self.update_link_arp_held_notes(layer_index, &released, Vec::new());
-            }
             return routed;
         }
         let routed = dedupe_note_ons_in_group(routed, context.instruments);
-        self.apply_link_timing_with_sense(
-            layer_index,
-            intents,
-            routed,
-            lit,
-            context.sense,
-            context.midi_drum_channels,
-        )
+        self.apply_link_timing_with_sense(context, intents, routed, lit)
     }
 }
 
@@ -305,12 +271,12 @@ fn lights_held_arp_tiles(
             .is_some_and(|intent| intent.kind == TileTriggerKind::Activate)
 }
 
-struct GroupRouting<'a> {
-    layer_index: usize,
-    instruments: &'a [super::NativeInstrumentSlot],
-    sense: Option<&'a super::NativeLinkLayer>,
-    transpose_offset: i8,
-    midi_drum_channels: u16,
+pub(super) struct GroupRouting<'a> {
+    pub(super) layer_index: usize,
+    pub(super) instruments: &'a [super::NativeInstrumentSlot],
+    pub(super) sense: Option<&'a super::NativeLinkLayer>,
+    pub(super) transpose_offset: i8,
+    pub(super) midi_drum_channels: u16,
 }
 
 /// An arp orders one step's notes as one batch, so its groups gather every event of one kind and

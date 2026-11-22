@@ -251,10 +251,10 @@ pub(crate) fn link_arp_held_source_holds_a_lit_one_shot_until_its_tile_goes_dark
     assert!(runner.link_arp.held_notes[0].is_empty());
 
     route(&mut runner, vec![note_on(64)]);
-    assert!(!runner.link_arp.held_notes[0].is_empty());
+    assert!(!runner.held_notes[0].replays().is_empty());
     runner.link_arp.random_state = 123;
     runner.reset_transport_position();
-    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert!(runner.held_notes[0].replays().is_empty());
     assert_eq!(runner.link_arp.random_state, 0x4f43_5441);
 }
 

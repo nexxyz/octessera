@@ -1,7 +1,7 @@
 //! What each held note sounds as on its instrument: the transposed pitch, the MIDI channel it
-//! went out on, or the Sampler tile it plays.
+//! went out on, or the Sampler tile it plays; and what a held Arp replays of it.
 
-use super::{HeldNote, HeldNotes};
+use super::{HeldNote, HeldNotes, Replay};
 use crate::native_runner::modulation::sampler::TransposedHeldNote;
 use crate::native_runner::modulation::RoutedMusicalEvents;
 
@@ -38,6 +38,53 @@ impl HeldNotes {
         Some(taken)
     }
 
+    /// Ends the held note-on of `channel` and `note` for a held Arp, and takes its latest sound.
+    pub(in crate::native_runner) fn end_sounding(
+        &mut self,
+        channel: u8,
+        note: u8,
+    ) -> Option<TransposedHeldNote> {
+        let key = HeldNote { channel, note };
+        let entry = self.notes.get_mut(&key)?;
+        entry.replay = None;
+        let taken = entry.sounding.pop();
+        self.remove_if_idle(key);
+        taken
+    }
+
+    /// Remembers that a held Arp replays the held note-on of `channel` and `note`, as the newest.
+    pub(in crate::native_runner) fn record_replay(&mut self, channel: u8, note: u8, velocity: u8) {
+        let onset = self.next_onset;
+        self.next_onset += 1;
+        self.notes
+            .entry(HeldNote { channel, note })
+            .or_default()
+            .replay = Some(Replay { onset, velocity });
+    }
+
+    /// The held notes a held Arp replays, oldest first, as `(channel, note, velocity)` in the
+    /// pitches Link sent.
+    pub(in crate::native_runner) fn replays(&self) -> Vec<(u8, u8, u8)> {
+        let mut replays = self
+            .notes
+            .iter()
+            .filter_map(|(key, entry)| entry.replay.map(|replay| (replay, key)))
+            .collect::<Vec<_>>();
+        replays.sort_by_key(|(replay, _)| replay.onset);
+        replays
+            .into_iter()
+            .map(|(replay, key)| (key.channel, key.note, replay.velocity))
+            .collect()
+    }
+
+    /// Lets a held Arp forget every note it replays; the notes keep sounding.
+    pub(in crate::native_runner) fn forget_replays(&mut self) {
+        self.notes.retain(|_, entry| {
+            entry.replay = None;
+            !entry.is_idle()
+        });
+    }
+
     /// Takes the latest sound of `channel` and `note`.
     pub(in crate::native_runner) fn take_sounding(
         &mut self,
@@ -63,7 +110,7 @@ impl HeldNotes {
                     sounding.release_into(out);
                 }
             }
-            !entry.holders.is_empty() || !entry.sounding.is_empty()
+            !entry.is_idle()
         });
     }
 
@@ -71,7 +118,7 @@ impl HeldNotes {
     pub(in crate::native_runner) fn clear_sounding(&mut self) {
         self.notes.retain(|_, entry| {
             entry.sounding.clear();
-            !entry.holders.is_empty()
+            !entry.is_idle()
         });
     }
 

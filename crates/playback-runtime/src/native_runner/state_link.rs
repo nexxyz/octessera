@@ -148,8 +148,8 @@ pub(super) struct LinkArpHeldNote {
     pub(super) channel: u8,
     pub(super) note: u8,
     pub(super) velocity: u8,
-    /// The lit tile holding a One-Shot note; None for a Hold note.
-    pub(super) tile: Option<usize>,
+    /// The lit tile holding the One-Shot note.
+    pub(super) tile: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

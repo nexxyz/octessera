@@ -91,12 +91,28 @@ impl NoteBehaviorWithIntentsResult {
     }
 }
 
-/// One pitch of one instrument: who holds it and what its instrument sounds for it. A note that
-/// is no longer held keeps its sound until its note-off has been routed or a drain ends it.
+/// One pitch of one instrument: who holds it, what its instrument sounds for it, and what a held
+/// Arp replays of it. A note that is no longer held keeps its sound until its note-off has been
+/// routed or a drain ends it.
 #[derive(Debug, Default)]
 struct HeldEntry {
     holders: Holders,
     sounding: Vec<TransposedHeldNote>,
+    replay: Option<Replay>,
+}
+
+impl HeldEntry {
+    fn is_idle(&self) -> bool {
+        self.holders.is_empty() && self.sounding.is_empty() && self.replay.is_none()
+    }
+}
+
+/// A held note as a held Arp replays it: from its routed note-on until its routed note-off, in
+/// the order the notes started, at the velocity it was played with.
+#[derive(Clone, Copy, Debug)]
+struct Replay {
+    onset: u64,
+    velocity: u8,
 }
 
 /// The notes a layer holds on its Hold instruments, counted per channel and note so that one
@@ -106,6 +122,7 @@ pub(super) struct HeldNotes {
     notes: BTreeMap<HeldNote, HeldEntry>,
     scanned_this_step: BTreeSet<HeldNote>,
     drained_tiles: BTreeSet<usize>,
+    next_onset: u64,
 }
 
 impl HeldNotes {
@@ -162,11 +179,7 @@ impl HeldNotes {
     }
 
     fn remove_if_idle(&mut self, key: HeldNote) {
-        if self
-            .notes
-            .get(&key)
-            .is_some_and(|entry| entry.holders.is_empty() && entry.sounding.is_empty())
-        {
+        if self.notes.get(&key).is_some_and(HeldEntry::is_idle) {
             self.notes.remove(&key);
         }
     }
@@ -209,7 +222,7 @@ impl HeldNotes {
                 holders.scan = false;
                 if holders.is_empty() {
                     released.push(note_off(*key));
-                    return !entry.sounding.is_empty();
+                    return !entry.is_idle();
                 }
             }
             true
@@ -233,7 +246,7 @@ impl HeldNotes {
                 return true;
             }
             released.push((tile, note_off(*key)));
-            !entry.sounding.is_empty()
+            !entry.is_idle()
         });
         released
     }
@@ -245,7 +258,7 @@ impl HeldNotes {
             if key.channel == channel {
                 entry.holders = Holders::default();
             }
-            !entry.holders.is_empty() || !entry.sounding.is_empty()
+            !entry.is_idle()
         });
         self.scanned_this_step.retain(|key| key.channel != channel);
     }

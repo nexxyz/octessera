@@ -1510,6 +1510,9 @@ Held notes (instruments in `hold` mode):
   note-off ends it.
 - Changing an instrument's type, resetting it or changing its MIDI route cuts its voices and
   forgets its held pitches on every layer, so the next note-on sounds again.
+- A held Arp (`Link > Arp` source `held`) replays the notes the layer holds through the current
+  Play Transpose, so a transpose moves every held note it replays, not only the notes struck
+  after it.
 - The count is per layer. Two layers, or a layer and Notes In, holding one pitch on one instrument
   still share one voice, and the first note-off ends it for both.
 - On a scanning layer the scan line is compared with the step before, pitch by pitch: a pitch the
