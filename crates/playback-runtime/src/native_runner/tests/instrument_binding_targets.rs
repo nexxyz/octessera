@@ -114,6 +114,44 @@ fn fm_live_link_lfo_uses_scalar_endpoint_and_release_restores_base() {
 }
 
 #[test]
+fn sample_gain_modulation_reaches_the_engine_above_100_pct() {
+    let sent = |field: &str, value: f64| match instrument_modulation_audio_command(
+        0,
+        field,
+        &json!(value),
+    ) {
+        Some(RuntimeAudioCommand::SetSampleBankParam { value, .. }) => value,
+        other => panic!("{field}: {other:?}"),
+    };
+    assert_eq!(sent("sample.amp.gainPct", 286.0), 286.0);
+    assert_eq!(sent("sample.amp.gainPct", 400.0), 300.0);
+    assert_eq!(sent("sample.amp.velocitySensitivityPct", 150.0), 100.0);
+
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.instruments[0].kind = InstrumentType::Sampler;
+    runner.instruments[0].sample_gain_pct = 286;
+    runner.link_lfos[0].enabled = true;
+    runner.link_lfos[0].target = Some(numeric_binding(
+        "instruments.0.sample.amp.gainPct",
+        0.0,
+        300.0,
+    ));
+    runner.link_lfos[0].phase_pulses = 3;
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.recompose_lfo_audio(false).unwrap();
+    let commands = runner.outbox.drain_audio_commands();
+    assert!(
+        matches!(&commands[..], [RuntimeAudioCommand::SetSampleBankParam { instrument_slot: 0, path, value, .. }] if path == "sample.amp.gainPct" && *value > 100.0),
+        "{commands:?}"
+    );
+    runner.link_lfos[0].enabled = false;
+    runner.recompose_lfo_audio(false).unwrap();
+    assert!(
+        matches!(&runner.outbox.drain_audio_commands()[..], [RuntimeAudioCommand::SetSampleBankParam { instrument_slot: 0, path, value: 286.0, .. }] if path == "sample.amp.gainPct")
+    );
+}
+
+#[test]
 fn runner_only_sample_modulation_does_not_replace_audio_slot() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.instruments[0].kind = InstrumentType::Sampler;

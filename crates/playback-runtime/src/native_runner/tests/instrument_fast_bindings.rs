@@ -234,3 +234,28 @@ fn synth_gain_xy_then_aux_edit_persists_composed_gain_without_replacing_slot() {
     assert_eq!(restored.instruments[0].synth_gain_pct, gain);
     assert_eq!(restored.instruments[0].synth_config["amp"]["gainPct"], gain);
 }
+
+#[test]
+fn aux_turn_on_a_kit_level_sample_gain_moves_on_above_100_pct() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut config = runner.config_payload();
+    config["runtimeConfig"]["instruments"][0]["type"] = json!("sampler");
+    config["runtimeConfig"]["instruments"][0]["sample"]["amp"]["gainPct"] = json!(286);
+    runner.apply_config_payload(config).unwrap();
+    runner.aux_bindings[0] = Some(NativeAuxBinding {
+        turn_key: Some("instruments.0.sample.amp.gainPct".into()),
+        press_action: None,
+    });
+    runner.menu.rebuild(runner.menu_config());
+    let _ = runner.messages_with_snapshot().unwrap();
+    let messages = device_input(
+        &mut runner,
+        json!({ "type": "encoder_turn", "id": "aux1", "delta": 1 }),
+    );
+    assert_only_scalar(&messages, 0, "sample.amp.gainPct");
+    let gain = runner.instruments[0].sample_gain_pct;
+    assert!(gain > 286, "{gain}");
+    assert!(messages.iter().any(|message| matches!(message,
+        RunnerMessage::AudioCommands { commands } if commands.iter().any(|command| matches!(command,
+            RuntimeAudioCommand::SetSampleBankParam { value, .. } if *value == f32::from(gain))))));
+}

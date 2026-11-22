@@ -4,7 +4,7 @@ use super::keys::{
     parse_fx_bus_binding_key, parse_global_fx_binding_key, parse_instrument_binding_key,
 };
 use super::target::{classify_key, TargetMode, TargetValueKind};
-use crate::native_menu::FILTER_RESONANCE;
+use crate::native_menu::{FILTER_RESONANCE, SAMPLE_GAIN_MAX_PCT};
 use crate::protocol::RuntimeAudioCommand;
 use realtime_engine::synth::FxParamId;
 
@@ -274,14 +274,18 @@ pub(in crate::native_runner) fn instrument_modulation_audio_command(
             path: field.into(),
             value: value.round().clamp(-24.0, 24.0) as f32,
         }),
-        "sample.amp.gainPct" | "sample.amp.velocitySensitivityPct" => {
-            Some(RuntimeAudioCommand::SetSampleBankParam {
-                instrument_slot: index,
-                generation: 0,
-                path: field.into(),
-                value: value.clamp(0.0, 100.0) as f32,
-            })
-        }
+        "sample.amp.gainPct" => Some(RuntimeAudioCommand::SetSampleBankParam {
+            instrument_slot: index,
+            generation: 0,
+            path: field.into(),
+            value: value.clamp(0.0, f64::from(SAMPLE_GAIN_MAX_PCT)) as f32,
+        }),
+        "sample.amp.velocitySensitivityPct" => Some(RuntimeAudioCommand::SetSampleBankParam {
+            instrument_slot: index,
+            generation: 0,
+            path: field.into(),
+            value: value.clamp(0.0, 100.0) as f32,
+        }),
         _ => None,
     }
 }

@@ -99,6 +99,10 @@ impl Default for SampleShapeConfig {
     }
 }
 
+/// The loudest Sampler Gain: voices take the synth's ×0.35 headroom, so 300% plays a sample a
+/// little above its recorded level.
+pub const SAMPLE_GAIN_MAX_PCT: f32 = 300.0;
+
 impl Default for SampleBankConfig {
     fn default() -> Self {
         Self {

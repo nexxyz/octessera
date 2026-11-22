@@ -96,7 +96,7 @@ impl SynthEngine {
         }
         let vel = (velocity.max(1) as f32 / 127.0).clamp(0.0, 1.0);
         let vel_sens = (velocity_sensitivity_pct / 100.0).clamp(0.0, 1.0);
-        let gain = (gain_pct / 100.0).clamp(0.0, 3.0)
+        let gain = gain_pct.clamp(0.0, SAMPLE_GAIN_MAX_PCT) / 100.0
             * ((1.0 - vel_sens) + vel_sens * vel)
             * SAMPLE_VOICE_HEADROOM;
         let pitch_semis = tune_semis + f32::from(pitch_cents) / 100.0;

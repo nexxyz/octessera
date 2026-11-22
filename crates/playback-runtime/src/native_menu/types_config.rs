@@ -378,9 +378,7 @@ pub const SAMPLER_KITS: [(&str, &str, [&str; 8]); 3] = [
 ];
 /// Start and Loop Start stop one percent short of the sample's end, so a loop is never empty.
 pub const SAMPLE_START_MAX_PCT: u8 = 99;
-/// Sampler voices take the synth's ×0.35 headroom, so Gain reaches 300% to play a sample above
-/// its recorded level.
-pub const SAMPLE_GAIN_MAX_PCT: u16 = 300;
+pub const SAMPLE_GAIN_MAX_PCT: u16 = realtime_engine::synth::SAMPLE_GAIN_MAX_PCT as u16;
 /// The Gain a factory Sampler kit load sets: its samples at their recorded level (286 × 0.35).
 pub const SAMPLER_KIT_GAIN_PCT: u16 = 286;
 
