@@ -135,6 +135,7 @@ fn default_init_resets_seeded_tile_ages() {
 
 #[test]
 fn carving_no_wrap_reservation_and_collapse() {
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
     let mut ctx = context();
     let mut tiles = vec![WALL; TILE_COUNT];
     let mut visited = vec![0; TILE_COUNT];
@@ -183,6 +184,7 @@ fn carving_no_wrap_reservation_and_collapse() {
         ticked.trigger_types[grid_index(1, 1)],
         TileTriggerType::Deactivate
     );
+    });
 }
 
 #[test]
@@ -288,23 +290,25 @@ fn collapse_and_exhaustion_preserve_walker_tiles() {
 
 #[test]
 fn every_walker_count_walks_and_a_pressed_walker_comes_back() {
-    let mut ctx = context();
-    for count in 1..=8u8 {
-        let state = maze_growth_init(json!({ "walkerCount": count })).unwrap();
-        assert_eq!(state.walkers.len(), usize::from(count));
-    }
-    let state = maze_growth_init(json!({ "walkerCount": 3 })).unwrap();
-    let walker = state.walkers[0];
-    let pressed = maze_growth_on_input(
-        state,
-        DeviceInput::GridPress {
-            x: walker % GRID_WIDTH,
-            y: walker / GRID_WIDTH,
-        },
-        &mut ctx,
-    );
-    assert_eq!(pressed.tiles[walker], WALL);
-    let ticked = maze_growth_on_tick(pressed, &mut ctx);
-    assert_eq!(ticked.walkers.len(), 3);
-    assert!(!ticked.walkers.contains(&walker));
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut ctx = context();
+        for count in 1..=8u8 {
+            let state = maze_growth_init(json!({ "walkerCount": count })).unwrap();
+            assert_eq!(state.walkers.len(), usize::from(count));
+        }
+        let state = maze_growth_init(json!({ "walkerCount": 3 })).unwrap();
+        let walker = state.walkers[0];
+        let pressed = maze_growth_on_input(
+            state,
+            DeviceInput::GridPress {
+                x: walker % GRID_WIDTH,
+                y: walker / GRID_WIDTH,
+            },
+            &mut ctx,
+        );
+        assert_eq!(pressed.tiles[walker], WALL);
+        let ticked = maze_growth_on_tick(pressed, &mut ctx);
+        assert_eq!(ticked.walkers.len(), 3);
+        assert!(!ticked.walkers.contains(&walker));
+    });
 }

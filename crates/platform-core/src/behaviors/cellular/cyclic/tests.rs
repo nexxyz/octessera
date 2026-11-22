@@ -11,49 +11,53 @@ fn empty() -> CyclicState {
 
 #[test]
 fn empty_config_seeds_bounded_default_activity_and_deserialize_empty_stays_empty() {
-    let mut context = context();
-    let mut state = cyclic_init(serde_json::json!({})).unwrap();
-    assert!(state.cells.iter().any(|cell| *cell != 0));
-    assert!(state.cells.contains(&0));
-    assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
-    let restored = cyclic_deserialize(serde_json::json!({ "cells": [] })).unwrap();
-    assert!(restored.cells.iter().all(|cell| *cell == 0));
-    let initialized_empty = cyclic_init(serde_json::json!({ "cells": [] })).unwrap();
-    assert!(initialized_empty.cells.iter().all(|cell| *cell == 0));
-    let missing_state = cyclic_deserialize(serde_json::json!({})).unwrap();
-    assert!(missing_state.cells.iter().any(|cell| *cell != 0));
-    let mut max_activates = 0;
-    let mut total_activates = 0;
-    for _ in 0..128 {
-        state = cyclic_on_tick(state, &mut context);
-        let activates = state
-            .trigger_types
-            .iter()
-            .filter(|trigger| **trigger == TileTriggerType::Activate)
-            .count();
-        max_activates = max_activates.max(activates);
-        total_activates += activates;
-    }
-    assert!(total_activates > 0);
-    assert!(max_activates < TILE_COUNT);
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut context = context();
+        let mut state = cyclic_init(serde_json::json!({})).unwrap();
+        assert!(state.cells.iter().any(|cell| *cell != 0));
+        assert!(state.cells.contains(&0));
+        assert!(!state.trigger_types.contains(&TileTriggerType::Activate));
+        let restored = cyclic_deserialize(serde_json::json!({ "cells": [] })).unwrap();
+        assert!(restored.cells.iter().all(|cell| *cell == 0));
+        let initialized_empty = cyclic_init(serde_json::json!({ "cells": [] })).unwrap();
+        assert!(initialized_empty.cells.iter().all(|cell| *cell == 0));
+        let missing_state = cyclic_deserialize(serde_json::json!({})).unwrap();
+        assert!(missing_state.cells.iter().any(|cell| *cell != 0));
+        let mut max_activates = 0;
+        let mut total_activates = 0;
+        for _ in 0..128 {
+            state = cyclic_on_tick(state, &mut context);
+            let activates = state
+                .trigger_types
+                .iter()
+                .filter(|trigger| **trigger == TileTriggerType::Activate)
+                .count();
+            max_activates = max_activates.max(activates);
+            total_activates += activates;
+        }
+        assert!(total_activates > 0);
+        assert!(max_activates < TILE_COUNT);
+    });
 }
 
 #[test]
 fn default_seed_stays_non_static_and_non_full_over_detector_window() {
-    let mut context = context();
-    let mut state = cyclic_init(serde_json::json!({})).unwrap();
-    let mut static_frames = 0;
-    for _ in 0..300 {
-        let previous = state.cells.clone();
-        state = cyclic_on_tick(state, &mut context);
-        if state.cells == previous {
-            static_frames += 1;
-        } else {
-            static_frames = 0;
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut context = context();
+        let mut state = cyclic_init(serde_json::json!({})).unwrap();
+        let mut static_frames = 0;
+        for _ in 0..300 {
+            let previous = state.cells.clone();
+            state = cyclic_on_tick(state, &mut context);
+            if state.cells == previous {
+                static_frames += 1;
+            } else {
+                static_frames = 0;
+            }
+            assert!(static_frames <= 2);
+            assert!(state.cells.contains(&0));
         }
-        assert!(static_frames <= 2);
-        assert!(state.cells.contains(&0));
-    }
+    });
 }
 
 #[test]
@@ -128,40 +132,44 @@ fn threshold_advancement_and_non_wrapping_edges() {
 
 #[test]
 fn seed_cycle_scatters_a_fresh_mix_of_every_state() {
-    let mut context = context();
-    let seed = |context: &mut BehaviorContext| {
-        cyclic_on_input(
-            empty(),
-            DeviceInput::BehaviorAction(BehaviorActionInput {
-                action_type: "seedCycle".into(),
-            }),
-            context,
-        )
-    };
-    let seeded = seed(&mut context);
-    for value in 0..seeded.states {
-        assert!(seeded.cells.contains(&value), "state {value} missing");
-    }
-    let lit = seeded.cells.iter().position(|cell| *cell == FRONT).unwrap();
-    assert_eq!(seeded.trigger_types[lit], TileTriggerType::Activate);
-    assert_ne!(seeded.cells, seed(&mut context).cells);
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut context = context();
+        let seed = |context: &mut BehaviorContext| {
+            cyclic_on_input(
+                empty(),
+                DeviceInput::BehaviorAction(BehaviorActionInput {
+                    action_type: "seedCycle".into(),
+                }),
+                context,
+            )
+        };
+        let seeded = seed(&mut context);
+        for value in 0..seeded.states {
+            assert!(seeded.cells.contains(&value), "state {value} missing");
+        }
+        let lit = seeded.cells.iter().position(|cell| *cell == FRONT).unwrap();
+        assert_eq!(seeded.trigger_types[lit], TileTriggerType::Activate);
+        assert_ne!(seeded.cells, seed(&mut context).cells);
+    });
 }
 
 #[test]
 fn a_frozen_world_seeds_itself_again() {
-    let mut context = context();
-    let mut state = cyclic_deserialize(serde_json::json!({
-        "states": 8, "threshold": 8, "range": 1, "cells": []
-    }))
-    .unwrap();
-    state.cells[grid_index(4, 4)] = 3;
-    for _ in 0..STALL_TICKS - 1 {
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut context = context();
+        let mut state = cyclic_deserialize(serde_json::json!({
+            "states": 8, "threshold": 8, "range": 1, "cells": []
+        }))
+        .unwrap();
+        state.cells[grid_index(4, 4)] = 3;
+        for _ in 0..STALL_TICKS - 1 {
+            state = cyclic_on_tick(state, &mut context);
+            assert_eq!(state.cells[grid_index(4, 4)], 3);
+        }
         state = cyclic_on_tick(state, &mut context);
-        assert_eq!(state.cells[grid_index(4, 4)], 3);
-    }
-    state = cyclic_on_tick(state, &mut context);
-    assert!(state.ages.iter().all(|age| *age == 0));
-    assert!(state.cells.iter().filter(|cell| **cell != 0).count() > 1);
+        assert!(state.ages.iter().all(|age| *age == 0));
+        assert!(state.cells.iter().filter(|cell| **cell != 0).count() > 1);
+    });
 }
 
 #[test]

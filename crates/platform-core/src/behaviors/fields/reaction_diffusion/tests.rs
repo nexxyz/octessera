@@ -76,103 +76,111 @@ fn menu_palette_normalize_serialize() {
 
 #[test]
 fn default_seed_interval_keeps_reaction_visible_with_bounded_pulses() {
-    let mut ctx = context();
-    let mut state = reaction_diffusion_init(json!({})).unwrap();
-    let mut pulse_counts = Vec::new();
-    for _ in 0..128 {
-        state = reaction_diffusion_on_tick(state, &mut ctx);
-        let activates = state
-            .trigger_types
-            .iter()
-            .filter(|trigger| **trigger == TileTriggerType::Activate)
-            .count();
-        if activates > 0 {
-            pulse_counts.push(activates);
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut ctx = context();
+        let mut state = reaction_diffusion_init(json!({})).unwrap();
+        let mut pulse_counts = Vec::new();
+        for _ in 0..128 {
+            state = reaction_diffusion_on_tick(state, &mut ctx);
+            let activates = state
+                .trigger_types
+                .iter()
+                .filter(|trigger| **trigger == TileTriggerType::Activate)
+                .count();
+            if activates > 0 {
+                pulse_counts.push(activates);
+            }
         }
-    }
-    assert!(state.b.iter().filter(|value| **value >= VISIBLE).count() > 0);
-    assert!(pulse_counts.len() >= 4);
-    assert!(pulse_counts.iter().all(|count| *count < TILE_COUNT / 2));
+        assert!(state.b.iter().filter(|value| **value >= VISIBLE).count() > 0);
+        assert!(pulse_counts.len() >= 4);
+        assert!(pulse_counts.iter().all(|count| *count < TILE_COUNT / 2));
+    });
 }
 
 #[test]
 fn defaults_keep_tail_activity_bounded_through_300_ticks() {
-    assert_tail_activity(reaction_diffusion_init(json!({})).unwrap());
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        assert_tail_activity(reaction_diffusion_init(json!({})).unwrap());
+    });
 }
 
 #[test]
 fn grid_press_seed_and_clear_trigger_contract() {
-    let mut ctx = context();
-    let state = reaction_diffusion_init(json!({})).unwrap();
-    let pressed =
-        reaction_diffusion_on_input(state, DeviceInput::GridPress { x: 0, y: 0 }, &mut ctx);
-    assert_eq!(pressed.b[grid_index(0, 0)], 160);
-    assert_eq!(pressed.a[grid_index(0, 0)], 175);
-    assert_eq!(
-        pressed.trigger_types[grid_index(0, 0)],
-        TileTriggerType::Activate
-    );
-    assert_eq!(
-        pressed.trigger_types[grid_index(1, 0)],
-        TileTriggerType::Activate
-    );
-    let seeded = reaction_diffusion_on_input(
-        pressed.clone(),
-        DeviceInput::BehaviorAction(BehaviorActionInput {
-            action_type: "seedChemicals".into(),
-        }),
-        &mut ctx,
-    );
-    assert_eq!(
-        seeded.trigger_types[grid_index(3, 3)],
-        TileTriggerType::Activate
-    );
-    let cleared = reaction_diffusion_on_input(
-        seeded,
-        DeviceInput::BehaviorAction(BehaviorActionInput {
-            action_type: "clearChemicals".into(),
-        }),
-        &mut ctx,
-    );
-    assert_eq!(cleared.b.iter().sum::<u8>(), 0);
-    assert_eq!(
-        cleared.trigger_types[grid_index(0, 0)],
-        TileTriggerType::Deactivate
-    );
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut ctx = context();
+        let state = reaction_diffusion_init(json!({})).unwrap();
+        let pressed =
+            reaction_diffusion_on_input(state, DeviceInput::GridPress { x: 0, y: 0 }, &mut ctx);
+        assert_eq!(pressed.b[grid_index(0, 0)], 160);
+        assert_eq!(pressed.a[grid_index(0, 0)], 175);
+        assert_eq!(
+            pressed.trigger_types[grid_index(0, 0)],
+            TileTriggerType::Activate
+        );
+        assert_eq!(
+            pressed.trigger_types[grid_index(1, 0)],
+            TileTriggerType::Activate
+        );
+        let seeded = reaction_diffusion_on_input(
+            pressed.clone(),
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "seedChemicals".into(),
+            }),
+            &mut ctx,
+        );
+        assert_eq!(
+            seeded.trigger_types[grid_index(3, 3)],
+            TileTriggerType::Activate
+        );
+        let cleared = reaction_diffusion_on_input(
+            seeded,
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "clearChemicals".into(),
+            }),
+            &mut ctx,
+        );
+        assert_eq!(cleared.b.iter().sum::<u8>(), 0);
+        assert_eq!(
+            cleared.trigger_types[grid_index(0, 0)],
+            TileTriggerType::Deactivate
+        );
+    });
 }
 
 #[test]
 fn integer_tick_uses_start_snapshot_thresholds_and_edges() {
-    let mut ctx = context();
-    let mut b = vec![0; TILE_COUNT];
-    b[grid_index(1, 1)] = 140;
-    let state = reaction_diffusion_init(
-        json!({"b":b,"feedPct":0,"killPct":0,"diffusionPct":0,"reactionPct":50}),
-    )
-    .unwrap();
-    let ticked = reaction_diffusion_on_tick(state, &mut ctx);
-    assert!(ticked.b[grid_index(1, 1)] > 140);
-    assert_eq!(
-        ticked.trigger_types[grid_index(1, 1)],
-        TileTriggerType::Stable
-    );
-    let mut b = vec![0; TILE_COUNT];
-    b[grid_index(0, 0)] = VISIBLE + 4;
-    let edge = reaction_diffusion_init(
-        json!({"b":b,"feedPct":0,"killPct":100,"diffusionPct":100,"reactionPct":0}),
-    )
-    .unwrap();
-    let edge = reaction_diffusion_on_tick(edge, &mut ctx);
-    assert!(edge.b[grid_index(0, 0)] < VISIBLE);
-    assert_eq!(edge.b[grid_index(7, 7)], 0);
-    assert_eq!(
-        edge.trigger_types[grid_index(0, 0)],
-        TileTriggerType::Deactivate
-    );
-    assert_eq!(
-        reaction_diffusion_render_model(&edge).status_line,
-        "B:0 E:0"
-    );
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut ctx = context();
+        let mut b = vec![0; TILE_COUNT];
+        b[grid_index(1, 1)] = 140;
+        let state = reaction_diffusion_init(
+            json!({"b":b,"feedPct":0,"killPct":0,"diffusionPct":0,"reactionPct":50}),
+        )
+        .unwrap();
+        let ticked = reaction_diffusion_on_tick(state, &mut ctx);
+        assert!(ticked.b[grid_index(1, 1)] > 140);
+        assert_eq!(
+            ticked.trigger_types[grid_index(1, 1)],
+            TileTriggerType::Stable
+        );
+        let mut b = vec![0; TILE_COUNT];
+        b[grid_index(0, 0)] = VISIBLE + 4;
+        let edge = reaction_diffusion_init(
+            json!({"b":b,"feedPct":0,"killPct":100,"diffusionPct":100,"reactionPct":0}),
+        )
+        .unwrap();
+        let edge = reaction_diffusion_on_tick(edge, &mut ctx);
+        assert!(edge.b[grid_index(0, 0)] < VISIBLE);
+        assert_eq!(edge.b[grid_index(7, 7)], 0);
+        assert_eq!(
+            edge.trigger_types[grid_index(0, 0)],
+            TileTriggerType::Deactivate
+        );
+        assert_eq!(
+            reaction_diffusion_render_model(&edge).status_line,
+            "B:0 E:0"
+        );
+    });
 }
 
 #[test]

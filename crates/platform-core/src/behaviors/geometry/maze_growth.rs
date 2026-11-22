@@ -2,12 +2,12 @@ use crate::behavior::{
     BehaviorActionInput, BehaviorConfigItem, BehaviorContext, BehaviorRenderModel, DeviceInput,
     TileTriggerType,
 };
+use crate::behavior_random::tile_hash as hash;
 use crate::behavior_random::tile_roll_pct;
 use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -299,16 +299,18 @@ fn clean_walkers(w: &[usize], tiles: &mut [u8], count: usize) -> Vec<usize> {
     }
     out
 }
-/// A walker pressed away, or one more than were walking, reappears on a random open tile.
+/// A walker pressed away, or one more than were walking, reappears on an open corridor tile picked
+/// by the layer's random stream; frontiers keep carving.
 fn replace_lost_walkers(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
-    let mut rng = crate::behavior_random::rng();
     while s.walkers.len() < usize::from(s.walker_count) {
         let open = (0..TILE_COUNT)
-            .filter(|i| s.tiles[*i] == PATH || s.tiles[*i] == FRONTIER)
+            .filter(|i| s.tiles[*i] == PATH)
             .collect::<Vec<_>>();
-        let Some(i) = open.get(rng.gen_range(0..open.len().max(1))).copied() else {
+        if open.is_empty() {
             return;
-        };
+        }
+        let pick = hash(s.tick_counter, s.walkers.len()) % open.len() as u64;
+        let i = open[pick as usize];
         s.tiles[i] = WALKER;
         s.visited[i] = 1;
         s.ages[i] = 0;

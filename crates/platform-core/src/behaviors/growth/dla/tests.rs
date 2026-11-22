@@ -93,32 +93,34 @@ fn old_short_payload_grid_input_normalizes_before_trigger_recompute() {
 
 #[test]
 fn seed_cluster_action_and_no_frontier_tick_are_stable() {
-    let mut context = BehaviorContext::new(120.0);
-    let empty = DlaState {
-        cells: vec![false; TILE_COUNT],
-        ages: vec![0; TILE_COUNT],
-        trigger_types: vec![TileTriggerType::None; TILE_COUNT],
-        spawn_interval: 1,
-        spawn_step: 0,
-        cell_life: 0,
-        tick_counter: 0,
-    };
-    let ticked = dla_on_tick(empty.clone(), &mut context);
-    assert!(ticked.cells.iter().all(|cell| !*cell));
-    assert!(ticked
-        .trigger_types
-        .iter()
-        .all(|trigger| *trigger == TileTriggerType::None));
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut context = BehaviorContext::new(120.0);
+        let empty = DlaState {
+            cells: vec![false; TILE_COUNT],
+            ages: vec![0; TILE_COUNT],
+            trigger_types: vec![TileTriggerType::None; TILE_COUNT],
+            spawn_interval: 1,
+            spawn_step: 0,
+            cell_life: 0,
+            tick_counter: 0,
+        };
+        let ticked = dla_on_tick(empty.clone(), &mut context);
+        assert!(ticked.cells.iter().all(|cell| !*cell));
+        assert!(ticked
+            .trigger_types
+            .iter()
+            .all(|trigger| *trigger == TileTriggerType::None));
 
-    let seeded = dla_on_input(
-        empty,
-        DeviceInput::BehaviorAction(BehaviorActionInput {
-            action_type: "seedCluster".into(),
-        }),
-        &mut context,
-    );
-    assert!(seeded.cells.iter().filter(|cell| **cell).count() >= 1);
-    assert!(seeded.trigger_types.contains(&TileTriggerType::Activate));
+        let seeded = dla_on_input(
+            empty,
+            DeviceInput::BehaviorAction(BehaviorActionInput {
+                action_type: "seedCluster".into(),
+            }),
+            &mut context,
+        );
+        assert!(seeded.cells.iter().filter(|cell| **cell).count() >= 1);
+        assert!(seeded.trigger_types.contains(&TileTriggerType::Activate));
+    });
 }
 
 #[test]
@@ -164,35 +166,37 @@ fn cell_life_zero_disables_aging_and_expiry() {
 
 #[test]
 fn default_tail_stays_bounded_and_non_terminal() {
-    let mut context = BehaviorContext::new(120.0);
-    let mut state = dla_init(Value::Null).unwrap();
-    let mut same = 0;
-    let mut terminal = 0;
-    let mut previous = state.cells.clone();
-    for _ in 0..300 {
-        state = dla_on_tick(state, &mut context);
-        same = if state.cells == previous { same + 1 } else { 0 };
-        terminal = if state.cells.iter().all(|cell| *cell) || state.cells.iter().all(|cell| !*cell)
-        {
-            terminal + 1
-        } else {
-            0
-        };
-        assert!(same <= 2);
-        assert!(terminal <= 2);
-        let bursts = state
-            .trigger_types
-            .iter()
-            .filter(|trigger| {
-                matches!(
-                    trigger,
-                    TileTriggerType::Activate | TileTriggerType::Deactivate
-                )
-            })
-            .count();
-        assert!(bursts <= 4);
-        previous = state.cells.clone();
-    }
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut context = BehaviorContext::new(120.0);
+        let mut state = dla_init(Value::Null).unwrap();
+        let mut same = 0;
+        let mut terminal = 0;
+        let mut previous = state.cells.clone();
+        for _ in 0..300 {
+            state = dla_on_tick(state, &mut context);
+            same = if state.cells == previous { same + 1 } else { 0 };
+            terminal =
+                if state.cells.iter().all(|cell| *cell) || state.cells.iter().all(|cell| !*cell) {
+                    terminal + 1
+                } else {
+                    0
+                };
+            assert!(same <= 2);
+            assert!(terminal <= 2);
+            let bursts = state
+                .trigger_types
+                .iter()
+                .filter(|trigger| {
+                    matches!(
+                        trigger,
+                        TileTriggerType::Activate | TileTriggerType::Deactivate
+                    )
+                })
+                .count();
+            assert!(bursts <= 4);
+            previous = state.cells.clone();
+        }
+    });
 }
 
 fn grown(seed: u64, config: Value, ticks: usize) -> Vec<DlaState> {

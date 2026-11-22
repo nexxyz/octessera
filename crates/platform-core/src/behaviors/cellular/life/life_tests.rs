@@ -288,19 +288,21 @@ fn missing_saved_state_seeds_defaults_but_empty_state_does_not() {
 
 #[test]
 fn a_world_that_stands_still_or_dies_out_gets_a_glider() {
-    let mut context = BehaviorContext::new(120.0);
-    let mut block = init(serde_json::json!({ "cells": [] })).unwrap();
-    for (x, y) in [(6, 6), (7, 6), (6, 7), (7, 7)] {
-        block.cells[grid_index(x, y)] = true;
-    }
-    for start in [block, init(serde_json::json!({ "cells": [] })).unwrap()] {
-        let mut state = start.clone();
-        for _ in 0..STILL_TICKS - 1 {
-            state = on_tick(state, &mut context);
-            assert_eq!(state.cells, start.cells);
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut context = BehaviorContext::new(120.0);
+        let mut block = init(serde_json::json!({ "cells": [] })).unwrap();
+        for (x, y) in [(6, 6), (7, 6), (6, 7), (7, 7)] {
+            block.cells[grid_index(x, y)] = true;
         }
-        state = on_tick(state, &mut context);
-        assert_ne!(state.cells, start.cells);
-        assert!(state.trigger_types.contains(&TileTriggerType::Activate));
-    }
+        for start in [block, init(serde_json::json!({ "cells": [] })).unwrap()] {
+            let mut state = start.clone();
+            for _ in 0..STILL_TICKS - 1 {
+                state = on_tick(state, &mut context);
+                assert_eq!(state.cells, start.cells);
+            }
+            state = on_tick(state, &mut context);
+            assert_ne!(state.cells, start.cells);
+            assert!(state.trigger_types.contains(&TileTriggerType::Activate));
+        }
+    });
 }
