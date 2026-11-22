@@ -10,9 +10,14 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-const DEFAULT_MAX_RADIUS: usize = 4;
-/// Past this radius a shape grown from any tile already covers the grid.
+const MIN_RADIUS: usize = 4;
+const DEFAULT_MAX_RADIUS: usize = MIN_RADIUS;
+/// By this radius a ring or filled disk has swept the whole grid from any tile.
 const MAX_RADIUS: usize = 12;
+
+fn clamp_radius(radius: usize) -> usize {
+    radius.clamp(MIN_RADIUS, MAX_RADIUS)
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Pulse {
@@ -59,6 +64,10 @@ struct ShapesConfig {
 pub fn shapes_deserialize(data: Value) -> Result<ShapesState, String> {
     let mut state: ShapesState = deserialize(data)?;
     state.lifetimes.resize(TILE_COUNT, 0);
+    state.max_radius = clamp_radius(state.max_radius);
+    for pulse in &mut state.pulses {
+        pulse.max_radius = clamp_radius(pulse.max_radius);
+    }
     state.trigger_types = restore_trigger_types(Some(state.trigger_types));
     Ok(state)
 }
@@ -73,13 +82,13 @@ pub fn shapes_init(config: Value) -> Result<ShapesState, String> {
             ox: GRID_WIDTH / 2,
             oy: GRID_HEIGHT / 2,
             radius: 0,
-            max_radius: config.max_radius.unwrap_or(DEFAULT_MAX_RADIUS),
+            max_radius: clamp_radius(config.max_radius.unwrap_or(DEFAULT_MAX_RADIUS)),
         }],
         lifetimes,
         trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         pulse_shape: config.pulse_shape.unwrap_or_else(|| "ring".into()),
         lifespan: config.lifespan.unwrap_or(3),
-        max_radius: config.max_radius.unwrap_or(DEFAULT_MAX_RADIUS),
+        max_radius: clamp_radius(config.max_radius.unwrap_or(DEFAULT_MAX_RADIUS)),
         auto_pulse_interval: config.auto_pulse_interval.unwrap_or(4),
         spawn_step: config.spawn_step.unwrap_or(2).min(63),
         tick_counter: 0,
@@ -260,7 +269,13 @@ pub fn shapes_config_menu() -> Vec<BehaviorConfigItem> {
             &["ring", "filled", "diamond", "cross", "x"],
         ),
         number_item("lifespan", "Lifespan", 1, 12, 1),
-        number_item("maxRadius", "Max Radius", 4, MAX_RADIUS as i32, 1),
+        number_item(
+            "maxRadius",
+            "Max Radius",
+            MIN_RADIUS as i32,
+            MAX_RADIUS as i32,
+            1,
+        ),
         number_item("autoPulseInterval", "Spawn Interval", 0, 20, 1),
         number_item("spawnStep", "Spawn Step", 0, 63, 1),
         action_item("spawnPulse", "Spawn Pulse"),

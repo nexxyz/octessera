@@ -4,7 +4,7 @@ use super::*;
 fn pulse_expands_lifespans_and_wavefront_only_adds_leading_edge() {
     let mut context = BehaviorContext::new(120.0);
     let state = shapes_init(
-        serde_json::json!({ "pulseShape": "diamond", "lifespan": 2, "maxRadius": 2, "autoPulseInterval": 0 }),
+        serde_json::json!({ "pulseShape": "diamond", "lifespan": 2, "maxRadius": 4, "autoPulseInterval": 0 }),
     )
     .unwrap();
     let state = shapes_on_input(state, DeviceInput::GridPress { x: 3, y: 3 }, &mut context);
@@ -15,8 +15,11 @@ fn pulse_expands_lifespans_and_wavefront_only_adds_leading_edge() {
     assert_eq!(ticked.pulses[0].radius, 1);
     assert!(ticked.lifetimes[grid_index(4, 3)] > 0);
 
-    let ticked = shapes_on_tick(ticked, &mut context);
-    assert_eq!(ticked.pulses[0].radius, 2);
+    let mut ticked = ticked;
+    for radius in 2..=4 {
+        ticked = shapes_on_tick(ticked, &mut context);
+        assert_eq!(ticked.pulses[0].radius, radius);
+    }
     let expired = shapes_on_tick(ticked, &mut context);
     assert!(expired.pulses.is_empty());
 }
@@ -87,5 +90,18 @@ fn a_filled_shape_lights_its_whole_disk_while_it_grows() {
         assert_eq!(state.pulses[0].radius, 2);
         assert_eq!(state.lifetimes[grid_index(4, 4)] > 0, center_lit, "{shape}");
         assert!(state.lifetimes[grid_index(6, 4)] > 0, "{shape}");
+    }
+}
+
+#[test]
+fn a_loaded_max_radius_is_held_to_4_through_12() {
+    for (loaded, held) in [(2, 4), (32, 12)] {
+        let state = shapes_init(serde_json::json!({ "maxRadius": loaded })).unwrap();
+        assert_eq!((state.max_radius, state.pulses[0].max_radius), (held, held));
+        let mut saved = serde_json::to_value(&state).unwrap();
+        saved["maxRadius"] = loaded.into();
+        saved["pulses"][0]["maxRadius"] = loaded.into();
+        let state = shapes_deserialize(saved).unwrap();
+        assert_eq!((state.max_radius, state.pulses[0].max_radius), (held, held));
     }
 }
