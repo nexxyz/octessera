@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 const EMPTY: u8 = 0;
+const BLEACH_AGE: u8 = 32;
 const A: u8 = 1;
 const B: u8 = 2;
 const DEAD: u8 = 3;
@@ -101,15 +102,7 @@ pub fn coral_on_input(
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "seedCoral" =>
         {
-            for (x, y, c) in [(1, 0, A), (2, 0, A), (5, 0, B), (6, 0, B)] {
-                let i = grid_index(x, y);
-                state.tiles[i] = c;
-                state.ages[i] = 0;
-                forced.push(ForcedTrigger {
-                    index: i,
-                    trigger_type: TileTriggerType::Activate,
-                })
-            }
+            plant_seeds(&mut state, &mut forced)
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "breakCoral" =>
@@ -165,12 +158,18 @@ pub fn coral_on_tick(mut state: CoralState, _: &mut BehaviorContext) -> CoralSta
         }
     }
     for i in 0..TILE_COUNT {
+        if matches!(state.tiles[i], A | B) && state.ages[i] >= BLEACH_AGE {
+            state.tiles[i] = DEAD;
+            state.ages[i] = 0
+        }
         if state.tiles[i] == DEAD && state.ages[i] >= state.breakaway_age {
             state.tiles[i] = EMPTY;
             state.ages[i] = 0
         }
     }
-    thin_full_frame(&mut state);
+    if !state.tiles.iter().any(|tile| matches!(*tile, A | B)) {
+        plant_seeds(&mut state, &mut forced);
+    }
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers(&prev, &state.tiles, &forced);
     state
@@ -182,7 +181,7 @@ pub fn coral_render_model(state: &CoralState) -> BehaviorRenderModel {
     BehaviorRenderModel {
         name: "coral".into(),
         status_line: format!("A:{a} B:{b} D:{d}"),
-        tiles: state.tiles.iter().map(|c| *c != EMPTY).collect(),
+        tiles: state.tiles.iter().map(|c| matches!(*c, A | B)).collect(),
         palette: crate::BehaviorRenderPalette {
             active: [255, 140, 100],
             inactive: crate::palette::BLACK,
@@ -297,6 +296,17 @@ fn exposed(tiles: &[u8], i: usize) -> bool {
     let y = i / GRID_WIDTH;
     any_cardinal(x, y, |n| tiles[n] == EMPTY)
 }
+fn plant_seeds(state: &mut CoralState, forced: &mut Vec<ForcedTrigger>) {
+    for (x, y, c) in [(1, 0, A), (2, 0, A), (5, 0, B), (6, 0, B)] {
+        let i = grid_index(x, y);
+        state.tiles[i] = c;
+        state.ages[i] = 0;
+        forced.push(ForcedTrigger {
+            index: i,
+            trigger_type: TileTriggerType::Activate,
+        })
+    }
+}
 fn break_action(s: &mut CoralState) {
     let mut rows = (0..TILE_COUNT)
         .filter(|i| s.tiles[*i] == DEAD)
@@ -317,35 +327,14 @@ fn break_action(s: &mut CoralState) {
         s.ages[i] = 0
     }
 }
-fn thin_full_frame(s: &mut CoralState) {
-    if s.tiles.contains(&EMPTY) {
-        return;
-    }
-    let mut removed = 0;
-    for offset in 0..TILE_COUNT {
-        let i = ((s.tick_counter as usize * 11) + offset) % TILE_COUNT;
-        if removed >= 4 {
-            break;
-        }
-        if s.tiles[i] == DEAD || exposed(&s.tiles, i) || tile_roll_pct(s.tick_counter, i, 71) < 25 {
-            s.tiles[i] = EMPTY;
-            s.ages[i] = 0;
-            removed += 1;
-        }
-    }
-}
 fn triggers(p: &[u8], n: &[u8], forced: &[ForcedTrigger]) -> Vec<TileTriggerType> {
+    let live = |tile: u8| matches!(tile, A | B);
     let mut t = (0..TILE_COUNT)
-        .map(|i| {
-            if p[i] == EMPTY && n[i] != EMPTY {
-                TileTriggerType::Activate
-            } else if p[i] != EMPTY && (n[i] == EMPTY || n[i] == DEAD && p[i] != DEAD) {
-                TileTriggerType::Deactivate
-            } else if n[i] != EMPTY {
-                TileTriggerType::Stable
-            } else {
-                TileTriggerType::None
-            }
+        .map(|i| match (live(p[i]), live(n[i])) {
+            (false, true) => TileTriggerType::Activate,
+            (true, false) => TileTriggerType::Deactivate,
+            (true, true) => TileTriggerType::Stable,
+            (false, false) => TileTriggerType::None,
         })
         .collect::<Vec<_>>();
     for i in forced {

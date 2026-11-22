@@ -132,7 +132,7 @@ fn growth_competition_breakaway_and_no_wrap() {
     assert_eq!(cleared.tiles[grid_index(2, 2)], EMPTY);
     assert_eq!(
         cleared.trigger_types[grid_index(2, 2)],
-        TileTriggerType::Deactivate
+        TileTriggerType::None
     );
     assert!(coral_render_model(&cleared).status_line.starts_with("A:"))
 }
@@ -170,4 +170,19 @@ fn default_avoids_consecutive_extremes_and_bounded_triggers() {
             .count();
         assert!(bursts <= 16);
     }
+}
+
+#[test]
+fn old_polyps_bleach_into_dark_skeletons_and_a_dead_reef_is_reseeded() {
+    let mut tiles = vec![0; TILE_COUNT];
+    let mut ages = vec![0; TILE_COUNT];
+    tiles[grid_index(4, 4)] = 1;
+    ages[grid_index(4, 4)] = BLEACH_AGE - 1;
+    let state = coral_init(json!({"tiles": tiles, "ages": ages, "growthPct": 0})).unwrap();
+    let next = coral_on_tick(state, &mut context());
+    let i = grid_index(4, 4);
+    assert_eq!(next.tiles[i], DEAD);
+    assert!(!coral_render_model(&next).tiles[i]);
+    assert_eq!(next.trigger_types[i], TileTriggerType::Deactivate);
+    assert!(next.tiles.iter().any(|tile| matches!(*tile, A | B)));
 }
