@@ -282,7 +282,7 @@ impl HeldNotes {
             self.release_tile(*held_key, tile, intent.clone(), out);
         }
         // A drain already ended what the tile held, so its own Off has nothing left to end.
-        if self.drained_tiles.remove(&tile) && hold {
+        if hold && self.drained_tiles.remove(&tile) {
             return;
         }
         if held.iter().any(|held_key| held_key.channel == key.channel) {
