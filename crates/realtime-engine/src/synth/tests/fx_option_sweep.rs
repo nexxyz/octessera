@@ -45,16 +45,18 @@ const GLOBAL_TYPES: [&str; 6] = [
 const COMPILED_KEYS: [&str; 2] = ["depthMs", "baseMs"];
 /// Settings the swept ones need to be heard: a flat EQ ignores its Mid Freq, Mid Q and Mix.
 const CONTEXT: [(&str, &str, f32); 1] = [("eq", "midGainDb", 9.0)];
-/// Findings accepted on purpose, each with the reason.
-const EXCUSED: [(&str, &str, &str); 2] = [
+/// Findings accepted on purpose: the check each option is let off, with the reason.
+const EXCUSED: [(&str, &str, &str, &str); 2] = [
     (
         "delay",
         "spreadPct",
+        "sound the same",
         "Spread widens the bus output after the slot; spread_balance_tests cover it",
     ),
     (
         "compressor",
         "makeupDb",
+        "peaks above full scale",
         "24 dB of makeup is for heavy squeezing; at the default -24 dB threshold it is too loud",
     ),
 ];
@@ -181,15 +183,10 @@ fn sweep(kind: &str, render: fn(&str, &str, f32) -> Vec<f32>, findings: &mut Vec
             .iter()
             .map(|value| render(kind, &key, *value))
             .collect();
-        if EXCUSED
-            .iter()
-            .any(|(excused_kind, excused_key, _)| *excused_kind == kind && *excused_key == key)
-        {
-            continue;
-        }
+        let mut found = Vec::new();
         for (value, output) in values.iter().zip(&renders) {
             if let Some(fault) = fault(output) {
-                findings.push(format!("{kind}.{key} = {value}: {fault}"));
+                found.push(format!("{kind}.{key} = {value}: {fault}"));
             }
         }
         for pair in [(0, 1), (1, 2), (0, 2)] {
@@ -198,12 +195,17 @@ fn sweep(kind: &str, render: fn(&str, &str, f32) -> Vec<f32>, findings: &mut Vec
             };
             let db = difference_db(a, b);
             if db < -60.0 {
-                findings.push(format!(
+                found.push(format!(
                     "{kind}.{key}: {} and {} sound the same ({db:.1} dB)",
                     values[pair.0], values[pair.1]
                 ));
             }
         }
+        findings.extend(found.into_iter().filter(|finding| {
+            !EXCUSED.iter().any(|(excused_kind, excused_key, check, _)| {
+                *excused_kind == kind && *excused_key == key && finding.contains(check)
+            })
+        }));
     }
 }
 
