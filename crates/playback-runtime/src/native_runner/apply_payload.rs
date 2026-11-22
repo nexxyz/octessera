@@ -10,6 +10,9 @@ use super::{
 
 impl NativeRunner {
     pub(super) fn stop_for_config_load(&mut self) {
+        if !self.auto_save_default {
+            self.forget_shown_save_failure(&crate::RuntimeOperation::StoreSaveDefault);
+        }
         self.transport.transport = crate::protocol::RuntimeTransportState::Stopped;
         self.reset_transport_position();
         self.outbox

@@ -150,6 +150,9 @@ impl NativeRunner {
                     .is_some_and(|priority| value_changed(&mut runner.aux_priority, priority))
             })),
             "autoSaveDefault" => Some(self.fast_bool_menu_key(key, |runner, value| {
+                if !value {
+                    runner.forget_shown_save_failure(&crate::RuntimeOperation::StoreSaveDefault);
+                }
                 bool_changed(&mut runner.auto_save_default, value)
             })),
             "rollingBackups" => Some(self.fast_bool_menu_key(key, |runner, value| {

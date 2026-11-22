@@ -148,6 +148,9 @@ impl NativeRunner {
             ui.dim_timer_seconds = value.min(timer_max);
         }
         if let Some(value) = runtime.auto_save_default {
+            if !value {
+                self.forget_shown_save_failure(&crate::RuntimeOperation::StoreSaveDefault);
+            }
             self.auto_save_default = value;
         }
         self.rolling_backups = runtime.rolling_backups.unwrap_or(true);

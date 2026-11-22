@@ -107,3 +107,43 @@ fn a_retried_autosave_failure_shows_once_until_a_save_works_or_the_player_saves(
     let manual = send_save_result(&mut runner, "manual", failed_default_save());
     assert_eq!(manual["display"]["title"], "CAN'T SAVE");
 }
+
+#[test]
+fn turning_auto_save_off_clears_the_failing_save_mark() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    runner.auto_save_default = true;
+    runner.menu.rebuild(runner.menu_config());
+    send_save_result(&mut runner, "auto-1", failed_default_save());
+    press_main(&mut runner);
+    send_save_result(&mut runner, "auto-2", failed_default_save());
+    assert_eq!(save_mark(&mut runner), "failing");
+
+    super::audio_restart_persistence::enter_edit(&mut runner, "autoSaveDefault");
+    super::audio_restart_persistence::turn(&mut runner, -1);
+    press_main(&mut runner);
+
+    assert!(!runner.auto_save_default);
+    assert_ne!(save_mark(&mut runner), "failing");
+}
+
+#[test]
+fn loading_a_preset_with_auto_save_off_clears_the_failing_save_mark() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    send_save_result(&mut runner, "auto-1", failed_default_save());
+    press_main(&mut runner);
+    assert_eq!(save_mark(&mut runner), "failing");
+
+    let payload = portable_patch_payload_for_save(&runner.config_payload()).unwrap();
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::LoadPresetResult {
+                name: "Other".into(),
+                payload: Some(payload),
+            },
+        })
+        .unwrap();
+
+    assert_ne!(save_mark(&mut runner), "failing");
+}
