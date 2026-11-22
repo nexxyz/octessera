@@ -65,6 +65,7 @@ impl NoteBehaviorWithIntentsResult {
 pub(super) struct HeldNotes {
     notes: BTreeMap<HeldNote, Holders>,
     scanned_this_step: BTreeSet<HeldNote>,
+    drained_tiles: BTreeSet<usize>,
 }
 
 impl HeldNotes {
@@ -81,7 +82,9 @@ impl HeldNotes {
             .take(max_notes)
             .collect::<Vec<_>>();
         for key in &keys {
-            self.notes.remove(key);
+            if let Some(holders) = self.notes.remove(key) {
+                self.drained_tiles.extend(holders.tiles);
+            }
             self.scanned_this_step.remove(key);
         }
         keys.into_iter().map(note_off).collect()
@@ -183,6 +186,7 @@ impl HeldNotes {
         let holder = holder(intent.as_ref());
         match holder {
             Holder::Tile(tile) => {
+                self.drained_tiles.remove(&tile);
                 // A tile holds one pitch per instrument; a new pitch from it ends the old one.
                 if let Some(previous) = self.tile_note(key.channel, tile).filter(|n| *n != key) {
                     self.release_tile(previous, tile, intent.clone(), out);
@@ -276,6 +280,10 @@ impl HeldNotes {
             .collect::<Vec<_>>();
         for held_key in &held {
             self.release_tile(*held_key, tile, intent.clone(), out);
+        }
+        // A drain already ended what the tile held, so its own Off has nothing left to end.
+        if self.drained_tiles.remove(&tile) && hold {
+            return;
         }
         if held.iter().any(|held_key| held_key.channel == key.channel) {
             return;

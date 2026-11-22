@@ -19,6 +19,9 @@ impl NativeRunner {
             self.menu.show_play_fx_rows(&self.menu_config());
             self.menu.keep_focus_on_key(key);
             self.mark_fast_autosave_dirty();
+            if self.play_fx_selected.fx_type != before.fx_type {
+                self.rebase_modulation_keys_under("play.fx.params.");
+            }
         }
         true
     }

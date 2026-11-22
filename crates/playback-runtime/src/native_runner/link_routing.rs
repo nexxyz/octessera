@@ -266,7 +266,19 @@ impl NativeRunner {
                 .is_some_and(|link| link.arp.mode != ArpMode::None)
             {
                 // Scan note-offs carry no tile, yet still end the pitch they held.
-                self.update_link_arp_held_notes(layer_index, &routed, Vec::new());
+                let note_offs = |events: &[MusicalEvent]| {
+                    events
+                        .iter()
+                        .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
+                        .cloned()
+                        .collect()
+                };
+                let released = RoutedMusicalEvents {
+                    audio: note_offs(&routed.audio),
+                    midi: note_offs(&routed.midi),
+                    tiles: Vec::new(),
+                };
+                self.update_link_arp_held_notes(layer_index, &released, Vec::new());
             }
             return routed;
         }

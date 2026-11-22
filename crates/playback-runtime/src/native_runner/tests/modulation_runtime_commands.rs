@@ -378,3 +378,27 @@ pub(crate) fn releasing_a_hold_after_an_fx_type_change_keeps_the_new_effects_val
     runner.process_dirty_modulation_step(false).unwrap();
     assert_eq!(runner.fx_buses[0].slots[0].params["mixPct"], json!(30));
 }
+
+#[test]
+pub(crate) fn releasing_a_hold_after_a_play_fx_type_change_keeps_the_carried_value() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let type_key = "play.fx.type";
+    assert!(runner.menu.set_enum_value_for_key(type_key, "freeze"));
+    runner.apply_or_schedule_menu_key(type_key).unwrap();
+    let source = crate::native_runner::modulation::source::ModulationSourceId::layer_axis(
+        0,
+        crate::native_runner::modulation::source::ModulationAxis::X,
+        0,
+    )
+    .unwrap();
+    let mix = fx_binding("play.fx.params.mixPct", 0.0, 100.0, 1.0);
+    runner.set_runtime_source_input(source, mix, 0.8);
+    runner.process_dirty_modulation_step(false).unwrap();
+    assert_eq!(runner.play_fx_selected.params["mixPct"], 80);
+
+    assert!(runner.menu.set_enum_value_for_key(type_key, "pitch_shift"));
+    runner.apply_or_schedule_menu_key(type_key).unwrap();
+    runner.clear_runtime_source_input(source);
+    runner.process_dirty_modulation_step(false).unwrap();
+    assert_eq!(runner.play_fx_selected.params["mixPct"], 80);
+}

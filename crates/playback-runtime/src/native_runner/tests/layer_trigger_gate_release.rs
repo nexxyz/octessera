@@ -394,6 +394,22 @@ pub(crate) fn trigger_gate_page_zero_releases_held_notes_and_blocks_future_admis
 }
 
 #[test]
+pub(crate) fn releasing_a_key_after_the_layer_toggle_sends_no_second_note_off() {
+    let mut runner = held_keys_runner();
+    press_note(&mut runner, 2, 3);
+    assert_eq!(note_offs(&disable_layer(&mut runner, 0)), 1);
+    runner.display.ui.combined_modifier_held = false;
+
+    let released = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_release", "x": 2, "y": 3 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert_eq!(note_offs(&released), 0);
+}
+
+#[test]
 pub(crate) fn trigger_prob_mode_menu_zero_releases_held_notes() {
     let mut runner = held_keys_runner();
     press_note(&mut runner, 2, 3);

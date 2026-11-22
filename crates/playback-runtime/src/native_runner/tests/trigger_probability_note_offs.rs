@@ -60,7 +60,11 @@ pub(crate) fn gating_a_held_key_to_zero_releases_it_and_blocks_new_notes() {
     gate_layer(&mut runner, TriggerProbabilityMode::Zero);
     assert_eq!(runner.transpose.pending_note_offs.audio.len(), 1);
 
-    assert!(note_offs(&release(&mut runner)) >= 1);
+    assert_eq!(
+        note_offs(&release(&mut runner)),
+        1,
+        "the gate's release only, no second note-off from the key"
+    );
     assert!(runner.layers[0].emitted_note_owners.is_empty());
     assert_eq!(note_ons(&press(&mut runner)), 0);
     release(&mut runner);

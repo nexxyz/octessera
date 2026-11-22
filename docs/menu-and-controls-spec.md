@@ -56,7 +56,7 @@ Data sources the spec relies on:
 | Fn + Space | Reset stop | Stops/resets, silences internal audio, and clears held MIDI notes without broad panic. Takes priority over sample preview. |
 | Combined modifier + Space | Reserved | No-op. |
 | Fn + leftmost grid column | Select layer (1..8) | Makes that layer active and leaves any Play overlay. The menu position does not change. |
-| Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Turning a layer to `0%` releases held Synth, FM, Plucked, and Sampler notes owned by that layer, plus its external MIDI notes, and clears what its Arp holds; an already-ringing one-shot Drum hit finishes its decay. The Play Trigger Gate page and `Link > Trigger Prob. > Mode` do the same when they set a layer to `0%`. While the gate is closed, triggers mapped to `note off` still pass unless the layer's `Link > Trigger Prob. > Prob Note Off` is on. Other layers are unaffected, and re-enabling does not resurrect released notes. |
+| Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Turning a layer to `0%` releases held Synth, FM, Plucked, and Sampler notes owned by that layer, plus its external MIDI notes, and clears what its Arp holds; the key or tile that played a released note sends no second note-off when it lets go; an already-ringing one-shot Drum hit finishes its decay. The Play Trigger Gate page and `Link > Trigger Prob. > Mode` do the same when they set a layer to `0%`. While the gate is closed, triggers mapped to `note off` still pass unless the layer's `Link > Trigger Prob. > Prob Note Off` is on. Other layers are unaffected, and re-enabling does not resurrect released notes. |
 | Fn held | Navigation LEDs | Left column: blue = active layer (or, while a Play page is active, every configured layer), green = configured layer, dim gray = `none` layer. A layer whose trigger mode is `0%` shows magenta instead of blue and dim magenta instead of green. See [Grid overlays](#overlays-and-priority). |
 | Fn + rightmost grid column | Select technical Play page | Selects and activates the technical-bank page on that row and moves the menu to it ([banks](menu-tree/play.md#pages-and-navigation)); in the performance view the menu stays at root. Free rows do nothing. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
 | Combined modifier + rightmost grid column | Select musical Play page | The same for the musical bank. |
@@ -1229,8 +1229,8 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   held layer X/Y, Play XY, or MIDI CC source on that key, so the edit is what plays. A held
   source that moves later drops the held source that moved before it, and the next CC or XY move
   takes the key back. A layer X/Y takes the key back when its trigger lands on another column or
-  row; triggers on the coordinate it held leave the edit playing. Changing an FX slot's type
-  counts as an edit of all that slot's parameters. LFOs keep adding on top of whichever value owns the key. Clearing a source
+  row; triggers on the coordinate it held leave the edit playing. Changing an FX bus, Global FX or Play FX
+  type counts as an edit of all that effect's parameters. LFOs keep adding on top of whichever value owns the key. Clearing a source
   restores the value from before it took the key. The target's menu row shows the value a held
   source sets, in the row's own units, and the restored value when it lets go, so the next
   encoder click steps from what plays; an LFO's share never reaches the row. The Faders bar shows

@@ -96,6 +96,59 @@ fn held_tiles_sharing_a_link_note_end_the_sample_with_the_last_tile() {
 }
 
 #[test]
+fn held_tiles_sharing_a_link_note_release_their_own_tile() {
+    let mut runner = sampler_runner("hold");
+    route(
+        &mut runner,
+        vec![held_on(), held_on()],
+        &[
+            Some(intent(1, TileTriggerKind::Activate)),
+            Some(intent(2, TileTriggerKind::Activate)),
+        ],
+    );
+    let released = route(
+        &mut runner,
+        vec![off()],
+        &[Some(intent(1, TileTriggerKind::Deactivate))],
+    );
+    assert_eq!(
+        released
+            .iter()
+            .map(|hit| (hit.tile, hit.velocity))
+            .collect::<Vec<_>>(),
+        [(1, 0)]
+    );
+    let later = route(&mut runner, vec![off()], &[None]);
+    assert_eq!(
+        later
+            .iter()
+            .map(|hit| (hit.tile, hit.velocity))
+            .collect::<Vec<_>>(),
+        [(2, 0)]
+    );
+}
+
+#[test]
+fn a_one_shot_sampler_tiles_off_spares_another_lit_tile_on_its_pitch() {
+    let mut runner = sampler_runner("oneshot");
+    route(
+        &mut runner,
+        vec![held_on()],
+        &[Some(intent(1, TileTriggerKind::Activate))],
+    );
+    // Tile 3's On was rolled out by trigger probability; its Off still passes.
+    let released = route(
+        &mut runner,
+        vec![off()],
+        &[Some(intent(3, TileTriggerKind::Deactivate))],
+    );
+    assert!(
+        released.iter().all(|hit| hit.tile != 1),
+        "tile 1 stays lit and keeps sounding: {released:?}"
+    );
+}
+
+#[test]
 fn an_earlier_tile_release_cancels_its_delayed_held_tile_on() {
     let mut runner = sampler_runner("hold");
     runner.layers[0].link.activate_timing.delay_steps = 2;

@@ -339,7 +339,9 @@ impl ModulationProcessState {
         key: &str,
         normalized: f64,
     ) -> bool {
-        self.yielded.get(&source) == Some(&(key.into(), normalized))
+        self.yielded
+            .get(&source)
+            .is_some_and(|(yielded_key, at)| yielded_key == key && *at == normalized)
     }
 
     fn remove_source_key(&mut self, key: &str, source: ModulationSourceId) {

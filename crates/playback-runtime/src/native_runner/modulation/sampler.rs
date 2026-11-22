@@ -1,7 +1,7 @@
 use super::super::NativeLinkLayer;
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
-use platform_core::{MusicalEvent, TileTriggerIntent};
+use platform_core::{MusicalEvent, NoteBehavior, TileTriggerIntent};
 use std::collections::BTreeMap;
 
 mod tile_hits;
@@ -184,17 +184,21 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                 MusicalEvent::NoteOff { note, .. } => {
                     if instrument.kind == InstrumentType::Sampler {
                         let tile = tile_hits::tile_index(intent.x, intent.y);
-                        // A pitch two tiles share sounds the first tile's sample and ends with
-                        // the last tile's note-off.
-                        let held = take_held_tile(
+                        // On a Hold Sampler a pitch two tiles share sounds the first tile's
+                        // sample and ends with the last tile's note-off.
+                        let mut held = take_held_tile(
                             active_transpose_notes.as_deref_mut(),
                             channel,
                             *note,
                             tile,
-                        )
-                        .or_else(|| {
-                            take_held_note(active_transpose_notes.as_deref_mut(), channel, *note)
-                        });
+                        );
+                        if held.is_none() && instrument.note_behavior == NoteBehavior::Hold {
+                            held = take_held_note(
+                                active_transpose_notes.as_deref_mut(),
+                                channel,
+                                *note,
+                            );
+                        }
                         match held {
                             Some(held) => held.release_into(&mut routed),
                             None => routed

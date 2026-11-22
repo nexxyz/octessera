@@ -247,6 +247,25 @@ fn a_hold_trigger_note_off_spares_the_tile_that_lights_on_the_same_pitch() {
 }
 
 #[test]
+fn a_drained_tiles_off_sends_no_second_note_off() {
+    let mut held = HeldNotes::default();
+    let hold = [NoteBehavior::Hold];
+    held.apply(
+        &[on(60)],
+        vec![tile_intent(TileTriggerKind::Activate)],
+        &hold,
+    );
+    assert_eq!(held.drain(usize::MAX), vec![off(0, 60)]);
+
+    let released = held.apply(
+        &[off(0, 60)],
+        vec![tile_intent(TileTriggerKind::Deactivate)],
+        &hold,
+    );
+    assert!(released.events.is_empty(), "{:?}", released.events);
+}
+
+#[test]
 fn a_forgotten_channel_sounds_its_next_note_on_again() {
     let mut held = HeldNotes::default();
     let hold = [NoteBehavior::Hold];
