@@ -147,3 +147,21 @@ fn stop_returns_an_advancing_sequencer_to_the_first_page() {
     reset_transport_phase(&mut held);
     assert_eq!((held.page_x, held.page_y), (2, 1));
 }
+
+#[test]
+fn a_stored_page_with_too_few_tiles_loads_padded_and_takes_presses() {
+    let state = deserialize(json!({
+        "width": 8,
+        "height": 8,
+        "tiles": [],
+        "pagesX": 2,
+        "pages": [{ "x": 1, "y": 1, "tiles": [true] }, { "x": 2, "y": 1, "tiles": [] }]
+    }))
+    .unwrap();
+    assert_eq!(state.tiles.len(), TILE_COUNT);
+    assert!(state.tiles[0]);
+    let pressed = press(state, 7, 7);
+    assert!(pressed.tiles[grid_index(7, 7)]);
+    let other = press(with_config(&pressed, json!({ "pageX": 2 })), 7, 7);
+    assert!(other.tiles[grid_index(7, 7)]);
+}

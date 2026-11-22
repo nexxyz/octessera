@@ -37,6 +37,21 @@ fn save(
     )
 }
 
+fn overwrite(
+    adapter: &mut DesktopPlaybackHostAdapter,
+    name: &str,
+    payload: serde_json::Value,
+) -> Vec<RuntimeStoreResult> {
+    effect(
+        adapter,
+        RuntimePlatformEffect::StoreSavePreset {
+            name: name.into(),
+            payload,
+            mode: Some(PresetSaveMode::Overwrite),
+        },
+    )
+}
+
 fn names(adapter: &DesktopPlaybackHostAdapter) -> Vec<String> {
     adapter.list_preset_names().unwrap()
 }
@@ -48,7 +63,7 @@ fn renaming_a_preset_to_another_case_keeps_it() {
     adapter.store_dir = root.clone();
     save(&mut adapter, "Song", json!({ "take": 1 }));
 
-    save(&mut adapter, "song", json!({ "take": 2 }));
+    overwrite(&mut adapter, "song", json!({ "take": 2 }));
     let deleted = effect(
         &mut adapter,
         RuntimePlatformEffect::StoreDeletePreset {
@@ -69,13 +84,25 @@ fn renaming_a_preset_to_another_case_keeps_it() {
 }
 
 #[test]
-fn saving_over_a_case_variant_replaces_it_and_refreshes_the_list() {
+fn saving_over_a_case_variant_is_refused_unless_told_to_overwrite() {
     let (mut adapter, _) = test_adapter();
     let root = temp_store_dir("preset-case-save");
     adapter.store_dir = root.clone();
     save(&mut adapter, "Song", json!({ "take": 1 }));
 
-    let results = save(&mut adapter, "song", json!({ "take": 2 }));
+    let refused = save(&mut adapter, "song", json!({ "take": 2 }));
+    assert!(matches!(
+        refused.as_slice(),
+        [RuntimeStoreResult::RuntimeFailure { error }]
+            if error.message.as_deref() == Some("Save song failed: preset already exists")
+    ));
+    assert_eq!(names(&adapter), ["Song"]);
+    assert_eq!(
+        adapter.load_preset_payload("Song").unwrap(),
+        Some(json!({ "take": 1 }))
+    );
+
+    let results = overwrite(&mut adapter, "song", json!({ "take": 2 }));
 
     assert!(matches!(
         results.as_slice(),

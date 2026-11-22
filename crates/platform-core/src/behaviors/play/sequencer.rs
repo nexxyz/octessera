@@ -86,7 +86,8 @@ fn show_page(state: &mut SequencerState) {
         state.page_y,
     )
     .map(|page| page.tiles.clone())
-    .unwrap_or_else(|| vec![false; TILE_COUNT]);
+    .unwrap_or_default();
+    state.tiles.resize(TILE_COUNT, false);
 }
 
 pub fn on_input(

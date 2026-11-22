@@ -1344,6 +1344,10 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 - `Save As` or `Rename` onto the name of another existing preset confirms with
   `Overwrite preset <name>?` (Rename: `Overwrite preset <target> with <source>?`). The store
   refuses to replace an existing preset unless that overwrite was confirmed.
+  Names match exactly, so on the boards `foo` and `Foo` are two presets. The desktop's store
+  cannot hold both, so there a `Save As` or `Rename` onto a name that differs from another
+  preset's only in letter case is refused (Save As shows `CAN'T SAVE` with
+  `<name> was not saved. A preset with that name exists.`).
 - `Rename` moves the stored preset file to the new name in one step, so it keeps its own music and
   the loaded patch is neither saved nor changed. The toast reads `Renamed to <name>`. The current
   preset name follows only when the renamed preset was the loaded one, and clears when the rename
