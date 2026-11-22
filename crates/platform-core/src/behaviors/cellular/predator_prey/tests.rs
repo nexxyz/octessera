@@ -182,6 +182,8 @@ fn predator_eat_burst_clips_and_does_not_mutate_or_repeat() {
     s.tiles[grid_index(0, 1)] = PREDATOR;
     s.energy[grid_index(0, 1)] = 3;
     s.tiles[grid_index(0, 2)] = HERBIVORE;
+    s.tiles[grid_index(7, 7)] = HERBIVORE;
+    s.energy[grid_index(7, 7)] = 3;
     let n = predator_prey_on_tick(s, &mut c);
     assert_eq!(n.tiles[grid_index(1, 2)], EMPTY);
     assert_eq!(n.trigger_types[grid_index(0, 2)], TileTriggerType::Activate);
