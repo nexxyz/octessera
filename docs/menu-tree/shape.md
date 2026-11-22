@@ -177,8 +177,9 @@ Shape
   rendered pitch rather than assume it. Body Amt adds coloration outside the string feedback, and
   Body Freq moves that coloration (not the shared filter cutoff); Body Freq does nothing at zero Body
   Amt.
-- Defaults: Volume Gain 80%, Vel Sens 100%; Amp Env 0/0/100/900; Filter Env 5/120/70/180. Filter
-  uses Synth's scales, saved under the slot's `pluck` block.
+- Defaults: Volume Gain 80%, Vel Sens 100%; Amp Env 0/300/100/900, so turning Sustain down
+  shapes the note while Decay runs; Filter Env 5/120/70/180. The presets other than Init keep
+  Decay 0. Filter uses Synth's scales, saved under the slot's `pluck` block.
 
 ### Drum
 

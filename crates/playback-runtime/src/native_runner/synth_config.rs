@@ -36,7 +36,7 @@ pub(super) fn pluck_default_config() -> Value {
         "bodyAmountPct": 0,
         "bodyFrequencyHz": 500,
         "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
-        "ampEnv": { "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 900 },
+        "ampEnv": { "attackMs": 0, "decayMs": 300, "sustainPct": 100, "releaseMs": 900 },
         "filter": synth["filter"],
         "filterEnv": synth["filterEnv"]
     })

@@ -17,7 +17,7 @@ fn pluck_defaults_validate_bounds_and_roundtrip_inactive_type_clone_reset() {
     );
     assert_eq!(
         defaults["ampEnv"],
-        json!({ "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 900 })
+        json!({ "attackMs": 0, "decayMs": 300, "sustainPct": 100, "releaseMs": 900 })
     );
     assert_eq!(
         defaults["filter"],

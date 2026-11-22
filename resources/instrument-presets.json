@@ -231,9 +231,9 @@
   ],
   "pluck": [
     { "id": "init", "label": "Init", "set": {} },
-    { "id": "nylon", "label": "Nylon", "set": { "decayMs": 1150, "brightnessPct": 35, "pickPositionPct": 32 } },
-    { "id": "steel", "label": "Steel", "set": { "decayMs": 2840, "brightnessPct": 88, "pickPositionPct": 17 } },
-    { "id": "muted", "label": "Muted", "set": { "decayMs": 140, "brightnessPct": 22, "pickPositionPct": 38 } },
+    { "id": "nylon", "label": "Nylon", "set": { "decayMs": 1150, "brightnessPct": 35, "pickPositionPct": 32, "ampEnv": { "decayMs": 0 } } },
+    { "id": "steel", "label": "Steel", "set": { "decayMs": 2840, "brightnessPct": 88, "pickPositionPct": 17, "ampEnv": { "decayMs": 0 } } },
+    { "id": "muted", "label": "Muted", "set": { "decayMs": 140, "brightnessPct": 22, "pickPositionPct": 38, "ampEnv": { "decayMs": 0 } } },
     {
       "id": "harp",
       "label": "Harp",
@@ -244,7 +244,7 @@
         "pickDepthPct": 50,
         "bodyAmountPct": 20,
         "bodyFrequencyHz": 700,
-        "ampEnv": { "releaseMs": 1400 },
+        "ampEnv": { "decayMs": 0, "releaseMs": 1400 },
         "filter": { "cutoffHz": 20000 }
       }
     },
@@ -258,7 +258,8 @@
         "pickDepthPct": 85,
         "dispersionPct": 15,
         "bodyAmountPct": 40,
-        "bodyFrequencyHz": 1200
+        "bodyFrequencyHz": 1200,
+        "ampEnv": { "decayMs": 0 }
       }
     },
     {
@@ -272,6 +273,7 @@
         "dispersionPct": 37,
         "bodyAmountPct": 81,
         "bodyFrequencyHz": 884,
+        "ampEnv": { "decayMs": 0 },
         "filter": { "cutoffHz": 16000 }
       }
     },
@@ -285,7 +287,7 @@
         "pickDepthPct": 45,
         "bodyAmountPct": 60,
         "bodyFrequencyHz": 450,
-        "ampEnv": { "releaseMs": 220 }
+        "ampEnv": { "decayMs": 0, "releaseMs": 220 }
       }
     },
     {
@@ -298,7 +300,7 @@
         "pickDepthPct": 75,
         "bodyAmountPct": 55,
         "bodyFrequencyHz": 180,
-        "ampEnv": { "releaseMs": 200 },
+        "ampEnv": { "decayMs": 0, "releaseMs": 200 },
         "filter": { "cutoffHz": 1800, "resonance": 10 }
       }
     },
@@ -313,7 +315,7 @@
         "dispersionPct": 70,
         "bodyAmountPct": 35,
         "bodyFrequencyHz": 1500,
-        "ampEnv": { "releaseMs": 1000 }
+        "ampEnv": { "decayMs": 0, "releaseMs": 1000 }
       }
     },
     {
@@ -327,7 +329,7 @@
         "dispersionPct": 60,
         "bodyAmountPct": 30,
         "bodyFrequencyHz": 1800,
-        "ampEnv": { "releaseMs": 150 },
+        "ampEnv": { "decayMs": 0, "releaseMs": 150 },
         "filter": { "cutoffHz": 20000 }
       }
     }
