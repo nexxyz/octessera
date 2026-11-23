@@ -21,6 +21,8 @@ const DY: [i16; 8] = [0, 1, 1, 1, 0, -1, -1, -1];
 
 /// Food placed by a press; layout food is 1. The drifting layout never moves pressed food.
 const PRESSED_FOOD: u8 = 2;
+/// One step in this many, each way, an agent wanders off its course, so no swarm settles into a loop.
+const WANDER_ODDS: u64 = 16;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PhysarumState {
@@ -154,7 +156,10 @@ pub fn physarum_on_tick(mut state: PhysarumState, _: &mut BehaviorContext) -> Ph
             oy[i],
             (h + 7) % 8,
         );
-        state.heading[i] = if should_turn(&state, i, left, ahead) && left >= right {
+        let wander = hash(state.tick_counter, i + 64) % WANDER_ODDS;
+        state.heading[i] = if wander < 2 {
+            (h + 1 + 6 * wander as u8) % 8
+        } else if should_turn(&state, i, left, ahead) && left >= right {
             (h + 1) % 8
         } else if should_turn(&state, i, right, ahead) && right > left {
             (h + 7) % 8
