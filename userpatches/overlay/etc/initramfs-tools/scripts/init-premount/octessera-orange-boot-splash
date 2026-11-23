@@ -17,7 +17,7 @@ case "${1:-}" in
 esac
 
 process_group_alive() {
-  kill -0 -- "-$1" 2>/dev/null
+  kill -0 "-$1" 2>/dev/null
 }
 
 wait_process_group() {
@@ -34,11 +34,11 @@ stop_process_group() {
   pid="$1"
   [ -n "$pid" ] || return 0
   if process_group_alive "$pid"; then
-    kill -TERM -- "-$pid" 2>/dev/null || true
+    kill -TERM "-$pid" 2>/dev/null || true
     wait_process_group "$pid" || true
   fi
   if process_group_alive "$pid"; then
-    kill -KILL -- "-$pid" 2>/dev/null || true
+    kill -KILL "-$pid" 2>/dev/null || true
   fi
   wait "$pid" 2>/dev/null || true
   wait_process_group "$pid"
@@ -46,7 +46,7 @@ stop_process_group() {
 
 # shellcheck disable=SC2317
 cleanup() {
-  trap - EXIT INT TERM HUP
+  trap - 0 INT TERM HUP
   stop_process_group "$HELPER_PID" || true
   stop_process_group "$WATCHDOG_PID" || true
   HELPER_PID=
@@ -59,13 +59,13 @@ on_signal() {
   stop_process_group "$WATCHDOG_PID" || true
 }
 
-trap cleanup EXIT
+trap cleanup 0
 trap on_signal INT TERM HUP
 
 if [ -x /usr/bin/setsid ] && [ -x /usr/bin/python3 ] && [ -x /usr/local/sbin/octessera-orange-oled-logo ]; then
   /usr/bin/setsid /usr/bin/python3 /usr/local/sbin/octessera-orange-oled-logo boot-static >/dev/kmsg 2>&1 &
   HELPER_PID=$!
-  /usr/bin/setsid /bin/sh -c "sleep 3; kill -TERM -- \"-\$1\" 2>/dev/null || true; kill -TERM \"\$1\" 2>/dev/null || true; sleep 1; kill -KILL -- \"-\$1\" 2>/dev/null || true; kill -KILL \"\$1\" 2>/dev/null || true" sh "$HELPER_PID" &
+  /usr/bin/setsid /bin/sh -c "sleep 3; kill -TERM \"-\$1\" 2>/dev/null || true; kill -TERM \"\$1\" 2>/dev/null || true; sleep 1; kill -KILL \"-\$1\" 2>/dev/null || true; kill -KILL \"\$1\" 2>/dev/null || true" sh "$HELPER_PID" &
   WATCHDOG_PID=$!
   wait "$HELPER_PID" 2>/dev/null
   stop_process_group "$WATCHDOG_PID" || true

@@ -32,6 +32,7 @@ python3 "$root/tools/armbian-image/test-orange-runtime-identity.py"
 python3 "$root/tools/armbian-image/test-device-config.py"
 python3 "$root/tools/armbian-image/test-orange-device-apply.py"
 bash "$root/tools/armbian-image/test-orange-boot-splash-hook.sh"
+bash "$root/tools/armbian-image/test-orange-boot-splash-premount.sh"
 
 bash "$root/tools/armbian-image/test-image-mode.sh"
 bash "$root/tools/armbian-image/test-orange-runtime-service.sh"
