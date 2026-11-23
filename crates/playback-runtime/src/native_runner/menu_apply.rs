@@ -32,6 +32,7 @@ impl NativeRunner {
         if let Some(layer) = self.layers.get_mut(self.active_layer_index) {
             layer.behavior_id = behavior_id.to_string();
         }
+        self.apply_behavior_link_defaults(self.active_layer_index, behavior);
         self.sync_active_layer_auto_name(behavior_id);
         self.remap_bindings_for_behavior_change(behavior_id, self.active_layer_index);
         self.set_layer_behavior_config(self.active_layer_index, behavior_id, next_config);
@@ -60,6 +61,7 @@ impl NativeRunner {
         if let Some(layer) = self.layers.get_mut(layer_index) {
             layer.behavior_id = behavior_id.to_string();
         }
+        self.apply_behavior_link_defaults(layer_index, behavior);
         self.set_layer_behavior_config(layer_index, behavior_id, next_config);
         self.sync_layer_auto_name(layer_index, behavior_id);
         self.remap_bindings_for_behavior_change(behavior_id, layer_index);

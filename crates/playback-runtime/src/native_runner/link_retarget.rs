@@ -4,7 +4,11 @@
 //! closing) drains the instruments the old rows played; a Scan Dir flip turns the line round;
 //! an Arp Mode or Source change lets go of the keys the Arp holds.
 
-use super::{ArpMode, NativeLinkLayer, NativeRunner, TriggerAction, TriggerProbabilityMode};
+use super::{
+    link_layer_config, ArpMode, NativeLinkLayer, NativeRunner, ScanAxis, ScanMode, TriggerAction,
+    TriggerProbabilityMode,
+};
+use platform_core::{NativeBehavior, PlayStyle};
 
 impl NativeRunner {
     /// Follows a change of layer `index`'s Link from `before`.
@@ -23,6 +27,42 @@ impl NativeRunner {
             self.drain_layer_notes(index, target_slots(before));
         } else if arp_keys_change {
             self.clear_link_arp_state_for_layer(index);
+        }
+    }
+}
+
+impl NativeRunner {
+    /// A layer that picks `behavior` takes its play style's Scan Mode and Note Preview: a grid
+    /// sequencer scans with a line moving left to right and previews presses, a generative
+    /// world plays directly and previews them, immediate play and games play directly and leave
+    /// a press to the behavior. Both stay editable until the next behavior pick; a patch load
+    /// keeps the saved values.
+    pub(super) fn apply_behavior_link_defaults(&mut self, index: usize, behavior: NativeBehavior) {
+        let Some(link) = self.layers.get_mut(index).map(|layer| &mut layer.link) else {
+            return;
+        };
+        let before = link.clone();
+        let style = behavior.play_style();
+        link.scan_mode = if style == PlayStyle::GridSequencer {
+            link.scan_axis = ScanAxis::Columns;
+            ScanMode::Scanning
+        } else {
+            ScanMode::None
+        };
+        link.note_preview = matches!(style, PlayStyle::GridSequencer | PlayStyle::Generative);
+        if *link == before {
+            return;
+        }
+        let sense = link_layer_config(link);
+        self.apply_link_change(index, &before);
+        self.menu.show_link_scanning_rows(index, &sense);
+        self.menu.set_bool_value_for_key(
+            &format!("layers.{index}.link.notePreview"),
+            sense.note_preview,
+        );
+        if index == self.active_layer_index {
+            self.refresh_active_mapping_config();
+            self.refresh_active_interpretation_profile();
         }
     }
 }

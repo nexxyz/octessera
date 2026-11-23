@@ -1,7 +1,7 @@
-//! Seeded note lifetimes: random tile frames on four layers and random Link and instrument
-//! changes, then every tile dark and the queues run out. Every key is released by then, every
-//! held note that reached a sink has ended, and none of it depends on which layer is selected.
-//! Every layer keeps its Off row on note off, on the instrument its other rows play.
+//! Seeded note lifetimes: random tile frames on four layers and random Link, instrument and
+//! behavior changes, then every tile dark and the queues run out. Every key is released by then,
+//! every held note that reached a sink has ended, and none of it depends on which layer is
+//! selected. Every layer keeps its Off row on note off, on the instrument its other rows play.
 
 use super::*;
 use platform_core::DeviceInput;
@@ -182,10 +182,12 @@ fn edit_link(runner: &mut NativeRunner, layer: usize, edit: impl FnOnce(&mut Nat
     }
 }
 
-/// One random Link or instrument change.
-fn change(runner: &mut NativeRunner, rng: &mut Rng) {
+type Frames = [[bool; GRID_WIDTH * GRID_HEIGHT]; LAYERS];
+
+/// One random Link, instrument or behavior change.
+fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames) {
     let layer = rng.below(LAYERS as u64) as usize;
-    match rng.below(14) {
+    match rng.below(15) {
         0 => {
             let slot = rng.below(6) as usize;
             let on = if rng.chance(80) {
@@ -288,6 +290,13 @@ fn change(runner: &mut NativeRunner, rng: &mut Rng) {
         12 => edit_link(runner, layer, |link| {
             link.note_preview = !link.note_preview;
         }),
+        // A behavior pick takes its play style's Link setup, and back on Keys the grid starts
+        // dark.
+        14 => {
+            runner.select_layer_behavior(layer, "sequencer").unwrap();
+            runner.select_layer_behavior(layer, "keys").unwrap();
+            lit[layer] = [false; GRID_WIDTH * GRID_HEIGHT];
+        }
         _ => {
             let steps = rng.below(3) as i32;
             edit_link(runner, layer, |link| link.y_pitch_steps = steps);
@@ -324,7 +333,7 @@ fn play(seed: u64, selected: usize) -> (Sinks, usize) {
     let play = device_input(&mut runner, json!({ "type": "button_s", "pressed": true }));
     sinks.hear(&runner, "play", &play);
     let mut rng = Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1);
-    let mut lit = [[false; GRID_WIDTH * GRID_HEIGHT]; LAYERS];
+    let mut lit: Frames = [[false; GRID_WIDTH * GRID_HEIGHT]; LAYERS];
     for step in 0..96 {
         for (layer, tiles) in lit.iter_mut().enumerate() {
             if !rng.chance(60) {
@@ -352,11 +361,11 @@ fn play(seed: u64, selected: usize) -> (Sinks, usize) {
             }
         }
         if rng.chance(35) {
-            change(&mut runner, &mut rng);
+            change(&mut runner, &mut rng, &mut lit);
         }
         for offset in 0..STEP {
             if rng.chance(2) {
-                change(&mut runner, &mut rng);
+                change(&mut runner, &mut rng, &mut lit);
             }
             pulse(&mut runner, &mut sinks, &format!("{step}+{offset}"));
         }

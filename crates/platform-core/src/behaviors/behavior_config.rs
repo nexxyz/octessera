@@ -1,6 +1,17 @@
 use super::{cellular, games, native_impl, pattern_music, NativeBehavior, NativeBehaviorState};
 use crate::behavior::{BehaviorConfigItem, GridInteraction};
 
+/// How a behavior is usually played: a grid sequencer is read by a line moving across it, a
+/// generative world plays its own changes, and the immediate-play behaviors and games are played
+/// by hand.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PlayStyle {
+    GridSequencer,
+    Generative,
+    ImmediatePlay,
+    Game,
+}
+
 impl NativeBehavior {
     pub fn config_menu(
         self,
@@ -131,6 +142,25 @@ impl NativeBehavior {
             NativeBehavior::Physarum => &["foodPattern"],
             NativeBehavior::SandRipples => &["windDir"],
             _ => &[],
+        }
+    }
+
+    /// How the behavior is usually played; a layer that picks it takes that style's Link setup.
+    pub fn play_style(self) -> PlayStyle {
+        match self {
+            NativeBehavior::Sequencer
+            | NativeBehavior::Euclid
+            | NativeBehavior::Polyrhythm
+            | NativeBehavior::Breaks
+            | NativeBehavior::Clave
+            | NativeBehavior::Groove
+            | NativeBehavior::Contour
+            | NativeBehavior::Cadence => PlayStyle::GridSequencer,
+            NativeBehavior::Keys | NativeBehavior::Looper | NativeBehavior::None => {
+                PlayStyle::ImmediatePlay
+            }
+            NativeBehavior::Pong | NativeBehavior::Blockout => PlayStyle::Game,
+            _ => PlayStyle::Generative,
         }
     }
 

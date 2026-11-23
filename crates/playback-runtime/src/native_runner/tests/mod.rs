@@ -93,6 +93,7 @@ mod aux_auto_map;
 mod aux_patch_persistence;
 mod aux_view_visual;
 mod basics;
+mod behavior_link_defaults;
 mod behavior_menu_defaults;
 mod behavior_palette;
 mod blockout_breaks;

@@ -36,6 +36,7 @@ mod saved_state_bounds_tests;
 #[cfg(test)]
 mod tests;
 
+pub use behavior_config::PlayStyle;
 pub use catalog::{behavior_catalog, behavior_categories, BehaviorCatalogEntry, BehaviorCategory};
 pub use native_behavior::{
     get_native_behavior, list_native_behavior_ids, NativeBehavior, NativeBehaviorState,
