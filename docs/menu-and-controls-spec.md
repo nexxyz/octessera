@@ -1361,6 +1361,12 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   even when the media is missing. On another device the patch loads cleanly where the same files
   exist; elsewhere the affected slots show `N/A-<filename>` and can be remapped. The bundled library
   is the plain `samples/` folder; there is no sample manifest.
+- Samples on the OLED SD card (SD2, paths under `sd-card/`) are resolved again whenever the boards
+  see that card mount, unmount or get swapped (checked about once a second): the instruments using
+  them reload through their normal off-thread load. Slots whose file is now there play and lose
+  `N/A-`, and the `Samples missing` popup closes when no slot is missing any more. Slots whose file
+  is gone (card pulled, a transfer to the PC started, or a card without that file) turn `N/A-` and
+  silent again and are listed in `Samples missing`, as at patch load. The desktop has no SD2.
 - Named presets are portable patch files. Loading one applies musical patch state only and keeps
   local settings such as brightness, MIDI ports/sync, USB, HDMI, recording settings, audio buffer,
   Auto Save/Backups, and sample favorites. Aux bindings travel with the patch, whatever they target.

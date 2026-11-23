@@ -31,6 +31,7 @@ use std::time::Instant;
 pub struct PiHostAdapter {
     audio: Option<AudioService>,
     samples_dir: PathBuf,
+    sd_card_watch: crate::sd_card_watch::SdCardWatch,
     pub(crate) core: PiHostCore,
     usb_midi_out_enabled: bool,
     audio_outputs: AudioOutputSet,
@@ -73,6 +74,10 @@ impl PiHostAdapter {
 
     pub(crate) fn take_transfer_status(&mut self) -> Option<HostMessage> {
         self.core.take_transfer_status()
+    }
+
+    pub(crate) fn poll_sd_card(&mut self, now: Instant) -> Option<HostMessage> {
+        self.sd_card_watch.poll(now)
     }
 
     #[cfg(all(board_not_orange, any(test, feature = "profiling")))]

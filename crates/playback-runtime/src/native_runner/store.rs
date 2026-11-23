@@ -236,6 +236,10 @@ impl NativeRunner {
                 self.apply_missing_samples(&paths);
                 Ok(())
             }
+            RuntimeStoreResult::SdCardChanged => {
+                self.reload_sd_card_samples();
+                Ok(())
+            }
             RuntimeStoreResult::Identified { .. }
             | RuntimeStoreResult::OperationSucceeded { .. }
             | RuntimeStoreResult::SamplePreviewError { .. } => Ok(()),

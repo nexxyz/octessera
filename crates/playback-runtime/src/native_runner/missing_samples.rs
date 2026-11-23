@@ -57,6 +57,63 @@ impl NativeRunner {
         });
         self.show_instruments_rows(&changed_instruments);
     }
+
+    /// SD2 came, went or was swapped: every slot with a sample on it is resolved again through
+    /// the instrument's normal audio load, and the host reports the ones still missing.
+    pub(super) fn reload_sd_card_samples(&mut self) {
+        let sd_card_slots = self
+            .instruments
+            .iter()
+            .enumerate()
+            .flat_map(|(instrument_slot, instrument)| {
+                instrument
+                    .sample_paths
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, path)| path.as_deref().is_some_and(is_sd_card_sample_path))
+                    .map(move |(sample_slot, _)| (instrument_slot, sample_slot))
+            })
+            .collect::<Vec<_>>();
+        let mut reloaded_instruments = Vec::new();
+        for (instrument_slot, sample_slot) in sd_card_slots {
+            if let Some(availability) = self
+                .sample_availability
+                .get_mut(instrument_slot)
+                .and_then(|slots| slots.get_mut(sample_slot))
+            {
+                *availability = NativeSampleAvailability::Unknown;
+            }
+            if !reloaded_instruments.contains(&instrument_slot) {
+                reloaded_instruments.push(instrument_slot);
+            }
+        }
+        if reloaded_instruments.is_empty() {
+            return;
+        }
+        let nothing_missing = self
+            .sample_availability
+            .iter()
+            .flatten()
+            .all(|availability| *availability != NativeSampleAvailability::Unavailable);
+        if nothing_missing
+            && self
+                .display
+                .help_popup
+                .as_ref()
+                .is_some_and(|popup| popup.title == MISSING_SAMPLES_TITLE)
+        {
+            self.display.help_popup = None;
+        }
+        for instrument_slot in &reloaded_instruments {
+            self.queue_instrument_slot_config(*instrument_slot);
+        }
+        self.show_instruments_rows(&reloaded_instruments);
+    }
+}
+
+fn is_sd_card_sample_path(path: &str) -> bool {
+    let path = path.replace('\\', "/");
+    path == "sd-card" || path.starts_with("sd-card/")
 }
 
 #[cfg(test)]

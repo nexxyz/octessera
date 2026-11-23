@@ -118,6 +118,9 @@ pub fn handle_deferred_host_work(
         }
         dispatch_runtime_message(playback, runner, adapter, result)?;
     }
+    if let Some(changed) = adapter.poll_sd_card(Instant::now()) {
+        dispatch_runtime_message(playback, runner, adapter, changed)?;
+    }
     for result in adapter.drain_platform_results_for_runner(runner, PLATFORM_RESULT_BUDGET) {
         if adapter.shutdown_pending() {
             break;

@@ -64,6 +64,7 @@ impl PiHostAdapter {
         }));
         Self {
             audio,
+            sd_card_watch: crate::sd_card_watch::SdCardWatch::new(&samples_dir),
             samples_dir,
             core: PiHostCore::new(
                 platform_service,

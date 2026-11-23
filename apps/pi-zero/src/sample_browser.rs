@@ -7,7 +7,7 @@ use playback_runtime::{
 use serde_json::json;
 use std::path::Path;
 
-const SD_CARD_SAMPLE_DIR: &str = "sd-card";
+pub(crate) const SD_CARD_SAMPLE_DIR: &str = "sd-card";
 pub(crate) const SD_CARD_SAMPLE_BROWSER_DIR: &str = "sd-card/octessera/samples";
 const SD_CARD_REPAIR_MARKER: &str = "/run/octessera-sd-card.needs-repair";
 

@@ -1,6 +1,6 @@
 use super::super::{InstrumentType, NativeRunnerConfig, NativeSampleAvailability};
 use super::*;
-use crate::{CoreRunner, HostMessage, RuntimeStoreResult};
+use crate::{CoreRunner, HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult};
 
 fn runner_with_two_samples() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -67,4 +67,106 @@ fn unrelated_missing_paths_are_ignored() {
     assert!(runner.sample_availability[1]
         .iter()
         .all(|availability| *availability != NativeSampleAvailability::Unavailable));
+}
+
+const SD_CARD_SNARE: &str = "sd-card/octessera/samples/snare.wav";
+
+fn runner_with_an_sd_card_sample() -> NativeRunner {
+    let mut runner = runner_with_two_samples();
+    runner.instruments[1].sample_paths[2] = Some(SD_CARD_SNARE.into());
+    let _ = runner.messages_with_snapshot().unwrap();
+    runner
+}
+
+fn sd_card_changed(runner: &mut NativeRunner) -> Vec<usize> {
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SdCardChanged,
+        })
+        .unwrap()
+        .iter()
+        .flat_map(|message| match message {
+            RunnerMessage::AudioCommands { commands } => commands.as_slice(),
+            _ => &[],
+        })
+        .filter_map(|command| match command {
+            RuntimeAudioCommand::SetInstrumentSlot {
+                instrument_slot, ..
+            } => Some(*instrument_slot),
+            _ => None,
+        })
+        .collect()
+}
+
+fn sd_card_slot(runner: &NativeRunner) -> NativeSampleAvailability {
+    runner.sample_availability[1][2]
+}
+
+#[test]
+fn a_patch_loaded_without_sd2_loads_its_card_samples_once_the_card_mounts() {
+    let mut runner = runner_with_an_sd_card_sample();
+    report_missing(&mut runner, &[SD_CARD_SNARE]);
+    assert_eq!(sd_card_slot(&runner), NativeSampleAvailability::Unavailable);
+    assert!(runner.display.help_popup.is_some());
+
+    assert_eq!(sd_card_changed(&mut runner), vec![1]);
+
+    assert_eq!(sd_card_slot(&runner), NativeSampleAvailability::Unknown);
+    assert!(runner.display.help_popup.is_none());
+}
+
+#[test]
+fn unmounting_sd2_marks_its_samples_unavailable_again() {
+    let mut runner = runner_with_an_sd_card_sample();
+
+    assert_eq!(sd_card_changed(&mut runner), vec![1]);
+    report_missing(&mut runner, &[SD_CARD_SNARE]);
+
+    assert_eq!(sd_card_slot(&runner), NativeSampleAvailability::Unavailable);
+    assert_eq!(
+        runner
+            .display
+            .help_popup
+            .as_ref()
+            .map(|popup| popup.title.as_str()),
+        Some("Samples missing")
+    );
+    assert_ne!(
+        runner.sample_availability[1][0],
+        NativeSampleAvailability::Unavailable
+    );
+}
+
+#[test]
+fn a_swap_to_a_card_without_the_file_keeps_its_slots_unavailable() {
+    let mut runner = runner_with_an_sd_card_sample();
+    report_missing(&mut runner, &[SD_CARD_SNARE]);
+
+    assert_eq!(sd_card_changed(&mut runner), vec![1]);
+    report_missing(&mut runner, &[SD_CARD_SNARE]);
+
+    assert_eq!(sd_card_slot(&runner), NativeSampleAvailability::Unavailable);
+}
+
+#[test]
+fn a_mount_keeps_the_popup_while_samples_elsewhere_are_still_missing() {
+    let mut runner = runner_with_an_sd_card_sample();
+    report_missing(&mut runner, &["userdata/User Kit/gone.wav", SD_CARD_SNARE]);
+
+    assert_eq!(sd_card_changed(&mut runner), vec![1]);
+
+    assert_eq!(sd_card_slot(&runner), NativeSampleAvailability::Unknown);
+    assert_eq!(
+        runner.sample_availability[1][1],
+        NativeSampleAvailability::Unavailable
+    );
+    assert!(runner.display.help_popup.is_some());
+}
+
+#[test]
+fn an_sd2_change_leaves_patches_without_card_samples_alone() {
+    let mut runner = runner_with_two_samples();
+    let _ = runner.messages_with_snapshot().unwrap();
+
+    assert!(sd_card_changed(&mut runner).is_empty());
 }

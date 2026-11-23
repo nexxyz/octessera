@@ -20,7 +20,9 @@ swap the card while the instrument is on; give it a couple of seconds to show
 up. It appears in the sample browser as
 the `SD card` favorite. Just let any transfer or save finish before you pull it;
 a card yanked mid-write gets a quick automatic check the next time it goes in,
-but it can't bring back a half-written file.
+but it can't bring back a half-written file. A patch that uses samples from the
+card picks them up again once the card is back, so a patch loaded before the
+card mounted, or a quick swap, doesn't leave those slots silent.
 
 To copy files from a computer without pulling the card, use
 **System > Connections > SD Card 2 > Start Transfer** in USB Gadget mode

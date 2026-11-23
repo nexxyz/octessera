@@ -80,6 +80,7 @@ mod runtime_loop;
 mod runtime_output;
 mod runtime_thread;
 mod sample_browser;
+mod sd_card_watch;
 mod setup_portal;
 mod setup_portal_files;
 mod setup_portal_paths;
