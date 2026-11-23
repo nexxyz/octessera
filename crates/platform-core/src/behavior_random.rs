@@ -126,8 +126,23 @@ impl RngCore for BehaviorRng {
 fn with_active<R>(draw: impl FnOnce(&mut dyn RngCore) -> R) -> R {
     ACTIVE_RNG.with(|active| match active.borrow_mut().as_mut() {
         Some(seeded) => draw(seeded),
-        None => draw(&mut rand::thread_rng()),
+        None => draw_unscoped(draw),
     })
+}
+
+#[cfg(not(test))]
+fn draw_unscoped<R>(draw: impl FnOnce(&mut dyn RngCore) -> R) -> R {
+    draw(&mut rand::thread_rng())
+}
+
+/// Unit tests that call a behavior outside a layer's random stream draw from a fixed seed per
+/// test thread, so a random reseed can't make a test pass or fail by chance.
+#[cfg(test)]
+fn draw_unscoped<R>(draw: impl FnOnce(&mut dyn RngCore) -> R) -> R {
+    thread_local! {
+        static UNSCOPED_TEST_RNG: RefCell<ChaCha12Rng> = RefCell::new(ChaCha12Rng::seed_from_u64(0));
+    }
+    UNSCOPED_TEST_RNG.with(|rng| draw(&mut *rng.borrow_mut()))
 }
 
 #[cfg(test)]
