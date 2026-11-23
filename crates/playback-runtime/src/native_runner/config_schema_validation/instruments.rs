@@ -410,6 +410,8 @@ fn validate_sample_slot_playback(slot: &Map<String, Value>, path: &str) -> Resul
     unsigned_field(slot, "startPct", path, 0, start_max)?;
     unsigned_field(slot, "loopStartPct", path, 0, start_max)?;
     unsigned_field(slot, "loopEndPct", path, 1, 100)?;
+    let fade_max = u64::from(crate::native_menu::SAMPLE_LOOP_FADE_MAX_MS);
+    unsigned_field(slot, "loopFadeMs", path, 0, fade_max)?;
     let pct = |key: &str, fallback: u64| slot.get(key).and_then(Value::as_u64).unwrap_or(fallback);
     if pct("loopEndPct", 100) <= pct("loopStartPct", 0) {
         return Err(format!("{path}.loopEndPct must be above loopStartPct"));

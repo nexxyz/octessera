@@ -4,7 +4,8 @@ use super::super::{
 };
 use super::fast::value_changed;
 use crate::native_menu::{
-    NativeMenuModel, NativeSamplePlayback, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
+    NativeMenuModel, NativeSamplePlayback, SAMPLE_LOOP_FADE_MAX_MS, SAMPLE_LOOP_MODES,
+    SAMPLE_START_MAX_PCT,
 };
 
 impl NativeRunner {
@@ -60,6 +61,11 @@ fn apply_sample_playback_field(
             &mut playback.loop_end_pct,
             i32::from(playback.loop_start_pct) + 1,
             100,
+        ),
+        "loopFadeMs" => (
+            &mut playback.loop_fade_ms,
+            0,
+            i32::from(SAMPLE_LOOP_FADE_MAX_MS),
         ),
         _ => return false,
     };

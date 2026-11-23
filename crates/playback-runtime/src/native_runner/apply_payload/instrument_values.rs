@@ -3,7 +3,9 @@ use super::super::{
     NativeSampleAssignment, NativeSamplePlayback, NativeTileStamp, SampleDto, SampleSlotDto,
     TileStampDto, GRID_HEIGHT, GRID_WIDTH, SAMPLE_SLOT_COUNT,
 };
-use crate::native_menu::{SAMPLE_GAIN_MAX_PCT, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT};
+use crate::native_menu::{
+    SAMPLE_GAIN_MAX_PCT, SAMPLE_LOOP_FADE_MAX_MS, SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
+};
 use platform_core::NoteBehavior;
 use serde_json::json;
 
@@ -188,5 +190,8 @@ fn sample_playback_from_payload(slot: &SampleSlotDto) -> NativeSamplePlayback {
         start_pct: pct(slot.start_pct, neutral.start_pct).min(SAMPLE_START_MAX_PCT),
         loop_start_pct,
         loop_end_pct: pct(slot.loop_end_pct, neutral.loop_end_pct).max(loop_start_pct + 1),
+        loop_fade_ms: slot
+            .loop_fade_ms
+            .map_or(neutral.loop_fade_ms, |ms| ms.min(SAMPLE_LOOP_FADE_MAX_MS)),
     }
 }

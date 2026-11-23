@@ -11,7 +11,7 @@ struct AddedKey {
     default: fn() -> Value,
 }
 
-const ADDED_RUNTIME_KEYS: [AddedKey; 8] = [
+const ADDED_RUNTIME_KEYS: [AddedKey; 9] = [
     AddedKey {
         kinds: SYSTEM_DOCUMENTS,
         path: &["midi", "notesIn"],
@@ -51,6 +51,11 @@ const ADDED_RUNTIME_KEYS: [AddedKey; 8] = [
         kinds: PATCH_DOCUMENTS,
         path: &["instruments", "*", "drum", "noteOff"],
         default: || Value::String("ignore".into()),
+    },
+    AddedKey {
+        kinds: PATCH_DOCUMENTS,
+        path: &["instruments", "*", "sample", "slots", "*", "loopFadeMs"],
+        default: || Value::from(10),
     },
 ];
 

@@ -8,8 +8,8 @@ use super::{
 };
 use crate::native_menu::{
     sample_display_name, NativeMenuPick, NativeMenuValue, NativeSampleAvailability,
-    NativeSamplePlayback, SAMPLER_KITS, SAMPLE_GAIN_MAX_PCT, SAMPLE_LOOP_MODES,
-    SAMPLE_START_MAX_PCT,
+    NativeSamplePlayback, SAMPLER_KITS, SAMPLE_GAIN_MAX_PCT, SAMPLE_LOOP_FADE_MAX_MS,
+    SAMPLE_LOOP_MODES, SAMPLE_START_MAX_PCT,
 };
 use crate::native_menu::{FactoryLoadKind, PlatformAction};
 use crate::native_menu::{FILTER_ENV_AMOUNT_PCT, FILTER_KEY_TRACKING_PCT, FILTER_RESONANCE};
@@ -179,7 +179,8 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
     group("Sampler", children)
 }
 
-/// The selected slot's Start and Loop rows; Loop Start and Loop End show while it loops.
+/// The selected slot's Start and Loop rows; Loop Start and Loop End show while it loops, Loop
+/// Fade while it loops forward.
 fn sample_playback_items(slot_key: &str, playback: NativeSamplePlayback) -> Vec<NativeMenuItem> {
     let mut items = vec![
         number_item(
@@ -216,6 +217,16 @@ fn sample_playback_items(slot_key: &str, playback: NativeSamplePlayback) -> Vec<
                 1,
             ),
         ]);
+    }
+    if playback.loop_mode == "forward" {
+        items.push(number_item(
+            "Loop Fade",
+            format!("{slot_key}.loopFadeMs"),
+            i32::from(playback.loop_fade_ms),
+            0,
+            i32::from(SAMPLE_LOOP_FADE_MAX_MS),
+            1,
+        ));
     }
     items
 }

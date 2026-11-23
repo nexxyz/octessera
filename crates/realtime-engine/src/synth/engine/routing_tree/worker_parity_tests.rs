@@ -188,19 +188,22 @@ fn a_global_play_fx_press_and_an_untimed_note_start_on_the_same_routing_tree_blo
 
 #[test]
 fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
-    let samples: Vec<f32> = (0..1_000)
+    let samples: Vec<f32> = (0..4_000)
         .map(|frame| (frame as f32 * 0.07).sin() * 0.5)
         .collect();
     let cases = RATES.into_iter().flat_map(|rate| {
         [
-            (SampleLoopMode::Forward, "direct"),
-            (SampleLoopMode::PingPong, "direct"),
-            (SampleLoopMode::Forward, "fx_bus_1"),
-            (SampleLoopMode::PingPong, "fx_bus_1"),
+            (SampleLoopMode::Forward, 0.0, "direct"),
+            (SampleLoopMode::Forward, 10.0, "direct"),
+            (SampleLoopMode::Forward, 30.0, "direct"),
+            (SampleLoopMode::PingPong, 10.0, "direct"),
+            (SampleLoopMode::Forward, 10.0, "fx_bus_1"),
+            (SampleLoopMode::Forward, 3.0, "fx_bus_1"),
+            (SampleLoopMode::PingPong, 10.0, "fx_bus_1"),
         ]
-        .map(|(loop_mode, route)| (rate, loop_mode, route))
+        .map(|(loop_mode, fade_ms, route)| (rate, loop_mode, fade_ms, route))
     });
-    for (rate, loop_mode, route) in cases {
+    for (rate, loop_mode, loop_fade_ms, route) in cases {
         let mut bank = SampleBankConfig::default();
         bank.slots[0].buffer = Some(SampleBuffer {
             samples: samples.clone().into(),
@@ -212,6 +215,7 @@ fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
             start_pct: 5.0,
             loop_start_pct: 20.0,
             loop_end_pct: 70.0,
+            loop_fade_ms,
         };
         let mut banks = vec![SampleBankConfig::default(); INSTRUMENT_SLOT_COUNT];
         banks[0] = bank;
@@ -225,7 +229,7 @@ fn looping_sampler_renders_the_same_on_the_routing_tree_workers() {
         assert_worker_render_matches_inline(
             &mut routed,
             &mut inline,
-            &format!("{loop_mode:?} loop via {route} at {rate} Hz"),
+            &format!("{loop_mode:?} loop, {loop_fade_ms} ms fade, via {route} at {rate} Hz"),
             |engine, block, routed| {
                 if block + usize::from(routed) == 60 {
                     assert_eq!(

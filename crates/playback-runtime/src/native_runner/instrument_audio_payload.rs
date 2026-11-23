@@ -22,7 +22,8 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
                 "loop": playback.loop_mode,
                 "startPct": playback.start_pct,
                 "loopStartPct": playback.loop_start_pct,
-                "loopEndPct": playback.loop_end_pct
+                "loopEndPct": playback.loop_end_pct,
+                "loopFadeMs": playback.loop_fade_ms
             })
         })
         .collect::<Vec<_>>();

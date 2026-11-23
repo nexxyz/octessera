@@ -42,6 +42,9 @@ pub struct SamplePlaybackConfig {
     pub start_pct: f32,
     pub loop_start_pct: f32,
     pub loop_end_pct: f32,
+    /// How long a forward loop's tail crossfades into its head, in ms of the sample; 0 plays the
+    /// loop with a hard seam.
+    pub loop_fade_ms: f32,
 }
 
 impl Default for SamplePlaybackConfig {
@@ -51,6 +54,7 @@ impl Default for SamplePlaybackConfig {
             start_pct: 0.0,
             loop_start_pct: 0.0,
             loop_end_pct: 100.0,
+            loop_fade_ms: 10.0,
         }
     }
 }
@@ -102,6 +106,8 @@ impl Default for SampleShapeConfig {
 /// The loudest Sampler Gain: voices take the synth's ×0.35 headroom, so 300% plays a sample a
 /// little above its recorded level.
 pub const SAMPLE_GAIN_MAX_PCT: f32 = 300.0;
+/// The longest forward-loop crossfade Loop Fade sets, in ms.
+pub const SAMPLE_LOOP_FADE_MAX_MS: f32 = 100.0;
 
 impl Default for SampleBankConfig {
     fn default() -> Self {

@@ -65,7 +65,8 @@ fn device_input_sets_start_and_loop_rows_for_the_selected_slot() {
             "loop": "forward",
             "startPct": 20,
             "loopStartPct": 30,
-            "loopEndPct": 70
+            "loopEndPct": 70,
+            "loopFadeMs": 10
         })
     );
 
@@ -102,6 +103,33 @@ fn loop_start_and_end_stop_one_percent_apart() {
 }
 
 #[test]
+fn loop_fade_shows_for_forward_loops_and_zero_reaches_the_engine() {
+    let mut runner = looping_runner();
+    assert!(runner
+        .test_menu_sibling_labels()
+        .contains(&"Loop Fade".to_string()));
+    edit_row(&mut runner, "Loop Fade", -10);
+    assert_eq!(saved_slot(&runner, 0)["loopFadeMs"], 0);
+    assert_eq!(
+        runner.instrument_audio_config(0).unwrap()["sample"]["slots"][0]["loopFadeMs"],
+        0
+    );
+    let engine_slot = normalize_instrument_slot_config(&runner.instrument_audio_config(0).unwrap())
+        .unwrap()
+        .active_sample()
+        .unwrap()
+        .slot_playback[0];
+    assert_eq!(engine_slot.loop_fade_ms, 0.0);
+    edit_row(&mut runner, "Loop Fade", 120);
+    assert_eq!(saved_slot(&runner, 0)["loopFadeMs"], 100);
+    edit_row(&mut runner, "Loop", 1);
+    assert!(!runner
+        .test_menu_sibling_labels()
+        .contains(&"Loop Fade".to_string()));
+    assert_eq!(saved_slot(&runner, 0)["loopFadeMs"], 100);
+}
+
+#[test]
 fn slot_loops_survive_a_local_save_and_reload() {
     let runner = looping_runner();
     let documents =
@@ -118,6 +146,21 @@ fn slot_loops_survive_a_local_save_and_reload() {
     assert_eq!(
         reloaded.instruments[0].sample_playback[0].loop_mode,
         "forward"
+    );
+
+    let mut before_loop_fade = documents.patch.clone();
+    before_loop_fade["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("loopFadeMs");
+    let old = crate::native_runner::compose_local_system_patch_documents(
+        &documents.system,
+        &before_loop_fade,
+    )
+    .unwrap();
+    assert_eq!(
+        old["runtimeConfig"]["instruments"][0]["sample"]["slots"][0]["loopFadeMs"],
+        10
     );
 
     let mut missing = documents.patch.clone();
@@ -138,6 +181,7 @@ fn saved_slot_loops_are_validated() {
         ("loop", json!("backwards")),
         ("startPct", json!(100)),
         ("loopEndPct", json!(30)),
+        ("loopFadeMs", json!(101)),
     ] {
         let mut payload = runner.config_payload();
         payload["runtimeConfig"]["instruments"][0]["sample"]["slots"][0][key] = value;

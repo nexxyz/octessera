@@ -312,13 +312,14 @@ pub struct NativeMenuTileStamp {
     pub level_index: usize,
 }
 
-/// A sample slot's Start, Loop, Loop Start and Loop End, as the slot saves them.
+/// A sample slot's Start, Loop, Loop Start, Loop End and Loop Fade, as the slot saves them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NativeSamplePlayback {
     pub loop_mode: &'static str,
     pub start_pct: u8,
     pub loop_start_pct: u8,
     pub loop_end_pct: u8,
+    pub loop_fade_ms: u8,
 }
 
 pub const SAMPLE_LOOP_MODES: [&str; 3] = ["off", "forward", "pingpong"];
@@ -371,6 +372,7 @@ pub const SAMPLER_KITS: [(&str, &str, [&str; 8]); 3] = [
 /// Start and Loop Start stop one percent short of the sample's end, so a loop is never empty.
 pub const SAMPLE_START_MAX_PCT: u8 = 99;
 pub const SAMPLE_GAIN_MAX_PCT: u16 = realtime_engine::synth::SAMPLE_GAIN_MAX_PCT as u16;
+pub const SAMPLE_LOOP_FADE_MAX_MS: u8 = realtime_engine::synth::SAMPLE_LOOP_FADE_MAX_MS as u8;
 /// The Gain a factory Sampler kit load sets: its samples at their recorded level (286 × 0.35).
 pub const SAMPLER_KIT_GAIN_PCT: u16 = 286;
 
@@ -381,6 +383,7 @@ impl Default for NativeSamplePlayback {
             start_pct: 0,
             loop_start_pct: 0,
             loop_end_pct: 100,
+            loop_fade_ms: 10,
         }
     }
 }

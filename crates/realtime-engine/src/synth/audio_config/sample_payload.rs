@@ -3,7 +3,7 @@
 
 use super::super::types::{
     EnvConfig, FilterType, SampleBankConfig, SampleLoopMode, SamplePlaybackConfig,
-    SampleShapeConfig, SampleSlotConfig, SAMPLE_SLOTS_PER_INSTRUMENT,
+    SampleShapeConfig, SampleSlotConfig, SAMPLE_LOOP_FADE_MAX_MS, SAMPLE_SLOTS_PER_INSTRUMENT,
 };
 use serde::Deserialize;
 
@@ -67,6 +67,8 @@ struct AudioSampleSlotPayload {
     loop_start_pct: Option<f32>,
     #[serde(default)]
     loop_end_pct: Option<f32>,
+    #[serde(default)]
+    loop_fade_ms: Option<f32>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -160,6 +162,10 @@ fn normalize_slot_playback(
         start_pct: pct(slot.start_pct, neutral.start_pct),
         loop_start_pct,
         loop_end_pct,
+        loop_fade_ms: slot
+            .loop_fade_ms
+            .unwrap_or(neutral.loop_fade_ms)
+            .clamp(0.0, SAMPLE_LOOP_FADE_MAX_MS),
     })
 }
 

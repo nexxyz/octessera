@@ -1,16 +1,14 @@
-//! Where a sample voice reads next: once to the end, round a forward loop that crossfades its
-//! seam, or back and forth between the loop points. A voice picks its cursor when it starts, and
-//! each block runs the read loop built for that cursor.
+//! Where a sample voice reads next: once to the end, round a forward loop whose tail crossfades
+//! into its head, or back and forth between the loop points. A voice picks its cursor when it
+//! starts, and each block runs the read loop built for that cursor.
 
 use super::super::types::{SampleLoopMode, SamplePlaybackConfig};
 use super::sample_voice::SampleBufferView;
 use crate::synth::SampleBuffer;
 
-/// The forward loop's seam crossfade, in seconds of the sample itself.
-const LOOP_CROSSFADE_SECONDS: f64 = 0.010;
-/// With less than this much sample before Loop Start, a forward loop's seam dips out and back
-/// in over this long instead of crossfading.
-const LOOP_DIP_SECONDS: f64 = 0.001;
+/// A forward loop shorter than this, in seconds of the sample, plays with a hard seam: a
+/// crossfade would smear a grain or a single cycle.
+const LOOP_FADE_MIN_LOOP_SECONDS: f64 = 0.020;
 
 /// How a cursor reads the input at a position. A block picks one for its whole read loop.
 pub(super) trait SampleInterpolation {
@@ -85,23 +83,19 @@ impl SampleVoiceLoop {
         }
         let start = if start >= loop_end { loop_start } else { start };
         let cursor = if playback.loop_mode == SampleLoopMode::Forward {
-            let seconds = |seconds: f64| (seconds * f64::from(buffer.sample_rate)).round();
-            let dips = loop_start < seconds(LOOP_DIP_SECONDS);
-            let fade = if loop_frames < 4.0 {
+            let rate = f64::from(buffer.sample_rate);
+            let fade = if loop_frames < LOOP_FADE_MIN_LOOP_SECONDS * rate {
                 0.0
-            } else if dips {
-                seconds(LOOP_DIP_SECONDS)
             } else {
-                seconds(LOOP_CROSSFADE_SECONDS).min(loop_start)
-            }
-            .min((loop_frames / 2.0).floor());
+                (f64::from(playback.loop_fade_ms) / 1000.0 * rate)
+                    .round()
+                    .min((loop_frames / 2.0).floor())
+            };
             Self::Forward(ForwardLoop {
-                start: loop_start,
                 end: loop_end,
                 fade_start: loop_end - fade,
                 inverse_fade: if fade > 0.0 { (1.0 / fade) as f32 } else { 0.0 },
-                partner_level: if dips { 0.0 } else { 1.0 },
-                fade_in_end: f64::NEG_INFINITY,
+                jump: loop_frames - fade,
             })
         } else {
             Self::PingPong(PingPongLoop {
@@ -139,20 +133,16 @@ impl SampleCursor for OnceThrough {
     }
 }
 
-/// Loops forward, every pass lasting exactly the loop. Over the last `fade` frames before Loop
-/// End it blends into the frames just before Loop Start, so the jump back lands where the blend
-/// ends and the seam never steps. With too little sample before Loop Start for that, the seam
-/// dips instead: those last frames fade out and, after each jump back, the first ones fade in.
+/// Loops forward: over the last `fade` frames before Loop End it blends, at equal gain, into the
+/// first `fade` frames after Loop Start, then jumps on past them, so the seam never dips or
+/// steps and each pass lasts the loop less the fade. With no fade it jumps straight from Loop
+/// End to Loop Start.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ForwardLoop {
-    start: f64,
     end: f64,
     fade_start: f64,
     inverse_fade: f32,
-    /// 1 when the seam crossfades into the frames before Loop Start, 0 when it dips.
-    partner_level: f32,
-    /// Where a dipping loop's fade back in ends; before its first jump back, nowhere.
-    fade_in_end: f64,
+    jump: f64,
 }
 
 impl SampleCursor for ForwardLoop {
@@ -164,21 +154,14 @@ impl SampleCursor for ForwardLoop {
         step: f64,
     ) -> Option<f32> {
         let at = *pos;
-        let length = self.end - self.start;
         let mut input = I::at(source, at);
         if at >= self.fade_start {
             let blend = (at - self.fade_start) as f32 * self.inverse_fade;
-            let partner = I::at(source, (at - length).max(0.0)) * self.partner_level;
-            input += (partner - input) * blend;
-        } else if at < self.fade_in_end {
-            input *= (at - self.start) as f32 * self.inverse_fade;
+            input += (I::at(source, at - self.jump) - input) * blend;
         }
         let next = at + step;
         *pos = if next >= self.end {
-            if self.partner_level == 0.0 {
-                self.fade_in_end = self.start + (self.end - self.fade_start);
-            }
-            self.start + (next - self.end) % length
+            self.end - self.jump + (next - self.end) % self.jump
         } else {
             next
         };

@@ -124,12 +124,18 @@ fn sample_interpolation_cost() {
     }
 }
 
-fn forward_loop(start_pct: f32, end_pct: f32, buffer: &SampleBuffer) -> (super::ForwardLoop, f64) {
+fn forward_loop(
+    start_pct: f32,
+    end_pct: f32,
+    fade_ms: f32,
+    buffer: &SampleBuffer,
+) -> (super::ForwardLoop, f64) {
     let playback = crate::synth::SamplePlaybackConfig {
         loop_mode: crate::synth::SampleLoopMode::Forward,
         start_pct: 0.0,
         loop_start_pct: start_pct,
         loop_end_pct: end_pct,
+        loop_fade_ms: fade_ms,
     };
     match super::SampleVoiceLoop::start(&playback, buffer) {
         (super::SampleVoiceLoop::Forward(cursor), start) => (cursor, start),
@@ -137,87 +143,133 @@ fn forward_loop(start_pct: f32, end_pct: f32, buffer: &SampleBuffer) -> (super::
     }
 }
 
+/// The frames a whole-frame forward loop over `buffer` reads its marker frame (the only 1.0) on.
+fn marker_reads(buffer: &SampleBuffer, end_pct: f32, fade_ms: f32, reads: usize) -> Vec<usize> {
+    let view = SampleBufferView::from_buffer(buffer);
+    let (mut cursor, mut pos) = forward_loop(0.0, end_pct, fade_ms, buffer);
+    (0..reads)
+        .filter(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap() == 1.0)
+        .collect()
+}
+
+fn marked(frames: usize, marker: usize) -> SampleBuffer {
+    let mut samples = vec![0.0; frames];
+    samples[marker] = 1.0;
+    buffer(samples)
+}
+
 #[test]
-fn a_forward_loop_of_whole_cycles_repeats_the_wave_without_drift_or_seam() {
+fn a_forward_loop_without_a_fade_repeats_exactly_the_loop_with_a_hard_seam() {
     let wave = |frame: usize| ((frame % 100) as f32 * std::f32::consts::TAU / 100.0).sin();
     let buffer = buffer((0..40_000).map(wave).collect());
     let view = SampleBufferView::from_buffer(&buffer);
-    let (mut cursor, mut pos) = forward_loop(10.0, 60.0, &buffer);
+    let (mut cursor, mut pos) = forward_loop(10.0, 60.0, 0.0, &buffer);
     for frame in 0..80_000 {
         let read = cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap();
-        assert!((read - wave(frame)).abs() < 1.0e-5, "frame {frame}: {read}");
+        assert_eq!(read.to_bits(), wave(frame).to_bits(), "frame {frame}");
     }
+    let marks = marker_reads(&marked(10_000, 5_000), 100.0, 0.0, 40_000);
+    assert_eq!(marks, [5_000, 15_000, 25_000, 35_000]);
 }
 
 #[test]
-fn a_forward_loop_from_the_first_frame_dips_for_a_millisecond_at_its_seam_without_a_step() {
+fn each_forward_pass_lasts_the_loop_less_its_fade() {
+    let marked = marked(10_000, 5_000);
+    for (fade_ms, fade) in [(10.0, 441), (25.0, 1_103), (100.0, 4_410)] {
+        let marks = marker_reads(&marked, 100.0, fade_ms, 40_000);
+        let expected = (0..10)
+            .map(|pass| 5_000 + pass * (10_000 - fade))
+            .filter(|frame| *frame < 40_000)
+            .collect::<Vec<_>>();
+        assert_eq!(marks, expected, "Loop Fade {fade_ms} ms");
+    }
+}
+
+fn fade_frames(frames: usize, fade_ms: f32) -> f64 {
+    let (cursor, _) = forward_loop(0.0, 100.0, fade_ms, &buffer(vec![0.0; frames]));
+    assert_eq!(
+        cursor.jump,
+        frames as f64 - (cursor.end - cursor.fade_start)
+    );
+    cursor.end - cursor.fade_start
+}
+
+#[test]
+fn the_fade_is_at_most_half_the_loop() {
+    assert_eq!(fade_frames(1_000, 10.0), 441.0);
+    assert_eq!(fade_frames(1_000, 100.0), 500.0);
+    assert_eq!(fade_frames(1_001, 100.0), 500.0);
+    assert_eq!(fade_frames(100_000, 100.0), 4_410.0);
+    assert_eq!(fade_frames(100_000, 0.0), 0.0);
+}
+
+#[test]
+fn a_forward_loop_under_20_ms_plays_without_a_fade() {
+    assert_eq!(fade_frames(881, 10.0), 0.0);
+    assert_eq!(fade_frames(882, 10.0), 441.0);
+    let marks = marker_reads(&marked(800, 100), 100.0, 10.0, 2_400);
+    assert_eq!(marks, [100, 900, 1_700]);
+}
+
+#[test]
+fn a_faded_forward_seam_never_dips_bumps_or_steps() {
     let flat = buffer(vec![1.0; 10_000]);
     let view = SampleBufferView::from_buffer(&flat);
-    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, &flat);
-    let dip = 44;
+    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, 10.0, &flat);
     for frame in 0..30_000 {
         let read = cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap();
-        let from_seam = (frame % 10_000).min(10_000 - frame % 10_000);
-        if from_seam > dip {
-            assert_eq!(read, 1.0, "frame {frame}");
-        }
+        assert!((read - 1.0).abs() < 1.0e-6, "frame {frame}: {read}");
     }
 
     let wave = |frame: usize| (frame as f32 * std::f32::consts::TAU / 97.3).sin();
     let uneven = buffer((0..10_000).map(wave).collect());
     let view = SampleBufferView::from_buffer(&uneven);
-    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, &uneven);
+    for (step, fade_ms) in [(1.0, 10.0), (1.37, 10.0), (1.37, 3.0), (0.61, 50.0)] {
+        let (mut cursor, mut pos) = forward_loop(0.0, 100.0, fade_ms, &uneven);
+        let reads = (0..30_000)
+            .map(|_| cursor.read::<Hermite>(&view, &mut pos, step).unwrap())
+            .collect::<Vec<_>>();
+        let natural = std::f32::consts::TAU / 97.3 * step as f32;
+        let largest = reads
+            .windows(2)
+            .map(|pair| (pair[1] - pair[0]).abs())
+            .fold(0.0_f32, f32::max);
+        assert!(
+            largest < natural * 1.5,
+            "step {step}, fade {fade_ms} ms: seam steps by {largest}"
+        );
+    }
+}
+
+#[test]
+fn a_forward_loop_of_a_few_frames_plays_every_frame_at_full_level() {
+    let flat = buffer(vec![1.0; 300]);
+    let view = SampleBufferView::from_buffer(&flat);
+    let (mut cursor, mut pos) = forward_loop(0.0, 1.0, 10.0, &flat);
+    assert!((0..30).all(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0) == Some(1.0)));
+}
+
+#[test]
+fn a_held_tone_keeps_its_level_through_the_fade() {
+    let wave = |frame: usize| ((frame % 79) as f32 * std::f32::consts::TAU / 79.0).sin();
+    let tone = buffer((0..10_000).map(wave).collect());
+    let view = SampleBufferView::from_buffer(&tone);
+    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, 10.0, &tone);
+    assert_eq!(cursor.jump % 79.0, 0.0);
     let reads = (0..30_000)
         .map(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap())
         .collect::<Vec<_>>();
-    let natural = std::f32::consts::TAU / 97.3;
-    let largest = reads
-        .windows(2)
-        .map(|pair| (pair[1] - pair[0]).abs())
-        .fold(0.0_f32, f32::max);
-    assert!(largest < natural * 1.5, "seam steps by {largest}");
-}
-
-#[test]
-fn a_forward_loop_with_little_or_no_sample_before_it_lasts_exactly_the_loop() {
-    let mut samples = vec![0.0; 10_000];
-    samples[5_000] = 1.0;
-    let marked = buffer(samples);
-    let view = SampleBufferView::from_buffer(&marked);
-    for (start_pct, length) in [(0.0, 10_000), (0.5, 9_950)] {
-        let (mut cursor, mut pos) = forward_loop(start_pct, 100.0, &marked);
-        let marks = (0..40_000)
-            .filter(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0).unwrap() == 1.0)
-            .collect::<Vec<usize>>();
-        let expected = (0..4).map(|pass| 5_000 + pass * length).collect::<Vec<_>>();
-        assert_eq!(marks, expected, "Loop Start {start_pct}%");
-    }
-}
-
-#[test]
-fn a_pitched_forward_loop_from_the_first_frame_lasts_exactly_the_loop_and_dips_smoothly() {
-    let wave = |frame: usize| (frame as f32 * std::f32::consts::TAU / 97.3).sin();
-    let uneven = buffer((0..10_000).map(wave).collect());
-    let view = SampleBufferView::from_buffer(&uneven);
-    let (mut cursor, mut pos) = forward_loop(0.0, 100.0, &uneven);
-    let step = 1.37;
-    let reads = (0..30_000)
-        .map(|_| cursor.read::<Hermite>(&view, &mut pos, step).unwrap())
+    let peaks = reads
+        .chunks(79)
+        .map(|cycle| {
+            cycle
+                .iter()
+                .fold(0.0_f32, |peak, read| peak.max(read.abs()))
+        })
         .collect::<Vec<_>>();
-    let travelled = 30_000.0 * step;
-    assert!((pos - travelled % 10_000.0).abs() < 1.0e-6, "at {pos}");
-    let natural = std::f32::consts::TAU / 97.3 * step as f32;
-    let largest = reads
-        .windows(2)
-        .map(|pair| (pair[1] - pair[0]).abs())
-        .fold(0.0_f32, f32::max);
-    assert!(largest < natural * 1.5, "seam steps by {largest}");
-}
-
-#[test]
-fn a_forward_loop_of_a_few_frames_from_the_first_frame_plays_every_frame_at_full_level() {
-    let flat = buffer(vec![1.0; 300]);
-    let view = SampleBufferView::from_buffer(&flat);
-    let (mut cursor, mut pos) = forward_loop(0.0, 1.0, &flat);
-    assert!((0..30).all(|_| cursor.read::<WholeFrames>(&view, &mut pos, 1.0) == Some(1.0)));
+    let (low, high) = peaks.iter().fold((f32::MAX, 0.0_f32), |(low, high), peak| {
+        (low.min(*peak), high.max(*peak))
+    });
+    assert!(high < 1.0 + 1.0e-3, "bumps to {high}");
+    assert!(low > 1.0 - 1.0e-3, "dips to {low}");
 }

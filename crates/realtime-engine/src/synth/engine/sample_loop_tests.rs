@@ -75,6 +75,7 @@ fn playback(
         start_pct: start,
         loop_start_pct: loop_start,
         loop_end_pct: loop_end,
+        ..SamplePlaybackConfig::default()
     }
 }
 

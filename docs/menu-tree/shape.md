@@ -59,6 +59,7 @@ Shape
 │   │   │   ├── Loop: [off | forward | pingpong] ← selected slot; default off; pingpong shows as ping-pong; loops only in Note Mode hold
 │   │   │   ├── Loop Start: [0..99] %            ← selected slot; default 0; only while Loop is not off
 │   │   │   ├── Loop End: [1..100] %             ← selected slot; default 100; only while Loop is not off
+│   │   │   ├── Loop Fade: [0..100] ms           ← selected slot; default 10; only while Loop is forward
 │   │   │   ├── Tile Tune: [-24..24] st          ← stamp value
 │   │   │   ├── Tile Fine: [-100..100] cents     ← stamp value
 │   │   │   ├── Tile Level: [Base | High | Medium | Low]  ← stamp value; only while Vel Levels is on
@@ -208,7 +209,7 @@ Shape
 ### Sampler
 
 - Row order: Kit, Sample Slot, the loaded sample, Browse, Start, Loop, Loop Start and Loop End
-  (only while Loop is not off), Tile Tune, Tile Fine, Tile Level (only while Vel Levels is on),
+  (only while Loop is not off), Loop Fade (only while Loop is forward), Tile Tune, Tile Fine, Tile Level (only while Vel Levels is on),
   Assign, Tune, Follow Transp., Follow Pitch, Note Off, Gain, Base Vel, the Vel Levels switch, the Vel
   Levels group (only while on), Filter, Vel Sens, Amp Env, Filter Env.
 - SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths, reset each sample
@@ -216,16 +217,19 @@ Shape
   the selected Sample Slot, and the other sample settings stay.
 - Sampler voices share the synth voices' x0.35 headroom: Gain 100% sits at an Init synth's level
   and 286% plays a sample at its recorded level, as the factory kits and the factory I2 do.
-- Start, Loop, Loop Start, and Loop End belong to the selected sample slot and save with it as
-  `instruments[i].sample.slots[n].startPct`, `loop`, `loopStartPct`, and `loopEndPct`; the other
-  Sampler rows are slot-wide. All four are percent of the sample's length.
+- Start, Loop, Loop Start, Loop End, and Loop Fade belong to the selected sample slot and save
+  with it as `instruments[i].sample.slots[n].startPct`, `loop`, `loopStartPct`, `loopEndPct`, and
+  `loopFadeMs`; the other Sampler rows are slot-wide. Start and the loop points are percent of the
+  sample's length; Loop Fade is milliseconds of the sample. None of them takes an Aux binding.
 - Start (default 0 %) is where a hit starts reading, in oneshot and hold alike.
 - Loop (default off) only acts in Note Mode `hold`: a held note keeps looping between Loop Start
   and Loop End until its note-off, then Amp Env's release fades it. In `oneshot` the sample plays
-  once to its end whatever Loop says. `forward` runs to Loop End and starts again from Loop Start,
-  every pass lasting exactly the loop. It crossfades the seam with up to 10 ms of the sample just
-  before Loop Start (less for loops shorter than 20 ms) so it never clicks; with under 1 ms of
-  sample there, as at Loop Start 0 %, the seam instead fades out and back in over 1 ms. `pingpong` (shown `ping-pong`) reverses at Loop End and again at Loop Start; the turn
+  once to its end whatever Loop says. `forward` runs to Loop End and starts again from Loop Start.
+  Over its last Loop Fade (`0..100` ms, default 10) it crossfades, at equal gain, into the loop's
+  first Loop Fade, then carries on from there, so the seam neither clicks nor dips and every pass
+  lasts the loop less the fade. Loop Fade 0 plays exactly the loop with a hard seam. The fade is
+  at most half the loop, and a loop under 20 ms of the sample (a grain or a single cycle) never
+  fades. `pingpong` (shown `ping-pong`) reverses at Loop End and again at Loop Start; the turn
   mirrors the read position, so the waveform stays continuous. A looping hit that starts past Loop
   End starts at Loop Start. Settings apply from the next hit.
 - Loop Start (`0..99`) and Loop End (`1..100`) stop 1 % short of each other; an edit that would

@@ -5,7 +5,7 @@ pub use mixer_route::MixerRoute;
 
 pub use sample_bank::{
     SampleBankConfig, SampleBuffer, SampleLoopMode, SamplePlaybackConfig, SampleShapeConfig,
-    SampleSlotConfig, SAMPLE_GAIN_MAX_PCT,
+    SampleSlotConfig, SAMPLE_GAIN_MAX_PCT, SAMPLE_LOOP_FADE_MAX_MS,
 };
 use serde::{Deserialize, Serialize};
 
