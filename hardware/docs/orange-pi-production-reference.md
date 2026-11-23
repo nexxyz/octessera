@@ -83,8 +83,8 @@ until the next Octessera image.
 
 USB host mode is for keyboards and MIDI controllers. The kernel enumerates USB
 drives, but Octessera keeps samples and saves on the microSD card and SD2 and
-mounts nothing else. SD2 is the single FAT32/exFAT partition, whatever its
-label, on the card behind the SPI SD host from the SPI1 overlay
+mounts nothing else. SD2 is the single FAT32/exFAT partition (or a whole card
+formatted that way), whatever its label, on the card behind the SPI SD host from the SPI1 overlay
 (`/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/`;
 the Raspberry uses `3f204000.spi/.../spi0.1`). An empty slot or a card without
 such a partition means no SD2, a card with several is refused, and USB drives

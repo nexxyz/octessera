@@ -14,9 +14,10 @@ that in mono, so the little board doesn't run out of memory):
 | OLED microSD card (SD2) | `octessera/samples` on the card |
 
 SD2 is the optional card in the OLED board; the compute board's boot card is
-SD1. Format it as FAT32 or exFAT with a single partition; the name doesn't
-matter. You can swap the card while the instrument is on;
-give it a couple of seconds to show up. It appears in the sample browser as
+SD1. Give it a single FAT32 or exFAT partition (or format the whole card that
+way); the name doesn't matter, and other partition types are ignored. You can
+swap the card while the instrument is on; give it a couple of seconds to show
+up. It appears in the sample browser as
 the `SD card` favorite.
 
 To copy files from a computer without pulling the card, use

@@ -19,9 +19,9 @@ fi
 grep -qF "[ \"\$dev\" != \"\$root\" ]" "$library"
 grep -qF "[ -z \"\$root_pk\" ] || [ \"\$dev_pk\" != \"\$root_pk\" ]" "$library"
 grep -qFx 'Environment=OCTESSERA_SD_OWNER=octessera-runtime' "$service"
-grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_PATH}=="platform-5011000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"' "$rule"
+grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-5011000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"' "$rule"
 grep -qFx 'Environment=OCTESSERA_SD_OWNER=pi' "$pi_service"
-grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_PATH}=="platform-3f204000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-sd-card.service"' "$pi_rule"
+grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-3f204000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-sd-card.service"' "$pi_rule"
 
 export OCTESSERA_SD_MOUNT="$work/mount"
 export OCTESSERA_SD_OWNER=octessera-runtime
@@ -40,6 +40,10 @@ readlink() {
   case "$2" in
     /sys/class/block/sdb1|/sys/class/block/sdc1) printf '%s\n' "/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/mmc2/mmc2:0000/block/sdb/${2##*/}" ;;
     /sys/class/block/sde1) printf '%s\n' "/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.1/mmc_host/mmc2/mmc2:0000/block/sde/sde1" ;;
+    /sys/class/block/sdb|/sys/class/block/loop0) printf '%s
+' "/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/mmc2/mmc2:0000/block/${2##*/}" ;;
+    /sys/class/block/loop1) printf '%s
+' "/sys/devices/platform/soc/5200000.usb/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/loop1" ;;
     /sys/class/block/sdd1) printf '%s\n' "/sys/devices/platform/soc/5200000.usb/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/sdd/sdd1" ;;
     *) command readlink "$@" ;;
   esac
@@ -87,13 +91,31 @@ expect_no_sd2 2 'SD helper picked one of two FAT32/exFAT partitions.'
 probe '' ''
 expect_no_sd2 1 'SD helper found an SD2 card in an empty slot.'
 
-for filesystem in vfat exfat ext4; do
-  probe /dev/sdb1 "/dev/sdb1=$filesystem"
-  case "$filesystem" in
-    vfat|exfat) test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec ;;
-    ext4) test "$(mount_options_for /dev/sdb1)" = nosuid,nodev,noexec ;;
+probe /dev/sdb /dev/sdb=vfat
+test "$(configured_device)" = /dev/sdb
+test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec
+
+root_device() { printf '%s
+' /dev/mmcblk0p2; }
+root_parent_disk() { printf '%s
+' mmcblk0; }
+lsblk() {
+  case "$*" in
+    *'TYPE /dev/loop0'*|*'TYPE /dev/loop1'*) printf '%s
+' disk ;;
+    *'TYPE /dev/loop2'*) printf '%s
+' part ;;
+    *'PKNAME /dev/loop2'*) printf '%s
+' loop0 ;;
   esac
-done
+}
+safe_partition /dev/loop0 || { echo 'SD helper refused a whole-disk FAT card in the SD2 slot.' >&2; exit 1; }
+if safe_partition /dev/loop1; then
+  echo 'SD helper accepted a whole disk outside the SD2 slot.' >&2
+  exit 1
+fi
+safe_partition /dev/loop2 || { echo 'SD helper refused an SD2 partition.' >&2; exit 1; }
+unset -f root_device root_parent_disk lsblk
 
 findmnt() {
   case "$*" in
@@ -151,4 +173,4 @@ test "$lazy_unmounts" = 1
 test -e "$mount_marker"
 test "$(cat "$SD_DISKSEQ_STATE")" = 8
 
-echo 'Octessera shared SD helper, service, udev, safety, SD2-slot, filesystem, USB-drive, two-partition, mount, replaced-card, and folder tests passed.'
+echo 'Octessera shared SD helper, service, udev, safety, SD2-slot, whole-disk, filesystem, USB-drive, two-partition, mount, replaced-card, and folder tests passed.'

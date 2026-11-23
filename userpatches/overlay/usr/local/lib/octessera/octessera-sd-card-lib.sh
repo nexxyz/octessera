@@ -26,11 +26,14 @@ root_parent_disk() {
 safe_partition() {
   dev="$(canonical_block "$1")"
   [ -b "$dev" ] || return 1
-  [ "$(lsblk -ndo TYPE "$dev" 2>/dev/null || true)" = part ] || return 1
   root="$(canonical_block "$(root_device)")"
   [ "$dev" != "$root" ] || return 1
   root_pk="$(root_parent_disk)"
-  dev_pk="$(parent_disk "$dev")"
+  case "$(lsblk -ndo TYPE "$dev" 2>/dev/null || true)" in
+    part) dev_pk="$(parent_disk "$dev")" ;;
+    disk) on_sd2_slot "$dev" || return 1; dev_pk="${dev##*/}" ;;
+    *) return 1 ;;
+  esac
   [ -n "$dev_pk" ] || return 1
   [ -z "$root_pk" ] || [ "$dev_pk" != "$root_pk" ] || return 1
 }
@@ -84,20 +87,18 @@ transfer_active() { [ -e "$STORAGE_STATE" ]; }
 
 # The kernel gives every newly inserted card a new disk sequence number, which
 # tells a mount of a since-removed card apart from a healthy one.
-disk_sequence() { cat "/sys/class/block/$(parent_disk "$1")/diskseq" 2>/dev/null || true; }
+disk_sequence() {
+  disk="$(parent_disk "$1")"
+  [ -n "$disk" ] || disk="${1##*/}"
+  cat "/sys/class/block/$disk/diskseq" 2>/dev/null || true
+}
 remember_disk_sequence() { disk_sequence "$1" >"$SD_DISKSEQ_STATE"; }
 mounted_card_was_replaced() {
   recorded="$(cat "$SD_DISKSEQ_STATE" 2>/dev/null || true)"
   [ -n "$recorded" ] && [ "$recorded" != "$(disk_sequence "$1")" ]
 }
 
-mount_options_for() {
-  fstype="$(blkid -o value -s TYPE "$1" 2>/dev/null || true)"
-  case "$fstype" in
-    vfat|exfat|fat|msdos) printf 'uid=%s,gid=%s,umask=002,nosuid,nodev,noexec' "$SD_OWNER" "$SD_OWNER" ;;
-    *) printf 'nosuid,nodev,noexec' ;;
-  esac
-}
+mount_options_for() { printf 'uid=%s,gid=%s,umask=002,nosuid,nodev,noexec' "$SD_OWNER" "$SD_OWNER"; }
 
 refuse_mount_elsewhere() {
   dev="$1"
