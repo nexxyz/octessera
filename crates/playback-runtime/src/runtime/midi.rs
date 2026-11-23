@@ -260,15 +260,17 @@ impl PlaybackRuntime {
         operation: RuntimeOperation,
         host: &mut H,
     ) -> Result<(), RuntimeAdapterError> {
+        let relayed = self.relaying_note.is_some_and(|played| {
+            MidiNote::parse(bytes)
+                .is_some_and(|sent| (sent.note, sent.velocity) == (played.note, played.velocity))
+        });
+        let sent_at = at.unwrap_or_else(|| host.now());
+        if relayed && self.sent_midi_notes.relay_loops(bytes, sent_at) {
+            return Ok(());
+        }
         match host.handle_midi_message(bytes, at) {
             Ok(()) => {
-                let relayed = self.relaying_note.is_some_and(|played| {
-                    MidiNote::parse(bytes).is_some_and(|sent| {
-                        (sent.note, sent.velocity) == (played.note, played.velocity)
-                    })
-                });
-                self.sent_midi_notes
-                    .remember(bytes, at.unwrap_or_else(|| host.now()), relayed);
+                self.sent_midi_notes.remember(bytes, sent_at, relayed);
                 self.clear_error(operation);
                 Ok(())
             }

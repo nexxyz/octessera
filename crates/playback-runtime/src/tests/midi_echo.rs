@@ -58,7 +58,7 @@ impl CoreRunner for SequencerRunner {
 }
 
 #[test]
-fn a_note_the_runtime_played_drops_its_channel_and_key_from_midi_in_for_a_second() {
+fn a_note_the_runtime_played_drops_its_channel_and_key_from_midi_in_for_250_ms() {
     let mut runtime = midi_out_runtime();
     let mut runner = SequencerRunner::default();
     let start = Instant::now();
@@ -82,7 +82,7 @@ fn a_note_the_runtime_played_drops_its_channel_and_key_from_midi_in_for_a_second
     host.clock = Some(sent_at + Duration::from_millis(5));
     dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 90]);
     assert!(runner.keyboard.is_empty(), "its echo is dropped");
-    host.clock = Some(sent_at + Duration::from_millis(400));
+    host.clock = Some(sent_at + Duration::from_millis(200));
     dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 1]);
     assert!(
         runner.keyboard.is_empty(),
@@ -93,12 +93,12 @@ fn a_note_the_runtime_played_drops_its_channel_and_key_from_midi_in_for_a_second
     dispatch_note(&mut runtime, &mut runner, &mut host, [0x93, 64, 90]);
     assert_eq!(runner.keyboard.len(), 2, "another key or channel plays");
 
-    host.clock = Some(sent_at + Duration::from_millis(1_001));
+    host.clock = Some(sent_at + Duration::from_millis(251));
     dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 90]);
     assert_eq!(
         runner.keyboard.len(),
         3,
-        "a second after the runtime's note that key plays again"
+        "250 ms after the runtime's note that key plays again"
     );
 }
 
@@ -137,7 +137,7 @@ fn a_key_up_right_after_a_sequenced_note_off_on_the_same_note_reaches_the_runner
 }
 
 #[test]
-fn a_player_pressing_a_key_the_runtime_played_within_a_second_is_not_heard() {
+fn a_player_pressing_a_key_the_runtime_played_within_250_ms_is_not_heard() {
     let mut runtime = midi_out_runtime();
     let mut runner = SequencerRunner::default();
     let start = Instant::now();
@@ -158,9 +158,9 @@ fn a_player_pressing_a_key_the_runtime_played_within_a_second_is_not_heard() {
         .expect("the sequencer note goes out stamped");
     runner.keyboard.clear();
 
-    host.clock = Some(sent_at + Duration::from_millis(300));
+    host.clock = Some(sent_at + Duration::from_millis(200));
     dispatch_note(&mut runtime, &mut runner, &mut host, [0x92, 64, 110]);
-    host.clock = Some(sent_at + Duration::from_millis(400));
+    host.clock = Some(sent_at + Duration::from_millis(240));
     dispatch_note(&mut runtime, &mut runner, &mut host, [0x82, 64, 0]);
     assert_eq!(
         runner.keyboard,

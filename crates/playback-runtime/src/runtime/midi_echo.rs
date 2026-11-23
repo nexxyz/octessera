@@ -4,10 +4,18 @@
 use super::MidiNote;
 use std::time::{Duration, Instant};
 
-/// For about this long after this runtime plays a note-on of its own (a layer's note, a Keys
-/// press or a Send MIDI copy) on MIDI out, an incoming note-on on that channel and key is taken as
-/// its echo, whatever its velocity, and dropped. No device echo or DAW thru is slower.
-const PLAYED_WINDOW: Duration = Duration::from_secs(1);
+/// For this long after this runtime plays a note-on of its own (a layer's note, a Keys press or a
+/// Send MIDI copy) on MIDI out, an incoming note-on on that channel and key is taken as its echo,
+/// whatever its velocity, and dropped. Device echoes and DAW thru arrive well within it.
+const PLAYED_WINDOW: Duration = Duration::from_millis(250);
+
+/// A tap shorter than the thru latency comes back after its own key-up, so the passed-on note
+/// can loop for good: the same keyboard note-on passed on this many times in a row, at one
+/// steady interval with no other key coming in, is that loop, and that copy is not sent.
+const LOOP_REPEATS: u8 = 8;
+
+/// How far apart two intervals may be and still count as one steady interval.
+const LOOP_INTERVAL_SLACK: Duration = Duration::from_millis(2);
 
 /// Keyboard notes passed on to MIDI out are played by hand, so 64 hold many busy chords.
 const RELAYED_NOTE_SLOTS: usize = 64;
@@ -22,6 +30,16 @@ pub(super) struct SentMidiNotes {
     /// key-up for it comes in.
     relayed: [Option<(MidiNote, Instant)>; RELAYED_NOTE_SLOTS],
     next: usize,
+    /// The latest keyboard note-on passed on to MIDI out, and how steadily it repeats.
+    repeat: Option<Repeat>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Repeat {
+    note: MidiNote,
+    at: Instant,
+    interval: Option<Duration>,
+    count: u8,
 }
 
 impl Default for SentMidiNotes {
@@ -30,6 +48,7 @@ impl Default for SentMidiNotes {
             played: vec![None; KEYS].into_boxed_slice(),
             relayed: [None; RELAYED_NOTE_SLOTS],
             next: 0,
+            repeat: None,
         }
     }
 }
@@ -61,8 +80,15 @@ impl SentMidiNotes {
     /// forgets: a real repeat of a key needs its key-up first. An incoming note-off forgets the
     /// passed-on note-ons for that key, so the player's next press of it plays; it leaves the
     /// runtime's own notes alone, as a device echoes a retrigger's note-off just before its
-    /// note-on.
+    /// note-on. Another key coming in ends a run of passed-on repeats.
     pub(super) fn take_echo(&mut self, note: MidiNote, now: Instant) -> bool {
+        let key_of = |note: MidiNote| (note.channel, note.note);
+        if self
+            .repeat
+            .is_some_and(|repeat| key_of(repeat.note) != key_of(note))
+        {
+            self.repeat = None;
+        }
         if note.velocity == 0 {
             for slot in &mut self.relayed {
                 if slot
@@ -87,5 +113,44 @@ impl SentMidiNotes {
         };
         *slot = None;
         true
+    }
+
+    /// Counts the keyboard note-on `bytes` passed on at `at` as a repeat of the last one, and is
+    /// true once it is the loop, which is then not sent.
+    pub(super) fn relay_loops(&mut self, bytes: &[u8], at: Instant) -> bool {
+        let Some(note) = MidiNote::parse(bytes).filter(|note| note.velocity > 0) else {
+            return false;
+        };
+        let now = at;
+        let repeat = match self.repeat.filter(|repeat| repeat.note == note) {
+            Some(last) => {
+                let gap = now.saturating_duration_since(last.at);
+                let steady = last
+                    .interval
+                    .is_some_and(|interval| gap.abs_diff(interval) <= LOOP_INTERVAL_SLACK);
+                Repeat {
+                    note,
+                    at: now,
+                    interval: Some(gap),
+                    count: if steady || last.interval.is_none() {
+                        last.count.saturating_add(1)
+                    } else {
+                        2
+                    },
+                }
+            }
+            None => Repeat {
+                note,
+                at: now,
+                interval: None,
+                count: 1,
+            },
+        };
+        if repeat.count >= LOOP_REPEATS {
+            self.repeat = None;
+            return true;
+        }
+        self.repeat = Some(repeat);
+        false
     }
 }

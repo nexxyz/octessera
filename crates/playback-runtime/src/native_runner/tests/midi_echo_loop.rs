@@ -208,6 +208,28 @@ impl EchoRig {
             .count()
     }
 
+    /// How long each note-on of key 60 on MIDI out lasted, to its note-off, in ms.
+    fn midi_note_lengths(&self) -> Vec<u64> {
+        let mut started = None;
+        let mut lengths = Vec::new();
+        for (bytes, at) in self
+            .host
+            .midi_messages
+            .iter()
+            .zip(&self.host.midi_message_at)
+        {
+            let (Some(at), [status, 60, velocity]) = (at, bytes.as_slice()) else {
+                continue;
+            };
+            if status & 0xF0 == 0x90 && *velocity > 0 {
+                started = Some(*at);
+            } else if let Some(start) = started.take() {
+                lengths.push(at.saturating_duration_since(start).as_millis() as u64);
+            }
+        }
+        lengths
+    }
+
     /// Notes the slot played from MIDI In, held until their note-off.
     fn keyboard_audio_notes(&self) -> usize {
         self.host
@@ -234,6 +256,13 @@ fn an_echoing_device_on_a_midi_slot_never_loops_a_repeated_pitch_back_in() {
         rig.midi_note_ons(),
         16,
         "only the layer's own 16 steps go out; no echo comes back in as a key"
+    );
+    // Each note lasts its One-Shot Len, or one 125 ms step where the next strike of its key
+    // ends it first; an echoed note-off would cut it shorter.
+    let lengths = rig.midi_note_lengths();
+    assert!(
+        lengths.len() >= 15 && lengths.iter().all(|length| (123..=152).contains(length)),
+        "{lengths:?}"
     );
 
     rig.stop();
@@ -276,9 +305,12 @@ fn a_fixed_velocity_pad_repeating_a_key_plays_every_hit_without_an_echoing_devic
                 .dispatch_host_message(message, &mut rig.layer, &mut rig.host)
                 .unwrap();
         };
+        // A player's hits never land on one exact interval.
+        let mut at = 0;
         for hit in 0..10 {
-            press(&mut rig, hit * 40, [0x90, 60, 100]);
-            press(&mut rig, hit * 40 + 20, [0x80, 60, 0]);
+            at += 40 + hit % 3 * 7;
+            press(&mut rig, at, [0x90, 60, 100]);
+            press(&mut rig, at + 20, [0x80, 60, 0]);
         }
         assert_eq!(rig.midi_note_ons(), 10, "midi={midi}: every hit goes out");
         if !midi {
@@ -317,4 +349,25 @@ fn a_key_held_through_a_slow_thru_plays_once_and_its_echoes_stay_harmless() {
             .count();
         assert_eq!(offs, 1, "midi={midi}: the echoed key-up releases nothing");
     }
+}
+
+/// A tap shorter than a slow thru comes back after its own key-up, so it would pass on for good;
+/// once it repeats eight times at the thru's steady interval its copy is no longer sent.
+#[test]
+fn a_tap_shorter_than_the_thru_latency_stops_looping() {
+    let mut rig = EchoRig::new(true);
+    rig.layer.playing = false;
+    rig.echo_ms = 300;
+    for bytes in [[0x90, 60, 100], [0x80, 60, 0]] {
+        let message: HostMessage = MidiNote::parse(&bytes).unwrap().into();
+        rig.runtime
+            .dispatch_host_message(message, &mut rig.layer, &mut rig.host)
+            .unwrap();
+        rig.collect_sent();
+    }
+    rig.run_for(5_000);
+    let looped = rig.midi_note_ons();
+    assert!((2..=8).contains(&looped), "{looped} copies went out");
+    rig.run_for(2_000);
+    assert_eq!(rig.midi_note_ons(), looped, "the loop has ended");
 }
