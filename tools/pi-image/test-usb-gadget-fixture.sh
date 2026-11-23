@@ -245,6 +245,18 @@ fi
 printf 'vfat\n'
 EOF
 chmod +x "$FAKE_BIN/blkid"
+cat > "$FAKE_BIN/dd" <<'EOF'
+#!/bin/sh
+head -c 65 /dev/zero
+if [ "${FAKE_CARD_DIRTY:-0}" = 1 ]; then printf '\001'; else printf '\000'; fi
+head -c 446 /dev/zero
+EOF
+chmod +x "$FAKE_BIN/dd"
+cat > "$FAKE_BIN/systemctl" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$FAKE_SYSTEMCTL_LOG"
+EOF
+chmod +x "$FAKE_BIN/systemctl"
 cat > "$FAKE_BIN/readlink" <<'EOF'
 #!/bin/sh
 if [ "${1:-}" = -f ]; then
@@ -324,6 +336,8 @@ run_action() {
         "FAKE_STORAGE_STATE=$root/storage.state" \
         "FAKE_MOUNT_LOG=$root/mount.log" \
         "FAKE_CHOWN_LOG=$root/chown.log" \
+        "FAKE_SYSTEMCTL_LOG=$root/systemctl.log" \
+        "SD_REPAIR_STATE=$root/needs-repair" \
         "$@" \
         "OCTESSERA_USB_CONFIG=$config" \
         "OCTESSERA_DEVICE_CONFIG_VALIDATOR=$SCRIPT_DIR/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" \

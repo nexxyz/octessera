@@ -9,13 +9,14 @@ UDC_ROOT=${OCTESSERA_USB_UDC_ROOT:-/sys/class/udc}
 STORAGE_CONFIG=${OCTESSERA_USB_STORAGE_CONFIG:-/etc/octessera/usb-storage.conf}
 SD_MOUNT=${OCTESSERA_USB_SD_MOUNT:-/home/pi/samples/sd-card}
 SD_OWNER=${OCTESSERA_USB_SD_OWNER:-pi}
+SD_CARD_SERVICE=${OCTESSERA_SD_CARD_SERVICE:-octessera-sd-card.service}
 SD_CARD_LIB=${OCTESSERA_SD_CARD_LIB:-/usr/local/lib/octessera/octessera-sd-card-lib.sh}
 STORAGE_STATE=${OCTESSERA_USB_STORAGE_STATE:-/run/octessera-usb-storage.state}
 LIFECYCLE_LOCK=${OCTESSERA_USB_LIFECYCLE_LOCK:-/run/octessera-sd-card.lock}
 NET_ROOT=${OCTESSERA_USB_NET_ROOT:-/sys/class/net}
 MACHINE_ID=${OCTESSERA_USB_MACHINE_ID:-/etc/machine-id}
 LINE_CONNECTOR_TERMINAL_TYPE=1539
-: "$SD_OWNER"
+: "$SD_OWNER" "$SD_CARD_SERVICE"
 # shellcheck source=tools/storage/octessera-sd-card-lib.sh
 . "$SD_CARD_LIB"
 LOG=octessera-usb-gadget
@@ -337,7 +338,7 @@ read_storage_state() {
 
 remount_storage_if_needed() {
   [ "${WAS_MOUNTED:-0}" = 1 ] || return 0
-  remount_card "$DEV"
+  remount_card_after_transfer "$DEV"
 }
 
 storage_create_unlocked() (

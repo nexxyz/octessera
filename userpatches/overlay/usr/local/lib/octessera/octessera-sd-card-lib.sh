@@ -7,6 +7,7 @@ SAVES_SUBDIR=$ROOT_OCTESSERA/saves
 LOG=octessera-sd-card
 SD_DISKSEQ_STATE=${SD_DISKSEQ_STATE:-/run/octessera-sd-card.diskseq}
 SD_FSCK_TIMEOUT=${SD_FSCK_TIMEOUT:-60}
+SD_REPAIR_STATE=${SD_REPAIR_STATE:-/run/octessera-sd-card.needs-repair}
 
 log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
 canonical_block() { readlink -f "$1"; }
@@ -144,7 +145,11 @@ card_marked_dirty() {
       ;;
     *) return 1 ;;
   esac
-  [ -n "$flag" ] && [ $((flag & mask)) -ne 0 ]
+  if [ -z "$flag" ]; then
+    log "could not read the dirty flag of $1; mounting it without a check"
+    return 1
+  fi
+  [ $((flag & mask)) -ne 0 ]
 }
 
 repair_dirty_card() {
@@ -166,7 +171,20 @@ repair_dirty_card() {
     124) log "$dev check timed out after ${SD_FSCK_TIMEOUT}s; not mounting SD2" ;;
     *) log "$dev check failed with status $status; not mounting SD2" ;;
   esac
+  printf '%s\n' "$dev" > "$SD_REPAIR_STATE" || log "could not record that $dev needs repair"
   return 1
+}
+
+# A transfer runs under a short service timeout, so a card the computer left
+# dirty is handed to the SD card service, which owns the check and its budget.
+remount_card_after_transfer() {
+  dev="$1"
+  if ! mountpoint -q "$SD_MOUNT" && card_marked_dirty "$dev"; then
+    log "$dev was left dirty by the transfer; $SD_CARD_SERVICE checks and mounts it"
+    systemctl start --no-block "$SD_CARD_SERVICE" || log "could not start $SD_CARD_SERVICE"
+    return 0
+  fi
+  remount_card "$dev"
 }
 
 remount_card() {
@@ -182,6 +200,7 @@ remount_card() {
     repair_dirty_card "$dev" || return 1
     mount -o "$(mount_options_for "$dev")" "$dev" "$SD_MOUNT"
   fi
+  rm -f -- "$SD_REPAIR_STATE"
   prepare_folders
   remember_disk_sequence "$dev"
 }
@@ -201,6 +220,7 @@ mount_card() {
         log "$SD_MOUNT is mounted but no SD2 card is present"
         return 1
       fi
+      rm -f -- "$SD_REPAIR_STATE"
       log "no SD2 card found"
       return 0
     fi

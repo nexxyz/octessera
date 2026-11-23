@@ -37,6 +37,18 @@ assert_file_value fake-udc "$gadget/UDC"
 run_teardown "$root" > "$root/teardown.log"
 test ! -e "$gadget"
 
+root=$TEST_ROOT/storage-dirty-after-transfer
+prepare_storage_root "$root"
+: > "$root/mounted"
+run_setup "$root" "$COMBINED_CONFIG" > "$root/setup-normal.log"
+run_storage_action "$root" storage-start "$COMBINED_CONFIG" > "$root/setup-storage.log"
+run_storage_action "$root" storage-stop "$COMBINED_CONFIG" FAKE_CARD_DIRTY=1 > "$root/stop-storage.log" 2>&1
+grep -q 'was left dirty by the transfer' "$root/stop-storage.log"
+grep -qx 'start --no-block octessera-sd-card.service' "$root/systemctl.log"
+test ! -e "$root/mounted"
+test ! -e "$root/storage.state"
+test -L "$root/config/usb_gadget/octessera/configs/c.1/midi.usb0"
+
 root=$TEST_ROOT/storage-slot-card
 new_fake_configfs "$root"
 run_setup "$root" "$COMBINED_CONFIG" > "$root/setup-normal.log"

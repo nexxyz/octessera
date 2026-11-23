@@ -28,7 +28,8 @@ export OCTESSERA_SD_OWNER=octessera-runtime
 SD_MOUNT="$OCTESSERA_SD_MOUNT"
 SD_OWNER="$OCTESSERA_SD_OWNER"
 STORAGE_STATE="$work/storage.state"
-: "$SD_MOUNT" "$SD_OWNER" "$STORAGE_STATE"
+SD_REPAIR_STATE="$work/needs-repair"
+: "$SD_MOUNT" "$SD_OWNER" "$STORAGE_STATE" "$SD_REPAIR_STATE"
 # shellcheck source=tools/storage/octessera-sd-card-lib.sh
 source "$library"
 
@@ -41,8 +42,7 @@ readlink() {
   case "$2" in
     /sys/class/block/sdb1|/sys/class/block/sdc1) printf '%s\n' "/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/mmc2/mmc2:0000/block/sdb/${2##*/}" ;;
     /sys/class/block/sde1) printf '%s\n' "/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.1/mmc_host/mmc2/mmc2:0000/block/sde/sde1" ;;
-    /sys/class/block/sdb|/sys/class/block/loop0) printf '%s
-' "/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/mmc2/mmc2:0000/block/${2##*/}" ;;
+    /sys/class/block/sdb|/sys/class/block/loop0) printf '%s\n' "/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/mmc2/mmc2:0000/block/${2##*/}" ;;
     /sys/class/block/loop1) printf '%s\n' "/sys/devices/platform/soc/5200000.usb/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/loop1" ;;
     /sys/class/block/sdd1) printf '%s\n' "/sys/devices/platform/soc/5200000.usb/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/sdd/sdd1" ;;
     *) command readlink "$@" ;;
@@ -95,18 +95,13 @@ probe /dev/sdb /dev/sdb=vfat
 test "$(configured_device)" = /dev/sdb
 test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec
 
-root_device() { printf '%s
-' /dev/mmcblk0p2; }
-root_parent_disk() { printf '%s
-' mmcblk0; }
+root_device() { printf '%s\n' /dev/mmcblk0p2; }
+root_parent_disk() { printf '%s\n' mmcblk0; }
 lsblk() {
   case "$*" in
-    *'TYPE /dev/loop0'*|*'TYPE /dev/loop1'*) printf '%s
-' disk ;;
-    *'TYPE /dev/loop2'*) printf '%s
-' part ;;
-    *'PKNAME /dev/loop2'*) printf '%s
-' loop0 ;;
+    *'TYPE /dev/loop0'*|*'TYPE /dev/loop1'*) printf '%s\n' disk ;;
+    *'TYPE /dev/loop2'*) printf '%s\n' part ;;
+    *'PKNAME /dev/loop2'*) printf '%s\n' loop0 ;;
   esac
 }
 safe_partition /dev/loop0 || { echo 'SD helper refused a whole-disk FAT card in the SD2 slot.' >&2; exit 1; }
@@ -149,8 +144,7 @@ findmnt() {
 probe /dev/sdb1 /dev/sdb1=vfat
 SD_DISKSEQ_STATE="$work/diskseq"
 card_sequence=7
-disk_sequence() { printf '%s
-' "$card_sequence"; }
+disk_sequence() { printf '%s\n' "$card_sequence"; }
 if mounted_card_was_replaced /dev/sdb1; then
   echo 'SD helper treated an unrecorded mount as a removed card.' >&2
   exit 1
@@ -162,8 +156,7 @@ test -d "$OCTESSERA_SD_MOUNT/octessera/saves"
 test "$(cat "$SD_DISKSEQ_STATE")" = 7
 
 lazy_unmounts=0
-mounted_device() { printf '%s
-' /dev/sdb1; }
+mounted_device() { printf '%s\n' /dev/sdb1; }
 umount() { test "$1" = -l && lazy_unmounts=$((lazy_unmounts + 1)) && rm -f "$mount_marker"; }
 mount_card
 test "$lazy_unmounts" = 0
@@ -240,7 +233,11 @@ if remount_card /dev/sdb1; then
   exit 1
 fi
 test ! -e "$mount_marker"
+grep -qx /dev/sdb1 "$SD_REPAIR_STATE"
 unset FAKE_FSCK_STATUS
+fresh_mount vfat 1
+remount_card /dev/sdb1
+test ! -e "$SD_REPAIR_STATE"
 
 fresh_mount exfat 2
 export FAKE_FSCK_SLEEP=5

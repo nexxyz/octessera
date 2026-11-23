@@ -91,8 +91,12 @@ such a partition means no SD2, a card with several is refused, and USB drives
 are ignored. Before mounting, the shared SD helper reads the volume's dirty
 flag (exFAT VolumeFlags, FAT boot-sector state) and, if it is set, runs
 `fsck.exfat -p` or `fsck.vfat -a` with a 60 s timeout, logging the result. A
-failed or timed-out check leaves SD2 unmounted, so the sample browser shows
-its usual unavailable state. Both images install `dosfstools` and `exfatprogs`.
+failed or timed-out check leaves SD2 unmounted and writes
+`/run/octessera-sd-card.needs-repair`, so the sample browser says the card
+needs repair; the marker goes when a card mounts or the slot is empty. After an
+SD2 transfer, a card the computer left dirty is not checked inside the
+transfer's 12 s budget: the transfer starts the SD card service with
+`--no-block`, which owns the check. Both images install `dosfstools` and `exfatprogs`.
 
 ## Updater contract
 

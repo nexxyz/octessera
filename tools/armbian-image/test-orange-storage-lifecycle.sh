@@ -16,8 +16,22 @@ real_rm="$(command -v rm)"
 real_readlink="$(command -v readlink)"
 real_stat="$(command -v stat)"
 export REAL_MKDIR="$real_mkdir" REAL_RMDIR="$real_rmdir" REAL_RM="$real_rm" REAL_READLINK="$real_readlink" REAL_STAT="$real_stat"
-export TEST_WORK="$fixture" TEST_DEV=/dev/sdb1 SD_DISKSEQ_STATE="$fixture/diskseq"
+export TEST_WORK="$fixture" TEST_DEV=/dev/sdb1 SD_DISKSEQ_STATE="$fixture/diskseq" SD_REPAIR_STATE="$fixture/needs-repair"
 
+cat > "$bin/dd" <<'EOF'
+#!/bin/sh
+head -c 65 /dev/zero
+if [ "${CARD_DIRTY:-0}" = 1 ]; then printf '\001'; else printf '\000'; fi
+head -c 446 /dev/zero
+EOF
+cat > "$bin/systemctl" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$TEST_WORK/systemctl.log"
+EOF
+cat > "$bin/fsck.vfat" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$TEST_WORK/fsck.log"
+EOF
 cat > "$bin/mkdir" <<'EOF'
 #!/bin/sh
 "$REAL_MKDIR" "$@"
@@ -178,7 +192,7 @@ export PATH="$bin:$PATH"
 reset_fixture() {
   rm -rf "$fixture/config/usb_gadget"
   mkdir -p "$fixture/config/usb_gadget"
-  rm -f "$fixture/storage.state" "$fixture/storage.state.tmp" "$fixture/mounted" "$fixture/normal-active"
+  rm -f "$fixture/storage.state" "$fixture/storage.state.tmp" "$fixture/mounted" "$fixture/normal-active" "$fixture/systemctl.log" "$fixture/fsck.log"
   touch "$fixture/normal-active"
   BLKID_MODE=one
   BIND_FAIL=0
@@ -236,6 +250,19 @@ expect_failure storage-start
 "$fixture/storage" storage-stop > "$work/stdout"
 grep -qFx 'HOST_STATE=not attached' "$work/stdout"
 assert_restored
+test ! -e "$fixture/systemctl.log"
+
+reset_fixture
+touch "$fixture/mounted"
+"$fixture/storage" storage-start > "$work/stdout"
+CARD_DIRTY=1 "$fixture/storage" storage-stop > "$work/stdout" 2> "$work/stderr"
+grep -qFx 'HOST_STATE=not attached' "$work/stdout"
+grep -qF 'was left dirty by the transfer' "$work/stderr"
+grep -qFx 'start --no-block octessera-orange-sd-card.service' "$fixture/systemctl.log"
+test ! -e "$fixture/fsck.log"
+test ! -e "$fixture/mounted"
+test ! -e "$fixture/storage.state"
+test -e "$fixture/normal-active"
 
 reset_fixture
 touch "$fixture/mounted"

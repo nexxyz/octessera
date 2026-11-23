@@ -317,7 +317,7 @@ jobs:
       - name: Validate Raspberry profile boundaries
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cpio device-tree-compiler initramfs-tools shellcheck zstd
+          sudo apt-get install -y --no-install-recommends cpio device-tree-compiler dosfstools exfatprogs initramfs-tools shellcheck zstd
           for script in tools/pi/board-profile.sh tools/pi/build-pi-cross-wsl.sh tools/orange-pi/input-routing-provision.sh; do bash -n "$script"; done
           bash tools/pi/test-board-profile.sh
           python3 tools/pi-image/test-board-profile.py
@@ -339,7 +339,7 @@ jobs:
           sudo bash tools/pi-image/test-usb-role.sh
           bash tools/quality/test-domain-runner-ordering.sh
           python3 tools/docs/test_release_documentation.py
-          shellcheck tools/storage/octessera-sd-card tools/storage/octessera-sd-card-lib.sh tools/storage/octessera-orange-storage tools/armbian-image/test-orange-storage-lifecycle.sh userpatches/overlay/usr/local/sbin/octessera-sd-card userpatches/overlay/usr/local/sbin/octessera-orange-storage
+          shellcheck tools/storage/octessera-sd-card tools/storage/octessera-sd-card-lib.sh tools/armbian-image/test-sd-card-dirty-flag.sh tools/storage/octessera-orange-storage tools/armbian-image/test-orange-storage-lifecycle.sh userpatches/overlay/usr/local/sbin/octessera-sd-card userpatches/overlay/usr/local/sbin/octessera-orange-storage
 
           python3 -m unittest tools.samples.test_sample_library
           sudo env "PATH=$PATH" "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" bash tools/pi-image/test-musical-assets.sh

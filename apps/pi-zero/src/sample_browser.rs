@@ -9,6 +9,7 @@ use std::path::Path;
 
 const SD_CARD_SAMPLE_DIR: &str = "sd-card";
 pub(crate) const SD_CARD_SAMPLE_BROWSER_DIR: &str = "sd-card/octessera/samples";
+const SD_CARD_REPAIR_MARKER: &str = "/run/octessera-sd-card.needs-repair";
 
 pub(crate) fn builtin_favourite_dirs() -> Vec<String> {
     vec![String::new(), SD_CARD_SAMPLE_BROWSER_DIR.into()]
@@ -59,7 +60,7 @@ pub(crate) fn assert_builtin_favourite_menu(runner: &mut NativeRunner) {
 pub fn sample_entries(samples_dir: &Path, dir: &str) -> Result<Vec<SampleEntry>, String> {
     let dir = normalize_sample_dir(dir)?;
     if sd_card_path_requested(&dir) && !sd_card_samples_available(samples_dir) {
-        return Err("SD card is not available. Insert the OLED SD card and try again.".into());
+        return Err(sd_card_unavailable_message(Path::new(SD_CARD_REPAIR_MARKER)).into());
     }
     if std::fs::symlink_metadata(samples_dir)
         .map_err(|error| format!("sample root metadata failed: {error}"))?
@@ -211,6 +212,14 @@ fn sd_card_samples_available(samples_dir: &Path) -> bool {
     path.is_dir() && is_mount_point(&path) && samples_dir.join(SD_CARD_SAMPLE_BROWSER_DIR).is_dir()
 }
 
+fn sd_card_unavailable_message(repair_marker: &Path) -> &'static str {
+    if repair_marker.exists() {
+        "SD card needs repair. Fix or reformat it on a computer."
+    } else {
+        "SD card is not available. Insert the OLED SD card and try again."
+    }
+}
+
 pub(crate) fn sd_card_path_requested(dir: &str) -> bool {
     dir == SD_CARD_SAMPLE_DIR || dir.starts_with("sd-card/")
 }
@@ -255,6 +264,21 @@ mod tests {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.root);
         }
+    }
+
+    #[test]
+    fn sd_card_unavailable_message_names_a_card_that_failed_its_check() {
+        let directory = TestDirectory::new();
+        let marker = directory.root.join("needs-repair");
+        assert_eq!(
+            sd_card_unavailable_message(&marker),
+            "SD card is not available. Insert the OLED SD card and try again."
+        );
+        std::fs::write(&marker, "/dev/mmcblk2p1\n").unwrap();
+        assert_eq!(
+            sd_card_unavailable_message(&marker),
+            "SD card needs repair. Fix or reformat it on a computer."
+        );
     }
 
     #[test]

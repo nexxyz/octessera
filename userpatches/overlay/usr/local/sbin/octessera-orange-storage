@@ -13,9 +13,10 @@ SD_LOCK=/run/octessera-sd-card.lock
 STORAGE_STATE=/run/octessera-usb-storage.state
 SD_MOUNT=/var/lib/octessera/samples/sd-card
 SD_OWNER=octessera-runtime
+SD_CARD_SERVICE=octessera-orange-sd-card.service
 STORAGE_FUNCTION=$GADGET/functions/mass_storage.usb0
 STORAGE_LUN=$STORAGE_FUNCTION/lun.0
-: "$SD_OWNER"
+: "$SD_OWNER" "$SD_CARD_SERVICE"
 
 # shellcheck source=tools/storage/octessera-sd-card-lib.sh
 . /usr/local/lib/octessera/octessera-sd-card-lib.sh
@@ -223,7 +224,7 @@ restore_after_start_failure() {
   status=0
   cleanup_storage || status=1
   if [ "$status" = 0 ] && [ "${WAS_MOUNTED:-0}" = 1 ]; then
-    remount_card "$DEV" || status=1
+    remount_card_after_transfer "$DEV" || status=1
   fi
   if [ "$status" = 0 ]; then
     rm -f -- "$STORAGE_STATE" "$STORAGE_STATE.tmp" || status=1
@@ -289,7 +290,7 @@ storage_stop_unlocked() {
     normal_teardown || status=1
   fi
   if [ "$status" = 0 ] && [ "$state_available" = 1 ] && [ "$WAS_MOUNTED" = 1 ]; then
-    remount_card "$DEV" || status=1
+    remount_card_after_transfer "$DEV" || status=1
   fi
   if [ "$status" = 0 ]; then
     rm -f -- "$STORAGE_STATE" "$STORAGE_STATE.tmp" || status=1
