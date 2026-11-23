@@ -10,6 +10,8 @@ apt-get install -y --no-install-recommends \
     ca-certificates \
     coreutils \
     device-tree-compiler \
+    dosfstools \
+    exfatprogs \
     initramfs-tools \
     i2c-tools \
     jq \

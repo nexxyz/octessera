@@ -6,6 +6,7 @@ SAMPLES_SUBDIR=$ROOT_OCTESSERA/samples
 SAVES_SUBDIR=$ROOT_OCTESSERA/saves
 LOG=octessera-sd-card
 SD_DISKSEQ_STATE=${SD_DISKSEQ_STATE:-/run/octessera-sd-card.diskseq}
+SD_FSCK_TIMEOUT=${SD_FSCK_TIMEOUT:-60}
 
 log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
 canonical_block() { readlink -f "$1"; }
@@ -134,6 +135,48 @@ unmount_expected() {
   fi
 }
 
+boot_sector_byte() {
+  dd if="$1" bs=512 count=1 iflag=direct 2>/dev/null | od -An -tu1 -j "$2" -N1 | tr -d '[:space:]'
+}
+
+card_marked_dirty() {
+  case "$(blkid -o value -s TYPE "$1" 2>/dev/null || true)" in
+    exfat) flag="$(boot_sector_byte "$1" 106)"; mask=2 ;;
+    vfat)
+      if [ "$(boot_sector_byte "$1" 22)" = 0 ] && [ "$(boot_sector_byte "$1" 23)" = 0 ]; then
+        flag="$(boot_sector_byte "$1" 65)"
+      else
+        flag="$(boot_sector_byte "$1" 37)"
+      fi
+      mask=1
+      ;;
+    *) return 1 ;;
+  esac
+  [ -n "$flag" ] && [ $((flag & mask)) -ne 0 ]
+}
+
+repair_dirty_card() {
+  dev="$1"
+  card_marked_dirty "$dev" || return 0
+  case "$(blkid -o value -s TYPE "$dev" 2>/dev/null || true)" in
+    exfat) checker="fsck.exfat -p" ;;
+    *) checker="fsck.vfat -a" ;;
+  esac
+  log "$dev was not cleanly removed; checking it with $checker"
+  # shellcheck disable=SC2086
+  if report="$(timeout "$SD_FSCK_TIMEOUT" $checker "$dev" 2>&1)"; then status=0; else status=$?; fi
+  printf '%s\n' "$report" | tail -n 4 | while IFS= read -r line; do
+    [ -z "$line" ] || log "$checker: $line"
+  done
+  case "$status" in
+    0) log "$dev checked; nothing to repair"; return 0 ;;
+    1) log "$dev checked and repaired"; return 0 ;;
+    124) log "$dev check timed out after ${SD_FSCK_TIMEOUT}s; not mounting SD2" ;;
+    *) log "$dev check failed with status $status; not mounting SD2" ;;
+  esac
+  return 1
+}
+
 remount_card() {
   dev="$1"
   mkdir -p "$SD_MOUNT"
@@ -144,6 +187,7 @@ remount_card() {
       return 1
     }
   else
+    repair_dirty_card "$dev" || return 1
     mount -o "$(mount_options_for "$dev")" "$dev" "$SD_MOUNT"
   fi
   prepare_folders

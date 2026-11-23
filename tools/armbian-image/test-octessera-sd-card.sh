@@ -36,14 +36,14 @@ canonical_block() { printf '%s\n' "$1"; }
 transfer_active() { return 1; }
 with_sd_lock() { "$@"; }
 logger() { :; }
+boot_sector_byte() { printf '0\n'; }
 readlink() {
   case "$2" in
     /sys/class/block/sdb1|/sys/class/block/sdc1) printf '%s\n' "/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/mmc2/mmc2:0000/block/sdb/${2##*/}" ;;
     /sys/class/block/sde1) printf '%s\n' "/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.1/mmc_host/mmc2/mmc2:0000/block/sde/sde1" ;;
     /sys/class/block/sdb|/sys/class/block/loop0) printf '%s
 ' "/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/mmc2/mmc2:0000/block/${2##*/}" ;;
-    /sys/class/block/loop1) printf '%s
-' "/sys/devices/platform/soc/5200000.usb/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/loop1" ;;
+    /sys/class/block/loop1) printf '%s\n' "/sys/devices/platform/soc/5200000.usb/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/loop1" ;;
     /sys/class/block/sdd1) printf '%s\n' "/sys/devices/platform/soc/5200000.usb/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/sdd/sdd1" ;;
     *) command readlink "$@" ;;
   esac
@@ -173,4 +173,83 @@ test "$lazy_unmounts" = 1
 test -e "$mount_marker"
 test "$(cat "$SD_DISKSEQ_STATE")" = 8
 
-echo 'Octessera shared SD helper, service, udev, safety, SD2-slot, whole-disk, filesystem, USB-drive, two-partition, mount, replaced-card, and folder tests passed.'
+fsck_bin="$work/fsck-bin"
+mkdir -p "$fsck_bin"
+for checker in fsck.vfat fsck.exfat; do
+  cat > "$fsck_bin/$checker" <<EOF
+#!/bin/sh
+printf '%s %s\n' "$checker" "\$*" >> "$work/fsck.log"
+sleep "\${FAKE_FSCK_SLEEP:-0}"
+echo "Automatically removing dirty bit."
+exit "\${FAKE_FSCK_STATUS:-1}"
+EOF
+  chmod +x "$fsck_bin/$checker"
+done
+PATH="$fsck_bin:$PATH"
+sector_byte=0
+fat16_size=0
+boot_sector_byte() {
+  case "$2" in
+    22|23) printf '%s\n' "$fat16_size" ;;
+    *) printf '%s\n' "$sector_byte" ;;
+  esac
+}
+blkid() {
+  case "$*" in
+    *'-s TYPE'*) printf '%s\n' "$card_type" ;;
+  esac
+}
+fresh_mount() {
+  rm -f "$mount_marker" "$work/fsck.log"
+  card_type="$1"
+  sector_byte="$2"
+}
+
+fresh_mount vfat 0
+remount_card /dev/sdb1
+test -e "$mount_marker"
+test ! -e "$work/fsck.log"
+
+fresh_mount vfat 1
+remount_card /dev/sdb1
+test -e "$mount_marker"
+grep -qx 'fsck.vfat -a /dev/sdb1' "$work/fsck.log"
+
+fat16_size=32
+fresh_mount vfat 1
+remount_card /dev/sdb1
+grep -qx 'fsck.vfat -a /dev/sdb1' "$work/fsck.log"
+fresh_mount vfat 0
+remount_card /dev/sdb1
+test ! -e "$work/fsck.log"
+fat16_size=0
+
+fresh_mount exfat 2
+remount_card /dev/sdb1
+test -e "$mount_marker"
+grep -qx 'fsck.exfat -p /dev/sdb1' "$work/fsck.log"
+
+fresh_mount exfat 1
+remount_card /dev/sdb1
+test ! -e "$work/fsck.log"
+
+fresh_mount vfat 1
+export FAKE_FSCK_STATUS=4
+if remount_card /dev/sdb1; then
+  echo 'SD helper mounted a card its check could not repair.' >&2
+  exit 1
+fi
+test ! -e "$mount_marker"
+unset FAKE_FSCK_STATUS
+
+fresh_mount exfat 2
+export FAKE_FSCK_SLEEP=5
+SD_FSCK_TIMEOUT=1
+if remount_card /dev/sdb1; then
+  echo 'SD helper mounted a card whose check timed out.' >&2
+  exit 1
+fi
+test ! -e "$mount_marker"
+unset FAKE_FSCK_SLEEP
+
+echo 'Octessera shared SD helper, service, udev, safety, SD2-slot, whole-disk, filesystem, USB-drive, two-partition, dirty-card check, mount, replaced-card, and folder tests passed.'

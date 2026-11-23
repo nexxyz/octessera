@@ -88,7 +88,11 @@ formatted that way), whatever its label, on the card behind the SPI SD host from
 (`/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/`;
 the Raspberry uses `3f204000.spi/.../spi0.1`). An empty slot or a card without
 such a partition means no SD2, a card with several is refused, and USB drives
-are ignored.
+are ignored. Before mounting, the shared SD helper reads the volume's dirty
+flag (exFAT VolumeFlags, FAT boot-sector state) and, if it is set, runs
+`fsck.exfat -p` or `fsck.vfat -a` with a 60 s timeout, logging the result. A
+failed or timed-out check leaves SD2 unmounted, so the sample browser shows
+its usual unavailable state. Both images install `dosfstools` and `exfatprogs`.
 
 ## Updater contract
 

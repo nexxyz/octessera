@@ -18,7 +18,9 @@ SD1. Give it a single FAT32 or exFAT partition (or format the whole card that
 way); the name doesn't matter, and other partition types are ignored. You can
 swap the card while the instrument is on; give it a couple of seconds to show
 up. It appears in the sample browser as
-the `SD card` favorite.
+the `SD card` favorite. Just let any transfer or save finish before you pull it;
+a card yanked mid-write gets a quick automatic check the next time it goes in,
+but it can't bring back a half-written file.
 
 To copy files from a computer without pulling the card, use
 **System > Connections > SD Card 2 > Start Transfer** in USB Gadget mode
