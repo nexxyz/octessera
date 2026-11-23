@@ -156,7 +156,9 @@ stay with whichever board you restore onto:
 - USB role, MIDI and audio device choices, and favorite sample folders.
 - Any other System settings beyond the few portable preferences (such as
   brightness) the archive carries.
-- The SD2 card's `octessera/saves` folder. Copy that by hand if you want it.
+- Anything on the SD2 card. It only holds samples, so copy those off the card
+  yourself if you want a spare. Your saves never live there: they sit on the
+  instrument and come out with this download.
 
 Rolling patch backups (`System > Saves > Default > Backups`) protect the patch
 only, not System settings.

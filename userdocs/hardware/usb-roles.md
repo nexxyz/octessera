@@ -132,7 +132,7 @@ Raspberry USB role.
 
 Host mode is for keyboards and MIDI controllers. You can plug in a USB drive
 and the kernel will notice it, but Octessera never mounts or reads it: samples
-and saves live on the microSD card and on SD2.
+and saves live on the microSD card, and SD2 can hold more samples.
 
 For the curious, Orange only: Armbian normally rewrites `/boot/armbianEnv.txt`
 on every boot to refresh a list of quirky USB disks. The Octessera image turns

@@ -82,8 +82,8 @@ of the service still runs. A BSP package upgrade on a board restores the call
 until the next Octessera image.
 
 USB host mode is for keyboards and MIDI controllers. The kernel enumerates USB
-drives, but Octessera keeps samples and saves on the microSD card and SD2 and
-mounts nothing else. SD2 is the single FAT32/exFAT partition (or a whole card
+drives, but Octessera keeps samples and saves on the microSD card, extra samples
+on SD2, and mounts nothing else. SD2 is the single FAT32/exFAT partition (or a whole card
 formatted that way), whatever its label, on the card behind the SPI SD host from the SPI1 overlay
 (`/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/`;
 the Raspberry uses `3f204000.spi/.../spi0.1`). An empty slot or a card without
@@ -91,8 +91,8 @@ such a partition means no SD2, a card with several is refused, and USB drives
 are ignored. SD2 is mounted read-only, because nothing on either board writes to
 it during play (recordings, saves, presets and backups live on SD1, and restore
 never crosses into the mount). It is remounted read-write only for the moment
-the helper needs to create a missing `octessera/samples` or `octessera/saves`
-folder; SD2 transfers write through the USB gadget with the card unmounted.
+the helper needs to create a missing `octessera/samples` folder; SD2
+transfers write through the USB gadget with the card unmounted.
 A pull outside a transfer therefore leaves a clean volume. Before mounting, the
 shared SD helper reads the volume's dirty
 flag (exFAT VolumeFlags, FAT boot-sector state) and, if it is set, runs

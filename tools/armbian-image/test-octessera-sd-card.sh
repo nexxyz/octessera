@@ -155,7 +155,7 @@ fi
 mount_card
 test -e "$mount_marker"
 test -d "$OCTESSERA_SD_MOUNT/octessera/samples"
-test -d "$OCTESSERA_SD_MOUNT/octessera/saves"
+test ! -e "$OCTESSERA_SD_MOUNT/octessera/saves"
 test "$(cat "$SD_DISKSEQ_STATE")" = 7
 
 lazy_unmounts=0
@@ -216,7 +216,11 @@ blkid() {
 }
 mount() {
   printf '%s\n' "$*" >> "$work/mount.log"
-  case "$*" in *remount*) ;; *) touch "$mount_marker" ;; esac
+  case "$*" in
+    *remount,ro*) [ "${FAKE_REMOUNT_RO_FAIL:-0}" = 0 ] || return 1 ;;
+    *remount*) ;;
+    *) touch "$mount_marker" ;;
+  esac
   [ "${FAKE_MOUNT_FAIL:-0}" = 0 ] || { rm -f "$mount_marker"; return 32; }
 }
 fresh_mount() {
@@ -304,6 +308,16 @@ test $(( $(date +%s) - started )) -lt 10
 test ! -e "$mount_marker"
 unset FAKE_FSCK_IGNORE_TERM FAKE_FSCK_SLEEP
 SD_FSCK_TIMEOUT=60
+
+fresh_mount vfat 0
+export FAKE_REMOUNT_RO_FAIL=1
+if remount_card /dev/sdb1 2>"$work/remount-ro.log"; then
+  echo 'SD helper kept SD2 mounted after it could not return it to read-only.' >&2
+  exit 1
+fi
+grep -qF 'could not return' "$work/remount-ro.log"
+test ! -e "$mount_marker"
+unset FAKE_REMOUNT_RO_FAIL
 
 fresh_mount vfat 0
 export FAKE_MOUNT_FAIL=1

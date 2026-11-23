@@ -3,7 +3,6 @@ set -eu
 
 ROOT_OCTESSERA=octessera
 SAMPLES_SUBDIR=$ROOT_OCTESSERA/samples
-SAVES_SUBDIR=$ROOT_OCTESSERA/saves
 LOG=octessera-sd-card
 SD_DISKSEQ_STATE=${SD_DISKSEQ_STATE:-/run/octessera-sd-card.diskseq}
 SD_FSCK_TIMEOUT=${SD_FSCK_TIMEOUT:-60}
@@ -77,11 +76,15 @@ configured_device() {
 # remounted read-write only for the moment it takes to create missing folders.
 prepare_folders() {
   mountpoint -q "$SD_MOUNT" || { log "$SD_MOUNT is not mounted; not creating SD2 folders"; return 1; }
-  [ -d "$SD_MOUNT/$SAMPLES_SUBDIR" ] && [ -d "$SD_MOUNT/$SAVES_SUBDIR" ] && return 0
+  [ -d "$SD_MOUNT/$SAMPLES_SUBDIR" ] && return 0
   mount -o remount,rw "$SD_MOUNT" || { log "could not make $SD_MOUNT writable to create its folders"; return 1; }
   folders=0
-  mkdir -p "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR" || { log "could not create the SD2 folders"; folders=1; }
-  mount -o remount,ro "$SD_MOUNT" || { log "could not return $SD_MOUNT to read-only"; folders=1; }
+  mkdir -p "$SD_MOUNT/$SAMPLES_SUBDIR" || { log "could not create the SD2 samples folder"; folders=1; }
+  if ! mount -o remount,ro "$SD_MOUNT"; then
+    log "could not return $SD_MOUNT to read-only; unmounting it"
+    umount "$SD_MOUNT" || umount -l "$SD_MOUNT"
+    return 1
+  fi
   return "$folders"
 }
 
