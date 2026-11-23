@@ -117,8 +117,8 @@ fn held_note_copies_timeline() -> String {
     copies.lines.join("\n") + "\n"
 }
 
-/// Pins the MIDI out copies Send MIDI `all` makes of a Hold Synth's notes through a shared
-/// pitch, a transpose and Stop: each copy starts and ends once, with its internal note.
+/// Pins the MIDI out copies Send MIDI `all` makes of a Hold Synth's notes through a struck-again
+/// key, a transpose and Stop: each copy starts and ends with its internal note.
 #[test]
 pub(crate) fn held_note_copies_play_their_pinned_timeline() {
     let actual = held_note_copies_timeline();

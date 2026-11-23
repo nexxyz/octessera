@@ -95,7 +95,7 @@ mod fx_targets;
 mod grid_assign;
 mod grid_coords;
 mod held_inputs;
-mod held_notes;
+mod held_keys;
 mod help_text;
 mod instrument_audio_payload;
 mod instrument_collections;
@@ -108,7 +108,6 @@ mod layer_state;
 mod led_color;
 mod lfo_sub_pulse;
 mod link_arp;
-mod link_arp_held;
 mod link_arp_mode;
 mod link_routing;
 mod link_scan;
@@ -146,13 +145,13 @@ pub(crate) use modulation::audio::is_live_link_lfo_target as is_live_link_lfo_ta
 mod aux_view;
 mod error_presentation_results;
 mod hardware_test;
+mod key_drains;
 mod link_config;
 mod link_payload;
 mod link_payload_apply;
 mod midi_results;
 mod midi_settings;
 mod missing_samples;
-mod note_ownership;
 mod note_set_selection;
 mod oled_sleep;
 mod outbox;
@@ -165,6 +164,7 @@ mod patch_persistence_error;
 mod patch_store;
 mod performance_view;
 mod persistence_intent;
+mod pitch_mapping_change;
 mod play_control;
 pub(crate) mod play_fx;
 pub(crate) mod play_pages;
@@ -341,7 +341,7 @@ pub struct NativeRunner {
     aux_priority: AuxPriority,
     play_live: play_pages::PlayLiveState,
     transpose: play_transpose::PlayTranspose,
-    held_notes: Vec<held_notes::HeldNotes>,
+    held_keys: held_keys::HeldKeys,
     layers: Vec<NativeLayer>,
     random_seed: u16,
     seeded_link_streams: random_streams::SeededLinkStreams,
@@ -349,9 +349,6 @@ pub struct NativeRunner {
     midi_cc_mappings: [midi_cc_in::NativeMidiCcMapping; midi_cc_in::MIDI_CC_SLOT_COUNT],
     midi_cc_learn: Option<midi_cc_in::MidiCcLearn>,
     keyboard_notes: Vec<midi_note_in::HeldKeyboardNote>,
-    /// Note-offs a layer's step sent to notes another layer or Notes In held, which go out with
-    /// that step's routed events.
-    ended_elsewhere: RoutedMusicalEvents,
     faders: play_pages::faders::NativeFaders,
     modulation_process: ModulationProcessState,
     aux_bindings: Vec<Option<NativeAuxBinding>>,

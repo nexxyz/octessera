@@ -65,7 +65,7 @@ pub(crate) fn disabling_layer_drains_internal_synth_note_with_transpose_routing(
     assert!(released_events
         .iter()
         .all(|event| matches!(event, MusicalEvent::NoteOff { .. })));
-    assert!(runner.held_notes[0].is_empty());
+    assert_eq!(runner.held_keys.held_count(), 0);
 }
 
 #[test]
@@ -235,8 +235,10 @@ fn configure_shared_route(runner: &mut NativeRunner, route: SharedRoute) {
     runner.sync_engine_runtime_config();
 }
 
+/// Two layers pressing one key share its sound, so the first layer whose gate closes ends it for
+/// both, on every route, and the second gate has nothing left to end.
 #[test]
-pub(crate) fn disabling_layer_releases_only_the_final_same_route_owner() {
+pub(crate) fn disabling_either_layer_releases_the_key_both_layers_share_once() {
     for route in [SharedRoute::Synth, SharedRoute::Sample, SharedRoute::Midi] {
         let mut runner = held_keys_runner();
         configure_shared_route(&mut runner, route);
@@ -257,23 +259,17 @@ pub(crate) fn disabling_layer_releases_only_the_final_same_route_owner() {
 
         runner.select_active_layer(0).unwrap();
         let first_disable = disable_layer(&mut runner, 0);
-        let first_disable_events = routed_events(&first_disable, midi);
-        assert!(
-            first_disable_events
+        let offs = |messages: &[RunnerMessage]| {
+            routed_events(messages, midi)
                 .iter()
-                .all(|event| !matches!(event, MusicalEvent::NoteOff { .. })),
-            "{route:?}: {first_disable_events:?}"
-        );
+                .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
+                .count()
+        };
+        assert_eq!(offs(&first_disable), 1, "{route:?}");
 
         runner.select_active_layer(1).unwrap();
         let final_disable = disable_layer(&mut runner, 1);
-        assert_eq!(
-            routed_events(&final_disable, matches!(route, SharedRoute::Midi))
-                .iter()
-                .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
-                .count(),
-            1
-        );
+        assert_eq!(offs(&final_disable), 0, "{route:?}");
     }
 }
 
@@ -288,82 +284,6 @@ pub(crate) fn disabling_layer_cancels_delayed_note_without_note_off() {
     let disabled = disable_layer(&mut runner, 0);
     assert!(routed_events(&disabled, false).is_empty());
     assert!(runner.delayed_link_events[0].is_empty());
-}
-
-#[test]
-pub(crate) fn transpose_drain_then_layer_disable_does_not_repeat_note_off() {
-    let mut runner = held_keys_runner();
-    let press = press_note(&mut runner, 2, 3);
-    assert_eq!(
-        routed_events(&press, false)
-            .iter()
-            .filter(|event| matches!(event, MusicalEvent::NoteOn { .. }))
-            .count(),
-        1
-    );
-
-    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Transpose);
-    let transpose = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 1, "y": 5 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    assert_eq!(
-        routed_events(&transpose, false)
-            .iter()
-            .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
-            .count(),
-        1
-    );
-
-    runner.active_play_mode = ActivePlayMode::None;
-    let disabled = disable_layer(&mut runner, 0);
-    assert!(routed_events(&disabled, false)
-        .iter()
-        .all(|event| !matches!(event, MusicalEvent::NoteOff { .. })));
-}
-
-#[test]
-pub(crate) fn transpose_drain_preserves_another_layer_owner_for_final_disable() {
-    let mut runner = held_keys_runner();
-    configure_shared_route(&mut runner, SharedRoute::Synth);
-    let _ = press_note(&mut runner, 2, 3);
-    runner.select_active_layer(1).unwrap();
-    let _ = press_note(&mut runner, 2, 3);
-    runner.select_active_layer(0).unwrap();
-    runner.transpose.selected[1] = false;
-
-    runner.active_play_mode = ActivePlayMode::Page(PlayMode::Transpose);
-    let transpose = runner
-        .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 1, "y": 5 }),
-            request_snapshot: None,
-        })
-        .unwrap();
-    assert_eq!(
-        routed_events(&transpose, false)
-            .iter()
-            .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
-            .count(),
-        1
-    );
-
-    runner.active_play_mode = ActivePlayMode::None;
-    let first_disabled = disable_layer(&mut runner, 0);
-    assert!(routed_events(&first_disabled, false)
-        .iter()
-        .all(|event| !matches!(event, MusicalEvent::NoteOff { .. })));
-
-    runner.select_active_layer(1).unwrap();
-    let final_disabled = disable_layer(&mut runner, 1);
-    assert_eq!(
-        routed_events(&final_disabled, false)
-            .iter()
-            .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
-            .count(),
-        1
-    );
 }
 
 fn note_offs(messages: &[RunnerMessage]) -> usize {
@@ -433,22 +353,8 @@ pub(crate) fn trigger_prob_mode_menu_zero_releases_held_notes() {
 pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_phase() {
     let mut runner = held_keys_runner();
     runner.link_arp.random_state = 123;
-    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
-        audio: true,
-        channel: 0,
-        note: 60,
-        velocity: 100,
-        tile: 0,
-        onset: 0,
-    });
-    runner.link_arp.held_notes[1].push(LinkArpHeldNote {
-        audio: true,
-        channel: 0,
-        note: 64,
-        velocity: 100,
-        tile: 0,
-        onset: 0,
-    });
+    runner.link_arp.keys[0].push(arp_key(0, 60));
+    runner.link_arp.keys[1].push(arp_key(0, 64));
     runner.link_arp.rotating_phase[0] = 3;
     runner.link_arp.rotating_phase[1] = 7;
     runner.delayed_link_events[0].push(DelayedRoutedEvents {
@@ -463,10 +369,10 @@ pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_
     let _ = disable_layer(&mut runner, 0);
 
     assert_eq!(runner.link_arp.random_state, 123);
-    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert!(runner.link_arp.keys[0].is_empty());
     assert_eq!(runner.link_arp.rotating_phase[0], 0);
     assert!(runner.delayed_link_events[0].is_empty());
-    assert_eq!(runner.link_arp.held_notes[1].len(), 1);
+    assert_eq!(runner.link_arp.keys[1].len(), 1);
     assert_eq!(runner.link_arp.rotating_phase[1], 7);
     assert_eq!(runner.delayed_link_events[1].len(), 1);
 }

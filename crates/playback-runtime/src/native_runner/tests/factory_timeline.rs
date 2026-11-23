@@ -43,9 +43,9 @@ pub(crate) fn factory_timeline() -> String {
 }
 
 /// The factory patch with swing, its Sequencer bass moved to a hold slot of its own (a held
-/// scan), its first Sequencer on a one-shot MIDI slot and its Life layer holding notes on another
-/// unshared hold slot from Hold Trig while On and Off stay on the Synth. No two layers share a
-/// hold slot, so the pin keeps out of the per-layer holder count's limit.
+/// scan), its first Sequencer on a one-shot MIDI slot and its Life layer striking held notes on
+/// the bass's hold slot from Hold Trig every step while On and Off stay on the Synth, so nothing
+/// releases those keys but the bass's own note-offs of the same pitch.
 pub(crate) fn factory_variant_timeline() -> String {
     let mut payload = pi_default();
     let config = &mut payload["runtimeConfig"];

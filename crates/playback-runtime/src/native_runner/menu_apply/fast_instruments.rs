@@ -172,7 +172,7 @@ impl NativeRunner {
             )
         };
         if route_changed {
-            self.drain_play_transpose_instrument_notes(index);
+            self.release_instrument_keys(index);
             self.menu.show_instrument_label(&self.menu_config(), index);
         }
         if changed {

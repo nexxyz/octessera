@@ -1,7 +1,6 @@
 use crate::protocol::RunnerMessage;
 use crate::timing_units::BAR_PULSES;
 
-use super::link_routing::dedupe_note_ons;
 use super::{NativeRunner, RoutedMusicalEvents, RuntimeTransportState, SyncSource, TransportFlash};
 
 impl NativeRunner {
@@ -14,6 +13,8 @@ impl NativeRunner {
             .transport
             .current_ppqn_pulse
             .saturating_add(pulses as u64);
+        let bpm = self.clock_bpm();
+        self.held_keys.advance(pulses, bpm);
         let mut out = Vec::new();
         if pulses == 0 {
             self.advance_lfo_sub_pulse()?;
@@ -110,6 +111,8 @@ impl NativeRunner {
             return self.clock_status_messages();
         }
         self.observe_external_clock_tempo(pulses);
+        let bpm = self.clock_bpm();
+        self.held_keys.advance(pulses, bpm);
         if self.transport.transport != RuntimeTransportState::Playing {
             return self.clock_status_messages();
         }
@@ -214,14 +217,14 @@ impl NativeRunner {
         out: &mut Vec<RunnerMessage>,
         mut events: RoutedMusicalEvents,
     ) {
-        dedupe_note_ons(&mut events, &self.instruments);
+        self.sound_keys(&mut events);
         push_event_messages(out, events);
         let swung = std::mem::take(&mut self.transport.swung_events);
         if swung.is_empty() {
             return;
         }
         for (nanos, mut events) in swung {
-            dedupe_note_ons(&mut events, &self.instruments);
+            self.sound_keys(&mut events);
             out.push(RunnerMessage::SequencedOffset { nanos });
             push_event_messages(out, events);
         }

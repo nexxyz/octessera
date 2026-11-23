@@ -219,7 +219,11 @@ fn dead_rows(context: Context) -> Vec<String> {
     let mut dead = Vec::new();
     for row in rows {
         let key = row.key.clone().unwrap();
-        if context_for(&key) != context {
+        // The Off row sends a note-off, and a repeat of a release ends nothing the first one
+        // left sounding, so its Retrig only matters once that pitch is pressed again between.
+        if context_for(&key) != context
+            || key == format!("{PREFIX}mapping.deactivate.retriggerCount")
+        {
             continue;
         }
         let Some((values, start)) = sweep_values(&row) else {

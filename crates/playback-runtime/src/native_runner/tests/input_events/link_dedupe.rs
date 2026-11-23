@@ -297,7 +297,7 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
     let mut probe = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     probe.transport.transport = RuntimeTransportState::Playing;
     probe.transport.current_ppqn_pulse = 12;
-    let first_tick = probe.advance_algorithm(12).unwrap();
+    let first_tick = probe.advance_algorithm(12).unwrap().pressed_sounds();
     let expected = first_tick
         .audio
         .into_iter()
@@ -315,14 +315,14 @@ pub(crate) fn due_retrigger_and_fresh_identical_note_remain_two_events() {
                 events: vec![expected.clone()],
                 event_intents: &[Some(activate)],
                 transpose_offset: 0,
-                lit_tiles: &[],
             },
         )
-        .unwrap();
+        .unwrap()
+        .pressed_sounds();
     assert_eq!(immediate.audio, vec![expected.clone()]);
 
     runner.transport.current_ppqn_pulse = 12;
-    let events = runner.advance_algorithm(12).unwrap();
+    let events = runner.advance_algorithm(12).unwrap().pressed_sounds();
     assert_eq!(
         events
             .audio

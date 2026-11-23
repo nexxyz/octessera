@@ -260,12 +260,7 @@ pub(crate) fn rejected_config_does_not_drain_live_held_notes() {
     invalid["runtimeConfig"]["layers"][0]["build"]["behaviorId"] = json!("unsupported-behavior");
 
     assert!(runner.apply_config_payload(invalid).is_err());
-    assert_eq!(
-        runner.held_notes[runner.active_layer_index]
-            .drain(usize::MAX)
-            .len(),
-        1
-    );
+    assert_eq!(runner.held_keys.held_count(), 1);
 }
 
 #[test]

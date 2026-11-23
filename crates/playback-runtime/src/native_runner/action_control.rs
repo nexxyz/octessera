@@ -227,7 +227,7 @@ impl NativeRunner {
         if index >= self.instruments.len() {
             return;
         }
-        self.drain_play_transpose_instrument_notes(index);
+        self.release_instrument_keys(index);
         let previous = std::mem::replace(
             &mut self.instruments[index],
             NativeInstrumentSlot::reset(index),

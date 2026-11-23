@@ -95,9 +95,7 @@ impl NativeRunner {
             aux_priority: seed.aux_priority,
             play_live: Default::default(),
             transpose: Default::default(),
-            held_notes: std::iter::repeat_with(Default::default)
-                .take(LAYER_COUNT)
-                .collect(),
+            held_keys: Default::default(),
             layers,
             random_seed: super::random_streams::DEFAULT_RANDOM_SEED,
             seeded_link_streams: super::random_streams::SeededLinkStreams::new(
@@ -107,7 +105,6 @@ impl NativeRunner {
             midi_cc_mappings: super::midi_cc_in::default_midi_cc_mappings(),
             midi_cc_learn: None,
             keyboard_notes: Vec::with_capacity(16),
-            ended_elsewhere: RoutedMusicalEvents::default(),
             faders: Default::default(),
             modulation_process: ModulationProcessState::default(),
             aux_bindings: seed.aux_bindings,

@@ -162,7 +162,8 @@ fn active_and_inactive_sequencer_ticks_follow_their_own_trigger_probability_maps
             runner.layers[layer].trigger_probability_map.fill(state);
         }
         runner.prime_layer_origins();
-        let events = runner.advance_due_layer_ticks().unwrap();
+        let mut events = runner.advance_due_layer_ticks().unwrap();
+        runner.sound_keys(&mut events);
         let note_ons = |lane: &[platform_core::MusicalEvent]| {
             lane.iter()
                 .filter(|event| matches!(event, platform_core::MusicalEvent::NoteOn { .. }))
@@ -182,10 +183,11 @@ fn active_and_inactive_sequencer_ticks_follow_their_own_trigger_probability_maps
 }
 
 #[test]
-fn active_and_inactive_sequencers_emit_origin_ticks_with_route_ownership_after_cleanup() {
+fn active_and_inactive_sequencers_emit_origin_ticks_after_releasing_their_held_keys() {
     let mut runner = dual_scanning_runner();
     runner.prime_layer_origins();
-    let old_events = runner.advance_due_layer_ticks().unwrap();
+    let mut old_events = runner.advance_due_layer_ticks().unwrap();
+    runner.sound_keys(&mut old_events);
     assert_eq!(
         old_events
             .audio
@@ -251,12 +253,7 @@ fn active_and_inactive_sequencers_emit_origin_ticks_with_route_ownership_after_c
         platform_core::MusicalEvent::NoteOff { channel, note }
             if channel == midi_channel && note == midi_note
     ));
-    assert!(runner.layers[0]
-        .emitted_note_owners
-        .contains(&(true, audio_channel, audio_note)));
-    assert!(runner.layers[1]
-        .emitted_note_owners
-        .contains(&(false, midi_channel, midi_note)));
+    assert_eq!(runner.held_keys.held_count(), 2);
 }
 
 #[test]
@@ -286,24 +283,13 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
     runner.delayed_link_events[0].push(DelayedRoutedEvents {
         remaining_steps: 1,
         events: RoutedMusicalEvents {
-            audio: vec![platform_core::MusicalEvent::NoteOn {
-                channel: 0,
-                note: 99,
-                velocity: 100,
-                duration_ms: None,
-            }],
-            midi: Vec::new(),
-            tiles: Vec::new(),
+            keys: vec![crate::native_runner::held_keys::KeyEvent::Press(arp_key(
+                0, 99,
+            ))],
+            ..RoutedMusicalEvents::default()
         },
     });
-    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
-        audio: true,
-        channel: 0,
-        note: 99,
-        velocity: 100,
-        tile: 0,
-        onset: 0,
-    });
+    runner.link_arp.keys[0].push(arp_key(0, 99));
     add_tile(&mut runner, 0, 0);
     arm_boundary(&mut runner, 95);
     runner.prime_layer_origins();
@@ -313,14 +299,11 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
     assert!(routed_events(&messages).is_empty());
     assert_eq!(runner.delayed_link_events[0].len(), 1);
     assert_eq!(runner.delayed_link_events[0][0].remaining_steps, 2);
-    assert!(runner.delayed_link_events[0][0]
+    assert!(!runner.delayed_link_events[0][0]
         .events
-        .audio
-        .iter()
-        .all(|event| !matches!(event, platform_core::MusicalEvent::NoteOn { note: 99, .. })));
-    assert!(runner.link_arp.held_notes[0]
-        .iter()
-        .all(|held| held.note != 99));
+        .presses()
+        .any(|press| press.pitch == 99));
+    assert!(runner.link_arp.keys[0].iter().all(|held| held.pitch != 99));
 }
 
 #[test]

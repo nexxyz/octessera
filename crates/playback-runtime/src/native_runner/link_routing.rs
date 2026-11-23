@@ -1,19 +1,14 @@
-use super::link_arp_held::lit_one_shot_notes;
+use super::held_keys::{KeyEvent, KeyPress, Sound};
 use super::modulation::sampler::event_channel;
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
-use super::{
-    ArpMode, ArpSource, DelayedRoutedEvents, LinkArpHeldNote, LinkEventTiming, NativeRunner,
-};
+use super::{ArpMode, DelayedRoutedEvents, LinkEventTiming, NativeRunner};
 use crate::native_runner::InstrumentType;
-use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, TileTriggerIntent, TileTriggerKind};
 
 pub(super) struct LinkRoutingInput<'a> {
     pub(super) events: Vec<MusicalEvent>,
     pub(super) event_intents: &'a [Option<TileTriggerIntent>],
     pub(super) transpose_offset: i8,
-    /// The layer's grid after the step, which a held Arp reads for the tiles still lit.
-    pub(super) lit_tiles: &'a [bool],
 }
 
 impl NativeRunner {
@@ -40,10 +35,25 @@ impl NativeRunner {
         due
     }
 
-    pub(super) fn clear_delayed_link_events_for_layer(&mut self, layer_index: usize) {
-        if let Some(queue) = self.delayed_link_events.get_mut(layer_index) {
-            queue.clear();
-        }
+    /// Drops the layer's pending notes, all but their releases, which it returns: a release that
+    /// waits for its row's Delay still lands when its queue goes.
+    pub(super) fn clear_delayed_link_events_for_layer(
+        &mut self,
+        layer_index: usize,
+    ) -> Vec<KeyEvent> {
+        let Some(queue) = self.delayed_link_events.get_mut(layer_index) else {
+            return Vec::new();
+        };
+        queue
+            .drain(..)
+            .flat_map(|entry| entry.events.keys)
+            .filter(|event| {
+                matches!(
+                    event,
+                    KeyEvent::Release { .. } | KeyEvent::ReleaseAll { .. }
+                )
+            })
+            .collect()
     }
 
     fn apply_link_timing_with_sense(
@@ -51,7 +61,6 @@ impl NativeRunner {
         context: &GroupRouting<'_>,
         intents: &[TileTriggerIntent],
         routed: RoutedMusicalEvents,
-        lit: Vec<LinkArpHeldNote>,
     ) -> RoutedMusicalEvents {
         let (layer_index, sense) = (context.layer_index, context.sense);
         if routed.is_empty() {
@@ -59,18 +68,13 @@ impl NativeRunner {
         }
         let timing = link_timing_for_intents(sense, intents);
         self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, timing.delay_steps);
-        let retrigger_count = if routed_contains_held_note_on(&routed)
-            || routed
-                .tiles
-                .iter()
-                .any(|hit| self.is_held_tile(layer_index, hit))
-        {
+        let retrigger_count = if presses_a_held_key(&routed) {
             0
         } else {
             timing.retrigger_count
         };
         if let Some(link) = sense.filter(|link| link.arp.mode != ArpMode::None) {
-            return self.apply_link_arp_timing(context, timing, lit, link, routed);
+            return self.apply_link_arp_timing(context, timing, link, routed);
         }
         if timing.delay_steps == 0 && retrigger_count == 0 {
             return routed;
@@ -91,21 +95,24 @@ impl NativeRunner {
         immediate
     }
 
+    /// A release drops the layer's pending held presses of its key due after it, which would
+    /// otherwise start a note its release already passed.
     fn cancel_pending_delayed_hold_note_ons_after(
         &mut self,
         layer_index: usize,
-        note_offs: &RoutedMusicalEvents,
+        routed: &RoutedMusicalEvents,
         note_off_due_steps: u8,
     ) {
-        let audio_note_offs = note_off_keys(&note_offs.audio);
-        let midi_note_offs = note_off_keys(&note_offs.midi);
-        let tile_releases = note_offs
-            .tiles
+        let released = |slot: u8, pitch: u8| {
+            routed.keys.iter().any(|event| {
+                matches!(*event, KeyEvent::Release { slot: s, pitch: p } if (s, p) == (slot, pitch))
+            })
+        };
+        if !routed
+            .keys
             .iter()
-            .filter(|hit| hit.velocity == 0)
-            .map(|hit| (hit.instrument_slot, hit.tile))
-            .collect::<Vec<_>>();
-        if audio_note_offs.is_empty() && midi_note_offs.is_empty() && tile_releases.is_empty() {
+            .any(|event| matches!(event, KeyEvent::Release { .. }))
+        {
             return;
         }
         let Some(queue) = self.delayed_link_events.get_mut(layer_index) else {
@@ -115,11 +122,9 @@ impl NativeRunner {
             if entry.remaining_steps <= u16::from(note_off_due_steps) {
                 return true;
             }
-            !has_matching_held_note_on(&entry.events.audio, &audio_note_offs)
-                && !has_matching_held_note_on(&entry.events.midi, &midi_note_offs)
-                && !entry.events.tiles.iter().any(|hit| {
-                    hit.velocity > 0 && tile_releases.contains(&(hit.instrument_slot, hit.tile))
-                })
+            !entry.events.keys.iter().any(|event| {
+                matches!(event, KeyEvent::Press(press) if press.length_ms.is_none() && released(press.slot, press.pitch))
+            })
         });
     }
 
@@ -131,10 +136,14 @@ impl NativeRunner {
         layer_index: usize,
         input: LinkRoutingInput<'_>,
     ) -> Result<RoutedMusicalEvents, String> {
-        self.release_dark_link_arp_tiles(layer_index, input.lit_tiles);
+        let mut routed = RoutedMusicalEvents::default();
+        if let Some(slots) = self.changed_pitch_mapping_targets(layer_index) {
+            routed.extend(self.release_layer_arp(layer_index));
+            routed.keys.push(KeyEvent::ReleaseAll { slots });
+        }
         let instruments = std::mem::take(&mut self.instruments);
         let layers = std::mem::take(&mut self.layers);
-        let routed = self.route_with_instruments(
+        let step = self.route_with_instruments(
             layer_index,
             input,
             &instruments,
@@ -142,13 +151,8 @@ impl NativeRunner {
         );
         self.instruments = instruments;
         self.layers = layers;
-        let mut routed = routed?;
+        routed.extend(step?);
         self.drop_muted_midi_note_ons(&mut routed);
-        if !self.ended_elsewhere.is_empty() {
-            let mut ended = std::mem::take(&mut self.ended_elsewhere);
-            ended.extend(routed);
-            routed = ended;
-        }
         Ok(routed)
     }
 
@@ -230,48 +234,20 @@ impl NativeRunner {
         events: Vec<MusicalEvent>,
         intents: &[TileTriggerIntent],
     ) -> RoutedMusicalEvents {
-        let layer_index = context.layer_index;
-        let mut route = |events, intents: &[TileTriggerIntent]| {
-            apply_sampler_assignments_for_instruments_routed(
-                events,
-                intents,
-                0,
-                context.instruments,
-                context.sense,
-                context.transpose_offset,
-                self.held_notes.get_mut(layer_index),
-            )
-        };
-        let mut lit = Vec::new();
-        let routed = if lights_held_arp_tiles(context.sense, intents) {
-            // One tile at a time, so each One-Shot note keeps the tile that lit it.
-            let mut routed = RoutedMusicalEvents::default();
-            for (event, intent) in events.into_iter().zip(intents) {
-                let one = route(vec![event], std::slice::from_ref(intent));
-                lit.extend(lit_one_shot_notes(&one, intent, context.midi_drum_channels));
-                routed.extend(one);
-            }
-            routed
-        } else {
-            route(events, intents)
-        };
+        let routed = apply_sampler_assignments_for_instruments_routed(
+            events,
+            intents,
+            0,
+            context.instruments,
+            context.sense,
+            context.transpose_offset,
+        );
         if intents.is_empty() {
-            self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
+            self.cancel_pending_delayed_hold_note_ons_after(context.layer_index, &routed, 0);
             return routed;
         }
-        self.apply_link_timing_with_sense(context, intents, routed, lit)
+        self.apply_link_timing_with_sense(context, intents, routed)
     }
-}
-
-/// An On batch on a layer whose Arp plays held notes, which lights the tiles it holds.
-fn lights_held_arp_tiles(
-    sense: Option<&super::NativeLinkLayer>,
-    intents: &[TileTriggerIntent],
-) -> bool {
-    sense.is_some_and(|link| link.arp.mode != ArpMode::None && link.arp.source == ArpSource::Held)
-        && intents
-            .first()
-            .is_some_and(|intent| intent.kind == TileTriggerKind::Activate)
 }
 
 pub(super) struct GroupRouting<'a> {
@@ -306,86 +282,37 @@ fn arp_batches(events: &[MusicalEvent], intents: &[Option<TileTriggerIntent>]) -
     untagged.into_iter().chain(releases).chain(rest).collect()
 }
 
-/// The note-ons that sound together on one tick play one hit per instrument and pitch, whatever
-/// layer, event kind or Delay produced them: the loudest, or the first of the loudest, whole, and
-/// their note-offs one note-off. A note-off between two note-ons of the pitch keeps both, and a
-/// note-on between two note-offs keeps both, so a release and a fresh hit still sound in order.
+/// The presses that sound together on one tick play one hit per key, or per sound, whatever
+/// layer, event kind or Delay produced them: the loudest, or the first of the loudest, whole. A
+/// release between two presses keeps both, so a release and a fresh hit still sound in order. On a
+/// Sampler, tiles stamped with the same sample and pitch merge; Drum hits never do.
 pub(super) fn dedupe_note_ons(
     routed: &mut RoutedMusicalEvents,
     instruments: &[super::NativeInstrumentSlot],
 ) {
-    dedupe_note_ons_in_lane(&mut routed.audio);
-    dedupe_note_ons_in_lane(&mut routed.midi);
-    dedupe_sampler_tile_hits(&mut routed.tiles, instruments);
-}
-
-/// Tiles stamped with the same sample and pitch that fire together play one voice, the loudest
-/// hit's, as identical sampler notes always have.
-fn dedupe_sampler_tile_hits(hits: &mut Vec<TileHit>, instruments: &[super::NativeInstrumentSlot]) {
-    let is_sampler = |slot: u8| {
-        instruments
-            .get(usize::from(slot))
-            .is_some_and(|instrument| instrument.kind == InstrumentType::Sampler)
-    };
+    let keys = &mut routed.keys;
     let mut index = 0;
-    while index < hits.len() {
-        let hit = &hits[index];
-        let (velocity, key) = (
-            hit.velocity,
-            (hit.instrument_slot, hit.voice, hit.pitch_cents),
-        );
-        let earlier = (velocity > 0 && is_sampler(key.0))
-            .then(|| {
-                hits[..index].iter().position(|other| {
-                    other.velocity > 0
-                        && (other.instrument_slot, other.voice, other.pitch_cents) == key
-                })
-            })
-            .flatten();
-        match earlier {
-            Some(first) => {
-                let hit = hits.remove(index);
-                if hit.velocity > hits[first].velocity {
-                    hits[first] = hit;
-                }
-            }
-            None => index += 1,
-        }
-    }
-}
-
-fn dedupe_note_ons_in_lane(events: &mut Vec<MusicalEvent>) {
-    let mut index = 0;
-    while index < events.len() {
-        let (channel, note) = match events[index] {
-            MusicalEvent::NoteOn { channel, note, .. }
-            | MusicalEvent::NoteOff { channel, note } => (channel, note),
-            MusicalEvent::Cc { .. } => {
-                index += 1;
-                continue;
-            }
+    while index < keys.len() {
+        let KeyEvent::Press(press) = &keys[index] else {
+            index += 1;
+            continue;
         };
-        let last = events[..index].iter().rposition(|event| {
-            matches!(
-                *event,
-                MusicalEvent::NoteOn { channel: c, note: n, .. }
-                    | MusicalEvent::NoteOff { channel: c, note: n }
-                    if (c, n) == (channel, note)
-            )
+        let earlier = keys[..index].iter().rposition(|event| match event {
+            KeyEvent::Press(other) => merges(other, press, instruments),
+            KeyEvent::Release { slot, pitch } => (*slot, *pitch) == (press.slot, press.pitch),
+            KeyEvent::ReleaseAll { slots } => slots & (1 << press.slot) != 0,
+            KeyEvent::Control { .. } => false,
         });
-        match (last.map(|last| &events[last]), &events[index]) {
-            (Some(MusicalEvent::NoteOff { .. }), MusicalEvent::NoteOff { .. }) => {
-                events.remove(index);
-            }
-            (
-                Some(&MusicalEvent::NoteOn {
-                    velocity: first, ..
-                }),
-                &MusicalEvent::NoteOn { velocity, .. },
-            ) => {
-                let louder = events.remove(index);
-                if velocity > first {
-                    events[last.unwrap_or_default()] = louder;
+        match earlier {
+            Some(first) if matches!(&keys[first], KeyEvent::Press(other) if merges(other, press, instruments)) =>
+            {
+                let KeyEvent::Press(louder) = keys.remove(index) else {
+                    unreachable!("checked a press");
+                };
+                if let KeyEvent::Press(first) = &mut keys[first] {
+                    if louder.sound.velocity() > first.sound.velocity() {
+                        *first = louder;
+                    }
                 }
             }
             _ => index += 1,
@@ -393,54 +320,29 @@ fn dedupe_note_ons_in_lane(events: &mut Vec<MusicalEvent>) {
     }
 }
 
-fn note_off_keys(events: &[MusicalEvent]) -> Vec<(u8, u8)> {
-    events
-        .iter()
-        .filter_map(|event| match event {
-            MusicalEvent::NoteOff { channel, note } => Some((*channel, *note)),
-            _ => None,
-        })
-        .collect()
-}
-
-fn routed_contains_held_note_on(events: &RoutedMusicalEvents) -> bool {
-    events.audio.iter().chain(events.midi.iter()).any(|event| {
-        matches!(
-            event,
-            MusicalEvent::NoteOn {
-                duration_ms: None,
-                ..
-            }
-        )
-    })
-}
-
-fn has_matching_held_note_on(events: &[MusicalEvent], note_offs: &[(u8, u8)]) -> bool {
-    events.iter().any(|event| match event {
-        MusicalEvent::NoteOn {
-            channel,
-            note,
-            duration_ms: None,
-            ..
-        } => note_offs.contains(&(*channel, *note)),
-        _ => false,
-    })
-}
-
-/// The Delay of `layer`'s row for trigger `kind`, in that layer's Link ticks.
-pub(super) fn link_delay_for_kind(
-    layer: Option<&super::NativeLinkLayer>,
-    kind: Option<TileTriggerKind>,
-) -> u8 {
-    let (Some(layer), Some(kind)) = (layer, kind) else {
-        return 0;
-    };
-    match kind {
-        TileTriggerKind::Activate => layer.activate_timing,
-        TileTriggerKind::Stable => layer.stable_timing,
-        TileTriggerKind::Deactivate => layer.deactivate_timing,
+fn merges(first: &KeyPress, next: &KeyPress, instruments: &[super::NativeInstrumentSlot]) -> bool {
+    match (&first.sound, &next.sound) {
+        (Sound::Sample(a), Sound::Sample(b)) => {
+            instruments
+                .get(usize::from(a.instrument_slot))
+                .is_some_and(|instrument| instrument.kind == InstrumentType::Sampler)
+                && (a.instrument_slot, a.voice, a.pitch_cents)
+                    == (b.instrument_slot, b.voice, b.pitch_cents)
+        }
+        (Sound::Drum(_), _)
+        | (_, Sound::Drum(_))
+        | (Sound::Sample(_), _)
+        | (_, Sound::Sample(_)) => false,
+        (a, b) => (first.slot, first.pitch) == (next.slot, next.pitch) || a.same_voice(b),
     }
-    .delay_steps
+}
+
+/// A press of a key that its instrument holds until a release; a Retrig repeats none of them.
+fn presses_a_held_key(events: &RoutedMusicalEvents) -> bool {
+    events
+        .keys
+        .iter()
+        .any(|event| matches!(event, KeyEvent::Press(press) if press.length_ms.is_none()))
 }
 
 fn link_timing_for_intents(

@@ -95,14 +95,7 @@ pub(crate) fn changed_note_set_drops_held_modulation_clears_link_state_and_delay
         .modulation_process
         .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
 
-    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
-        audio: true,
-        channel: 0,
-        note: 60,
-        velocity: 100,
-        tile: 0,
-        onset: 0,
-    });
+    runner.link_arp.keys[0].push(arp_key(0, 60));
     runner.link_arp.rotating_phase[0] = 7;
     runner.link_arp.random_state = 123;
     runner.config_dirty = false;
@@ -127,7 +120,7 @@ pub(crate) fn changed_note_set_drops_held_modulation_clears_link_state_and_delay
     assert!(!runner
         .modulation_process
         .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
-    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert!(runner.link_arp.keys[0].is_empty());
     assert_eq!(runner.link_arp.rotating_phase[0], 0);
     assert_eq!(runner.link_arp.random_state, 123);
     assert!(runner.config_dirty);

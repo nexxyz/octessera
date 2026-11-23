@@ -481,7 +481,6 @@ impl NativeRunner {
                 events: tick.events,
                 event_intents: &tick.event_intents,
                 transpose_offset,
-                lit_tiles: &tick.model.tiles,
             },
         )?);
         let mut messages = self.messages_with_routed_events(events)?;

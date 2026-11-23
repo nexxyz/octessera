@@ -33,11 +33,14 @@ pub(crate) fn delayed_hold_note_on_is_cancelled_by_release_before_due() {
             request_snapshot: None,
         })
         .unwrap();
-    assert!(release.iter().any(|message| matches!(
-        message,
-        RunnerMessage::MusicalEvents { events }
-            if events.iter().any(|event| matches!(event, platform_core::MusicalEvent::NoteOff { .. }))
-    )));
+    assert!(
+        !release.iter().any(|message| matches!(
+            message,
+            RunnerMessage::MusicalEvents { events }
+                if events.iter().any(|event| matches!(event, platform_core::MusicalEvent::NoteOff { .. }))
+        )),
+        "nothing sounds yet, so the release ends nothing"
+    );
 
     let delayed = runner
         .send(HostMessage::TransportPulseStep {

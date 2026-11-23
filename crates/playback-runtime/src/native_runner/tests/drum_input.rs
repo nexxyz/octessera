@@ -203,8 +203,8 @@ fn stamped_drum_level_scales_velocity_and_follow_pitch_and_transpose_are_opt_in(
             &runner.instruments,
             None,
             transpose,
-            None,
         )
+        .sounded(&runner.instruments)
         .tiles
     };
     let hit = route(&runner, 5, 64)[0].clone();

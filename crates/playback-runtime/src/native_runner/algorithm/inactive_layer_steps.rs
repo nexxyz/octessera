@@ -90,16 +90,10 @@ impl NativeRunner {
             let mut rng = self.probability_rng(index);
             let layer = &mut self.layers[index];
             let (link, probability_map) = (&layer.link, &layer.trigger_probability_map);
-            let mut tick = layer.engine.tick_filtered(bpm, |intent| {
+            let tick = layer.engine.tick_filtered(bpm, |intent| {
                 trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
             })?;
             self.store_probability_rng(index, rng);
-            self.hold_layer_notes(
-                index,
-                &mut tick.events,
-                &mut tick.event_intents,
-                Some(&tick.model.tiles),
-            );
             self.count_step_and_sound_due_link_events(index, offset, events);
             modulation_updates.push((index, tick.mapped_intents));
             let tick_events = self.route_events_with_link_timing(
@@ -108,10 +102,8 @@ impl NativeRunner {
                     events: tick.events,
                     event_intents: &tick.event_intents,
                     transpose_offset,
-                    lit_tiles: &tick.model.tiles,
                 },
             )?;
-            self.track_emitted_route_notes(index, &tick_events);
             push_tick_events(
                 events,
                 &mut self.transport.swung_events,
@@ -132,7 +124,6 @@ impl NativeRunner {
             *layer_tick = layer_tick.saturating_add(1);
         }
         let due_events = self.take_due_link_events(index);
-        self.track_emitted_route_notes(index, &due_events);
         push_tick_events(events, &mut self.transport.swung_events, offset, due_events);
     }
 }

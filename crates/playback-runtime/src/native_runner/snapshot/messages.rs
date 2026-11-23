@@ -337,11 +337,9 @@ impl NativeRunner {
                 events: result.events,
                 event_intents: &result.event_intents,
                 transpose_offset,
-                lit_tiles: &result.model.tiles,
             },
         )?;
-        super::super::link_routing::dedupe_note_ons(&mut events, &self.instruments);
-        self.track_emitted_route_notes(layer_index, &events);
+        self.sound_keys(&mut events);
         self.append_music_first_audio_commands(&mut messages);
         if !events.is_empty() {
             let now = self.display.transients.now();
@@ -368,8 +366,7 @@ impl NativeRunner {
         &mut self,
         mut events: super::super::RoutedMusicalEvents,
     ) -> Result<Vec<RunnerMessage>, String> {
-        super::super::link_routing::dedupe_note_ons(&mut events, &self.instruments);
-        self.track_emitted_route_notes(self.active_layer_index, &events);
+        self.sound_keys(&mut events);
         let mut messages = Vec::new();
         self.append_music_first_audio_commands(&mut messages);
         if !events.is_empty() {

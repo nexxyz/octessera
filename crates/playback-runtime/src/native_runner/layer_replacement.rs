@@ -1,7 +1,6 @@
 use platform_core::{NativeBehavior, NativeLayerEngine, NativeLayerEngineConfig};
 use serde_json::{json, Map, Value};
 
-use super::modulation::apply_sampler_assignments_for_instruments_routed;
 use super::NativeRunner;
 
 impl NativeRunner {
@@ -91,61 +90,6 @@ impl NativeRunner {
         self.set_layer_behavior_config(layer_index, &behavior_id, config);
         self.mark_fast_autosave_dirty();
         Ok(())
-    }
-
-    pub(super) fn drain_all_layer_notes(&mut self) {
-        for layer_index in 0..self.layers.len() {
-            self.drain_layer_engine_notes(layer_index);
-        }
-        self.drain_all_play_transpose_notes();
-        self.release_all_remaining_owned_notes();
-        self.release_all_keyboard_notes();
-    }
-
-    pub(super) fn drain_layer_engine_notes(&mut self, layer_index: usize) {
-        let notes = self
-            .held_notes
-            .get_mut(layer_index)
-            .map(|held| held.drain(usize::MAX))
-            .unwrap_or_default();
-        let routed = self.route_layer_engine_note_offs(layer_index, notes);
-        self.transpose.pending_note_offs.extend(routed);
-    }
-
-    /// Routes note-offs the layer's engine let go of outside a step, as a drain does.
-    pub(super) fn route_layer_engine_note_offs(
-        &mut self,
-        layer_index: usize,
-        notes: Vec<platform_core::MusicalEvent>,
-    ) -> super::modulation::RoutedMusicalEvents {
-        if notes.is_empty() {
-            return super::modulation::RoutedMusicalEvents::default();
-        }
-        let instruments = self.instruments.clone();
-        let sense = self.layers.get(layer_index).map(|layer| layer.link.clone());
-        let transpose_offset = self
-            .transpose
-            .offsets
-            .get(layer_index)
-            .copied()
-            .unwrap_or(0);
-        apply_sampler_assignments_for_instruments_routed(
-            notes,
-            &[],
-            0,
-            &instruments,
-            sense.as_ref(),
-            transpose_offset,
-            self.held_notes.get_mut(layer_index),
-        )
-    }
-
-    pub(super) fn clear_layer_replacement_state(&mut self, layer_index: usize) {
-        self.clear_delayed_link_events_for_layer(layer_index);
-        self.clear_link_arp_state_for_layer(layer_index);
-        if let Some(held) = self.held_notes.get_mut(layer_index) {
-            held.clear_sounding();
-        }
     }
 
     fn looper_step_index_for_layer(&self, layer_index: usize) -> Option<usize> {

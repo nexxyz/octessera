@@ -1,54 +1,5 @@
 use super::*;
 
-fn set_link(runner: &mut NativeRunner, field: &str, value: &str) {
-    let key = format!("layers.0.link.{field}");
-    assert!(runner.menu.set_enum_value_for_key(&key, value), "{key}");
-    runner.apply_or_schedule_menu_key(&key).unwrap();
-}
-
-fn step(runner: &mut NativeRunner) {
-    runner
-        .send(HostMessage::TransportPulseStep {
-            pulses: runner.step_pulses_for_layer(0),
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(false),
-        })
-        .unwrap();
-}
-
-#[test]
-pub(crate) fn a_scanning_hold_layer_forgets_the_pitches_the_scan_line_has_passed() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        behavior_id: "life".into(),
-        ..NativeRunnerConfig::default()
-    })
-    .unwrap();
-    for (x, y) in [(1, 1), (2, 1), (1, 2), (2, 2)] {
-        grid_tap(&mut runner, x, y);
-    }
-    runner.instruments[0].note_behavior = NoteBehavior::Hold;
-    runner.sync_engine_runtime_config();
-    set_link(&mut runner, "scanMode", "scanning");
-    set_link(&mut runner, "arp.mode", "chord_strike");
-    set_link(&mut runner, "arp.source", "held");
-    runner.transport.transport = RuntimeTransportState::Playing;
-
-    let mut held_any = false;
-    for _ in 0..2 * GRID_WIDTH {
-        step(&mut runner);
-        let sounding = runner.held_notes[0].sounding_keys();
-        let held = runner.held_notes[0].replays();
-        held_any |= !held.is_empty();
-        assert!(
-            held.iter()
-                .all(|(channel, note, _)| sounding.contains(&(*channel, *note))),
-            "the Arp holds only sounding pitches: {held:?} vs {sounding:?}"
-        );
-    }
-    assert!(held_any, "the scan line holds the block's pitches");
-}
-
 #[test]
 pub(crate) fn a_new_held_arp_batch_drops_the_last_runs_pending_notes() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
@@ -73,10 +24,10 @@ pub(crate) fn a_new_held_arp_batch_drops_the_last_runs_pending_notes() {
     );
 }
 
-/// Hands `events` from tiles `x` of row 0 to the layer's ledger and routing, as a step does, and
-/// returns the internal note-ons that sound at once.
+/// Hands `events` from tiles `x` of row 0 to the layer's routing, as a step does, and returns the
+/// internal note-ons that sound at once.
 fn play_link_events(runner: &mut NativeRunner, notes: &[(usize, u8)]) -> Vec<u8> {
-    let mut events = notes
+    let events = notes
         .iter()
         .map(|(_, note)| MusicalEvent::NoteOn {
             channel: 0,
@@ -85,7 +36,7 @@ fn play_link_events(runner: &mut NativeRunner, notes: &[(usize, u8)]) -> Vec<u8>
             duration_ms: Some(150),
         })
         .collect::<Vec<_>>();
-    let mut intents = notes
+    let intents = notes
         .iter()
         .map(|(x, _)| {
             Some(platform_core::TileTriggerIntent {
@@ -96,7 +47,6 @@ fn play_link_events(runner: &mut NativeRunner, notes: &[(usize, u8)]) -> Vec<u8>
             })
         })
         .collect::<Vec<_>>();
-    runner.hold_layer_notes(0, &mut events, &mut intents, None);
     let transpose_offset = runner.play_transpose_offset_for_layer(0);
     let routed = runner
         .route_events_with_link_timing(
@@ -105,10 +55,10 @@ fn play_link_events(runner: &mut NativeRunner, notes: &[(usize, u8)]) -> Vec<u8>
                 events,
                 event_intents: &intents,
                 transpose_offset,
-                lit_tiles: &[true; GRID_WIDTH * GRID_HEIGHT],
             },
         )
-        .unwrap();
+        .unwrap()
+        .sounded(&runner.instruments);
     routed
         .audio
         .iter()

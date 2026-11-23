@@ -318,11 +318,11 @@ fn another_layers_direct_off_ends_a_scanned_hold_note() {
         .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
         .count();
     assert_eq!(ended, 1, "{released:?}");
-    assert!(runner.held_notes[0].is_empty());
+    assert_eq!(runner.held_keys.held_count(), 0);
     assert!(steps(&mut runner, 9).iter().all(Vec::is_empty));
 }
 
-/// Who holds a scan's note changes with these settings, so its notes end on the change.
+/// A scan setting change drains the layer: the notes of its instruments end on the change.
 #[test]
 fn scan_setting_changes_end_a_held_scan_note() {
     for (key, delta) in [
@@ -343,14 +343,18 @@ fn scan_setting_changes_end_a_held_scan_note() {
             .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
             .count();
         assert_eq!(ended, 1, "{key}");
-        assert!(runner.held_notes[0].is_empty(), "{key}");
+        assert_eq!(runner.held_keys.held_count(), 0, "{key}");
     }
 }
 
+/// A run's Off releases the key of the dark tile it reaches, so the column keeps one pitch here
+/// (no Pitch Steps down it) for the Off to end the On's note.
 #[test]
 fn a_row_scan_holds_down_a_column_and_a_reverse_scan_runs_it_backwards() {
     let mut rows = scan_runner("hold", &[]);
     rows.layers[0].link.scan_axis = ScanAxis::Rows;
+    rows.layers[0].link.y_pitch_steps = 0;
+    rows.refresh_active_mapping_config();
     rows.refresh_active_interpretation_profile();
     grid_tap(&mut rows, 3, 1);
     grid_tap(&mut rows, 3, 2);

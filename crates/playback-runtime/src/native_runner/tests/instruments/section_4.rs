@@ -21,8 +21,8 @@ pub(crate) fn play_transpose_offsets_note_based_routes_but_not_default_sampler_t
         &[NativeInstrumentSlot::new(0)],
         None,
         7,
-        None,
-    );
+    )
+    .sounded(&[NativeInstrumentSlot::new(0)]);
     assert!(matches!(
         synth.audio.as_slice(),
         [MusicalEvent::NoteOn { note: 67, .. }]
@@ -45,8 +45,13 @@ pub(crate) fn play_transpose_offsets_note_based_routes_but_not_default_sampler_t
         }],
         None,
         7,
-        None,
-    );
+    )
+    .sounded(&[NativeInstrumentSlot {
+        kind: InstrumentType::Midi,
+        midi_enabled: true,
+        midi_channel: 3,
+        ..NativeInstrumentSlot::new(0)
+    }]);
     assert!(matches!(
         midi.midi.as_slice(),
         [MusicalEvent::NoteOn {
@@ -82,8 +87,21 @@ pub(crate) fn play_transpose_offsets_note_based_routes_but_not_default_sampler_t
             }],
             None,
             7,
-            None,
         )
+        .sounded(&[NativeInstrumentSlot {
+            kind: InstrumentType::Sampler,
+            sample_follow_transpose: follow_transpose,
+            sample_follow_pitch: follow_pitch,
+            sample_assignments: vec![NativeSampleAssignment {
+                x: 2,
+                y: 3,
+                sample_slot: 4,
+                level: None,
+                tune_semis: 2,
+                tune_cents: -30,
+            }],
+            ..NativeInstrumentSlot::new(0)
+        }])
     };
     let fixed = sampler_hit(false, false, 72);
     assert!(fixed.audio.is_empty());
@@ -112,7 +130,7 @@ pub(crate) fn play_transpose_note_off_uses_original_transposed_note() {
         kind: platform_core::TileTriggerKind::Activate,
     };
     let instruments = [NativeInstrumentSlot::new(0)];
-    let mut active_notes = crate::native_runner::held_notes::HeldNotes::default();
+    let mut active_notes = crate::native_runner::held_keys::HeldKeys::default();
     let note_on = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
             channel: 0,
@@ -125,8 +143,8 @@ pub(crate) fn play_transpose_note_off_uses_original_transposed_note() {
         &instruments,
         None,
         7,
-        Some(&mut active_notes),
-    );
+    )
+    .sounded_through(&mut active_notes, &instruments);
     assert!(matches!(
         note_on.audio.as_slice(),
         [MusicalEvent::NoteOn { note: 67, .. }]
@@ -142,17 +160,17 @@ pub(crate) fn play_transpose_note_off_uses_original_transposed_note() {
         &instruments,
         None,
         0,
-        Some(&mut active_notes),
-    );
+    )
+    .sounded_through(&mut active_notes, &instruments);
     assert!(matches!(
         note_off.audio.as_slice(),
         [MusicalEvent::NoteOff { note: 67, .. }]
     ));
-    assert!(active_notes.is_empty());
+    assert_eq!(active_notes.held_count(), 0);
 }
 
 #[test]
-pub(crate) fn play_transpose_tracks_only_explicit_release_notes() {
+pub(crate) fn a_release_ends_every_voice_its_key_still_sounds_on_a_one_shot_instrument() {
     let intent = TileTriggerIntent {
         x: 0,
         y: 0,
@@ -160,7 +178,7 @@ pub(crate) fn play_transpose_tracks_only_explicit_release_notes() {
         kind: platform_core::TileTriggerKind::Activate,
     };
     let instruments = [NativeInstrumentSlot::new(0)];
-    let mut active_notes = crate::native_runner::held_notes::HeldNotes::default();
+    let mut active_notes = crate::native_runner::held_keys::HeldKeys::default();
 
     let _ = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
@@ -174,9 +192,9 @@ pub(crate) fn play_transpose_tracks_only_explicit_release_notes() {
         &instruments,
         None,
         7,
-        Some(&mut active_notes),
-    );
-    assert!(active_notes.is_empty());
+    )
+    .sounded_through(&mut active_notes, &instruments);
+    assert_eq!(active_notes.held_count(), 1);
 
     let _ = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
@@ -190,8 +208,8 @@ pub(crate) fn play_transpose_tracks_only_explicit_release_notes() {
         &instruments,
         None,
         0,
-        Some(&mut active_notes),
-    );
+    )
+    .sounded_through(&mut active_notes, &instruments);
     let note_off = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOff {
             channel: 0,
@@ -202,11 +220,14 @@ pub(crate) fn play_transpose_tracks_only_explicit_release_notes() {
         &instruments,
         None,
         7,
-        Some(&mut active_notes),
-    );
+    )
+    .sounded_through(&mut active_notes, &instruments);
     assert!(matches!(
         note_off.audio.as_slice(),
-        [MusicalEvent::NoteOff { note: 60, .. }]
+        [
+            MusicalEvent::NoteOff { note: 67, .. },
+            MusicalEvent::NoteOff { note: 60, .. }
+        ]
     ));
 }
 
@@ -230,7 +251,7 @@ pub(crate) fn sampler_hold_release_uses_the_final_routed_note_without_intent() {
         }],
         ..NativeInstrumentSlot::new(0)
     }];
-    let mut active_notes = crate::native_runner::held_notes::HeldNotes::default();
+    let mut active_notes = crate::native_runner::held_keys::HeldKeys::default();
 
     let note_on = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
@@ -244,8 +265,8 @@ pub(crate) fn sampler_hold_release_uses_the_final_routed_note_without_intent() {
         &instruments,
         None,
         0,
-        Some(&mut active_notes),
-    );
+    )
+    .sounded_through(&mut active_notes, &instruments);
     assert!(matches!(
         note_on.tiles.as_slice(),
         [crate::TileHit {
@@ -266,8 +287,8 @@ pub(crate) fn sampler_hold_release_uses_the_final_routed_note_without_intent() {
         &instruments,
         None,
         0,
-        Some(&mut active_notes),
-    );
+    )
+    .sounded_through(&mut active_notes, &instruments);
     assert!(note_off.audio.is_empty());
     assert!(matches!(
         note_off.tiles.as_slice(),
@@ -279,7 +300,7 @@ pub(crate) fn sampler_hold_release_uses_the_final_routed_note_without_intent() {
             ..
         }]
     ));
-    assert!(active_notes.is_empty());
+    assert_eq!(active_notes.held_count(), 0);
 }
 
 #[test]
@@ -291,7 +312,7 @@ pub(crate) fn play_transpose_tracks_clamped_explicit_release_notes() {
         kind: platform_core::TileTriggerKind::Activate,
     };
     let instruments = [NativeInstrumentSlot::new(0)];
-    let mut active_notes = crate::native_runner::held_notes::HeldNotes::default();
+    let mut active_notes = crate::native_runner::held_keys::HeldKeys::default();
     let _ = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
             channel: 0,
@@ -304,8 +325,8 @@ pub(crate) fn play_transpose_tracks_clamped_explicit_release_notes() {
         &instruments,
         None,
         7,
-        Some(&mut active_notes),
-    );
+    )
+    .sounded_through(&mut active_notes, &instruments);
     let note_off = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOff {
             channel: 0,
@@ -316,11 +337,11 @@ pub(crate) fn play_transpose_tracks_clamped_explicit_release_notes() {
         &instruments,
         None,
         -12,
-        Some(&mut active_notes),
-    );
+    )
+    .sounded_through(&mut active_notes, &instruments);
     assert!(matches!(
         note_off.audio.as_slice(),
         [MusicalEvent::NoteOff { note: 127, .. }]
     ));
-    assert!(active_notes.is_empty());
+    assert_eq!(active_notes.held_count(), 0);
 }

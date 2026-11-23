@@ -54,8 +54,8 @@ fn paired_intents_select_world_tiles_not_melodic_notes_and_unpaired_notes_are_si
         instruments,
         None,
         12,
-        None,
-    );
+    )
+    .sounded(instruments);
     assert!(routed.audio.is_empty() && routed.midi.is_empty());
     assert_eq!(
         routed.tiles,
@@ -105,8 +105,8 @@ fn paired_intents_select_world_tiles_not_melodic_notes_and_unpaired_notes_are_si
         instruments,
         None,
         0,
-        None,
-    );
+    )
+    .sounded(instruments);
     assert!(unpaired.is_empty());
 }
 
@@ -125,8 +125,8 @@ fn missing_or_malformed_tile_tune_plays_at_zero_and_out_of_range_clamps_like_the
             &runner.instruments,
             None,
             0,
-            None,
         )
+        .sounded(&runner.instruments)
     };
     assert_eq!(route(&runner).tiles[0].pitch_cents, 0);
     for (stored, cents) in [(json!(-25), -2400), (json!(25), 2400), (json!("7"), 0)] {
@@ -147,13 +147,12 @@ fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_
                 events: vec![note(), note()],
                 event_intents: &[Some(intent(2, 0)), Some(intent(3, 0))],
                 transpose_offset: 12,
-                lit_tiles: &[],
             },
         )
         .unwrap();
     assert!(routed.is_empty());
-    let first = runner.take_due_link_events(0);
-    let second = runner.take_due_link_events(0);
+    let first = runner.take_due_link_events(0).sounded(&runner.instruments);
+    let second = runner.take_due_link_events(0).sounded(&runner.instruments);
     assert_eq!(first.tiles.len(), 2);
     assert_eq!(first.tiles, second.tiles);
     assert_eq!(
@@ -166,7 +165,7 @@ fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_
     runner.layers[0].link.activate_timing.delay_steps = 0;
     runner.layers[0].link.activate_timing.retrigger_count = 0;
     runner.layers[0].link.arp.mode = ArpMode::Up;
-    runner.layers[0].link.arp.source = ArpSource::Held;
+    runner.layers[0].link.arp.source = ArpSource::Simultaneous;
     runner.layers[0].link.arp.step_interval_steps = 1;
     let arp = runner
         .route_events_with_link_timing(
@@ -182,13 +181,13 @@ fn distinct_same_note_tiles_survive_link_dedupe_delay_retrigger_and_arp_without_
                 ],
                 event_intents: &[Some(intent(2, 0)), Some(intent(3, 0)), Some(intent(2, 0))],
                 transpose_offset: 0,
-                lit_tiles: &[],
             },
         )
-        .unwrap();
+        .unwrap()
+        .sounded(&runner.instruments);
     assert_eq!(arp.tiles.len(), 1);
     assert_eq!(arp.tiles[0].pitch_cents, -700);
-    let next = runner.take_due_link_events(0);
+    let next = runner.take_due_link_events(0).sounded(&runner.instruments);
     assert_eq!(next.tiles.len(), 1);
     assert_eq!(next.tiles[0].pitch_cents, 400);
     assert!(arp.audio.is_empty() && arp.midi.is_empty());

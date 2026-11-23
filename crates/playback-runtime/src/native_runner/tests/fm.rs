@@ -337,7 +337,7 @@ fn fm_held_notes_transpose_and_route_to_internal_audio_on_the_original_slot() {
         degree: 0,
         kind: platform_core::TileTriggerKind::Activate,
     };
-    let mut held = crate::native_runner::held_notes::HeldNotes::default();
+    let mut held = crate::native_runner::held_keys::HeldKeys::default();
     let note_on = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
             channel: 0,
@@ -350,8 +350,8 @@ fn fm_held_notes_transpose_and_route_to_internal_audio_on_the_original_slot() {
         &[instrument.clone()],
         None,
         7,
-        Some(&mut held),
-    );
+    )
+    .sounded_through(&mut held, &[instrument.clone()]);
     assert!(note_on.midi.is_empty());
     assert!(matches!(
         &note_on.audio[..],
@@ -374,11 +374,11 @@ fn fm_held_notes_transpose_and_route_to_internal_audio_on_the_original_slot() {
         }],
         &[intent],
         0,
-        &[instrument],
+        &[instrument.clone()],
         None,
         0,
-        Some(&mut held),
-    );
+    )
+    .sounded_through(&mut held, &[instrument]);
     assert!(note_off.midi.is_empty());
     assert!(matches!(
         &note_off.audio[..],
@@ -387,5 +387,5 @@ fn fm_held_notes_transpose_and_route_to_internal_audio_on_the_original_slot() {
             note: 67
         }]
     ));
-    assert!(held.is_empty());
+    assert_eq!(held.held_count(), 0);
 }

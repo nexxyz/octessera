@@ -193,8 +193,8 @@ event_enabled	*	key:layers.*.link.eventEnabled	bool	Event Triggers	Plays notes w
 targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Which instrument each kind of trigger plays, and how.	Use note off for triggers that should end a held note.
 map_activate_action	*	key:layers.*.link.mapping.activate.action	enum	On Trig	What a tile does when it lights up: none, note on or note off.	note on starts a note; note off ends a held one.
 map_activate_slot	*	key:layers.*.link.mapping.activate.slot	enum	On Inst	The instrument a tile plays when it turns on: I1 to I8, or none.	The label shows what that slot holds now.
-map_stable_action	*	key:layers.*.link.mapping.stable.action	enum	Hold Trig	What a tile does at each step it stays lit: none, note on or note off.	note on repeats a one-shot and keeps a hold note going. Play and game behaviors send none.
-map_stable_slot	*	key:layers.*.link.mapping.stable.slot	enum	Hold Inst	The instrument a tile plays while it stays on: I1 to I8, or none.	A hold note here ends when Off Trig sends note off, on any Off Inst.
+map_stable_action	*	key:layers.*.link.mapping.stable.action	enum	Hold Trig	What a tile does at each step it stays lit: none, note on or note off.	note on repeats a one-shot and strikes a hold note again each step. Play and game behaviors send none.
+map_stable_slot	*	key:layers.*.link.mapping.stable.slot	enum	Hold Inst	The instrument a tile plays while it stays on: I1 to I8, or none.	A hold note here ends only on a note off for its pitch on this instrument.
 map_deactivate_action	*	key:layers.*.link.mapping.deactivate.action	enum	Off Trig	What a tile does when it goes dark: none, note on or note off.	note off ends a held note; note on plays one.
 map_deactivate_slot	*	key:layers.*.link.mapping.deactivate.slot	enum	Off Inst	The instrument that hears a tile turn off, usually to stop its note: I1 to I8, or none.	The label shows what that slot holds now.
 voices_section	Menu > Shape		group	Shape	Defines pitch mapping and instrument slot sound engines.	This layer controls how sensed events become audible voices.
@@ -203,7 +203,7 @@ pitch_low	*	key:layers.*.link.pitch.lowestNote	number	Lowest Note	Sets the lower
 pitch_high	*	key:layers.*.link.pitch.highestNote	number	Highest Note	Sets the upper bound for generated notes.	Together with Lowest Note this defines the playable range.
 pitch_oor	*	key:layers.*.link.pitch.outOfRange	enum	Out of Range	Notes outside Lowest Note and Highest Note: clamp pins them to the nearest edge; wrap folds them back in.	
 pitch_scale	*	key:layers.*.link.pitch.scale	enum	Set	The scale or chord this layer's notes come from (its pitch classes). Pick a folder, then a set.	Never plays simultaneous chords or inversions. The -like sets are 12-TET approximations.
-pitch_root	*	key:layers.*.link.pitch.root	enum	Root	The tonic, C to B.	It transposes the selected set's quantized pitches.
+pitch_root	*	key:layers.*.link.pitch.root	enum	Root	The tonic, C to B.	It transposes the selected set's quantized pitches; a change ends the notes held on this layer's instruments.
 inst_group	Menu > Shape > Instruments		group	Instruments	Holds the destination instrument slots that Link trigger mappings play into.	Internal audio slots have mixer controls; MIDI sends notes externally.
 inst_midi_group	Menu > Shape > Instruments > Instrument * > MIDI		group	Instrument MIDI	Controls external MIDI note output for this slot.	Enable it and choose the outgoing channel.
 inst_slot_1	Menu > Shape > Instruments > Instrument 1		group	Instrument Slot	Configures one destination instrument slot.	Link mappings route trigger actions into these slots.
@@ -240,7 +240,7 @@ link_scanning_group	Menu > Link > L*: * > Scanning		group	Scanning	Moves the sca
 link_events_group	Menu > Link > L*: * > Events		group	Events	What happens when a tile lights up, stays lit or goes dark.	Each has its own instrument, trigger, delay and retrigger.
 link_note_mapping_group	Menu > Link > L*: * > Note Mapping		group	Note Mapping	Which notes this layer plays: first note, range, set and root.	
 link_trigger_probability_group	Menu > Link > L*: * > Trigger Prob.		group	Trigger Prob.	Controls saved trigger probability for this layer.	Mode, low/high values, and the probability grid decide which triggers pass.
-link_trigger_probability_mode	Menu > Link > L*: * > Trigger Prob. > Mode	key:layers.*.link.triggerProbabilityMode	enum	Mode	0% mutes this layer's triggers and releases its held notes, custom uses the grid you painted, 100% plays them all.	The Trigger Gate page sets it too; the patch saves it.
+link_trigger_probability_mode	Menu > Link > L*: * > Trigger Prob. > Mode	key:layers.*.link.triggerProbabilityMode	enum	Mode	0% mutes this layer's triggers and releases the notes held on its instruments, custom uses the grid you painted, 100% plays them all.	The Trigger Gate page sets it too; the patch saves it.
 link_trigger_probability_low	Menu > Link > L*: * > Trigger Prob. > Prob Low	key:layers.*.link.triggerProbabilityLowPct	number	Low Probability	Sets the low custom trigger probability percentage from 0 to 100.	Clamped so it never exceeds High Prob.
 link_trigger_probability_high	Menu > Link > L*: * > Trigger Prob. > Prob High	key:layers.*.link.triggerProbabilityHighPct	number	High Probability	Sets the high custom trigger probability percentage from 0 to 100.	Clamped so it is never below Low Prob.
 link_trigger_probability_note_offs	Menu > Link > L*: * > Trigger Prob. > Prob Note Off	key:layers.*.link.triggerProbabilityNoteOffs	bool	Note-Off Probability	When on, note-offs roll trigger probability and the Trigger Gate like any other trigger.	Off by default, so held notes always release.
@@ -260,9 +260,9 @@ link_midi_cc_learn	Menu > Link > MIDI CC In > CC* > Learn	action:midiCc.learn:*	
 link_midi_cc_target	Menu > Link > MIDI CC In > CC* > Target	key:midiCc.*.target	group	Target	The setting this CC moves; CC 0 to 127 sweeps Range Min to Range Max.	A setting another control already owns cannot be taken; you get a toast.
 link_midi_cc_invert	Menu > Link > MIDI CC In > CC* > Invert	key:midiCc.*.invert	bool	CC Invert	When On, CC 0 gives the top of the range and CC 127 the bottom.	Needs a Target; the held value flips at once.
 link_arp_mode	Menu > Link > L*: * > Arp > Mode	key:layers.*.link.arp.mode	enum	Mode	How the arp plays its notes: stepped (up, bounce, random...), chord strike or strum.	none and direct play them as they come.
-link_arp_source	Menu > Link > L*: * > Arp > Source	key:layers.*.link.arp.source	enum	Source	together arpeggiates notes that start at the same time; held arpeggiates the notes held now.	
+link_arp_source	Menu > Link > L*: * > Arp > Source	key:layers.*.link.arp.source	enum	Source	together arpeggiates notes that start at the same time; held arpeggiates the keys this layer has down.	
 link_arp_step	Menu > Link > L*: * > Arp > Step	key:layers.*.link.arp.stepIntervalSteps	number	Arp Step	Sets the Link-step spacing between arpeggiated notes.	Direct and chord strike modes keep notes together.
-link_arp_length	Menu > Link > L*: * > Arp > Length	key:layers.*.link.arp.noteLengthMs	number	Arp Length	Sets the finite note length for arpeggiated notes.	Arp output does not create held notes.
+link_arp_length	Menu > Link > L*: * > Arp > Length	key:layers.*.link.arp.noteLengthMs	number	Arp Length	Sets the finite note length for arpeggiated notes.	Arp notes end by themselves after it.
 link_arp_gate	Menu > Link > L*: * > Arp > Gate	key:layers.*.link.arp.gatePct	number	Arp Gate	Scales the configured note length for shorter or fuller plucks.	The range is 1 to 100 percent.
 note_set_category_scales	*	key:note_set.category.scales	group	Note Set Folder	Opens the Scales folder for selecting an allowed pitch set.	Choose a leaf to set the layer's allowed pitch classes.
 note_set_category_chord_tones	*	key:note_set.category.chord_tones	group	Note Set Folder	Opens the Chord Tones folder for selecting an allowed pitch set.	Choose a leaf to set the layer's allowed pitch classes.
@@ -311,7 +311,7 @@ link_mappings_x_invert_1	*	key:layers.*.paramMods.x.0.invert	bool	Slot 1 Invert	
 link_mappings_x_invert_2	*	key:layers.*.paramMods.x.1.invert	bool	Slot 2 Invert	Flips Slot 2: the left edge gives high values, the right edge low ones.	
 link_mappings_y_invert_1	*	key:layers.*.paramMods.y.0.invert	bool	Slot 1 Invert	Flips Slot 1: the bottom gives high values, the top low ones.	
 link_mappings_y_invert_2	*	key:layers.*.paramMods.y.1.invert	bool	Slot 2 Invert	Flips Slot 2: the bottom gives high values, the top low ones.	
-inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Mode	oneshot plays each Link note for its layer's One-Shot Len; hold sounds until a note off.	Pair hold with Off Trig set to note off; a scan ends hold notes itself.
+inst_note_behavior	*	key:instruments.*.noteBehavior	enum	Note Mode	oneshot plays each Link note for its layer's One-Shot Len; hold sounds until a note off.	Pair hold with Off Trig set to note off: nothing else ends a hold note.
 inst_midi_enabled	*	key:instruments.*.midi.enabled	bool	MIDI Enabled	Enables this slot's external MIDI note output.	Global MIDI and an output port must also be enabled.
 inst_midi_channel	*	key:instruments.*.midi.channel	number	MIDI Channel	The MIDI channel this slot sends on, 1 to 16.	Match it to the channel your synth listens on.
 osc_wave	*	key:instruments.*.synth.osc*.waveform	enum	Oscillator Wave	The oscillator's waveform: sine is smooth, triangle soft, saw bright, square hollow.	pulse is a square shaped by Pulse Width.

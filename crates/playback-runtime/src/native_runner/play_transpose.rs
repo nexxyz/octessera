@@ -30,7 +30,7 @@ pub(super) fn play_transpose_offset_at(x: usize, y: usize) -> Option<i8> {
 }
 
 /// The Transpose page's live state per layer, never saved: the selection, the on/off state and
-/// offset, and the note-offs a retarget leaves to send.
+/// offset; and the note-offs drains leave to send.
 #[derive(Clone, Debug)]
 pub(super) struct PlayTranspose {
     pub(super) selected: Vec<bool>,
@@ -60,20 +60,17 @@ impl NativeRunner {
             return;
         };
         let mut changed = 0;
-        let mut drain_layers = Vec::new();
         for layer in 0..self.transpose.offsets.len() {
             if self.transpose.selected.get(layer) == Some(&true)
                 && self.transpose.enabled.get(layer) == Some(&true)
                 && self.play_transpose_layer_eligible(layer)
                 && self.transpose.offsets[layer] != offset
             {
-                drain_layers.push(layer);
                 self.transpose.offsets[layer] = offset;
                 changed += 1;
             }
         }
         if changed > 0 {
-            self.drain_play_transpose_layers(&drain_layers);
             self.show_toast(format!("Transpose {offset:+}"));
         }
     }
@@ -87,10 +84,6 @@ impl NativeRunner {
             if self.play_transpose_layer_eligible(layer) {
                 self.transpose.enabled[layer] = any_off;
             }
-        }
-        if !any_off {
-            let layers = (0..self.transpose.enabled.len()).collect::<Vec<_>>();
-            self.drain_play_transpose_layers(&layers);
         }
         self.show_toast(if any_off {
             "Transpose all on"
@@ -166,53 +159,6 @@ impl NativeRunner {
             return;
         }
         self.transpose.selected[layer] = !self.transpose.selected[layer];
-        if !self.transpose.selected[layer] {
-            self.drain_play_transpose_layers(&[layer]);
-        }
-    }
-
-    pub(super) fn drain_all_play_transpose_notes(&mut self) {
-        let layers = (0..self.held_notes.len()).collect::<Vec<_>>();
-        self.drain_play_transpose_layers(&layers);
-    }
-
-    pub(super) fn drain_play_transpose_instrument_notes(&mut self, instrument_index: usize) {
-        let channel = instrument_index as u8;
-        let mut drained = RoutedMusicalEvents::default();
-        for layer_index in 0..self.held_notes.len() {
-            let mut layer_drained = RoutedMusicalEvents::default();
-            self.held_notes[layer_index].release_sounding(Some(channel), &mut layer_drained);
-            self.held_notes[layer_index].forget_channel(channel);
-            if !layer_drained.is_empty() {
-                self.forget_layer_owned_route_note_offs(layer_index, &layer_drained);
-                drained.extend(layer_drained);
-            }
-        }
-        self.transpose.pending_note_offs.extend(drained);
-    }
-
-    pub(super) fn drain_play_transpose_layers(&mut self, layers: &[usize]) {
-        self.drain_play_transpose_layers_inner(layers, true);
-    }
-
-    pub(super) fn drain_play_transpose_layers_for_layer_disable(&mut self, layer: usize) {
-        self.drain_play_transpose_layers_inner(&[layer], false);
-    }
-
-    fn drain_play_transpose_layers_inner(&mut self, layers: &[usize], forget_ownership: bool) {
-        let mut drained = RoutedMusicalEvents::default();
-        for layer in layers {
-            let mut layer_drained = RoutedMusicalEvents::default();
-            let Some(held) = self.held_notes.get_mut(*layer) else {
-                continue;
-            };
-            held.release_sounding(None, &mut layer_drained);
-            if forget_ownership {
-                self.forget_layer_owned_route_note_offs(*layer, &layer_drained);
-            }
-            drained.extend(layer_drained);
-        }
-        self.transpose.pending_note_offs.extend(drained);
     }
 
     fn play_transpose_layer_eligible(&self, layer: usize) -> bool {

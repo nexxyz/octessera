@@ -40,10 +40,25 @@ settings. **State Notes** does the same for Hold, which fires at every step for
 each tile that stays lit. The play behaviors (`keys`, `looper`, `sequencer`) and
 the games make their own events, so Hold stays quiet on them.
 
-On an instrument in `hold` mode, a pitch sounds once however many tiles play
-it, and it ends only when the last of them turns off. Turn **Root** or
-**1st Note** while a note hangs and it still ends cleanly when its tile goes
-dark.
+Think of every instrument as having a keyboard. A note on presses a key (the
+note as Link played it, before Play's Transpose) and a note off lets that key
+up, whoever sends it: another layer, Keys, a MIDI keyboard or the Looper. The
+first note off ends the note. Press a key that's already down and it plays
+again: a `hold` instrument stops the old note first, a `oneshot` one just hits
+again. A note off for a key nobody holds does nothing at all.
+
+Nothing lets a key up behind your back, so a note that never gets its note
+off keeps going. The default pair, On to `note on` and Off to `note off`,
+covers the everyday case. If you send Hold to a `hold` instrument and nothing
+sends that pitch a note off, it drones on until you change something, and it
+re-strikes on every step while its tile stays lit. Sometimes that's exactly
+the point.
+
+Turn **Root**, **Set**, **1st Note** or the pitch steps while notes hang and
+the layer lets go of every note on its instruments at its next step, so
+nothing is left stranded on a pitch the grid no longer plays. A tweak that
+moves no pitch (the chromatic set doesn't care about Root, say) leaves them
+alone.
 
 ### Scanning: a playhead over the grid
 
@@ -71,7 +86,9 @@ and Off at 7, lap after lap.
 So with just **On Trig** at `note on`, a run of lit tiles sounds once, at its
 start. Set **Hold Trig** to `note on` too and every lit step sounds, which is
 what a drum line usually wants. On a `hold` instrument, On starts a note and
-Off ends it, so a run plays like a piano-roll bar. **Event Triggers** switches
+Off ends it, so a run plays like a piano-roll bar, as long as the pitch stays
+the same along the line. The Off names the tile where the run ends, so with
+pitch steps along the scan the run's first note keeps sounding. **Event Triggers** switches
 the scan's On and Off, **State Notes** its Hold, and Delay and Retrig count
 scan steps. While a layer scans, its grid changes and presses play nothing on
 their own; only the line does.
@@ -138,9 +155,14 @@ When several notes arrive together, **Arp > Mode** can spread them out: `up`,
 `strum`. `direct` and `chord strike` keep them together; `none` leaves Link
 alone.
 
-- **Source** picks notes arriving in one batch (`simultaneous`) or notes the
-  layer is holding (`held`). On a `oneshot` instrument a tile counts as held
-  while it's lit, so `held` arpeggiates whatever is glowing.
+- The Arp sits between the layer and its instruments, like an arpeggiator
+  box between a keyboard and a synth: while it's on, the layer's notes go to
+  the Arp, and the Arp plays the instrument. It only ever hears its own layer.
+- **Source** picks notes arriving in one batch (`simultaneous`) or every key
+  the layer has down (`held`). A key stays down until its note off, on a
+  `oneshot` instrument too, so with Off at `note off` `held` arpeggiates
+  whatever is glowing. Play's Transpose moves the whole run, old keys
+  included.
 - **Step**, **Length**, **Gate** and **Octaves** shape the run.
 
 ### Tempo and swing
@@ -279,7 +301,7 @@ point at them.
   staccato blips on one layer and long tones on another. MIDI Inst. slots
   follow it too. An Off event set to `note off` can still end a one-shot
   early. `hold` keeps the note
-  sounding until its tile's Off event, or on a scan until the run's Off.
+  sounding until a note off for its pitch arrives, from any layer or source.
   Drum hits are always one-shot, though an Off set to `note off` fades a hit
   out early through the kit's short release.
 - **Envelopes.** Attack, Decay, Sustain and Release do what they say, and

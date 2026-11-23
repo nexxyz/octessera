@@ -217,23 +217,12 @@ fn link_arp_bindings_write_the_arp_and_clear_its_held_notes() {
     assert!(!write(&mut runner, "layers.0.link.arp.mode", "sideways"));
     assert!(!write(&mut runner, "layers.0.link.arp.source", "notes"));
     for mode in ArpMode::ALL {
-        runner.link_arp.held_notes[0].push(LinkArpHeldNote {
-            audio: true,
-            channel: 0,
-            note: 60,
-            velocity: 96,
-            tile: 0,
-            onset: 0,
-        });
+        runner.link_arp.keys[0].push(arp_key(0, 60));
         let changed = runner.layers[0].link.arp.mode != mode;
         write(&mut runner, "layers.0.link.arp.mode", mode.wire_name());
         assert_eq!(runner.layers[0].link.arp.mode, mode);
-        assert_eq!(
-            runner.link_arp.held_notes[0].is_empty(),
-            changed,
-            "{mode:?}"
-        );
-        runner.link_arp.held_notes[0].clear();
+        assert_eq!(runner.link_arp.keys[0].is_empty(), changed, "{mode:?}");
+        runner.link_arp.keys[0].clear();
     }
     for source in ArpSource::ALL {
         write(&mut runner, "layers.0.link.arp.source", source.wire_name());

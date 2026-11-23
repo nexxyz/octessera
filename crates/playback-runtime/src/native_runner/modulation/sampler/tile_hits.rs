@@ -68,26 +68,6 @@ pub(in crate::native_runner) fn drum_hit_for_intent(
     })
 }
 
-/// The release a Drum slot's note-off sends for its tile: the hit's kit voice at the tile's pitch
-/// with velocity 0, which fades out that voice's hits through the kit's release.
-pub(super) fn drum_release_for_intent(
-    instruments: &[NativeInstrumentSlot],
-    slot: u8,
-    intent: &TileTriggerIntent,
-    transpose_offset: i8,
-    link_note: u8,
-) -> Option<TileHit> {
-    drum_hit_for_intent(
-        instruments,
-        slot,
-        intent,
-        0,
-        transpose_offset,
-        Some(link_note),
-    )
-    .map(|hit| TileHit { velocity: 0, ..hit })
-}
-
 pub(in crate::native_runner) fn sampler_hit_for_intent(
     instrument: &NativeInstrumentSlot,
     slot: u8,
@@ -112,19 +92,6 @@ pub(in crate::native_runner) fn sampler_hit_for_intent(
         velocity: super::sampler_assignment_velocity(velocity, assignment, instrument),
         midi_note: SAMPLER_FIRST_MIDI_NOTE + assignment.sample_slot.min(7) as u8,
     })
-}
-
-pub(in crate::native_runner) fn sampler_release_for_intent(
-    instrument: &NativeInstrumentSlot,
-    slot: u8,
-    intent: &TileTriggerIntent,
-) -> Option<TileHit> {
-    let assignment = sampler_assignment_at(instrument, intent)?;
-    Some(tile_release(
-        slot,
-        assignment.sample_slot.min(7) as u8,
-        tile_index(intent.x, intent.y),
-    ))
 }
 
 pub(in crate::native_runner) fn tile_release(slot: u8, voice: u8, tile: u8) -> TileHit {

@@ -2,11 +2,12 @@
 //! overdubbing Looper linked to that slot records them as tile presses.
 
 use super::drum_config::drum_voice_midi_note;
+use super::held_keys::{KeyEvent, KeyPress, Sound};
 use super::modulation::RoutedMusicalEvents;
 use super::{InstrumentType, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, LAYER_COUNT};
 use crate::protocol::{RunnerMessage, TileHit};
 use crate::runtime::MidiNote;
-use platform_core::{MusicalEvent, StepPhase};
+use platform_core::StepPhase;
 use realtime_engine::synth::SAMPLE_SLOTS_PER_INSTRUMENT;
 use serde_json::Value;
 
@@ -14,36 +15,33 @@ use serde_json::Value;
 /// notes play nothing.
 const SAMPLER_FIRST_NOTE: u8 = 36;
 
-/// A keyboard note still sounding, released by its note-off, Stop, Panic or a patch load.
+/// A keyboard key still down, which its note-off, Stop, Panic or a patch load lets up.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct HeldKeyboardNote {
     slot: u8,
     note: u8,
-    /// The 0-based MIDI out channel a forwarded note went to; None for an internal one.
-    midi_channel: Option<u8>,
     /// The tile each layer's Looper recorded the press on.
     recorded_tiles: [Option<u8>; LAYER_COUNT],
-}
-
-impl HeldKeyboardNote {
-    pub(super) fn plays(&self, slot: u8, note: u8) -> bool {
-        (self.slot, self.note) == (slot, note)
-    }
 }
 
 impl NativeRunner {
     /// A note `PlaybackRuntime` recognized as the echo of one it sent never reaches here.
     pub(super) fn send_midi_note(&mut self, note: MidiNote) -> Result<Vec<RunnerMessage>, String> {
         let mut routed = RoutedMusicalEvents::default();
-        self.release_keyboard_note(note.channel, note.note, &mut routed);
-        if note.velocity > 0
-            && self.midi.enabled
-            && self.midi.notes_in
-            && usize::from(note.channel) < INSTRUMENT_COUNT
-        {
+        let plays =
+            self.midi.enabled && self.midi.notes_in && usize::from(note.channel) < INSTRUMENT_COUNT;
+        // A key pressed while Notes In played still lets up after Notes In stops.
+        let was_down = self.let_up_keyboard_note(note.channel, note.note);
+        if note.velocity > 0 && plays {
             self.play_keyboard_note(note, &mut routed);
+        } else if was_down || (note.velocity == 0 && plays) {
+            routed.keys.push(KeyEvent::Release {
+                slot: note.channel,
+                pitch: note.note,
+            });
         }
         self.drop_muted_midi_note_ons(&mut routed);
+        self.sound_keys(&mut routed);
         let mut messages = Vec::with_capacity(4);
         if !routed.is_empty() {
             let now = self.display.transients.now();
@@ -54,37 +52,38 @@ impl NativeRunner {
         Ok(messages)
     }
 
+    /// Presses the key on its slot, untransposed. A Drum hit is a one-shot the key's note-off
+    /// leaves alone.
     fn play_keyboard_note(&mut self, note: MidiNote, routed: &mut RoutedMusicalEvents) {
         let slot = note.channel;
         let Some(instrument) = self.instruments.get(usize::from(slot)) else {
             return;
         };
         let kind = instrument.kind;
-        let on = |channel| MusicalEvent::NoteOn {
-            channel,
-            note: note.note,
-            velocity: note.velocity,
-            duration_ms: None,
-        };
         let mut stamped_tile = None;
-        // Some(MIDI out channel) for a held note, None for a one-shot drum hit.
-        let held = match kind {
+        let sound = match kind {
             InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck => {
-                routed.audio.push(on(slot));
-                Some(None)
+                Some(Sound::Audio {
+                    channel: slot,
+                    note: note.note,
+                    velocity: note.velocity,
+                })
             }
             InstrumentType::Sampler => {
                 let sample_slot = usize::from(note.note.wrapping_sub(SAMPLER_FIRST_NOTE));
                 if sample_slot >= SAMPLE_SLOTS_PER_INSTRUMENT {
                     return;
                 }
-                routed.audio.push(on(slot));
                 stamped_tile = Some(lowest_stamp(
                     instrument.sample_assignments.iter().filter_map(|stamp| {
                         (stamp.sample_slot == sample_slot).then_some((stamp.x, stamp.y))
                     }),
                 ));
-                Some(None)
+                Some(Sound::Audio {
+                    channel: slot,
+                    note: note.note,
+                    velocity: note.velocity,
+                })
             }
             InstrumentType::Drum => {
                 let Some(hit) = drum_hit_for_note(&instrument.drum_config, slot, note) else {
@@ -105,51 +104,67 @@ impl NativeRunner {
                         }),
                     ));
                 }
-                routed.midi.push(on(channel));
-                self.transport.midi_channels_sounded |= 1 << channel;
-                Some(Some(channel))
+                Some(Sound::Midi {
+                    channel,
+                    note: note.note,
+                    velocity: note.velocity,
+                })
             }
             InstrumentType::None => return,
         };
         let recorded_tiles = self.record_keyboard_press(slot, note.note, stamped_tile);
-        match held {
-            Some(midi_channel) => self.keyboard_notes.push(HeldKeyboardNote {
-                slot,
-                note: note.note,
-                midi_channel,
-                recorded_tiles,
-            }),
+        match sound {
+            Some(sound) => {
+                routed.keys.push(KeyEvent::Press(KeyPress {
+                    slot,
+                    pitch: note.note,
+                    sound,
+                    length_ms: None,
+                }));
+                self.keyboard_notes.push(HeldKeyboardNote {
+                    slot,
+                    note: note.note,
+                    recorded_tiles,
+                });
+            }
             None => self.record_keyboard_release(&recorded_tiles),
         }
     }
 
-    pub(super) fn release_keyboard_note(
-        &mut self,
-        slot: u8,
-        note: u8,
-        routed: &mut RoutedMusicalEvents,
-    ) {
+    /// Lets up the keyboard key `slot` and `note` if it is down: each Looper that recorded its
+    /// press records the release.
+    fn let_up_keyboard_note(&mut self, slot: u8, note: u8) -> bool {
         let Some(index) = self
             .keyboard_notes
             .iter()
             .position(|held| held.slot == slot && held.note == note)
         else {
-            return;
+            return false;
         };
         let held = self.keyboard_notes.swap_remove(index);
-        push_note_off(routed, held);
         self.record_keyboard_release(&held.recorded_tiles);
+        true
     }
 
-    /// Queues note-offs for every keyboard note still sounding, as Stop, Panic and a patch load
-    /// do for the layers' notes.
+    /// Releases every keyboard key still down, as Notes In turning off does.
     pub(super) fn release_all_keyboard_notes(&mut self) {
         let mut released = RoutedMusicalEvents::default();
         for held in std::mem::take(&mut self.keyboard_notes) {
-            push_note_off(&mut released, held);
+            released.keys.push(KeyEvent::Release {
+                slot: held.slot,
+                pitch: held.note,
+            });
             self.record_keyboard_release(&held.recorded_tiles);
         }
+        self.sound_keys(&mut released);
         self.transpose.pending_note_offs.extend(released);
+    }
+
+    /// Lets every keyboard key up without a release of its own, after a drain released every key.
+    pub(super) fn forget_keyboard_notes(&mut self) {
+        for held in std::mem::take(&mut self.keyboard_notes) {
+            self.record_keyboard_release(&held.recorded_tiles);
+        }
     }
 
     /// A Drum, Sampler or MIDI Drum slot records on its lowest tile stamped with what the key played
@@ -238,19 +253,6 @@ fn lowest_stamp(tiles: impl Iterator<Item = (usize, usize)>) -> Option<usize> {
         .filter(|&(x, y)| x < GRID_WIDTH && y < GRID_HEIGHT)
         .map(|(x, y)| y * GRID_WIDTH + x)
         .min()
-}
-
-fn push_note_off(routed: &mut RoutedMusicalEvents, held: HeldKeyboardNote) {
-    match held.midi_channel {
-        Some(channel) => routed.midi.push(MusicalEvent::NoteOff {
-            channel,
-            note: held.note,
-        }),
-        None => routed.audio.push(MusicalEvent::NoteOff {
-            channel: held.slot,
-            note: held.note,
-        }),
-    }
 }
 
 fn push_routed(messages: &mut Vec<RunnerMessage>, routed: RoutedMusicalEvents) {

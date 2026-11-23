@@ -308,14 +308,7 @@ fn assert_replacement_releases_held_note(midi: bool) {
         remaining_steps: 1,
         events: RoutedMusicalEvents::default(),
     });
-    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
-        audio: !midi,
-        channel: 0,
-        note: 60,
-        velocity: 100,
-        tile: 0,
-        onset: 0,
-    });
+    runner.link_arp.keys[0].push(arp_key(0, 60));
 
     runner
         .apply_layer_behavior_config_deltas(0, &[("quantize".into(), json!("step"))])
@@ -331,7 +324,7 @@ fn assert_replacement_releases_held_note(midi: bool) {
         _ => false,
     }));
     assert!(runner.delayed_link_events[0].is_empty());
-    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert!(runner.link_arp.keys[0].is_empty());
 }
 
 fn brain_target_runner() -> NativeRunner {
@@ -347,22 +340,8 @@ fn brain_target_runner() -> NativeRunner {
 #[test]
 pub(crate) fn fast_layer_edit_clears_only_the_target_link_arp_state() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
-        audio: true,
-        channel: 0,
-        note: 60,
-        velocity: 100,
-        tile: 0,
-        onset: 0,
-    });
-    runner.link_arp.held_notes[1].push(LinkArpHeldNote {
-        audio: true,
-        channel: 0,
-        note: 64,
-        velocity: 100,
-        tile: 0,
-        onset: 0,
-    });
+    runner.link_arp.keys[0].push(arp_key(0, 60));
+    runner.link_arp.keys[1].push(arp_key(0, 64));
     let key = "layers.0.build.behaviorConfig.randomCellsPerTick";
     assert!(runner.menu.focus_item_key(key));
     runner.menu.state.editing = true;
@@ -374,8 +353,8 @@ pub(crate) fn fast_layer_edit_clears_only_the_target_link_arp_state() {
         })
         .unwrap();
 
-    assert!(runner.link_arp.held_notes[0].is_empty());
-    assert_eq!(runner.link_arp.held_notes[1].len(), 1);
+    assert!(runner.link_arp.keys[0].is_empty());
+    assert_eq!(runner.link_arp.keys[1].len(), 1);
 }
 
 #[test]
@@ -387,14 +366,7 @@ pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
     runner.behavior_state_serialization_calls.set(0);
     runner.layer_behavior_rebuilds = 0;
     runner.fast_autosave_marks = 0;
-    runner.link_arp.held_notes[1].push(LinkArpHeldNote {
-        audio: true,
-        channel: 0,
-        note: 60,
-        velocity: 100,
-        tile: 0,
-        onset: 0,
-    });
+    runner.link_arp.keys[1].push(arp_key(0, 60));
 
     let before_engine = runner.layers[1].engine.state().clone();
 
@@ -410,7 +382,7 @@ pub(crate) fn batched_target_deltas_compare_only_the_final_value() {
 
     assert_eq!(runner.layers[1].behavior_config["randomSeedCells"], 4);
     assert_eq!(runner.layers[1].engine.state().clone(), before_engine);
-    assert_eq!(runner.link_arp.held_notes[1].len(), 1);
+    assert_eq!(runner.link_arp.keys[1].len(), 1);
     assert!(!runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_none());
     assert_eq!(runner.behavior_state_serialization_calls.get(), 0);

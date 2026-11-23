@@ -51,11 +51,12 @@ fn words(messages: &[RunnerMessage], midi: bool) -> Vec<String> {
 }
 
 #[test]
-fn a_layer_that_ended_a_shared_pitch_leaves_no_stale_hold_on_the_other() {
+fn a_second_layer_press_restrikes_a_shared_key_and_the_first_release_ends_it() {
     let mut runner = two_keys_layers();
     let on = tile(&mut runner, 0, "grid_press", false);
     assert_eq!(on.len(), 1, "{on:?}");
-    assert!(tile(&mut runner, 1, "grid_press", false).len() <= 1);
+    let restruck = [on[0].replace('+', "-"), on[0].clone()];
+    assert_eq!(tile(&mut runner, 1, "grid_press", false), restruck);
 
     let off = tile(&mut runner, 0, "grid_release", false);
     assert_eq!(off, [on[0].replace('+', "-")]);
@@ -78,7 +79,7 @@ fn a_layer_note_off_ends_the_note_another_layer_plays_through_play_transpose() {
     let off = tile(&mut runner, 0, "grid_release", false);
 
     assert_eq!(off, [on[0].replace('+', "-")], "the transposed sound ends");
-    assert!(runner.held_notes[1].is_empty());
+    assert_eq!(runner.held_keys.held_count(), 0);
 }
 
 #[test]
@@ -152,7 +153,7 @@ fn switching_scanning_on_ends_the_notes_the_grid_held() {
     runner.edit_menu_key("layers.0.link.scanMode", 1).unwrap();
     let ended = words(&runner.messages_without_snapshot().unwrap(), false);
     assert_eq!(ended, [on[0].replace('+', "-")]);
-    assert!(runner.held_notes[0].is_empty());
+    assert_eq!(runner.held_keys.held_count(), 0);
 }
 
 /// Layer 1 holds a Sampler tile's sample; layer 0's Off on another tile of the same pitch finds
@@ -188,7 +189,7 @@ fn a_layer_note_off_releases_another_layers_sampler_tile() {
         (releases[0].tile, releases[0].velocity),
         (started[0].tile, 0)
     );
-    assert!(runner.held_notes[1].is_empty());
+    assert_eq!(runner.held_keys.held_count(), 0);
 }
 
 fn tile_hits(messages: &[RunnerMessage]) -> Vec<crate::protocol::TileHit> {
@@ -268,11 +269,11 @@ fn a_looper_replays_note_off_ends_another_layers_note() {
     let mut runner = looper_beside_keys();
     let on = replayed_note_on(&mut runner);
     let layer_on = tile(&mut runner, 1, "grid_press", false);
-    assert!(layer_on.len() <= 1, "{layer_on:?}");
+    assert_eq!(layer_on, [on.replace('+', "-"), on.clone()]);
 
     let rest = looper_steps(&mut runner, 3).concat();
 
     assert!(rest.contains(&on.replace('+', "-")), "{rest:?}");
-    assert!(runner.held_notes[1].is_empty());
+    assert_eq!(runner.held_keys.held_count(), 0);
     assert!(tile(&mut runner, 1, "grid_release", false).is_empty());
 }

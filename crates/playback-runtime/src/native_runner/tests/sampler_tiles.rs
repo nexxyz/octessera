@@ -56,25 +56,24 @@ fn route(
     events: Vec<MusicalEvent>,
     intents: &[Option<platform_core::TileTriggerIntent>],
 ) -> Vec<crate::protocol::TileHit> {
-    runner
+    let mut routed = runner
         .route_events_with_link_timing(
             0,
             LinkRoutingInput {
                 events,
                 event_intents: intents,
                 transpose_offset: 0,
-                lit_tiles: &[],
             },
         )
-        .unwrap()
-        .tiles
+        .unwrap();
+    runner.sound_keys(&mut routed);
+    routed.tiles
 }
 
+/// A note-off ends its pitch's sample, whatever tile picked the sample.
 #[test]
-fn held_tiles_sharing_a_link_note_end_the_sample_with_the_last_tile() {
+fn a_tile_note_off_ends_the_sample_another_tile_on_its_pitch_picked() {
     let mut runner = sampler_runner("hold");
-    // The engine sounds a shared pitch once, for the first tile, and sends its note-off with the
-    // last tile that goes dark.
     let started = route(
         &mut runner,
         vec![held_on()],
@@ -95,8 +94,10 @@ fn held_tiles_sharing_a_link_note_end_the_sample_with_the_last_tile() {
     );
 }
 
+/// Two tiles on one pitch press one key: the second strikes it again with its own sample, and
+/// the first note-off ends that sample.
 #[test]
-fn held_tiles_sharing_a_link_note_release_their_own_tile() {
+fn a_second_tile_on_a_held_pitch_strikes_the_key_again_with_its_own_sample() {
     let mut runner = sampler_runner("hold");
     route(
         &mut runner,
@@ -116,36 +117,9 @@ fn held_tiles_sharing_a_link_note_release_their_own_tile() {
             .iter()
             .map(|hit| (hit.tile, hit.velocity))
             .collect::<Vec<_>>(),
-        [(1, 0)]
-    );
-    let later = route(&mut runner, vec![off()], &[None]);
-    assert_eq!(
-        later
-            .iter()
-            .map(|hit| (hit.tile, hit.velocity))
-            .collect::<Vec<_>>(),
         [(2, 0)]
     );
-}
-
-#[test]
-fn a_one_shot_sampler_tiles_off_spares_another_lit_tile_on_its_pitch() {
-    let mut runner = sampler_runner("oneshot");
-    route(
-        &mut runner,
-        vec![held_on()],
-        &[Some(intent(1, TileTriggerKind::Activate))],
-    );
-    // Tile 3's On was rolled out by trigger probability; its Off still passes.
-    let released = route(
-        &mut runner,
-        vec![off()],
-        &[Some(intent(3, TileTriggerKind::Deactivate))],
-    );
-    assert!(
-        released.iter().all(|hit| hit.tile != 1),
-        "tile 1 stays lit and keeps sounding: {released:?}"
-    );
+    assert!(route(&mut runner, vec![off()], &[None]).is_empty());
 }
 
 #[test]
@@ -164,7 +138,7 @@ fn an_earlier_tile_release_cancels_its_delayed_held_tile_on() {
         &[Some(intent(1, TileTriggerKind::Deactivate))],
     );
     for _ in 0..3 {
-        assert!(runner.take_due_link_events(0).tiles.is_empty());
+        assert_eq!(runner.take_due_link_events(0).presses().count(), 0);
     }
 }
 
@@ -190,8 +164,8 @@ fn held_tiles_do_not_retrigger_and_arp_suppresses_tile_releases() {
 }
 
 #[test]
-fn layer_drain_releases_held_tiles_but_not_ringing_one_shots() {
-    for (behavior, expected_releases) in [("oneshot", 0), ("hold", 1)] {
+fn layer_drain_releases_held_and_still_sounding_one_shot_tiles() {
+    for (behavior, expected_releases) in [("oneshot", 1), ("hold", 1)] {
         let mut runner = sampler_runner(behavior);
         runner
             .send(HostMessage::DeviceInput {

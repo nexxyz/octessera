@@ -131,18 +131,6 @@ pub(super) struct DelayedRoutedEvents {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct LinkArpHeldNote {
-    pub(super) audio: bool,
-    pub(super) channel: u8,
-    pub(super) note: u8,
-    pub(super) velocity: u8,
-    /// The lit tile holding the One-Shot note.
-    pub(super) tile: usize,
-    /// When it started, in the order the layer's held notes share.
-    pub(super) onset: u64,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct NativeValueLane {
     pub(super) enabled: bool,
     pub(super) from: u8,

@@ -1,3 +1,4 @@
+use super::held_keys::{KeyEvent, KeyPress, Sound};
 use super::modulation::RoutedMusicalEvents;
 use super::{NativeRunner, Value, BUS_COUNT, INSTRUMENT_COUNT};
 use crate::native_runner::InstrumentType;
@@ -136,7 +137,9 @@ impl NativeRunner {
     }
 
     pub(super) fn drop_muted_midi_note_ons(&self, events: &mut RoutedMusicalEvents) {
-        if events.midi.is_empty() || !self.play_live.instrument_mutes.contains(&true) {
+        if (events.midi.is_empty() && events.keys.is_empty())
+            || !self.play_live.instrument_mutes.contains(&true)
+        {
             return;
         }
         let channels = (0..INSTRUMENT_COUNT)
@@ -149,23 +152,15 @@ impl NativeRunner {
         events.midi.retain(|event| {
             !matches!(event, MusicalEvent::NoteOn { channel, .. } if channels & 1 << channel != 0)
         });
+        events.keys.retain(|event| {
+            !matches!(event, KeyEvent::Press(KeyPress { sound: Sound::Midi { channel, .. }, .. }) if channels & 1 << channel != 0)
+        });
     }
 
     fn release_midi_notes_on_mute(&mut self, index: usize) {
-        let Some(channel) = self.midi_output_channel(index) else {
-            return;
-        };
-        for layer_index in 0..self.layers.len() {
-            let mut held = self.layer_owned_route_note_offs(layer_index);
-            held.audio.clear();
-            held.tiles.clear();
-            held.midi.retain(|event| {
-                matches!(event, MusicalEvent::NoteOff { channel: held, .. } if *held == channel)
-            });
-            let released = self.release_layer_owned_route_notes(layer_index, held);
-            self.transpose.pending_note_offs.extend(released);
-            self.held_notes[layer_index].forget_channel(index as u8);
-        }
+        let mut released = RoutedMusicalEvents::default();
+        self.held_keys.release_midi_keys(index as u8, &mut released);
+        self.transpose.pending_note_offs.extend(released);
     }
 
     fn midi_output_channel(&self, index: usize) -> Option<u8> {

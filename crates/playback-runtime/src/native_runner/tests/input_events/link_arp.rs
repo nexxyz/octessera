@@ -20,8 +20,8 @@ pub(crate) fn link_arp_orders_simultaneous_batches_with_finite_notes() {
         }
     ));
 
-    let first = runner.take_due_link_events(0);
-    let second = runner.take_due_link_events(0);
+    let first = due(&mut runner);
+    let second = due(&mut runner);
     assert_eq!(musical_note_ons_from_events(&first.audio), vec![(0, 64)]);
     assert_eq!(musical_note_ons_from_events(&second.audio), vec![(0, 67)]);
 }
@@ -111,7 +111,7 @@ pub(crate) fn link_arp_steps_one_batch_across_interleaved_note_offs() {
         musical_note_ons_from_events(&immediate.audio),
         vec![(0, 60)]
     );
-    let next = runner.take_due_link_events(0);
+    let next = due(&mut runner);
     assert_eq!(musical_note_ons_from_events(&next.audio), vec![(0, 67)]);
 }
 
@@ -142,7 +142,7 @@ pub(crate) fn link_arp_held_source_does_not_replay_the_held_notes_on_a_release()
 
     let released = route(&mut runner, vec![note_off(64)]);
     assert!(musical_note_ons_from_events(&released.audio).is_empty());
-    assert!(runner.take_due_link_events(0).is_empty());
+    assert!(due(&mut runner).is_empty());
 
     let pressed = route(&mut runner, vec![note_on(67)]);
     assert_eq!(
@@ -179,7 +179,7 @@ pub(crate) fn link_arp_octave_spread_expands_notes() {
         musical_note_ons_from_events(&immediate.audio),
         vec![(0, 60)]
     );
-    let delayed = runner.take_due_link_events(0);
+    let delayed = due(&mut runner);
     assert_eq!(musical_note_ons_from_events(&delayed.audio), vec![(0, 72)]);
 }
 
@@ -192,9 +192,9 @@ pub(crate) fn link_arp_default_none_matches_existing_link_timing() {
 
     let immediate = route(&mut runner, routed);
     assert!(immediate.audio.is_empty());
-    let delayed = runner.take_due_link_events(0);
+    let delayed = due(&mut runner);
     assert_eq!(delayed.audio, vec![finite_input_note_on(60)]);
-    let retrigger = runner.take_due_link_events(0);
+    let retrigger = due(&mut runner);
     assert_eq!(retrigger.audio, vec![finite_input_note_on(60)]);
 }
 
@@ -229,32 +229,32 @@ pub(crate) fn link_arp_held_source_updates_releases_and_suppresses_note_offs() {
     assert_eq!(musical_note_ons_from_events(&first.audio), vec![(0, 64)]);
     let second = route(&mut runner, vec![note_on(60)]);
     assert_eq!(musical_note_ons_from_events(&second.audio), vec![(0, 60)]);
-    let tail = runner.take_due_link_events(0);
+    let tail = due(&mut runner);
     assert_eq!(musical_note_ons_from_events(&tail.audio), vec![(0, 64)]);
 
     route(&mut runner, vec![note_off(64)]);
     assert!(runner.delayed_link_events[0]
         .iter()
-        .all(|entry| !has_note_on(&entry.events.audio, 64)));
+        .all(|entry| !entry.events.presses().any(|press| press.pitch == 64)));
 }
 
 #[test]
-pub(crate) fn link_arp_held_source_holds_a_lit_one_shot_until_its_tile_goes_dark() {
+pub(crate) fn link_arp_held_source_holds_a_one_shot_key_until_its_release_and_stop_forgets_it() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.arp.mode = ArpMode::Up;
     runner.layers[0].link.arp.source = ArpSource::Held;
 
     let lit = route(&mut runner, vec![finite_input_note_on(60)]);
     assert_eq!(musical_note_ons_from_events(&lit.audio), vec![(0, 60)]);
-    assert_eq!(runner.link_arp.held_notes[0].len(), 1);
+    assert_eq!(runner.link_arp.keys[0].len(), 1);
     route(&mut runner, vec![note_off(60)]);
-    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert!(runner.link_arp.keys[0].is_empty());
 
     route(&mut runner, vec![note_on(64)]);
-    assert!(!runner.held_notes[0].replays().is_empty());
+    assert!(!runner.link_arp.keys[0].is_empty());
     runner.link_arp.random_state = 123;
     runner.reset_transport_position();
-    assert!(runner.held_notes[0].replays().is_empty());
+    assert!(runner.link_arp.keys[0].is_empty());
     assert_eq!(runner.link_arp.random_state, 0x4f43_5441);
 }
 
@@ -271,7 +271,7 @@ pub(crate) fn link_arp_held_source_retriggers_finite_arp_notes() {
         musical_note_ons_from_events(&immediate.audio),
         vec![(0, 60)]
     );
-    let retrigger = runner.take_due_link_events(0);
+    let retrigger = due(&mut runner);
     assert_eq!(
         musical_note_ons_from_events(&retrigger.audio),
         vec![(0, 60)]
@@ -312,7 +312,13 @@ fn random_arp_orders_are_not_a_fixed_cycle() {
         order.extend(
             runner.delayed_link_events[0]
                 .drain(..)
-                .flat_map(|entry| musical_note_ons_from_events(&entry.events.audio)),
+                .flat_map(|entry| entry.events.keys)
+                .filter_map(|event| match event {
+                    crate::native_runner::held_keys::KeyEvent::Press(press) => {
+                        Some((press.slot, press.pitch))
+                    }
+                    _ => None,
+                }),
         );
         orders.push(order.iter().map(|(_, note)| *note).collect::<Vec<_>>());
     }
@@ -359,7 +365,6 @@ fn routed_random_arp_draws_from_the_seeded_layer_stream() {
                     events: vec![note_on(60), note_on(64), note_on(67)],
                     event_intents: &intents,
                     transpose_offset: 0,
-                    lit_tiles: &[],
                 },
             )
             .unwrap();
@@ -390,17 +395,23 @@ fn route(
             })
         })
         .collect::<Vec<_>>();
-    runner
+    let routed = runner
         .route_events_with_link_timing(
             0,
             super::super::super::algorithm::LinkRoutingInput {
                 events,
                 event_intents: &intents,
                 transpose_offset: 0,
-                lit_tiles: &[],
             },
         )
-        .unwrap()
+        .unwrap();
+    routed.sounded(&runner.instruments)
+}
+
+/// What the layer's queue plays on its next step.
+fn due(runner: &mut NativeRunner) -> RoutedMusicalEvents {
+    let due = runner.take_due_link_events(0);
+    due.sounded(&runner.instruments)
 }
 
 fn note_on(note: u8) -> platform_core::MusicalEvent {
@@ -431,12 +442,6 @@ fn cc(controller: u8, value: u8) -> platform_core::MusicalEvent {
         controller,
         value,
     }
-}
-
-fn has_note_on(events: &[platform_core::MusicalEvent], target: u8) -> bool {
-    events.iter().any(
-        |event| matches!(event, platform_core::MusicalEvent::NoteOn { note, .. } if *note == target),
-    )
 }
 
 fn musical_note_ons_from_events(events: &[platform_core::MusicalEvent]) -> Vec<(u8, u8)> {

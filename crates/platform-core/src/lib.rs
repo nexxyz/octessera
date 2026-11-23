@@ -33,7 +33,6 @@ pub use interpretation::{
     InterpretationProfile, InterpretationStateProfile, TickStrategy, TileTransition,
     TileTransitionKind, TileTriggerIntent, TileTriggerKind,
 };
-pub use interpretation_scan::{compute_degree, holder_tile};
 pub use mapping::{
     default_mapping_config, map_intents_to_musical_events, MappingConfig, MappingResult, RangeMode,
     TriggerAction, TriggerTarget,

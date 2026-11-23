@@ -94,8 +94,7 @@ impl NativeRunner {
                 suffix,
                 "link.scanMode" | "link.scanAxis" | "link.scanSections" | "link.scanDirection"
             );
-            // Who holds a note (a tile, or a scan's row or column) changes with the scan, so the
-            // old holders could never let go: the layer's notes end and the line starts afresh.
+            // A scan change drains the layer, and the line starts afresh.
             if scan_changed {
                 self.layers[index].engine.forget_scanned_line();
             }

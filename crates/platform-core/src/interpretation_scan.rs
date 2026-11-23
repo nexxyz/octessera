@@ -44,17 +44,6 @@ pub(crate) fn scan_line(
     }
 }
 
-/// The tile whose hold a trigger at `x`, `y` starts or ends: the tile itself, or on a scan the
-/// first tile of its row (column scan) or column (row scan), because a scan ends a note on a later
-/// tile of that row or column than the one that started it.
-pub fn holder_tile(profile: &InterpretationProfile, width: usize, x: usize, y: usize) -> usize {
-    match profile.state.tick {
-        _ if !profile.scans() => y * width + x,
-        TickStrategy::ScanColumnActive { .. } => y * width,
-        _ => x,
-    }
-}
-
 fn previous_index(index: usize, span: usize, reverse: bool) -> usize {
     if reverse {
         (index + 1) % span

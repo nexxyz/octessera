@@ -1,61 +1,82 @@
 use super::super::NativeLinkLayer;
-use crate::native_runner::held_notes::HeldNotes;
+use crate::native_runner::held_keys::{KeyEvent, KeyPress, Sound};
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, NoteBehavior, TileTriggerIntent};
 
 mod tile_hits;
+use tile_hits::sampler_hit_for_intent;
 pub(in crate::native_runner) use tile_hits::{drum_hit_for_intent, tile_release};
-use tile_hits::{drum_release_for_intent, sampler_hit_for_intent, sampler_release_for_intent};
 mod intent_values;
 #[cfg(test)]
 pub(in crate::native_runner) use intent_values::value_from_lane;
 pub(in crate::native_runner) use intent_values::{cc_events_from_intent, velocity_from_intent};
 
+/// What routing sends on: note-ons and note-offs as key presses and releases, played through the
+/// held keys when they sound, and everything else on its output lane.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(in crate::native_runner) struct RoutedMusicalEvents {
     pub(in crate::native_runner) audio: Vec<MusicalEvent>,
     pub(in crate::native_runner) midi: Vec<MusicalEvent>,
     pub(in crate::native_runner) tiles: Vec<TileHit>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::native_runner) struct TransposedHeldNote {
-    pub(in crate::native_runner) routed_channel: u8,
-    pub(in crate::native_runner) routed_note: u8,
-    pub(in crate::native_runner) routed_to_midi: bool,
-    /// `(sample slot, tile)` when the held note is a sustained sampler tile.
-    pub(in crate::native_runner) sampler_tile: Option<(u8, u8)>,
-}
-
-impl TransposedHeldNote {
-    pub(in crate::native_runner) fn release_into(self, out: &mut RoutedMusicalEvents) {
-        if let Some((voice, tile)) = self.sampler_tile {
-            out.tiles
-                .push(tile_hits::tile_release(self.routed_channel, voice, tile));
-            return;
-        }
-        let event = MusicalEvent::NoteOff {
-            channel: self.routed_channel,
-            note: self.routed_note,
-        };
-        if self.routed_to_midi {
-            out.midi.push(event);
-        } else {
-            out.audio.push(event);
-        }
-    }
+    pub(in crate::native_runner) keys: Vec<KeyEvent>,
 }
 
 impl RoutedMusicalEvents {
     pub(in crate::native_runner) fn is_empty(&self) -> bool {
-        self.audio.is_empty() && self.midi.is_empty() && self.tiles.is_empty()
+        self.audio.is_empty()
+            && self.midi.is_empty()
+            && self.tiles.is_empty()
+            && self.keys.is_empty()
     }
 
     pub(in crate::native_runner) fn extend(&mut self, other: RoutedMusicalEvents) {
         self.audio.extend(other.audio);
         self.midi.extend(other.midi);
         self.tiles.extend(other.tiles);
+        self.keys.extend(other.keys);
+    }
+
+    #[cfg(test)]
+    pub(in crate::native_runner) fn presses(&self) -> impl Iterator<Item = &KeyPress> {
+        self.keys.iter().filter_map(|event| match event {
+            KeyEvent::Press(press) => Some(press),
+            _ => None,
+        })
+    }
+
+    /// What each press sounds as, in order, before the held keys merge or strike any again.
+    #[cfg(test)]
+    pub(in crate::native_runner) fn pressed_sounds(&self) -> Self {
+        let mut sounds = Self::default();
+        for press in self.presses() {
+            press.sound_into(&mut sounds);
+        }
+        sounds
+    }
+
+    /// Sounds the presses and releases as an instrument that holds no key yet plays them.
+    #[cfg(test)]
+    pub(in crate::native_runner) fn sounded(
+        self,
+        instruments: &[super::super::NativeInstrumentSlot],
+    ) -> Self {
+        self.sounded_through(&mut Default::default(), instruments)
+    }
+
+    /// Sounds the presses and releases through the keys `held` holds.
+    #[cfg(test)]
+    pub(in crate::native_runner) fn sounded_through(
+        mut self,
+        held: &mut crate::native_runner::held_keys::HeldKeys,
+        instruments: &[super::super::NativeInstrumentSlot],
+    ) -> Self {
+        let behaviors =
+            crate::native_runner::instrument_collections::note_behaviors_from_instruments(
+                instruments,
+            );
+        held.play(std::mem::take(&mut self.keys), &behaviors, &mut self);
+        self
     }
 }
 
@@ -74,11 +95,14 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments(
         instruments,
         sense,
         0,
-        None,
-    );
+    )
+    .sounded(instruments);
     routed.audio.into_iter().chain(routed.midi).collect()
 }
 
+/// Routes a step's events: each note-on becomes a press of the key the event names, sounding as
+/// its instrument plays it now (Play Transpose, MIDI channel, Drum or Sampler tile), held while its
+/// instrument is in Hold mode; each note-off a release of that key.
 pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed(
     events: Vec<MusicalEvent>,
     intents: &[TileTriggerIntent],
@@ -86,300 +110,181 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
     instruments: &[super::super::NativeInstrumentSlot],
     sense: Option<&NativeLinkLayer>,
     transpose_offset: i8,
-    mut held_notes: Option<&mut HeldNotes>,
 ) -> RoutedMusicalEvents {
     let mut routed = RoutedMusicalEvents {
-        audio: Vec::with_capacity(events.len()),
+        keys: Vec::with_capacity(events.len()),
         ..RoutedMusicalEvents::default()
     };
     for event in events.iter().take(mapped_event_offset) {
-        route_event_without_intent_with_held_transpose(
-            event.clone(),
-            instruments,
-            &mut routed,
-            held_notes.as_deref_mut(),
-        );
+        route_event_without_intent(event.clone(), instruments, &mut routed);
     }
     for (intent_index, event) in events.iter().skip(mapped_event_offset).enumerate() {
         let Some(intent) = intents.get(intent_index) else {
-            route_event_without_intent_with_held_transpose(
-                event.clone(),
-                instruments,
-                &mut routed,
-                held_notes.as_deref_mut(),
-            );
+            route_event_without_intent(event.clone(), instruments, &mut routed);
             continue;
         };
         let channel = event_channel(event);
-        let mut route = instrument_route(instruments, channel);
+        let route = instrument_route(instruments, channel);
         if let Some(sense) = sense {
             let cc_events =
                 cc_events_from_intent(intent, sense, midi_event_channel(instruments, channel));
-            match route {
-                InstrumentRoute::InternalAudio => routed.audio.extend(cc_events),
-                InstrumentRoute::ExternalMidi => routed.midi.extend(cc_events),
-                InstrumentRoute::Muted => {}
+            for event in cc_events {
+                push_control(&mut routed, route, event);
             }
         }
-        let mut event = event.clone();
-        if let Some(instrument) = instruments.get(channel as usize).filter(|instrument| {
-            matches!(
-                instrument.kind,
-                InstrumentType::Drum | InstrumentType::Sampler | InstrumentType::MidiDrum
-            )
-        }) {
-            match &mut event {
-                MusicalEvent::NoteOn { .. } if instrument.kind == InstrumentType::MidiDrum => {
-                    routed.midi.extend(instrument.midi_drum_note_on(intent));
-                    continue;
-                }
-                MusicalEvent::NoteOn {
+        match *event {
+            MusicalEvent::NoteOn {
+                channel,
+                note,
+                velocity,
+                duration_ms,
+            } => {
+                let velocity = sense
+                    .and_then(|sense| velocity_from_intent(intent, sense))
+                    .unwrap_or(velocity);
+                if let Some(press) = press_for_intent(
+                    instruments,
+                    intent,
+                    channel,
                     note,
                     velocity,
                     duration_ms,
-                    ..
-                } => {
-                    if let Some(pulses_velocity) =
-                        sense.and_then(|sense| velocity_from_intent(intent, sense))
-                    {
-                        *velocity = pulses_velocity;
-                    }
-                    let hit = if instrument.kind == InstrumentType::Drum {
-                        drum_hit_for_intent(
-                            instruments,
-                            channel,
-                            intent,
-                            *velocity,
-                            transpose_offset,
-                            Some(*note),
-                        )
-                    } else {
-                        sampler_hit_for_intent(
-                            instrument,
-                            channel,
-                            intent,
-                            *velocity,
-                            transpose_offset,
-                            *note,
-                        )
-                    };
-                    if let (Some(hit), None, Some(held), InstrumentType::Sampler) = (
-                        &hit,
-                        *duration_ms,
-                        held_notes.as_deref_mut(),
-                        instrument.kind,
-                    ) {
-                        held.record_sounding(
-                            channel,
-                            *note,
-                            TransposedHeldNote {
-                                routed_channel: channel,
-                                routed_note: *note,
-                                routed_to_midi: false,
-                                sampler_tile: Some((hit.voice, hit.tile)),
-                            },
-                        );
-                    }
-                    routed.tiles.extend(hit);
-                    continue;
+                    transpose_offset,
+                ) {
+                    routed.keys.push(KeyEvent::Press(press));
                 }
-                MusicalEvent::NoteOff { note, .. } => {
-                    routed.tiles.extend(drum_release_for_intent(
-                        instruments,
-                        channel,
-                        intent,
-                        transpose_offset,
-                        *note,
-                    ));
-                    if instrument.kind == InstrumentType::Sampler {
-                        let tile = tile_hits::tile_index(intent.x, intent.y);
-                        // On a Hold Sampler a pitch two tiles share sounds the first tile's
-                        // sample and ends with the last tile's note-off.
-                        let mut held = held_notes
-                            .as_deref_mut()
-                            .and_then(|held| held.take_sounding_tile(channel, *note, tile));
-                        if held.is_none() && instrument.note_behavior == NoteBehavior::Hold {
-                            held = held_notes
-                                .as_deref_mut()
-                                .and_then(|held| held.take_sounding(channel, *note));
-                        }
-                        match held {
-                            Some(held) => held.release_into(&mut routed),
-                            None => routed
-                                .tiles
-                                .extend(sampler_release_for_intent(instrument, channel, intent)),
-                        }
-                    }
-                    continue;
-                }
-                MusicalEvent::Cc { .. } => {}
             }
-        }
-        let suppress = match &mut event {
-            MusicalEvent::NoteOn { .. } => prepare_note_on_with_intent(
-                &mut event,
-                intent,
-                sense,
-                instruments,
-                transpose_offset,
-                held_notes.as_deref_mut(),
-            ),
-            MusicalEvent::NoteOff { .. } => prepare_note_off_with_intent(
-                &mut event,
-                instruments,
-                transpose_offset,
-                held_notes.as_deref_mut(),
-                &mut route,
-            ),
+            MusicalEvent::NoteOff { channel, note } => routed.keys.push(KeyEvent::Release {
+                slot: channel,
+                pitch: note,
+            }),
             MusicalEvent::Cc { .. } => {
-                let channel = event_channel(&event);
+                let mut event = event.clone();
                 set_event_channel(&mut event, midi_event_channel(instruments, channel));
-                false
-            }
-        };
-        if !suppress {
-            match route {
-                InstrumentRoute::InternalAudio => routed.audio.push(event),
-                InstrumentRoute::ExternalMidi => routed.midi.push(event),
-                InstrumentRoute::Muted => {}
+                push_control(&mut routed, route, event);
             }
         }
     }
     routed
 }
 
-fn prepare_note_on_with_intent(
-    event: &mut MusicalEvent,
+/// The press of `channel`'s key `note` from `intent`'s tile, sounding as the instrument plays it
+/// now; None when the instrument plays nothing for it.
+fn press_for_intent(
+    instruments: &[super::super::NativeInstrumentSlot],
     intent: &TileTriggerIntent,
-    sense: Option<&NativeLinkLayer>,
-    instruments: &[super::super::NativeInstrumentSlot],
+    channel: u8,
+    note: u8,
+    velocity: u8,
+    duration_ms: Option<u32>,
     transpose_offset: i8,
-    held_notes: Option<&mut HeldNotes>,
-) -> bool {
-    let MusicalEvent::NoteOn {
-        channel,
-        note,
-        velocity,
-        duration_ms,
-        ..
-    } = event
-    else {
-        return false;
+) -> Option<KeyPress> {
+    let instrument = instruments.get(usize::from(channel))?;
+    let length_ms = (instrument.note_behavior != NoteBehavior::Hold)
+        .then_some(duration_ms)
+        .flatten();
+    let (sound, length_ms) = match instrument.kind {
+        InstrumentType::MidiDrum => match instrument.midi_drum_note_on(intent)? {
+            MusicalEvent::NoteOn {
+                channel,
+                note,
+                velocity,
+                duration_ms,
+            } => (
+                Sound::Midi {
+                    channel,
+                    note,
+                    velocity,
+                },
+                duration_ms,
+            ),
+            _ => return None,
+        },
+        InstrumentType::Drum => (
+            Sound::Drum(drum_hit_for_intent(
+                instruments,
+                channel,
+                intent,
+                velocity,
+                transpose_offset,
+                Some(note),
+            )?),
+            length_ms,
+        ),
+        InstrumentType::Sampler => (
+            Sound::Sample(sampler_hit_for_intent(
+                instrument,
+                channel,
+                intent,
+                velocity,
+                transpose_offset,
+                note,
+            )?),
+            length_ms,
+        ),
+        _ => (
+            pitched_sound(instruments, channel, note, velocity, transpose_offset)?,
+            length_ms,
+        ),
     };
-    if let Some(pulses_velocity) = sense.and_then(|sense| velocity_from_intent(intent, sense)) {
-        *velocity = pulses_velocity;
-    }
-    let original_channel = *channel;
-    let original_note = *note;
-    let Some(instrument) = instruments.get(original_channel as usize) else {
-        return false;
-    };
-    let held_note = match instrument.kind {
-        InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck => {
-            transpose_note(note, transpose_offset);
-            Some(TransposedHeldNote {
-                routed_channel: *channel,
-                routed_note: *note,
-                routed_to_midi: false,
-                sampler_tile: None,
-            })
-        }
-        InstrumentType::Midi if instrument.midi_enabled => {
-            transpose_note(note, transpose_offset);
-            *channel = instrument.midi_channel.saturating_sub(1).min(15);
-            Some(TransposedHeldNote {
-                routed_channel: *channel,
-                routed_note: *note,
-                routed_to_midi: true,
-                sampler_tile: None,
-            })
-        }
-        InstrumentType::Midi => return true,
-        InstrumentType::None
-        | InstrumentType::Drum
-        | InstrumentType::Sampler
-        | InstrumentType::MidiDrum => None,
-    };
-    if duration_ms.is_none() {
-        if let (Some(held), Some(held_note)) = (held_notes, held_note) {
-            held.record_sounding(original_channel, original_note, held_note);
-            held.record_replay(original_channel, original_note, *velocity);
-        }
-    }
-    false
+    Some(KeyPress {
+        slot: channel,
+        pitch: note,
+        sound,
+        length_ms,
+    })
 }
 
-fn prepare_note_off_with_intent(
-    event: &mut MusicalEvent,
-    instruments: &[super::super::NativeInstrumentSlot],
-    transpose_offset: i8,
-    held_notes: Option<&mut HeldNotes>,
-    route: &mut InstrumentRoute,
-) -> bool {
-    let MusicalEvent::NoteOff { channel, note } = event else {
-        return false;
-    };
-    let original_channel = *channel;
-    let original_note = *note;
-    if let Some(held_note) =
-        held_notes.and_then(|held| held.end_sounding(original_channel, original_note))
-    {
-        *channel = held_note.routed_channel;
-        *note = held_note.routed_note;
-        *route = if held_note.routed_to_midi {
-            InstrumentRoute::ExternalMidi
-        } else {
-            InstrumentRoute::InternalAudio
-        };
-        return false;
-    }
-    let Some(instrument) = instruments.get(original_channel as usize) else {
-        return false;
-    };
-    match instrument.kind {
-        InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck => {
-            transpose_note(note, transpose_offset)
-        }
-        InstrumentType::Midi if instrument.midi_enabled => {
-            transpose_note(note, transpose_offset);
-            *channel = instrument.midi_channel.saturating_sub(1).min(15);
-        }
-        InstrumentType::Midi => return true,
-        InstrumentType::None
-        | InstrumentType::Drum
-        | InstrumentType::Sampler
-        | InstrumentType::MidiDrum => {}
-    }
-    false
-}
-
-/// The note-on a held Arp replays for the held `note` Link sent on `channel`, routed and
-/// transposed as the instrument plays it now; None when the instrument plays no pitched note.
-pub(in crate::native_runner) fn replayed_note_on(
+/// What a pitched instrument sounds for `note` on `channel` under `transpose_offset`: an internal
+/// voice, or a note on its MIDI channel; None when it plays no pitched note (a disabled MIDI Inst.).
+fn pitched_sound(
     instruments: &[super::super::NativeInstrumentSlot],
     channel: u8,
     mut note: u8,
     velocity: u8,
     transpose_offset: i8,
-) -> Option<(bool, MusicalEvent)> {
-    let instrument = instruments.get(channel as usize)?;
-    let (audio, channel) = match (instrument.kind, instrument_route(instruments, channel)) {
-        (InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck, _) => (true, channel),
-        (InstrumentType::Midi, InstrumentRoute::ExternalMidi) if instrument.midi_enabled => {
-            (false, instrument.midi_channel.saturating_sub(1).min(15))
+) -> Option<Sound> {
+    let instrument = instruments.get(usize::from(channel))?;
+    match (instrument.kind, instrument_route(instruments, channel)) {
+        (InstrumentType::Synth | InstrumentType::Fm | InstrumentType::Pluck, _) => {
+            transpose_note(&mut note, transpose_offset);
+            Some(Sound::Audio {
+                channel,
+                note,
+                velocity,
+            })
         }
-        _ => return None,
-    };
-    transpose_note(&mut note, transpose_offset);
-    Some((
-        audio,
-        MusicalEvent::NoteOn {
+        (InstrumentType::Midi, InstrumentRoute::ExternalMidi) => {
+            transpose_note(&mut note, transpose_offset);
+            Some(Sound::Midi {
+                channel: midi_event_channel(instruments, channel),
+                note,
+                velocity,
+            })
+        }
+        (InstrumentType::None, _) => Some(Sound::Audio {
             channel,
             note,
             velocity,
-            duration_ms: None,
-        },
-    ))
+        }),
+        _ => None,
+    }
+}
+
+/// What an Arp plays for the key `note` it holds on `channel`, through the current Play
+/// Transpose; None when the instrument plays no pitched note.
+pub(in crate::native_runner) fn replayed_sound(
+    instruments: &[super::super::NativeInstrumentSlot],
+    channel: u8,
+    note: u8,
+    velocity: u8,
+    transpose_offset: i8,
+) -> Option<Sound> {
+    let instrument = instruments.get(usize::from(channel))?;
+    if instrument.kind == InstrumentType::None {
+        return None;
+    }
+    pitched_sound(instruments, channel, note, velocity, transpose_offset)
 }
 
 fn transpose_note(note: &mut u8, offset: i8) {
@@ -410,53 +315,78 @@ fn instrument_route(
     }
 }
 
+/// Routes an event that names no tile: a note-on sounds untransposed on its slot, and a Drum or
+/// MIDI Drum slot, which plays tiles, takes no such note-on.
 fn route_event_without_intent(
     mut event: MusicalEvent,
     instruments: &[super::super::NativeInstrumentSlot],
-    audio: &mut Vec<MusicalEvent>,
-    midi: &mut Vec<MusicalEvent>,
+    out: &mut RoutedMusicalEvents,
 ) {
     let channel = event_channel(&event);
-    if instruments.get(channel as usize).is_some_and(|instrument| {
-        matches!(
-            instrument.kind,
-            InstrumentType::Drum | InstrumentType::MidiDrum
-        )
-    }) && matches!(
-        event,
-        MusicalEvent::NoteOn { .. } | MusicalEvent::NoteOff { .. }
-    ) {
-        return;
-    }
-    match instrument_route(instruments, channel) {
-        InstrumentRoute::InternalAudio => audio.push(event),
-        InstrumentRoute::ExternalMidi => {
-            set_event_channel(&mut event, midi_event_channel(instruments, channel));
-            midi.push(event);
+    let instrument = instruments.get(usize::from(channel));
+    match event {
+        MusicalEvent::NoteOff { channel, note } => {
+            out.keys.push(KeyEvent::Release {
+                slot: channel,
+                pitch: note,
+            });
+            return;
         }
-        InstrumentRoute::Muted => {}
+        MusicalEvent::NoteOn {
+            note,
+            velocity,
+            duration_ms,
+            ..
+        } => {
+            if instrument.is_some_and(|instrument| {
+                matches!(
+                    instrument.kind,
+                    InstrumentType::Drum | InstrumentType::MidiDrum
+                )
+            }) {
+                return;
+            }
+            let length_ms = instrument
+                .is_none_or(|instrument| instrument.note_behavior != NoteBehavior::Hold)
+                .then_some(duration_ms)
+                .flatten();
+            let sound = match instrument_route(instruments, channel) {
+                InstrumentRoute::InternalAudio => Sound::Audio {
+                    channel,
+                    note,
+                    velocity,
+                },
+                InstrumentRoute::ExternalMidi => Sound::Midi {
+                    channel: midi_event_channel(instruments, channel),
+                    note,
+                    velocity,
+                },
+                InstrumentRoute::Muted => return,
+            };
+            out.keys.push(KeyEvent::Press(KeyPress {
+                slot: channel,
+                pitch: note,
+                sound,
+                length_ms,
+            }));
+            return;
+        }
+        MusicalEvent::Cc { .. } => {}
     }
+    let route = instrument_route(instruments, channel);
+    if matches!(route, InstrumentRoute::ExternalMidi) {
+        set_event_channel(&mut event, midi_event_channel(instruments, channel));
+    }
+    push_control(out, route, event);
 }
 
-fn route_event_without_intent_with_held_transpose(
-    event: MusicalEvent,
-    instruments: &[super::super::NativeInstrumentSlot],
-    out: &mut RoutedMusicalEvents,
-    held_notes: Option<&mut HeldNotes>,
-) {
-    let MusicalEvent::NoteOff { channel, note } = event else {
-        route_event_without_intent(event, instruments, &mut out.audio, &mut out.midi);
-        return;
+fn push_control(out: &mut RoutedMusicalEvents, route: InstrumentRoute, event: MusicalEvent) {
+    let midi = match route {
+        InstrumentRoute::InternalAudio => false,
+        InstrumentRoute::ExternalMidi => true,
+        InstrumentRoute::Muted => return,
     };
-    match held_notes.and_then(|held| held.end_sounding(channel, note)) {
-        Some(held_note) => held_note.release_into(out),
-        None => route_event_without_intent(
-            MusicalEvent::NoteOff { channel, note },
-            instruments,
-            &mut out.audio,
-            &mut out.midi,
-        ),
-    }
+    out.keys.push(KeyEvent::Control { midi, event });
 }
 
 pub(in crate::native_runner) fn event_channel(event: &MusicalEvent) -> u8 {

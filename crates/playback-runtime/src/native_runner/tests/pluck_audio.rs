@@ -60,7 +60,7 @@ fn pluck_transposed_held_notes_keep_internal_slot_and_mixer_route() {
         degree: 0,
         kind: platform_core::TileTriggerKind::Activate,
     };
-    let mut held = crate::native_runner::held_notes::HeldNotes::default();
+    let mut held = crate::native_runner::held_keys::HeldKeys::default();
     let note_on = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
             channel: 0,
@@ -73,8 +73,8 @@ fn pluck_transposed_held_notes_keep_internal_slot_and_mixer_route() {
         std::slice::from_ref(&instrument),
         None,
         7,
-        Some(&mut held),
-    );
+    )
+    .sounded_through(&mut held, std::slice::from_ref(&instrument));
     assert!(note_on.midi.is_empty());
     assert!(matches!(
         &note_on.audio[..],
@@ -96,11 +96,11 @@ fn pluck_transposed_held_notes_keep_internal_slot_and_mixer_route() {
         }],
         &[intent],
         0,
-        &[instrument],
+        &[instrument.clone()],
         None,
         0,
-        Some(&mut held),
-    );
+    )
+    .sounded_through(&mut held, &[instrument]);
     assert!(note_off.midi.is_empty());
     assert!(matches!(
         &note_off.audio[..],
@@ -109,7 +109,7 @@ fn pluck_transposed_held_notes_keep_internal_slot_and_mixer_route() {
             note: 67
         }]
     ));
-    assert!(held.is_empty());
+    assert_eq!(held.held_count(), 0);
 }
 
 #[test]

@@ -136,7 +136,7 @@ impl NativeRunner {
         if instrument.auto_name {
             instrument.name = derive_instrument_name(index, instrument.kind);
         }
-        self.drain_play_transpose_instrument_notes(index);
+        self.release_instrument_keys(index);
         self.show_instrument_identity_rows(index);
         self.menu
             .keep_focus_on_key(&format!("instruments.{index}.type"));

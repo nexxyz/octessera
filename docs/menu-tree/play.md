@@ -354,8 +354,9 @@ The `ms` rows use the curved time steps from
 - LEDs: left column green (selected and enabled), dim blue (selected, disabled), dim gray
   (unselected), dark (ineligible). Keys: the active offset green, center C white, other offsets dim
   blue.
-- Held transposed notes drain with exact routed note-offs when transpose routing is retargeted,
-  disabled, stopped, or reset.
+- A transpose shifts only notes pressed after it. Held notes keep sounding as they started, and
+  each one's note-off, the note as played, still ends it; Stop and the other drains end them as
+  usual.
 
 ## Rate
 

@@ -52,17 +52,10 @@ pub(crate) fn link_arp_menu_apply_paths_round_trip_held_source() {
     assert_eq!(runner.layers[0].link.arp.source, ArpSource::Held);
     assert_eq!(runner.layers[0].link.arp.mode, ArpMode::Up);
 
-    runner.link_arp.held_notes[0].push(LinkArpHeldNote {
-        audio: true,
-        channel: 0,
-        note: 60,
-        velocity: 96,
-        tile: 0,
-        onset: 0,
-    });
+    runner.link_arp.keys[0].push(arp_key(0, 60));
     runner.menu.turn_key("layers.0.link.arp.mode", -2);
     assert!(runner.apply_menu_key_fast("layers.0.link.arp.mode"));
-    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert!(runner.link_arp.keys[0].is_empty());
     runner.menu.turn_key("layers.0.link.arp.mode", 2);
 
     runner.layers[0].link.arp = NativeLinkArp::default();

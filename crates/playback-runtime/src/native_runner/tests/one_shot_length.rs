@@ -54,7 +54,7 @@ pub(crate) fn a_one_shot_note_lasts_the_one_shot_len_its_link_menu_row_shows() {
 }
 
 #[test]
-pub(crate) fn a_held_arp_on_a_one_shot_instrument_plays_the_lit_tiles() {
+pub(crate) fn a_held_arp_on_a_one_shot_instrument_plays_the_keys_down() {
     let mut runner = held_arp_runner();
 
     let first = grid(&mut runner, "grid_press", 0, 1);
@@ -65,12 +65,13 @@ pub(crate) fn a_held_arp_on_a_one_shot_instrument_plays_the_lit_tiles() {
 
     grid(&mut runner, "grid_release", 0, 1);
     let third = grid(&mut runner, "grid_press", 0, 5);
-    assert_eq!(third.len(), 2, "a dark tile stops playing: {third:?}");
+    assert_eq!(third.len(), 2, "a released key stops playing: {third:?}");
     assert!(third.iter().all(|(note, _)| *note != first[0].0));
 }
 
+/// With Off set to none no note-off comes, so the key stays down on the Arp's list.
 #[test]
-pub(crate) fn a_dark_tile_leaves_the_held_arp_even_when_its_off_plays_nothing() {
+pub(crate) fn a_key_stays_on_the_held_arp_until_a_note_off_lets_it_up() {
     let mut runner = held_arp_runner();
     runner.layers[0].link.deactivate_action = TriggerAction::None;
     runner.refresh_active_mapping_config();
@@ -78,34 +79,34 @@ pub(crate) fn a_dark_tile_leaves_the_held_arp_even_when_its_off_plays_nothing() 
     let first = grid(&mut runner, "grid_press", 0, 1);
     grid(&mut runner, "grid_release", 0, 1);
     let second = grid(&mut runner, "grid_press", 0, 3);
-    assert_eq!(second.len(), 1, "{second:?}");
-    assert_ne!(second[0].0, first[0].0);
+    assert_eq!(second.len(), 2, "{second:?}");
+    assert!(second.iter().any(|(note, _)| *note == first[0].0));
 }
 
 #[test]
-pub(crate) fn a_pitch_stays_held_while_another_lit_tile_still_plays_it() {
+pub(crate) fn two_tiles_on_one_pitch_press_one_arp_key_that_the_first_release_lets_up() {
     let mut runner = held_arp_runner();
 
     let shared = grid(&mut runner, "grid_press", 0, 3);
     let both = grid(&mut runner, "grid_press", 2, 3);
-    assert_eq!(pitches(&both), pitches(&shared), "one voice per pitch");
+    assert_eq!(pitches(&both), pitches(&shared), "one key per pitch");
     grid(&mut runner, "grid_release", 0, 3);
     let after = grid(&mut runner, "grid_press", 0, 5);
-    assert_eq!(after.len(), 2, "{after:?}");
-    assert!(after.iter().any(|(note, _)| *note == shared[0].0));
+    assert_eq!(after.len(), 1, "{after:?}");
+    assert!(after.iter().all(|(note, _)| *note != shared[0].0));
 }
 
 #[test]
-pub(crate) fn muting_the_layer_or_stopping_forgets_its_lit_tiles() {
+pub(crate) fn muting_the_layer_or_stopping_forgets_its_arp_keys() {
     let mut runner = held_arp_runner();
     grid(&mut runner, "grid_press", 0, 1);
-    assert_eq!(runner.link_arp.held_notes[0].len(), 1);
+    assert_eq!(runner.link_arp.keys[0].len(), 1);
     runner.toggle_layer_trigger_gate(0);
-    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert!(runner.link_arp.keys[0].is_empty());
 
     runner.toggle_layer_trigger_gate(0);
     grid(&mut runner, "grid_press", 0, 3);
-    assert_eq!(runner.link_arp.held_notes[0].len(), 1);
+    assert_eq!(runner.link_arp.keys[0].len(), 1);
     runner.reset_transport_position();
-    assert!(runner.link_arp.held_notes[0].is_empty());
+    assert!(runner.link_arp.keys[0].is_empty());
 }

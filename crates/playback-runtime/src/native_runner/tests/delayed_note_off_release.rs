@@ -64,10 +64,7 @@ fn assert_path_releases_the_queued_note(
             vec![note],
             "{path}, midi {midi}"
         );
-        assert!(
-            runner.layers[0].emitted_note_owners.is_empty(),
-            "{path}, midi {midi}"
-        );
+        assert_eq!(runner.held_keys.held_count(), 0, "{path}, midi {midi}");
     }
 }
 

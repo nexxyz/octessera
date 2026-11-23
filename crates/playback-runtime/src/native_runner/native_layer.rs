@@ -4,7 +4,7 @@ use super::trigger_probability::{TileProbabilityMap, FULL_PROBABILITY_MAP};
 use super::TriggerProbabilityMode;
 use platform_core::NativeLayerEngine;
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 pub(super) struct NativeLayer {
     pub(super) behavior_id: String,
@@ -18,8 +18,8 @@ pub(super) struct NativeLayer {
     pub(super) param_mods: NativeParamMods,
     pub(super) trigger_probability_map: TileProbabilityMap,
     pub(super) trigger_gate_restore_mode: Option<TriggerProbabilityMode>,
-    pub(super) emitted_note_owners: BTreeSet<(bool, u8, u8)>,
-    pub(super) emitted_tile_owners: BTreeSet<(u8, u8)>,
+    /// The pitch mapping the layer last played with; a change releases its instruments' keys.
+    pub(super) pitch_mapping: Option<super::pitch_mapping_change::PitchMapping>,
 }
 
 impl NativeLayer {
@@ -41,8 +41,7 @@ impl NativeLayer {
             param_mods: NativeParamMods::default(),
             trigger_probability_map: FULL_PROBABILITY_MAP,
             trigger_gate_restore_mode: None,
-            emitted_note_owners: BTreeSet::new(),
-            emitted_tile_owners: BTreeSet::new(),
+            pitch_mapping: None,
         }
     }
 }

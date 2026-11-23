@@ -20,6 +20,31 @@ pub(super) fn pi_audio_command_rejection(command: &RuntimeAudioCommand) -> Optio
     }
 }
 
+/// A key `pitch` on Synth `slot`, as a layer's press puts it on its Arp's list.
+pub(super) fn arp_key(slot: u8, pitch: u8) -> crate::native_runner::held_keys::KeyPress {
+    crate::native_runner::held_keys::KeyPress {
+        slot,
+        pitch,
+        sound: crate::native_runner::held_keys::Sound::Audio {
+            channel: slot,
+            note: pitch,
+            velocity: 100,
+        },
+        length_ms: None,
+    }
+}
+
+/// Holds Synth `slot`'s key `pitch` on the runner's keyboards, as a press from another source has.
+pub(super) fn hold_key(runner: &mut NativeRunner, slot: u8, pitch: u8) {
+    let mut pressed = RoutedMusicalEvents::default();
+    pressed
+        .keys
+        .push(crate::native_runner::held_keys::KeyEvent::Press(arp_key(
+            slot, pitch,
+        )));
+    runner.sound_keys(&mut pressed);
+}
+
 /// Maps a scanning layer's On and Hold to note on, so every lit step the line reaches sounds.
 pub(super) fn scan_every_lit_step(link: &mut NativeLinkLayer) {
     link.activate_action = TriggerAction::NoteOn;
@@ -129,13 +154,16 @@ mod instrument_binding_targets;
 mod instrument_fast_bindings;
 mod instrument_option_sweep;
 mod instruments;
+mod key_model;
+mod key_model_arp;
+mod key_model_releases;
 mod layer_replacement;
 mod layer_select_presentation;
 mod layer_trigger_gate_device_replay;
 mod layer_trigger_gate_release;
 mod life_mapping;
 mod link_and_shape_menu;
-mod link_holders;
+mod link_held_notes;
 mod link_option_sweep;
 mod looper;
 mod menu_edit_dispatch;

@@ -171,6 +171,7 @@ pub(crate) fn mixed_note_off_and_note_on_use_their_own_link_timing() {
         kind: platform_core::TileTriggerKind::Activate,
     };
     let model = runner.active_engine().model().unwrap();
+    hold_key(&mut runner, 0, 60);
 
     let immediate = runner
         .messages_with_input_result(platform_core::NativeInputResult {

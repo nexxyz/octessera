@@ -125,8 +125,8 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 ## Events and scanning
 
 - `Event Triggers` gates On and Off events, `State Notes` gates Hold events. A Hold event fires at
-  each behavior step for a tile that stays lit; play and game behaviors send none. Which tiles
-  count as holders of a held note is defined under
+  each behavior step for a tile that stays lit; play and game behaviors send none. How note-ons
+  press and note-offs release an instrument's keys is defined under
   [Trigger types](../menu-and-controls-spec.md#trigger-types).
 - A scanning layer plays the same On, Hold and Off rows, from its scan line instead of its grid's
   changes; its grid changes and presses play nothing themselves. Each tile the line reaches is
@@ -143,12 +143,11 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   extra repeats after the original, at delay+1, delay+2, and so on. Trigger probability is rolled
   once before scheduling; delayed repeats do not re-roll.
 - After Delay/Retrig scheduling, the note-ons that sound on one tick play one hit per instrument
-  and pitch (MIDI channel and note on MIDI out), whatever layer, event kind or delay produced
-  them: the loudest wins whole, with its velocity, length and tile, and the first of equals wins
-  a tie. A note-off of that pitch between two note-ons on the tick keeps both, so a release and a
-  fresh hit still sound. On a Hold instrument every tile that started the pitch still holds it.
-  Note-offs of one pitch on one instrument on that tick merge into one too, unless a note-on of
-  the pitch sits between them, so a release followed by a re-strike plays in order.
+  and key, or per sound (MIDI channel and note on MIDI out), whatever layer, event kind or delay
+  produced them: the loudest wins whole, with its velocity, length and tile, and the first of
+  equals wins a tie. A note-off of that key between two note-ons on the tick keeps both, so a
+  release and a fresh hit still sound in order; a second note-off of the key finds nothing left
+  to end. A Retrig repeats a note-off too, which ends only a key pressed again in between.
 - Scanning lanes are defined in
   [Sectioned scanning](../menu-and-controls-spec.md#sectioned-scanning).
 
@@ -163,13 +162,17 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   are common Western 12-TET approximations of scales with varying forms.
 - Mapping picks the set note nearest `1st Note` (lower note wins ties) and applies X/Y pitch steps
   before clamp/wrap. `wrap` wraps within that concrete note list, so wrapped notes stay in the set.
-  Play Transpose applies downstream.
+  Play Transpose applies downstream, to the sound only: the key is the note as mapped.
+- A mapping change that moves the layer's pitches releases the keys held on the instruments its
+  note-on rows play, at its next step or event; see
+  [Trigger types](../menu-and-controls-spec.md#trigger-types).
 
 ## One-Shot Len
 
 - Stored as `layers.N.link.oneShotLengthMs` (10..2000 ms, default 150) and saved with the patch.
   Every note the layer plays on a `oneshot` instrument lasts this long, MIDI Inst. slots
-  included; a `hold` instrument ignores it and ends the note at its note-off. Arp notes keep the
+  included, and its key lets go by itself then; a `note off` may cut it earlier. A `hold`
+  instrument ignores it and ends the note at its note-off. Arp notes keep the
   Arp's own Length, Sampler and Drum hits play their sample or voice, and MIDI Drum its own
   Duration.
 - A bindable, Discrete modulation target (`Trn: One-Shot Len`); it is not offered to LFOs.
@@ -248,23 +251,28 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 - Stored as `layers.N.link.arp` with `mode`, `source`, `stepIntervalSteps`, `noteLengthMs`,
   `gatePct`, and `octaveSpread`.
-- Sources: `simultaneous` routed note-on batches, or `held` notes tracked by playback-runtime.
+- The Arp sits between the layer and its instruments like a hardware arpeggiator: while its mode
+  is not `none`, the layer's note-ons and note-offs press and release keys on the Arp's own list
+  instead of the instruments. The list holds only the keys this layer has down; the Arp never sees
+  its own notes, other layers, Keys, Notes In or the Looper. A key stays down until its note-off,
+  on a `oneshot` instrument too, so with Off set to `none` it stays on the list.
+- Sources: `simultaneous` arpeggiates the keys pressed together, `held` every key down.
   Unsupported sources normalize to `simultaneous`. A batch is every note-on of one kind and
   instrument in one step, even with note-offs between them; the step's releases route before its
-  note-ons, so a pitch released and struck in one step stays held. `held` replays the held set on a batch
-  that starts a note; a batch that only releases notes replays nothing. `held` holds a `hold`
-  instrument's notes from note-on to note-off, and a `oneshot` instrument's notes per tile while
-  the tile is lit, from its On until it goes dark, whatever Off Trig or Prob Note Off do; a pitch
-  two lit tiles share sounds once and stays held until both are dark. One-shot Hold and scan hits
-  are not held; a `hold` scan note leaves the held set when the scan line lets go of its pitch.
-  `held` replays a `hold` instrument's notes through the current Play Transpose: hold C, E and G,
-  transpose +2 and press A, and it plays D, F#, A and B.
+  note-ons, so a key released and pressed in one step stays down. `held` replays the list, oldest
+  key first, on a batch that presses a key; a batch that only releases keys replays nothing. Two
+  tiles on one pitch are one key, so the first note-off lets it up. `held` plays through the
+  current Play Transpose: hold C, E and G, transpose +2 and press A, and it plays D, F#, A and B;
+  two keys that sound alike play once, at the louder velocity.
   A new batch drops the notes the previous run still had waiting. Stop, a layer trigger gate turned
-  off (from any page or menu), a behavior change and a patch load clear the held set.
+  off (from any page or menu), a behavior change, a scan setting change, a mapping change that
+  moves the layer's pitches and a patch load let go of the list and stop the pattern.
 - `rotating` starts each batch one note further along than the batch before.
-- `none` keeps the normal Link path. Other modes emit finite note-ons lasting
-  `noteLengthMs * gatePct / 100`, never shorter than 10 ms, and create no held notes; strum-like
-  modes space notes by `Step` Link ticks. Matching note-offs update held membership and never cut off arp-owned finite notes.
+- `none` keeps the normal Link path. Other modes press the layer's target instruments' keys with
+  finite notes lasting `noteLengthMs * gatePct / 100`, never shorter than 10 ms, as ordinary
+  presses (a `hold` instrument ends a still-sounding one before striking it again); strum-like
+  modes space notes by `Step` Link ticks. Drum and Sampler tiles and MIDI Drum notes keep their
+  own length.
 - Clamps: `stepIntervalSteps` 1..16, `noteLengthMs` 10..2000, `gatePct` 1..100, `octaveSpread`
   0..3.
 

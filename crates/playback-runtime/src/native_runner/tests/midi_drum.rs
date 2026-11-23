@@ -93,6 +93,10 @@ impl Rig {
         self.input(json!({ "type": "grid_release", "x": x, "y": y }));
     }
 
+    fn hold(&mut self, x: usize, y: usize) {
+        self.input(json!({ "type": "grid_press", "x": x, "y": y }));
+    }
+
     fn press_with(&mut self, modifiers: &[&str], x: usize, y: usize) {
         for modifier in modifiers {
             self.input(json!({ "type": modifier, "pressed": true }));
@@ -255,7 +259,7 @@ fn assign_mode_lights_the_current_stamp_bright_and_other_stamps_dim() {
 }
 
 #[test]
-fn a_struck_tile_sends_its_stamp_on_the_channel_and_ends_it_after_duration() {
+fn a_held_tile_sends_its_stamp_on_the_channel_and_ends_it_after_duration() {
     let mut rig = Rig::midi_drum();
     rig.turn("instruments.0.midiDrum.channel", -7);
     rig.turn("instruments.0.midiDrum.durationMs", 3);
@@ -265,13 +269,18 @@ fn a_struck_tile_sends_its_stamp_on_the_channel_and_ends_it_after_duration() {
     rig.press(2, 3);
     rig.back();
 
-    rig.press(2, 3);
+    rig.hold(2, 3);
     assert_eq!(rig.take_notes(), vec![vec![0x92, SNARE, 90]]);
     assert!(rig.host.musical_events.is_empty() && rig.host.tile_hits.is_empty());
     rig.advance(u64::from(duration) - 1);
     assert!(rig.take_notes().is_empty());
     rig.advance(1);
     assert_eq!(rig.take_notes(), vec![vec![0x82, SNARE, 0]]);
+    rig.input(json!({ "type": "grid_release", "x": 2, "y": 3 }));
+    assert!(
+        rig.take_notes().is_empty(),
+        "a note-off after the note ended sends nothing"
+    );
 
     rig.press(4, 4);
     rig.advance(u64::from(duration));
@@ -294,7 +303,11 @@ fn mute_disabled_output_and_a_closed_trigger_gate_block_midi_drum_notes() {
     assert!(rig.take_notes().is_empty(), "muted");
     rig.toggle_mute();
     rig.press(2, 3);
-    assert_eq!(rig.take_notes().len(), 1, "unmuted");
+    assert_eq!(
+        rig.take_notes(),
+        vec![vec![0x99, SNARE, 90], vec![0x89, SNARE, 0]],
+        "unmuted, and the tile's Off ends the note"
+    );
 
     rig.press_with(&["button_shift", "button_fn"], 0, 0);
     rig.press(2, 3);
@@ -303,8 +316,8 @@ fn mute_disabled_output_and_a_closed_trigger_gate_block_midi_drum_notes() {
     rig.press(2, 3);
     assert_eq!(
         rig.take_notes(),
-        vec![vec![0x89, SNARE, 0], vec![0x99, SNARE, 90]],
-        "trigger gate open, ending the still-held unmuted hit first"
+        vec![vec![0x99, SNARE, 90], vec![0x89, SNARE, 0]],
+        "trigger gate open"
     );
 
     let mode = std::mem::replace(

@@ -227,8 +227,8 @@ fn life(title: &str, hold: bool, setup: impl FnOnce(&mut Script)) -> String {
     script.finish(title)
 }
 
-/// On plays the One-Shot instrument 1 and Hold Trig the Hold instrument 2, both under a held
-/// Direct Arp, so the Arp's held set mixes lit One-Shot tiles and held notes.
+/// On plays the One-Shot instrument 1 and Hold Trig the Hold instrument 2, both into a held
+/// Direct Arp, so the keys down on the Arp's list come from both rows.
 fn mixed_held_arp() -> String {
     let mut script = Script::new("life", |runner| {
         runner.instruments[1].kind = InstrumentType::Synth;

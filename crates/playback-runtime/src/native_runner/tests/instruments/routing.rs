@@ -38,8 +38,8 @@ pub(crate) fn synth_and_sampler_events_route_to_audio_while_midi_routes_to_midi(
             &instruments,
             None,
             0,
-            None,
-        );
+        )
+        .sounded(&instruments);
 
         if kind == "sampler" {
             assert!(routed.audio.is_empty());
@@ -80,8 +80,8 @@ pub(crate) fn synth_and_sampler_events_route_to_audio_while_midi_routes_to_midi(
         &instruments,
         None,
         0,
-        None,
-    );
+    )
+    .sounded(&instruments);
 
     assert!(routed.audio.is_empty());
     assert!(matches!(

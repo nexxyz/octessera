@@ -38,15 +38,7 @@ impl NativeRunner {
             .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?;
         layer.engine.set_step_phase(phase);
         if paused {
-            let mut result = layer.engine.on_input_with_events(input, bpm)?;
-            self.hold_layer_notes(
-                layer_index,
-                &mut result.events,
-                &mut result.event_intents,
-                None,
-            );
-            let ended = std::mem::take(&mut self.ended_elsewhere);
-            self.transpose.pending_note_offs.extend(ended);
+            let result = layer.engine.on_input_with_events(input, bpm)?;
             return Ok(platform_core::NativeInputResult {
                 events: Vec::new(),
                 emitted_events: Vec::new(),
@@ -56,18 +48,12 @@ impl NativeRunner {
             });
         }
         let (link, probability_map) = (&layer.link, &layer.trigger_probability_map);
-        let mut result = layer
+        let result = layer
             .engine
             .on_input_with_events_filtered(input, bpm, |intent| {
                 trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
             })?;
         self.store_probability_rng(layer_index, rng);
-        self.hold_layer_notes(
-            layer_index,
-            &mut result.events,
-            &mut result.event_intents,
-            None,
-        );
         Ok(result)
     }
 
@@ -79,16 +65,10 @@ impl NativeRunner {
         let bpm = self.clock_bpm() as f32;
         let layer = &mut self.layers[layer_index];
         let (link, probability_map) = (&layer.link, &layer.trigger_probability_map);
-        let mut result = layer.engine.tick_filtered(bpm, |intent| {
+        let result = layer.engine.tick_filtered(bpm, |intent| {
             trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
         })?;
         self.store_probability_rng(layer_index, rng);
-        self.hold_layer_notes(
-            layer_index,
-            &mut result.events,
-            &mut result.event_intents,
-            Some(&result.model.tiles),
-        );
         Ok(result)
     }
 
@@ -276,7 +256,6 @@ impl NativeRunner {
                 *layer_tick = self.transport.tick;
             }
             let due_events = self.take_due_link_events(self.active_layer_index);
-            self.track_emitted_route_notes(self.active_layer_index, &due_events);
             push_tick_events(events, &mut self.transport.swung_events, offset, due_events);
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
             let transpose_offset = self.play_transpose_offset_for_layer(self.active_layer_index);
@@ -286,10 +265,8 @@ impl NativeRunner {
                     events: tick.events,
                     event_intents: &tick.event_intents,
                     transpose_offset,
-                    lit_tiles: &tick.model.tiles,
                 },
             )?;
-            self.track_emitted_route_notes(self.active_layer_index, &tick_events);
             push_tick_events(
                 events,
                 &mut self.transport.swung_events,

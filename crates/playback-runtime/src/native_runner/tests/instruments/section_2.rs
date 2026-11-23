@@ -176,7 +176,8 @@ pub(crate) fn link_velocity_and_filter_lanes_modulate_mapped_events() {
         kind: platform_core::TileTriggerKind::Activate,
     }];
 
-    let out = apply_sampler_assignments_for_instruments(events, &intents, 0, &[], Some(&sense));
+    let synths = (0..3).map(NativeInstrumentSlot::new).collect::<Vec<_>>();
+    let out = apply_sampler_assignments_for_instruments(events, &intents, 0, &synths, Some(&sense));
 
     assert!(matches!(
         out.as_slice(),
@@ -254,6 +255,7 @@ pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
         kind: platform_core::TileTriggerKind::Activate,
     };
 
+    let mut held = crate::native_runner::held_keys::HeldKeys::default();
     let routed = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
             channel: 2,
@@ -266,8 +268,8 @@ pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
         &instruments,
         None,
         0,
-        None,
-    );
+    )
+    .sounded_through(&mut held, &instruments);
 
     assert!(routed.audio.is_empty());
     assert!(matches!(
@@ -292,8 +294,8 @@ pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
         &instruments,
         None,
         0,
-        None,
-    );
+    )
+    .sounded(&instruments);
     assert!(muted.audio.is_empty());
     assert!(muted.midi.is_empty());
 
@@ -308,8 +310,8 @@ pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
         &instruments,
         None,
         0,
-        None,
-    );
+    )
+    .sounded_through(&mut held, &instruments);
     assert!(note_off.audio.is_empty());
     assert!(matches!(
         note_off.midi.as_slice(),
@@ -330,8 +332,8 @@ pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
         &instruments,
         None,
         0,
-        None,
-    );
+    )
+    .sounded(&instruments);
     assert!(muted_note_off.audio.is_empty());
     assert!(muted_note_off.midi.is_empty());
 }

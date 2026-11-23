@@ -27,6 +27,25 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
         kind: platform_core::TileTriggerKind::Activate,
     };
 
+    let mut held = crate::native_runner::held_keys::HeldKeys::default();
+    let pressed = route(
+        vec![MusicalEvent::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 100,
+            duration_ms: Some(120),
+        }],
+        &[TileTriggerIntent {
+            kind: platform_core::TileTriggerKind::Activate,
+            ..assigned_intent.clone()
+        }],
+        0,
+        &instruments,
+        None,
+        0,
+    )
+    .sounded_through(&mut held, &instruments);
+    assert_eq!(pressed.tiles.len(), 1);
     let assigned = route(
         vec![MusicalEvent::NoteOff {
             channel: 0,
@@ -37,8 +56,8 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
         &instruments,
         None,
         0,
-        None,
-    );
+    )
+    .sounded_through(&mut held, &instruments);
     let unmapped = route(
         vec![
             MusicalEvent::NoteOn {
@@ -57,8 +76,8 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
         &instruments,
         None,
         0,
-        None,
-    );
+    )
+    .sounded(&instruments);
 
     assert!(assigned.audio.is_empty());
     assert!(matches!(
