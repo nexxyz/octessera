@@ -294,7 +294,9 @@ fn scheduled_seed(state: &mut CrystalGrowthState, previous: &[bool]) {
                     || has_neighbor(previous, index % GRID_WIDTH, index / GRID_WIDTH, "cross")
             })
             .collect::<Vec<_>>();
-        seed_random_avoiding(state, &crowded);
+        let open_ground =
+            (0..TILE_COUNT).any(|index| state.cells[index] == EMPTY && !crowded[index]);
+        seed_random_avoiding(state, if open_ground { &crowded } else { previous });
     }
 }
 
