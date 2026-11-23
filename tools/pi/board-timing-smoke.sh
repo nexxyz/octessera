@@ -34,7 +34,7 @@ remote ssh-payload -Target "$target" "$(local_path "$out/board-check.sh")" || { 
 remote ssh -Target "$target" "mkdir -m 755 $root"
 remote scp -Target "$target" "$(local_path "$binary")" "$target:$root/octessera-pi" >/dev/null
 remote scp -Target "$target" "$(local_path tools/pi/board-timing-smoke-payload.sh)" "$target:$root/payload.sh" >/dev/null
-remote ssh -Target "$target" "chmod +x $root/octessera-pi; setsid nohup taskset -c 2,3 bash $root/payload.sh $board $seconds $root $* > $root/host.log 2>&1 < /dev/null &"
+remote ssh -Target "$target" "chmod +x $root/octessera-pi; setsid nohup taskset -c 0 bash $root/payload.sh $board $seconds $root $* > $root/host.log 2>&1 < /dev/null &"
 echo "running on $board for ${seconds}s; results land in $out"
 sleep "$((seconds + 45))"
 for _ in $(seq 1 30); do remote ssh -Target "$target" "test -f $root/done" && break; sleep 10; done

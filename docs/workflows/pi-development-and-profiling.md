@@ -109,7 +109,10 @@ patch with a candidate binary from a cloned store, OLED awake, for 10 minutes by
 default (an optional fourth argument sets the seconds). It runs detached on the
 board, so no SSH traffic disturbs the measurement. Afterwards it restores the
 installed service, checks that the original presets are unchanged, and prints
-underruns, pulse cadence, and runtime lateness:
+underruns, pulse cadence, and runtime lateness. Harness processes (payloads,
+pollers, key drivers, samplers) must never run on the DSP worker cores 2–3:
+the smoke and the scenario payloads run on CPU 0, because polling on 2–3
+preempts a worker and shows up as missed Capacity quanta.
 
 ```bash
 tools/pi/board-timing-smoke.sh rpi "$PiTarget" target/pi-cross/octessera-pi
