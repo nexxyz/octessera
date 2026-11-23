@@ -511,9 +511,10 @@ on the Orange, `Octessera Line In` on the Raspberry).
   `panic_releases_held_keyboard_notes`), and the Sampler's note range
   (`a_sampler_slot_plays_only_notes_36_to_43`).
 - `usb_hold_trig` is the `usb_midi` rig with only the store's Life layer: Event
-  Triggers off, Hold Trig = note on for slot 1, a Synth with Hold, seeded with
-  a diagonal of three cells whose middle one stays lit for one step and then
-  dies. `host_usb_midi.py ... hold_trig` clocks 100 BPM for 6 s. The mirrored
+  Triggers on, On none, Hold Trig = note on and Off = note off for slot 1, a
+  Synth with Hold, seeded with a diagonal of three cells whose middle one stays
+  lit for one step and then dies. (With Event Triggers off a Hold Trig note
+  keeps sounding by design: nothing releases a key no Off reaches.) `host_usb_midi.py ... hold_trig` clocks 100 BPM for 6 s. The mirrored
   Hold note must end while the clock still runs, at least 1 s before Stop.
   A case listed in `EXPECTED_FAIL` in `board-scenarios-check.py` reports
   `XFAIL` while it fails and `XPASS` once it passes; neither counts as FAIL.

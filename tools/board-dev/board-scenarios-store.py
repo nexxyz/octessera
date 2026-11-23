@@ -21,9 +21,9 @@ setups:
   unknown_runtime_key  System with an unknown key in runtimeConfig
   truncated_patch the patch cut to half its bytes
   full_card       Auto Save on, View on Back off, keyboard capture allowed
-  usb_hold_trig   the usb_midi rig; only the store's Life layer (L1), Event Triggers off, Hold Trig = note on
-                  for slot 1, a Synth with Hold, seeded with a diagonal of three cells whose middle one
-                  stays lit for one step and then dies with the rest
+  usb_hold_trig   the usb_midi rig; only the store's Life layer (L1), Event Triggers on, On none, Hold = note
+                  on and Off = note off for slot 1, a Synth with Hold, seeded with a diagonal of three
+                  cells whose middle one stays lit for one step and then dies with the rest
   usb_echo_midi   the usb_midi rig; slot 1 a MIDI Inst. on channel 1, Notes In on; L1 steps C4 on slot 1
                   every 1/16 (all of row 0 plays note 60) with One-Shot Len 150 ms
   usb_echo_synth  usb_echo_midi with slot 1 a Synth instead, mirrored by Send MIDI all inst.
@@ -60,10 +60,12 @@ def sequencer(layer, slot, tiles):
                           savedState={"tiles": [(i % 8, i // 8) in tiles for i in range(64)], "width": 8, "height": 8})
     layer["name"] = "sequencer"
     link = layer["link"]
-    link.update(eventEnabled=False, scanAxis="columns", scanDirection="forward", scanMode="scanning",
-                scanSections=1, scanUnit="1/8", triggerProbabilityMode="full",
+    link.update(eventEnabled=True, stateNotesEnabled=True, scanAxis="columns", scanDirection="forward",
+                scanMode="scanning", scanSections=1, scanUnit="1/8", triggerProbabilityMode="full",
                 triggerProbabilityMap=["full"] * 64)
-    actions = {"activate": "note_on", "deactivate": "note_off", "scanned": "note_on", "scanned_empty": "none", "stable": "none"}
+    # A scan plays the On, Hold and Off rows: dark to lit fires On, lit to lit Hold, so Hold = note on
+    # sounds every lit step.
+    actions = {"activate": "note_on", "deactivate": "note_off", "stable": "note_on"}
     link["mapping"] = {event: {"action": action, "delaySteps": 0, "retriggerCount": 0, "slot": slot}
                        for event, action in actions.items()}
 
@@ -174,8 +176,10 @@ def main():
         music["layers"][0] = life
         music.update(activeBehavior="life", activeLayerIndex=0)
         instruments[0].update(type="synth", name="Synth", autoName=True, noteBehavior="hold")
-        life["link"].update(eventEnabled=False, stateNotesEnabled=True)
+        life["link"].update(eventEnabled=True, stateNotesEnabled=True)
+        life["link"]["mapping"]["activate"].update(action="none", slot=0)
         life["link"]["mapping"]["stable"].update(action="note_on", slot=0)
+        life["link"]["mapping"]["deactivate"].update(action="note_off", slot=0)
         life["build"]["savedState"].update(cells=[i in (18, 27, 36) for i in range(64)], triggerTypes=["none"] * 64,
                                            gliderSpawnInterval=0, randomCellsPerTick=0)
     elif setup in ("usb_echo_midi", "usb_echo_synth"):
