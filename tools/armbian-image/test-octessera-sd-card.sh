@@ -36,10 +36,45 @@ canonical_block() { printf '%s\n' "$1"; }
 transfer_active() { return 1; }
 with_sd_lock() { "$@"; }
 logger() { :; }
+readlink() {
+  case "$2" in
+    /sys/class/block/sdb1|/sys/class/block/sdc1) printf '%s\n' "/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/mmc2/mmc2:0000/block/sdb/${2##*/}" ;;
+    /sys/class/block/sde1) printf '%s\n' "/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.1/mmc_host/mmc2/mmc2:0000/block/sde/sde1" ;;
+    /sys/class/block/sdd1) printf '%s\n' "/sys/devices/platform/soc/5200000.usb/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/sdd/sdd1" ;;
+    *) command readlink "$@" ;;
+  esac
+}
 
 blkid() {
   case "$*" in
     *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdb1 ;;
+    *'-s TYPE'*) printf '%s\n' vfat ;;
+  esac
+}
+test "$(configured_device)" = /dev/sdb1
+
+blkid() {
+  case "$*" in
+    *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sde1 ;;
+  esac
+}
+test "$(configured_device)" = /dev/sde1
+
+blkid() {
+  case "$*" in
+    *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdd1 ;;
+  esac
+}
+if configured_device; then
+  echo 'SD helper took a USB drive labelled OCTESSERA as SD2.' >&2
+  exit 1
+else
+  test "$?" = 1
+fi
+
+blkid() {
+  case "$*" in
+    *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdd1 /dev/sdb1 ;;
     *'-s TYPE'*) printf '%s\n' vfat ;;
   esac
 }
@@ -131,4 +166,4 @@ test "$lazy_unmounts" = 1
 test -e "$mount_marker"
 test "$(cat "$SD_DISKSEQ_STATE")" = 8
 
-echo 'Octessera shared SD helper, service, udev, safety, label, mount, replaced-card, and folder tests passed.'
+echo 'Octessera shared SD helper, service, udev, safety, label, SD2-slot, USB-drive, mount, replaced-card, and folder tests passed.'

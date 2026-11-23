@@ -35,12 +35,30 @@ safe_partition() {
   [ -z "$root_pk" ] || [ "$dev_pk" != "$root_pk" ] || return 1
 }
 
+SD2_SLOT_HOSTS='/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/ /sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.1/mmc_host/'
+
+on_sd2_slot() {
+  slot_path="$(readlink -f "/sys/class/block/${1##*/}" 2>/dev/null || true)"
+  for slot_host in $SD2_SLOT_HOSTS; do
+    case "$slot_path" in "$slot_host"*) return 0 ;; esac
+  done
+  return 1
+}
+
 configured_device() {
-  devices="$(blkid -t LABEL=OCTESSERA -o device 2>/dev/null || true)"
+  labelled="$(blkid -t LABEL=OCTESSERA -o device 2>/dev/null || true)"
+  devices=""
+  for candidate in $labelled; do
+    candidate="$(canonical_block "$candidate")"
+    if on_sd2_slot "$candidate"; then
+      devices="$devices$candidate
+"
+    fi
+  done
   count="$(printf '%s\n' "$devices" | awk 'NF { count++ } END { print count + 0 }')"
   case "$count" in
     0) return 1 ;;
-    1) canonical_block "$devices" ;;
+    1) printf '%s' "$devices" ;;
     *)
       log "refusing duplicate OCTESSERA labels"
       return 2

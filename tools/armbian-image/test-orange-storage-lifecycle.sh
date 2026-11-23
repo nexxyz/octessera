@@ -72,7 +72,11 @@ EOF
 cat > "$bin/readlink" <<'EOF'
 #!/bin/sh
 if [ "${1:-}" = -f ]; then
-  printf '%s\n' "$2"
+  case "$2" in
+    /sys/class/block/sdd1) printf '%s\n' /sys/devices/platform/soc/5200000.usb/usb1/1-1/block/sdd/sdd1 ;;
+    /sys/class/block/*) printf '%s\n' "/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/mmc2/mmc2:0000/block/sdb/${2##*/}" ;;
+    *) printf '%s\n' "$2" ;;
+  esac
 else
   exec "$REAL_READLINK" "$@"
 fi
@@ -99,6 +103,7 @@ case "$*" in
     case "${BLKID_MODE:-one}" in
       one) printf '%s\n' "$TEST_DEV" ;;
       duplicate) printf '%s\n' "$TEST_DEV" /dev/sdc1 ;;
+      usb) printf '%s\n' /dev/sdd1 ;;
       none) ;;
     esac
     ;;
@@ -208,6 +213,13 @@ test ! -e "$fixture/storage.state"
 reset_fixture
 BLKID_MODE=duplicate
 expect_failure storage-start
+test -e "$fixture/normal-active"
+test ! -e "$fixture/storage.state"
+
+reset_fixture
+BLKID_MODE=usb
+expect_failure storage-start
+grep -qF 'no OCTESSERA card found' "$work/stderr"
 test -e "$fixture/normal-active"
 test ! -e "$fixture/storage.state"
 

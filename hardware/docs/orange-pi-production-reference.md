@@ -83,7 +83,10 @@ until the next Octessera image.
 
 USB host mode is for keyboards and MIDI controllers. The kernel enumerates USB
 drives, but Octessera keeps samples and saves on the microSD card and SD2 and
-mounts nothing else; only a partition labelled `OCTESSERA` is taken as SD2.
+mounts nothing else. SD2 is only an `OCTESSERA`-labelled partition behind the
+SPI SD host from the SPI1 overlay
+(`/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/`;
+the Raspberry uses `3f204000.spi/.../spi0.1`); a labelled USB drive is ignored.
 
 ## Updater contract
 
