@@ -122,8 +122,9 @@ pub fn maze_growth_on_tick(mut state: MazeGrowthState, _: &mut BehaviorContext) 
             state.ages[i] = state.ages[i].saturating_add(1)
         }
     }
+    let crowded = prev.iter().filter(|tile| **tile != WALL).count() >= TILE_COUNT * 3 / 4;
     for (i, tile) in prev.iter().enumerate().take(TILE_COUNT) {
-        if *tile != FRONTIER {
+        if *tile != FRONTIER || crowded {
             continue;
         }
         if let Some(dest) = wall_neighbor(&prev, &prev_visited, i, state.tick_counter) {
@@ -150,7 +151,7 @@ pub fn maze_growth_on_tick(mut state: MazeGrowthState, _: &mut BehaviorContext) 
             continue;
         }
         let dest = visible_neighbor(&state.tiles, origin, state.tick_counter + wi as u64, |d| {
-            !walker_reserved[d]
+            !walker_reserved[d] && state.tiles[d] != FRONTIER
         })
         .unwrap_or(origin);
         state.tiles[origin] = if state.tiles[origin] == WALKER {
@@ -377,8 +378,12 @@ fn renew_exhausted_maze(s: &mut MazeGrowthState, forced: &mut Vec<usize>) {
         }
         return;
     }
-    let origin = s.walkers.first().copied().unwrap_or(grid_index(3, 3));
-    if let Some(index) = neigh(origin, s.tick_counter).find(|i| s.tiles[*i] == WALL) {
+    let start = s.walkers.first().copied().unwrap_or(grid_index(3, 3));
+    let wall_beside = (start..start + TILE_COUNT)
+        .map(|origin| origin % TILE_COUNT)
+        .filter(|origin| s.tiles[*origin] != WALL)
+        .find_map(|origin| neigh(origin, s.tick_counter).find(|i| s.tiles[*i] == WALL));
+    if let Some(index) = wall_beside {
         s.tiles[index] = FRONTIER;
         s.visited[index] = 1;
         s.ages[index] = 0;

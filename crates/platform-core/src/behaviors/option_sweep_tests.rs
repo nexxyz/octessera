@@ -302,6 +302,7 @@ const EXPECTED: &[(&str, &str)] = &[
     ("life: spawnStep=63 untouched freezes", LIFE_AT_REST),
     ("twinkle: fadeChancePct=0 untouched freezes", NO_FADE),
     ("twinkle: fadeChancePct=0 pressed freezes", NO_FADE),
+    ("maze_growth: carvePct=0 untouched freezes", OFF),
     ("maze_growth: carvePct=0 pressed freezes", OFF),
     ("coral: growthPct=0 untouched freezes", OFF),
     ("coral: growthPct=0 pressed freezes", OFF),
