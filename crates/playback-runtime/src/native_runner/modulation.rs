@@ -200,13 +200,17 @@ impl NativeRunner {
     }
 
     fn apply_link_param_binding(&mut self, index: usize, field: &str, value: Value) -> bool {
+        let arp_was_on = self
+            .layers
+            .get(index)
+            .is_some_and(|layer| layer.link.arp.mode != super::ArpMode::None);
         let changed = self
             .layers
             .get_mut(index)
             .map(|layer| &mut layer.link)
             .is_some_and(|layer| apply_link_binding_value(layer, field, value));
         if changed && field.starts_with("arp.") {
-            self.clear_link_arp_state_for_layer(index);
+            self.apply_arp_setting_change(index, arp_was_on);
         }
         if changed && super::scan_lanes::is_scan_setting(field) {
             self.apply_scan_setting_change(index, field);

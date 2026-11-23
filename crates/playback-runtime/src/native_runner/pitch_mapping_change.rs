@@ -1,77 +1,78 @@
 //! A Link change that moves which pitch a tile plays (Root, Set, 1st Note, Low/High Note, Pitch
-//! Steps, Range, or a modulation of one) releases every key the instruments of the layer's
-//! note-on rows hold, at the layer's next step. A change that leaves every pitch where it was, such
-//! as an LFO tick that lands on the same Root, releases nothing.
+//! Steps, Range, a section restart, or a modulation of one) releases every key the instruments of
+//! the layer's note-on rows hold, at the layer's next step. A change that leaves every pitch where
+//! it was, such as an LFO tick that lands on the same Root, releases nothing. The comparison reads
+//! exactly what the layer engine maps pitches from: its mapping's pitch fields and the degree
+//! layout of its interpretation profile.
 
-use super::{NativeLinkLayer, NativeRunner, RangeMode, TriggerAction};
+use super::{NativeRunner, TriggerAction, GRID_HEIGHT, GRID_WIDTH};
+use platform_core::{DegreeLayout, MappingConfig, RangeMode};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct PitchRange {
-    lowest_note: u8,
-    highest_note: u8,
-    starting_note: u8,
-    column_steps: i32,
-    row_steps: i32,
-    out_of_range: RangeMode,
-}
-
-impl PitchRange {
-    fn of(link: &NativeLinkLayer) -> Self {
-        Self {
-            lowest_note: link.lowest_note.min(link.highest_note),
-            highest_note: link.lowest_note.max(link.highest_note),
-            starting_note: link.starting_note,
-            column_steps: if link.x_pitch_enabled {
-                link.x_pitch_steps
-            } else {
-                0
-            },
-            row_steps: if link.y_pitch_enabled {
-                link.y_pitch_steps
-            } else {
-                0
-            },
-            out_of_range: link.out_of_range,
-        }
-    }
-}
-
-/// The Link settings a layer's pitches follow, as it last played them.
+/// What a layer's pitches followed when it last played.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct PitchMapping {
-    range: PitchRange,
-    scale: String,
-    root: String,
+    base_midi_note: i32,
+    starting_midi_note: i32,
+    max_midi_note: i32,
+    range_mode: RangeMode,
+    row_step_degrees: i32,
+    column_step_degrees: i32,
+    scale: Vec<i32>,
+    layout: DegreeLayout,
+}
+
+impl PitchMapping {
+    fn of(mapping: &MappingConfig, layout: DegreeLayout) -> Self {
+        Self {
+            base_midi_note: mapping.base_midi_note,
+            starting_midi_note: mapping.starting_midi_note,
+            max_midi_note: mapping.max_midi_note,
+            range_mode: mapping.range_mode,
+            row_step_degrees: mapping.row_step_degrees,
+            column_step_degrees: mapping.column_step_degrees,
+            scale: mapping.scale.clone(),
+            layout,
+        }
+    }
+
+    fn matches(&self, mapping: &MappingConfig, layout: DegreeLayout) -> bool {
+        (
+            self.base_midi_note,
+            self.starting_midi_note,
+            self.max_midi_note,
+            self.range_mode,
+            self.row_step_degrees,
+            self.column_step_degrees,
+            self.layout,
+        ) == (
+            mapping.base_midi_note,
+            mapping.starting_midi_note,
+            mapping.max_midi_note,
+            mapping.range_mode,
+            mapping.row_step_degrees,
+            mapping.column_step_degrees,
+            layout,
+        ) && self.scale == mapping.scale
+    }
 }
 
 impl NativeRunner {
     /// The slots whose keys `layer_index` releases because its pitch mapping moved since it last
     /// played; None when it did not, or when no row plays a note.
     pub(super) fn changed_pitch_mapping_targets(&mut self, layer_index: usize) -> Option<u16> {
-        let layer = self.layers.get(layer_index)?;
-        let (link, range) = (&layer.link, PitchRange::of(&layer.link));
+        let layer = self.layers.get_mut(layer_index)?;
+        let mapping = layer.engine.mapping_config();
+        let layout = DegreeLayout::of(
+            GRID_WIDTH,
+            GRID_HEIGHT,
+            layer.engine.interpretation_profile(),
+        );
         let moved = match &layer.pitch_mapping {
-            Some(mapping)
-                if mapping.range == range
-                    && mapping.scale == link.scale
-                    && mapping.root == link.root =>
-            {
-                return None
-            }
-            Some(mapping) => {
-                mapping.range != range
-                    || platform_core::expand_note_set(&mapping.scale, &mapping.root)
-                        != platform_core::expand_note_set(&link.scale, &link.root)
-            }
+            Some(stored) if stored.matches(mapping, layout) => return None,
+            Some(_) => true,
             None => false,
         };
-        let next = PitchMapping {
-            range,
-            scale: link.scale.clone(),
-            root: link.root.clone(),
-        };
-        let layer = &mut self.layers[layer_index];
-        layer.pitch_mapping = Some(next);
+        layer.pitch_mapping = Some(PitchMapping::of(mapping, layout));
         if moved {
             layer.mono_lanes.forget();
         }

@@ -148,7 +148,10 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   and the line's memory, so the next step compares with dark tiles; Scan Mode turned on starts the
   line afresh and keeps what sounds. Scan Dir keeps every note and the mono lanes; the line keeps
   comparing each lane with the tile it last touched there. Scan Unit only changes the tempo.
-  Sections and Lanes end each mono lane's last note and clear the lanes, nothing else.
+  Sections and Lanes end each mono lane's last note and clear the lanes, nothing else. Lanes takes
+  bindings like the other scan rows.
+- Turning the Arp on or off (Mode leaving or entering `none`) drains the layer, as a closing
+  trigger gate does, since its note-offs change between the instruments and the Arp.
 - `Steps` on Pitch Steps counts notes of the set (scale degrees), not semitones; negative steps go
   down.
 - Event mappings (`activate`, `stable`, `deactivate`) each have Delay and Retrig. Delay counts

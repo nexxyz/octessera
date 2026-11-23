@@ -6,6 +6,7 @@ mod events;
 mod grid;
 mod interpretation;
 mod interpretation_scan;
+pub use interpretation_scan::DegreeLayout;
 mod mapping;
 mod note_sets;
 pub mod palette;

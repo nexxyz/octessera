@@ -130,6 +130,7 @@ impl NativeRunner {
                     ended.keys.push(KeyEvent::Release {
                         slot,
                         pitch: *pitch,
+                        pad: None,
                     });
                 }
             }

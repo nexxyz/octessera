@@ -103,9 +103,11 @@ impl NativeRunner {
         routed: &RoutedMusicalEvents,
         note_off_due_steps: u8,
     ) {
-        let released = |slot: u8, pitch: u8| {
+        let released = |press: &KeyPress| {
             routed.keys.iter().any(|event| {
-                matches!(*event, KeyEvent::Release { slot: s, pitch: p } if (s, p) == (slot, pitch))
+                matches!(*event, KeyEvent::Release { slot, pitch, pad }
+                    if (slot, pitch) == (press.slot, press.pitch)
+                        && pad.is_none_or(|pad| press.sound.pad() == Some(pad)))
             })
         };
         if !routed
@@ -122,9 +124,11 @@ impl NativeRunner {
             if entry.remaining_steps <= u16::from(note_off_due_steps) {
                 return true;
             }
-            !entry.events.keys.iter().any(|event| {
-                matches!(event, KeyEvent::Press(press) if press.length_ms.is_none() && released(press.slot, press.pitch))
-            })
+            // Only the held presses go; a release queued with them still lands.
+            entry.events.keys.retain(|event| {
+                !matches!(event, KeyEvent::Press(press) if press.length_ms.is_none() && released(press))
+            });
+            !entry.events.is_empty()
         });
     }
 
@@ -141,13 +145,16 @@ impl NativeRunner {
             routed.extend(self.release_layer_arp(layer_index));
             routed.keys.push(KeyEvent::ReleaseAll { slots });
         }
-        let mono = self.mono_lane_events(layer_index, &input.events, input.event_intents);
-        let input = match &mono {
-            Some((events, event_intents)) => LinkRoutingInput {
-                events: events.clone(),
-                event_intents,
-                transpose_offset: input.transpose_offset,
-            },
+        let mono_intents;
+        let input = match self.mono_lane_events(layer_index, &input.events, input.event_intents) {
+            Some((events, event_intents)) => {
+                mono_intents = event_intents;
+                LinkRoutingInput {
+                    events,
+                    event_intents: &mono_intents,
+                    transpose_offset: input.transpose_offset,
+                }
+            }
             None => input,
         };
         let instruments = std::mem::take(&mut self.instruments);
@@ -308,7 +315,10 @@ pub(super) fn dedupe_note_ons(
         };
         let earlier = keys[..index].iter().rposition(|event| match event {
             KeyEvent::Press(other) => merges(other, press, instruments),
-            KeyEvent::Release { slot, pitch } => (*slot, *pitch) == (press.slot, press.pitch),
+            KeyEvent::Release { slot, pitch, pad } => {
+                (*slot, *pitch) == (press.slot, press.pitch)
+                    && pad.is_none_or(|pad| press.sound.pad() == Some(pad))
+            }
             KeyEvent::ReleaseAll { slots } => slots & (1 << press.slot) != 0,
             KeyEvent::Control { .. } => false,
         });

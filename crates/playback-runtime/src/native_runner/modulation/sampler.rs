@@ -154,10 +154,15 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                     routed.keys.push(KeyEvent::Press(press));
                 }
             }
-            MusicalEvent::NoteOff { channel, note } => routed.keys.push(KeyEvent::Release {
-                slot: channel,
-                pitch: note,
-            }),
+            MusicalEvent::NoteOff { channel, note } => {
+                if let Some(pad) = release_pad(instruments, intent, channel, note) {
+                    routed.keys.push(KeyEvent::Release {
+                        slot: channel,
+                        pitch: note,
+                        pad,
+                    });
+                }
+            }
             MusicalEvent::Cc { .. } => {
                 let mut event = event.clone();
                 set_event_channel(&mut event, midi_event_channel(instruments, channel));
@@ -234,6 +239,26 @@ fn press_for_intent(
         length_ms,
         cuts: note_off_cuts(instrument),
     })
+}
+
+/// The sample pad a note-off from `intent`'s tile releases on a Drum or Sampler slot: the one
+/// stamped on that tile, or none at all on an unstamped tile; Some(None) on other slots.
+fn release_pad(
+    instruments: &[super::super::NativeInstrumentSlot],
+    intent: &TileTriggerIntent,
+    channel: u8,
+    note: u8,
+) -> Option<Option<u8>> {
+    let Some(instrument) = instruments.get(usize::from(channel)) else {
+        return Some(None);
+    };
+    match instrument.kind {
+        InstrumentType::Drum => drum_hit_for_intent(instruments, channel, intent, 0, 0, Some(note))
+            .map(|hit| Some(hit.voice)),
+        InstrumentType::Sampler => sampler_hit_for_intent(instrument, channel, intent, 0, 0, note)
+            .map(|hit| Some(hit.voice)),
+        _ => Some(None),
+    }
 }
 
 /// Whether a note-off ends what `instrument` sounds: always, but on a Drum or Sampler only with
@@ -348,6 +373,7 @@ fn route_event_without_intent(
             out.keys.push(KeyEvent::Release {
                 slot: channel,
                 pitch: note,
+                pad: None,
             });
             return;
         }

@@ -95,3 +95,41 @@ fn a_drain_lets_go_of_the_arps_keys_and_stops_its_pattern() {
     assert!(runner.link_arp.keys[0].is_empty());
     assert_eq!(runner.held_keys.held(0).len(), 0);
 }
+
+/// Turning the Arp on or off moves where the layer's note-offs go, so it drains the layer: no
+/// held key is left that no note-off could reach.
+#[test]
+fn turning_the_arp_on_or_off_releases_the_layers_notes() {
+    for (from, to) in [("none", "up"), ("up", "none")] {
+        let mut runner = keys_layers(true);
+        runner.menu.rebuild(runner.menu_config());
+        runner
+            .menu
+            .set_enum_value_for_key("layers.0.link.arp.mode", from);
+        runner
+            .apply_or_schedule_menu_key("layers.0.link.arp.mode")
+            .unwrap();
+        runner
+            .menu
+            .set_enum_value_for_key("layers.0.link.arp.source", "held");
+        runner
+            .apply_or_schedule_menu_key("layers.0.link.arp.source")
+            .unwrap();
+        let on = ons(tile(&mut runner, 0, "grid_press", 0, 1));
+        assert_eq!(on.len(), 1, "{from}: {on:?}");
+        runner
+            .menu
+            .set_enum_value_for_key("layers.0.link.arp.mode", to);
+        runner
+            .apply_or_schedule_menu_key("layers.0.link.arp.mode")
+            .unwrap();
+        let drained = super::key_model::words(&runner.messages_without_snapshot().unwrap(), false);
+        if from == "none" {
+            assert_eq!(drained, [on[0].replace('+', "-")], "{from} to {to}");
+        }
+        assert_eq!(runner.held_keys.held_count(), 0, "{from} to {to}");
+        assert!(runner.link_arp.keys[0].is_empty(), "{from} to {to}");
+        tile(&mut runner, 0, "grid_release", 0, 1);
+        assert_eq!(runner.held_keys.held_count(), 0, "{from} to {to}");
+    }
+}

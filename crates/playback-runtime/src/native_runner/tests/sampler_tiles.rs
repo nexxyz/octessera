@@ -191,3 +191,53 @@ fn layer_drain_releases_held_and_still_sounding_one_shot_tiles() {
         assert_eq!(releases, expected_releases, "{behavior}");
     }
 }
+
+/// On a Sampler a key is its pitch on one sample pad: tile 3's Off, on another sample, spares the
+/// One-Shot sample tile 1 still plays on that pitch.
+#[test]
+fn a_one_shot_sampler_tiles_off_spares_another_lit_tile_on_its_pitch() {
+    let mut runner = sampler_runner("oneshot");
+    runner.instruments[0].sample_assignments[2].sample_slot = 5;
+    route(
+        &mut runner,
+        vec![held_on()],
+        &[Some(intent(1, TileTriggerKind::Activate))],
+    );
+    let released = route(
+        &mut runner,
+        vec![off()],
+        &[Some(intent(3, TileTriggerKind::Deactivate))],
+    );
+    assert!(released.is_empty(), "tile 1 keeps sounding: {released:?}");
+}
+
+/// Tiles in a row on one pitch with their own samples are different keys, so on a Hold Sampler
+/// they all sound together.
+#[test]
+fn hold_sampler_tiles_with_their_own_samples_all_sound_on_one_step() {
+    let mut runner = sampler_runner("hold");
+    for (index, assignment) in runner.instruments[0]
+        .sample_assignments
+        .iter_mut()
+        .enumerate()
+    {
+        assignment.sample_slot = index;
+    }
+    let started = route(
+        &mut runner,
+        vec![held_on(), held_on(), held_on()],
+        &[
+            Some(intent(1, TileTriggerKind::Activate)),
+            Some(intent(2, TileTriggerKind::Activate)),
+            Some(intent(3, TileTriggerKind::Activate)),
+        ],
+    );
+    assert_eq!(
+        started
+            .iter()
+            .map(|hit| (hit.tile, hit.velocity > 0))
+            .collect::<Vec<_>>(),
+        [(1, true), (2, true), (3, true)]
+    );
+    assert_eq!(runner.held_keys.held_count(), 3);
+}

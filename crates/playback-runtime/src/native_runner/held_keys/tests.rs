@@ -19,7 +19,11 @@ fn press(pitch: u8, note: u8, length_ms: Option<u32>) -> KeyEvent {
 }
 
 fn release(pitch: u8) -> KeyEvent {
-    KeyEvent::Release { slot: SYNTH, pitch }
+    KeyEvent::Release {
+        slot: SYNTH,
+        pitch,
+        pad: None,
+    }
 }
 
 fn play(keys: &mut HeldKeys, events: Vec<KeyEvent>, behaviors: &[NoteBehavior]) -> Vec<String> {
@@ -109,15 +113,18 @@ fn a_release_of_all_slots_ends_every_key_once() {
 }
 
 #[test]
-fn a_full_table_lets_go_of_its_first_key_for_a_new_one() {
+fn a_full_table_lets_go_of_its_oldest_key_for_a_new_one() {
     let mut keys = HeldKeys::default();
     let presses = (0..KEYS_PER_INSTRUMENT as u8)
         .map(|pitch| press(pitch, pitch, None))
         .collect();
     play(&mut keys, presses, &HOLD);
+    assert_eq!(play(&mut keys, vec![release(0)], &HOLD), ["-0"]);
+    assert_eq!(play(&mut keys, vec![press(0, 0, None)], &HOLD), ["+0"]);
     assert_eq!(
         play(&mut keys, vec![press(100, 100, None)], &HOLD),
-        ["-0", "+100"]
+        ["-1", "+100"],
+        "key 1 is now the oldest, not key 0 in the first slot"
     );
     assert_eq!(keys.held(SYNTH).len(), KEYS_PER_INSTRUMENT);
 }

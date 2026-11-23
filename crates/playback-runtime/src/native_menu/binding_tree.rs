@@ -127,6 +127,7 @@ pub(super) fn is_excluded_binding_key(key: &str) -> bool {
         || key.contains(".midiDrum.")
         || key.ends_with(".sample.followTranspose")
         || key.ends_with(".sample.followPitch")
+        || key.ends_with(".sample.noteOff")
         || key.ends_with(".sample.filter.type")
         || key.ends_with(".sample.filter.envAmountPct")
         || key.ends_with(".sample.filter.keyTrackingPct")

@@ -277,7 +277,10 @@ Shape
   Looper) and on any release, drains included: `cut` ends the Sampler sample or fades the Drum
   hit through the kit's 30 ms release, `ignore` lets it play out while the key still lets go. A
   Drum starts at `ignore`, so hits play their full length; a Sampler at `cut`. A Send MIDI copy
-  of a hit is a fixed 100 ms note with its own note-off either way.
+  of a hit is a fixed 100 ms note with its own note-off either way. The Sampler's Note Off is not a
+  binding target, like Follow Transp. and Follow Pitch.
+- On these slots a key is the pitch on one sample pad (sample slot or kit voice): tiles on
+  different pads never cut each other, and the same pad again strikes its key again.
 
 ### Binding targets
 

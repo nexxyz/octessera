@@ -41,6 +41,7 @@ impl NativeRunner {
         }
         let layer = self.layers.get_mut(index).map(|layer| &mut layer.link)?;
         let gate_was_open = layer.trigger_probability_mode != TriggerProbabilityMode::Zero;
+        let arp_was_on = layer.arp.mode != super::super::ArpMode::None;
         let changed = if suffix.starts_with("link.arp.") {
             let prefix = format!("layers.{index}.link.arp");
             super::link_fx::apply_link_arp_menu_state(&self.menu, layer, &prefix)
@@ -86,7 +87,7 @@ impl NativeRunner {
                 self.menu.show_link_axis_rows(index, &sense);
             }
             if suffix.starts_with("link.arp.") {
-                self.clear_link_arp_state_for_layer(index);
+                self.apply_arp_setting_change(index, arp_was_on);
             }
             if suffix == "link.seeded" {
                 self.restart_link_random_stream(index);

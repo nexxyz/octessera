@@ -42,10 +42,10 @@ pub(crate) fn factory_timeline() -> String {
     timeline(pi_default(), false)
 }
 
-/// The factory patch with swing, its Sequencer bass moved to a hold slot of its own (a held
-/// scan), its first Sequencer on a one-shot MIDI slot and its Life layer striking held notes on
-/// the bass's hold slot from Hold Trig every step while On and Off stay on the Synth, so nothing
-/// releases those keys but the bass's own note-offs of the same pitch.
+/// The factory patch with swing, its Sequencer bass moved to hold slot 4 (a held scan), its first
+/// Sequencer on a one-shot MIDI slot and its Life layer's Hold Trig striking notes on hold slot 3
+/// every step while its On and Off stay on the Synth, so Life's Offs never reach slot 3 and its
+/// Hold Trig notes stay held.
 pub(crate) fn factory_variant_timeline() -> String {
     let mut payload = pi_default();
     let config = &mut payload["runtimeConfig"];

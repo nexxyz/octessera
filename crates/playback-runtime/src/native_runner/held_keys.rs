@@ -52,6 +52,15 @@ impl Sound {
         }
     }
 
+    /// The sample pad (Sampler sample slot or Drum kit voice) a tile plays; on Drum and Sampler
+    /// slots a key is its pitch on that pad, so pads never cut each other.
+    pub(in crate::native_runner) fn pad(&self) -> Option<u8> {
+        match self {
+            Self::Drum(hit) | Self::Sample(hit) => Some(hit.voice),
+            Self::Audio { .. } | Self::Midi { .. } => None,
+        }
+    }
+
     pub(in crate::native_runner) fn same_voice(&self, other: &Self) -> bool {
         self.voice() == other.voice()
     }
@@ -126,9 +135,11 @@ impl KeyPress {
 #[derive(Clone, Debug, PartialEq)]
 pub(in crate::native_runner) enum KeyEvent {
     Press(KeyPress),
+    /// Releases `slot`'s key `pitch`, on one sample pad or, with no pad, on every pad.
     Release {
         slot: u8,
         pitch: u8,
+        pad: Option<u8>,
     },
     /// Releases every key the slots in this bit mask hold.
     ReleaseAll {
@@ -147,6 +158,8 @@ struct HeldKey {
     sound: Sound,
     cuts: bool,
     ends_at_us: Option<u64>,
+    /// When it was pressed, in presses counted so far.
+    pressed: u64,
 }
 
 /// Every instrument's held keys, in fixed tables, and the clock their One-Shot notes end by.
@@ -154,6 +167,7 @@ struct HeldKey {
 pub(in crate::native_runner) struct HeldKeys {
     keys: Vec<[Option<HeldKey>; KEYS_PER_INSTRUMENT]>,
     now_us: u64,
+    presses: u64,
 }
 
 impl Default for HeldKeys {
@@ -161,6 +175,7 @@ impl Default for HeldKeys {
         Self {
             keys: vec![std::array::from_fn(|_| None); INSTRUMENT_COUNT],
             now_us: 0,
+            presses: 0,
         }
     }
 }
@@ -187,7 +202,7 @@ impl HeldKeys {
                     let hold = behaviors.get(usize::from(press.slot)) == Some(&NoteBehavior::Hold);
                     self.press(press, hold, out);
                 }
-                KeyEvent::Release { slot, pitch } => self.release(slot, pitch, out),
+                KeyEvent::Release { slot, pitch, pad } => self.release(slot, pitch, pad, out),
                 KeyEvent::ReleaseAll { slots } => self.release_slots(slots, out),
                 KeyEvent::Control { midi: false, event } => out.audio.push(event),
                 KeyEvent::Control { midi: true, event } => out.midi.push(event),
@@ -206,12 +221,15 @@ impl HeldKeys {
             return;
         }
         let voice = press.sound.voice();
+        let pad = press.sound.pad();
         let now = self.now_us;
         let mut struck = false;
         for index in 0..KEYS_PER_INSTRUMENT {
-            let Some(key) = self.keys[slot][index]
-                .take_if(|key| key.pitch == press.pitch && (hold || key.sound.voice() == voice))
-            else {
+            let Some(key) = self.keys[slot][index].take_if(|key| {
+                key.pitch == press.pitch
+                    && key.sound.pad() == pad
+                    && (hold || key.sound.voice() == voice)
+            }) else {
                 continue;
             };
             if !hold || !is_live(&key, now) {
@@ -242,11 +260,19 @@ impl HeldKeys {
             .iter()
             .all(|entry| entry.as_ref().is_some_and(|held| is_live(held, now)));
         if full {
-            // A full table lets go of its first key to hold the new one.
-            if let Some(oldest) = self.keys[slot][0].take() {
+            // A full table lets go of its oldest key to hold the new one.
+            let oldest = (0..KEYS_PER_INSTRUMENT)
+                .min_by_key(|index| {
+                    self.keys[slot][*index]
+                        .as_ref()
+                        .map_or(0, |key| key.pressed)
+                })
+                .and_then(|index| self.keys[slot][index].take());
+            if let Some(oldest) = oldest {
                 self.end_voice(&oldest.sound, oldest.cuts, out);
             }
         }
+        self.presses = self.presses.wrapping_add(1);
         press.sound_into(out);
         let key = HeldKey {
             pitch: press.pitch,
@@ -255,6 +281,7 @@ impl HeldKeys {
                 .map(|ms| now.saturating_add(u64::from(ms) * 1000)),
             sound: press.sound,
             cuts: press.cuts,
+            pressed: self.presses,
         };
         if let Some(free) = self.keys[slot]
             .iter_mut()
@@ -264,14 +291,16 @@ impl HeldKeys {
         }
     }
 
-    fn release(&mut self, slot: u8, pitch: u8, out: &mut RoutedMusicalEvents) {
+    fn release(&mut self, slot: u8, pitch: u8, pad: Option<u8>, out: &mut RoutedMusicalEvents) {
         let slot = usize::from(slot);
         if slot >= self.keys.len() {
             return;
         }
         let now = self.now_us;
         for index in 0..KEYS_PER_INSTRUMENT {
-            if let Some(key) = self.keys[slot][index].take_if(|key| key.pitch == pitch) {
+            if let Some(key) = self.keys[slot][index].take_if(|key| {
+                key.pitch == pitch && pad.is_none_or(|pad| key.sound.pad() == Some(pad))
+            }) {
                 if is_live(&key, now) {
                     self.end_voice(&key.sound, key.cuts, out);
                 }
@@ -286,8 +315,16 @@ impl HeldKeys {
         if cuts {
             sound.end_into(out);
         }
-        for entry in self.keys.iter_mut().flatten() {
-            entry.take_if(|key| key.sound.voice() == voice);
+        // Internal and tile voices belong to one slot; a MIDI channel may serve several.
+        let slot = match voice {
+            Voice::Audio(slot, _) | Voice::Tile(slot, _, _) => Some(usize::from(slot)),
+            Voice::Midi(..) => None,
+        };
+        let tables = self.keys.iter_mut().enumerate();
+        for (_, table) in tables.filter(|(index, _)| slot.is_none_or(|slot| slot == *index)) {
+            for entry in table.iter_mut() {
+                entry.take_if(|key| key.sound.voice() == voice);
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 use super::super::{
     ArpMode, ArpSource, LaneCurve, NativeLinkLayer, NativeValueLane, RangeMode, ScanAxis,
-    ScanDirection, ScanMode, TriggerProbabilityMode, Value,
+    ScanDirection, ScanLanes, ScanMode, TriggerProbabilityMode, Value,
 };
 use super::value::{
     apply_bool_value, apply_i32_value, apply_string_value, apply_u8_enum_value, apply_u8_value,
@@ -25,6 +25,7 @@ pub(in crate::native_runner) fn apply_link_binding_value(
             ScanDirection::from_wire_name,
         ),
         "scanSections" => apply_u8_enum_value(&mut layer.scan_sections, value, 8),
+        "scanLanes" => apply_wire_value(&mut layer.scan_lanes, value, ScanLanes::from_wire_name),
         "eventEnabled" => apply_bool_value(&mut layer.event_enabled, value),
         "stateNotesEnabled" => apply_bool_value(&mut layer.state_notes_enabled, value),
         "triggerProbabilityMode" => apply_wire_value(

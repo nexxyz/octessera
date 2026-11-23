@@ -128,3 +128,31 @@ fn a_gate_drain_leaves_the_notes_of_instruments_the_layer_does_not_play() {
     assert!(words(&drained, false).is_empty());
     assert_eq!(runner.held_keys.held(0).len(), 1);
 }
+
+/// With Row Restart on, a Sections change moves where each row's pitch counts from, so the
+/// mapping-change release ends the held notes at the layer's next step.
+#[test]
+fn a_sections_change_under_row_restart_releases_the_moved_notes() {
+    let mut runner = super::scan_events::scan_runner("hold", &[]);
+    grid_tap(&mut runner, 0, 5);
+    super::scan_events::set_actions(
+        &mut runner,
+        0,
+        [
+            TriggerAction::NoteOn,
+            TriggerAction::None,
+            TriggerAction::NoteOff,
+        ],
+    );
+    runner.layers[0].link.y_pitch_restart_each_section = true;
+    runner.refresh_active_interpretation_profile();
+    let on = super::scan_events::step(&mut runner);
+    let [on] = &on[..] else { panic!("{on:?}") };
+    runner.menu.rebuild(runner.menu_config());
+    runner
+        .edit_menu_key("layers.0.link.scanSections", 1)
+        .unwrap();
+    let next = super::scan_events::step(&mut runner);
+    assert_eq!(next.first(), Some(&on.replace('+', "-")), "{next:?}");
+    assert_eq!(runner.held_keys.held_count(), 0);
+}

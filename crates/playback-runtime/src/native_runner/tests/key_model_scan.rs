@@ -172,3 +172,31 @@ fn a_cc_on_a_scan_setting_acts_as_its_menu_edit() {
 fn words_of(messages: &[RunnerMessage]) -> Vec<String> {
     super::key_model::words(messages, false)
 }
+
+/// Mono, On and Hold Delay 2, Off Delay 0: B's early Off drops B's pending press but not the
+/// release of A queued with it, so A still ends.
+#[test]
+fn a_pending_mono_release_survives_a_cancelled_press() {
+    let mut runner = melody(&[0, 1], ScanLanes::Mono);
+    runner.layers[0].link.activate_timing.delay_steps = 2;
+    runner.layers[0].link.stable_timing.delay_steps = 2;
+    runner.refresh_active_mapping_config();
+    let played = (0..6).flat_map(|_| step(&mut runner)).collect::<Vec<_>>();
+    let a = played.first().cloned().unwrap();
+    assert!(played.contains(&a.replace('+', "-")), "{played:?}");
+    assert_eq!(runner.held_keys.held_count(), 0, "{played:?}");
+}
+
+/// Lanes takes bindings like the other scan rows: a CC turning mono to poly ends each mono
+/// lane's last note, as the menu edit does.
+#[test]
+fn a_cc_on_lanes_ends_the_mono_lanes_notes() {
+    let mut runner = melody(&[0, 1, 2, 3, 4, 5, 6, 7], ScanLanes::Mono);
+    runner.test_set_midi_enabled(true);
+    let played = step(&mut runner);
+    map_cc(&mut runner, 0, "layers.0.link.scanLanes");
+    let mut ended = words_of(&send_cc(&mut runner, 1, 0));
+    ended.extend(words_of(&runner.messages_without_snapshot().unwrap()));
+    assert_eq!(runner.layers[0].link.scan_lanes, ScanLanes::Poly);
+    assert_eq!(ended, [played[0].replace('+', "-")]);
+}

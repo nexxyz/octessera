@@ -39,6 +39,7 @@ impl NativeRunner {
             routed.keys.push(KeyEvent::Release {
                 slot: note.channel,
                 pitch: note.note,
+                pad: None,
             });
         }
         self.drop_muted_midi_note_ons(&mut routed);
@@ -158,6 +159,7 @@ impl NativeRunner {
             released.keys.push(KeyEvent::Release {
                 slot: held.slot,
                 pitch: held.note,
+                pad: None,
             });
             self.record_keyboard_release(&held.recorded_tiles);
         }

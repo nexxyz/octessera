@@ -102,6 +102,16 @@ pub(super) fn link_binding_group(
                         vec!["1", "2", "4", "8"],
                         target,
                     ),
+                    binding_action(
+                        "Lanes",
+                        &format!("{prefix}.scanLanes"),
+                        "enum",
+                        None,
+                        None,
+                        None,
+                        vec!["poly", "mono"],
+                        target,
+                    ),
                 ],
             ),
             group(

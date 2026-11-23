@@ -1512,7 +1512,14 @@ Keys (instruments in either Note Mode):
 - Sources only press and release keys. A layer (direct or scanning), Keys, Notes In, the Looper
   and an Arp send a note-on, which presses its instrument's key for the note as played, before
   Play Transpose, and a note-off, which releases that key. Once the event is sent, no tile, lane
-  or layer is tied to the note.
+  or layer is tied to the note. A source keeps only what it needs to make its events: the direct
+  layer's previous grid, the scan's previous line and mono lane notes, the Arp's list of keys down
+  and step state, and Notes In's list of keyboard keys down with the tiles its Loopers recorded
+  them on.
+- On Drum and Sampler slots a key is its pitch on one sample pad (the Sampler sample slot or Drum
+  kit voice the tile plays, picked when the note-on is sent). Tiles on different pads are
+  different keys and never cut each other; the same pad again strikes its key again. A note-off
+  from a tile releases its pitch on that tile's pad; an unstamped tile releases nothing.
 - Each instrument keeps one table of its held keys with what each sounds as (internal voice, MIDI
   channel and note, or Sampler and Drum tile). A key on a `oneshot` instrument lets go by itself
   after its layer's One-Shot Len.
@@ -1535,12 +1542,14 @@ Keys (instruments in either Note Mode):
   note sounding until a release, a mapping change or a drain ends it; Hold Trig on a `hold`
   instrument strikes its note again at every step.
 - A change to how a layer maps tiles to pitches (Root, Set, 1st Note, Low/High Note, Pitch Steps,
-  Range, or a modulation of one) that moves its pitches releases every key held on the instruments
+  Range, a Restart flag, or Sections and Scan Mode while a Restart flag counts pitch per section,
+  or a modulation of one) that moves its pitches releases every key held on the instruments
   its note-on rows play, whoever pressed it, at the layer's next step or event. A change that moves
   nothing, such as a modulation landing on the same Root or a Root change on the chromatic set,
   releases nothing.
-- Drains: a layer's trigger gate closing, a behavior change, a new Scan Axis and Scan Mode turned
-  off release every key on the instruments its note-on rows play and stop its Arp;
+- Drains: a layer's trigger gate closing, a behavior change, a new Scan Axis, Scan Mode turned
+  off, and its Arp turning on or off (Mode leaving or entering `none`, from the menu or a binding)
+  release every key on the instruments its note-on rows play and stop its Arp;
   Stop and a patch load release every key. A note-off still waiting for its row's Delay lands with
   the drain. Changing an instrument's type, resetting it or changing its MIDI route releases its
   keys; muting a MIDI slot in Play Mix releases its MIDI keys.

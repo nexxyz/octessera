@@ -379,3 +379,30 @@ fn a_row_scan_holds_down_a_column_and_a_reverse_scan_runs_it_backwards() {
         "columns 7 to 0: On at column 2, Off at column 0: {played:?}"
     );
 }
+
+/// Pitch Steps move the pitch along both scan axes: Y steps down a row scan's column, X steps
+/// along a column scan's row once X Pitch Steps is set (it starts at 0).
+#[test]
+fn pitch_steps_move_the_pitch_along_both_scan_axes() {
+    for axis in [ScanAxis::Rows, ScanAxis::Columns] {
+        let mut runner = scan_runner("oneshot", &[]);
+        runner.layers[0].link.scan_axis = axis;
+        runner.layers[0].link.x_pitch_steps = 1;
+        runner.refresh_active_mapping_config();
+        runner.refresh_active_interpretation_profile();
+        let lit: &[(usize, usize)] = match axis {
+            ScanAxis::Rows => &[(3, 0), (3, 1)],
+            ScanAxis::Columns => &[(0, 3), (1, 3)],
+        };
+        for (x, y) in lit {
+            grid_tap(&mut runner, *x, *y);
+        }
+        scan_every_lit_step(&mut runner.layers[0].link);
+        runner.refresh_active_mapping_config();
+        let first = step(&mut runner);
+        let second = step(&mut runner);
+        let on = |words: &[String]| words.iter().find(|word| word.starts_with('+')).cloned();
+        assert!(on(&first).is_some() && on(&second).is_some(), "{axis:?}");
+        assert_ne!(on(&first), on(&second), "{axis:?}: {first:?} {second:?}");
+    }
+}
