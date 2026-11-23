@@ -186,3 +186,25 @@ fn old_polyps_bleach_into_dark_skeletons_and_a_dead_reef_is_reseeded() {
     assert_eq!(next.trigger_types[i], TileTriggerType::Deactivate);
     assert!(next.tiles.iter().any(|tile| matches!(*tile, A | B)));
 }
+
+#[test]
+fn competition_holds_back_growth_from_a_lone_colony_tile() {
+    let grown = |competition: u8| {
+        (0..40u64)
+            .filter(|tick| {
+                let mut tiles = vec![EMPTY; TILE_COUNT];
+                tiles[grid_index(4, 4)] = A;
+                let mut state = coral_init(json!({
+                    "tiles": tiles, "growthPct": 100, "competitionPct": competition
+                }))
+                .unwrap();
+                state.tick_counter = *tick;
+                let next = coral_on_tick(state, &mut context());
+                next.tiles[grid_index(5, 4)] == A
+            })
+            .count()
+    };
+    assert_eq!(grown(0), 40);
+    let held = grown(100);
+    assert!((3..25).contains(&held), "{held} of 40");
+}

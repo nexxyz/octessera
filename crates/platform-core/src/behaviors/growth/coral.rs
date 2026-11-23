@@ -134,6 +134,14 @@ pub fn coral_on_tick(mut state: CoralState, _: &mut BehaviorContext) -> CoralSta
                 continue;
             }
             if let Some(c) = best_colony(&prev, x, y) {
+                let mut kin = 0;
+                for_each_cardinal(x, y, |n| kin += u32::from(prev[n] == c));
+                if kin == 1
+                    && tile_roll_pct(state.tick_counter, i, 19)
+                        < u32::from(state.competition_pct) * 3 / 4
+                {
+                    continue;
+                }
                 state.tiles[i] = c;
                 state.ages[i] = 0;
                 forced.push(ForcedTrigger {
