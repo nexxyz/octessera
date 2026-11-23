@@ -6,7 +6,7 @@ use super::audio_prep_config::{
 use super::audio_prep_results::{
     full_prep_failure, full_prep_failure_from_queue, full_prep_success, owner_prep_failure,
     owner_prep_failure_from_queue, sample_preview_failure, sample_preview_queue_failure,
-    send_audio_prep_result, send_missing_samples,
+    send_audio_prep_result, send_loaded_samples, send_missing_samples,
 };
 use super::{
     AudioControlRequest, DesktopAudioControl, DesktopAudioPrepState, PreviewRequest,
@@ -153,7 +153,11 @@ pub(super) fn handle_full_config_request(
         match send_prepared_event(engine_tx, prepared.event.clone()) {
             Ok(()) => {
                 let _ = commit_full_audio_config(&prepared, state, generation);
-                send_missing_samples(result_tx, std::mem::take(&mut prepared.missing_samples));
+                send_missing_samples(
+                    result_tx,
+                    None,
+                    std::mem::take(&mut prepared.missing_samples),
+                );
                 send_audio_prep_result(
                     result_tx,
                     full_prep_success(revision, request_id, generation),
@@ -238,6 +242,13 @@ fn process_owner_request(
 ) {
     let generation_request = request.clone();
     let mut missing_samples = Vec::new();
+    let mut loaded_samples = Vec::new();
+    let instrument_slot = match &request {
+        AudioControlRequest::InstrumentSlot {
+            instrument_slot, ..
+        } => Some(*instrument_slot),
+        _ => None,
+    };
     let prepared = match request {
         AudioControlRequest::InstrumentSlot {
             instrument_slot,
@@ -250,6 +261,7 @@ fn process_owner_request(
             config,
             state,
             &mut missing_samples,
+            &mut loaded_samples,
         ),
         AudioControlRequest::FxBusSlot {
             bus_index,
@@ -284,7 +296,10 @@ fn process_owner_request(
         return;
     }
     control.commit_owner_generation(&generation_request, &event);
-    send_missing_samples(result_tx, missing_samples);
+    if let Some(instrument_slot) = instrument_slot {
+        send_missing_samples(result_tx, Some(instrument_slot), missing_samples);
+        send_loaded_samples(result_tx, instrument_slot, loaded_samples);
+    }
 }
 
 fn process_preview(

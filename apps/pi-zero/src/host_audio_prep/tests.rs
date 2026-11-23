@@ -327,7 +327,7 @@ fn instrument_owner_replacement_publishes_one_atomic_owner_event() {
     assert!(matches!(
         result_rx.try_recv().unwrap(),
         HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SamplesLoaded { paths }
+            result: RuntimeStoreResult::SamplesLoaded { instrument_slot: 0, paths }
         } if paths == vec!["kick.wav".to_string()]
     ));
     {
@@ -382,7 +382,7 @@ fn instrument_owner_replacement_publishes_one_atomic_owner_event() {
     assert!(matches!(
         result_rx.try_recv().unwrap(),
         HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SamplesMissing { paths }
+            result: RuntimeStoreResult::SamplesMissing { instrument_slot: Some(0), paths }
         } if paths == vec!["missing.wav".to_string()]
     ));
     let _ = std::fs::remove_dir_all(root);

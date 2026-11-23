@@ -117,6 +117,7 @@ pub(super) fn prepare_instrument_slot_event(
     config: Value,
     state: &DesktopAudioPrepState,
     missing_samples: &mut Vec<String>,
+    loaded_samples: &mut Vec<String>,
 ) -> Result<EngineEvent, AudioPrepError> {
     let parsed = parse_instrument_slot_config(&config).map_err(AudioPrepError::InvalidConfig)?;
     let sample_bank = sample_bank_for_slot_config(
@@ -128,6 +129,7 @@ pub(super) fn prepare_instrument_slot_event(
             Err(SampleDecodeCacheError::InsertionLock(buffer)) => Some(buffer),
         },
         missing_samples,
+        loaded_samples,
     )
     .map_err(AudioPrepError::InvalidConfig)?;
     Ok(EngineEvent::SetPreparedInstrumentOwner {

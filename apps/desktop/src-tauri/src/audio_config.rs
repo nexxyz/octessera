@@ -53,10 +53,22 @@ pub fn sample_bank_for_slot_config(
     resolve_sample: impl Fn(&str) -> Option<String>,
     load_sample: impl FnMut(&str) -> Option<SampleBuffer>,
     missing: &mut Vec<String>,
+    loaded: &mut Vec<String>,
 ) -> Result<Option<SampleBankConfig>, String> {
     let instrument = normalize_instrument_slot_config(config)?;
     let bank = sample_bank_for_slot(&instrument, resolve_sample, load_sample, missing);
-    Ok(instrument.active_sample().is_some().then_some(bank))
+    let Some(sample) = instrument.active_sample() else {
+        return Ok(None);
+    };
+    loaded.extend(
+        sample
+            .slots
+            .iter()
+            .zip(&bank.slots)
+            .filter(|(_, slot)| slot.buffer.is_some())
+            .filter_map(|(path, _)| path.clone()),
+    );
+    Ok(Some(bank))
 }
 
 pub fn sample_bank_signature(config: &AudioInstrumentsConfig) -> String {

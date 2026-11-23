@@ -110,11 +110,17 @@ pub enum RuntimeStoreResult {
         #[serde(rename = "durationMs")]
         duration_ms: u64,
     },
+    /// Sample paths that did not load: into `instrument_slot`, or anywhere in the patch when the
+    /// whole patch was resolved.
     SamplesMissing {
+        #[serde(default, rename = "instrumentSlot")]
+        instrument_slot: Option<usize>,
         paths: Vec<String>,
     },
-    /// These sample paths loaded into an instrument's sample slots.
+    /// Sample paths that loaded into `instrument_slot`'s sample slots.
     SamplesLoaded {
+        #[serde(rename = "instrumentSlot")]
+        instrument_slot: usize,
         paths: Vec<String>,
     },
     /// An OLED board SD card (SD2) was mounted.

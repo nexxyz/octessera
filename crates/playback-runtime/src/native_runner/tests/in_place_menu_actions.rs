@@ -300,6 +300,7 @@ fn sample_favourites_and_missing_samples_update_their_instrument_in_place() {
     send_store_result(
         &mut runner,
         RuntimeStoreResult::SamplesMissing {
+            instrument_slot: None,
             paths: vec!["Drums/snare.wav".into()],
         },
     );

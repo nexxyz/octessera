@@ -232,12 +232,18 @@ impl NativeRunner {
             | RuntimeStoreResult::RuntimeFailure { .. }) => {
                 self.apply_error_presentation_result(result)
             }
-            RuntimeStoreResult::SamplesMissing { paths } => {
-                self.apply_missing_samples(&paths);
+            RuntimeStoreResult::SamplesMissing {
+                instrument_slot,
+                paths,
+            } => {
+                self.apply_missing_samples(instrument_slot, &paths);
                 Ok(())
             }
-            RuntimeStoreResult::SamplesLoaded { paths } => {
-                self.apply_loaded_samples(&paths);
+            RuntimeStoreResult::SamplesLoaded {
+                instrument_slot,
+                paths,
+            } => {
+                self.apply_loaded_samples(instrument_slot, &paths);
                 Ok(())
             }
             RuntimeStoreResult::SdCardMounted => {

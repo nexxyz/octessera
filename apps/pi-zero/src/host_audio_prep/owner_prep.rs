@@ -145,8 +145,12 @@ pub(super) fn process_owner_request(
                 if let Err(error) = commit_result {
                     send_audio_prep_result(result_tx, audio_queue_failure(error));
                 } else {
-                    send_missing_samples(result_tx, prepared.missing_samples);
-                    send_loaded_samples(result_tx, prepared.loaded_samples);
+                    send_missing_samples(
+                        result_tx,
+                        Some(instrument_slot),
+                        prepared.missing_samples,
+                    );
+                    send_loaded_samples(result_tx, instrument_slot, prepared.loaded_samples);
                 }
             }
         }

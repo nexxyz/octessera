@@ -7,11 +7,18 @@ const MISSING_SAMPLES_INTRO: &str =
     "Missing, damaged or too long, so these slots stay silent. Pick a replacement sample:";
 
 impl NativeRunner {
-    pub(super) fn apply_missing_samples(&mut self, paths: &[String]) {
+    pub(super) fn apply_missing_samples(
+        &mut self,
+        only_instrument: Option<usize>,
+        paths: &[String],
+    ) {
         let newly_missing =
             self.instruments
                 .iter()
                 .enumerate()
+                .filter(|(instrument_slot, _)| {
+                    only_instrument.is_none_or(|only| only == *instrument_slot)
+                })
                 .flat_map(|(instrument_slot, instrument)| {
                     instrument.sample_paths.iter().enumerate().filter_map(
                         move |(sample_slot, path)| {
@@ -79,11 +86,12 @@ impl NativeRunner {
         }
     }
 
-    pub(super) fn apply_loaded_samples(&mut self, paths: &[String]) {
+    pub(super) fn apply_loaded_samples(&mut self, only_instrument: usize, paths: &[String]) {
         let loaded =
             self.instruments
                 .iter()
                 .enumerate()
+                .filter(|(instrument_slot, _)| *instrument_slot == only_instrument)
                 .flat_map(|(instrument_slot, instrument)| {
                     instrument.sample_paths.iter().enumerate().filter_map(
                         move |(sample_slot, path)| {

@@ -112,3 +112,33 @@ fn sample_bank_signature_tracks_only_sampler_changes() {
         sample_bank_signature(&changed)
     );
 }
+
+#[test]
+fn an_instrument_slot_load_reports_which_sample_paths_loaded_and_which_did_not() {
+    let config = serde_json::json!({
+        "type": "sampler",
+        "sample": { "slots": [{ "path": "kick.wav" }, { "path": "gone.wav" }] }
+    });
+    let mut missing = Vec::new();
+    let mut loaded = Vec::new();
+
+    let bank = sample_bank_for_slot_config(
+        &config,
+        |path| (path == "kick.wav").then(|| "resolved/kick.wav".to_string()),
+        |_| {
+            Some(SampleBuffer {
+                samples: vec![0.5, -0.5].into(),
+                channels: 1,
+                sample_rate: 48_000,
+            })
+        },
+        &mut missing,
+        &mut loaded,
+    )
+    .unwrap()
+    .unwrap();
+
+    assert_eq!(loaded, vec!["kick.wav".to_string()]);
+    assert_eq!(missing, vec!["gone.wav".to_string()]);
+    assert!(bank.slots[0].buffer.is_some());
+}

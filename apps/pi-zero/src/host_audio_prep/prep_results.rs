@@ -32,15 +32,35 @@ pub(super) fn send_audio_prep_result(result_tx: &Sender<HostMessage>, result: Ru
     let _ = result_tx.send(HostMessage::RuntimeResult { result });
 }
 
-pub(super) fn send_missing_samples(result_tx: &Sender<HostMessage>, paths: Vec<String>) {
+pub(super) fn send_missing_samples(
+    result_tx: &Sender<HostMessage>,
+    instrument_slot: Option<usize>,
+    paths: Vec<String>,
+) {
     if !paths.is_empty() {
-        send_audio_prep_result(result_tx, RuntimeStoreResult::SamplesMissing { paths });
+        send_audio_prep_result(
+            result_tx,
+            RuntimeStoreResult::SamplesMissing {
+                instrument_slot,
+                paths,
+            },
+        );
     }
 }
 
-pub(super) fn send_loaded_samples(result_tx: &Sender<HostMessage>, paths: Vec<String>) {
+pub(super) fn send_loaded_samples(
+    result_tx: &Sender<HostMessage>,
+    instrument_slot: usize,
+    paths: Vec<String>,
+) {
     if !paths.is_empty() {
-        send_audio_prep_result(result_tx, RuntimeStoreResult::SamplesLoaded { paths });
+        send_audio_prep_result(
+            result_tx,
+            RuntimeStoreResult::SamplesLoaded {
+                instrument_slot,
+                paths,
+            },
+        );
     }
 }
 

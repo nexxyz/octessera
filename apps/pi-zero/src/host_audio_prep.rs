@@ -243,7 +243,7 @@ fn handle_full_config_request(
         let missing_samples = std::mem::take(&mut prepared.missing_samples);
         match apply_prepared_audio_config(audio, prepared, state.generation) {
             Ok(()) => {
-                send_missing_samples(result_tx, missing_samples);
+                send_missing_samples(result_tx, None, missing_samples);
                 send_audio_prep_result(
                     result_tx,
                     audio_prep_success(state.revision, state.request_id.clone()),
