@@ -307,8 +307,9 @@ fn arp_batches(events: &[MusicalEvent], intents: &[Option<TileTriggerIntent>]) -
 }
 
 /// The note-ons that sound together on one tick play one hit per instrument and pitch, whatever
-/// layer, event kind or Delay produced them: the loudest, or the first of the loudest, whole. A
-/// note-off of the pitch between two of them keeps both, so a release and a fresh hit still sound.
+/// layer, event kind or Delay produced them: the loudest, or the first of the loudest, whole, and
+/// their note-offs one note-off. A note-off between two note-ons of the pitch keeps both, and a
+/// note-on between two note-offs keeps both, so a release and a fresh hit still sound in order.
 pub(super) fn dedupe_note_ons(
     routed: &mut RoutedMusicalEvents,
     instruments: &[super::NativeInstrumentSlot],
@@ -356,15 +357,13 @@ fn dedupe_sampler_tile_hits(hits: &mut Vec<TileHit>, instruments: &[super::Nativ
 fn dedupe_note_ons_in_lane(events: &mut Vec<MusicalEvent>) {
     let mut index = 0;
     while index < events.len() {
-        let MusicalEvent::NoteOn {
-            channel,
-            note,
-            velocity,
-            ..
-        } = events[index]
-        else {
-            index += 1;
-            continue;
+        let (channel, note) = match events[index] {
+            MusicalEvent::NoteOn { channel, note, .. }
+            | MusicalEvent::NoteOff { channel, note } => (channel, note),
+            MusicalEvent::Cc { .. } => {
+                index += 1;
+                continue;
+            }
         };
         let last = events[..index].iter().rposition(|event| {
             matches!(
@@ -374,15 +373,22 @@ fn dedupe_note_ons_in_lane(events: &mut Vec<MusicalEvent>) {
                     if (c, n) == (channel, note)
             )
         });
-        match last.filter(|last| matches!(events[*last], MusicalEvent::NoteOn { .. })) {
-            Some(first) => {
+        match (last.map(|last| &events[last]), &events[index]) {
+            (Some(MusicalEvent::NoteOff { .. }), MusicalEvent::NoteOff { .. }) => {
+                events.remove(index);
+            }
+            (
+                Some(&MusicalEvent::NoteOn {
+                    velocity: first, ..
+                }),
+                &MusicalEvent::NoteOn { velocity, .. },
+            ) => {
                 let louder = events.remove(index);
-                if matches!(events[first], MusicalEvent::NoteOn { velocity: v, .. } if velocity > v)
-                {
-                    events[first] = louder;
+                if velocity > first {
+                    events[last.unwrap_or_default()] = louder;
                 }
             }
-            None => index += 1,
+            _ => index += 1,
         }
     }
 }
@@ -419,6 +425,22 @@ fn has_matching_held_note_on(events: &[MusicalEvent], note_offs: &[(u8, u8)]) ->
         } => note_offs.contains(&(*channel, *note)),
         _ => false,
     })
+}
+
+/// The Delay of `layer`'s row for trigger `kind`, in that layer's Link ticks.
+pub(super) fn link_delay_for_kind(
+    layer: Option<&super::NativeLinkLayer>,
+    kind: Option<TileTriggerKind>,
+) -> u8 {
+    let (Some(layer), Some(kind)) = (layer, kind) else {
+        return 0;
+    };
+    match kind {
+        TileTriggerKind::Activate => layer.activate_timing,
+        TileTriggerKind::Stable => layer.stable_timing,
+        TileTriggerKind::Deactivate => layer.deactivate_timing,
+    }
+    .delay_steps
 }
 
 fn link_timing_for_intents(

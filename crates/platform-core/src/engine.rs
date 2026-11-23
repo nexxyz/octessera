@@ -262,6 +262,11 @@ impl NativeLayerEngine {
         self.global_sound = global_sound;
     }
 
+    /// Forgets what the scan line saw, so its next step compares with dark tiles.
+    pub fn forget_scanned_line(&mut self) {
+        self.scan_seen = unscanned_grid();
+    }
+
     pub fn reset_transport_phase(&mut self) {
         self.tick = 0;
         self.scan_seen = unscanned_grid();

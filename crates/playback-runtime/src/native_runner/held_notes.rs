@@ -56,8 +56,8 @@ impl NativeRunner {
         self.held_notes[layer_index] = held;
         *events = step.events;
         *event_intents = step.event_intents;
-        for key in step.ended_elsewhere {
-            self.end_held_note_elsewhere(layer_index, key);
+        for (key, kind) in step.ended_elsewhere {
+            self.end_held_note_elsewhere(layer_index, key, kind);
         }
     }
 }
@@ -107,8 +107,9 @@ fn holder(intent: Option<&TileTriggerIntent>, profile: &InterpretationProfile) -
 pub(super) struct NoteBehaviorWithIntentsResult {
     pub(super) events: Vec<MusicalEvent>,
     pub(super) event_intents: Vec<Option<TileTriggerIntent>>,
-    /// Pitches a note-off of this layer ends where another layer or Notes In holds them.
-    pub(super) ended_elsewhere: Vec<HeldNote>,
+    /// Pitches a note-off of this layer ends where another layer or Notes In holds them, with
+    /// the kind of trigger that sent it.
+    pub(super) ended_elsewhere: Vec<(HeldNote, Option<TileTriggerKind>)>,
     /// Where each held note this step started sits in `events`.
     started: Vec<(HeldNote, usize)>,
 }
@@ -322,6 +323,7 @@ impl HeldNotes {
                 _ => out.push(event.clone(), intent),
             }
         }
+        self.end_ended_notes_elsewhere(&mut out, play);
         out
     }
 
@@ -384,12 +386,14 @@ impl HeldNotes {
                 if self.is_held(key) {
                     self.release_tile(key, tile, intent, out);
                 } else if (play.elsewhere)(key) {
-                    out.ended_elsewhere.push(key);
+                    out.ended_elsewhere
+                        .push((key, intent.map(|intent| intent.kind)));
                 }
             }
             (_, Some(_)) => {
                 if !self.let_go(key) && (play.elsewhere)(key) {
-                    out.ended_elsewhere.push(key);
+                    out.ended_elsewhere
+                        .push((key, intent.map(|intent| intent.kind)));
                 } else {
                     out.push(note_off(key), intent);
                 }
@@ -445,7 +449,8 @@ impl HeldNotes {
             out.push(note_off(key), intent);
         } else if !self.is_held(key) {
             if (play.elsewhere)(key) {
-                out.ended_elsewhere.push(key);
+                out.ended_elsewhere
+                    .push((key, intent.map(|intent| intent.kind)));
             } else {
                 out.push(note_off(key), intent);
             }

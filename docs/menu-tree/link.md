@@ -147,7 +147,8 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   them: the loudest wins whole, with its velocity, length and tile, and the first of equals wins
   a tie. A note-off of that pitch between two note-ons on the tick keeps both, so a release and a
   fresh hit still sound. On a Hold instrument every tile that started the pitch still holds it.
-  Note-offs and other events are not merged.
+  Note-offs of one pitch on one instrument on that tick merge into one too, unless a note-on of
+  the pitch sits between them, so a release followed by a re-strike plays in order.
 - Scanning lanes are defined in
   [Sectioned scanning](../menu-and-controls-spec.md#sectioned-scanning).
 

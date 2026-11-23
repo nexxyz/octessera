@@ -90,8 +90,19 @@ impl NativeRunner {
             if suffix == "link.seeded" {
                 self.restart_link_random_stream(index);
             }
-            if gate_was_open
-                && self.layers[index].link.trigger_probability_mode == TriggerProbabilityMode::Zero
+            let scan_changed = matches!(
+                suffix,
+                "link.scanMode" | "link.scanAxis" | "link.scanSections" | "link.scanDirection"
+            );
+            // Who holds a note (a tile, or a scan's row or column) changes with the scan, so the
+            // old holders could never let go: the layer's notes end and the line starts afresh.
+            if scan_changed {
+                self.layers[index].engine.forget_scanned_line();
+            }
+            if scan_changed
+                || gate_was_open
+                    && self.layers[index].link.trigger_probability_mode
+                        == TriggerProbabilityMode::Zero
             {
                 self.drain_layer_owned_notes(index);
             }

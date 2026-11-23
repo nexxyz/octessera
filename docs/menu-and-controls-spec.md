@@ -1503,8 +1503,9 @@ triggers. Scan: each tile the line reaches is compared with the tile the line to
 before in the same row (column scan) or column (row scan), across the lap wrap and per lane with
 Sections > 1; dark to dark fires nothing. `Event Triggers` gates a scan's On and Off and `State
 Notes` its Hold, for every behavior. A scanning layer fires no direct events: neither its grid's
-changes nor presses play on their own. Nothing else ends a scan's note; switching scanning off
-leaves a held scan note sounding until a note-off reaches its pitch or a drain ends it.
+changes nor presses play on their own. Changing Scan Mode, Scan Axis, Scan Dir or Sections changes
+who holds a note (a tile, or a scan's row or column), so it ends the layer's notes on the spot, as
+a trigger gate drain does, and the line starts again as if it had seen only dark tiles.
 
 Held notes (instruments in `hold` mode):
 
@@ -1525,7 +1526,17 @@ Held notes (instruments in `hold` mode):
   there, as that holder sounds it (through its Play Transpose, MIDI channel or Sampler tile), and
   that holder forgets it: its tiles' Offs end nothing more and its held Arp stops replaying it.
   The first note-off from another layer or source ends the note; within a layer the holder count
-  decides.
+  decides. When a layer's own note-off ends a pitch it held, every other layer that held that
+  pitch on that instrument lets go of it too, so its next On sounds again. A note-off sent to
+  another layer's note waits for the sending row's Delay, like the layer's own note-offs.
+- A note-off on a Drum slot fades out the slot's hits of the tile's kit voice pitch through the
+  kit's 30 ms release; on a One-Shot synth it ends every voice of the pitch still sounding.
+- After scheduling, note-offs of one pitch on one instrument that land on one tick merge into one,
+  unless a note-on of that pitch sits between them. The runtime then passes a note-off to the
+  engine and MIDI out only while its note still sounds on that lane (held, or inside its One-Shot
+  Len), so a silent pitch gets none; a note-off that cuts a One-Shot MIDI note before its length
+  replaces the note-off scheduled for its end, and a re-strike of a sounding MIDI note sends that
+  note-off first, then the new note-on.
 - With `Event Triggers` off no Off fires, so a tile that goes dark lets go of the notes it holds
   at that step.
 - On a Sampler, a pitch two tiles share plays the first tile's sample, and the last tile's

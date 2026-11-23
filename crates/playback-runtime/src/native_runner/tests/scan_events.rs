@@ -321,3 +321,55 @@ fn another_layers_direct_off_ends_a_scanned_hold_note() {
     assert!(runner.held_notes[0].is_empty());
     assert!(steps(&mut runner, 9).iter().all(Vec::is_empty));
 }
+
+/// Who holds a scan's note changes with these settings, so its notes end on the change.
+#[test]
+fn scan_setting_changes_end_a_held_scan_note() {
+    for (key, delta) in [
+        ("layers.0.link.scanMode", -1),
+        ("layers.0.link.scanAxis", -1),
+        ("layers.0.link.scanDirection", 1),
+        ("layers.0.link.scanSections", 1),
+    ] {
+        let mut runner = scan_runner("hold", &[0, 1, 2, 3, 4, 5, 6, 7]);
+        set_actions(&mut runner, 0, ON_OFF);
+        let on = step(&mut runner);
+        assert_eq!(on.len(), 1, "{key}");
+        runner.menu.rebuild(runner.menu_config());
+        runner.edit_menu_key(key, delta).unwrap();
+        let messages = runner.messages_without_snapshot().unwrap();
+        let ended = routed_events(&messages, false)
+            .into_iter()
+            .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
+            .count();
+        assert_eq!(ended, 1, "{key}");
+        assert!(runner.held_notes[0].is_empty(), "{key}");
+    }
+}
+
+#[test]
+fn a_row_scan_holds_down_a_column_and_a_reverse_scan_runs_it_backwards() {
+    let mut rows = scan_runner("hold", &[]);
+    rows.layers[0].link.scan_axis = ScanAxis::Rows;
+    rows.refresh_active_interpretation_profile();
+    grid_tap(&mut rows, 3, 1);
+    grid_tap(&mut rows, 3, 2);
+    set_actions(&mut rows, 0, ON_OFF);
+    let played = sounding(&steps(&mut rows, 4));
+    assert_eq!(
+        played.iter().map(|(index, _)| *index).collect::<Vec<_>>(),
+        [1, 3],
+        "On at row 1, Off at row 3: {played:?}"
+    );
+
+    let mut reverse = scan_runner("hold", &[1, 2]);
+    reverse.layers[0].link.scan_direction = ScanDirection::Reverse;
+    reverse.refresh_active_interpretation_profile();
+    set_actions(&mut reverse, 0, ON_OFF);
+    let played = sounding(&steps(&mut reverse, 8));
+    assert_eq!(
+        played.iter().map(|(index, _)| *index).collect::<Vec<_>>(),
+        [5, 7],
+        "columns 7 to 0: On at column 2, Off at column 0: {played:?}"
+    );
+}

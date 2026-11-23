@@ -84,6 +84,7 @@ mod config_snapshot;
 mod config_transactions;
 mod construction_defaults;
 mod controls;
+mod cross_source_notes;
 mod default_patch_bindings;
 mod delayed_note_off_release;
 mod device_config_apply;
