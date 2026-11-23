@@ -191,17 +191,72 @@ fn seeded_games_replay_exactly() {
 }
 
 #[test]
-fn a_press_nudges_the_nearer_paddle_toward_it() {
+fn a_paddle_column_press_moves_that_paddle_toward_it() {
     seeded(|| {
         let state = init(Value::Null).unwrap();
-        let state = on_input(state, DeviceInput::GridPress { x: 1, y: 7 }, &mut context());
+        let ball = state.ball;
+        let state = on_input(state, DeviceInput::GridPress { x: 0, y: 7 }, &mut context());
         assert_eq!(state.paddles, [3, 2]);
+        assert_eq!(state.ball, ball);
         assert_eq!(trigger(&state, 0, 5), TileTriggerType::Activate);
         assert_eq!(trigger(&state, 0, 2), TileTriggerType::Deactivate);
-        let state = on_input(state, DeviceInput::GridPress { x: 6, y: 0 }, &mut context());
+        let state = on_input(state, DeviceInput::GridPress { x: 7, y: 0 }, &mut context());
         assert_eq!(state.paddles, [3, 1]);
-        let state = on_input(state, DeviceInput::GridPress { x: 6, y: 2 }, &mut context());
+        let state = on_input(state, DeviceInput::GridPress { x: 7, y: 2 }, &mut context());
         assert_eq!(state.paddles, [3, 1]);
+    });
+}
+
+#[test]
+fn a_court_press_moves_the_ball_and_keeps_its_direction() {
+    seeded(|| {
+        let ball = Ball {
+            x: 3,
+            y: 3,
+            vx: 1,
+            vy: -1,
+        };
+        let state = rally(ball, [2, 2], CpuPlan::default());
+        let state = on_input(state, DeviceInput::GridPress { x: 5, y: 6 }, &mut context());
+        assert_eq!(
+            state.ball,
+            Some(Ball {
+                x: 5,
+                y: 6,
+                vx: 1,
+                vy: -1
+            })
+        );
+        assert_eq!(state.paddles, [2, 2]);
+        assert_eq!(trigger(&state, 5, 6), TileTriggerType::Activate);
+        assert_eq!(trigger(&state, 3, 3), TileTriggerType::Deactivate);
+    });
+}
+
+#[test]
+fn a_court_press_out_of_play_serves_from_there_toward_the_nearer_paddle() {
+    seeded(|| {
+        for (x, vx) in [(2, -1), (5, 1)] {
+            let mut state = init(Value::Null).unwrap();
+            state.ball = None;
+            state.serve_pause = SERVE_PAUSE_TICKS;
+            let state = on_input(state, DeviceInput::GridPress { x, y: 1 }, &mut context());
+            let ball = state.ball.unwrap();
+            assert_eq!((usize::from(ball.x), ball.y, ball.vx), (x, 1, vx));
+            assert_eq!(state.serve_pause, 0);
+            assert_eq!(trigger(&state, x, 1), TileTriggerType::Activate);
+        }
+        let missed = Ball {
+            x: 0,
+            y: 4,
+            vx: -1,
+            vy: 0,
+        };
+        let state = rally(missed, [0, 0], CpuPlan::default());
+        let state = on_input(state, DeviceInput::GridPress { x: 6, y: 4 }, &mut context());
+        let ball = state.ball.unwrap();
+        assert_eq!((ball.x, ball.y, ball.vx), (6, 4, 1));
+        assert_eq!(trigger(&state, 0, 4), TileTriggerType::Deactivate);
     });
 }
 

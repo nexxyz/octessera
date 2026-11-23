@@ -109,8 +109,8 @@ fn from_value(value: Value) -> PongState {
 pub fn on_input(mut state: PongState, input: DeviceInput, _: &mut BehaviorContext) -> PongState {
     let previous = tiles(&state);
     match input {
-        DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
-            let side = usize::from(x >= GRID_WIDTH / 2);
+        DeviceInput::GridPress { x, y } if (x == 0 || x == GRID_WIDTH - 1) && y < GRID_HEIGHT => {
+            let side = usize::from(x > 0);
             let start = state.paddles[side];
             let y = y as u8;
             if y < start {
@@ -120,6 +120,9 @@ pub fn on_input(mut state: PongState, input: DeviceInput, _: &mut BehaviorContex
             } else {
                 return state;
             }
+        }
+        DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
+            place_ball(&mut state, x as u8, y as u8);
         }
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "serve" =>
@@ -162,6 +165,19 @@ pub fn on_tick(mut state: PongState, _: &mut BehaviorContext) -> PongState {
     }
     state.trigger_types = triggers;
     state
+}
+
+/// A ball in play jumps to the pressed court tile and keeps its direction; out of play, it serves
+/// from there toward the nearer paddle.
+fn place_ball(state: &mut PongState, x: u8, y: u8) {
+    match state.ball.filter(|ball| ball.x > 0 && ball.x < RIGHT) {
+        Some(ball) => state.ball = Some(Ball { x, y, ..ball }),
+        None => {
+            let dir = if usize::from(x) < GRID_WIDTH / 2 { -1 } else { 1 };
+            serve(state, dir);
+            state.ball = state.ball.map(|ball| Ball { x, y, ..ball });
+        }
+    }
 }
 
 fn serve(state: &mut PongState, dir: i8) {
