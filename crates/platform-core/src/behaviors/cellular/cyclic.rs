@@ -13,10 +13,6 @@ use serde_json::Value;
 const STALL_TICKS: u8 = 8;
 /// The state a resting cell moves into; its tiles light, so the waves show as moving fronts.
 const FRONT: u8 = 1;
-/// A world that comes back to the same cells this many full cycles in a row is looping.
-const LOOP_CYCLES: u8 = 4;
-/// The side of the square a looping world scatters afresh.
-const PATCH: usize = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CyclicState {
@@ -27,12 +23,6 @@ pub struct CyclicState {
     pub states: u8,
     pub threshold: u8,
     pub range: u8,
-    #[serde(skip)]
-    pub cycle_mark: Vec<u8>,
-    #[serde(skip)]
-    pub cycle_tick: u8,
-    #[serde(skip)]
-    pub loops: u8,
 }
 
 pub fn cyclic_init(config: Value) -> Result<CyclicState, String> {
@@ -110,42 +100,9 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
     state.ages = ages;
     if state.ages.iter().all(|age| *age >= STALL_TICKS) {
         seed_cycle(&mut state);
-    } else if looped(&mut state) {
-        scatter_patch(&mut state);
     }
     state.trigger_types = triggers(&previous, &state.cells);
     state
-}
-
-/// Counts the full cycles in a row after which the cells came back to where they were.
-fn looped(state: &mut CyclicState) -> bool {
-    state.cycle_tick = (state.cycle_tick + 1) % state.states;
-    if state.cycle_tick != 0 {
-        return false;
-    }
-    state.loops = match state.cycle_mark == state.cells {
-        true => state.loops + 1,
-        false => 0,
-    };
-    state.cycle_mark.clone_from(&state.cells);
-    state.loops >= LOOP_CYCLES
-}
-
-/// Scatters every state across one small square, a stone the waves sort into new spirals.
-fn scatter_patch(state: &mut CyclicState) {
-    let mut rng = crate::behavior_random::rng();
-    let (left, bottom) = (
-        rng.gen_range(0..=GRID_WIDTH - PATCH),
-        rng.gen_range(0..=GRID_HEIGHT - PATCH),
-    );
-    for y in bottom..bottom + PATCH {
-        for x in left..left + PATCH {
-            let index = grid_index(x, y);
-            state.cells[index] = rng.gen_range(0..state.states);
-            state.ages[index] = 0;
-        }
-    }
-    state.loops = 0;
 }
 
 pub fn cyclic_render_model(state: &CyclicState) -> BehaviorRenderModel {
@@ -183,9 +140,6 @@ fn state_from_config(config: Value) -> (CyclicState, bool) {
         states,
         threshold: number(field(&config, "threshold"), 1, 1, 8),
         range: number(field(&config, "range"), 1, 1, 2),
-        cycle_mark: Vec::new(),
-        cycle_tick: 0,
-        loops: 0,
     };
     normalize(&mut state);
     (state, has_cells)

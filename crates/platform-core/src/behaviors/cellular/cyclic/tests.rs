@@ -240,26 +240,19 @@ fn fewer_successors_than_the_threshold_move_a_cell_on_only_sometimes() {
 }
 
 #[test]
-fn a_world_that_loops_for_four_cycles_gets_a_fresh_patch() {
+fn at_threshold_one_the_spirals_turn_with_period_states_and_keep_moving() {
     crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
         let mut context = context();
         let mut state = cyclic_init(serde_json::json!({})).unwrap();
         let period = usize::from(state.states);
         let mut history = Vec::new();
-        let (mut streak, mut longest) = (0, 0);
         for _ in 0..300 {
             state = cyclic_on_tick(state, &mut context);
             history.push(state.cells.clone());
-            let repeated = history.len() > period
-                && history[history.len() - 1] == history[history.len() - 1 - period];
-            streak = if repeated { streak + 1 } else { 0 };
-            longest = longest.max(streak);
         }
-        assert!(longest >= period, "the default world settles into a loop");
-        assert!(
-            longest < (usize::from(LOOP_CYCLES) + 1) * period,
-            "{longest}"
-        );
+        let tail = &history[150..];
+        assert!(tail[period..].iter().zip(tail).all(|(a, b)| a == b));
+        assert!(tail.windows(2).all(|pair| pair[0] != pair[1]));
     });
 }
 
