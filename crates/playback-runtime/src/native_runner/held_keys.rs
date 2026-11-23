@@ -235,7 +235,9 @@ impl HeldKeys {
             }) else {
                 continue;
             };
-            if !hold || !is_live(&key, now) {
+            // A One-Shot strike leaves a ringing One-Shot sound to its length, but a held one (as
+            // pressed before a Note Mode change) ends first like any Hold strike.
+            if !is_live(&key, now) || (!hold && key.ends_at_us.is_some()) {
                 continue;
             }
             if key.sound.voice() != voice {

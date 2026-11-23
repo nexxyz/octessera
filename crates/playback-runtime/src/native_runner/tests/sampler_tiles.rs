@@ -143,7 +143,7 @@ fn an_earlier_tile_release_cancels_its_delayed_held_tile_on() {
 }
 
 #[test]
-fn held_tiles_do_not_retrigger_and_arp_suppresses_tile_releases() {
+fn held_tiles_do_not_retrigger_and_an_arp_passes_tile_releases_on() {
     let mut runner = sampler_runner("hold");
     runner.layers[0].link.activate_timing.retrigger_count = 2;
     route(
@@ -160,7 +160,11 @@ fn held_tiles_do_not_retrigger_and_arp_suppresses_tile_releases() {
         vec![off()],
         &[Some(intent(1, TileTriggerKind::Deactivate))],
     );
-    assert!(released.is_empty());
+    assert_eq!(
+        released.iter().map(|hit| hit.velocity).collect::<Vec<_>>(),
+        [0],
+        "the looping sample ends with its tile"
+    );
 }
 
 #[test]

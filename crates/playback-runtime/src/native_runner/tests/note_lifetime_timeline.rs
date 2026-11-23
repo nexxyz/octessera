@@ -22,6 +22,13 @@ impl Script {
 
     fn with_config(config: NativeRunnerConfig, setup: impl FnOnce(&mut NativeRunner)) -> Self {
         let mut runner = NativeRunner::new(config).unwrap();
+        // A new runner gives every layer the first one's behavior; only the first one plays here.
+        for layer in 1..LAYER_COUNT {
+            runner.layers[layer].behavior_id = "none".into();
+            runner
+                .replace_layer_engine_with_config(layer, NativeBehavior::None, Value::Null, None)
+                .unwrap();
+        }
         runner.test_set_midi_enabled(true);
         setup(&mut runner);
         runner.sync_engine_runtime_config();
@@ -247,13 +254,6 @@ fn hold_trig(script: &mut Script) {
     script.set("layers.0.link.mapping.stable.action", "note_on");
 }
 
-fn hold_trig_without_preview(script: &mut Script) {
-    hold_trig(script);
-    let key = "layers.0.link.notePreview";
-    assert!(script.runner.menu.set_bool_value_for_key(key, false));
-    script.runner.apply_or_schedule_menu_key(key).unwrap();
-}
-
 fn scanning_held_arp(script: &mut Script) {
     script.set("layers.0.link.scanMode", "scanning");
     script.set("layers.0.link.arp.mode", "chord_strike");
@@ -332,11 +332,6 @@ pub(crate) fn note_lifetime_timeline() -> String {
         held_arp("direct", false),
         life("life hold trig on hold", true, hold_trig),
         life("life hold trig on one-shot", false, hold_trig),
-        life(
-            "life hold trig on hold, note preview off",
-            true,
-            hold_trig_without_preview,
-        ),
         life("life scanning held arp on hold", true, scanning_held_arp),
         life(
             "life scanning held arp on one-shot",

@@ -63,6 +63,13 @@ impl NativeRunner {
             .into_iter()
             .partition(|event| matches!(event, KeyEvent::Control { .. }));
         routed.keys = controls;
+        // A Drum or Sampler tile plays through the Arp as it was pressed, so its release goes on
+        // to end it.
+        routed.keys.extend(
+            keys.iter()
+                .filter(|event| matches!(event, KeyEvent::Release { slot, .. } if plays_tiles(context.instruments, *slot)))
+                .cloned(),
+        );
         let presses = keys
             .iter()
             .filter_map(|event| match event {
@@ -250,6 +257,17 @@ impl NativeRunner {
             _ => notes,
         }
     }
+}
+
+fn plays_tiles(instruments: &[super::NativeInstrumentSlot], slot: u8) -> bool {
+    instruments
+        .get(usize::from(slot))
+        .is_some_and(|instrument| {
+            matches!(
+                instrument.kind,
+                super::InstrumentType::Drum | super::InstrumentType::Sampler
+            )
+        })
 }
 
 fn finite_arp_note(mut press: KeyPress, arp: &NativeLinkArp) -> KeyPress {

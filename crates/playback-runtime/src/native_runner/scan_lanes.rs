@@ -1,7 +1,8 @@
 //! A scan in `mono` lanes plays one note per lane (a row on a column scan, a column on a row
 //! scan) and instrument: a note-on from the lane first ends the lane's last note, and a note-off
-//! ends that last note rather than the pitch of the cell it fires on. The last note is the
-//! lane's only memory; every drain forgets it.
+//! ends that last note rather than the pitch of the tile it fires on. The lane remembers the
+//! pitch and the tile that started its last note, so the release names that note's own pitch and
+//! sample pad; it is the lane's only memory, and every drain forgets it.
 
 use super::{NativeRunner, ScanAxis, ScanLanes, ScanMode, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{MusicalEvent, TileTriggerIntent, INSTRUMENT_COUNT};
@@ -12,10 +13,18 @@ const LANES: usize = if GRID_WIDTH > GRID_HEIGHT {
     GRID_HEIGHT
 };
 
-/// The last note each lane of a mono scan played, per instrument slot.
+/// The last note each lane of a mono scan played, per instrument slot, with the tile that started
+/// it.
 #[derive(Clone, Debug)]
 pub(super) struct MonoLanes {
-    last: [[Option<u8>; INSTRUMENT_COUNT]; LANES],
+    last: [[Option<LaneNote>; INSTRUMENT_COUNT]; LANES],
+}
+
+#[derive(Clone, Copy, Debug)]
+struct LaneNote {
+    pitch: u8,
+    x: usize,
+    y: usize,
 }
 
 impl Default for MonoLanes {
@@ -65,28 +74,27 @@ impl NativeRunner {
                 continue;
             };
             let last = &mut layer.mono_lanes.last[lane][slot];
-            match *event {
-                MusicalEvent::NoteOn { channel, note, .. } => {
-                    if let Some(previous) = last.replace(note) {
-                        out_events.push(MusicalEvent::NoteOff {
-                            channel,
-                            note: previous,
-                        });
-                        out_intents.push(intent.clone());
-                    }
-                    out_events.push(event.clone());
-                    out_intents.push(intent.clone());
-                }
-                MusicalEvent::NoteOff { channel, .. } => {
-                    if let Some(previous) = last.take() {
-                        out_events.push(MusicalEvent::NoteOff {
-                            channel,
-                            note: previous,
-                        });
-                        out_intents.push(intent.clone());
-                    }
-                }
-                MusicalEvent::Cc { .. } => {}
+            let previous = match *event {
+                MusicalEvent::NoteOn { note, .. } => last.replace(LaneNote {
+                    pitch: note,
+                    x: intent.as_ref().map_or(0, |intent| intent.x),
+                    y: intent.as_ref().map_or(0, |intent| intent.y),
+                }),
+                MusicalEvent::NoteOff { .. } | MusicalEvent::Cc { .. } => last.take(),
+            };
+            if let Some(previous) = previous {
+                out_events.push(MusicalEvent::NoteOff {
+                    channel: slot as u8,
+                    note: previous.pitch,
+                });
+                out_intents.push(intent.clone().map(|mut intent| {
+                    (intent.x, intent.y) = (previous.x, previous.y);
+                    intent
+                }));
+            }
+            if matches!(event, MusicalEvent::NoteOn { .. }) {
+                out_events.push(event.clone());
+                out_intents.push(intent.clone());
             }
         }
         Some((out_events, out_intents))
