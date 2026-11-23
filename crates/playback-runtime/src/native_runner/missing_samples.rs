@@ -24,10 +24,7 @@ impl NativeRunner {
                     )
                 })
                 .filter(|(instrument_slot, sample_slot, _)| {
-                    self.sample_availability
-                        .get(*instrument_slot)
-                        .and_then(|slots| slots.get(*sample_slot))
-                        != Some(&NativeSampleAvailability::Unavailable)
+                    !self.sample_unavailable(*instrument_slot, *sample_slot)
                 })
                 .collect::<Vec<_>>();
         if newly_missing.is_empty() {
@@ -58,37 +55,59 @@ impl NativeRunner {
         self.show_instruments_rows(&changed_instruments);
     }
 
-    /// SD2 came, went or was swapped: every slot with a sample on it is resolved again through
-    /// the instrument's normal audio load, and the host reports the ones still missing.
+    /// A card arrived in SD2: instruments with a card sample that has not loaded load again
+    /// through their normal audio load. Slots already playing keep their decoded sample.
     pub(super) fn reload_sd_card_samples(&mut self) {
-        let sd_card_slots = self
+        let instruments = self
             .instruments
             .iter()
             .enumerate()
-            .flat_map(|(instrument_slot, instrument)| {
+            .filter(|(instrument_slot, instrument)| {
                 instrument
                     .sample_paths
                     .iter()
                     .enumerate()
-                    .filter(|(_, path)| path.as_deref().is_some_and(is_sd_card_sample_path))
-                    .map(move |(sample_slot, _)| (instrument_slot, sample_slot))
+                    .any(|(sample_slot, path)| {
+                        path.as_deref().is_some_and(is_sd_card_sample_path)
+                            && self.sample_unavailable(*instrument_slot, sample_slot)
+                    })
             })
+            .map(|(instrument_slot, _)| instrument_slot)
             .collect::<Vec<_>>();
-        let mut reloaded_instruments = Vec::new();
-        for (instrument_slot, sample_slot) in sd_card_slots {
-            if let Some(availability) = self
-                .sample_availability
-                .get_mut(instrument_slot)
-                .and_then(|slots| slots.get_mut(sample_slot))
-            {
-                *availability = NativeSampleAvailability::Unknown;
-            }
-            if !reloaded_instruments.contains(&instrument_slot) {
-                reloaded_instruments.push(instrument_slot);
-            }
+        for instrument_slot in instruments {
+            self.queue_instrument_slot_config(instrument_slot);
         }
-        if reloaded_instruments.is_empty() {
+    }
+
+    pub(super) fn apply_loaded_samples(&mut self, paths: &[String]) {
+        let loaded =
+            self.instruments
+                .iter()
+                .enumerate()
+                .flat_map(|(instrument_slot, instrument)| {
+                    instrument.sample_paths.iter().enumerate().filter_map(
+                        move |(sample_slot, path)| {
+                            let path = path.as_deref()?;
+                            paths
+                                .iter()
+                                .any(|loaded| same_sample_path(loaded, path))
+                                .then_some((instrument_slot, sample_slot))
+                        },
+                    )
+                })
+                .filter(|(instrument_slot, sample_slot)| {
+                    self.sample_unavailable(*instrument_slot, *sample_slot)
+                })
+                .collect::<Vec<_>>();
+        if loaded.is_empty() {
             return;
+        }
+        let mut changed_instruments = Vec::new();
+        for (instrument_slot, sample_slot) in loaded {
+            self.mark_sample_available(instrument_slot, sample_slot);
+            if !changed_instruments.contains(&instrument_slot) {
+                changed_instruments.push(instrument_slot);
+            }
         }
         let nothing_missing = self
             .sample_availability
@@ -104,10 +123,14 @@ impl NativeRunner {
         {
             self.display.help_popup = None;
         }
-        for instrument_slot in &reloaded_instruments {
-            self.queue_instrument_slot_config(*instrument_slot);
-        }
-        self.show_instruments_rows(&reloaded_instruments);
+        self.show_instruments_rows(&changed_instruments);
+    }
+
+    fn sample_unavailable(&self, instrument_slot: usize, sample_slot: usize) -> bool {
+        self.sample_availability
+            .get(instrument_slot)
+            .and_then(|slots| slots.get(sample_slot))
+            == Some(&NativeSampleAvailability::Unavailable)
     }
 }
 

@@ -471,4 +471,6 @@ fn pending_work_len(
 }
 
 #[cfg(test)]
+mod sd_card_reload_tests;
+#[cfg(test)]
 mod tests;

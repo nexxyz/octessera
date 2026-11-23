@@ -1,6 +1,6 @@
 use super::prep_results::{
     audio_queue_failure, index_u8, owner_failure, prep_error_message, send_audio_prep_result,
-    send_missing_samples, AudioPrepError,
+    send_loaded_samples, send_missing_samples, AudioPrepError,
 };
 use crate::audio::AudioService;
 use crate::audio_config_parse::{
@@ -44,6 +44,7 @@ pub(super) enum OwnerRequest {
 struct OwnerPrepared {
     event: EngineEvent,
     missing_samples: Vec<String>,
+    loaded_samples: Vec<String>,
 }
 
 pub(super) fn process_owner_request(
@@ -97,6 +98,7 @@ pub(super) fn process_owner_request(
                     config: prepare_fx_bus_slot(fx_type, params, DEFAULT_AUDIO_SAMPLE_RATE),
                 },
                 missing_samples: Vec::new(),
+                loaded_samples: Vec::new(),
             }),
         OwnerRequest::GlobalFx {
             sequence: _,
@@ -113,6 +115,7 @@ pub(super) fn process_owner_request(
                     config: prepare_global_fx_slot(fx_type, params),
                 },
                 missing_samples: Vec::new(),
+                loaded_samples: Vec::new(),
             }),
     };
     match result {
@@ -143,6 +146,7 @@ pub(super) fn process_owner_request(
                     send_audio_prep_result(result_tx, audio_queue_failure(error));
                 } else {
                     send_missing_samples(result_tx, prepared.missing_samples);
+                    send_loaded_samples(result_tx, prepared.loaded_samples);
                 }
             }
         }
@@ -162,6 +166,19 @@ fn prepare_instrument(
     let mut missing_samples = Vec::new();
     let sample_bank =
         sample_bank_for_instrument(&normalized, &samples_dir, audio, &mut missing_samples);
+    let loaded_samples = normalized
+        .active_sample()
+        .zip(sample_bank.as_ref())
+        .map(|(sample, bank)| {
+            sample
+                .slots
+                .iter()
+                .zip(&bank.slots)
+                .filter(|(_, slot)| slot.buffer.is_some())
+                .filter_map(|(path, _)| path.clone())
+                .collect()
+        })
+        .unwrap_or_default();
     Ok(OwnerPrepared {
         event: EngineEvent::SetPreparedInstrumentOwner {
             instrument_slot: index_u8(instrument_slot),
@@ -170,6 +187,7 @@ fn prepare_instrument(
             sample_bank,
         },
         missing_samples,
+        loaded_samples,
     })
 }
 

@@ -113,8 +113,12 @@ pub enum RuntimeStoreResult {
     SamplesMissing {
         paths: Vec<String>,
     },
-    /// The OLED board's SD card (SD2) was mounted, unmounted or swapped.
-    SdCardChanged,
+    /// These sample paths loaded into an instrument's sample slots.
+    SamplesLoaded {
+        paths: Vec<String>,
+    },
+    /// An OLED board SD card (SD2) was mounted.
+    SdCardMounted,
     DeviceUpdateStatus {
         ok: bool,
         message: String,
@@ -219,7 +223,9 @@ impl RuntimeStoreResult {
             Self::SamplePreviewError { .. } | Self::SamplePreviewStarted { .. } => {
                 RuntimeOperation::SamplePreview
             }
-            Self::SamplesMissing { .. } | Self::SdCardChanged => RuntimeOperation::AudioCommand,
+            Self::SamplesMissing { .. } | Self::SamplesLoaded { .. } | Self::SdCardMounted => {
+                RuntimeOperation::AudioCommand
+            }
             Self::DeviceUpdateStatus { .. } => RuntimeOperation::DeviceUpdate,
             Self::RecordingStatus { .. } => RuntimeOperation::Recording,
             Self::SystemInfoResult { .. } | Self::SystemInfoError { .. } => {
@@ -351,7 +357,8 @@ impl RuntimeStoreResult {
             | Self::SampleListResult { .. }
             | Self::SamplePreviewStarted { .. }
             | Self::SamplesMissing { .. }
-            | Self::SdCardChanged
+            | Self::SamplesLoaded { .. }
+            | Self::SdCardMounted
             | Self::DeviceUpdateStatus { .. }
             | Self::DeviceConfigStatus { .. }
             | Self::RecordingStatus { .. }

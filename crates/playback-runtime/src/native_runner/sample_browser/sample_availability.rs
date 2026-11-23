@@ -3,7 +3,11 @@ use crate::native_menu::NativeSampleAvailability;
 use super::super::{same_sample_path, NativeRunner};
 
 impl NativeRunner {
-    pub(super) fn mark_sample_available(&mut self, instrument_slot: usize, sample_slot: usize) {
+    pub(in crate::native_runner) fn mark_sample_available(
+        &mut self,
+        instrument_slot: usize,
+        sample_slot: usize,
+    ) {
         let Some(availability) = self
             .sample_availability
             .get_mut(instrument_slot)

@@ -236,7 +236,11 @@ impl NativeRunner {
                 self.apply_missing_samples(&paths);
                 Ok(())
             }
-            RuntimeStoreResult::SdCardChanged => {
+            RuntimeStoreResult::SamplesLoaded { paths } => {
+                self.apply_loaded_samples(&paths);
+                Ok(())
+            }
+            RuntimeStoreResult::SdCardMounted => {
                 self.reload_sd_card_samples();
                 Ok(())
             }

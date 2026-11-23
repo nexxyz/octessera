@@ -324,6 +324,12 @@ fn instrument_owner_replacement_publishes_one_atomic_owner_event() {
         }
             if bank.slots[0].buffer.is_some()
     ));
+    assert!(matches!(
+        result_rx.try_recv().unwrap(),
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SamplesLoaded { paths }
+        } if paths == vec!["kick.wav".to_string()]
+    ));
     {
         let generations = audio.generations.lock().unwrap();
         assert_eq!(generations.instrument[0], 4);
@@ -418,7 +424,7 @@ fn failed_atomic_owner_broadcast_does_not_commit_owner_state() {
     let _ = std::fs::remove_dir_all(root);
 }
 
-fn owner_wav_bytes() -> Vec<u8> {
+pub(super) fn owner_wav_bytes() -> Vec<u8> {
     let samples = [0_i16, 1_000_i16];
     let data_len = samples.len() * 2;
     let mut bytes = Vec::new();

@@ -38,6 +38,12 @@ pub(super) fn send_missing_samples(result_tx: &Sender<HostMessage>, paths: Vec<S
     }
 }
 
+pub(super) fn send_loaded_samples(result_tx: &Sender<HostMessage>, paths: Vec<String>) {
+    if !paths.is_empty() {
+        send_audio_prep_result(result_tx, RuntimeStoreResult::SamplesLoaded { paths });
+    }
+}
+
 pub(super) fn audio_prep_success(revision: u64, request_id: Option<String>) -> RuntimeStoreResult {
     RuntimeStoreResult::OperationSucceeded {
         operation: RuntimeOperation::AudioCommand,

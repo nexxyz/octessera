@@ -1,5 +1,5 @@
-//! Notices the OLED board's SD card (SD2) being mounted, unmounted or swapped, so the runtime
-//! resolves the patch's card samples again.
+//! Notices a card being mounted in the OLED board's SD slot (SD2), so the runtime loads the
+//! patch's card samples that are not loaded yet.
 
 use playback_runtime::{HostMessage, RuntimeStoreResult};
 use std::path::{Path, PathBuf};
@@ -33,11 +33,10 @@ impl SdCardWatch {
     }
 
     fn observe(&mut self, mounted: Option<String>) -> Option<HostMessage> {
-        (mounted != self.mounted).then(|| {
-            self.mounted = mounted;
-            HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::SdCardChanged,
-            }
+        let arrived = mounted.is_some() && mounted != self.mounted;
+        self.mounted = mounted;
+        arrived.then_some(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SdCardMounted,
         })
     }
 }
@@ -106,23 +105,42 @@ mod tests {
         );
     }
 
-    #[test]
-    fn mounting_unmounting_and_swapping_the_card_each_report_one_change() {
-        let mut watch = watch();
-        let changed = |message: Option<HostMessage>| {
-            matches!(
-                message,
-                Some(HostMessage::RuntimeResult {
-                    result: RuntimeStoreResult::SdCardChanged
-                })
-            )
-        };
+    fn mounts(watch: &mut SdCardWatch, snapshots: &[String]) -> usize {
+        snapshots
+            .iter()
+            .filter_map(|mountinfo| {
+                watch.observe(mounted_card(mountinfo, Path::new(CARD), |_| true))
+            })
+            .filter(|message| {
+                matches!(
+                    message,
+                    HostMessage::RuntimeResult {
+                        result: RuntimeStoreResult::SdCardMounted
+                    }
+                )
+            })
+            .count()
+    }
 
-        assert!(watch.observe(None).is_none());
-        assert!(changed(watch.observe(Some("41".into()))));
-        assert!(watch.observe(Some("41".into())).is_none());
-        assert!(changed(watch.observe(Some("57".into()))));
-        assert!(changed(watch.observe(None)));
-        assert!(watch.observe(None).is_none());
+    #[test]
+    fn a_pulled_card_reinserted_reports_one_mount_once_it_is_mounted_again() {
+        let mut watch = watch();
+        let boot_card_only = mountinfo(41).lines().next().unwrap().to_string();
+        assert_eq!(mounts(&mut watch, &[mountinfo(41)]), 1);
+
+        let pulled_then_checked_then_mounted = [
+            boot_card_only.clone(),
+            boot_card_only.clone(),
+            boot_card_only,
+            mountinfo(41),
+            mountinfo(41),
+        ];
+        assert_eq!(mounts(&mut watch, &pulled_then_checked_then_mounted), 1);
+    }
+
+    #[test]
+    fn a_new_mount_id_reports_another_mount() {
+        let mut watch = watch();
+        assert_eq!(mounts(&mut watch, &[mountinfo(41), mountinfo(57)]), 2);
     }
 }
