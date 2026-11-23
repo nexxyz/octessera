@@ -241,3 +241,49 @@ fn hold_sampler_tiles_with_their_own_samples_all_sound_on_one_step() {
     );
     assert_eq!(runner.held_keys.held_count(), 3);
 }
+
+/// Restamping a held tile to another sample ends the key it holds on its old pad at once; the
+/// tile's later Off then acts on the new pad.
+#[test]
+fn restamping_a_held_tile_ends_its_old_pad_and_its_off_acts_on_the_new_one() {
+    let mut runner = sampler_runner("hold");
+    let started = route(
+        &mut runner,
+        vec![held_on()],
+        &[Some(intent(1, TileTriggerKind::Activate))],
+    );
+    assert_eq!(started.len(), 1);
+    let old_pad = started[0].voice;
+
+    runner.handle_sample_assignment_grid_press(0, 5, 1, 0);
+    let restamped = runner.messages_without_snapshot().unwrap();
+    let ended = restamped
+        .iter()
+        .flat_map(|message| match message {
+            RunnerMessage::TileHits { hits } => hits.clone(),
+            _ => Vec::new(),
+        })
+        .map(|hit| (hit.tile, hit.voice, hit.velocity))
+        .collect::<Vec<_>>();
+    assert_eq!(ended, [(1, old_pad, 0)]);
+    assert_eq!(runner.held_keys.held_count(), 0);
+
+    let again = route(
+        &mut runner,
+        vec![held_on()],
+        &[Some(intent(1, TileTriggerKind::Activate))],
+    );
+    assert_eq!(again[0].voice, 5);
+    let released = route(
+        &mut runner,
+        vec![off()],
+        &[Some(intent(1, TileTriggerKind::Deactivate))],
+    );
+    assert_eq!(
+        released
+            .iter()
+            .map(|hit| (hit.voice, hit.velocity))
+            .collect::<Vec<_>>(),
+        [(5, 0)]
+    );
+}

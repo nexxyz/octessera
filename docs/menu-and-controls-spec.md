@@ -1519,7 +1519,8 @@ Keys (instruments in either Note Mode):
 - On Drum and Sampler slots a key is its pitch on one sample pad (the Sampler sample slot or Drum
   kit voice the tile plays, picked when the note-on is sent). Tiles on different pads are
   different keys and never cut each other; the same pad again strikes its key again. A note-off
-  from a tile releases its pitch on that tile's pad; an unstamped tile releases nothing.
+  from a tile releases its pitch on that tile's pad; an unstamped tile releases nothing. Restamping a tile
+  to another pad, or clearing it, ends the keys held on its old pad at once.
 - Each instrument keeps one table of its held keys with what each sounds as (internal voice, MIDI
   channel and note, or Sampler and Drum tile). A key on a `oneshot` instrument lets go by itself
   after its layer's One-Shot Len.

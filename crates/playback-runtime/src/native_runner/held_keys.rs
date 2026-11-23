@@ -361,6 +361,17 @@ impl HeldKeys {
         self.release_slots(u16::MAX, out);
     }
 
+    /// Releases the keys `slot` holds on sample pad `pad`.
+    pub(in crate::native_runner) fn release_pad(
+        &mut self,
+        slot: u8,
+        pad: u8,
+        out: &mut RoutedMusicalEvents,
+    ) {
+        let slots = 1_u16.checked_shl(u32::from(slot)).unwrap_or(0);
+        self.release_where(slots, |sound| sound.pad() == Some(pad), out);
+    }
+
     /// Releases the keys of `slot` that sound on MIDI out.
     pub(in crate::native_runner) fn release_midi_keys(
         &mut self,

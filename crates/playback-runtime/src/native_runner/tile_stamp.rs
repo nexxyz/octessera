@@ -67,6 +67,64 @@ impl NativeRunner {
             .unwrap_or_default()
     }
 
+    /// The sample pad each tile of a Drum or Sampler `slot` is stamped with, by tile index.
+    fn tile_pads(&self, slot: usize) -> [Option<u8>; GRID_WIDTH * GRID_HEIGHT] {
+        let mut pads = [None; GRID_WIDTH * GRID_HEIGHT];
+        let Some(instrument) = self.instruments.get(slot) else {
+            return pads;
+        };
+        let mut stamp = |x: usize, y: usize, pad: u8| {
+            if let Some(tile) = (x < GRID_WIDTH && y < GRID_HEIGHT).then(|| y * GRID_WIDTH + x) {
+                pads[tile] = Some(pad);
+            }
+        };
+        match instrument.kind {
+            InstrumentType::Sampler => {
+                for assignment in &instrument.sample_assignments {
+                    stamp(
+                        assignment.x,
+                        assignment.y,
+                        assignment.sample_slot.min(7) as u8,
+                    );
+                }
+            }
+            InstrumentType::Drum => {
+                let tiles = instrument
+                    .drum_config
+                    .get("assignments")
+                    .and_then(Value::as_array);
+                for tile in tiles.into_iter().flatten() {
+                    let at = |key: &str| tile.get(key).and_then(Value::as_u64);
+                    if let (Some(x), Some(y), Some(voice)) = (at("x"), at("y"), at("voice")) {
+                        stamp(x as usize, y as usize, voice.min(7) as u8);
+                    }
+                }
+            }
+            _ => {}
+        }
+        pads
+    }
+
+    /// A tile restamped to another pad, or cleared, no longer releases its old pad, so the keys
+    /// `slot` holds on that old pad end now.
+    fn release_restamped_pads(&mut self, slot: usize, before: &[Option<u8>]) {
+        let after = self.tile_pads(slot);
+        let old_pads = before
+            .iter()
+            .zip(&after)
+            .filter(|(before, after)| before.is_some() && before != after)
+            .filter_map(|(before, _)| *before)
+            .fold(0_u16, |pads, pad| pads | 1 << pad);
+        let Ok(slot) = u8::try_from(slot) else {
+            return;
+        };
+        let mut released = super::modulation::RoutedMusicalEvents::default();
+        for pad in (0..8).filter(|pad| old_pads & (1 << pad) != 0) {
+            self.held_keys.release_pad(slot, pad, &mut released);
+        }
+        self.transpose.pending_note_offs.extend(released);
+    }
+
     pub(super) fn handle_sample_assignment_grid_press(
         &mut self,
         slot: usize,
@@ -74,6 +132,24 @@ impl NativeRunner {
         x: usize,
         y: usize,
     ) {
+        let before = self.tile_pads(slot);
+        self.stamp_sample_tiles(slot, sample_slot, x, y);
+        self.release_restamped_pads(slot, &before);
+    }
+
+    pub(super) fn handle_drum_assignment_grid_press(
+        &mut self,
+        slot: usize,
+        voice: u8,
+        x: usize,
+        y: usize,
+    ) {
+        let before = self.tile_pads(slot);
+        self.stamp_drum_tiles(slot, voice, x, y);
+        self.release_restamped_pads(slot, &before);
+    }
+
+    fn stamp_sample_tiles(&mut self, slot: usize, sample_slot: usize, x: usize, y: usize) {
         let Some(levels_enabled) = self
             .instruments
             .get(slot)
@@ -111,13 +187,7 @@ impl NativeRunner {
         self.mark_config_dirty();
     }
 
-    pub(super) fn handle_drum_assignment_grid_press(
-        &mut self,
-        slot: usize,
-        voice: u8,
-        x: usize,
-        y: usize,
-    ) {
+    fn stamp_drum_tiles(&mut self, slot: usize, voice: u8, x: usize, y: usize) {
         let stamp = self.tile_stamp(slot);
         let (tiles, line) = self.stamp_line_tiles(x, y);
         let Some(assignments) = self
