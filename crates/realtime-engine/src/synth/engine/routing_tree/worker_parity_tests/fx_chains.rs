@@ -49,7 +49,7 @@ fn assert_fx_config_renders_the_same(config: &InstrumentsConfig, label: &str) {
                         });
                     assert!(glided, "{label} bus glide");
                 }
-                if has_master && block == 80 {
+                if has_master && block + usize::from(routed) == 80 {
                     assert_eq!(
                         engine.set_global_fx_param(0, FxParamId::MixPct, 40.0),
                         FxParamMutation::Changed,

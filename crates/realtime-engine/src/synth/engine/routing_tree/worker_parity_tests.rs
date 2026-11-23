@@ -57,8 +57,8 @@ fn one_instrument_config(kind: &str, route: &str) -> InstrumentsConfig {
 /// Renders 1.25 s on the routing-tree workers and inline, asserting identical output, so a
 /// released note's tail and five repeats of the default 250 ms bus delay are compared.
 /// `control(engine, block, routed)` runs at each routed block's control point and before each
-/// inline block. The workers dispatch one block ahead, so a control reaches a worker-owned
-/// target one block later than a Global one.
+/// inline block. The workers dispatch one block ahead, so every untimed control, Global or
+/// worker-owned, reaches the routed output one block after its control point.
 fn assert_worker_render_matches_inline(
     routed: &mut SynthEngine,
     inline: &mut SynthEngine,
@@ -140,22 +140,49 @@ fn every_play_fx_type_renders_the_same_on_the_routing_tree_workers() {
                 drop(engine.apply_prepared_momentary_fx_start(start));
                 engine.note_on(0, 60, 100, 200);
             }
-            let inline_stop = if target == MomentaryFxTarget::Global {
-                40
-            } else {
-                41
-            };
             assert_worker_render_matches_inline(
                 &mut routed,
                 &mut inline,
                 &label,
                 |engine, block, routed| {
-                    if block == if routed { 40 } else { inline_stop } {
+                    if block + usize::from(routed) == 41 {
                         drop(engine.momentary_fx_stop_by_epoch(1));
                     }
                 },
             );
         }
+    }
+}
+
+#[test]
+fn a_global_play_fx_press_and_an_untimed_note_start_on_the_same_routing_tree_block() {
+    for rate in RATES {
+        let mut routed = SynthEngine::new(rate);
+        let mut inline = SynthEngine::new(rate);
+        for engine in [&mut routed, &mut inline] {
+            engine.set_instruments(one_instrument_config("synth", "direct"));
+            engine.note_on(0, 60, 100, 2_000);
+        }
+        assert_worker_render_matches_inline(
+            &mut routed,
+            &mut inline,
+            &format!("Global crush with a note at {rate} Hz"),
+            |engine, block, routed| {
+                if block + usize::from(routed) == 20 {
+                    let start = prepare_momentary_fx_start_with_epoch(
+                        "fx".into(),
+                        1,
+                        "crush".into(),
+                        BTreeMap::new(),
+                        MomentaryFxTarget::Global,
+                        rate,
+                    )
+                    .unwrap();
+                    drop(engine.apply_prepared_momentary_fx_start(start));
+                    engine.note_on(0, 67, 100, 300);
+                }
+            },
+        );
     }
 }
 
@@ -256,7 +283,7 @@ fn mixer_gain_ramps_render_the_same_on_the_routing_tree_workers() {
             &format!("mixer ramps via {route} at {rate} Hz"),
             |engine, block, routed| {
                 let worker_block = if routed { block + 1 } else { block };
-                if block == 10 {
+                if worker_block == 10 {
                     assert_eq!(engine.set_master_volume(40.0), ScalarMutation::Changed);
                 }
                 if worker_block == 20 {

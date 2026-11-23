@@ -217,7 +217,7 @@ fn routing_tree_local_momentary_fx_runs_through_source_control_gate() {
 }
 
 #[test]
-fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
+fn routing_tree_global_momentary_starts_with_the_next_source_note() {
     let prepared =
         realtime_engine::synth::prepare_instruments_config(direct_synth_instruments(), 44_100);
     let (tx, rx) = event_queue();
@@ -270,7 +270,7 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
     let ready_quantum: Vec<_> = (0..256).map(|_| source.next().unwrap()).collect();
     assert!(ready_quantum.iter().any(|sample| *sample != 0.0));
     assert_eq!(source.profile_snapshot().active_synth_voices, 1);
-    assert_eq!(source.profile_snapshot().active_momentary_fx, 1);
+    assert_eq!(source.profile_snapshot().active_momentary_fx, 0);
 
     let next_source_quantum: Vec<_> = (0..256).map(|_| source.next().unwrap()).collect();
     assert!(next_source_quantum.iter().any(|sample| *sample != 0.0));
@@ -278,7 +278,7 @@ fn routing_tree_global_momentary_uses_ready_quantum_before_next_source_note() {
     assert_eq!(source.profile_snapshot().active_momentary_fx, 1);
 
     tx.send(EngineEvent::MomentaryFxStop { epoch: 0 }).unwrap();
-    let _ = (0..256).map(|_| source.next().unwrap()).collect::<Vec<_>>();
+    let _ = (0..512).map(|_| source.next().unwrap()).collect::<Vec<_>>();
     let after_stop: Vec<_> = (0..256).map(|_| source.next().unwrap()).collect();
     assert!(after_stop.iter().any(|sample| sample.abs() > 0.0001));
     assert_eq!(source.profile_snapshot().active_momentary_fx, 0);

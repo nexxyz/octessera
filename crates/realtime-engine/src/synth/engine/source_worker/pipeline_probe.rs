@@ -27,7 +27,7 @@ impl RoutingTreePipelineProbe {
 
     pub(super) fn record_coordinator(&self, sequence: u64, base_sample_clock: u64) {
         let dispatch = self.last_dispatch.load(Ordering::Acquire);
-        if dispatch <= sequence {
+        if dispatch != u64::MAX && dispatch != sequence {
             self.ordering_violations.fetch_add(1, Ordering::Relaxed);
         }
         self.last_coordinator.store(sequence, Ordering::Release);

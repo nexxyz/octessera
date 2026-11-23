@@ -204,7 +204,7 @@ Pi `AudioManager` owns the bounded `audio_load_status_channel` sender source; th
 
 ### Executors
 
-The engine has two executors: the inline path (desktop and Latency mode) renders every voice on the audio thread; the routing tree (`routing-tree-executor`, Capacity mode on the boards) splits instruments across two workers that render their voices, whole bus chains, and instrument- and bus-targeted momentary FX one quantum ahead. Both add each voice straight into its instrument's buffer; the two paths sound the same but are not bit-identical. CPU1 sums the worker outputs and owns global-target momentary FX, global/master processing, and final stereo work.
+The engine has two executors: the inline path (desktop and Latency mode) renders every voice on the audio thread; the routing tree (`routing-tree-executor`, Capacity mode on the boards) splits instruments across two workers that render their voices, whole bus chains, and instrument- and bus-targeted momentary FX one quantum ahead. Both add each voice straight into its instrument's buffer; the two paths sound the same but are not bit-identical. CPU1 sums the worker outputs and owns global-target momentary FX, global/master processing, and final stereo work. Each callback finishes the collected block's master stage before it applies the untimed controls and dispatches the next quantum, so every untimed control, Global or worker-owned, starts on the same block.
 
 ### Routing-tree ownership
 

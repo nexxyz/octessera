@@ -127,7 +127,7 @@ fn routing_tree_start_hook_runs_in_both_named_workers() {
 }
 
 #[test]
-fn routing_tree_pipeline_uses_block_lookahead_and_orders_overlap() {
+fn routing_tree_pipeline_uses_block_lookahead_and_finishes_each_block_before_the_next_dispatch() {
     let (mut engine, lifecycle, mut runtime) = start_runtime();
     assert_eq!(runtime.lookahead_frames(), 128);
     let probe = Arc::new(RoutingTreePipelineProbe::default());

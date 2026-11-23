@@ -63,7 +63,7 @@ fn routing_tree_status_waits_for_fresh_profile_after_controls() {
     assert_eq!(first_profile.active_synth_voices, 0);
     assert_eq!(first_profile.active_sample_voices, 0);
     assert_eq!(first_profile.active_bus_fx_slots, 0);
-    assert_eq!(first_profile.active_global_fx_slots, 1);
+    assert_eq!(first_profile.active_global_fx_slots, 0);
     assert_eq!(first_profile.active_momentary_fx, 0);
 
     for _ in 0..256 {

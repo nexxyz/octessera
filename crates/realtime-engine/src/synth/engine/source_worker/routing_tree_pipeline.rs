@@ -70,6 +70,35 @@ impl SourceWorkerRuntime {
         } else {
             engine.sample_clock.saturating_add(frames as u64)
         };
+        if self.routing_output_ready {
+            let Some(outputs) = self.routing_output_spares.as_ref() else {
+                self.latch_invalid_block();
+                return SourceWorkerRenderDisposition::Fatal;
+            };
+            let Some(_output_stamp) = self.routing_output_stamp else {
+                self.latch_completion_failure(0b11);
+                return SourceWorkerRenderDisposition::Fatal;
+            };
+            for frame in 0..frames {
+                left[frame] = outputs[0].left[frame] + outputs[1].left[frame];
+                right[frame] = outputs[0].right[frame] + outputs[1].right[frame];
+                engine.block_slot_scratch.source_active[frame] =
+                    outputs[0].source_active[frame] || outputs[1].source_active[frame];
+                engine.block_slot_scratch.bus_active[frame] =
+                    outputs[0].bus_active[frame] || outputs[1].bus_active[frame];
+            }
+            engine.set_routing_tree_profile([&outputs[0], &outputs[1]]);
+            #[cfg(any(test, feature = "test-support"))]
+            if let Some(probe) = self.routing_tree_probe.as_ref() {
+                probe.record_coordinator(
+                    _output_stamp.quantum_sequence,
+                    _output_stamp.base_sample_clock,
+                );
+            }
+            engine.finish_persistent_block(frames, left, right);
+        }
+        let output_ready = std::mem::take(&mut self.routing_output_ready);
+        self.routing_output_stamp = None;
         if apply_controls.is_some() || engine.instrument_param_glides.moves_sample_voices() {
             let Some(()) =
                 self.with_routing_tree_controls_ready(engine, dispatch_sample_clock, |engine| {
@@ -86,7 +115,7 @@ impl SourceWorkerRuntime {
         } else {
             engine.advance_instrument_param_glides(frames);
         }
-        if !self.routing_output_ready {
+        if !output_ready {
             if !self.dispatch_routing_tree(engine, frames, dispatch_sample_clock) {
                 return self.routing_tree_failure_disposition();
             }
@@ -102,33 +131,6 @@ impl SourceWorkerRuntime {
             return self.routing_tree_failure_disposition();
         }
         engine.advance_dispatched_mix_gain_ramps(frames);
-        let Some(outputs) = self.routing_output_spares.as_ref() else {
-            self.latch_invalid_block();
-            return SourceWorkerRenderDisposition::Fatal;
-        };
-        let Some(_output_stamp) = self.routing_output_stamp else {
-            self.latch_completion_failure(0b11);
-            return SourceWorkerRenderDisposition::Fatal;
-        };
-        for frame in 0..frames {
-            left[frame] = outputs[0].left[frame] + outputs[1].left[frame];
-            right[frame] = outputs[0].right[frame] + outputs[1].right[frame];
-            engine.block_slot_scratch.source_active[frame] =
-                outputs[0].source_active[frame] || outputs[1].source_active[frame];
-            engine.block_slot_scratch.bus_active[frame] =
-                outputs[0].bus_active[frame] || outputs[1].bus_active[frame];
-        }
-        engine.set_routing_tree_profile([&outputs[0], &outputs[1]]);
-        #[cfg(any(test, feature = "test-support"))]
-        if let Some(probe) = self.routing_tree_probe.as_ref() {
-            probe.record_coordinator(
-                _output_stamp.quantum_sequence,
-                _output_stamp.base_sample_clock,
-            );
-        }
-        engine.finish_persistent_block(frames, left, right);
-        self.routing_output_ready = false;
-        self.routing_output_stamp = None;
         SourceWorkerRenderDisposition::Fresh
     }
 
