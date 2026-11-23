@@ -15,6 +15,8 @@ fn edited_patch() -> ScenarioBuilder {
     take.open(&["Build", "L5:", "Beh.", "[Human]", "sequencer"]);
     take.open(&["Link", "L5:", "Scanning"]);
     take.set_value("Scan Mode", "layers.4.link.scanMode", "scanning");
+    take.open(&["Link", "L5:", "Events"]);
+    take.set_value("Event Triggers", "layers.4.link.eventEnabled", "true");
     take.open(&["Link", "L5:", "Note Mapping"]);
     take.set_value("Out of Range", "layers.4.link.pitch.outOfRange", "wrap");
     take.checkpoint("l5 edited");

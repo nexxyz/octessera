@@ -91,6 +91,8 @@ fn drum_set_up_from_the_menu_plays_its_stamped_tunes() {
     take.open(&["Link", "L5:", "Scanning"]);
     take.set_value("Scan Mode", "layers.4.link.scanMode", "scanning");
     take.set_value("Scan Unit", "layers.4.link.scanUnit", "1/8");
+    take.open(&["Link", "L5:", "Events"]);
+    take.set_value("Event Triggers", "layers.4.link.eventEnabled", "true");
     take.checkpoint("l5 sequencer");
     for layer in 0..4 {
         take.toggle_mute_now(layer);

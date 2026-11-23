@@ -1875,7 +1875,7 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": false,
+          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -1890,7 +1890,7 @@
               "slot": 1
             },
             "stable": {
-              "action": "none",
+              "action": "note_on",
               "delaySteps": 0,
               "retriggerCount": 0,
               "slot": 1
@@ -2451,7 +2451,7 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": false,
+          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -2466,7 +2466,7 @@
               "slot": 3
             },
             "stable": {
-              "action": "none",
+              "action": "note_on",
               "delaySteps": 0,
               "retriggerCount": 0,
               "slot": 3

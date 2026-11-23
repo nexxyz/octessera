@@ -21,6 +21,13 @@ fn played_notes(out_of_range: &str) -> Vec<u8> {
     take.open(&["Link", "L5:", "Scanning"]);
     take.set_value("Scan Mode", "layers.4.link.scanMode", "scanning");
     take.set_value("Scan Unit", "layers.4.link.scanUnit", "1/8");
+    take.open(&["Link", "L5:", "Events"]);
+    take.set_value("Event Triggers", "layers.4.link.eventEnabled", "true");
+    take.set_value(
+        "Hold Trig",
+        "layers.4.link.mapping.stable.action",
+        "note_on",
+    );
     take.open(&["Link", "L5:", "Note Mapping"]);
     take.set_value(
         "Out of Range",
