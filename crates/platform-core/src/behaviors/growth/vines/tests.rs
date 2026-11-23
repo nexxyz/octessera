@@ -161,17 +161,48 @@ fn default_avoids_consecutive_extremes_and_bounded_triggers() {
 }
 
 #[test]
-fn a_boxed_in_tip_stops_and_a_vine_with_no_tips_is_planted_again() {
+fn a_boxed_in_tip_stops_and_a_full_grid_waits_without_replanting() {
     let mut tiles = vec![STEM; TILE_COUNT];
     tiles[grid_index(4, 4)] = TIP;
     let state = vines_init(json!({"tiles": tiles, "pruneAge": 64})).unwrap();
     let next = vines_on_tick(state, &mut context());
     assert_eq!(next.tiles[grid_index(4, 4)], STEM);
-    for (x, y) in [(3, 0), (4, 0), (3, 1)] {
-        assert_eq!(next.tiles[grid_index(x, y)], TIP);
-        assert_eq!(
-            next.trigger_types[grid_index(x, y)],
-            TileTriggerType::Activate
-        );
-    }
+    assert!(!next.tiles.contains(&TIP));
+    assert!(!next.trigger_types.contains(&TileTriggerType::Activate));
+}
+
+#[test]
+fn a_vine_with_no_tips_sprouts_on_open_tiles_of_the_lowest_open_row() {
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut tiles = vec![EMPTY; TILE_COUNT];
+        for x in 0..GRID_WIDTH {
+            tiles[grid_index(x, 0)] = STEM;
+        }
+        let mut state = vines_init(json!({"tiles": tiles, "pruneAge": 64, "growthPct": 0})).unwrap();
+        let mut sprouts = Vec::new();
+        for _ in 0..8 {
+            let before = state.tiles.clone();
+            state.tiles.iter_mut().for_each(|tile| {
+                if *tile == TIP {
+                    *tile = EMPTY
+                }
+            });
+            state = vines_on_tick(state, &mut context());
+            let planted = (0..TILE_COUNT)
+                .filter(|i| state.tiles[*i] == TIP)
+                .collect::<Vec<_>>();
+            assert_eq!(planted.len(), 3);
+            for i in &planted {
+                assert_eq!(i / GRID_WIDTH, 1, "the lowest row with room");
+                assert_eq!(state.trigger_types[*i], TileTriggerType::Activate);
+            }
+            for i in (0..TILE_COUNT).filter(|i| before[*i] == STEM) {
+                assert_ne!(state.trigger_types[i], TileTriggerType::Activate);
+            }
+            sprouts.push(planted);
+        }
+        sprouts.sort();
+        sprouts.dedup();
+        assert!(sprouts.len() > 1, "sprouts land on varied tiles");
+    });
 }

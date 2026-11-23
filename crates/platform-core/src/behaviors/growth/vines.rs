@@ -7,6 +7,7 @@ use crate::behaviors::native_impl::config_items::{action_item, number_item};
 use crate::behaviors::native_impl::grid_transitions::TILE_COUNT;
 use crate::behaviors::native_impl::state_codec::restore_trigger_types;
 use crate::grid::{grid_index, GRID_HEIGHT, GRID_WIDTH};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -162,7 +163,7 @@ pub fn vines_on_tick(mut state: VinesState, _: &mut BehaviorContext) -> VinesSta
         }
     }
     if !state.tiles.contains(&TIP) {
-        plant_seeds(&mut state, &mut forced);
+        sprout(&mut state);
     }
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers_with_forced(&prev, &state.tiles, &forced);
@@ -255,6 +256,27 @@ fn plant_seeds(s: &mut VinesState, forced: &mut Vec<usize>) {
         forced.push(index);
     }
 }
+/// Plants up to three tips on random open tiles of the lowest row that has room to grow; a full
+/// grid waits for leaves to fall.
+fn sprout(s: &mut VinesState) {
+    let open = |i: usize| {
+        s.tiles[i] == EMPTY
+            && !candidates(&s.tiles, i % GRID_WIDTH, i / GRID_WIDTH, 0, false).is_empty()
+    };
+    let Some(row) = (0..GRID_HEIGHT).find(|y| (0..GRID_WIDTH).any(|x| open(grid_index(x, *y))))
+    else {
+        return;
+    };
+    let mut spots = (0..GRID_WIDTH)
+        .map(|x| grid_index(x, row))
+        .filter(|i| open(*i))
+        .collect::<Vec<_>>();
+    let mut rng = crate::behavior_random::rng();
+    for _ in 0..3.min(spots.len()) {
+        let i = spots.swap_remove(rng.gen_range(0..spots.len()));
+        plant(s, i);
+    }
+}
 fn plant(s: &mut VinesState, i: usize) {
     plant_with_energy(s, i, 220)
 }
@@ -292,7 +314,7 @@ fn candidates(tiles: &[u8], x: usize, y: usize, source_energy: u32, sunward: boo
         if let (Some(nx), Some(ny)) = (x.checked_add_signed(dx), y.checked_add_signed(dy)) {
             if nx < GRID_WIDTH && ny < GRID_HEIGHT {
                 let i = grid_index(nx, ny);
-                if tiles[i] == EMPTY {
+                if tiles[i] == EMPTY && empty_neighbors(tiles, nx, ny) >= 2 {
                     out.push(i)
                 }
             }
