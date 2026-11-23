@@ -288,7 +288,13 @@ fn scheduled_seed(state: &mut CrystalGrowthState, previous: &[bool]) {
         && state.tick_counter % u64::from(state.seed_interval)
             == u64::from(state.seed_step % state.seed_interval)
     {
-        seed_random_avoiding(state, previous);
+        let crowded = (0..TILE_COUNT)
+            .map(|index| {
+                previous[index]
+                    || has_neighbor(previous, index % GRID_WIDTH, index / GRID_WIDTH, "cross")
+            })
+            .collect::<Vec<_>>();
+        seed_random_avoiding(state, &crowded);
     }
 }
 
@@ -317,16 +323,24 @@ fn grow_candidates(state: &mut CrystalGrowthState, previous: &[bool]) {
     let growing = (0..TILE_COUNT)
         .map(|index| surviving[index] && state.ages[index] < GROWING_TICKS)
         .collect::<Vec<_>>();
+    let settled = (0..TILE_COUNT)
+        .map(|index| surviving[index] && !growing[index])
+        .collect::<Vec<_>>();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
-            if previous[index] || !has_neighbor(&growing, x, y, &state.symmetry) {
+            if previous[index]
+                || !has_neighbor(&growing, x, y, &state.symmetry)
+                || has_neighbor(&settled, x, y, "cross")
+            {
                 continue;
             }
             if empty > 1
                 && hash(state.tick_counter, index) % 100 < u64::from(state.growth_chance_pct)
             {
                 seed_at(state, index);
+                state.ages[index] =
+                    youngest_parent_age(&growing, &state.ages, x, y, &state.symmetry) + 1;
                 empty -= 1;
             }
         }
@@ -356,6 +370,19 @@ fn deterministic_index(tick: u64, len: usize) -> usize {
     } else {
         (hash(tick, 0) as usize) % len
     }
+}
+
+/// A grown tile joins its crystal one tick older than the youngest growing tile it grew from, so
+/// a crystal grows only in its first ticks from the seed and dissolves outward from it.
+fn youngest_parent_age(growing: &[bool], ages: &[u16], x: usize, y: usize, symmetry: &str) -> u16 {
+    (0..TILE_COUNT)
+        .filter(|index| {
+            growing[*index]
+                && has_neighbor_cell(index % GRID_WIDTH, index / GRID_WIDTH, x, y, symmetry)
+        })
+        .map(|index| ages[index])
+        .min()
+        .unwrap_or(0)
 }
 
 fn has_neighbor(cells: &[bool], x: usize, y: usize, symmetry: &str) -> bool {
