@@ -178,7 +178,8 @@ fn a_vine_with_no_tips_sprouts_on_open_tiles_of_the_lowest_open_row() {
         for x in 0..GRID_WIDTH {
             tiles[grid_index(x, 0)] = STEM;
         }
-        let mut state = vines_init(json!({"tiles": tiles, "pruneAge": 64, "growthPct": 0})).unwrap();
+        let mut state =
+            vines_init(json!({"tiles": tiles, "pruneAge": 64, "growthPct": 0})).unwrap();
         let mut sprouts = Vec::new();
         for _ in 0..8 {
             let before = state.tiles.clone();

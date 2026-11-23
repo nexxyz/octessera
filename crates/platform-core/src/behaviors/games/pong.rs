@@ -173,7 +173,11 @@ fn place_ball(state: &mut PongState, x: u8, y: u8) {
     match state.ball.filter(|ball| ball.x > 0 && ball.x < RIGHT) {
         Some(ball) => state.ball = Some(Ball { x, y, ..ball }),
         None => {
-            let dir = if usize::from(x) < GRID_WIDTH / 2 { -1 } else { 1 };
+            let dir = if usize::from(x) < GRID_WIDTH / 2 {
+                -1
+            } else {
+                1
+            };
             serve(state, dir);
             state.ball = state.ball.map(|ball| Ball { x, y, ..ball });
         }

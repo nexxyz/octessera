@@ -256,7 +256,10 @@ fn a_world_that_loops_for_four_cycles_gets_a_fresh_patch() {
             longest = longest.max(streak);
         }
         assert!(longest >= period, "the default world settles into a loop");
-        assert!(longest < (usize::from(LOOP_CYCLES) + 1) * period, "{longest}");
+        assert!(
+            longest < (usize::from(LOOP_CYCLES) + 1) * period,
+            "{longest}"
+        );
     });
 }
 

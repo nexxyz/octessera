@@ -153,7 +153,11 @@ fn a_full_cluster_keeps_renewing_at_a_rate_set_by_cell_life() {
                 let previous = state.cells.clone();
                 state = dla_on_tick(state, &mut context);
                 if tick >= 200 {
-                    changes += previous.iter().zip(&state.cells).filter(|(a, b)| a != b).count();
+                    changes += previous
+                        .iter()
+                        .zip(&state.cells)
+                        .filter(|(a, b)| a != b)
+                        .count();
                 }
             }
             changes
