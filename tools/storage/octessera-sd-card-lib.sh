@@ -73,15 +73,7 @@ configured_device() {
 
 prepare_folders() {
   mkdir -p "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR"
-  fstype="$(findmnt -nro FSTYPE --mountpoint "$SD_MOUNT" 2>/dev/null || true)"
-  case "$fstype" in
-    vfat|exfat|fat|msdos)
-      chown "$SD_OWNER:$SD_OWNER" "$SD_MOUNT/$ROOT_OCTESSERA" "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR" 2>/dev/null || true
-      ;;
-    *)
-      chown "$SD_OWNER:$SD_OWNER" "$SD_MOUNT/$ROOT_OCTESSERA" "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR"
-      ;;
-  esac
+  chown "$SD_OWNER:$SD_OWNER" "$SD_MOUNT/$ROOT_OCTESSERA" "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR" 2>/dev/null || true
 }
 
 transfer_active() { [ -e "$STORAGE_STATE" ]; }
