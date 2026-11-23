@@ -340,7 +340,10 @@ fn drain_settled_edge(state: &mut GravityState) {
         return;
     }
     for index in dest_edge(&state.gravity_dir) {
-        if state.tiles[index] == SAND && state.age[index] >= state.settle_age {
+        if state.tiles[index] == SAND
+            && state.age[index] >= state.settle_age
+            && tile_roll_pct(state.tick_counter, index, 31) < u32::from(state.spawn_rate_pct)
+        {
             state.tiles[index] = EMPTY;
             state.age[index] = 0;
         }
