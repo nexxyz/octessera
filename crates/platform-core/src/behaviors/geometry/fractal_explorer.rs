@@ -44,6 +44,9 @@ pub struct FractalExplorerState {
     pub iteration_limit: u8,
     #[serde(rename = "tickCounter", skip_serializing, skip_deserializing)]
     pub tick_counter: u64,
+    /// The direction of the last level pan, which the view keeps while it finds detail there.
+    #[serde(skip)]
+    pub pan: (i32, i32),
 }
 
 #[derive(Default, Deserialize)]
@@ -157,6 +160,7 @@ pub fn fractal_explorer_on_tick(
                 .flatten()
         })
     {
+        s.pan = candidate.step;
         s.center_x = candidate.center_x;
         s.center_y = candidate.center_y;
         s.zoom = candidate.zoom;
@@ -222,6 +226,7 @@ fn from_config(v: Value) -> FractalExplorerState {
         drift_pct: valu(c.drift_pct, 20, 0, 100) as u8,
         iteration_limit: valu(c.iteration_limit, 24, 8, 64) as u8,
         tick_counter: 0,
+        pan: (0, 0),
     };
     normalize(&mut s);
     s
@@ -324,6 +329,7 @@ fn next_zoom(zoom: u16, zoom_rate_pct: u8) -> u16 {
 }
 #[derive(Clone)]
 struct Candidate {
+    step: (i32, i32),
     center_x: i32,
     center_y: i32,
     zoom: u16,
@@ -358,6 +364,7 @@ fn best_candidate(s: &FractalExplorerState, zoom: u16, prefer_moving: bool) -> O
                 s.iteration_limit,
             );
             Candidate {
+                step: (dx, dy),
                 center_x,
                 center_y,
                 zoom,
@@ -369,7 +376,7 @@ fn best_candidate(s: &FractalExplorerState, zoom: u16, prefer_moving: bool) -> O
         .filter(|candidate| {
             !prefer_moving || candidate.center_x != s.center_x || candidate.center_y != s.center_y
         })
-        .max_by_key(|candidate| candidate.score)
+        .max_by_key(|candidate| (prefer_moving && candidate.step == s.pan, candidate.score))
 }
 fn candidate_score(classes: &[u8], dx: i32, dy: i32, s: &FractalExplorerState) -> i32 {
     let inside = classes.iter().filter(|class| **class == 0).count() as i32;
