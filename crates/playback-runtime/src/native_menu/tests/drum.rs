@@ -29,6 +29,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
             .collect::<Vec<_>>(),
         [
             "Type",
+            "Note Off",
             "Drum",
             "Mixer",
             "Signal",
@@ -37,7 +38,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
             "Slot Actions"
         ]
     );
-    let drum = &slot.children[1];
+    let drum = &slot.children[2];
     assert_eq!(
         drum.children
             .iter()
@@ -55,7 +56,6 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
             "Vel Levels",
             "Follow Transp.",
             "Follow Pitch",
-            "Note Off",
             "Filter",
             "Volume"
         ]

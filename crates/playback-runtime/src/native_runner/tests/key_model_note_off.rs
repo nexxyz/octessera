@@ -1,5 +1,6 @@
-//! A Drum or Sampler slot's Note Off: `cut` lets any source's note-off end the tile's sound,
-//! `ignore` lets it play out. A Drum starts at `ignore`, a Sampler at `cut`.
+//! A One-Shot instrument's Note Off: `cut` lets any source's note-off end its note early, `ignore`
+//! lets the note play its length. Every instrument starts at `ignore`; a Hold note always ends on
+//! a note-off.
 
 use super::*;
 use crate::runtime::MidiNote;
@@ -28,18 +29,16 @@ fn tile_runner(kind: &str) -> NativeRunner {
     runner
 }
 
-fn set_note_off(runner: &mut NativeRunner, kind: &str, value: &str) {
-    let key = format!(
-        "instruments.0.{}.noteOff",
-        if kind == "drum" { "drum" } else { "sample" }
-    );
-    runner.menu.set_enum_value_for_key(&key, value);
+fn set_note_off(runner: &mut NativeRunner, value: &str) {
+    let key = "instruments.0.noteOff";
+    runner.menu.rebuild(runner.menu_config());
+    runner.menu.set_enum_value_for_key(key, value);
     assert_eq!(
-        runner.menu.value_for_key(&key).as_deref(),
+        runner.menu.value_for_key(key).as_deref(),
         Some(value),
         "{key}"
     );
-    runner.apply_or_schedule_menu_key(&key).unwrap();
+    runner.apply_or_schedule_menu_key(key).unwrap();
 }
 
 /// The tile releases (velocity 0) in `messages`.
@@ -66,19 +65,28 @@ fn a_drum_ignores_note_offs_until_set_to_cut() {
     let (press, release) = tap(&mut runner);
     assert_eq!(releases(&press), 0);
     assert_eq!(releases(&release), 0, "the hit plays its full length");
-    set_note_off(&mut runner, "drum", "cut");
+    set_note_off(&mut runner, "cut");
     let (_, release) = tap(&mut runner);
     assert_eq!(releases(&release), 1, "the Off fades the hit out");
 }
 
 #[test]
-fn a_sampler_cuts_on_note_offs_until_set_to_ignore() {
+fn a_one_shot_sampler_lets_a_sample_play_out_until_set_to_cut_and_a_hold_one_always_cuts() {
     let mut runner = tile_runner("sampler");
     let (_, release) = tap(&mut runner);
-    assert_eq!(releases(&release), 1);
-    set_note_off(&mut runner, "sampler", "ignore");
-    let (_, release) = tap(&mut runner);
     assert_eq!(releases(&release), 0, "the sample plays out");
+    set_note_off(&mut runner, "cut");
+    let (_, release) = tap(&mut runner);
+    assert_eq!(releases(&release), 1);
+    set_note_off(&mut runner, "ignore");
+    runner.menu.rebuild(runner.menu_config());
+    runner
+        .edit_menu_key("instruments.0.noteBehavior", 1)
+        .unwrap();
+    runner.menu.rebuild(runner.menu_config());
+    assert!(runner.menu.item_for_key("instruments.0.noteOff").is_none());
+    let (_, release) = tap(&mut runner);
+    assert_eq!(releases(&release), 1, "a held sample ends on its release");
 }
 
 #[test]
@@ -89,7 +97,7 @@ fn a_notes_in_key_up_follows_the_drum_note_off() {
     let note =
         super::super::drum_config::drum_voice_midi_note(&runner.instruments[0].drum_config, 0);
     for (setting, expected) in [("ignore", 0), ("cut", 1)] {
-        set_note_off(&mut runner, "drum", setting);
+        set_note_off(&mut runner, setting);
         runner
             .send_midi_note(MidiNote {
                 channel: 0,
@@ -109,19 +117,16 @@ fn a_notes_in_key_up_follows_the_drum_note_off() {
 }
 
 #[test]
-fn the_note_off_settings_save_with_the_patch() {
+fn the_note_off_setting_saves_with_the_patch() {
     let mut runner = tile_runner("drum");
-    set_note_off(&mut runner, "drum", "cut");
+    set_note_off(&mut runner, "cut");
     let payload = runner.config_payload();
+    assert_eq!(payload["runtimeConfig"]["instruments"][0]["noteOff"], "cut");
     assert_eq!(
-        payload["runtimeConfig"]["instruments"][0]["drum"]["noteOff"],
-        "cut"
-    );
-    assert_eq!(
-        payload["runtimeConfig"]["instruments"][1]["sample"]["noteOff"],
-        "cut"
+        payload["runtimeConfig"]["instruments"][1]["noteOff"],
+        "ignore"
     );
     let mut restored = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     restored.apply_config_payload(payload).unwrap();
-    assert_eq!(restored.instruments[0].drum_config["noteOff"], "cut");
+    assert!(restored.instruments[0].note_off_cuts);
 }

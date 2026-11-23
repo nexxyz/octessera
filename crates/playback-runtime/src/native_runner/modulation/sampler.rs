@@ -237,7 +237,7 @@ fn press_for_intent(
         pitch: note,
         sound,
         length_ms,
-        cuts: note_off_cuts(instrument),
+        cuts: length_ms.is_none() || note_off_cuts(instrument),
     })
 }
 
@@ -261,22 +261,17 @@ fn release_pad(
     }
 }
 
-/// Whether a note-off ends what `instrument` sounds: always, but on a Drum or Sampler only with
-/// its Note Off at `cut` (a Drum hit otherwise plays its full length).
+/// Whether a note-off ends what `instrument` sounds: always in Hold, and on a One-Shot instrument
+/// (every Drum and MIDI Drum is one) only with its Note Off at `cut`. A press with no length of
+/// its own ends on its release whatever this says.
 pub(in crate::native_runner) fn note_off_cuts(
     instrument: &super::super::NativeInstrumentSlot,
 ) -> bool {
-    match instrument.kind {
-        InstrumentType::Drum => {
-            instrument
-                .drum_config
-                .get("noteOff")
-                .and_then(serde_json::Value::as_str)
-                == Some("cut")
-        }
-        InstrumentType::Sampler => instrument.sample_note_off_cuts,
-        _ => true,
-    }
+    let strikes = matches!(
+        instrument.kind,
+        InstrumentType::Drum | InstrumentType::MidiDrum
+    );
+    (!strikes && instrument.note_behavior == NoteBehavior::Hold) || instrument.note_off_cuts
 }
 
 /// What a pitched instrument sounds for `note` on `channel` under `transpose_offset`: an internal
@@ -413,7 +408,7 @@ fn route_event_without_intent(
                 pitch: note,
                 sound,
                 length_ms,
-                cuts: instrument.is_none_or(note_off_cuts),
+                cuts: length_ms.is_none() || instrument.is_none_or(note_off_cuts),
             }));
             return;
         }

@@ -264,7 +264,7 @@ pub(crate) fn mixer_pan_is_non_editable_when_routed_to_fx_bus() {
         NativeMenuValue::Group
     ));
     assert_eq!(menu.press(), None);
-    assert_eq!(menu.state.stack, vec![2, 0, 0, 3]);
+    assert_eq!(menu.state.stack, vec![2, 0, 0, 4]);
     assert_eq!(menu.state.cursor, 2);
     assert!(!menu.state.editing);
 }

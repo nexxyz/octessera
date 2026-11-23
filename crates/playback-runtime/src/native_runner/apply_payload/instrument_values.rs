@@ -27,6 +27,9 @@ pub(in crate::native_runner) fn apply_instrument_payload(
     {
         instrument.note_behavior = note_behavior;
     }
+    if let Some(note_off) = &slot.note_off {
+        instrument.note_off_cuts = note_off == "cut";
+    }
     if let Some(auto_name) = slot.auto_name {
         instrument.auto_name = auto_name;
     }
@@ -160,9 +163,6 @@ fn apply_sample_payload(sample: &SampleDto, instrument: &mut NativeInstrumentSlo
     }
     if let Some(follow) = sample.follow_pitch {
         instrument.sample_follow_pitch = follow;
-    }
-    if let Some(note_off) = &sample.note_off {
-        instrument.sample_note_off_cuts = note_off == "cut";
     }
     if let Some(levels) = &sample.velocity_levels {
         for (level, target) in [

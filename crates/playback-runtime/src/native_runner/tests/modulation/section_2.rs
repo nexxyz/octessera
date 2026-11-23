@@ -113,7 +113,7 @@ pub(crate) fn shift_grid_param_mod_overlay_marks_lanes_and_combined_tiles() {
     runner.menu.press();
     runner.menu.press();
     runner.menu.press();
-    runner.menu.turn(3);
+    runner.menu.turn(4);
     runner.menu.press();
     runner.menu.turn(1);
     runner.display.ui.shift_held = true;

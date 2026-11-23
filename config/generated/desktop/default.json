@@ -247,6 +247,7 @@
         },
         "name": "Synth",
         "noteBehavior": "oneshot",
+        "noteOff": "ignore",
         "sample": {
           "amp": {
             "gainPct": 100,
@@ -348,8 +349,7 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false,
-          "noteOff": "cut"
+          "velocityLevelsEnabled": false
         },
         "synth": {
           "amp": {
@@ -411,6 +411,7 @@
         },
         "name": "Sampler",
         "noteBehavior": "oneshot",
+        "noteOff": "ignore",
         "sample": {
           "amp": {
             "gainPct": 286,
@@ -657,8 +658,7 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false,
-          "noteOff": "cut"
+          "velocityLevelsEnabled": false
         },
         "synth": {
           "amp": {
@@ -720,6 +720,7 @@
         },
         "name": "Plucked",
         "noteBehavior": "hold",
+        "noteOff": "ignore",
         "pluck": {
           "amp": {
             "gainPct": 80,
@@ -853,8 +854,7 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false,
-          "noteOff": "cut"
+          "velocityLevelsEnabled": false
         },
         "synth": {
           "amp": {
@@ -953,6 +953,7 @@
         },
         "name": "FM",
         "noteBehavior": "oneshot",
+        "noteOff": "cut",
         "sample": {
           "amp": {
             "gainPct": 100,
@@ -1054,8 +1055,7 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false,
-          "noteOff": "cut"
+          "velocityLevelsEnabled": false
         },
         "synth": {
           "amp": {
@@ -1154,6 +1154,7 @@
         },
         "name": "FM",
         "noteBehavior": "oneshot",
+        "noteOff": "ignore",
         "sample": {
           "amp": {
             "gainPct": 100,
@@ -1255,8 +1256,7 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false,
-          "noteOff": "cut"
+          "velocityLevelsEnabled": false
         },
         "synth": {
           "amp": {
@@ -1473,8 +1473,7 @@
               "tonePct": 80,
               "tuneSemis": 0
             }
-          ],
-          "noteOff": "ignore"
+          ]
         },
         "midi": {
           "channel": 1,
@@ -1488,6 +1487,7 @@
         },
         "name": "Drum",
         "noteBehavior": "oneshot",
+        "noteOff": "ignore",
         "sample": {
           "amp": {
             "gainPct": 100,
@@ -1589,8 +1589,7 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false,
-          "noteOff": "cut"
+          "velocityLevelsEnabled": false
         },
         "synth": {
           "amp": {
@@ -1652,6 +1651,7 @@
         },
         "name": "None",
         "noteBehavior": "oneshot",
+        "noteOff": "ignore",
         "sample": {
           "amp": {
             "gainPct": 100,
@@ -1753,8 +1753,7 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false,
-          "noteOff": "cut"
+          "velocityLevelsEnabled": false
         },
         "synth": {
           "amp": {
@@ -1816,6 +1815,7 @@
         },
         "name": "None",
         "noteBehavior": "oneshot",
+        "noteOff": "ignore",
         "sample": {
           "amp": {
             "gainPct": 100,
@@ -1917,8 +1917,7 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false,
-          "noteOff": "cut"
+          "velocityLevelsEnabled": false
         },
         "synth": {
           "amp": {

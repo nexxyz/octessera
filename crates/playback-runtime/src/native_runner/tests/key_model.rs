@@ -197,8 +197,10 @@ fn two_keys_clamped_to_one_pitch_share_it() {
     assert!(play(&mut runner, 126, 0, false).is_empty());
 }
 
+/// A key-up of a key Notes In never pressed, such as the echo of a note-off this runtime sent,
+/// releases nothing; the layer's own release still ends its key.
 #[test]
-fn a_notes_in_note_off_ends_a_layers_key() {
+fn a_notes_in_key_up_leaves_a_layers_key_alone() {
     let mut runner = keys_layers(true);
     runner.test_set_midi_enabled(true);
     runner.midi.notes_in = true;
@@ -211,13 +213,22 @@ fn a_notes_in_note_off_ends_a_layers_key() {
             velocity: 0,
         })
         .unwrap();
-    assert_eq!(words(&released, false), [format!("-{note}")]);
-    assert!(tile(&mut runner, 0, "grid_release", 0, 2).is_empty());
+    assert!(words(&released, false).is_empty());
+    assert_eq!(
+        tile(&mut runner, 0, "grid_release", 0, 2),
+        [format!("-{note}")]
+    );
 }
 
 #[test]
-fn a_mapped_note_off_cuts_a_one_shot_note_and_ends_nothing_after_its_length() {
+fn a_mapped_note_off_cuts_a_one_shot_note_only_with_note_off_cut_and_not_after_its_length() {
     let mut runner = keys_layers(false);
+    tile(&mut runner, 0, "grid_press", 0, 2);
+    assert!(
+        tile(&mut runner, 0, "grid_release", 0, 2).is_empty(),
+        "Note Off starts at ignore"
+    );
+    runner.instruments[0].note_off_cuts = true;
     let pulse = |runner: &mut NativeRunner, pulses: u32| {
         runner
             .send(HostMessage::TransportPulseStep {

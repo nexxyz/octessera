@@ -166,16 +166,6 @@ pub(super) fn drum_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> Nat
                 .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false),
         ),
-        enum_item(
-            "Note Off",
-            format!("{prefix}.drum.noteOff"),
-            vec!["cut", "ignore"],
-            usize::from(
-                drum.and_then(|drum| drum.get("noteOff"))
-                    .and_then(serde_json::Value::as_str)
-                    != Some("cut"),
-            ),
-        ),
         filter_group(drum, prefix),
         volume_group(drum, prefix),
     ]);

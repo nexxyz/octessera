@@ -25,7 +25,9 @@ pub(crate) fn synth_child_index(runner: &NativeRunner, label: &str) -> usize {
 }
 
 pub(crate) fn synth_stack(runner: &NativeRunner, label: &str) -> Vec<usize> {
-    vec![2, 0, 0, 2, synth_child_index(runner, label)]
+    let instrument_children = &runner.menu.root.children[2].children[0].children[0].children;
+    let synth_group = child_index_by_label(instrument_children, "Synth");
+    vec![2, 0, 0, synth_group, synth_child_index(runner, label)]
 }
 
 mod assign_modes;

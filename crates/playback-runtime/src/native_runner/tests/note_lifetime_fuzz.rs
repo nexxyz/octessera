@@ -270,17 +270,14 @@ fn change(runner: &mut NativeRunner, rng: &mut Rng) {
             runner.apply_or_schedule_menu_key(&key).unwrap();
         }
         10 => {
-            let key = ["instruments.2.sample.noteOff", "instruments.3.drum.noteOff"]
-                [rng.below(2) as usize];
+            let slot = [0, 2, 3, 4, 5][rng.below(5) as usize];
+            let key = format!("instruments.{slot}.noteOff");
             let value = ["cut", "ignore"][rng.below(2) as usize];
             runner.menu.rebuild(runner.menu_config());
-            runner.menu.set_enum_value_for_key(key, value);
-            assert_eq!(
-                runner.menu.value_for_key(key).as_deref(),
-                Some(value),
-                "{key}"
-            );
-            runner.apply_or_schedule_menu_key(key).unwrap();
+            // Hold instruments show no Note Off: their notes always end on a note-off.
+            if runner.menu.set_enum_value_for_key(&key, value) {
+                runner.apply_or_schedule_menu_key(&key).unwrap();
+            }
         }
         11 => edit_link(runner, layer, |link| {
             link.scan_lanes = match link.scan_lanes {

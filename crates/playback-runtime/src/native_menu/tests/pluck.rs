@@ -30,6 +30,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
         [
             "Type",
             "Note Mode",
+            "Note Off",
             "Plucked",
             "Mixer",
             "Signal",
@@ -39,7 +40,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
         ]
     );
     assert_eq!(
-        slot.children[2]
+        slot.children[3]
             .children
             .iter()
             .map(|row| row.label.as_str())
@@ -54,7 +55,7 @@ fn plucked_type_and_eight_rows_use_standard_oled_navigation() {
         ]
     );
     assert_eq!(
-        slot.children[2].children[1]
+        slot.children[3].children[1]
             .children
             .iter()
             .map(|row| row.label.as_str())

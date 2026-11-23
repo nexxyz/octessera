@@ -12,6 +12,7 @@ pub(crate) fn interpreting_behavior_grid_press_and_release_emit_musical_events()
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    runner.instruments[0].note_off_cuts = true;
 
     let press = runner
         .send(HostMessage::DeviceInput {

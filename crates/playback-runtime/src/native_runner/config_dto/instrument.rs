@@ -9,6 +9,8 @@ pub struct InstrumentDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) note_behavior: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(in crate::native_runner) note_off: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) auto_name: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) name: Option<String>,
@@ -71,8 +73,6 @@ pub struct SampleDto {
     pub(in crate::native_runner) follow_transpose: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) follow_pitch: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) note_off: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -219,8 +219,6 @@ pub struct DrumDto {
     pub(in crate::native_runner) follow_transpose: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) follow_pitch: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) note_off: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

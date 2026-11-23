@@ -63,6 +63,7 @@ pub(super) fn validate_instruments(runtime: &Map<String, Value>) -> Result<(), S
             &path,
             &NoteBehavior::ALL.map(NoteBehavior::wire_name),
         )?;
+        enum_field(instrument, "noteOff", &path, &NOTE_OFF_MODES)?;
         string_field(instrument, "name", &path)?;
         bool_field(instrument, "autoName", &path)?;
         if let Some(mixer) = object_field(instrument, "mixer", &path)? {
@@ -116,7 +117,6 @@ fn validate_sample(instrument: &Map<String, Value>, path: &str) -> Result<(), St
     unsigned_field(sample, "baseVelocity", &path, 1, 127)?;
     bool_field(sample, "followTranspose", &path)?;
     bool_field(sample, "followPitch", &path)?;
-    enum_field(sample, "noteOff", &path, &NOTE_OFF_MODES)?;
     signed_field(sample, "tuneSemis", &path, -24, 24)?;
     if let Some(slots) = array_field(sample, "slots", &path, SAMPLE_SLOT_COUNT)? {
         for (index, value) in slots.iter().enumerate() {
@@ -282,7 +282,6 @@ fn validate_drum(instrument: &Map<String, Value>, path: &str) -> Result<(), Stri
     let path = format!("{path}.drum");
     bool_field(drum, "followTranspose", &path)?;
     bool_field(drum, "followPitch", &path)?;
-    enum_field(drum, "noteOff", &path, &NOTE_OFF_MODES)?;
     if let Some(levels) = object_field(drum, "velocityLevels", &path)? {
         for key in ["high", "medium", "low"] {
             unsigned_field(levels, key, &format!("{path}.velocityLevels"), 1, 127)?;

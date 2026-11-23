@@ -30,6 +30,7 @@ fn fm_type_and_eight_group_rows_use_standard_navigation() {
         [
             "Type",
             "Note Mode",
+            "Note Off",
             "FM",
             "Mixer",
             "Signal",
@@ -38,7 +39,7 @@ fn fm_type_and_eight_group_rows_use_standard_navigation() {
             "Slot Actions"
         ]
     );
-    let fm = &slot.children[2];
+    let fm = &slot.children[3];
     assert_eq!(
         fm.children
             .iter()

@@ -331,7 +331,8 @@ impl HeldKeys {
         }
     }
 
-    /// Releases every key held by a slot in the `slots` bit mask, or only those `matches` keeps.
+    /// Releases every key held by a slot in the `slots` bit mask, or only those `matches` keeps,
+    /// and ends its sound even where the instrument ignores note-offs: a drain always goes quiet.
     fn release_where(
         &mut self,
         slots: u16,
@@ -343,7 +344,7 @@ impl HeldKeys {
             for index in 0..KEYS_PER_INSTRUMENT {
                 if let Some(key) = self.keys[slot][index].take_if(|key| matches(&key.sound)) {
                     if is_live(&key, now) {
-                        self.end_voice(&key.sound, key.cuts, out);
+                        self.end_voice(&key.sound, true, out);
                     }
                 }
             }

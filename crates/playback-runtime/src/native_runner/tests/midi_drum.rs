@@ -305,8 +305,8 @@ fn mute_disabled_output_and_a_closed_trigger_gate_block_midi_drum_notes() {
     rig.press(2, 3);
     assert_eq!(
         rig.take_notes(),
-        vec![vec![0x99, SNARE, 90], vec![0x89, SNARE, 0]],
-        "unmuted, and the tile's Off ends the note"
+        vec![vec![0x99, SNARE, 90]],
+        "unmuted; with Note Off at ignore the hit keeps its length"
     );
 
     rig.press_with(&["button_shift", "button_fn"], 0, 0);
@@ -316,8 +316,8 @@ fn mute_disabled_output_and_a_closed_trigger_gate_block_midi_drum_notes() {
     rig.press(2, 3);
     assert_eq!(
         rig.take_notes(),
-        vec![vec![0x99, SNARE, 90], vec![0x89, SNARE, 0]],
-        "trigger gate open"
+        vec![vec![0x89, SNARE, 0], vec![0x99, SNARE, 90]],
+        "closing the gate drained the earlier hit, and the open gate plays"
     );
 
     let mode = std::mem::replace(

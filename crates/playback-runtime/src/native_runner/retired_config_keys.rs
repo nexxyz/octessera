@@ -10,7 +10,7 @@ type RetiredKey = (
     fn(&Value) -> bool,
 );
 
-const RETIRED_RUNTIME_KEYS: [RetiredKey; 12] = [
+const RETIRED_RUNTIME_KEYS: [RetiredKey; 14] = [
     (SYSTEM_DOCUMENT, &["auxBindings"], holds_no_binding),
     (SYSTEM_DOCUMENT, &["shiftAuxBindings"], holds_no_binding),
     (PATCH_DOCUMENTS, &["sound", "noteLengthMs"], |_| true),
@@ -55,6 +55,16 @@ const RETIRED_RUNTIME_KEYS: [RetiredKey; 12] = [
         &["layers", "*", "link", "stateNotesEnabled"],
         |_| true,
     ),
+    (
+        PATCH_DOCUMENTS,
+        &["instruments", "*", "sample", "noteOff"],
+        |_| true,
+    ),
+    (
+        PATCH_DOCUMENTS,
+        &["instruments", "*", "drum", "noteOff"],
+        |_| true,
+    ),
 ];
 
 /// Loading drops each runtime key in `RETIRED_RUNTIME_KEYS` from documents of the listed kinds
@@ -64,7 +74,8 @@ const RETIRED_RUNTIME_KEYS: [RetiredKey; 12] = [
 /// Duration went when each layer's Link got its One-Shot Len, and each Link axis's layer-wide
 /// From/To never had a row or any effect, and a scan plays the Events mappings now instead of its
 /// own scanned and empty-scan mappings, and a layer's Event Triggers and State Notes went when
-/// Note Preview took over presses and the Hold row alone decided Hold notes. Use an entry only for
+/// Note Preview took over presses and the Hold row alone decided Hold notes, and the Sampler's and
+/// Drum's Note Off went when every One-Shot instrument got its own. Use an entry only for
 /// a value that can go; anything a save still needs means normalizing the existing stores.
 pub(crate) fn without_retired_keys(document: &Value) -> Value {
     without_runtime_keys(document, &RETIRED_RUNTIME_KEYS)

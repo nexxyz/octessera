@@ -167,6 +167,7 @@ fn a_held_keys_note_ends_on_release_while_a_confirm_dialog_is_open() {
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    runner.instruments[0].note_off_cuts = true;
     assert!(musical_note_ons(&press(&mut runner, 2, 3))
         .iter()
         .any(|(_, note)| *note > 0));

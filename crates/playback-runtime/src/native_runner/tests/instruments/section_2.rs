@@ -246,6 +246,7 @@ pub(crate) fn midi_instrument_slot_two_routes_only_to_midi_channel_one() {
         kind: InstrumentType::Midi,
         midi_enabled: true,
         midi_channel: 2,
+        note_off_cuts: true,
         ..NativeInstrumentSlot::new(2)
     });
     let intent = TileTriggerIntent {

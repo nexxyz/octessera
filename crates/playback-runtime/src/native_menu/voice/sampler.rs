@@ -83,12 +83,6 @@ pub(super) fn sampler_group(config: &InstrumentMenuConfig<'_>, prefix: &str) -> 
             format!("{prefix}.sample.followPitch"),
             config.sample_follow_pitch,
         ),
-        enum_item(
-            "Note Off",
-            format!("{prefix}.sample.noteOff"),
-            vec!["cut", "ignore"],
-            usize::from(!config.sample_note_off_cuts),
-        ),
         number_item(
             "Gain",
             format!("{prefix}.sample.amp.gainPct"),

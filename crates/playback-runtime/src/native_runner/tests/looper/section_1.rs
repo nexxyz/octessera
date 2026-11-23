@@ -66,6 +66,7 @@ pub(crate) fn looper_overdub_records_release_and_replays_each_loop() {
 #[test]
 pub(crate) fn looper_clear_loop_action_releases_playback_tiles_and_marks_dirty() {
     let mut runner = looper_runner();
+    runner.instruments[0].note_off_cuts = true;
     runner
         .send(HostMessage::DeviceInput {
             input: json!({ "type": "grid_press", "x": 2, "y": 3 }),

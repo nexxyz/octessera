@@ -75,7 +75,7 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) sample_velocity_levels_enabled: bool,
     pub(super) sample_follow_transpose: bool,
     pub(super) sample_follow_pitch: bool,
-    pub(super) sample_note_off_cuts: bool,
+    pub(super) note_off_cuts: bool,
     pub(super) tile_stamp: super::NativeMenuTileStamp,
     pub(super) sample_playback: super::NativeSamplePlayback,
     pub(super) midi_drum: super::NativeMenuMidiDrum,
@@ -166,12 +166,21 @@ pub(super) fn instrument_group(config: InstrumentMenuConfig<'_>) -> NativeMenuIt
         children.push(text_item("Name", format!("{prefix}.name"), config.name, 32));
         return group(config.label.clone(), children);
     }
-    if !matches!(config.kind, InstrumentType::Drum | InstrumentType::MidiDrum) {
+    let strikes = matches!(config.kind, InstrumentType::Drum | InstrumentType::MidiDrum);
+    if !strikes {
         children.push(enum_item(
             "Note Mode",
             format!("{prefix}.noteBehavior"),
             vec!["oneshot", "hold"],
             selected_index(&["oneshot", "hold"], config.note_behavior.wire_name()),
+        ));
+    }
+    if strikes || config.note_behavior != NoteBehavior::Hold {
+        children.push(enum_item(
+            "Note Off",
+            format!("{prefix}.noteOff"),
+            vec!["cut", "ignore"],
+            usize::from(!config.note_off_cuts),
         ));
     }
     if config.kind == InstrumentType::Synth {

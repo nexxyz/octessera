@@ -61,8 +61,6 @@ pub(super) fn normalize_complete_voice_bank(payload: &mut Value) {
                 .or_insert_with(drum_velocity_levels_default);
             drum.entry("followTranspose").or_insert(Value::Bool(false));
             drum.entry("followPitch").or_insert(Value::Bool(false));
-            drum.entry("noteOff")
-                .or_insert(Value::String("ignore".into()));
         }
         let Some(voices) = instrument
             .get_mut("drum")
@@ -104,7 +102,6 @@ pub(super) fn drum_default_config() -> Value {
         "assignments": [],
         "velocityLevels": drum_velocity_levels_default(),
         "followTranspose": false,
-        "noteOff": "ignore",
         "followPitch": false,
         "amp": { "gainPct": 80, "velocitySensitivityPct": 100 },
         "ampEnv": { "attackMs": 0, "decayMs": 0, "sustainPct": 100, "releaseMs": 30 },

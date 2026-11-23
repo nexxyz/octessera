@@ -13,6 +13,7 @@ pub(crate) fn sampler_assignment_remaps_note_off_and_suppresses_unmapped_notes()
         tune_semis: 0,
         tune_cents: 0,
     }];
+    runner.instruments[0].note_off_cuts = true;
     let instruments = vec![runner.instruments[0].clone()];
     let assigned_intent = TileTriggerIntent {
         x: 2,

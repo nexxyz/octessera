@@ -129,7 +129,10 @@ pub(crate) fn play_transpose_note_off_uses_original_transposed_note() {
         degree: 0,
         kind: platform_core::TileTriggerKind::Activate,
     };
-    let instruments = [NativeInstrumentSlot::new(0)];
+    let instruments = [NativeInstrumentSlot {
+        note_off_cuts: true,
+        ..NativeInstrumentSlot::new(0)
+    }];
     let mut active_notes = crate::native_runner::held_keys::HeldKeys::default();
     let note_on = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {
@@ -177,7 +180,10 @@ pub(crate) fn a_release_ends_every_voice_its_key_still_sounds_on_a_one_shot_inst
         degree: 0,
         kind: platform_core::TileTriggerKind::Activate,
     };
-    let instruments = [NativeInstrumentSlot::new(0)];
+    let instruments = [NativeInstrumentSlot {
+        note_off_cuts: true,
+        ..NativeInstrumentSlot::new(0)
+    }];
     let mut active_notes = crate::native_runner::held_keys::HeldKeys::default();
 
     let _ = apply_sampler_assignments_for_instruments_routed(
@@ -241,6 +247,7 @@ pub(crate) fn sampler_hold_release_uses_the_final_routed_note_without_intent() {
     };
     let instruments = [NativeInstrumentSlot {
         kind: InstrumentType::Sampler,
+        note_off_cuts: true,
         sample_assignments: vec![NativeSampleAssignment {
             x: 2,
             y: 3,
@@ -311,7 +318,10 @@ pub(crate) fn play_transpose_tracks_clamped_explicit_release_notes() {
         degree: 0,
         kind: platform_core::TileTriggerKind::Activate,
     };
-    let instruments = [NativeInstrumentSlot::new(0)];
+    let instruments = [NativeInstrumentSlot {
+        note_off_cuts: true,
+        ..NativeInstrumentSlot::new(0)
+    }];
     let mut active_notes = crate::native_runner::held_keys::HeldKeys::default();
     let _ = apply_sampler_assignments_for_instruments_routed(
         vec![MusicalEvent::NoteOn {

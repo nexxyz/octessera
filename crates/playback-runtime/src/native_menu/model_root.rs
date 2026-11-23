@@ -287,11 +287,11 @@ pub(super) fn instrument_item(
             .get(index)
             .copied()
             .unwrap_or(false),
-        sample_note_off_cuts: config
-            .instrument_sample_note_off_cuts
+        note_off_cuts: config
+            .instrument_note_off_cuts
             .get(index)
             .copied()
-            .unwrap_or(true),
+            .unwrap_or(false),
         sample_follow_pitch: config
             .instrument_sample_follow_pitch
             .get(index)

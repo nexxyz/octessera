@@ -30,6 +30,7 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
     json!({
         "type": instrument.kind,
         "noteBehavior": if matches!(instrument.kind, InstrumentType::Drum | InstrumentType::MidiDrum) { "oneshot" } else { instrument.note_behavior.wire_name() },
+        "noteOff": if instrument.note_off_cuts { "cut" } else { "ignore" },
         "autoName": instrument.auto_name,
         "name": instrument.name,
         "synth": instrument.synth_config,
@@ -53,7 +54,6 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
             "velocityLevelsEnabled": instrument.sample_velocity_levels_enabled,
             "followTranspose": instrument.sample_follow_transpose,
             "followPitch": instrument.sample_follow_pitch,
-            "noteOff": if instrument.sample_note_off_cuts { "cut" } else { "ignore" },
             "velocityLevels": {
                 "high": instrument.sample_velocity_high,
                 "medium": instrument.sample_velocity_medium,

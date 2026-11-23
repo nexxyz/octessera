@@ -78,6 +78,8 @@ fn runner_in(context: Context) -> NativeRunner {
         grid_tap(&mut runner, x, y);
     }
     let link = |field: &str| format!("{PREFIX}{field}");
+    // The Off rows end notes only on an instrument whose Note Off cuts.
+    set(&mut runner, "instruments.0.noteOff", &enumerated("cut"));
     set(&mut runner, &link("x.pitch.steps"), &SweepValue::Number(1));
     set(&mut runner, &link("pitch.outOfRange"), &enumerated("wrap"));
     set(

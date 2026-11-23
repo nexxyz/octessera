@@ -62,7 +62,7 @@ pub struct NativeMenuConfig {
     pub instrument_sample_velocity_levels_enabled: Vec<bool>,
     pub instrument_sample_follow_transpose: Vec<bool>,
     pub instrument_sample_follow_pitch: Vec<bool>,
-    pub instrument_sample_note_off_cuts: Vec<bool>,
+    pub instrument_note_off_cuts: Vec<bool>,
     pub instrument_tile_stamps: Vec<NativeMenuTileStamp>,
     /// Each instrument's selected sample slot's Start and Loop rows.
     pub instrument_sample_playback: Vec<NativeSamplePlayback>,
