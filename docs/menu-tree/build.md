@@ -247,7 +247,7 @@ The pattern behaviors (weave, Rhythm, Musical) label their rows in lowercase. Th
 | shapes | Shape: [ring, filled, diamond, cross, x] | enum (default ring); `filled` relights its whole disk every tick it grows and starts no scheduled pulse while one is still growing, the others light only the tiles their edge newly reaches, and darken a tile that is still lit from an earlier step |
 | shapes | Lifespan: [1..12] | number, step 1 (default 3) |
 | shapes | Max Radius: [4..12] | number, step 1 (default 4) |
-| shapes | Spawn Interval: [0..20] | number, step 1 (default 4; 0 disables scheduled pulses, so shapes start only from presses and Spawn Pulse); scheduled pulses start at random tiles |
+| shapes | Spawn Interval: [0..20] | number, step 1 (default 4; 0 disables scheduled pulses, so shapes start only from presses and Spawn Pulse); scheduled pulses start at random dark tiles |
 | shapes | Spawn Step: [0..63] | number, step 1 (default 2) |
 | shapes | !Spawn Pulse | action |
 | fractal_explorer | Zoom Rate: [0..100] | number, step 1 (default 8) |

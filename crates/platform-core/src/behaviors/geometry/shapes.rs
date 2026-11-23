@@ -127,6 +127,19 @@ fn random_point() -> (usize, usize) {
     (rng.gen_range(0..GRID_WIDTH), rng.gen_range(0..GRID_HEIGHT))
 }
 
+/// A random tile that is dark this tick, so a scheduled shape always lights its start; any tile
+/// when none is dark.
+fn dark_point(lifetimes: &[usize]) -> (usize, usize) {
+    let dark = (0..TILE_COUNT)
+        .filter(|index| lifetimes[*index] == 0)
+        .collect::<Vec<_>>();
+    if dark.is_empty() {
+        return random_point();
+    }
+    let index = dark[crate::behavior_random::rng().gen_range(0..dark.len())];
+    (index % GRID_WIDTH, index / GRID_WIDTH)
+}
+
 fn add_pulse(state: &ShapesState, ox: usize, oy: usize) -> ShapesState {
     let previous = state
         .lifetimes
@@ -211,7 +224,7 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
         && (tick_counter - 1) % state.auto_pulse_interval
             == state.spawn_step % state.auto_pulse_interval
     {
-        let (x, y) = random_point();
+        let (x, y) = dark_point(&lifetimes);
         for index in shape_tiles(&state.pulse_shape, x, y, 0) {
             lifetimes[index] = state.lifespan;
         }
