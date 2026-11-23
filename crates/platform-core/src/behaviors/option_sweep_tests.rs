@@ -1,7 +1,7 @@
 //! Every Build option at its minimum, default and maximum and halfway between: the tile frames of
 //! a few hundred ticks on each of five random streams, untouched and after one press, must change
 //! from value to value on at least one stream and, on each, must neither stay empty, nearly fill
-//! the grid nor freeze. A short loop that changes a tenth of the grid each tick is a wave.
+//! the grid for half the time, nor freeze or settle into a loop of eight ticks or fewer.
 use super::{behavior_catalog, get_native_behavior, NativeBehavior};
 use crate::behavior::{
     BehaviorConfigItem, BehaviorConfigItemType, BehaviorContext, DeviceInput, TileTriggerType,
@@ -18,6 +18,7 @@ const PRESS_TILES: [(usize, usize); 5] = [(3, 4), (0, 0), (7, 0), (0, 7), (7, 7)
 const TILES: usize = GRID_WIDTH * GRID_HEIGHT;
 const SATURATED: usize = TILES - 5;
 const FROZEN_BELOW: usize = 4;
+const LONGEST_LOOP: usize = 8;
 const FAIR_SHARE: usize = 10;
 const PLAY_FAMILY: &[&str] = &["none", "keys", "looper", "sequencer"];
 
@@ -85,21 +86,19 @@ fn distinct_frames(frames: &[Frame]) -> usize {
     distinct.len()
 }
 
-/// A short loop still counts as moving when, like a cyclic wave, a fair share of the tiles changes
-/// every tick.
-fn waving(frames: &[Frame]) -> bool {
-    let changed = frames
-        .windows(2)
-        .map(|pair| {
-            pair[0]
-                .tiles
-                .iter()
-                .zip(&pair[1].tiles)
-                .filter(|(a, b)| a != b)
-                .count()
-        })
-        .sum::<usize>();
-    changed * FAIR_SHARE >= TILES * (frames.len() - 1)
+/// The frames repeat with a period of at most `LONGEST_LOOP` ticks.
+fn loops(frames: &[Frame]) -> bool {
+    (1..=LONGEST_LOOP).any(|period| frames[period..].iter().zip(frames).all(|(a, b)| a == b))
+}
+
+/// More than half of the frames nearly fill the grid.
+fn mostly_full(frames: &[Frame]) -> bool {
+    frames
+        .iter()
+        .filter(|frame| lit(frame) >= SATURATED)
+        .count()
+        * 2
+        > frames.len()
 }
 
 /// Two runs differ when their lit counts or a fair share of their frames differ.
@@ -191,11 +190,11 @@ fn sweep_findings(id: &str) -> Vec<String> {
                     let tail = &frames[frames.len() / 2..];
                     if frames.iter().all(|frame| lit(frame) == 0) {
                         find(format!("{key}={value} {label} stays empty"));
-                    } else if tail.iter().all(|frame| lit(frame) >= SATURATED) {
+                    } else if mostly_full(tail) {
                         find(format!("{key}={value} {label} saturates"));
                     } else if !play && tail.iter().all(|frame| lit(frame) == 0) {
                         find(format!("{key}={value} {label} dies out"));
-                    } else if !play && distinct_frames(tail) < FROZEN_BELOW && !waving(tail) {
+                    } else if !play && (distinct_frames(tail) < FROZEN_BELOW || loops(tail)) {
                         find(format!("{key}={value} {label} freezes"));
                     }
                 }
@@ -230,6 +229,10 @@ const OFFSET: &str = "an offset within the spawn interval: values a whole interv
 const NO_FADE: &str = "0 is off: nothing fades, so the lit tiles stand still";
 const CALM: &str = "0 is off: with no wind or no erosion the dunes rest";
 const FOREVER: &str = "0 is forever: crystals never dissolve, so they fill the grid";
+const FLOOD: &str = "a physical extreme: rain or grass on every tile every step fills the grid";
+const COLD: &str = "0 is frozen: with no heat the field pulls every spin one way";
+const INSTANT: &str =
+    "1 collapses a corridor the step after it is carved, so only the walkers' few tiles stay open";
 const ROW_ACCENT: &str =
     "changes only the trigger a cleared row sends; few rows clear in 300 ticks";
 const SPAWN_COUNT: &str = "only with Spawn Count above 0";
@@ -260,6 +263,20 @@ const EXPECTED: &[(&str, &str)] = &[
     ("ink: autoDropInterval=0 untouched dies out", OFF),
     ("ink: autoDropInterval=0 pressed dies out", OFF),
     ("rivers: rainPct=0 untouched dies out", OFF),
+    ("rivers: rainPct=100 untouched saturates", FLOOD),
+    ("rivers: rainPct=100 pressed saturates", FLOOD),
+    (
+        "predator_prey: grassGrowChancePct=100 untouched saturates",
+        FLOOD,
+    ),
+    (
+        "predator_prey: grassGrowChancePct=100 pressed saturates",
+        FLOOD,
+    ),
+    ("ising: temperaturePct=0 untouched saturates", COLD),
+    ("ising: temperaturePct=0 pressed saturates", COLD),
+    ("maze_growth: collapseAge=1 untouched freezes", INSTANT),
+    ("maze_growth: collapseAge=1 pressed freezes", INSTANT),
     ("rivers: rainPct=0 pressed dies out", OFF),
     ("wave: dampingPct=0 untouched saturates", EXTREME),
     ("wave: dampingPct=0 pressed saturates", EXTREME),
