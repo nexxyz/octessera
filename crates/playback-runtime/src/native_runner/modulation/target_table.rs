@@ -289,8 +289,7 @@ const PULSES_FIELDS: &[&str] = &[
     "scanDirection",
     "scanSections",
     "scanLanes",
-    "eventEnabled",
-    "stateNotesEnabled",
+    "notePreview",
     "triggerProbabilityMode",
     "triggerProbabilityLowPct",
     "triggerProbabilityHighPct",
@@ -368,8 +367,7 @@ const PULSES_ENUM_FIELDS: &[&str] = &[
 ];
 
 const PULSES_BOOL_FIELDS: &[&str] = &[
-    "eventEnabled",
-    "stateNotesEnabled",
+    "notePreview",
     "triggerProbabilityNoteOffs",
     "x.pitch.enabled",
     "x.pitch.restartEachSection",

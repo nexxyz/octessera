@@ -66,6 +66,8 @@ pub enum AxisStrategy {
     Ignore,
 }
 
+/// Note Preview: whether a tile press or release plays its change at once. A layer's own
+/// steps always play, whatever this says.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InterpretationEventProfile {
     pub enabled: bool,
@@ -159,10 +161,7 @@ pub(crate) fn interpret_grid_with_marker_authority(
     let intents = if profile.scans() {
         scan_candidates(previous, next, tick, profile, stable)
     } else {
-        let mut intents = Vec::new();
-        if profile.event.enabled {
-            intents.extend(select_event_candidates(previous, next, marker_authority));
-        }
+        let mut intents = select_event_candidates(previous, next, marker_authority);
         if stable {
             let stable_tiles = select_stable_candidates(previous, next, &intents);
             intents.extend(stable_tiles);
@@ -275,11 +274,7 @@ fn scan_candidates(
             after.tiles[tile] = *lit;
         }
     }
-    let mut candidates = if profile.event.enabled {
-        boolean_transition_candidates(&before, &after)
-    } else {
-        Vec::new()
-    };
+    let mut candidates = boolean_transition_candidates(&before, &after);
     if stable {
         let held = select_stable_candidates(&before, &after, &candidates);
         candidates.extend(held);

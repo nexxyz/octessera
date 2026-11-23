@@ -150,8 +150,8 @@ pub(crate) fn fresh_native_runner_uses_initial_pulses_defaults() {
     assert_eq!(runner.layers[0].link.scan_mode, ScanMode::None);
     assert_eq!(runner.layers[0].link.scan_axis, ScanAxis::Columns);
     assert_eq!(runner.layers[0].link.scan_unit, "1/16");
-    assert!(runner.layers[0].link.event_enabled);
-    assert!(!runner.layers[1].link.event_enabled);
+    assert!(runner.layers[0].link.note_preview);
+    assert!(runner.layers[1].link.note_preview);
     assert_eq!(runner.layers[0].link.lowest_note, 36);
     assert_eq!(runner.layers[0].link.starting_note, 60);
     assert_eq!(runner.layers[0].link.highest_note, 74);

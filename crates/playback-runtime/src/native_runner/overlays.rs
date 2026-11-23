@@ -1,10 +1,8 @@
 use super::led_color::LedColor;
 use super::play_pages::{ActivePlayMode, PlayMode};
-use super::scan_overlay::{scan_index_for_overlay, scan_section_count};
 use super::{
     display_index, native_binding_from_spec, DisplayTransientPresentation, NativeInstrumentSlot,
-    NativeParamBinding, NativeRunner, ScanAxis, ScanDirection, ScanMode, TileProbability,
-    GRID_HEIGHT, GRID_WIDTH,
+    NativeParamBinding, NativeRunner, TileProbability, GRID_HEIGHT, GRID_WIDTH,
 };
 
 impl NativeRunner {
@@ -189,59 +187,8 @@ impl NativeRunner {
     }
 
     pub(super) fn apply_scan_progress_overlay(&self, leds: &mut [LedColor]) {
-        let Some(sense) = self
-            .layers
-            .get(self.active_layer_index)
-            .map(|layer| &layer.link)
-        else {
-            return;
-        };
-        if sense.scan_mode != ScanMode::Scanning {
-            return;
-        }
-        let reverse = sense.scan_direction == ScanDirection::Reverse;
-        if sense.scan_axis == ScanAxis::Columns {
-            let sections = scan_section_count(sense.scan_sections, GRID_HEIGHT);
-            if sections > 1 {
-                let section_height = (GRID_HEIGHT / sections).max(1);
-                let step = scan_index_for_overlay(
-                    self.transport.tick as usize,
-                    GRID_WIDTH * sections,
-                    reverse,
-                );
-                let section = step / GRID_WIDTH;
-                let x = step % GRID_WIDTH;
-                let first_y = section * section_height;
-                for dy in 0..section_height {
-                    self.add_scan_overlay_led(leds, x, first_y + dy);
-                }
-            } else {
-                let x = scan_index_for_overlay(self.transport.tick as usize, GRID_WIDTH, reverse);
-                for y in 0..GRID_HEIGHT {
-                    self.add_scan_overlay_led(leds, x, y);
-                }
-            }
-        } else {
-            let sections = scan_section_count(sense.scan_sections, GRID_WIDTH);
-            if sections > 1 {
-                let section_width = (GRID_WIDTH / sections).max(1);
-                let step = scan_index_for_overlay(
-                    self.transport.tick as usize,
-                    GRID_HEIGHT * sections,
-                    reverse,
-                );
-                let section = step / GRID_HEIGHT;
-                let y = step % GRID_HEIGHT;
-                let first_x = section * section_width;
-                for dx in 0..section_width {
-                    self.add_scan_overlay_led(leds, first_x + dx, y);
-                }
-            } else {
-                let y = scan_index_for_overlay(self.transport.tick as usize, GRID_HEIGHT, reverse);
-                for x in 0..GRID_WIDTH {
-                    self.add_scan_overlay_led(leds, x, y);
-                }
-            }
+        for tile in self.active_engine().next_scan_line() {
+            self.add_scan_overlay_led(leds, tile % GRID_WIDTH, tile / GRID_WIDTH);
         }
     }
 

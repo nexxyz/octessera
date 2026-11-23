@@ -133,7 +133,10 @@ fn scan_interpretation_advances_with_engine_ticks() {
     let pressed = engine
         .on_input_with_events(DeviceInput::GridPress { x: 0, y: 1 }, 120.0)
         .unwrap();
-    assert!(pressed.events.is_empty(), "a scanning layer plays no press");
+    assert!(
+        !pressed.events.is_empty(),
+        "Note Preview plays a press on a scanning layer too"
+    );
     let kinds = |engine: &mut NativeLayerEngine| {
         engine
             .tick(120.0)

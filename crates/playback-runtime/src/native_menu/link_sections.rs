@@ -169,18 +169,11 @@ pub(super) fn events_group(
     sense: &NativeLinkLayerConfig,
     instrument_options: &[String],
 ) -> NativeMenuItem {
-    let mut children = vec![
-        bool_item(
-            "Event Triggers",
-            format!("{prefix}.eventEnabled"),
-            sense.event_enabled,
-        ),
-        bool_item(
-            "State Notes",
-            format!("{prefix}.stateNotesEnabled"),
-            sense.state_notes_enabled,
-        ),
-    ];
+    let mut children = vec![bool_item(
+        "Note Preview",
+        format!("{prefix}.notePreview"),
+        sense.note_preview,
+    )];
     children.extend(event_mapping_item(
         prefix,
         "Activate",

@@ -31,7 +31,8 @@ fn scan_layer(runner: &mut NativeRunner, layer: usize) {
     link.scan_mode = ScanMode::Scanning;
     link.scan_axis = ScanAxis::Columns;
     link.scan_unit = "1/16".into();
-    link.event_enabled = true;
+    // The taps that light the row only set the grid up.
+    link.note_preview = false;
     for slot in [
         &mut link.activate_slot,
         &mut link.stable_slot,
@@ -152,35 +153,24 @@ fn a_sectioned_scan_wraps_each_lane_on_its_own() {
     );
 }
 
+/// Note Preview only decides what a press plays; the line's own steps play whatever it says.
 #[test]
-fn event_triggers_gate_scan_on_and_off_and_state_notes_gate_its_hold() {
+fn note_preview_never_gates_the_scan() {
     let all_on = [TriggerAction::NoteOn; 3];
-    let mut runner = scan_runner("oneshot", &[1, 2]);
-    set_actions(&mut runner, 0, all_on);
-    assert_eq!(
-        sounding(&steps(&mut runner, 4))
-            .iter()
-            .map(|(index, _)| *index)
-            .collect::<Vec<_>>(),
-        [1, 2, 3]
-    );
-
-    let mut runner = scan_runner("oneshot", &[1, 2]);
-    set_actions(&mut runner, 0, all_on);
-    runner.layers[0].link.event_enabled = false;
-    runner.refresh_active_interpretation_profile();
-    let hold_only = sounding(&steps(&mut runner, 4));
-    assert_eq!(hold_only.iter().map(|(i, _)| *i).collect::<Vec<_>>(), [2]);
-
-    let mut runner = scan_runner("oneshot", &[1, 2]);
-    set_actions(&mut runner, 0, all_on);
-    runner.layers[0].link.state_notes_enabled = false;
-    runner.refresh_active_mapping_config();
-    let events_only = sounding(&steps(&mut runner, 4));
-    assert_eq!(
-        events_only.iter().map(|(i, _)| *i).collect::<Vec<_>>(),
-        [1, 3]
-    );
+    for preview in [true, false] {
+        let mut runner = scan_runner("oneshot", &[1, 2]);
+        set_actions(&mut runner, 0, all_on);
+        runner.layers[0].link.note_preview = preview;
+        runner.refresh_active_interpretation_profile();
+        assert_eq!(
+            sounding(&steps(&mut runner, 4))
+                .iter()
+                .map(|(index, _)| *index)
+                .collect::<Vec<_>>(),
+            [1, 2, 3],
+            "preview {preview}"
+        );
+    }
 }
 
 #[test]
@@ -298,7 +288,7 @@ fn another_layers_direct_off_ends_a_scanned_hold_note() {
         .replace_layer_engine_with_config(1, NativeBehavior::Keys, Value::Null, None)
         .unwrap();
     let link = &mut runner.layers[1].link;
-    link.event_enabled = true;
+    link.note_preview = true;
     link.activate_action = TriggerAction::None;
     link.deactivate_action = TriggerAction::NoteOff;
     link.deactivate_slot = 0;
@@ -322,16 +312,16 @@ fn another_layers_direct_off_ends_a_scanned_hold_note() {
     assert!(steps(&mut runner, 9).iter().all(Vec::is_empty));
 }
 
-/// Scan Mode off and a new Scan Axis drain the layer; Scan Dir, Scan Unit and, in poly lanes,
-/// Sections leave a held scan note sounding.
+/// Scan Mode off, a new Scan Axis and Sections drain the layer; Scan Dir and Scan Unit leave a
+/// held scan note sounding.
 #[test]
-fn only_scan_mode_off_and_a_new_axis_end_a_held_scan_note() {
+fn scan_mode_off_axis_and_sections_end_a_held_scan_note() {
     for (key, delta, ends) in [
         ("layers.0.link.scanMode", -1, 1),
         ("layers.0.link.scanAxis", -1, 1),
         ("layers.0.link.scanDirection", 1, 0),
         ("layers.0.link.scanUnit", 1, 0),
-        ("layers.0.link.scanSections", 1, 0),
+        ("layers.0.link.scanSections", 1, 1),
     ] {
         let mut runner = scan_runner("hold", &[0, 1, 2, 3, 4, 5, 6, 7]);
         set_actions(&mut runner, 0, ON_OFF);

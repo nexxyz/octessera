@@ -45,7 +45,7 @@ fn configure_route(runner: &mut NativeRunner, layer: usize, route: Route) {
     }
     runner.instruments[layer] = instrument;
     runner.layers[layer].link.activate_slot = layer;
-    runner.layers[layer].link.event_enabled = true;
+    runner.layers[layer].link.note_preview = true;
 }
 
 fn select_layer(runner: &mut NativeRunner, layer: usize) {

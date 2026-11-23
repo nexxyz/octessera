@@ -44,6 +44,31 @@ pub(crate) fn scan_line(
     }
 }
 
+/// The tick that keeps the line where `tick` left it once `strategy` runs the other way, so
+/// its next step moves on from the last position it played instead of jumping to the mirror one.
+pub(crate) fn turned_round_tick(
+    width: usize,
+    height: usize,
+    tick: usize,
+    strategy: &TickStrategy,
+) -> usize {
+    let (span, reverse) = match strategy {
+        TickStrategy::WholeGridTransitions => return tick,
+        TickStrategy::ScanColumnActive {
+            sections, reverse, ..
+        } => (width * section_count(*sections, height), *reverse),
+        TickStrategy::ScanRowActive {
+            sections, reverse, ..
+        } => (height * section_count(*sections, width), *reverse),
+    };
+    let Some(last) = tick.checked_sub(1).filter(|_| span > 0) else {
+        return tick;
+    };
+    let position = scan_index(last, span, reverse);
+    let turned = scan_index(position, span, !reverse);
+    last - last % span + turned + 1
+}
+
 fn previous_index(index: usize, span: usize, reverse: bool) -> usize {
     if reverse {
         (index + 1) % span

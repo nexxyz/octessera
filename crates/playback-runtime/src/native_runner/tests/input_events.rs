@@ -173,13 +173,13 @@ pub(crate) fn probability_suppressed_events_do_not_apply_runtime_modulation() {
 }
 
 #[test]
-pub(crate) fn event_enabled_false_suppresses_input_transition_events() {
+pub(crate) fn note_preview_false_suppresses_input_transition_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
     })
     .unwrap();
-    runner.layers[0].link.event_enabled = false;
+    runner.layers[0].link.note_preview = false;
     runner.refresh_active_interpretation_profile();
 
     let press = runner
@@ -256,16 +256,27 @@ pub(crate) fn scanned_note_on_events_apply_runtime_modulation() {
 }
 
 #[test]
-pub(crate) fn non_interpreting_sequencer_grid_press_does_not_emit_input_event() {
+pub(crate) fn a_sequencer_press_plays_only_with_note_preview_on() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
     })
     .unwrap();
+    let previewed = runner
+        .send(HostMessage::DeviceInput {
+            input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    assert!(previewed
+        .iter()
+        .any(|message| matches!(message, RunnerMessage::MusicalEvents { .. })));
+    runner.layers[0].link.note_preview = false;
+    runner.refresh_active_interpretation_profile();
 
     let messages = runner
         .send(HostMessage::DeviceInput {
-            input: json!({ "type": "grid_press", "x": 2, "y": 3 }),
+            input: json!({ "type": "grid_press", "x": 4, "y": 3 }),
             request_snapshot: None,
         })
         .unwrap();

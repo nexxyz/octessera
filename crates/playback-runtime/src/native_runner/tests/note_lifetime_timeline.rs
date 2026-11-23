@@ -247,9 +247,9 @@ fn hold_trig(script: &mut Script) {
     script.set("layers.0.link.mapping.stable.action", "note_on");
 }
 
-fn hold_trig_without_events(script: &mut Script) {
+fn hold_trig_without_preview(script: &mut Script) {
     hold_trig(script);
-    let key = "layers.0.link.eventEnabled";
+    let key = "layers.0.link.notePreview";
     assert!(script.runner.menu.set_bool_value_for_key(key, false));
     script.runner.apply_or_schedule_menu_key(key).unwrap();
 }
@@ -333,9 +333,9 @@ pub(crate) fn note_lifetime_timeline() -> String {
         life("life hold trig on hold", true, hold_trig),
         life("life hold trig on one-shot", false, hold_trig),
         life(
-            "life hold trig on hold, events off",
+            "life hold trig on hold, note preview off",
             true,
-            hold_trig_without_events,
+            hold_trig_without_preview,
         ),
         life("life scanning held arp on hold", true, scanning_held_arp),
         life(

@@ -20,7 +20,7 @@
       "source": "simultaneous",
       "stepIntervalSteps": 1
     },
-    "eventEnabled": true,
+    "notePreview": true,
     "mapping": {
       "activate": {
         "action": "note_on",
@@ -56,7 +56,6 @@
     "scanMode": "none",
     "scanSections": 1,
     "scanUnit": "1/16",
-    "stateNotesEnabled": true,
     "triggerProbabilityHighPct": 75,
     "triggerProbabilityLowPct": 25,
     "triggerProbabilityMap": [

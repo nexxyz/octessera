@@ -19,6 +19,7 @@ fn configure_active_scan(runner: &mut NativeRunner, scan_unit: &str, scanned_slo
     layer.activate_slot = scanned_slot;
     layer.stable_slot = scanned_slot;
     scan_every_lit_step(layer);
+    layer.note_preview = false;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
 }

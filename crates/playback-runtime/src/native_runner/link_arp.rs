@@ -47,35 +47,6 @@ impl NativeRunner {
         }
     }
 
-    /// An Arp setting changed, from the menu or a binding. Turning the Arp on or off moves where
-    /// the layer's note-offs go, so the layer drains; other changes only clear the Arp's state.
-    pub(super) fn apply_arp_setting_change(&mut self, layer_index: usize, was_on: bool) {
-        let now_on = self
-            .layers
-            .get(layer_index)
-            .is_some_and(|layer| layer.link.arp.mode != ArpMode::None);
-        if was_on == now_on {
-            self.clear_link_arp_state_for_layer(layer_index);
-        } else {
-            self.drain_layer_owned_notes(layer_index);
-        }
-    }
-
-    /// Lets go of the keys a playing Arp holds and stops its pattern; the releases still pending
-    /// in its queue come back to land now.
-    pub(super) fn release_layer_arp(&mut self, layer_index: usize) -> RoutedMusicalEvents {
-        let arp_on = self
-            .layers
-            .get(layer_index)
-            .is_some_and(|layer| layer.link.arp.mode != ArpMode::None);
-        let mut released = RoutedMusicalEvents::default();
-        if arp_on {
-            released.keys = self.clear_delayed_link_events_for_layer(layer_index);
-        }
-        self.clear_link_arp_state_for_layer(layer_index);
-        released
-    }
-
     /// A layer whose Arp is on presses and releases its keys into the Arp, as into a hardware
     /// arpeggiator, and the Arp plays the instruments: `held` the keys still down whenever a key
     /// goes down, `simultaneous` the keys pressed together.

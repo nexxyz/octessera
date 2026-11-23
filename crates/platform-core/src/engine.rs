@@ -141,9 +141,8 @@ impl NativeLayerEngine {
             .random
             .scope(|| behavior.on_input(state, input, &mut context))?;
         let after = self.behavior.render_model(&self.state)?;
-        let mapped = if self.behavior.interpret_input_transitions()
-            && !self.interpretation_profile.scans()
-        {
+        // Note Preview: a press or release plays its tile's change at once, scanning or not.
+        let mapped = if self.interpretation_profile.event.enabled {
             let mut profile = self.interpretation_profile.clone();
             profile.state.enabled = false;
             let intents = interpret_grid_with_marker_authority(
@@ -269,6 +268,31 @@ impl NativeLayerEngine {
 
     pub fn set_global_sound(&mut self, global_sound: GlobalSoundConfig) {
         self.global_sound = global_sound;
+    }
+
+    /// The tiles the scan line touches on its next step; none when the layer does not scan.
+    pub fn next_scan_line(&self) -> impl Iterator<Item = usize> {
+        let tiles = if self.interpretation_profile.scans() {
+            scan_line(
+                GRID_WIDTH,
+                GRID_HEIGHT,
+                self.tick,
+                &self.interpretation_profile.state.tick,
+            )
+        } else {
+            Vec::new()
+        };
+        tiles.into_iter().map(|(tile, _)| tile)
+    }
+
+    /// Keeps the scan line where it is when it starts running the other way.
+    pub fn turn_scan_line_round(&mut self) {
+        self.tick = crate::interpretation_scan::turned_round_tick(
+            GRID_WIDTH,
+            GRID_HEIGHT,
+            self.tick,
+            &self.interpretation_profile.state.tick,
+        );
     }
 
     /// Forgets what the scan line saw, so its next step compares with dark tiles.

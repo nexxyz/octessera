@@ -53,7 +53,7 @@ pub struct LinkDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) scan_lanes: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) event_enabled: Option<bool>,
+    pub(in crate::native_runner) note_preview: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) seeded: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,8 +66,6 @@ pub struct LinkDto {
     pub(in crate::native_runner) trigger_probability_note_offs: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) one_shot_length_ms: Option<u16>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) state_notes_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) trigger_probability_map: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]

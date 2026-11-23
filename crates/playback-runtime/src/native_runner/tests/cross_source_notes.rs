@@ -21,7 +21,7 @@ fn two_keys_layers() -> NativeRunner {
         .take(2)
         .map(|layer| &mut layer.link)
     {
-        link.event_enabled = true;
+        link.note_preview = true;
         link.activate_slot = 0;
         link.deactivate_slot = 0;
         link.activate_action = TriggerAction::NoteOn;
@@ -145,20 +145,24 @@ fn a_layer_note_off_ends_a_notes_in_key_and_a_key_ends_nothing_twice() {
     assert!(words(&key_up, false).is_empty(), "{key_up:?}");
 }
 
-/// Switching scanning on keeps what the grid held; switching it off ends the layer's notes.
+/// Switching scanning on or off moves where the layer plays from, so either ends its notes.
 #[test]
-fn switching_scanning_off_ends_the_notes_switching_it_on_kept() {
-    let mut runner = two_keys_layers();
-    let on = tile(&mut runner, 0, "grid_press", false);
-    runner.menu.rebuild(runner.menu_config());
-    runner.edit_menu_key("layers.0.link.scanMode", 1).unwrap();
-    assert!(words(&runner.messages_without_snapshot().unwrap(), false).is_empty());
-    assert_eq!(runner.held_keys.held_count(), 1);
-    runner.menu.rebuild(runner.menu_config());
-    runner.edit_menu_key("layers.0.link.scanMode", -1).unwrap();
-    let ended = words(&runner.messages_without_snapshot().unwrap(), false);
-    assert_eq!(ended, [on[0].replace('+', "-")]);
-    assert_eq!(runner.held_keys.held_count(), 0);
+fn switching_scanning_on_or_off_ends_the_layers_notes() {
+    for delta in [1, -1] {
+        let mut runner = two_keys_layers();
+        if delta < 0 {
+            runner.layers[0].link.scan_mode = ScanMode::Scanning;
+            runner.refresh_active_interpretation_profile();
+        }
+        let on = tile(&mut runner, 0, "grid_press", false);
+        runner.menu.rebuild(runner.menu_config());
+        runner
+            .edit_menu_key("layers.0.link.scanMode", delta)
+            .unwrap();
+        let ended = words(&runner.messages_without_snapshot().unwrap(), false);
+        assert_eq!(ended, [on[0].replace('+', "-")], "{delta}");
+        assert_eq!(runner.held_keys.held_count(), 0);
+    }
 }
 
 /// Layer 1 holds a Sampler tile's sample; layer 0's Off on another tile of the same pitch finds

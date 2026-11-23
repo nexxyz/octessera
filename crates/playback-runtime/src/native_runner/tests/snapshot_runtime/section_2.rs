@@ -16,7 +16,7 @@ pub(crate) fn transport_tick_advances_multiple_configured_layers() {
     runner.layers[1].link.scan_mode = ScanMode::Scanning;
     runner.layers[1].link.activate_slot = 1;
     runner.layers[1].link.stable_slot = 1;
-    runner.layers[1].link.event_enabled = true;
+    runner.layers[1].link.note_preview = true;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -60,6 +60,8 @@ pub(crate) fn inactive_layer_transport_tick_applies_param_modulation() {
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.activate_slot = 0;
     runner.layers[0].link.stable_slot = 0;
+    runner.layers[0].link.note_preview = false;
+    runner.refresh_active_interpretation_profile();
     runner.layers[0].param_mods.x[0] = Some(NativeParamBinding {
         key: "instruments.0.mixer.volume".into(),
         label: Some("Volume".into()),

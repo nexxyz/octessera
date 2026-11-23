@@ -78,8 +78,7 @@ fn fuzz_runner() -> NativeRunner {
             .unwrap();
         let link = &mut runner.layers[layer].link;
         set_rows(link, layer, TriggerAction::NoteOn, TriggerAction::None);
-        link.event_enabled = true;
-        link.state_notes_enabled = true;
+        link.note_preview = true;
     }
     runner.sync_engine_runtime_config();
     runner.skip_startup_splash();
@@ -176,29 +175,7 @@ impl Sinks {
 fn edit_link(runner: &mut NativeRunner, layer: usize, edit: impl FnOnce(&mut NativeLinkLayer)) {
     let before = runner.layers[layer].link.clone();
     edit(&mut runner.layers[layer].link);
-    let after = runner.layers[layer].link.clone();
-    if before.arp != after.arp {
-        runner.apply_arp_setting_change(layer, before.arp.mode != ArpMode::None);
-    }
-    for (field, changed) in [
-        ("scanMode", before.scan_mode != after.scan_mode),
-        ("scanAxis", before.scan_axis != after.scan_axis),
-        (
-            "scanDirection",
-            before.scan_direction != after.scan_direction,
-        ),
-        ("scanSections", before.scan_sections != after.scan_sections),
-        ("scanLanes", before.scan_lanes != after.scan_lanes),
-    ] {
-        if changed {
-            runner.apply_scan_setting_change(layer, field);
-        }
-    }
-    if before.trigger_probability_mode != TriggerProbabilityMode::Zero
-        && after.trigger_probability_mode == TriggerProbabilityMode::Zero
-    {
-        runner.drain_layer_owned_notes(layer);
-    }
+    runner.apply_link_change(layer, &before);
     if layer == runner.active_layer_index {
         runner.refresh_active_mapping_config();
         runner.refresh_active_interpretation_profile();
@@ -312,7 +289,7 @@ fn change(runner: &mut NativeRunner, rng: &mut Rng) {
             };
         }),
         12 => edit_link(runner, layer, |link| {
-            link.event_enabled = !link.event_enabled;
+            link.note_preview = !link.note_preview;
         }),
         _ => {
             let steps = rng.below(3) as i32;

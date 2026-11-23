@@ -274,10 +274,10 @@ pub(crate) fn link_event_instrument_targets_keep_item_specific_headings() {
 #[test]
 pub(crate) fn event_section_rows_and_boundary_selection_use_exact_budget() {
     let mut menu = NativeMenuModel::new(config());
-    assert!(menu.focus_item_key("layers.0.link.eventEnabled"));
+    assert!(menu.focus_item_key("layers.0.link.notePreview"));
     let events = menu.snapshot();
     let scroll = events.scroll.expect("Events scroll metadata");
-    assert_eq!(scroll.total_rows, 14);
+    assert_eq!(scroll.total_rows, 13);
     assert_eq!(scroll.visible_rows, 8);
     assert_eq!(events.lines.len(), 8);
 
@@ -285,7 +285,7 @@ pub(crate) fn event_section_rows_and_boundary_selection_use_exact_budget() {
     let selected = menu.snapshot();
     let row = selected.selected_row.expect("selected row");
     let scroll = selected.scroll.expect("selected Events scroll metadata");
-    assert_eq!(scroll.total_rows, 14);
+    assert_eq!(scroll.total_rows, 13);
     assert_eq!(scroll.visible_rows, 8);
     assert_eq!(row, 4);
     assert_eq!(

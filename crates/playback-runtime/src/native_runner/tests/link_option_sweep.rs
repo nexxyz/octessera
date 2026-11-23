@@ -226,8 +226,10 @@ fn dead_rows(context: Context) -> Vec<String> {
         let key = row.key.clone().unwrap();
         // The Off row sends a note-off, and a repeat of a release ends nothing the first one
         // left sounding, so its Retrig only matters once that pitch is pressed again between.
+        // Note Preview acts on presses only, and the tile sequence is pressed before it plays.
         if context_for(&key) != context
             || key == format!("{PREFIX}mapping.deactivate.retriggerCount")
+            || key == format!("{PREFIX}notePreview")
         {
             continue;
         }

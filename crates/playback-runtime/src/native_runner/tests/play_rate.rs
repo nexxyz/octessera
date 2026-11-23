@@ -273,7 +273,13 @@ fn pressing_the_lit_tile_in_either_view_restarts_the_scan_on_the_next_bar() {
     for scan_view in [false, true] {
         let mut runner = scanning_rows_runner();
         let lit = if scan_view { 3 } else { 4 };
-        let origin_notes = musical_note_ons(&pulse(&mut runner, 8));
+        let layer_one = |messages: &[RunnerMessage]| {
+            musical_note_ons(messages)
+                .into_iter()
+                .filter(|(channel, _)| *channel == 0)
+                .collect::<Vec<_>>()
+        };
+        let origin_notes = layer_one(&pulse(&mut runner, 8));
         assert!(!origin_notes.is_empty());
         let _ = pulse(&mut runner, 82);
 
@@ -285,7 +291,7 @@ fn pressing_the_lit_tile_in_either_view_restarts_the_scan_on_the_next_bar() {
         assert_eq!(runner.transport.algorithm_step_pulses, 12);
 
         let _ = pulse(&mut runner, 5);
-        let bar_notes = musical_note_ons(&pulse(&mut runner, 1));
+        let bar_notes = layer_one(&pulse(&mut runner, 1));
         assert_eq!(runner.transport.current_ppqn_pulse, 96);
         assert_eq!(bar_notes, origin_notes, "scan view {scan_view}");
         assert_eq!(runner.transport.layer_ticks[0], 1);

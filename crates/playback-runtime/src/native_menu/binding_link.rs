@@ -116,28 +116,16 @@ pub(super) fn link_binding_group(
             ),
             group(
                 "Events",
-                vec![
-                    binding_action(
-                        "Event Triggers",
-                        &format!("{prefix}.eventEnabled"),
-                        "bool",
-                        None,
-                        None,
-                        None,
-                        vec![],
-                        target,
-                    ),
-                    binding_action(
-                        "State Notes",
-                        &format!("{prefix}.stateNotesEnabled"),
-                        "bool",
-                        None,
-                        None,
-                        None,
-                        vec![],
-                        target,
-                    ),
-                ],
+                vec![binding_action(
+                    "Note Preview",
+                    &format!("{prefix}.notePreview"),
+                    "bool",
+                    None,
+                    None,
+                    None,
+                    vec![],
+                    target,
+                )],
             ),
             group(
                 "Trigger Prob.",

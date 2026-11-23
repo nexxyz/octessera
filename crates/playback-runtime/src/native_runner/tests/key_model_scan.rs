@@ -85,10 +85,12 @@ fn two_mono_lanes_play_a_chord_one_note_each() {
 }
 
 #[test]
-fn a_scan_dir_flip_keeps_every_note_and_the_mono_lane_goes_on_replacing() {
+/// A flip turns the line round where it is: after rows 0 and 1 it plays row 0 again, and
+/// keeps every note it holds.
+fn a_scan_dir_flip_turns_the_line_round_and_keeps_every_note() {
     for lanes in [ScanLanes::Mono, ScanLanes::Poly] {
         let mut runner = melody(&[0, 1, 2, 3, 4, 5, 6, 7], lanes);
-        step(&mut runner);
+        let first = step(&mut runner);
         let before = step(&mut runner);
         let last = before.last().unwrap().clone();
         runner.menu.rebuild(runner.menu_config());
@@ -98,8 +100,7 @@ fn a_scan_dir_flip_keeps_every_note_and_the_mono_lane_goes_on_replacing() {
         let flip = words_of(&runner.messages_without_snapshot().unwrap());
         assert!(flip.is_empty(), "{lanes:?}: {flip:?}");
         let after = step(&mut runner);
-        let expected_off = usize::from(lanes == ScanLanes::Mono);
-        assert_eq!(after.len(), 1 + expected_off, "{lanes:?}: {after:?}");
+        assert_eq!(after.last(), first.last(), "{lanes:?}: {after:?}");
         if lanes == ScanLanes::Mono {
             assert_eq!(after[0], last.replace('+', "-"), "{after:?}");
         }
@@ -125,7 +126,8 @@ fn a_new_scan_axis_releases_everything_and_the_line_starts_fresh() {
 }
 
 #[test]
-fn a_sections_change_ends_only_the_mono_lanes_notes() {
+/// A Sections change moves where the line plays, so it drains the layer's instruments.
+fn a_sections_change_drains_the_layers_instruments() {
     let mut runner = melody(&[0, 1, 2, 3, 4, 5, 6, 7], ScanLanes::Mono);
     let other = hold_key_on_layer_one(&mut runner);
     let played = step(&mut runner);
@@ -134,9 +136,9 @@ fn a_sections_change_ends_only_the_mono_lanes_notes() {
         .edit_menu_key("layers.0.link.scanSections", 1)
         .unwrap();
     let ended = words_of(&runner.messages_without_snapshot().unwrap());
-    assert_eq!(ended, [played[0].replace('+', "-")]);
-    assert!(!ended.contains(&other));
-    assert_eq!(runner.held_keys.held_count(), 1);
+    assert!(ended.contains(&played[0].replace('+', "-")), "{ended:?}");
+    assert!(ended.contains(&other), "{ended:?}");
+    assert_eq!(runner.held_keys.held_count(), 0);
 }
 
 #[test]

@@ -5,7 +5,7 @@
 //! exactly what the layer engine maps pitches from: its mapping's pitch fields and the degree
 //! layout of its interpretation profile.
 
-use super::{NativeRunner, TriggerAction, GRID_HEIGHT, GRID_WIDTH};
+use super::{NativeRunner, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{DegreeLayout, MappingConfig, RangeMode};
 
 /// What a layer's pitches followed when it last played.
@@ -73,9 +73,6 @@ impl NativeRunner {
             None => false,
         };
         layer.pitch_mapping = Some(PitchMapping::of(mapping, layout));
-        if moved {
-            layer.mono_lanes.forget();
-        }
         moved
             .then(|| self.layer_target_slots(layer_index))
             .filter(|slots| *slots != 0)
@@ -83,22 +80,8 @@ impl NativeRunner {
 
     /// The instrument slots the layer's On, Hold and Off rows play notes on, as a bit mask.
     pub(super) fn layer_target_slots(&self, layer_index: usize) -> u16 {
-        let Some(link) = self.layers.get(layer_index).map(|layer| &layer.link) else {
-            return 0;
-        };
-        [
-            (link.activate_slot, link.activate_action),
-            (link.stable_slot, link.stable_action),
-            (link.deactivate_slot, link.deactivate_action),
-        ]
-        .into_iter()
-        .filter(|(_, action)| *action == TriggerAction::NoteOn)
-        .fold(0, |slots, (slot, _)| {
-            slots
-                | u32::try_from(slot)
-                    .ok()
-                    .and_then(|slot| 1_u16.checked_shl(slot))
-                    .unwrap_or(0)
-        })
+        self.layers
+            .get(layer_index)
+            .map_or(0, |layer| super::link_retarget::target_slots(&layer.link))
     }
 }

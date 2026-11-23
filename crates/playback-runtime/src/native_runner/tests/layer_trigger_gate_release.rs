@@ -134,7 +134,7 @@ pub(crate) fn disabling_one_layer_leaves_another_layer_held() {
     runner.instruments[1].midi_enabled = true;
     runner.instruments[1].midi_channel = 4;
     runner.layers[1].link.activate_slot = 1;
-    runner.layers[1].link.event_enabled = true;
+    runner.layers[1].link.note_preview = true;
     runner.test_set_midi_enabled(true);
     runner.sync_engine_runtime_config();
 
@@ -228,7 +228,7 @@ fn configure_shared_route(runner: &mut NativeRunner, route: SharedRoute) {
     }
     runner.layers[1].link = runner.layers[0].link.clone();
     runner.layers[1].link.activate_slot = 0;
-    runner.layers[1].link.event_enabled = true;
+    runner.layers[1].link.note_preview = true;
     if matches!(route, SharedRoute::Midi) {
         runner.test_set_midi_enabled(true);
     }

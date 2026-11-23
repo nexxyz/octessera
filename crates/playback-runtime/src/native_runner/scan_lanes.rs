@@ -1,11 +1,8 @@
 //! A scan in `mono` lanes plays one note per lane (a row on a column scan, a column on a row
 //! scan) and instrument: a note-on from the lane first ends the lane's last note, and a note-off
 //! ends that last note rather than the pitch of the cell it fires on. The last note is the
-//! lane's only memory; drains and pitch-mapping changes forget it, and so do the scan setting
-//! changes that move the lanes.
+//! lane's only memory; every drain forgets it.
 
-use super::held_keys::KeyEvent;
-use super::modulation::RoutedMusicalEvents;
 use super::{NativeRunner, ScanAxis, ScanLanes, ScanMode, GRID_HEIGHT, GRID_WIDTH};
 use platform_core::{MusicalEvent, TileTriggerIntent, INSTRUMENT_COUNT};
 
@@ -94,57 +91,4 @@ impl NativeRunner {
         }
         Some((out_events, out_intents))
     }
-
-    /// What a changed scan setting `field` does, from the menu or a binding alike. A new Scan
-    /// Axis, or Scan Mode turned off, drains the layer and starts the line as if it had seen only
-    /// dark tiles; Scan Mode turned on starts the line afresh. Sections and Lanes end each mono
-    /// lane's last note, since lanes may split, merge or stop playing one note. Scan Dir and Scan
-    /// Unit leave every note and the lanes as they are.
-    pub(super) fn apply_scan_setting_change(&mut self, layer_index: usize, field: &str) {
-        let Some(layer) = self.layers.get_mut(layer_index) else {
-            return;
-        };
-        match field {
-            "scanMode" if layer.link.scan_mode == ScanMode::Scanning => {
-                layer.engine.forget_scanned_line();
-                layer.mono_lanes.forget();
-            }
-            "scanMode" | "scanAxis" => {
-                layer.engine.forget_scanned_line();
-                self.drain_layer_owned_notes(layer_index);
-            }
-            "scanSections" | "scanLanes" => self.end_mono_lanes(layer_index),
-            _ => {}
-        }
-    }
-
-    /// Ends the last note of each of the layer's mono lanes and forgets them.
-    fn end_mono_lanes(&mut self, layer_index: usize) {
-        let Some(layer) = self.layers.get_mut(layer_index) else {
-            return;
-        };
-        let mut ended = RoutedMusicalEvents::default();
-        for lane in &layer.mono_lanes.last {
-            for (slot, note) in lane.iter().enumerate() {
-                if let (Some(pitch), Ok(slot)) = (note, u8::try_from(slot)) {
-                    ended.keys.push(KeyEvent::Release {
-                        slot,
-                        pitch: *pitch,
-                        pad: None,
-                    });
-                }
-            }
-        }
-        layer.mono_lanes.forget();
-        self.sound_keys(&mut ended);
-        self.transpose.pending_note_offs.extend(ended);
-    }
-}
-
-/// The Link fields of the Scanning group.
-pub(super) fn is_scan_setting(field: &str) -> bool {
-    matches!(
-        field,
-        "scanMode" | "scanAxis" | "scanUnit" | "scanDirection" | "scanSections" | "scanLanes"
-    )
 }

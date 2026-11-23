@@ -44,6 +44,11 @@ const ADDED_RUNTIME_KEYS: [AddedKey; 9] = [
     },
     AddedKey {
         kinds: PATCH_DOCUMENTS,
+        path: &["layers", "*", "link", "notePreview"],
+        default: || Value::Bool(true),
+    },
+    AddedKey {
+        kinds: PATCH_DOCUMENTS,
         path: &["instruments", "*", "sample", "noteOff"],
         default: || Value::String("cut".into()),
     },

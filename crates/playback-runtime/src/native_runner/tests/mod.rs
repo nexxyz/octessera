@@ -50,8 +50,6 @@ pub(super) fn hold_key(runner: &mut NativeRunner, slot: u8, pitch: u8) {
 pub(super) fn scan_every_lit_step(link: &mut NativeLinkLayer) {
     link.activate_action = TriggerAction::NoteOn;
     link.stable_action = TriggerAction::NoteOn;
-    link.event_enabled = true;
-    link.state_notes_enabled = true;
 }
 
 impl NativeRunner {

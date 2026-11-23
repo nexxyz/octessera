@@ -465,9 +465,6 @@ fn every_native_behavior_routes_input_and_tick() {
 
 #[test]
 fn behavior_metadata_matches_expected_interaction_modes() {
-    assert!(!NativeBehavior::None.interpret_input_transitions());
-    assert!(!NativeBehavior::Sequencer.interpret_input_transitions());
-    assert!(NativeBehavior::Life.interpret_input_transitions());
     assert_eq!(
         NativeBehavior::Keys.grid_interaction(),
         Some(GridInteraction::Momentary)

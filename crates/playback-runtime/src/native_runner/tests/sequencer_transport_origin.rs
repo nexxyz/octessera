@@ -87,7 +87,7 @@ fn active_and_inactive_sequencer_replacements_keep_canonical_phase() {
     runner.layers[1].link.scan_mode = ScanMode::Scanning;
     runner.layers[1].link.scan_axis = ScanAxis::Rows;
     runner.layers[1].link.scan_unit = "1/8".into();
-    runner.layers[1].link.event_enabled = false;
+    runner.layers[1].link.note_preview = false;
     runner.layers[1].link.activate_slot = 0;
     runner.layers[1].link.stable_slot = 0;
     scan_every_lit_step(&mut runner.layers[1].link);

@@ -186,7 +186,6 @@ pub(crate) fn scanning_sequencer_emits_scanned_notes_with_state_notes_disabled()
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = "1/16".into();
-    runner.layers[0].link.state_notes_enabled = false;
     runner.layers[0].link.activate_slot = 0;
     runner.layers[0].link.stable_slot = 0;
     scan_every_lit_step(&mut runner.layers[0].link);

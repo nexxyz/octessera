@@ -133,8 +133,7 @@ fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &LinkDto
         &mut layer.scan_lanes,
         ScanLanes::from_wire_name,
     );
-    assign(payload.event_enabled, &mut layer.event_enabled);
-    assign(payload.state_notes_enabled, &mut layer.state_notes_enabled);
+    assign(payload.note_preview, &mut layer.note_preview);
     assign(payload.seeded, &mut layer.seeded);
     assign_wire(
         &payload.trigger_probability_mode,

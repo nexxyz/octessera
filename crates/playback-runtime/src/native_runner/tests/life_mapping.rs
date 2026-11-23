@@ -44,8 +44,7 @@ pub(crate) fn active_life_notes_stay_in_mapping_after_menu_changes_and_navigatio
 
 fn configured_life_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.layers[0].link.state_notes_enabled = true;
-    runner.layers[0].link.event_enabled = true;
+    runner.layers[0].link.note_preview = true;
     runner.layers[0].link.scale = "natural_minor".into();
     runner.layers[0].link.root = "D".into();
     runner.refresh_active_mapping_config();
@@ -85,7 +84,12 @@ fn main_turn(runner: &mut NativeRunner, delta: i8) -> Vec<RunnerMessage> {
 
 fn assert_notes_in_active_mapping(runner: &NativeRunner, messages: &[RunnerMessage]) {
     let mapping = runner.mapping_config_for_layer(runner.active_layer_index);
-    for (_, note) in musical_note_ons(messages) {
+    // The other layers of a new runner play their own slots.
+    let slot = runner.layers[runner.active_layer_index].link.activate_slot as u8;
+    for (_, note) in musical_note_ons(messages)
+        .into_iter()
+        .filter(|(channel, _)| *channel == slot)
+    {
         assert!((mapping.base_midi_note..=mapping.max_midi_note).contains(&i32::from(note)));
         assert!(mapping.scale.contains(&i32::from(note % 12)));
     }

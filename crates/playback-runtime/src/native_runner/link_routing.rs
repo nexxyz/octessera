@@ -175,8 +175,7 @@ impl NativeRunner {
     ) -> Result<RoutedMusicalEvents, String> {
         let mut routed = RoutedMusicalEvents::default();
         if let Some(slots) = self.changed_pitch_mapping_targets(layer_index) {
-            routed.extend(self.release_layer_arp(layer_index));
-            routed.keys.push(KeyEvent::ReleaseAll { slots });
+            routed.extend(self.layer_drain(layer_index, slots));
         }
         let mono_intents;
         let input = match self.mono_lane_events(layer_index, &input.events, input.event_intents) {

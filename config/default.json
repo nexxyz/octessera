@@ -1990,7 +1990,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -2011,6 +2010,7 @@
               "slot": 0
             }
           },
+          "notePreview": true,
           "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
@@ -2025,7 +2025,6 @@
           "scanMode": "none",
           "scanSections": 1,
           "scanUnit": "1/16",
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -2398,7 +2397,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -2419,6 +2417,7 @@
               "slot": 1
             }
           },
+          "notePreview": false,
           "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
@@ -2434,7 +2433,6 @@
           "scanSections": 1,
           "scanUnit": "1/8",
           "seeded": false,
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -2713,7 +2711,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -2734,6 +2731,7 @@
               "slot": 2
             }
           },
+          "notePreview": true,
           "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
@@ -2749,7 +2747,6 @@
           "scanSections": 1,
           "scanUnit": "1/16",
           "seeded": false,
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -2978,7 +2975,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -2999,6 +2995,7 @@
               "slot": 3
             }
           },
+          "notePreview": false,
           "oneShotLengthMs": 130,
           "pitch": {
             "highestNote": 74,
@@ -3014,7 +3011,6 @@
           "scanSections": 1,
           "scanUnit": "1/16",
           "seeded": false,
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -3314,7 +3310,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -3335,6 +3330,7 @@
               "slot": 4
             }
           },
+          "notePreview": true,
           "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 86,
@@ -3350,7 +3346,6 @@
           "scanSections": 1,
           "scanUnit": "1/16",
           "seeded": true,
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -3648,7 +3643,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -3669,6 +3663,7 @@
               "slot": 5
             }
           },
+          "notePreview": true,
           "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
@@ -3684,7 +3679,6 @@
           "scanSections": 1,
           "scanUnit": "1/16",
           "seeded": true,
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -3842,7 +3836,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -3863,6 +3856,7 @@
               "slot": 6
             }
           },
+          "notePreview": false,
           "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
@@ -3878,7 +3872,6 @@
           "scanSections": 1,
           "scanUnit": "1/16",
           "seeded": false,
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -4036,7 +4029,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -4057,6 +4049,7 @@
               "slot": 7
             }
           },
+          "notePreview": false,
           "oneShotLengthMs": 150,
           "pitch": {
             "highestNote": 74,
@@ -4072,7 +4065,6 @@
           "scanSections": 1,
           "scanUnit": "1/16",
           "seeded": false,
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [

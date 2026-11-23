@@ -149,13 +149,8 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
     );
     changed |= set_bool_from_menu(
         menu,
-        &mut layer.event_enabled,
-        &format!("{prefix}.eventEnabled"),
-    );
-    changed |= set_bool_from_menu(
-        menu,
-        &mut layer.state_notes_enabled,
-        &format!("{prefix}.stateNotesEnabled"),
+        &mut layer.note_preview,
+        &format!("{prefix}.notePreview"),
     );
     changed |= set_target_slot_from_menu(
         menu,

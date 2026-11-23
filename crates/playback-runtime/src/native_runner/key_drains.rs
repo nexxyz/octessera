@@ -27,18 +27,32 @@ impl NativeRunner {
     }
 
     pub(super) fn drain_layer_owned_notes(&mut self, layer_index: usize) {
-        if let Some(layer) = self.layers.get_mut(layer_index) {
-            layer.mono_lanes.forget();
-        }
-        let mut drained = self.release_layer_arp(layer_index);
-        drained
-            .keys
-            .extend(self.clear_delayed_link_events_for_layer(layer_index));
-        drained.keys.push(KeyEvent::ReleaseAll {
-            slots: self.layer_target_slots(layer_index),
-        });
+        self.drain_layer_notes(layer_index, self.layer_target_slots(layer_index));
+    }
+
+    /// Drains the layer and releases every key the `slots` bit mask holds, before the layer's
+    /// next notes.
+    pub(super) fn drain_layer_notes(&mut self, layer_index: usize, slots: u16) {
+        let mut drained = self.layer_drain(layer_index, slots);
         self.sound_keys(&mut drained);
         self.transpose.pending_note_offs.extend(drained);
+    }
+
+    /// What draining `layer_index` plays: its Arp lets go and its queued presses go, their
+    /// releases land, its mono lanes and its scan line forget what they saw, and every key the
+    /// `slots` bit mask holds is released.
+    pub(super) fn layer_drain(&mut self, layer_index: usize, slots: u16) -> RoutedMusicalEvents {
+        if let Some(layer) = self.layers.get_mut(layer_index) {
+            layer.mono_lanes.forget();
+            layer.engine.forget_scanned_line();
+        }
+        self.clear_link_arp_state_for_layer(layer_index);
+        let mut drained = RoutedMusicalEvents {
+            keys: self.clear_delayed_link_events_for_layer(layer_index),
+            ..RoutedMusicalEvents::default()
+        };
+        drained.keys.push(KeyEvent::ReleaseAll { slots });
+        drained
     }
 
     pub(super) fn drain_all_layer_notes(&mut self) {
@@ -48,6 +62,7 @@ impl NativeRunner {
         self.clear_all_link_arp_state();
         for layer in &mut self.layers {
             layer.mono_lanes.forget();
+            layer.engine.forget_scanned_line();
         }
         self.forget_keyboard_notes();
         let mut released = RoutedMusicalEvents::default();

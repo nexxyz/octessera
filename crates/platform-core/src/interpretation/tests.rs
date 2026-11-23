@@ -190,18 +190,17 @@ fn a_sectioned_scan_plays_only_its_lane_and_wraps_inside_it() {
 }
 
 #[test]
-fn event_triggers_off_leave_a_scan_only_its_hold_events() {
-    let mut profile = profile(rows(None, false));
-    profile.event.enabled = false;
+fn note_preview_off_leaves_a_scan_every_event() {
+    let previewing = profile(rows(None, false));
+    let mut silent = previewing.clone();
+    silent.event.enabled = false;
+    let seen = [1, 1, 0, 0, 0, 0, 0, 0];
+    let next = [0, 0, 0, 0, 1, 0, 1, 0];
     assert_eq!(
-        scan(
-            &[1, 1, 0, 0, 0, 0, 0, 0],
-            &[0, 0, 0, 0, 1, 0, 1, 0],
-            1,
-            &profile
-        ),
-        vec![(0, 1, TileTriggerKind::Stable)]
+        scan(&seen, &next, 1, &silent),
+        scan(&seen, &next, 1, &previewing)
     );
+    assert!(scan(&seen, &next, 1, &silent).len() > 1);
 }
 
 #[test]

@@ -14,7 +14,7 @@ pub(crate) fn transport_stop_drains_active_and_inactive_held_notes_to_their_rout
     runner.instruments[1].kind = InstrumentType::Midi;
     runner.instruments[1].midi_enabled = true;
     runner.instruments[1].midi_channel = 3;
-    runner.layers[1].link.event_enabled = true;
+    runner.layers[1].link.note_preview = true;
     runner.layers[1].link.activate_slot = 1;
     runner.select_layer_behavior(1, "keys").unwrap();
     runner.sync_engine_runtime_config();

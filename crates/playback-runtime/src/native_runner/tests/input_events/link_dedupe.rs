@@ -167,7 +167,7 @@ pub(crate) fn same_note_from_two_layers_on_one_tick_is_one_hit() {
     runner.layers[1].link.deactivate_slot = 0;
     runner.transport.layer_algorithm_step_pulses[0] = 12;
     runner.transport.layer_algorithm_step_pulses[1] = 12;
-    runner.layers[1].link.event_enabled = true;
+    runner.layers[1].link.note_preview = true;
 
     let messages = pulse(&mut runner, 12);
     let notes = musical_note_ons(&messages);
@@ -346,7 +346,10 @@ pub(crate) fn probability_filtering_happens_before_local_dedupe() {
     let messages = pulse(&mut runner, step_pulses);
 
     assert_eq!(
-        note_ons(&audio_events(&messages)),
+        note_ons(&audio_events(&messages))
+            .into_iter()
+            .filter(|(channel, ..)| *channel == 0)
+            .collect::<Vec<_>>(),
         vec![(0, 71, 81, Some(150))]
     );
 }

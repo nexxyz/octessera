@@ -43,7 +43,6 @@ pub(super) fn default_link_layer(index: usize) -> NativeLinkLayer {
     layer.activate_slot = slot;
     layer.stable_slot = slot;
     layer.deactivate_slot = slot;
-    layer.event_enabled = index == 0;
     layer
 }
 

@@ -143,7 +143,7 @@ pub(crate) fn a_scanned_hold_note_lasts_while_its_pitch_stays_lit() {
     link.scan_mode = ScanMode::Scanning;
     link.scan_axis = ScanAxis::Columns;
     link.scan_unit = "1/16".into();
-    link.event_enabled = true;
+    link.note_preview = false;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     for x in [0, 1, 3] {

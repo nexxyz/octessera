@@ -28,7 +28,7 @@ pub(super) fn keys_layers(hold: bool) -> NativeRunner {
         .take(2)
         .map(|layer| &mut layer.link)
     {
-        link.event_enabled = true;
+        link.note_preview = true;
         link.activate_slot = 0;
         link.deactivate_slot = 0;
         link.activate_action = TriggerAction::NoteOn;

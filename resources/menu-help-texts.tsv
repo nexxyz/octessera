@@ -185,12 +185,12 @@ layer_looper_clear	*	action:behavior_action:clearLoop	action	Clear Loop	Clears t
 layer_auto_name	*	key:layers.*.autoName	bool	Auto Label	When On, the layer label follows the active behavior or generated default label.	Turn it Off before typing a custom layer label you want to keep.
 layer_name	*	key:layers.*.name	text	Layer Label	Sets the user-visible label for this layer.	Used across menus and overlays when Auto Label is off.
 scan_mode	*	key:layers.*.link.scanMode	enum	Scan Mode	none plays the grid as its tiles change; scanning sweeps a line across it and plays the Events On, Hold and Off rows.	Map Hold to note on and every lit step sounds; otherwise a run of lit tiles sounds once, at its start.
-scan_axis	*	key:layers.*.link.scanAxis	enum	Scan Axis	rows scans across row lanes; columns scans down column lanes.	The selected axis defines which coordinate the cursor advances.
+scan_axis	*	key:layers.*.link.scanAxis	enum	Scan Axis	columns moves a column line left to right; rows moves a row line bottom to top.	Each row (or column) the line runs along is one lane.
 scan_unit	*	key:layers.*.link.scanUnit	enum	Scan Unit	How often the scan cursor moves, from 1/32T to 1/1.	T means triplet.
-scan_direction	*	key:layers.*.link.scanDirection	enum	Scan Dir	forward runs from the first lane to the last; reverse from the last to the first.	It does not bounce.
+scan_direction	*	key:layers.*.link.scanDirection	enum	Scan Dir	forward moves the line left to right or bottom to top; reverse the other way.	A flip turns the line round where it is; it does not bounce.
 scan_sections	*	key:layers.*.link.scanSections	enum	Sections	1 scans the whole grid; 2, 4 or 8 split it into that many sections, played in sequence.	
-scan_lanes	*	key:layers.*.link.scanLanes	enum	Lanes	poly plays each cell's own note; mono plays one note per row or column, each new note replacing the last.	In mono a lane's note-off ends its last note, whatever cell it fires on.
-event_enabled	*	key:layers.*.link.eventEnabled	bool	Event Triggers	Plays notes when tiles light up, stay lit or go dark.	Off silences those triggers but keeps the rest of Link.
+scan_lanes	*	key:layers.*.link.scanLanes	enum	Lanes	poly plays each tile's own note; mono plays one note per lane, each new note replacing the last.	In mono a lane's note-off ends the note and pad it started, whatever tile it fires on.
+note_preview	*	key:layers.*.link.notePreview	bool	Note Preview	A tile you press or release plays its On or Off at once, scanning or not.	Off: a press only changes the grid. The layer's own steps always play.
 targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Which instrument each kind of trigger plays, and how.	Use note off for triggers that should end a held note.
 map_activate_action	*	key:layers.*.link.mapping.activate.action	enum	On Trig	What a tile does when it lights up: none, note on or note off.	note on starts a note; note off ends a held one.
 map_activate_slot	*	key:layers.*.link.mapping.activate.slot	enum	On Inst	The instrument a tile plays when it turns on: I1 to I8, or none.	The label shows what that slot holds now.
@@ -684,7 +684,6 @@ native_midi_enabled	Menu > System > MIDI > MIDI Active	key:midiEnabled	bool	MIDI
 native_midi_send_instruments	Menu > System > MIDI > Send MIDI	key:midi.sendInstruments	enum	Send MIDI	MIDI inst.: only MIDI Inst. and MIDI Drum slots send MIDI. all inst.: the internal sounds send their notes too.	Internal slots send on channels 1 to 8; drums use GM notes.
 native_midi_notes_in	Menu > System > MIDI > Notes In	key:midi.notesIn	bool	Notes In	A keyboard on MIDI In plays the slots: channel 1 plays I1, up to channel 8 for I8.	Overdubbing Loopers on that slot record the tile each key maps to; keys with no tile are not kept.
 native_midi_sync	*	key:midiSyncMode	enum	Sync Mode	internal runs on Octessera's own clock; external follows incoming MIDI clock when Clock In is on.	Clock Out works either way.
-native_state_notes	*	key:layers.*.link.stateNotesEnabled	bool	State Notes	Lets tiles that stay lit play Hold Trig at every step.	Turn it off to hear only changes.
 native_lane_curve_x	*	key:layers.*.link.x.*.curve	enum	Curve	linear spreads values evenly; curve starts slow and rises late.	From and To stay the ends either way.
 native_lane_curve_y	*	key:layers.*.link.y.*.curve	enum	Curve	linear spreads values evenly; curve starts slow and rises late.	From and To stay the ends either way.
 native_lane_from_x	*	key:layers.*.link.x.*.from	number	X Lane From	Sets the low endpoint for this X-axis value lane.	The lane scales grid position between From and To.

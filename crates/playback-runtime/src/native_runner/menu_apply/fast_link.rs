@@ -1,9 +1,6 @@
 use super::super::action_bindings::BindingTarget;
 use super::super::modulation::source::ModulationAxis;
-use super::super::{
-    link_layer_config, menu_apply::fast_values::parse_indexed_key, NativeRunner,
-    TriggerProbabilityMode,
-};
+use super::super::{link_layer_config, menu_apply::fast_values::parse_indexed_key, NativeRunner};
 
 impl NativeRunner {
     pub(super) fn apply_link_menu_key_fast(&mut self, key: &str) -> Option<bool> {
@@ -40,8 +37,7 @@ impl NativeRunner {
             return Some(self.fast_param_mod_invert_key(index, lane, key));
         }
         let layer = self.layers.get_mut(index).map(|layer| &mut layer.link)?;
-        let gate_was_open = layer.trigger_probability_mode != TriggerProbabilityMode::Zero;
-        let arp_was_on = layer.arp.mode != super::super::ArpMode::None;
+        let before = layer.clone();
         let changed = if suffix.starts_with("link.arp.") {
             let prefix = format!("layers.{index}.link.arp");
             super::link_fx::apply_link_arp_menu_state(&self.menu, layer, &prefix)
@@ -53,8 +49,7 @@ impl NativeRunner {
                 | "link.scanDirection"
                 | "link.scanSections"
                 | "link.scanLanes"
-                | "link.eventEnabled"
-                | "link.stateNotesEnabled"
+                | "link.notePreview"
         ) || suffix.starts_with("link.mapping.")
         {
             let prefix = format!("layers.{index}.link");
@@ -86,22 +81,10 @@ impl NativeRunner {
                 let sense = link_layer_config(layer);
                 self.menu.show_link_axis_rows(index, &sense);
             }
-            if suffix.starts_with("link.arp.") {
-                self.apply_arp_setting_change(index, arp_was_on);
-            }
             if suffix == "link.seeded" {
                 self.restart_link_random_stream(index);
             }
-            if let Some(field) = suffix
-                .strip_prefix("link.")
-                .filter(|field| super::super::scan_lanes::is_scan_setting(field))
-            {
-                self.apply_scan_setting_change(index, field);
-            } else if gate_was_open
-                && self.layers[index].link.trigger_probability_mode == TriggerProbabilityMode::Zero
-            {
-                self.drain_layer_owned_notes(index);
-            }
+            self.apply_link_change(index, &before);
             if index == self.active_layer_index {
                 self.refresh_active_mapping_config();
                 self.refresh_active_interpretation_profile();

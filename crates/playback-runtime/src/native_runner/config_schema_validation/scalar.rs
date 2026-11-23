@@ -69,8 +69,7 @@ fn validate_scalar(key: &str, value: &Value, path: &str) -> Result<(), String> {
         )?,
         "enabled"
         | "autoName"
-        | "eventEnabled"
-        | "stateNotesEnabled"
+        | "notePreview"
         | "triggerProbabilityNoteOffs"
         | "seeded"
         | "xInvert"

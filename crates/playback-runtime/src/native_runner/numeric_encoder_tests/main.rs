@@ -82,13 +82,13 @@ fn fn_edit_keeps_enum_and_bool_turn_semantics() {
     );
     assert_eq!(runner.transport.tick, tick);
 
-    assert!(runner.menu.focus_item_key("layers.0.link.eventEnabled"));
+    assert!(runner.menu.focus_item_key("layers.0.link.notePreview"));
     press(&mut runner, "main");
     button(&mut runner, "button_fn", true);
     turn(&mut runner, "main", -1);
     button(&mut runner, "button_fn", false);
     assert_eq!(
-        runner.menu.value_for_key("layers.0.link.eventEnabled"),
+        runner.menu.value_for_key("layers.0.link.notePreview"),
         Some("false".into())
     );
     assert_eq!(runner.transport.tick, tick);

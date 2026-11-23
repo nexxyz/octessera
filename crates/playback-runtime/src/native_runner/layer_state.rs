@@ -48,12 +48,7 @@ impl NativeRunner {
             .expect("validated note set and root");
         let length = u32::from(sense.one_shot_length_ms);
         mapping.activate = trigger_target(sense.activate_slot, sense.activate_action, 96, length);
-        let stable_action = if sense.state_notes_enabled {
-            sense.stable_action
-        } else {
-            TriggerAction::None
-        };
-        mapping.stable = trigger_target(sense.stable_slot, stable_action, 88, length);
+        mapping.stable = trigger_target(sense.stable_slot, sense.stable_action, 88, length);
         mapping.deactivate =
             trigger_target(sense.deactivate_slot, sense.deactivate_action, 68, length);
         mapping
@@ -68,7 +63,7 @@ impl NativeRunner {
             return self.base_interpretation_profile.clone();
         };
         let mut profile = self.base_interpretation_profile.clone();
-        profile.event.enabled = sense.event_enabled;
+        profile.event.enabled = sense.note_preview;
         profile.state.enabled = sense.scan_mode == ScanMode::Scanning;
         let sections = if sense.scan_sections <= 1 {
             None
