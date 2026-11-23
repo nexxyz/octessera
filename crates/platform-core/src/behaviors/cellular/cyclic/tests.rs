@@ -210,22 +210,54 @@ fn cells_without_a_successor_neighbor_stay_and_age() {
 }
 
 #[test]
-fn at_range_one_side_neighbors_count_twice_and_corners_once() {
-    for (threshold, successors, advances) in [(7, 4, true), (7, 3, false), (6, 3, true)] {
+fn at_range_one_every_neighbor_counts_once() {
+    let mut state = empty();
+    for (x, y) in [(4, 5), (3, 4), (5, 4), (3, 5)] {
+        state.cells[grid_index(x, y)] = 1;
+    }
+    assert_eq!(count_neighbors(&state.cells, 4, 4, 1, 1), 4);
+    assert_eq!(count_neighbors(&state.cells, 4, 4, 1, 2), 4);
+}
+
+#[test]
+fn fewer_successors_than_the_threshold_move_a_cell_on_only_sometimes() {
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
         let mut state = cyclic_deserialize(serde_json::json!({
-            "states": 4, "threshold": threshold, "range": 1, "cells": []
+            "states": 4, "threshold": 4, "range": 1, "cells": []
         }))
         .unwrap();
-        for (x, y) in [(4, 5), (3, 4), (5, 4), (3, 5)]
-            .into_iter()
-            .take(successors)
-        {
-            state.cells[grid_index(x, y)] = 1;
+        state.cells[grid_index(4, 5)] = 1;
+        let center = grid_index(4, 4);
+        let far = grid_index(0, 0);
+        let mut moved = 0;
+        for _ in 0..200 {
+            let next = cyclic_on_tick(state.clone(), &mut context());
+            moved += usize::from(next.cells[center] == 1);
+            assert_eq!(next.cells[far], 0, "a cell with no successor waits");
         }
-        let count = count_neighbors(&state.cells, 4, 4, 1, 1);
-        assert_eq!(count, [2, 4, 6, 7][successors - 1]);
-        assert_eq!(count >= threshold, advances, "{threshold}");
-    }
+        assert!((20..80).contains(&moved), "{moved} of 200");
+    });
+}
+
+#[test]
+fn a_world_that_loops_for_four_cycles_gets_a_fresh_patch() {
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut context = context();
+        let mut state = cyclic_init(serde_json::json!({})).unwrap();
+        let period = usize::from(state.states);
+        let mut history = Vec::new();
+        let (mut streak, mut longest) = (0, 0);
+        for _ in 0..300 {
+            state = cyclic_on_tick(state, &mut context);
+            history.push(state.cells.clone());
+            let repeated = history.len() > period
+                && history[history.len() - 1] == history[history.len() - 1 - period];
+            streak = if repeated { streak + 1 } else { 0 };
+            longest = longest.max(streak);
+        }
+        assert!(longest >= period, "the default world settles into a loop");
+        assert!(longest < (usize::from(LOOP_CYCLES) + 1) * period, "{longest}");
+    });
 }
 
 #[test]
