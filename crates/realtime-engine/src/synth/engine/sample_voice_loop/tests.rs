@@ -207,6 +207,18 @@ fn the_fade_is_at_most_half_the_loop() {
 fn a_forward_loop_under_20_ms_plays_without_a_fade() {
     assert_eq!(fade_frames(881, 10.0), 0.0);
     assert_eq!(fade_frames(882, 10.0), 441.0);
+    let at_48k = |frames: usize| SampleBuffer {
+        sample_rate: 48_000,
+        ..buffer(vec![0.0; frames])
+    };
+    for (frames, fade) in [(959, 0.0), (960, 480.0)] {
+        let (cursor, _) = forward_loop(0.0, 100.0, 10.0, &at_48k(frames));
+        assert_eq!(
+            cursor.end - cursor.fade_start,
+            fade,
+            "{frames} frames at 48 kHz"
+        );
+    }
     let marks = marker_reads(&marked(800, 100), 100.0, 10.0, 2_400);
     assert_eq!(marks, [100, 900, 1_700]);
 }

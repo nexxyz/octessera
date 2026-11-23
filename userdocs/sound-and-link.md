@@ -323,19 +323,19 @@ point at them.
   moves the filter once **Env Amount** is off zero.
 - **Start and loops.** Each sample slot has its own **Start**, **Loop**,
   **Loop Start** and **Loop End**, all in percent of the sample, right under
-  the slot's Browse row, plus **Loop Fade** for forward loops. **Start** skips the front of a sample (a sleepy
-  attack, a breath of silence) in either Note Mode. **Loop** only wakes up in
-  `hold`: `forward` keeps running round from Loop Start to Loop End, and
-  `ping-pong` bounces back and forth between them, for as long as the note is
-  held. Let go and the Amp Env release fades it out. A forward loop's end
-  blends into its own start over **Loop Fade** (10 ms out of the box), so
-  even a careless loop point won't click, though a loop that sits on a steady
-  part of the sound will be the smoothest. The blend eats into the loop, so
-  each pass is that much shorter; for a bar loop that must last exactly the
-  loop, set Loop Fade to 0 and pick clean loop points. Tiny loops under 20 ms
-  (a grain, a single cycle) never fade, and a fade never takes more than half
-  the loop. In
-  `oneshot` the sample just plays once, loop or no loop.
+  the slot's Browse row, plus **Loop Fade** for forward loops. **Start** skips
+  the front of a sample (a sleepy attack, a breath of silence) in either Note
+  Mode. **Loop** only wakes up in `hold`: `forward` keeps running round from
+  Loop Start to Loop End, and `ping-pong` bounces back and forth between them,
+  for as long as the note is held. Let go and the Amp Env release fades it
+  out. A forward loop's end blends into its own start over **Loop Fade**
+  (10 ms out of the box), so even a careless loop point won't click, though a
+  loop that sits on a steady part of the sound will be the smoothest. The blend
+  eats into the loop, so each pass is that much shorter; for a bar loop that
+  must last exactly the loop, set Loop Fade to 0 and pick clean loop points.
+  Tiny loops under 20 ms (a grain, a single cycle) never fade, and a fade
+  never takes more than half the loop. In `oneshot` the sample just plays
+  once, loop or no loop.
 - **MIDI.** A `MIDI Inst.` or `MIDI Drum` slot sends nothing until its
   **Enabled** is on (and `System > MIDI > MIDI Active` is on). MIDI never
   passes through the internal effects.

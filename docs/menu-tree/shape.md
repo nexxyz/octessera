@@ -208,10 +208,11 @@ Shape
 
 ### Sampler
 
-- Row order: Kit, Sample Slot, the loaded sample, Browse, Start, Loop, Loop Start and Loop End
-  (only while Loop is not off), Loop Fade (only while Loop is forward), Tile Tune, Tile Fine, Tile Level (only while Vel Levels is on),
-  Assign, Tune, Follow Transp., Follow Pitch, Note Off, Gain, Base Vel, the Vel Levels switch, the Vel
-  Levels group (only while on), Filter, Vel Sens, Amp Env, Filter Env.
+- Row order: Kit, Sample Slot, the loaded sample, Browse, Start, Loop, Loop Start and Loop End (only
+  while Loop is not off), Loop Fade (only while Loop is forward), Tile Tune, Tile Fine, Tile Level
+  (only while Vel Levels is on), Assign, Tune, Follow Transp., Follow Pitch, Note Off, Gain, Base
+  Vel, the Vel Levels switch, the Vel Levels group (only while on), Filter, Vel Sens, Amp Env,
+  Filter Env.
 - SDB Kit, Synth Kit, and Dist Kit replace the slot's eight sample paths, reset each sample
   slot's Start and Loop rows to their defaults, and set Gain to 286%. Tile assignments and levels,
   the selected Sample Slot, and the other sample settings stay.
