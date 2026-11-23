@@ -1,8 +1,7 @@
 [Unit]
 Description=Octessera Orange Pi runtime
 StartLimitIntervalSec=0
-After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service octessera-orange-sd-card.service sound.target
-Wants=octessera-orange-sd-card.service
+After=octessera-provision-musical-default.service octessera-orange-usb-gadget.service sound.target
 Wants=octessera-orange-storage-control.socket
 After=octessera-orange-storage-control.socket
 Requires=octessera-device-apply-reboot.socket

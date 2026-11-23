@@ -1,9 +1,8 @@
 [Unit]
 Description=octessera Pi Zero 2W Headless Music System
 Wants=octessera-usb-gadget.service
-Wants=octessera-sd-card.service
 Wants=octessera-boot-splash.service
-After=octessera-usb-gadget.service octessera-sd-card.service sound.target
+After=octessera-usb-gadget.service sound.target
 After=octessera-boot-splash.service
 
 [Service]
