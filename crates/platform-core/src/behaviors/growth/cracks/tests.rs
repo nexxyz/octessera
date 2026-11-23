@@ -81,7 +81,8 @@ fn propagation_branch_no_wrap_and_stress_stable() {
     assert_eq!(t.tiles[grid_index(3, 4)], TIP);
     assert_ne!(t.tiles[grid_index(4, 3)], TIP);
 
-    let mut s = cracks_init(serde_json::json!({"stressPct":0})).unwrap();
+    let mut s = cracks_init(serde_json::json!({"stressPct":0, "propagationPct":0})).unwrap();
+    s.tiles[grid_index(7, 7)] = TIP;
     s.tiles[0] = STRESS;
     s.stress[0] = STRESS_VISIBLE;
     let t = cracks_on_tick(s, &mut c);
@@ -139,7 +140,12 @@ fn default_tail_stays_bounded_and_non_terminal() {
     for _ in 0..300 {
         s = cracks_on_tick(s, &mut c);
         let visible = visible_tiles(&s.tiles, &s.stress);
-        same = if visible == previous { same + 1 } else { 0 };
+        let activates = s.trigger_types.contains(&TileTriggerType::Activate);
+        same = if visible == previous && !activates {
+            same + 1
+        } else {
+            0
+        };
         terminal = if visible.iter().all(|v| *v) || visible.iter().all(|v| !*v) {
             terminal + 1
         } else {
@@ -163,7 +169,7 @@ fn default_tail_stays_bounded_and_non_terminal() {
 }
 
 #[test]
-fn stress_accumulates_decays_and_static_nudge_is_deterministic() {
+fn stress_accumulates_decays_and_an_untipped_pane_takes_the_next_impact_on_unbroken_glass() {
     let mut c = ctx();
     let s = cracks_deserialize(serde_json::json!({
         "tiles": [0], "stress": [0], "stressPct": 100,
@@ -200,9 +206,14 @@ fn stress_accumulates_decays_and_static_nudge_is_deterministic() {
     .unwrap();
     static_state.tiles.fill(CLEAR);
     static_state.stress.fill(0);
-    let nudged = cracks_on_tick(static_state, &mut c);
-    assert_eq!(nudged.tiles[0], TIP);
-    assert_eq!(nudged.stress[0], 96);
+    let struck = cracks_on_tick(static_state.clone(), &mut c);
+    assert_eq!(struck.tiles[0], TIP);
+    assert_eq!(struck.stress[0], 96);
+    static_state.tiles[0] = CRACK;
+    let struck = cracks_on_tick(static_state, &mut c);
+    assert_eq!(struck.tiles[0], CRACK);
+    assert_eq!(struck.tiles[1], TIP);
+    assert_eq!(struck.trigger_types[1], TileTriggerType::Activate);
 }
 
 #[test]

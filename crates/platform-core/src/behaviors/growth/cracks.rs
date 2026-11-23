@@ -143,10 +143,14 @@ pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> Cracks
             }
         }
     }
-    if state.stress_pct > 0 && !state.tiles.contains(&TIP) {
-        let x = (state.tick_counter as usize) % GRID_WIDTH;
-        let y = ((state.tick_counter / GRID_WIDTH as u64) as usize) % GRID_HEIGHT;
-        forced.extend(impact(&mut state, x, y));
+    if !state.tiles.contains(&TIP) {
+        let start = state.tick_counter as usize % TILE_COUNT;
+        let unbroken = (start..start + TILE_COUNT)
+            .map(|i| i % TILE_COUNT)
+            .find(|i| state.tiles[*i] <= STRESS);
+        if let Some(i) = unbroken {
+            forced.extend(impact(&mut state, i % GRID_WIDTH, i / GRID_WIDTH));
+        }
     }
     for i in 0..TILE_COUNT {
         if state.tiles[i] <= STRESS
@@ -172,7 +176,6 @@ pub fn cracks_on_tick(mut state: CracksState, _: &mut BehaviorContext) -> Cracks
     if cracks >= threshold || cracks * 4 >= threshold * 3 && connects_edges(&state) {
         state.pending_shatter = true;
     }
-    nudge_if_static(&mut state, &pc, &ps);
     state.tick_counter = state.tick_counter.wrapping_add(1);
     state.trigger_types = triggers(&pc, &ps, &state.tiles, &state.stress, &forced);
     state
@@ -293,22 +296,6 @@ fn visible_tiles(c: &[u8], st: &[u8]) -> Vec<bool> {
     (0..TILE_COUNT)
         .map(|i| c[i] == CRACK || c[i] == TIP || st[i] >= STRESS_VISIBLE)
         .collect()
-}
-fn nudge_if_static(s: &mut CracksState, pc: &[u8], ps: &[u8]) {
-    if s.stress_pct == 0 {
-        return;
-    }
-    if visible_tiles(pc, ps) != visible_tiles(&s.tiles, &s.stress) {
-        return;
-    }
-    let index = (s.tick_counter as usize * 13) % TILE_COUNT;
-    if s.tiles[index] <= STRESS && s.stress[index] >= STRESS_VISIBLE {
-        s.tiles[index] = CLEAR;
-        s.stress[index] = 0;
-    } else if s.tiles[index] <= STRESS {
-        s.tiles[index] = STRESS;
-        s.stress[index] = STRESS_VISIBLE;
-    }
 }
 fn triggers(pc: &[u8], ps: &[u8], nc: &[u8], ns: &[u8], forced: &[usize]) -> Vec<TileTriggerType> {
     let pv = visible_tiles(pc, ps);
