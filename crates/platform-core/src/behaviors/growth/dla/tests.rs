@@ -48,10 +48,11 @@ fn dla_render_and_config_menu_match_contract() {
 }
 
 #[test]
-fn old_payloads_normalize_cells_and_cell_life() {
+fn old_payloads_normalize_ages_and_cell_life() {
     let mut context = BehaviorContext::new(120.0);
     let state = DlaState {
         cells: vec![true, false],
+        ages: Vec::new(),
         trigger_types: Vec::new(),
         spawn_interval: 0,
         spawn_step: 0,
@@ -62,6 +63,7 @@ fn old_payloads_normalize_cells_and_cell_life() {
     let ticked = dla_on_tick(state, &mut context);
 
     assert_eq!(ticked.cells.len(), TILE_COUNT);
+    assert_eq!(ticked.ages.len(), TILE_COUNT);
     assert_eq!(ticked.cell_life, MAX_CELL_LIFE);
 }
 
@@ -70,6 +72,7 @@ fn old_short_payload_grid_input_normalizes_before_trigger_recompute() {
     let mut context = BehaviorContext::new(120.0);
     let state = DlaState {
         cells: vec![true],
+        ages: Vec::new(),
         trigger_types: Vec::new(),
         spawn_interval: 0,
         spawn_step: 0,
@@ -80,6 +83,7 @@ fn old_short_payload_grid_input_normalizes_before_trigger_recompute() {
     let next = dla_on_input(state, DeviceInput::GridPress { x: 1, y: 0 }, &mut context);
 
     assert_eq!(next.cells.len(), TILE_COUNT);
+    assert_eq!(next.ages.len(), TILE_COUNT);
     assert_eq!(next.trigger_types.len(), TILE_COUNT);
     assert_eq!(
         next.trigger_types[grid_index(1, 0)],
@@ -93,6 +97,7 @@ fn seed_cluster_action_and_no_frontier_tick_are_stable() {
         let mut context = BehaviorContext::new(120.0);
         let empty = DlaState {
             cells: vec![false; TILE_COUNT],
+            ages: vec![0; TILE_COUNT],
             trigger_types: vec![TileTriggerType::None; TILE_COUNT],
             spawn_interval: 1,
             spawn_step: 0,
@@ -123,6 +128,7 @@ fn cell_life_one_breaks_every_cell_off_and_reseeds_when_empty() {
     let mut context = BehaviorContext::new(120.0);
     let state = DlaState {
         cells: vec![true; TILE_COUNT],
+        ages: vec![0; TILE_COUNT],
         trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         spawn_interval: 0,
         spawn_step: 0,
@@ -133,6 +139,7 @@ fn cell_life_one_breaks_every_cell_off_and_reseeds_when_empty() {
     let ticked = dla_on_tick(state, &mut context);
 
     assert_eq!(ticked.cells.iter().filter(|cell| **cell).count(), 3);
+    assert!(ticked.ages.iter().all(|age| *age == 0));
 }
 
 #[test]
@@ -162,10 +169,11 @@ fn a_full_cluster_keeps_renewing_at_a_rate_set_by_cell_life() {
 }
 
 #[test]
-fn cell_life_zero_disables_break_off() {
+fn cell_life_zero_disables_aging_and_expiry() {
     let mut context = BehaviorContext::new(120.0);
     let state = DlaState {
         cells: vec![true; TILE_COUNT],
+        ages: vec![250; TILE_COUNT],
         trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         spawn_interval: 0,
         spawn_step: 0,
@@ -179,6 +187,7 @@ fn cell_life_zero_disables_break_off() {
         ticked.cells.iter().filter(|cell| **cell).count(),
         TILE_COUNT
     );
+    assert!(ticked.ages.iter().all(|age| *age == 250));
 }
 
 #[test]
@@ -257,21 +266,60 @@ fn without_cell_life_the_cluster_starts_over_once_it_reaches_the_rim() {
 }
 
 #[test]
-fn a_saved_cluster_with_cell_ages_still_loads_and_saves_without_them() {
+fn a_saved_cluster_loads_with_or_without_cell_ages() {
     let behavior = crate::behaviors::get_native_behavior("dla").unwrap();
     let mut cells = vec![false; TILE_COUNT];
     cells[grid_index(2, 3)] = true;
-    let saved = serde_json::json!({
-        "cells": cells,
-        "ages": vec![40; TILE_COUNT],
-        "triggerTypes": [],
-        "spawnInterval": 2,
-        "spawnStep": 0,
-        "cellLife": 96
+    for ages in [Some(vec![40; TILE_COUNT]), None] {
+        let mut saved = serde_json::json!({
+            "cells": cells,
+            "triggerTypes": [],
+            "spawnInterval": 2,
+            "spawnStep": 0,
+            "cellLife": 96
+        });
+        if let Some(ages) = &ages {
+            saved["ages"] = serde_json::json!(ages);
+        }
+        let state = behavior.deserialize(saved).unwrap();
+        let resaved = behavior.serialize(&state).unwrap();
+        assert_eq!(resaved["cells"][grid_index(2, 3)], true);
+        match ages {
+            Some(ages) => assert_eq!(resaved["ages"][grid_index(2, 3)], ages[grid_index(2, 3)]),
+            None => {
+                let ticked = behavior
+                    .on_tick(state, &mut BehaviorContext::new(120.0))
+                    .unwrap();
+                assert!(behavior.serialize(&ticked).unwrap()["ages"]
+                    .as_array()
+                    .is_some_and(|ages| ages.len() == TILE_COUNT));
+            }
+        }
+    }
+}
+
+#[test]
+fn a_full_cluster_breaks_off_its_oldest_cell_before_a_walker_sticks() {
+    crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+        let mut cells = vec![false; TILE_COUNT];
+        let mut ages = vec![0; TILE_COUNT];
+        let filled = (GRID_WIDTH..GRID_WIDTH + MAX_CLUSTER).collect::<Vec<_>>();
+        for (n, i) in filled.iter().enumerate() {
+            cells[*i] = true;
+            ages[*i] = 50 + n as u16;
+        }
+        let oldest = *filled.last().unwrap();
+        let state = DlaState {
+            cells,
+            ages,
+            trigger_types: vec![TileTriggerType::None; TILE_COUNT],
+            spawn_interval: 1,
+            spawn_step: 0,
+            cell_life: 60,
+            tick_counter: 0,
+        };
+        let ticked = dla_on_tick(state, &mut BehaviorContext::new(120.0));
+        assert!(!ticked.cells[oldest] || ticked.ages[oldest] == 0);
+        assert!(ticked.trigger_types.contains(&TileTriggerType::Activate));
     });
-    let state = behavior.deserialize(saved).unwrap();
-    let resaved = behavior.serialize(&state).unwrap();
-    assert!(resaved.get("ages").is_none());
-    assert_eq!(resaved["cells"][grid_index(2, 3)], true);
-    assert_eq!(resaved["cellLife"], 96);
 }

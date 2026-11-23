@@ -13,6 +13,8 @@ use serde_json::Value;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DlaState {
     pub cells: Vec<bool>,
+    #[serde(default)]
+    pub ages: Vec<u16>,
     #[serde(rename = "triggerTypes")]
     pub trigger_types: Vec<TileTriggerType>,
     #[serde(rename = "spawnInterval")]
@@ -60,6 +62,7 @@ pub fn dla_init(config: Value) -> Result<DlaState, String> {
     }
     Ok(DlaState {
         cells,
+        ages: vec![0; TILE_COUNT],
         trigger_types: vec![TileTriggerType::None; TILE_COUNT],
         spawn_interval: config.spawn_interval.unwrap_or(2),
         spawn_step: config.spawn_step.unwrap_or(0).min(63),
@@ -71,23 +74,32 @@ pub fn dla_init(config: Value) -> Result<DlaState, String> {
     })
 }
 
-fn seed_starter_cluster(cells: &mut [bool]) {
+fn seed_starter_cluster(cells: &mut [bool], ages: &mut [u16]) {
     let cx = GRID_WIDTH / 2;
     let cy = GRID_HEIGHT / 2;
-    cells[grid_index(cx, cy)] = true;
+    set_cluster_cell(cells, ages, cx, cy);
     if cx + 1 < GRID_WIDTH {
-        cells[grid_index(cx + 1, cy)] = true;
+        set_cluster_cell(cells, ages, cx + 1, cy);
     }
     if cy + 1 < GRID_HEIGHT {
-        cells[grid_index(cx, cy + 1)] = true;
+        set_cluster_cell(cells, ages, cx, cy + 1);
     }
 }
 
-fn normalized_cells(state: &DlaState) -> Vec<bool> {
+fn set_cluster_cell(cells: &mut [bool], ages: &mut [u16], x: usize, y: usize) {
+    let index = grid_index(x, y);
+    cells[index] = true;
+    ages[index] = 0;
+}
+
+fn normalized_cells_and_ages(state: &DlaState) -> (Vec<bool>, Vec<u16>) {
     let mut cells = state.cells.clone();
     cells.resize(TILE_COUNT, false);
     cells.truncate(TILE_COUNT);
-    cells
+    let mut ages = state.ages.clone();
+    ages.resize(TILE_COUNT, 0);
+    ages.truncate(TILE_COUNT);
+    (cells, ages)
 }
 
 fn has_adjacent_cluster(cells: &[bool], x: usize, y: usize) -> bool {
@@ -117,63 +129,82 @@ pub fn dla_on_input(
     _context: &mut BehaviorContext,
 ) -> DlaState {
     let mut next = state.clone();
-    let mut cells = normalized_cells(&next);
+    let (mut cells, mut ages) = normalized_cells_and_ages(&next);
     let previous_cells = cells.clone();
     match input {
         DeviceInput::BehaviorAction(BehaviorActionInput { action_type })
             if action_type == "seedCluster" =>
         {
             let (cx, cy) = random_point_for_dla();
-            cells[grid_index(cx, cy)] = true;
+            set_cluster_cell(&mut cells, &mut ages, cx, cy);
             if cx + 1 < GRID_WIDTH {
-                cells[grid_index(cx + 1, cy)] = true;
+                set_cluster_cell(&mut cells, &mut ages, cx + 1, cy);
             }
             if cy + 1 < GRID_HEIGHT {
-                cells[grid_index(cx, cy + 1)] = true;
+                set_cluster_cell(&mut cells, &mut ages, cx, cy + 1);
             }
         }
         DeviceInput::GridPress { x, y } if x < GRID_WIDTH && y < GRID_HEIGHT => {
             let index = grid_index(x, y);
             cells[index] = !cells[index];
+            ages[index] = 0;
         }
         _ => return state,
     }
     next.cells = cells;
+    next.ages = ages;
     next.trigger_types = trigger_types_from_tiles(&previous_cells, &next.cells);
     next
 }
 
 pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState {
-    let mut cells = normalized_cells(&state);
+    let (mut cells, mut ages) = normalized_cells_and_ages(&state);
     let previous_cells = cells.clone();
     let tick_counter = state.tick_counter + 1;
     let cell_life = state.cell_life.min(MAX_CELL_LIFE);
+    if cell_life > 0 {
+        for (active, age) in cells.iter().zip(ages.iter_mut()) {
+            if *active {
+                *age = age.saturating_add(1);
+            } else {
+                *age = 0;
+            }
+        }
+    }
     if state.spawn_interval > 0
         && (tick_counter - 1) % state.spawn_interval == state.spawn_step % state.spawn_interval
     {
         if cell_life == 0 && touches_rim(&cells) {
             cells.fill(false);
-            seed_starter_cluster(&mut cells);
+            ages.fill(0);
+            seed_starter_cluster(&mut cells, &mut ages);
         } else if cells.iter().filter(|cell| **cell).count() < MAX_CLUSTER {
-            if let Some((x, y)) = release_walkers(&cells) {
-                cells[grid_index(x, y)] = true;
+            if let Some((x, y)) = release_walkers(&cells, None) {
+                set_cluster_cell(&mut cells, &mut ages, x, y);
+            }
+        } else if cell_life > 0 && outlived(&cells, &ages, cell_life) {
+            let vacated = break_off_oldest(&mut cells, &mut ages);
+            if let Some((x, y)) = release_walkers(&cells, vacated) {
+                set_cluster_cell(&mut cells, &mut ages, x, y);
             }
         }
     }
     if cell_life > 0 {
         let mut rng = crate::behavior_random::rng();
-        for cell in cells.iter_mut() {
+        for (cell, age) in cells.iter_mut().zip(ages.iter_mut()) {
             if *cell && rng.gen_range(0..cell_life) == 0 {
                 *cell = false;
+                *age = 0;
             }
         }
         if !cells.iter().any(|cell| *cell) {
-            seed_starter_cluster(&mut cells);
+            seed_starter_cluster(&mut cells, &mut ages);
         }
     }
     let trigger_types = trigger_types_from_tiles(&previous_cells, &cells);
     DlaState {
         cells,
+        ages,
         trigger_types,
         cell_life,
         tick_counter,
@@ -181,10 +212,26 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
     }
 }
 
+fn outlived(cells: &[bool], ages: &[u16], cell_life: usize) -> bool {
+    (0..TILE_COUNT).any(|index| cells[index] && usize::from(ages[index]) >= cell_life)
+}
+
+/// A full cluster whose oldest cell has outlived Cell Life loses that cell first, so the walker
+/// released next sticks to what remains.
+fn break_off_oldest(cells: &mut [bool], ages: &mut [u16]) -> Option<usize> {
+    let oldest = (0..TILE_COUNT)
+        .filter(|index| cells[*index])
+        .max_by_key(|index| ages[*index])?;
+    cells[oldest] = false;
+    ages[oldest] = 0;
+    Some(oldest)
+}
+
 /// Releases walkers from free rim tiles (any free tile once the rim is full), one after another,
 /// until one wanders next to the cluster and sticks: the branching growth that gives
-/// diffusion-limited aggregation its name. Nothing sticks to an empty grid.
-fn release_walkers(cells: &[bool]) -> Option<(usize, usize)> {
+/// diffusion-limited aggregation its name. Nothing sticks to an empty grid, and no walker sticks
+/// on `avoid`, the tile a full cluster has just lost.
+fn release_walkers(cells: &[bool], avoid: Option<usize>) -> Option<(usize, usize)> {
     if !cells.contains(&true) {
         return None;
     }
@@ -200,7 +247,9 @@ fn release_walkers(cells: &[bool]) -> Option<(usize, usize)> {
     if starts.is_empty() {
         return None;
     }
-    (0..WALKERS).find_map(|_| walk_to_cluster(cells, starts))
+    (0..WALKERS).find_map(|_| {
+        walk_to_cluster(cells, starts).filter(|(x, y)| Some(grid_index(*x, *y)) != avoid)
+    })
 }
 
 fn walk_to_cluster(cells: &[bool], starts: &[usize]) -> Option<(usize, usize)> {
