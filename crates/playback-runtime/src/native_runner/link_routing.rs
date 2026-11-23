@@ -68,6 +68,7 @@ impl NativeRunner {
         }
         let timing = link_timing_for_intents(sense, intents);
         self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, timing.delay_steps);
+        self.drop_pending_releases_of_held_presses(layer_index, &routed, timing.delay_steps);
         let retrigger_count = if presses_a_held_key(&routed) {
             0
         } else {
@@ -127,6 +128,38 @@ impl NativeRunner {
             // Only the held presses go; a release queued with them still lands.
             entry.events.keys.retain(|event| {
                 !matches!(event, KeyEvent::Press(press) if press.length_ms.is_none() && released(press))
+            });
+            !entry.events.is_empty()
+        });
+    }
+
+    /// A held press drops the layer's pending releases of its key due after it, which a tile that
+    /// went dark before it queued for the note the press strikes again.
+    fn drop_pending_releases_of_held_presses(
+        &mut self,
+        layer_index: usize,
+        routed: &RoutedMusicalEvents,
+        press_due_steps: u8,
+    ) {
+        let held = || {
+            routed.keys.iter().filter_map(|event| match event {
+                KeyEvent::Press(press) if press.length_ms.is_none() => Some(press),
+                _ => None,
+            })
+        };
+        if held().next().is_none() {
+            return;
+        }
+        let Some(queue) = self.delayed_link_events.get_mut(layer_index) else {
+            return;
+        };
+        queue.retain_mut(|entry| {
+            if entry.remaining_steps <= u16::from(press_due_steps) {
+                return true;
+            }
+            entry.events.keys.retain(|event| {
+                !matches!(event, KeyEvent::Release { .. })
+                    || !held().any(|press| releases(event, press))
             });
             !entry.events.is_empty()
         });
@@ -298,6 +331,37 @@ fn arp_batches(events: &[MusicalEvent], intents: &[Option<TileTriggerIntent>]) -
     untagged.into_iter().chain(releases).chain(rest).collect()
 }
 
+/// Within a tick every release of a key plays before any press of it, whatever layer, source or
+/// Delay produced them, so a key that goes dark on one tile as it lights on another sounds.
+pub(super) fn releases_before_presses(keys: &mut [KeyEvent]) {
+    for index in 0..keys.len() {
+        let tick_start = keys[..index]
+            .iter()
+            .rposition(|event| *event == KeyEvent::NextTick)
+            .map_or(0, |next| next + 1);
+        let first_press = keys[tick_start..index]
+            .iter()
+            .position(|earlier| match earlier {
+                KeyEvent::Press(press) => releases(&keys[index], press),
+                _ => false,
+            });
+        if let Some(first) = first_press {
+            keys[tick_start + first..=index].rotate_right(1);
+        }
+    }
+}
+
+fn releases(event: &KeyEvent, press: &KeyPress) -> bool {
+    match event {
+        KeyEvent::Release { slot, pitch, pad } => {
+            (*slot, *pitch) == (press.slot, press.pitch)
+                && pad.is_none_or(|pad| press.sound.pad() == Some(pad))
+        }
+        KeyEvent::ReleaseAll { slots } => slots & (1 << press.slot) != 0,
+        KeyEvent::Press(_) | KeyEvent::Control { .. } | KeyEvent::NextTick => false,
+    }
+}
+
 /// The presses that sound together on one tick play one hit per key, or per sound, whatever
 /// layer, event kind or Delay produced them: the loudest, or the first of the loudest, whole. A
 /// release between two presses keeps both, so a release and a fresh hit still sound in order. On a
@@ -315,12 +379,8 @@ pub(super) fn dedupe_note_ons(
         };
         let earlier = keys[..index].iter().rposition(|event| match event {
             KeyEvent::Press(other) => merges(other, press, instruments),
-            KeyEvent::Release { slot, pitch, pad } => {
-                (*slot, *pitch) == (press.slot, press.pitch)
-                    && pad.is_none_or(|pad| press.sound.pad() == Some(pad))
-            }
-            KeyEvent::ReleaseAll { slots } => slots & (1 << press.slot) != 0,
-            KeyEvent::Control { .. } => false,
+            KeyEvent::NextTick => true,
+            release => releases(release, press),
         });
         match earlier {
             Some(first) if matches!(&keys[first], KeyEvent::Press(other) if merges(other, press, instruments)) =>

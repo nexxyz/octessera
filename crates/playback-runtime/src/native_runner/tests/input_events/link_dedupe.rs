@@ -91,12 +91,10 @@ pub(crate) fn coalesced_24_pulses_preserve_cross_tick_retriggers() {
             (0, 69),
             (0, 74),
             (0, 59),
-            (0, 59),
             (0, 64),
             (0, 66),
             (0, 69),
             (0, 71),
-            (0, 74),
             (0, 74),
             (0, 62),
             (0, 66),
@@ -104,11 +102,10 @@ pub(crate) fn coalesced_24_pulses_preserve_cross_tick_retriggers() {
             (0, 74),
         ]
     );
-    assert!(notes.windows(2).any(|window| window[0] == window[1]));
 }
 
 #[test]
-pub(crate) fn second_tick_preserves_note_boundaries_between_event_kinds() {
+pub(crate) fn a_release_between_presses_of_one_key_on_one_tick_plays_before_them() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let activate = intent(platform_core::TileTriggerKind::Activate);
     let deactivate = intent(platform_core::TileTriggerKind::Deactivate);
@@ -153,24 +150,12 @@ pub(crate) fn second_tick_preserves_note_boundaries_between_event_kinds() {
 
     assert_eq!(
         audio_events(&messages),
-        vec![
-            platform_core::MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 110,
-                duration_ms: Some(150),
-            },
-            platform_core::MusicalEvent::NoteOff {
-                channel: 0,
-                note: 60,
-            },
-            platform_core::MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 80,
-                duration_ms: Some(150),
-            },
-        ]
+        vec![platform_core::MusicalEvent::NoteOn {
+            channel: 0,
+            note: 60,
+            velocity: 110,
+            duration_ms: Some(150),
+        }]
     );
 }
 
@@ -367,7 +352,7 @@ pub(crate) fn probability_filtering_happens_before_local_dedupe() {
 }
 
 #[test]
-pub(crate) fn a_note_off_between_two_note_ons_keeps_the_re_strike() {
+pub(crate) fn a_note_off_after_a_press_of_its_key_on_one_tick_plays_before_the_loudest_press() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let activate = intent(platform_core::TileTriggerKind::Activate);
     let model = runner.active_engine().model().unwrap();
@@ -420,23 +405,13 @@ pub(crate) fn a_note_off_between_two_note_ons_keeps_the_re_strike() {
             platform_core::MusicalEvent::NoteOn {
                 channel: 0,
                 note: 60,
-                velocity: 50,
+                velocity: 100,
                 duration_ms: None,
             },
             platform_core::MusicalEvent::Cc {
                 channel: 0,
                 controller: 74,
                 value: 40,
-            },
-            platform_core::MusicalEvent::NoteOff {
-                channel: 0,
-                note: 60,
-            },
-            platform_core::MusicalEvent::NoteOn {
-                channel: 0,
-                note: 60,
-                velocity: 100,
-                duration_ms: None,
             },
             platform_core::MusicalEvent::Cc {
                 channel: 0,

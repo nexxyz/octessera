@@ -7,7 +7,7 @@ const PREFIX: &str = "layers.0.link.";
 /// The setup an option needs before it can change anything, so each sweep compares like with
 /// like: scan rows sweep on a scanning layer, arp rows with the arp on, lane rows with their lane
 /// on, probability rows on a custom map, and every other row on an event layer whose Hold
-/// trigger plays.
+/// trigger plays and whose notes outlast a step.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Context {
     Events,
@@ -86,7 +86,12 @@ fn runner_in(context: Context) -> NativeRunner {
         &enumerated("note_on"),
     );
     match context {
-        Context::Events => {}
+        // Notes outlast a step, so an Off a step or more later still cuts them.
+        Context::Events => set(
+            &mut runner,
+            &link("oneShotLengthMs"),
+            &SweepValue::Number(500),
+        ),
         Context::Probability => {
             set(
                 &mut runner,

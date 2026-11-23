@@ -151,7 +151,9 @@ impl NativeRunner {
             let (slot, pitch) = match &event {
                 KeyEvent::Press(press) => (press.slot, press.pitch),
                 KeyEvent::Release { slot, pitch, .. } => (*slot, *pitch),
-                KeyEvent::ReleaseAll { .. } | KeyEvent::Control { .. } => continue,
+                KeyEvent::ReleaseAll { .. } | KeyEvent::Control { .. } | KeyEvent::NextTick => {
+                    continue
+                }
             };
             down.retain(|key| (key.slot, key.pitch) != (slot, pitch));
             if let KeyEvent::Press(press) = event {

@@ -150,6 +150,8 @@ pub(in crate::native_runner) enum KeyEvent {
         midi: bool,
         event: MusicalEvent,
     },
+    /// Where one layer step ends and the next begins, in a pulse step that covers several.
+    NextTick,
 }
 
 #[derive(Clone, Debug)]
@@ -206,6 +208,7 @@ impl HeldKeys {
                 KeyEvent::ReleaseAll { slots } => self.release_slots(slots, out),
                 KeyEvent::Control { midi: false, event } => out.audio.push(event),
                 KeyEvent::Control { midi: true, event } => out.midi.push(event),
+                KeyEvent::NextTick => {}
             }
         }
     }

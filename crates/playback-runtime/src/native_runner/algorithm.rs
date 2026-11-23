@@ -1,3 +1,4 @@
+use super::held_keys::KeyEvent;
 use super::modulation::RoutedMusicalEvents;
 use super::trigger_probability::trigger_probability_allows;
 use super::{
@@ -86,12 +87,37 @@ impl NativeRunner {
     }
 
     pub(super) fn advance_due_layer_ticks(&mut self) -> Result<RoutedMusicalEvents, String> {
-        let mut events = RoutedMusicalEvents::default();
-        self.advance_active_layer(&mut events)?;
-
-        let inactive_modulation_updates = self.advance_inactive_layers(&mut events)?;
+        // The active layer steps first, but its notes take their place in layer order, so the
+        // selected layer never changes what a tick plays.
+        let mut layer_ticks: Vec<LayerTicks> = vec![Vec::new(); self.layers.len()];
+        if let Some(active) = layer_ticks.get_mut(self.active_layer_index) {
+            self.advance_active_layer(active)?;
+        }
+        let inactive_modulation_updates = self.advance_inactive_layers(&mut layer_ticks)?;
         for (index, mapped_intents) in inactive_modulation_updates {
             self.apply_runtime_modulation(&mapped_intents, index);
+        }
+        let mut events = RoutedMusicalEvents::default();
+        let steps = layer_ticks.iter().map(Vec::len).max().unwrap_or(0);
+        let mut layer_ticks = layer_ticks
+            .into_iter()
+            .map(Vec::into_iter)
+            .collect::<Vec<_>>();
+        for step in 0..steps {
+            for (offset, mut tick_events) in layer_ticks.iter_mut().filter_map(Iterator::next) {
+                if tick_events.is_empty() {
+                    continue;
+                }
+                if step > 0 {
+                    tick_events.keys.insert(0, KeyEvent::NextTick);
+                }
+                push_tick_events(
+                    &mut events,
+                    &mut self.transport.swung_events,
+                    offset,
+                    tick_events,
+                );
+            }
         }
         if !events.is_empty() || !self.transport.swung_events.is_empty() {
             let now = self.display.transients.now();
@@ -242,7 +268,7 @@ impl NativeRunner {
         swing.offset_nanos(warped, self.transport.current_ppqn_pulse, self.clock_bpm())
     }
 
-    fn advance_active_layer(&mut self, events: &mut RoutedMusicalEvents) -> Result<(), String> {
+    fn advance_active_layer(&mut self, ticks: &mut LayerTicks) -> Result<(), String> {
         let active_step_pulses = self.step_pulses_for_layer(self.active_layer_index);
         while self.transport.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses
         {
@@ -255,8 +281,7 @@ impl NativeRunner {
             if let Some(layer_tick) = self.transport.layer_ticks.get_mut(self.active_layer_index) {
                 *layer_tick = self.transport.tick;
             }
-            let due_events = self.take_due_link_events(self.active_layer_index);
-            push_tick_events(events, &mut self.transport.swung_events, offset, due_events);
+            let mut due_events = self.take_due_link_events(self.active_layer_index);
             self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
             let transpose_offset = self.play_transpose_offset_for_layer(self.active_layer_index);
             let tick_events = self.route_events_with_link_timing(
@@ -267,16 +292,15 @@ impl NativeRunner {
                     transpose_offset,
                 },
             )?;
-            push_tick_events(
-                events,
-                &mut self.transport.swung_events,
-                offset,
-                tick_events,
-            );
+            due_events.extend(tick_events);
+            ticks.push((offset, due_events));
         }
         Ok(())
     }
 }
+
+/// One layer's steps in a pulse step, each with its swing offset.
+pub(super) type LayerTicks = Vec<(u64, RoutedMusicalEvents)>;
 
 fn crossed_ppqn_boundary(previous: u64, current: u64, boundary: u64) -> bool {
     boundary > 0 && current >= boundary && previous / boundary != current / boundary

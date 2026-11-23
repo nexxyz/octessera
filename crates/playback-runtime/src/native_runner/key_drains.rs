@@ -4,7 +4,7 @@
 //! with the drain.
 
 use super::held_keys::KeyEvent;
-use super::link_routing::dedupe_note_ons;
+use super::link_routing::{dedupe_note_ons, releases_before_presses};
 use super::modulation::RoutedMusicalEvents;
 use super::NativeRunner;
 use platform_core::MusicalEvent;
@@ -12,9 +12,10 @@ use platform_core::MusicalEvent;
 const ALL_NOTES_OFF: u8 = 123;
 
 impl NativeRunner {
-    /// Plays `events` through the held keys into their output lanes, after merging the tick's
-    /// duplicates.
+    /// Plays `events` through the held keys into their output lanes, every release of a key
+    /// before its presses, after merging the tick's duplicates.
     pub(super) fn sound_keys(&mut self, events: &mut RoutedMusicalEvents) {
+        releases_before_presses(&mut events.keys);
         dedupe_note_ons(events, &self.instruments);
         let keys = std::mem::take(&mut events.keys);
         self.held_keys.play(keys, &self.note_behaviors, events);

@@ -1,21 +1,18 @@
-use super::{
-    push_tick_events, trigger_probability_allows, LinkRoutingInput, NativeRunner,
-    RoutedMusicalEvents, ScanMode,
-};
+use super::{trigger_probability_allows, LayerTicks, LinkRoutingInput, NativeRunner, ScanMode};
 use platform_core::{NativeBehaviorState, NativeLayerEngine, TileTriggerIntent};
 
 type ModulationUpdates = Vec<(usize, Vec<TileTriggerIntent>)>;
 
 impl NativeRunner {
-    /// Steps every due layer except the active one and returns each step's intents for runtime
-    /// modulation.
+    /// Steps every due layer except the active one into `layer_ticks` and returns each step's
+    /// intents for runtime modulation.
     pub(super) fn advance_inactive_layers(
         &mut self,
-        events: &mut RoutedMusicalEvents,
+        layer_ticks: &mut [LayerTicks],
     ) -> Result<ModulationUpdates, String> {
         let mut transpose_offsets = None;
         let mut modulation_updates = Vec::new();
-        for index in 0..self.layers.len() {
+        for (index, ticks) in layer_ticks.iter_mut().enumerate() {
             let step_pulses = self.step_pulses_for_layer(index);
             if index == self.active_layer_index
                 || self.transport.layer_pulse_accumulators[index] < step_pulses
@@ -23,7 +20,7 @@ impl NativeRunner {
                 continue;
             }
             if self.inactive_layer_is_idle(index, &self.layers[index].engine) {
-                self.advance_idle_layer(index, step_pulses, events, &mut modulation_updates);
+                self.advance_idle_layer(index, step_pulses, ticks, &mut modulation_updates);
                 continue;
             }
             let transpose_offset = transpose_offsets
@@ -35,7 +32,7 @@ impl NativeRunner {
                 index,
                 step_pulses,
                 transpose_offset,
-                events,
+                ticks,
                 &mut modulation_updates,
             )?;
         }
@@ -57,14 +54,15 @@ impl NativeRunner {
         &mut self,
         index: usize,
         step_pulses: u32,
-        events: &mut RoutedMusicalEvents,
+        ticks: &mut LayerTicks,
         modulation_updates: &mut ModulationUpdates,
     ) {
         while self.transport.layer_pulse_accumulators[index] >= step_pulses {
             self.transport.layer_pulse_accumulators[index] -= step_pulses;
             let offset = self.swing_offset_nanos(self.transport.layer_pulse_accumulators[index]);
             self.layers[index].engine.advance_interpretation_tick();
-            self.count_step_and_sound_due_link_events(index, offset, events);
+            let due = self.count_step_and_take_due_link_events(index);
+            ticks.push((offset, due));
             modulation_updates.push((index, Vec::new()));
         }
     }
@@ -74,7 +72,7 @@ impl NativeRunner {
         index: usize,
         step_pulses: u32,
         transpose_offset: i8,
-        events: &mut RoutedMusicalEvents,
+        ticks: &mut LayerTicks,
         modulation_updates: &mut ModulationUpdates,
     ) -> Result<(), String> {
         let profile = self.interpretation_profile_for_layer(index);
@@ -94,7 +92,7 @@ impl NativeRunner {
                 trigger_probability_allows(Some(link), Some(probability_map), &mut rng, intent)
             })?;
             self.store_probability_rng(index, rng);
-            self.count_step_and_sound_due_link_events(index, offset, events);
+            let mut due = self.count_step_and_take_due_link_events(index);
             modulation_updates.push((index, tick.mapped_intents));
             let tick_events = self.route_events_with_link_timing(
                 index,
@@ -104,26 +102,16 @@ impl NativeRunner {
                     transpose_offset,
                 },
             )?;
-            push_tick_events(
-                events,
-                &mut self.transport.swung_events,
-                offset,
-                tick_events,
-            );
+            due.extend(tick_events);
+            ticks.push((offset, due));
         }
         Ok(())
     }
 
-    fn count_step_and_sound_due_link_events(
-        &mut self,
-        index: usize,
-        offset: u64,
-        events: &mut RoutedMusicalEvents,
-    ) {
+    fn count_step_and_take_due_link_events(&mut self, index: usize) -> super::RoutedMusicalEvents {
         if let Some(layer_tick) = self.transport.layer_ticks.get_mut(index) {
             *layer_tick = layer_tick.saturating_add(1);
         }
-        let due_events = self.take_due_link_events(index);
-        push_tick_events(events, &mut self.transport.swung_events, offset, due_events);
+        self.take_due_link_events(index)
     }
 }
