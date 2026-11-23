@@ -67,6 +67,24 @@ This prevents duplicate text-log space consumption. Inspect and reseat the
 hardware with the board powered down, then use `rsyslogd -N1 -f /etc/rsyslog.conf` and
 `journalctl -k --no-pager` for read-only checks.
 
+## Boot configuration writes
+
+`/boot/armbianEnv.txt` is written only at image build. Armbian's
+`armbian-hardware-optimize.service` normally runs `add_usb_storage_quirks` on
+every boot, which rewrites the file with appends and `sed -i` passes and no
+fsync; a power cut in that window could truncate it. `userpatches/customize-image.sh`
+writes the BSP's default `usbstoragequirks=0x2537:0x1066:u,0x2537:0x1068:u`
+line (Armbian's build does not), then replaces only that one call in
+`/usr/lib/armbian/armbian-hardware-optimization` with a no-op. The build fails
+if the BSP script no longer has exactly that call and function, and the
+built-image smoke check verifies both the line and the disabled call. The rest
+of the service still runs. A BSP package upgrade on a board restores the call
+until the next Octessera image.
+
+USB host mode is for keyboards and MIDI controllers. The kernel enumerates USB
+drives, but Octessera keeps samples and saves on the microSD card and SD2 and
+mounts nothing else; only a partition labelled `OCTESSERA` is taken as SD2.
+
 ## Updater contract
 
 Orange Check/Apply/Rollback goes through the root-owned update socket to

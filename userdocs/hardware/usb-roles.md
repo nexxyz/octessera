@@ -128,4 +128,18 @@ sheet](../controls-reference.md#usb-host-keyboard).
 A [Bluetooth keyboard](../bluetooth.md) uses the same map and works in either
 Raspberry USB role.
 
+## USB drives
+
+Host mode is for keyboards and MIDI controllers. You can plug in a USB drive
+and the kernel will notice it, but Octessera won't use it: samples and saves
+live on the microSD card and on SD2. One thing to avoid: don't label a USB
+stick `OCTESSERA`. That's SD2's name, and the instrument would go looking for
+your samples on the wrong card.
+
+For the curious, Orange only: Armbian normally rewrites `/boot/armbianEnv.txt`
+on every boot to refresh a list of quirky USB disks. The Octessera image turns
+that rewrite off, so pulling the plug mid-boot can't leave you with a damaged
+boot file. The list baked into the image stays in effect; only entries a later
+Armbian update would add wait for the next Octessera image.
+
 For the physical openings, see [enclosure](enclosure.md).

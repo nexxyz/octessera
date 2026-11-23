@@ -15,14 +15,19 @@ if [[ "$image" == *.xz ]]; then xz -dc "$image" > "$work/image.img"; image="$wor
 read -r start sectors < <(fdisk -l "$image" | awk '$1 ~ /[0-9]+$/ { for (i = 2; i <= NF - 2; i++) if ($i ~ /^[0-9]+$/ && $(i + 1) ~ /^[0-9]+$/ && $(i + 2) ~ /^[0-9]+$/) { print $i " " $(i + 2); exit } }')
 dd if="$image" of="$work/rootfs.ext4" bs=512 skip="$start" count="$sectors" status=none
 root="$work/root"
-mkdir -p "$root/usr/share/doc"
+mkdir -p "$root/usr/share/doc" "$root/usr/lib"
 debugfs -R "rdump /etc /boot /opt /root /home $root" "$work/rootfs.ext4" 2>/dev/null
 debugfs -R "rdump /usr/share/doc/octessera $root/usr/share/doc" "$work/rootfs.ext4" 2>/dev/null
+debugfs -R "rdump /usr/lib/armbian $root/usr/lib" "$work/rootfs.ext4" 2>/dev/null
 
 for overlay in octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102; do
   [[ -f "$root/boot/overlay-user/$overlay.dtbo" ]] || fail "missing $overlay.dtbo"
 done
 grep -qxF 'user_overlays=octessera-h618-spi1-oled-sd2 octessera-h618-input-routing octessera-ahub0-pcm5102' "$root/boot/armbianEnv.txt" || fail "armbianEnv.txt does not list the Octessera user overlays"
+# shellcheck source=userpatches/overlay/usr/local/lib/octessera/armbian-usb-quirks-boot-rewrite.sh
+source "$repository_root/userpatches/overlay/usr/local/lib/octessera/armbian-usb-quirks-boot-rewrite.sh"
+grep -qxF "usbstoragequirks=$octessera_armbian_usb_quirks_default" "$root/boot/armbianEnv.txt" || fail "armbianEnv.txt does not carry the built-in USB storage quirks"
+octessera_armbian_usb_quirks_rewrite_disabled "$root/usr/lib/armbian/armbian-hardware-optimization" || fail "Armbian still rewrites armbianEnv.txt at boot"
 
 [[ -f "$root/etc/systemd/system/octessera.service" && -L "$root/etc/systemd/system/multi-user.target.wants/octessera.service" ]] || fail "octessera.service is not installed and enabled"
 [[ "$(readlink "$root/opt/octessera/current")" == /opt/octessera/releases/* ]] || fail "opt/octessera/current does not point at a release"

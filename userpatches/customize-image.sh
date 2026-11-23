@@ -109,6 +109,10 @@ boot_dtb_helper="$overlay_dir/usr/local/share/octessera/device-tree/boot-dtb-sel
 [[ -f "$boot_dtb_helper" ]] || { echo "Missing boot DTB selection helper." >&2; exit 1; }
 # shellcheck source=userpatches/overlay/usr/local/share/octessera/device-tree/boot-dtb-selection.sh
 source "$boot_dtb_helper"
+usb_quirks_helper="$overlay_dir/usr/local/lib/octessera/armbian-usb-quirks-boot-rewrite.sh"
+[[ -f "$usb_quirks_helper" && ! -L "$usb_quirks_helper" ]] || { echo "Missing Armbian USB quirks boot rewrite helper." >&2; exit 1; }
+# shellcheck source=userpatches/overlay/usr/local/lib/octessera/armbian-usb-quirks-boot-rewrite.sh
+source "$usb_quirks_helper"
 
 spi_overlay_name=octessera-h618-spi1-oled-sd2
 spi_user_overlay_assignment='user_overlays=octessera-h618-spi1-oled-sd2'
@@ -314,6 +318,8 @@ if [[ -f /boot/extlinux/extlinux.conf ]]; then
   mv -f -- "$extlinux_tmp" /boot/extlinux/extlinux.conf
   extlinux_tmp=
 fi
+octessera_write_armbian_usb_quirks "$armbian_env" || exit 1
+octessera_disable_armbian_usb_quirks_rewrite /usr/lib/armbian/armbian-hardware-optimization || exit 1
 
 
 octessera_require_updater_overlay "$overlay_dir"
