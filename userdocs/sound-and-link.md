@@ -280,7 +280,8 @@ point at them.
   follow it too. An Off event set to `note off` can still end a one-shot
   early. `hold` keeps the note
   sounding until its tile's Off event, or on a scan until the run's Off.
-  Drum hits are always one-shot.
+  Drum hits are always one-shot, though an Off set to `note off` fades a hit
+  out early through the kit's short release.
 - **Envelopes.** Attack, Decay, Sustain and Release do what they say, and
   Decay runs after the attack whatever the attack length. A sampler's Amp Env
   starts out flat (no attack, full sustain, a 5 ms release) and its filter

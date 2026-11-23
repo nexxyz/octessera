@@ -342,3 +342,30 @@ fn drum_uses_common_filter_and_bus_and_live_slot_gain() {
     assert!(direct.synth_voice_pool.lane(0).unwrap().active);
     assert_eq!(direct.next_sample(), 0.0);
 }
+
+/// A note-off of a drum hit's pitch fades it out through the kit's 30 ms release instead of its
+/// full decay, and leaves the slot's other pitches alone.
+#[test]
+fn a_note_off_cuts_a_drum_hit_of_its_pitch_through_the_release() {
+    let mut cut = drum_engine(DrumConfig::default(), 44_100);
+    let mut kept = drum_engine(DrumConfig::default(), 44_100);
+    for engine in [&mut cut, &mut kept] {
+        engine.tile_hit(0, 0, 0, 0, 120);
+    }
+    let note = cut.synth_voice_pool.lane(0).unwrap().midi_note;
+    cut.note_off(0, note.wrapping_add(1));
+    assert!(cut.synth_voice_pool.lane(0).unwrap().active);
+    cut.note_off(0, note);
+    let mut previous = 0.0_f32;
+    for _ in 0..(44_100 / 20) {
+        let sample = cut.next_sample();
+        assert!(
+            (sample - previous).abs() < 0.5,
+            "the cut clicks: {previous} to {sample}"
+        );
+        previous = sample;
+        kept.next_sample();
+    }
+    assert!(!cut.synth_voice_pool.lane(0).unwrap().active);
+    assert!(kept.synth_voice_pool.lane(0).unwrap().active);
+}

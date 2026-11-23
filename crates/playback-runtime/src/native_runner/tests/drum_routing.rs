@@ -266,7 +266,9 @@ fn saved_hold_is_effectively_oneshot_and_probability_zero_blocks_behavior_hits()
             request_snapshot: None,
         })
         .unwrap();
-    assert!(hits(&release).is_empty());
+    let released = hits(&release);
+    assert_eq!(released.len(), 1, "the Off fades the hit out");
+    assert_eq!((released[0].voice, released[0].velocity), (0, 0));
     assert!(!release.iter().any(|message| matches!(
         message,
         RunnerMessage::MidiEvents { .. } | RunnerMessage::MusicalEvents { .. }

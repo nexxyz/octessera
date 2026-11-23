@@ -133,12 +133,16 @@ impl SynthEngine {
             return;
         }
         match self.slot_kind[slot] {
-            InstrumentKind::Drum if velocity > 0 => {
+            InstrumentKind::Drum => {
                 let kit_voice = self.drum_voices[slot][usize::from(voice)];
                 let note = (kit_voice.sound.base_midi()
                     + i32::from(kit_voice.tune_semis)
                     + (f32::from(pitch_cents) / 100.0).round() as i32)
                     .clamp(0, 127) as u8;
+                if velocity == 0 {
+                    self.note_off(instrument_slot, note);
+                    return;
+                }
                 self.note_on_with_drum(
                     instrument_slot,
                     note,
@@ -162,8 +166,7 @@ impl SynthEngine {
                 }
                 self.sample_voice_on(slot, usize::from(voice), Some(tile), pitch_cents, velocity);
             }
-            InstrumentKind::Drum
-            | InstrumentKind::Synth
+            InstrumentKind::Synth
             | InstrumentKind::Fm
             | InstrumentKind::Pluck
             | InstrumentKind::Midi
@@ -386,9 +389,6 @@ impl SynthEngine {
     pub fn note_off(&mut self, instrument_slot: u8, midi_note: u8) {
         let slot = usize::from(instrument_slot);
         if slot >= INSTRUMENT_SLOT_COUNT || !self.voice_pools_home() {
-            return;
-        }
-        if self.slot_kind[slot] == InstrumentKind::Drum {
             return;
         }
         let offset = self.event_frame_offset;

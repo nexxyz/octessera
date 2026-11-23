@@ -4,12 +4,14 @@ use crate::synth::DrumConfig;
 
 #[cfg(feature = "routing-tree-executor")]
 #[test]
-fn drum_routing_tree_worker_matches_inline_for_distinct_hits() {
+fn drum_routing_tree_worker_matches_inline_for_distinct_hits_and_a_cut() {
     let mut worker = drum_engine(DrumConfig::default(), 44_100);
     let mut inline = drum_engine(DrumConfig::default(), 44_100);
     for engine in [&mut worker, &mut inline] {
         engine.tile_hit(0, 0, 0, -2400, 120);
         engine.tile_hit(0, 2, 0, 2400, 100);
+        let cut = engine.synth_voice_pool.lane(0).unwrap().midi_note;
+        engine.with_event_frame_offset(64, |engine| engine.note_off(0, cut));
     }
     let (lifecycle, mut runtime) =
         SourceWorkerLifecycle::start_routing_tree_prewarmed(&mut worker, 128).unwrap();

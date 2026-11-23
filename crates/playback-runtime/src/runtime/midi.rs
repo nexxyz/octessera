@@ -95,8 +95,15 @@ impl PlaybackRuntime {
                 }
             }
             MusicalEvent::NoteOff { channel, note } => {
+                // A note-off that cuts a one-shot before its length is its end; the one it had
+                // scheduled must not send a second.
+                let note_off = [0x80 | (channel & 0x0F), note.min(127), 0];
+                let pending = self.scheduled_note_offs.len();
+                self.scheduled_note_offs
+                    .retain(|message| message.bytes != note_off);
+                self.scheduled_note_offs_dirty |= self.scheduled_note_offs.len() != pending;
                 self.send_midi_message(
-                    &[0x80 | (channel & 0x0F), note.min(127), 0],
+                    &note_off,
                     self.sequenced_at,
                     RuntimeOperation::MidiEvent,
                     host,

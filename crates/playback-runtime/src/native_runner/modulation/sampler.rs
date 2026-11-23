@@ -6,7 +6,7 @@ use platform_core::{MusicalEvent, NoteBehavior, TileTriggerIntent};
 
 mod tile_hits;
 pub(in crate::native_runner) use tile_hits::{drum_hit_for_intent, tile_release};
-use tile_hits::{sampler_hit_for_intent, sampler_release_for_intent};
+use tile_hits::{drum_release_for_intent, sampler_hit_for_intent, sampler_release_for_intent};
 mod intent_values;
 #[cfg(test)]
 pub(in crate::native_runner) use intent_values::value_from_lane;
@@ -184,6 +184,13 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                     continue;
                 }
                 MusicalEvent::NoteOff { note, .. } => {
+                    routed.tiles.extend(drum_release_for_intent(
+                        instruments,
+                        channel,
+                        intent,
+                        transpose_offset,
+                        *note,
+                    ));
                     if instrument.kind == InstrumentType::Sampler {
                         let tile = tile_hits::tile_index(intent.x, intent.y);
                         // On a Hold Sampler a pitch two tiles share sounds the first tile's

@@ -346,3 +346,69 @@ fn retriggered_midi_note_ends_the_held_one_first_and_keeps_only_its_own_note_off
         ]
     );
 }
+
+/// A one-shot MIDI note on pulse 1 that a note-off cuts on pulse 2.
+struct CutRunner {
+    pulse: u64,
+}
+
+impl CoreRunner for CutRunner {
+    fn send(&mut self, message: HostMessage) -> Result<Vec<RunnerMessage>, String> {
+        let HostMessage::TransportPulseStep { pulses, .. } = message else {
+            return Ok(Vec::new());
+        };
+        self.pulse += u64::from(pulses);
+        let events = match self.pulse {
+            1 => vec![MusicalEvent::NoteOn {
+                channel: 2,
+                note: 62,
+                velocity: 90,
+                duration_ms: Some(100),
+            }],
+            2 => vec![MusicalEvent::NoteOff {
+                channel: 2,
+                note: 62,
+            }],
+            _ => Vec::new(),
+        };
+        Ok(vec![
+            RunnerMessage::MidiEvents { events },
+            status(RuntimeTransportState::Playing, self.pulse),
+        ])
+    }
+
+    fn send_system_store_result(
+        &mut self,
+        _message: HostMessage,
+    ) -> Result<(Vec<RunnerMessage>, Option<RuntimeStoreResult>), String> {
+        Ok((Vec::new(), None))
+    }
+}
+
+#[test]
+fn a_note_off_that_cuts_a_one_shot_midi_note_is_its_only_note_off() {
+    let (mut runtime, mut host, origin) = started(true);
+    host.midi_messages.clear();
+    host.midi_message_at.clear();
+    let mut runner = CutRunner { pulse: 0 };
+    for _ in 0..250 {
+        runtime
+            .advance_duration(Duration::from_millis(1), &mut runner, &mut host)
+            .unwrap();
+    }
+
+    let note_bytes: Vec<_> = host
+        .midi_messages
+        .iter()
+        .zip(&host.midi_message_at)
+        .filter(|(bytes, _)| bytes.get(1) == Some(&62))
+        .map(|(bytes, at)| (bytes.clone(), *at))
+        .collect();
+    assert_eq!(
+        note_bytes,
+        vec![
+            (vec![0x92, 62, 90], Some(origin + pulse_offset(1))),
+            (vec![0x82, 62, 0], Some(origin + pulse_offset(2))),
+        ]
+    );
+}

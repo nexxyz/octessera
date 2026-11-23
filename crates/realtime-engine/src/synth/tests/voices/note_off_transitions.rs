@@ -105,3 +105,20 @@ fn note_off_after_sample_to_synth_to_none_finds_no_old_synth_voice() {
     }
     assert_eq!(engine.active_voice_count_for_slot(0), 0);
 }
+
+#[test]
+fn one_note_off_ends_every_overlapping_one_shot_voice_of_its_pitch() {
+    let mut engine = SynthEngine::new(48_000);
+    engine.note_on(0, 60, 100, 50_000);
+    for _ in 0..64 {
+        let _ = engine.next_sample();
+    }
+    engine.note_on(0, 60, 90, 50_000);
+    engine.note_on(0, 64, 90, 50_000);
+    assert_eq!(engine.active_voice_count_for_slot(0), 3);
+    engine.note_off(0, 60);
+    for _ in 0..20_000 {
+        let _ = engine.next_sample();
+    }
+    assert_eq!(engine.active_voice_count_for_slot(0), 1);
+}
