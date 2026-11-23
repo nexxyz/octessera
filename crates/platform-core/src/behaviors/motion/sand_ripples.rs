@@ -135,9 +135,12 @@ pub fn sand_ripples_on_tick(mut s: SandRipplesState, _: &mut BehaviorContext) ->
         if ps[i] <= pc[i] / 2 || tile_roll_pct(s.tick_counter, i, 7) >= u32::from(s.erosion_pct) {
             continue;
         }
-        let amt = (u16::from(ps[i]) * u16::from(wind) / 100 / 4)
-            .max(1)
-            .min(u16::from(ps[i])) as u8;
+        let carried = u32::from(ps[i]) * u32::from(wind);
+        let rounding = u32::from(tile_roll_pct(s.tick_counter, i, 23) * 4 < carried % 400);
+        let amt = (carried / 400 + rounding).min(u32::from(ps[i])) as u8;
+        if amt == 0 {
+            continue;
+        }
         ns[i] = ns[i].saturating_sub(amt);
         let Some(d) = downwind(i, &s.wind_dir) else {
             continue;

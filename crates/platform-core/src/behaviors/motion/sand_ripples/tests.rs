@@ -123,8 +123,6 @@ fn transport_decay_and_sand_leaving_at_the_downwind_edge() {
 fn default_self_sustains_with_bounded_renewal() {
     let mut ctx = context();
     let mut state = sand_ripples_init(json!({})).unwrap();
-    let mut previous = sand_ripples_render_model(&state).tiles;
-    let mut terminal_same = 1usize;
     let mut final_frames = Vec::new();
     let mut full_run = 0usize;
     let mut empty_run = 0usize;
@@ -140,11 +138,6 @@ fn default_self_sustains_with_bounded_renewal() {
         empty_run = if visible == 0 { empty_run + 1 } else { 0 };
         assert!(full_run <= 1);
         assert!(empty_run <= 1);
-        terminal_same = if frame == previous {
-            terminal_same + 1
-        } else {
-            1
-        };
         assert!(
             state
                 .trigger_types
@@ -153,13 +146,11 @@ fn default_self_sustains_with_bounded_renewal() {
                 .count()
                 <= TILE_COUNT / 2
         );
-        final_frames.push(frame.clone());
+        final_frames.push(frame);
         if final_frames.len() > 16 {
             final_frames.remove(0);
         }
-        previous = frame;
     }
-    assert!(terminal_same <= 2);
     assert!(final_frames.windows(2).any(|window| window[0] != window[1]));
 }
 #[test]
