@@ -88,9 +88,17 @@ formatted that way), whatever its label, on the card behind the SPI SD host from
 (`/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/`;
 the Raspberry uses `3f204000.spi/.../spi0.1`). An empty slot or a card without
 such a partition means no SD2, a card with several is refused, and USB drives
-are ignored. Before mounting, the shared SD helper reads the volume's dirty
+are ignored. SD2 is mounted read-only, because nothing on either board writes to
+it during play (recordings, saves, presets and backups live on SD1, and restore
+never crosses into the mount). It is remounted read-write only for the moment
+the helper needs to create a missing `octessera/samples` or `octessera/saves`
+folder; SD2 transfers write through the USB gadget with the card unmounted.
+A pull outside a transfer therefore leaves a clean volume. Before mounting, the
+shared SD helper reads the volume's dirty
 flag (exFAT VolumeFlags, FAT boot-sector state) and, if it is set, runs
-`fsck.exfat -p` or `fsck.vfat -a` with a 60 s timeout, logging the result. A
+`fsck.exfat -p` or `fsck.vfat -a` with a 60 s timeout (killed 5 s later if it
+ignores the stop), logging the result. Only a check that leaves the flag clear
+counts as a repair, since exit code 1 also covers read errors. A
 failed or timed-out check leaves SD2 unmounted and writes
 `/run/octessera-sd-card.needs-repair`, so the sample browser says the card
 needs repair; the marker goes when a card mounts or the slot is empty.
@@ -99,7 +107,8 @@ service; finding no card, it lazily unmounts the stale SD2 mount and clears the
 marker, unless an SD2 transfer owns the card. After an
 SD2 transfer, a card the computer left dirty is not checked inside the
 transfer's 12 s budget: the transfer starts the SD card service with
-`--no-block`, which owns the check. Both images install `dosfstools` and `exfatprogs`.
+`--no-block`, which owns the check. A transfer stopped after the card was pulled restores the
+normal USB gadget and leaves SD2 absent. Both images install `dosfstools` and `exfatprogs`.
 
 ## Updater contract
 

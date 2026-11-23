@@ -16,7 +16,7 @@ real_rm="$(command -v rm)"
 real_readlink="$(command -v readlink)"
 real_stat="$(command -v stat)"
 export REAL_MKDIR="$real_mkdir" REAL_RMDIR="$real_rmdir" REAL_RM="$real_rm" REAL_READLINK="$real_readlink" REAL_STAT="$real_stat"
-export TEST_WORK="$fixture" TEST_DEV=/dev/sdb1 SD_DISKSEQ_STATE="$fixture/diskseq" SD_REPAIR_STATE="$fixture/needs-repair"
+export TEST_WORK="$fixture" TEST_DEV=/dev/loop0 SD_DISKSEQ_STATE="$fixture/diskseq" SD_REPAIR_STATE="$fixture/needs-repair"
 
 cat > "$bin/dd" <<'EOF'
 #!/bin/sh
@@ -260,6 +260,16 @@ grep -qFx 'HOST_STATE=not attached' "$work/stdout"
 grep -qF 'was left dirty by the transfer' "$work/stderr"
 grep -qFx 'start --no-block octessera-orange-sd-card.service' "$fixture/systemctl.log"
 test ! -e "$fixture/fsck.log"
+test ! -e "$fixture/mounted"
+test ! -e "$fixture/storage.state"
+test -e "$fixture/normal-active"
+
+reset_fixture
+touch "$fixture/mounted"
+"$fixture/storage" storage-start > "$work/stdout"
+sed -i 's|^DEV=.*|DEV=/dev/octessera-test-pulled-card|' "$fixture/storage.state"
+"$fixture/storage" storage-stop > "$work/stdout" 2> "$work/stderr"
+grep -qF 'removed during the transfer' "$work/stderr"
 test ! -e "$fixture/mounted"
 test ! -e "$fixture/storage.state"
 test -e "$fixture/normal-active"

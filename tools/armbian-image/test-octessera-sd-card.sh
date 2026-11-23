@@ -96,7 +96,7 @@ expect_no_sd2 1 'SD helper found an SD2 card in an empty slot.'
 
 probe /dev/sdb /dev/sdb=vfat
 test "$(configured_device)" = /dev/sdb
-test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec
+test "$(mount_options_for /dev/sdb1)" = ro,uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec
 
 root_device() { printf '%s\n' /dev/mmcblk0p2; }
 root_parent_disk() { printf '%s\n' mmcblk0; }
@@ -193,19 +193,20 @@ for checker in fsck.vfat fsck.exfat; do
   cat > "$fsck_bin/$checker" <<EOF
 #!/bin/sh
 printf '%s %s\n' "$checker" "\$*" >> "$work/fsck.log"
+[ "\${FAKE_FSCK_IGNORE_TERM:-0}" = 1 ] && trap '' TERM
 sleep "\${FAKE_FSCK_SLEEP:-0}"
 echo "Automatically removing dirty bit."
+[ "\${FAKE_FSCK_KEEP_DIRTY:-0}" = 1 ] || printf '0\n' > "$work/sector"
 exit "\${FAKE_FSCK_STATUS:-1}"
 EOF
   chmod +x "$fsck_bin/$checker"
 done
 PATH="$fsck_bin:$PATH"
-sector_byte=0
 fat16_size=0
 boot_sector_byte() {
   case "$2" in
     22|23) printf '%s\n' "$fat16_size" ;;
-    *) printf '%s\n' "$sector_byte" ;;
+    *) cat "$work/sector" ;;
   esac
 }
 blkid() {
@@ -213,16 +214,28 @@ blkid() {
     *'-s TYPE'*) printf '%s\n' "$card_type" ;;
   esac
 }
+mount() {
+  printf '%s\n' "$*" >> "$work/mount.log"
+  case "$*" in *remount*) ;; *) touch "$mount_marker" ;; esac
+  [ "${FAKE_MOUNT_FAIL:-0}" = 0 ] || { rm -f "$mount_marker"; return 32; }
+}
 fresh_mount() {
-  rm -f "$mount_marker" "$work/fsck.log"
+  rm -rf "$mount_marker" "$work/fsck.log" "$work/mount.log" "$OCTESSERA_SD_MOUNT/octessera"
   card_type="$1"
-  sector_byte="$2"
+  printf '%s\n' "$2" > "$work/sector"
 }
 
 fresh_mount vfat 0
 remount_card /dev/sdb1
 test -e "$mount_marker"
 test ! -e "$work/fsck.log"
+test "$(head -n 1 "$work/mount.log")" = "-o ro,uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec /dev/sdb1 $OCTESSERA_SD_MOUNT"
+test "$(sed -n 2,3p "$work/mount.log")" = "-o remount,rw $OCTESSERA_SD_MOUNT
+-o remount,ro $OCTESSERA_SD_MOUNT"
+test -d "$OCTESSERA_SD_MOUNT/octessera/samples"
+rm -f "$mount_marker" "$work/mount.log"
+remount_card /dev/sdb1
+test "$(wc -l < "$work/mount.log")" = 1
 
 fresh_mount vfat 1
 remount_card /dev/sdb1
@@ -260,6 +273,16 @@ fresh_mount vfat 1
 remount_card /dev/sdb1
 test ! -e "$SD_REPAIR_STATE"
 
+fresh_mount vfat 1
+export FAKE_FSCK_KEEP_DIRTY=1
+if remount_card /dev/sdb1 2>"$work/still-dirty.log"; then
+  echo 'SD helper counted a check that left the card dirty as a repair.' >&2
+  exit 1
+fi
+grep -qF 'still marked dirty' "$work/still-dirty.log"
+test ! -e "$mount_marker"
+unset FAKE_FSCK_KEEP_DIRTY
+
 fresh_mount exfat 2
 export FAKE_FSCK_SLEEP=5
 SD_FSCK_TIMEOUT=1
@@ -268,6 +291,40 @@ if remount_card /dev/sdb1; then
   exit 1
 fi
 test ! -e "$mount_marker"
-unset FAKE_FSCK_SLEEP
 
-echo 'Octessera shared SD helper, service, udev, safety, SD2-slot, whole-disk, filesystem, USB-drive, two-partition, dirty-card check, mount, removed-card, replaced-card, and folder tests passed.'
+fresh_mount exfat 2
+export FAKE_FSCK_IGNORE_TERM=1 FAKE_FSCK_SLEEP=30
+SD_FSCK_KILL_AFTER=1
+started="$(date +%s)"
+if remount_card /dev/sdb1; then
+  echo 'SD helper mounted a card whose check ignored its timeout.' >&2
+  exit 1
+fi
+test $(( $(date +%s) - started )) -lt 10
+test ! -e "$mount_marker"
+unset FAKE_FSCK_IGNORE_TERM FAKE_FSCK_SLEEP
+SD_FSCK_TIMEOUT=60
+
+fresh_mount vfat 0
+export FAKE_MOUNT_FAIL=1
+if remount_card /dev/sdb1; then
+  echo 'SD helper reported a failed mount as mounted.' >&2
+  exit 1
+fi
+test ! -e "$OCTESSERA_SD_MOUNT/octessera"
+if prepare_folders; then
+  echo 'SD helper created SD2 folders on an empty mount point.' >&2
+  exit 1
+fi
+test ! -e "$OCTESSERA_SD_MOUNT/octessera"
+unset FAKE_MOUNT_FAIL
+
+rm -f "$mount_marker"
+if remount_card_after_transfer /dev/octessera-test-pulled-card 2>"$work/pulled.log"; then :; else
+  echo 'SD helper failed a transfer stop after the card was pulled.' >&2
+  exit 1
+fi
+grep -qF 'removed during the transfer' "$work/pulled.log"
+test ! -e "$mount_marker"
+
+echo 'Octessera shared SD helper, service, udev, safety, SD2-slot, whole-disk, filesystem, USB-drive, two-partition, dirty-card check, read-only mount, failed mount, pulled-transfer, mount, removed-card, replaced-card, and folder tests passed.'

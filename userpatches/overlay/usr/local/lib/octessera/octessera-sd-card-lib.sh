@@ -7,6 +7,7 @@ SAVES_SUBDIR=$ROOT_OCTESSERA/saves
 LOG=octessera-sd-card
 SD_DISKSEQ_STATE=${SD_DISKSEQ_STATE:-/run/octessera-sd-card.diskseq}
 SD_FSCK_TIMEOUT=${SD_FSCK_TIMEOUT:-60}
+SD_FSCK_KILL_AFTER=${SD_FSCK_KILL_AFTER:-5}
 SD_REPAIR_STATE=${SD_REPAIR_STATE:-/run/octessera-sd-card.needs-repair}
 
 log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
@@ -72,9 +73,16 @@ configured_device() {
   esac
 }
 
+# SD2 stays read-only during play, so a pulled card is never left dirty; it is
+# remounted read-write only for the moment it takes to create missing folders.
 prepare_folders() {
-  mkdir -p "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR"
-  chown "$SD_OWNER:$SD_OWNER" "$SD_MOUNT/$ROOT_OCTESSERA" "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR" 2>/dev/null || true
+  mountpoint -q "$SD_MOUNT" || { log "$SD_MOUNT is not mounted; not creating SD2 folders"; return 1; }
+  [ -d "$SD_MOUNT/$SAMPLES_SUBDIR" ] && [ -d "$SD_MOUNT/$SAVES_SUBDIR" ] && return 0
+  mount -o remount,rw "$SD_MOUNT" || { log "could not make $SD_MOUNT writable to create its folders"; return 1; }
+  folders=0
+  mkdir -p "$SD_MOUNT/$SAMPLES_SUBDIR" "$SD_MOUNT/$SAVES_SUBDIR" || { log "could not create the SD2 folders"; folders=1; }
+  mount -o remount,ro "$SD_MOUNT" || { log "could not return $SD_MOUNT to read-only"; folders=1; }
+  return "$folders"
 }
 
 transfer_active() { [ -e "$STORAGE_STATE" ]; }
@@ -92,7 +100,7 @@ mounted_card_was_replaced() {
   [ -n "$recorded" ] && [ "$recorded" != "$(disk_sequence "$1")" ]
 }
 
-mount_options_for() { printf 'uid=%s,gid=%s,umask=002,nosuid,nodev,noexec' "$SD_OWNER" "$SD_OWNER"; }
+mount_options_for() { printf 'ro,uid=%s,gid=%s,umask=002,nosuid,nodev,noexec' "$SD_OWNER" "$SD_OWNER"; }
 
 refuse_mount_elsewhere() {
   dev="$1"
@@ -161,14 +169,25 @@ repair_dirty_card() {
   esac
   log "$dev was not cleanly removed; checking it with $checker"
   # shellcheck disable=SC2086
-  if report="$(timeout "$SD_FSCK_TIMEOUT" $checker "$dev" 2>&1)"; then status=0; else status=$?; fi
+  if report="$(timeout -k "$SD_FSCK_KILL_AFTER" "$SD_FSCK_TIMEOUT" $checker "$dev" 2>&1)"; then status=0; else status=$?; fi
   printf '%s\n' "$report" | tail -n 4 | while IFS= read -r line; do
     [ -z "$line" ] || log "$checker: $line"
   done
   case "$status" in
-    0) log "$dev checked; nothing to repair"; return 0 ;;
-    1) log "$dev checked and repaired"; return 0 ;;
-    124) log "$dev check timed out after ${SD_FSCK_TIMEOUT}s; not mounting SD2" ;;
+    0|1)
+      # Exit code 1 also covers read errors, so only a card whose flag is now
+      # clear counts as repaired.
+      if card_marked_dirty "$dev"; then
+        log "$dev check exited $status but the card is still marked dirty; not mounting SD2"
+      elif [ "$status" = 0 ]; then
+        log "$dev checked; nothing to repair"
+        return 0
+      else
+        log "$dev checked and repaired"
+        return 0
+      fi
+      ;;
+    124|137) log "$dev check timed out after ${SD_FSCK_TIMEOUT}s; not mounting SD2" ;;
     *) log "$dev check failed with status $status; not mounting SD2" ;;
   esac
   printf '%s\n' "$dev" > "$SD_REPAIR_STATE" || log "could not record that $dev needs repair"
@@ -179,6 +198,11 @@ repair_dirty_card() {
 # dirty is handed to the SD card service, which owns the check and its budget.
 remount_card_after_transfer() {
   dev="$1"
+  if [ ! -b "$dev" ]; then
+    log "SD2 card was removed during the transfer; leaving SD2 unmounted"
+    rm -f -- "$SD_REPAIR_STATE"
+    return 0
+  fi
   if ! mountpoint -q "$SD_MOUNT" && card_marked_dirty "$dev"; then
     log "$dev was left dirty by the transfer; $SD_CARD_SERVICE checks and mounts it"
     systemctl start --no-block "$SD_CARD_SERVICE" || log "could not start $SD_CARD_SERVICE"
@@ -187,9 +211,11 @@ remount_card_after_transfer() {
   remount_card "$dev"
 }
 
+# Callers run this under || or if, where set -e is off, so every step checks
+# its own result.
 remount_card() {
   dev="$1"
-  mkdir -p "$SD_MOUNT"
+  mkdir -p "$SD_MOUNT" || return 1
   if mountpoint -q "$SD_MOUNT"; then
     mounted_dev="$(mounted_device)" || return 1
     [ "$mounted_dev" = "$dev" ] || {
@@ -198,10 +224,10 @@ remount_card() {
     }
   else
     repair_dirty_card "$dev" || return 1
-    mount -o "$(mount_options_for "$dev")" "$dev" "$SD_MOUNT"
+    mount -o "$(mount_options_for "$dev")" "$dev" "$SD_MOUNT" || { log "could not mount $dev at $SD_MOUNT"; return 1; }
   fi
   rm -f -- "$SD_REPAIR_STATE"
-  prepare_folders
+  prepare_folders || return 1
   remember_disk_sequence "$dev"
 }
 

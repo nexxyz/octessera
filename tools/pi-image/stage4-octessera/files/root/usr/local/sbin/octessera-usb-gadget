@@ -333,7 +333,6 @@ read_storage_state() {
   done < "$STORAGE_STATE"
   [ -n "$DEV" ] || return 1
   [ -n "$WAS_MOUNTED" ] || return 1
-  [ -b "$DEV" ] || { log "stored transfer device is not block storage: $DEV"; return 1; }
 }
 
 remount_storage_if_needed() {

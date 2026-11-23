@@ -18,9 +18,10 @@ SD1. Give it a single FAT32 or exFAT partition (or format the whole card that
 way); the name doesn't matter, and other partition types are ignored. You can
 swap the card while the instrument is on; give it a couple of seconds to show
 up. It appears in the sample browser as
-the `SD card` favorite. Just let any transfer or save finish before you pull it;
-a card yanked mid-write gets a quick automatic check the next time it goes in,
-but it can't bring back a half-written file. A pulled card keeps playing what's
+the `SD card` favorite. The instrument only reads the card while you play, so
+you can pull it whenever you like, except during a transfer: let that finish
+first. If a card does get yanked mid-write, it gets a quick automatic check the
+next time it goes in, but that can't bring back a half-written file. A pulled card keeps playing what's
 already loaded; the rest comes back when the card does. So a patch loaded
 before the card showed up isn't stuck with silent `N/A-` slots: put the card in
 and they fill in.
