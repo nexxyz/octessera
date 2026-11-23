@@ -113,12 +113,16 @@ fn tick_uses_neighbors_field_heat_and_clipped_edges() {
             ticked.trigger_types[grid_index(0, 0)],
             TileTriggerType::Activate
         );
-        let state = ising_init(
-            json!({"spins":[-1],"fieldStrengthPct":100,"temperaturePct":0,"noisePct":0}),
-        )
-        .unwrap();
-        let ticked = ising_on_tick(state, &mut ctx);
-        assert_eq!(ticked.spins[grid_index(0, 0)], 1);
+        let mut split = vec![-1; TILE_COUNT];
+        split[grid_index(1, 0)] = 1;
+        for (field, flipped) in [(0, -1), (100, 1)] {
+            let state = ising_init(json!({
+                "spins": split, "fieldStrengthPct": field, "temperaturePct": 0, "noisePct": 0
+            }))
+            .unwrap();
+            let ticked = ising_on_tick(state, &mut ctx);
+            assert_eq!(ticked.spins[grid_index(0, 0)], flipped, "field {field}");
+        }
         let state = ising_init(
         json!({"spins":[1],"noisePct":100,"fieldStrengthPct":0,"temperaturePct":100,"heatTicks":1}),
     )

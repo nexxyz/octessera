@@ -163,8 +163,8 @@ layer_rivers_flow	*	key:layers.*.build.behaviorConfig.flowPct	number	Flow	Sets h
 life_spawn_shared_rivers_rain	*	action:behavior_action:rainBurst	action	Rain Burst	Rains on the high ground.	Tiles where the water changes play.
 life_spawn_shared_rivers_reset	*	action:behavior_action:resetTerrain	action	Reset Terrain	Restores the terrain and clears water and sediment.	Previously visible water emits deactivate.
 layer_ising_temperature	*	key:layers.*.build.behaviorConfig.temperaturePct	number	Temperature	Sets how restless the spins are against their neighbors and the field.	Around 35 the patches keep forming and breaking; higher values melt them into noise.
-layer_ising_field	*	key:layers.*.build.behaviorConfig.fieldStrengthPct	number	Field Strength	Sets how strongly the global field biases spins.	Flip Field reverses the preferred magnetic direction.
-layer_ising_noise	*	key:layers.*.build.behaviorConfig.noisePct	number	Noise	The chance of random flips each step.	Use it to keep the magnetic patches restless.
+layer_ising_field	*	key:layers.*.build.behaviorConfig.fieldStrengthPct	number	Field Strength	Sets how strongly the global field biases spins; at 100 it pulls like three quarters of a neighbor, so domains still form.	Flip Field reverses the preferred magnetic direction.
+layer_ising_noise	*	key:layers.*.build.behaviorConfig.noisePct	number	Noise	The chance of random flips each step; 100 flips half the spins it visits.	Use it to keep the magnetic patches restless.
 life_spawn_shared_ising_heat	*	action:behavior_action:heatPulse	action	Heat Pulse	Adds one tick of extra spin noise without firing immediately.	The next behavior tick may kick domains loose.
 life_spawn_shared_ising_flip	*	action:behavior_action:flipField	action	Flip Field	Reverses the global magnetic field without immediate notes.	Spin changes happen on later ticks.
 life_spawn_shared_ising_randomize	*	action:behavior_action:randomizeSpins	action	Randomize Spins	Scrambles the spins into a fresh mix.	Tiles that flip on play, tiles that flip off release.

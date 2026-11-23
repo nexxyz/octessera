@@ -15,8 +15,9 @@ use serde_json::Value;
 const UNITS_PER_NEIGHBOR: i32 = 200;
 /// Temperature 100 is 6.5 neighbors hot; the 2D Ising critical point (about 2.27) sits near 35.
 const TEMPERATURE_UNITS_PER_PCT: i32 = 13;
-/// Field Strength 100 is 4.5 neighbors, more than all four.
-const FIELD_UNITS_PER_PCT: i32 = 9;
+/// Field Strength 100 is three quarters of a neighbor: a strong pull that still leaves room for
+/// domains.
+const FIELD_UNITS_AT_FULL: i32 = 150;
 
 /// The Metropolis odds of a flip that costs `energy`, as a threshold for a `u32` roll: certain when
 /// it frees energy, never at temperature 0, otherwise `exp(-energy / temperature)`, at most a half
@@ -137,8 +138,9 @@ pub fn ising_on_tick(mut state: IsingState, _: &mut BehaviorContext) -> IsingSta
     let heat_bonus = if state.heat_ticks > 0 { 35 } else { 0 };
     let temperature = i32::from(state.temperature_pct) * TEMPERATURE_UNITS_PER_PCT;
     let field =
-        i32::from(state.field_sign) * i32::from(state.field_strength_pct) * FIELD_UNITS_PER_PCT;
-    let noise = pct_threshold(u32::from(state.noise_pct) + heat_bonus);
+        i32::from(state.field_sign) * i32::from(state.field_strength_pct) * FIELD_UNITS_AT_FULL
+            / 100;
+    let noise = pct_threshold(u32::from(state.noise_pct) + heat_bonus) / 2;
     let parity = (state.tick_counter % 2) as usize;
     let mut rng = crate::behavior_random::rng();
     for y in 0..GRID_HEIGHT {
