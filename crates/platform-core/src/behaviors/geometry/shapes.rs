@@ -193,7 +193,9 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
             };
             for index in shape_tiles(&state.pulse_shape, pulse.ox, pulse.oy, radius) {
                 if !prev.contains(&index) {
-                    lifetimes[index] = state.lifespan;
+                    let crossed = previous[index] && lifetimes[index] > 0;
+                    let relight = !crossed || state.pulse_shape == "filled";
+                    lifetimes[index] = if relight { state.lifespan } else { 0 };
                 }
             }
             pulses.push(Pulse {
@@ -209,18 +211,6 @@ pub fn shapes_on_tick(state: ShapesState, _context: &mut BehaviorContext) -> Sha
         && (tick_counter - 1) % state.auto_pulse_interval
             == state.spawn_step % state.auto_pulse_interval
     {
-        let (x, y) = random_point();
-        for index in shape_tiles(&state.pulse_shape, x, y, 0) {
-            lifetimes[index] = state.lifespan;
-        }
-        pulses.push(Pulse {
-            ox: x,
-            oy: y,
-            radius: 0,
-            max_radius: state.max_radius,
-        });
-    }
-    if lifetimes.iter().all(|life| *life == 0) {
         let (x, y) = random_point();
         for index in shape_tiles(&state.pulse_shape, x, y, 0) {
             lifetimes[index] = state.lifespan;
