@@ -116,11 +116,11 @@ pub fn reaction_diffusion_on_tick(
     let pb = state.b.clone();
     let mut na = pa.clone();
     let mut nb = pb.clone();
-    let feed = band(state.feed_pct, 0.02, 0.1);
-    let kill = band(state.kill_pct, 0.052, 0.092);
-    let diffusion_a = band(state.diffusion_pct, 0.0, 0.8);
+    let feed = band(state.feed_pct, 0.02, 0.06, 0.09);
+    let kill = band(state.kill_pct, 0.056, 0.068, 0.092);
+    let diffusion_a = band(state.diffusion_pct, 0.0, 0.4, 0.8);
     let diffusion_b = diffusion_a / 3.0;
-    let reaction_scale = band(state.reaction_pct, 0.7, 1.3);
+    let reaction_scale = band(state.reaction_pct, 0.7, 1.0, 1.08);
     let mut rng = crate::behavior_random::rng();
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
@@ -141,8 +141,7 @@ pub fn reaction_diffusion_on_tick(
         && state.tick_counter % u64::from(state.seed_interval)
             == u64::from(state.spawn_step % state.seed_interval)
     {
-        let step = state.tick_counter / u64::from(state.seed_interval);
-        seed_at_step(&mut state, step)
+        seed_dark_tile(&mut state)
     } else {
         vec![]
     };
@@ -207,9 +206,13 @@ fn normalize(s: &mut ReactionDiffusionState) {
     s.seed_interval = s.seed_interval.min(64);
     s.spawn_step = s.spawn_step.min(63)
 }
-/// A knob's 0-100 % spread over the band where the chemicals neither fill nor empty the grid.
-fn band(pct: u8, low: f32, high: f32) -> f32 {
-    low + (high - low) * f32::from(pct) / 100.0
+/// A knob's 0-100 % spread over the band where the chemicals neither fill nor empty the grid,
+/// with 50 % at `middle`.
+fn band(pct: u8, low: f32, middle: f32, high: f32) -> f32 {
+    match pct <= 50 {
+        true => low + (middle - low) * f32::from(pct) / 50.0,
+        false => middle + (high - middle) * f32::from(pct - 50) / 50.0,
+    }
 }
 fn norm(v: Option<Vec<Value>>, d: u8) -> Vec<u8> {
     let mut o = v
@@ -254,10 +257,17 @@ fn seed(s: &mut ReactionDiffusionState) -> Vec<usize> {
     f
 }
 
-fn seed_at_step(s: &mut ReactionDiffusionState, step: u64) -> Vec<usize> {
-    let points = [(2, 2), (5, 5), (2, 5), (5, 2)];
-    let (x, y) = points[step as usize % points.len()];
-    splash(s, x, y)
+/// Splashes a random tile that shows no B yet, so scheduled seeds land on fresh ground; while
+/// fewer than an eighth of the tiles are dark the schedule waits.
+fn seed_dark_tile(s: &mut ReactionDiffusionState) -> Vec<usize> {
+    let dark = (0..TILE_COUNT)
+        .filter(|i| s.b[*i] < VISIBLE)
+        .collect::<Vec<_>>();
+    if dark.len() * 8 < TILE_COUNT {
+        return vec![];
+    }
+    let i = dark[crate::behavior_random::rng().gen_range(0..dark.len())];
+    splash(s, i % GRID_WIDTH, i / GRID_WIDTH)
 }
 fn avg(a: &[u8], b: &[u8], x: usize, y: usize) -> (f32, f32) {
     let mut sa = 0;
