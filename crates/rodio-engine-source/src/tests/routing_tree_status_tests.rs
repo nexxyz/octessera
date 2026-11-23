@@ -10,6 +10,9 @@ use std::time::{Duration, Instant};
 
 const BLOCK_SAMPLES: usize = 256;
 const RATE: u32 = 44_100;
+/// Once the paused workers have answered, recovery re-primes in a few blocks, each of which waits
+/// for the quantum it dispatched.
+const RECOVERY_BLOCKS: usize = 64;
 
 #[test]
 fn routing_tree_status_waits_for_fresh_profile_after_controls() {
@@ -358,7 +361,8 @@ fn runtime(source: &mut EngineSource) -> &mut realtime_engine::synth::SourceWork
         .runtime
 }
 
-fn force_deadline_miss(source: &mut EngineSource) {
+/// Waits until both workers have answered the quantum they hold.
+fn wait_for_worker_completions(source: &mut EngineSource) {
     let completion_deadline = Instant::now() + Duration::from_secs(1);
     while !runtime(source)
         .completion_states_for_test()
@@ -371,6 +375,10 @@ fn force_deadline_miss(source: &mut EngineSource) {
         );
         std::thread::yield_now();
     }
+}
+
+fn force_deadline_miss(source: &mut EngineSource) {
+    wait_for_worker_completions(source);
     {
         let runtime = runtime(source);
         runtime.set_pause_for_parity_for_test(0, true);
@@ -378,19 +386,11 @@ fn force_deadline_miss(source: &mut EngineSource) {
         runtime.set_deadline_for_test(Duration::from_secs(1));
     }
     block(source);
-    let deadline = Instant::now() + Duration::from_secs(1);
-    let mut paused = [false; 2];
-    while !paused.iter().all(|is_paused| *is_paused) {
-        let runtime = runtime(source);
-        for (parity, is_paused) in paused.iter_mut().enumerate() {
-            if !*is_paused {
-                *is_paused = runtime.wait_until_paused_for_test(parity, Duration::from_millis(10));
-            }
-        }
-        assert!(Instant::now() < deadline, "routing workers did not pause");
-        if !paused.iter().all(|is_paused| *is_paused) {
-            block(source);
-        }
+    for parity in 0..2 {
+        assert!(
+            runtime(source).wait_until_paused_for_test(parity, Duration::from_secs(1)),
+            "routing worker {parity} did not take the dispatched quantum"
+        );
     }
     runtime(source).set_deadline_for_test(Duration::ZERO);
     block(source);
@@ -411,14 +411,16 @@ fn recover_routing_source(source: &mut EngineSource) {
         runtime.set_pause_for_parity_for_test(1, false);
         runtime.set_deadline_for_test(Duration::from_secs(1));
     }
-    let deadline = Instant::now() + Duration::from_secs(1);
-    while source.source_worker_health() != SourceWorkerHealth::Healthy
-        || source.pending_load_status_after_fresh
-    {
+    wait_for_worker_completions(source);
+    for _ in 0..RECOVERY_BLOCKS {
+        if source.source_worker_health() == SourceWorkerHealth::Healthy
+            && !source.pending_load_status_after_fresh
+        {
+            return;
+        }
         block(source);
-        assert!(Instant::now() < deadline, "routing source did not recover");
-        std::thread::yield_now();
     }
+    panic!("routing source did not recover within {RECOVERY_BLOCKS} blocks");
 }
 
 fn empty_status() -> AudioLoadStatus {
