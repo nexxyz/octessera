@@ -1,1 +1,2 @@
 ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-5011000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"
+ACTION=="remove", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-5011000.spi-cs-1", RUN+="/bin/rm -f /run/octessera-sd-card.needs-repair"

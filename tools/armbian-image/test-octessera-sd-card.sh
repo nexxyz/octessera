@@ -22,6 +22,11 @@ grep -qFx 'Environment=OCTESSERA_SD_OWNER=octessera-runtime' "$service"
 grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-5011000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"' "$rule"
 grep -qFx 'Environment=OCTESSERA_SD_OWNER=pi' "$pi_service"
 grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-3f204000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-sd-card.service"' "$pi_rule"
+for rule_file in "$rule" "$pi_rule"; do
+  slot_path="$(grep -o 'platform-[0-9a-f]*\.spi-cs-1' "$rule_file" | head -n 1)"
+  grep -qFx "ACTION==\"remove\", SUBSYSTEM==\"block\", ENV{ID_PATH}==\"$slot_path\", RUN+=\"/bin/rm -f /run/octessera-sd-card.needs-repair\"" "$rule_file"
+done
+grep -qF ':-/run/octessera-sd-card.needs-repair}' "$library"
 
 export OCTESSERA_SD_MOUNT="$work/mount"
 export OCTESSERA_SD_OWNER=octessera-runtime
