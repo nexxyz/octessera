@@ -200,3 +200,79 @@ fn tile_hits(messages: &[RunnerMessage]) -> Vec<crate::protocol::TileHit> {
         })
         .collect()
 }
+
+/// A Looper on layer 0 that recorded a two-step hold of the tile, beside the Keys layer 1 of
+/// `two_keys_layers`, both on Hold instrument 1, after its first lap.
+fn looper_beside_keys() -> NativeRunner {
+    let mut runner = two_keys_layers();
+    runner
+        .replace_layer_engine_with_config(
+            0,
+            NativeBehavior::Looper,
+            json!({ "mode": "overdub", "lengthSteps": 4 }),
+            None,
+        )
+        .unwrap();
+    runner.layers[0].behavior_id = "looper".into();
+    tile(&mut runner, 0, "grid_press", false);
+    looper_steps(&mut runner, 2);
+    tile(&mut runner, 0, "grid_release", false);
+    looper_steps(&mut runner, 2);
+    runner
+}
+
+fn looper_steps(runner: &mut NativeRunner, count: usize) -> Vec<Vec<String>> {
+    runner.select_active_layer(0).unwrap();
+    (0..count)
+        .map(|_| {
+            let messages = runner
+                .send(HostMessage::TransportPulseStep {
+                    pulses: runner.step_pulses_for_layer(0),
+                    source: SyncSource::Internal,
+                    at_ppqn_pulse: None,
+                    request_snapshot: Some(false),
+                })
+                .unwrap();
+            words(&messages, false)
+        })
+        .collect()
+}
+
+/// Steps until the Looper replays its note-on and returns that note-on.
+fn replayed_note_on(runner: &mut NativeRunner) -> String {
+    for _ in 0..4 {
+        let step = looper_steps(runner, 1).remove(0);
+        if let Some(on) = step.iter().find(|word| word.starts_with('+')) {
+            return on.clone();
+        }
+    }
+    panic!("the Looper replayed no note-on");
+}
+
+#[test]
+fn a_layer_note_off_ends_a_looper_replay_and_its_recorded_release_ends_nothing_twice() {
+    let mut runner = looper_beside_keys();
+    runner.layers[1].link.activate_action = TriggerAction::None;
+    let on = replayed_note_on(&mut runner);
+
+    tile(&mut runner, 1, "grid_press", false);
+    let off = tile(&mut runner, 1, "grid_release", false);
+
+    assert_eq!(off, [on.replace('+', "-")]);
+    let rest = looper_steps(&mut runner, 3).concat();
+    assert!(!rest.contains(&on.replace('+', "-")), "{rest:?}");
+}
+
+#[test]
+fn a_looper_replays_note_off_ends_another_layers_note() {
+    let mut runner = looper_beside_keys();
+    let on = replayed_note_on(&mut runner);
+    let layer_on = tile(&mut runner, 1, "grid_press", false);
+    assert!(layer_on.len() <= 1, "{layer_on:?}");
+
+    let rest = looper_steps(&mut runner, 3).concat();
+
+    assert!(rest.contains(&on.replace('+', "-")), "{rest:?}");
+    assert!(runner.held_notes[1].is_empty());
+    assert!(tile(&mut runner, 1, "grid_release", false).is_empty());
+}
