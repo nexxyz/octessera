@@ -130,3 +130,23 @@ fn the_note_off_setting_saves_with_the_patch() {
     restored.apply_config_payload(payload).unwrap();
     assert!(restored.instruments[0].note_off_cuts);
 }
+
+/// With nothing playing, a One-Shot key still ends after its length by the host clock, so its
+/// later release cuts nothing.
+#[test]
+fn a_one_shot_key_pressed_while_stopped_ends_after_its_length() {
+    let mut runner = tile_runner("sampler");
+    set_note_off(&mut runner, "cut");
+    runner.transport.transport = RuntimeTransportState::Stopped;
+    let start = std::time::Instant::now();
+    runner.test_set_display_time(start);
+    let (_, release) = tap(&mut runner);
+    assert_eq!(releases(&release), 1, "a quick release cuts");
+    device_input(&mut runner, json!({ "type": "grid_press", "x": 2, "y": 0 }));
+    runner.test_set_display_time(start + std::time::Duration::from_secs(1));
+    let late = device_input(
+        &mut runner,
+        json!({ "type": "grid_release", "x": 2, "y": 0 }),
+    );
+    assert_eq!(releases(&late), 0, "the sample already played its length");
+}

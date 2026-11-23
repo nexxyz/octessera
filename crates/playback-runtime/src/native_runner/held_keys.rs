@@ -7,6 +7,7 @@ use super::modulation::sampler::tile_release;
 use super::modulation::RoutedMusicalEvents;
 use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, NoteBehavior, INSTRUMENT_COUNT};
+use std::time::Instant;
 
 const KEYS_PER_INSTRUMENT: usize = 64;
 
@@ -164,12 +165,14 @@ struct HeldKey {
     pressed: u64,
 }
 
-/// Every instrument's held keys, in fixed tables, and the clock their One-Shot notes end by.
+/// Every instrument's held keys, in fixed tables, and the clock their One-Shot notes end by: the
+/// transport's pulses while it plays, the host's time while it does not.
 #[derive(Clone, Debug)]
 pub(in crate::native_runner) struct HeldKeys {
     keys: Vec<[Option<HeldKey>; KEYS_PER_INSTRUMENT]>,
     now_us: u64,
     presses: u64,
+    host_now: Option<Instant>,
 }
 
 impl Default for HeldKeys {
@@ -178,6 +181,7 @@ impl Default for HeldKeys {
             keys: vec![std::array::from_fn(|_| None); INSTRUMENT_COUNT],
             now_us: 0,
             presses: 0,
+            host_now: None,
         }
     }
 }
@@ -188,6 +192,17 @@ impl HeldKeys {
         if bpm > 0.0 {
             let us = f64::from(pulses) * 2_500_000.0 / bpm;
             self.now_us = self.now_us.saturating_add(us as u64);
+        }
+    }
+
+    /// Moves the clock on by the host time since the last call when the transport is `stopped`,
+    /// so a One-Shot key pressed with nothing playing still ends after its length.
+    pub(in crate::native_runner) fn follow_host_time(&mut self, now: Instant, stopped: bool) {
+        if let Some(last) = self.host_now.replace(now).filter(|_| stopped) {
+            let elapsed = now.saturating_duration_since(last).as_micros();
+            self.now_us = self
+                .now_us
+                .saturating_add(u64::try_from(elapsed).unwrap_or(u64::MAX));
         }
     }
 

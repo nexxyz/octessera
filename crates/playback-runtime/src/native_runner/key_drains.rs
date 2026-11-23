@@ -18,6 +18,9 @@ impl NativeRunner {
         releases_before_presses(&mut events.keys);
         dedupe_note_ons(events, &self.instruments);
         let keys = std::mem::take(&mut events.keys);
+        let stopped = self.transport.transport != super::RuntimeTransportState::Playing;
+        self.held_keys
+            .follow_host_time(self.display.transients.now(), stopped);
         self.held_keys.play(keys, &self.note_behaviors, events);
         for event in &events.midi {
             if let MusicalEvent::NoteOn { channel, .. } = event {
