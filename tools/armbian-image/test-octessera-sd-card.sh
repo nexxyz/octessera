@@ -22,10 +22,8 @@ grep -qFx 'Environment=OCTESSERA_SD_OWNER=octessera-runtime' "$service"
 grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-5011000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"' "$rule"
 grep -qFx 'Environment=OCTESSERA_SD_OWNER=pi' "$pi_service"
 grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-3f204000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-sd-card.service"' "$pi_rule"
-for rule_file in "$rule" "$pi_rule"; do
-  slot_path="$(grep -o 'platform-[0-9a-f]*\.spi-cs-1' "$rule_file" | head -n 1)"
-  grep -qFx "ACTION==\"remove\", SUBSYSTEM==\"block\", ENV{ID_PATH}==\"$slot_path\", RUN+=\"/bin/rm -f /run/octessera-sd-card.needs-repair\"" "$rule_file"
-done
+grep -qFx 'ACTION=="remove", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-5011000.spi-cs-1", RUN+="/bin/systemctl --no-block start octessera-orange-sd-card.service"' "$rule"
+grep -qFx 'ACTION=="remove", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-3f204000.spi-cs-1", RUN+="/bin/systemctl --no-block start octessera-sd-card.service"' "$pi_rule"
 grep -qF ':-/run/octessera-sd-card.needs-repair}' "$library"
 
 export OCTESSERA_SD_MOUNT="$work/mount"
@@ -171,6 +169,24 @@ test "$lazy_unmounts" = 1
 test -e "$mount_marker"
 test "$(cat "$SD_DISKSEQ_STATE")" = 8
 
+probe '' ''
+printf '%s\n' /dev/sdb1 > "$SD_REPAIR_STATE"
+mount_card
+test "$lazy_unmounts" = 2
+test ! -e "$mount_marker"
+test ! -e "$SD_REPAIR_STATE"
+mount_card
+test "$lazy_unmounts" = 2
+
+touch "$mount_marker"
+transfer_active() { return 0; }
+mount_card
+test "$lazy_unmounts" = 2
+test -e "$mount_marker"
+transfer_active() { return 1; }
+rm -f "$mount_marker"
+probe /dev/sdb1 /dev/sdb1=vfat
+
 fsck_bin="$work/fsck-bin"
 mkdir -p "$fsck_bin"
 for checker in fsck.vfat fsck.exfat; do
@@ -254,4 +270,4 @@ fi
 test ! -e "$mount_marker"
 unset FAKE_FSCK_SLEEP
 
-echo 'Octessera shared SD helper, service, udev, safety, SD2-slot, whole-disk, filesystem, USB-drive, two-partition, dirty-card check, mount, replaced-card, and folder tests passed.'
+echo 'Octessera shared SD helper, service, udev, safety, SD2-slot, whole-disk, filesystem, USB-drive, two-partition, dirty-card check, mount, removed-card, replaced-card, and folder tests passed.'

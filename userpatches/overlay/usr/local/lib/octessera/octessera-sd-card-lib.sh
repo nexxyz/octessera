@@ -216,11 +216,12 @@ mount_card() {
   else
     status=$?
     if [ "$status" = 1 ]; then
-      if mountpoint -q "$SD_MOUNT"; then
-        log "$SD_MOUNT is mounted but no SD2 card is present"
-        return 1
-      fi
       rm -f -- "$SD_REPAIR_STATE"
+      if mountpoint -q "$SD_MOUNT"; then
+        log "SD2 card was removed; lazily unmounting $SD_MOUNT"
+        umount -l "$SD_MOUNT"
+        return
+      fi
       log "no SD2 card found"
       return 0
     fi
