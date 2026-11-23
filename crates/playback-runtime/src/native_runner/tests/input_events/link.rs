@@ -7,9 +7,7 @@ pub(crate) fn link_event_timing_payload_round_trips_and_rejects_out_of_range() {
         json!({ "runtimeConfig": { "layers": [{ "link": { "mapping": {
             "activate": { "slot": 0, "action": "note_on", "delaySteps": activate_delay, "retriggerCount": activate_retrigger },
             "stable": { "slot": 0, "action": "note_on", "delaySteps": 2, "retriggerCount": 3 },
-            "deactivate": { "slot": 0, "action": "note_off", "delaySteps": 4, "retriggerCount": 5 },
-            "scanned": { "slot": 0, "action": "note_on", "delaySteps": 6, "retriggerCount": 7 },
-            "scanned_empty": { "slot": "none", "action": "none", "delaySteps": 8, "retriggerCount": 8 }
+            "deactivate": { "slot": 0, "action": "note_off", "delaySteps": 4, "retriggerCount": 5 }
         } } }] } })
     };
     runner
@@ -21,8 +19,6 @@ pub(crate) fn link_event_timing_payload_round_trips_and_rejects_out_of_range() {
     assert_eq!(layer.activate_timing.retrigger_count, 8);
     assert_eq!(layer.stable_timing.delay_steps, 2);
     assert_eq!(layer.deactivate_timing.retrigger_count, 5);
-    assert_eq!(layer.scanned_timing.delay_steps, 6);
-    assert_eq!(layer.scanned_empty_timing.retrigger_count, 8);
     let payload = runner.config_payload();
     assert_eq!(
         payload["runtimeConfig"]["layers"][0]["link"]["mapping"]["activate"]["delaySteps"],
@@ -292,18 +288,18 @@ pub(crate) fn same_note_events_with_distinct_link_timing_are_split_before_dedupe
     .unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.layers[0].link.activate_timing.delay_steps = 0;
-    runner.layers[0].link.scanned_timing.delay_steps = 1;
+    runner.layers[0].link.stable_timing.delay_steps = 1;
     let activate = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,
         degree: 0,
         kind: platform_core::TileTriggerKind::Activate,
     };
-    let scanned = platform_core::TileTriggerIntent {
+    let stable = platform_core::TileTriggerIntent {
         x: 2,
         y: 3,
         degree: 0,
-        kind: platform_core::TileTriggerKind::Scanned,
+        kind: platform_core::TileTriggerKind::Stable,
     };
     let model = runner.active_engine().model().unwrap();
 
@@ -324,8 +320,8 @@ pub(crate) fn same_note_events_with_distinct_link_timing_are_split_before_dedupe
                 },
             ],
             emitted_events: vec![],
-            mapped_intents: vec![activate.clone(), scanned.clone()],
-            event_intents: vec![Some(activate), Some(scanned)],
+            mapped_intents: vec![activate.clone(), stable.clone()],
+            event_intents: vec![Some(activate), Some(stable)],
             model,
         })
         .unwrap();
@@ -371,4 +367,57 @@ pub(crate) fn delayed_link_queue_clears_on_transport_reset() {
         .unwrap();
 
     assert!(musical_note_ons(&tick).is_empty());
+}
+
+/// One hit of a pitch per tick: a Retrig chain whose first hit lands on a tick that already
+/// plays the pitch merges into it, and its repeats on the next ticks still sound.
+#[test]
+pub(crate) fn a_retrig_chain_merges_its_first_hit_and_keeps_its_repeats() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "keys".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.transport.transport = RuntimeTransportState::Playing;
+    runner.layers[0].link.stable_timing.retrigger_count = 2;
+    let intent = |kind| platform_core::TileTriggerIntent {
+        x: 2,
+        y: 3,
+        degree: 0,
+        kind,
+    };
+    let (activate, stable) = (
+        intent(platform_core::TileTriggerKind::Activate),
+        intent(platform_core::TileTriggerKind::Stable),
+    );
+    let hit = |velocity| platform_core::MusicalEvent::NoteOn {
+        channel: 0,
+        note: 66,
+        velocity,
+        duration_ms: Some(150),
+    };
+    let model = runner.active_engine().model().unwrap();
+
+    let now = runner
+        .messages_with_input_result(platform_core::NativeInputResult {
+            events: vec![hit(96), hit(88)],
+            emitted_events: vec![],
+            mapped_intents: vec![activate.clone(), stable.clone()],
+            event_intents: vec![Some(activate), Some(stable)],
+            model,
+        })
+        .unwrap();
+    assert_eq!(musical_note_ons(&now), vec![(0, 66)]);
+
+    for _ in 0..2 {
+        let repeat = runner
+            .send(HostMessage::TransportPulseStep {
+                pulses: runner.transport.algorithm_step_pulses,
+                source: SyncSource::Internal,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+        assert_eq!(musical_note_ons(&repeat), vec![(0, 66)]);
+    }
 }

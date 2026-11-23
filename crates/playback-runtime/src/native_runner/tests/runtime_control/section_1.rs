@@ -291,8 +291,9 @@ pub(crate) fn sequencer_scanned_sampler_assignment_triggers_assigned_sample_slot
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = "1/16".into();
-    runner.layers[0].link.scanned_slot = 0;
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
+    runner.layers[0].link.activate_slot = 0;
+    runner.layers[0].link.stable_slot = 0;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
 

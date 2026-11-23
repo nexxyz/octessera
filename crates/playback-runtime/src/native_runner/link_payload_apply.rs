@@ -9,18 +9,6 @@ pub(super) fn apply_link_payload(layer: &mut NativeLinkLayer, payload: &LinkDto)
     if let Some(mapping) = &payload.mapping {
         let events = [
             (
-                &mapping.scanned,
-                &mut layer.scanned_slot,
-                &mut layer.scanned_action,
-                &mut layer.scanned_timing,
-            ),
-            (
-                &mapping.scanned_empty,
-                &mut layer.scanned_empty_slot,
-                &mut layer.scanned_empty_action,
-                &mut layer.scanned_empty_timing,
-            ),
-            (
                 &mapping.activate,
                 &mut layer.activate_slot,
                 &mut layer.activate_action,

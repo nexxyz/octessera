@@ -33,15 +33,13 @@ fn mixed_patch_runner() -> NativeRunner {
     runner.layers[0].trigger_probability_map = [TileProbability::High; GRID_WIDTH * GRID_HEIGHT];
     runner.layers[1].link.arp.mode = ArpMode::Up;
     runner.layers[3].link.seeded = true;
-    runner.layers[3].link.scanned_timing = LinkEventTiming {
+    runner.layers[3].link.stable_timing = LinkEventTiming {
         delay_steps: 2,
         retrigger_count: 0,
     };
     let scanning_none = &mut runner.layers[6].link;
     scanning_none.scan_mode = ScanMode::Scanning;
     scanning_none.scan_unit = "1/8".into();
-    scanning_none.scanned_empty_slot = 1;
-    scanning_none.scanned_empty_action = TriggerAction::NoteOn;
     scanning_none.trigger_probability_mode = TriggerProbabilityMode::Custom;
     scanning_none.trigger_probability_low_pct = 50;
     runner.layers[6].trigger_probability_map = [TileProbability::Low; GRID_WIDTH * GRID_HEIGHT];
@@ -59,8 +57,8 @@ fn scan_none_layers_silently(runner: &mut NativeRunner) {
         let layer = &mut runner.layers[index].link;
         layer.scan_mode = ScanMode::Scanning;
         layer.scan_unit = "1/8".into();
-        layer.scanned_action = TriggerAction::None;
-        layer.scanned_empty_action = TriggerAction::None;
+        layer.activate_action = TriggerAction::None;
+        layer.stable_action = TriggerAction::None;
         assert_eq!(layer.trigger_probability_mode, TriggerProbabilityMode::Full);
         assert_eq!(runner.step_pulses_for_layer(index), step_pulses);
     }
@@ -82,7 +80,7 @@ fn music(messages: &[RunnerMessage]) -> Vec<&RunnerMessage> {
 }
 
 /// Every musical, tile, MIDI and swing message per pulse step from Start, plus the per-layer step
-/// state at the end. A delayed note waits on layer 5, layer 7 starts scanning audibly mid-bar 5,
+/// state at the end. A delayed note waits on layer 5, layer 7 starts scanning mid-bar 5,
 /// and layer 5 becomes the active layer at bar 7.
 fn eight_bar_trace(mut runner: NativeRunner) -> String {
     let start = runner.send(HostMessage::MidiRealtimeStart).unwrap();
@@ -113,8 +111,6 @@ fn eight_bar_trace(mut runner: NativeRunner) -> String {
             late_scanner.scan_axis = ScanAxis::Columns;
             late_scanner.x_pitch_enabled = true;
             late_scanner.x_pitch_steps = 1;
-            late_scanner.scanned_empty_slot = 0;
-            late_scanner.scanned_empty_action = TriggerAction::NoteOn;
         }
         if pulse >= 6 * 96 && runner.active_layer_index == 0 {
             runner.select_active_layer(5).unwrap();

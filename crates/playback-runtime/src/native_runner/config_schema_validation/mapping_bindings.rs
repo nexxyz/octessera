@@ -124,13 +124,7 @@ pub(super) fn validate_binding_value(value: &Value, path: &str) -> Result<(), St
 }
 
 pub(super) fn validate_mapping(mapping: &Map<String, Value>, path: &str) -> Result<(), String> {
-    for key in [
-        "scanned",
-        "scanned_empty",
-        "activate",
-        "stable",
-        "deactivate",
-    ] {
+    for key in ["activate", "stable", "deactivate"] {
         let Some(event) = object_field(mapping, key, path)? else {
             continue;
         };
@@ -195,13 +189,7 @@ pub(super) fn validate_mapping_config(value: &Value) -> Result<(), String> {
     for key in ["rowStepDegrees", "columnStepDegrees"] {
         signed_field(object, key, "mappingConfig", -16, 16)?;
     }
-    for key in [
-        "activate",
-        "deactivate",
-        "stable",
-        "scanned",
-        "scanned_empty",
-    ] {
+    for key in ["activate", "deactivate", "stable"] {
         let target = object_field(object, key, "mappingConfig")?
             .ok_or_else(|| format!("mappingConfig.{key} must be an object"))?;
         let path = format!("mappingConfig.{key}");

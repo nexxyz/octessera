@@ -204,7 +204,7 @@ pub(crate) fn trigger_probability_custom_zero_tile_suppresses_transport_events()
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = "1/4".into();
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.layers[0].link.trigger_probability_mode = TriggerProbabilityMode::Custom;
     runner.layers[0].trigger_probability_map[2] = TileProbability::Zero;
     runner.refresh_active_mapping_config();
@@ -233,7 +233,7 @@ pub(crate) fn scanned_note_on_events_apply_runtime_modulation() {
     let mut runner = scanning_sequencer_runner();
     bind_x_to_instrument_volume(&mut runner);
     runner.instruments[0].volume = 10;
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.refresh_active_mapping_config();
 
     runner
@@ -242,28 +242,6 @@ pub(crate) fn scanned_note_on_events_apply_runtime_modulation() {
             request_snapshot: None,
         })
         .unwrap();
-    let messages = runner
-        .send(HostMessage::TransportPulseStep {
-            pulses: 24,
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(false),
-        })
-        .unwrap();
-
-    assert!(!musical_note_ons(&messages).is_empty());
-    assert_eq!(runner.instruments[0].volume, 100);
-}
-
-#[test]
-pub(crate) fn scanned_empty_note_on_events_apply_runtime_modulation() {
-    let mut runner = scanning_sequencer_runner();
-    bind_x_to_instrument_volume(&mut runner);
-    runner.instruments[0].volume = 10;
-    runner.layers[0].link.scanned_action = TriggerAction::None;
-    runner.layers[0].link.scanned_empty_action = TriggerAction::NoteOn;
-    runner.refresh_active_mapping_config();
-
     let messages = runner
         .send(HostMessage::TransportPulseStep {
             pulses: 24,
@@ -428,7 +406,7 @@ pub(crate) fn scan_sections_limit_overlay_to_current_section_lane() {
 }
 
 #[test]
-pub(crate) fn link_scan_menu_exposes_none_and_scanned_empty_targets() {
+pub(crate) fn link_scan_menu_keeps_only_the_scan_line_rows() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.menu.rebuild(runner.menu_config());
@@ -448,12 +426,16 @@ pub(crate) fn link_scan_menu_exposes_none_and_scanned_empty_targets() {
         .map(|item| item.label.as_str())
         .collect::<Vec<_>>();
 
-    assert!(labels.contains(&"Empty Inst"));
-    assert!(labels.contains(&"Empty Act"));
-    assert!(runner
-        .menu
-        .value_for_key("layers.0.link.mapping.scanned_empty.slot")
-        .is_some_and(|value| value != "none"));
+    assert_eq!(
+        labels,
+        [
+            "Scan Mode",
+            "Scan Axis",
+            "Scan Unit",
+            "Scan Dir",
+            "Sections"
+        ]
+    );
 }
 
 fn bind_x_to_instrument_volume(runner: &mut NativeRunner) {

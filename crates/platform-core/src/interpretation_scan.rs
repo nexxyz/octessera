@@ -1,129 +1,66 @@
-use crate::interpretation::{
-    AxisStrategy, GridSnapshot, InterpretationProfile, TickStrategy, TileTriggerKind,
-};
+use crate::interpretation::{AxisStrategy, InterpretationProfile, TickStrategy};
 
-pub(crate) fn select_state_candidates(
-    next: &GridSnapshot,
+/// The tiles the scan line touches at `tick`, each paired with the tile it touched one step
+/// before on the same row (column scan) or column (row scan) of its lane; the lap wraps round.
+pub(crate) fn scan_line(
+    width: usize,
+    height: usize,
     tick: usize,
     strategy: &TickStrategy,
-) -> Vec<(usize, usize, TileTriggerKind)> {
+) -> Vec<(usize, usize)> {
+    if width == 0 || height == 0 {
+        return Vec::new();
+    }
     match strategy {
-        TickStrategy::WholeGridActive => {
-            let mut out = Vec::with_capacity(next.tiles.len());
-            for y in 0..next.height {
-                let row_start = y * next.width;
-                for x in 0..next.width {
-                    if next.tiles[row_start + x] {
-                        out.push((x, y, TileTriggerKind::Scanned));
-                    }
-                }
-            }
-            out
-        }
+        TickStrategy::WholeGridTransitions => Vec::new(),
         TickStrategy::ScanColumnActive {
             sections, reverse, ..
         } => {
-            let sections = section_count(*sections, next.height);
-            if sections > 1 {
-                return scan_column_sections(next, tick, sections, *reverse);
-            }
-            let column = scan_index(tick, next.width, *reverse);
-            let mut out = Vec::with_capacity(next.height);
-            for y in 0..next.height {
-                let tile_index = y * next.width + column;
-                out.push((
-                    column,
-                    y,
-                    if next.tiles[tile_index] {
-                        TileTriggerKind::Scanned
-                    } else {
-                        TileTriggerKind::ScannedEmpty
-                    },
-                ));
-            }
-            out
+            let sections = section_count(*sections, height);
+            let section_height = (height / sections).max(1);
+            let step = scan_index(tick, width * sections, *reverse);
+            let x = step % width;
+            let previous_x = previous_index(x, width, *reverse);
+            let first_y = (step / width) * section_height;
+            let last_y = (first_y + section_height).min(height);
+            (first_y..last_y)
+                .map(|y| (y * width + x, y * width + previous_x))
+                .collect()
         }
-        TickStrategy::WholeGridTransitions => Vec::new(),
         TickStrategy::ScanRowActive {
             sections, reverse, ..
         } => {
-            let sections = section_count(*sections, next.width);
-            if sections > 1 {
-                return scan_row_sections(next, tick, sections, *reverse);
-            }
-            let row = scan_index(tick, next.height, *reverse);
-            let mut out = Vec::with_capacity(next.width);
-            let row_start = row * next.width;
-            for x in 0..next.width {
-                out.push((
-                    x,
-                    row,
-                    if next.tiles[row_start + x] {
-                        TileTriggerKind::Scanned
-                    } else {
-                        TileTriggerKind::ScannedEmpty
-                    },
-                ));
-            }
-            out
+            let sections = section_count(*sections, width);
+            let section_width = (width / sections).max(1);
+            let step = scan_index(tick, height * sections, *reverse);
+            let y = step % height;
+            let previous_y = previous_index(y, height, *reverse);
+            let first_x = (step / height) * section_width;
+            let last_x = (first_x + section_width).min(width);
+            (first_x..last_x)
+                .map(|x| (y * width + x, previous_y * width + x))
+                .collect()
         }
     }
 }
 
-fn scan_row_sections(
-    next: &GridSnapshot,
-    tick: usize,
-    sections: usize,
-    reverse: bool,
-) -> Vec<(usize, usize, TileTriggerKind)> {
-    let section_width = (next.width / sections).max(1);
-    let step = scan_index(tick, next.height * sections, reverse);
-    let section = step / next.height;
-    let y = step % next.height;
-    let first_x = section * section_width;
-    let last_x = (first_x + section_width).min(next.width);
-    let mut out = Vec::with_capacity(last_x.saturating_sub(first_x));
-    let row_start = y * next.width;
-    for x in first_x..last_x {
-        out.push((
-            x,
-            y,
-            if next.tiles[row_start + x] {
-                TileTriggerKind::Scanned
-            } else {
-                TileTriggerKind::ScannedEmpty
-            },
-        ));
+/// The tile whose hold a trigger at `x`, `y` starts or ends: the tile itself, or on a scan the
+/// first tile of its row (column scan) or column (row scan), because a scan ends a note on a later
+/// tile of that row or column than the one that started it.
+pub fn holder_tile(profile: &InterpretationProfile, width: usize, x: usize, y: usize) -> usize {
+    match profile.state.tick {
+        _ if !profile.scans() => y * width + x,
+        TickStrategy::ScanColumnActive { .. } => y * width,
+        _ => x,
     }
-    out
 }
 
-fn scan_column_sections(
-    next: &GridSnapshot,
-    tick: usize,
-    sections: usize,
-    reverse: bool,
-) -> Vec<(usize, usize, TileTriggerKind)> {
-    let section_height = (next.height / sections).max(1);
-    let step = scan_index(tick, next.width * sections, reverse);
-    let section = step / next.width;
-    let x = step % next.width;
-    let first_y = section * section_height;
-    let last_y = (first_y + section_height).min(next.height);
-    let mut out = Vec::with_capacity(last_y.saturating_sub(first_y));
-    for y in first_y..last_y {
-        let tile_index = y * next.width + x;
-        out.push((
-            x,
-            y,
-            if next.tiles[tile_index] {
-                TileTriggerKind::Scanned
-            } else {
-                TileTriggerKind::ScannedEmpty
-            },
-        ));
+fn previous_index(index: usize, span: usize, reverse: bool) -> usize {
+    if reverse {
+        (index + 1) % span
+    } else {
+        (index + span - 1) % span
     }
-    out
 }
 
 fn scan_index(tick: usize, span: usize, reverse: bool) -> usize {

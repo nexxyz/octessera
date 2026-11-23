@@ -1,6 +1,7 @@
 use crate::protocol::RunnerMessage;
 use crate::timing_units::BAR_PULSES;
 
+use super::link_routing::dedupe_note_ons;
 use super::{NativeRunner, RoutedMusicalEvents, RuntimeTransportState, SyncSource, TransportFlash};
 
 impl NativeRunner {
@@ -208,13 +209,19 @@ impl NativeRunner {
 
 impl NativeRunner {
     /// Pushes this pulse step's events, then each swung group after an offset marker.
-    fn push_routed_events(&mut self, out: &mut Vec<RunnerMessage>, events: RoutedMusicalEvents) {
+    fn push_routed_events(
+        &mut self,
+        out: &mut Vec<RunnerMessage>,
+        mut events: RoutedMusicalEvents,
+    ) {
+        dedupe_note_ons(&mut events, &self.instruments);
         push_event_messages(out, events);
         let swung = std::mem::take(&mut self.transport.swung_events);
         if swung.is_empty() {
             return;
         }
-        for (nanos, events) in swung {
+        for (nanos, mut events) in swung {
+            dedupe_note_ons(&mut events, &self.instruments);
             out.push(RunnerMessage::SequencedOffset { nanos });
             push_event_messages(out, events);
         }

@@ -184,7 +184,7 @@ layer_looper_length	*	key:layers.*.build.behaviorConfig.lengthSteps	number	Lengt
 layer_looper_clear	*	action:behavior_action:clearLoop	action	Clear Loop	Clears the recorded looper sequence for this layer.	Live-held tiles stay active; loop playback tiles are released.
 layer_auto_name	*	key:layers.*.autoName	bool	Auto Label	When On, the layer label follows the active behavior or generated default label.	Turn it Off before typing a custom layer label you want to keep.
 layer_name	*	key:layers.*.name	text	Layer Label	Sets the user-visible label for this layer.	Used across menus and overlays when Auto Label is off.
-scan_mode	*	key:layers.*.link.scanMode	enum	Scan Mode	none plays the whole grid as tiles change; scanning sweeps a cursor across it.	Empty Act lets it play empty tiles too.
+scan_mode	*	key:layers.*.link.scanMode	enum	Scan Mode	none plays the grid as its tiles change; scanning sweeps a line across it and plays the Events On, Hold and Off rows.	Map Hold to note on and every lit step sounds; otherwise a run of lit tiles sounds once, at its start.
 scan_axis	*	key:layers.*.link.scanAxis	enum	Scan Axis	rows scans across row lanes; columns scans down column lanes.	The selected axis defines which coordinate the cursor advances.
 scan_unit	*	key:layers.*.link.scanUnit	enum	Scan Unit	How often the scan cursor moves, from 1/32T to 1/1.	T means triplet.
 scan_direction	*	key:layers.*.link.scanDirection	enum	Scan Dir	forward runs from the first lane to the last; reverse from the last to the first.	It does not bounce.
@@ -197,10 +197,6 @@ map_stable_action	*	key:layers.*.link.mapping.stable.action	enum	Hold Trig	What 
 map_stable_slot	*	key:layers.*.link.mapping.stable.slot	enum	Hold Inst	The instrument a tile plays while it stays on: I1 to I8, or none.	A hold note here ends when Off Trig sends note off, on any Off Inst.
 map_deactivate_action	*	key:layers.*.link.mapping.deactivate.action	enum	Off Trig	What a tile does when it goes dark: none, note on or note off.	note off ends a held note; note on plays one.
 map_deactivate_slot	*	key:layers.*.link.mapping.deactivate.slot	enum	Off Inst	The instrument that hears a tile turn off, usually to stop its note: I1 to I8, or none.	The label shows what that slot holds now.
-map_scanned_action	*	key:layers.*.link.mapping.scanned.action	enum	Action	What a lit tile does when the scan reaches it: none, note on or note off.	note on plays it; note off ends a held note.
-map_scanned_slot	*	key:layers.*.link.mapping.scanned.slot	enum	Scanned Instrument	The instrument the scan cursor plays on a lit tile: I1 to I8, or none.	The label shows what that slot holds now.
-map_scanned_empty_action	*	key:layers.*.link.mapping.scanned_empty.action	enum	Empty Act	What an empty tile does when the scan reaches it: none, note on or note off.	A hold note under the scan already ends on the first dark step.
-map_scanned_empty_slot	*	key:layers.*.link.mapping.scanned_empty.slot	enum	Empty Inst	The instrument the scan cursor plays on a dark tile: I1 to I8, or none.	Good for release notes or a ghostly counter-rhythm.
 voices_section	Menu > Shape		group	Shape	Defines pitch mapping and instrument slot sound engines.	This layer controls how sensed events become audible voices.
 pitch_start	*	key:layers.*.link.pitch.startingNote	number	Starting Note	Sets the reference note before X/Y pitch step offsets are applied for this layer.	Use this as the tonal center anchor.
 pitch_low	*	key:layers.*.link.pitch.lowestNote	number	Lowest Note	Sets the lower bound for generated notes.	Notes outside range are handled by Out of Range mode.
@@ -240,7 +236,7 @@ inst_sample_browse_enter	Menu > Shape > Instruments > Instrument * > Sampler > S
 inst_sample_pick	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > *	action:sample.pick	action	Pick Sample	Assigns the highlighted wav to the selected sample slot.	The slot path updates immediately.
 inst_sample_favourite_set	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > Set Favorite	action:sample_favourite_set	action	Set Favorite	Adds the current folder to the sample favorites list. It saves with System right away.	The action applies to the open folder, not the highlighted file.
 inst_sample_favourite_remove	Menu > Shape > Instruments > Instrument * > Sampler > S* Browse > Remove Favorite	action:sample_favourite_remove	action	Remove Favorite	Removes the current folder from the sample favorites list. It saves with System right away.	The action applies to the open folder, not the highlighted file.
-link_scanning_group	Menu > Link > L*: * > Scanning		group	Scanning	Controls scan cursor movement, subdivision, and cursor-based instrument targets.	Scan mode, axis, unit, direction, sections; plus action/instrument mappings for scanned-filled and scanned-empty.
+link_scanning_group	Menu > Link > L*: * > Scanning		group	Scanning	Moves the scan line: mode, axis, unit, direction and sections.	A scan plays the Events rows: dark to lit is On, lit to lit is Hold, lit to dark is Off.
 link_scan_targets_group	Menu > Link > L*: * > Scanning > Instrument Targets		group	Scan Instrument Targets	Maps scan cursor hits (filled and empty) to action and instrument slot.	Action defaults to none so you opt into scan-based triggering.
 link_events_group	Menu > Link > L*: * > Events		group	Events	What happens when a tile lights up, stays lit or goes dark.	Each has its own instrument, trigger, delay and retrigger.
 link_note_mapping_group	Menu > Link > L*: * > Note Mapping		group	Note Mapping	Which notes this layer plays: first note, range, set and root.	
@@ -808,7 +804,7 @@ native_param_browser_pluck	Menu > * > Instruments > Instrument * > Plucked		grou
 native_param_browser_sound	Menu > * > Sound		group	Sound Parameters	Lists global sound parameters available for binding.	Selecting a row binds that parameter to the current target slot.
 native_binding_range_min	*	key:*.rangeMin	number	Range Min	The lowest value this control may set.	Use Min and Max to keep a control in a sweet spot.
 native_binding_range_max	*	key:*.rangeMax	number	Range Max	Sets the high end of the current numeric binding's user range.	Set equal to Range Min for a fixed modulation value.
-native_link_delay	*	key:layers.*.link.mapping.*.delaySteps	number	Link Delay	Delays this Link event target by layer link ticks.	0 is immediate; delayed events use the already-routed event and do not re-roll probability.
+native_link_delay	*	key:layers.*.link.mapping.*.delaySteps	number	Link Delay	Delays this Link event target by layer link ticks; a scanning layer ticks once per scan step.	0 is immediate; delayed events use the already-routed event and do not re-roll probability.
 native_link_retrigger	*	key:layers.*.link.mapping.*.retriggerCount	number	Link Retrig	Adds extra repeats after this Link event target.	A value of 2 repeats at delay+1 and delay+2 layer ticks.
 native_fx_amount	*	key:mixer.buses.*.slot*.params.amountPct	number	Duck Amount	Sets how strongly ducking reduces the target bus (0–100%).	Higher percentages create deeper ducking.
 native_fx_attack	Menu > Shape > FX Buses > B*: * > Slot *: * > Attack		number	Attack	Sets how quickly this effect reacts after input crosses its trigger condition.	Short values respond faster.

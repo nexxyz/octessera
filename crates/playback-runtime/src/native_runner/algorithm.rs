@@ -45,6 +45,8 @@ impl NativeRunner {
                 &mut result.event_intents,
                 None,
             );
+            let ended = std::mem::take(&mut self.ended_elsewhere);
+            self.transpose.pending_note_offs.extend(ended);
             return Ok(platform_core::NativeInputResult {
                 events: Vec::new(),
                 emitted_events: Vec::new(),

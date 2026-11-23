@@ -48,16 +48,33 @@ dark.
 ### Scanning: a playhead over the grid
 
 Under **Scanning**, set **Scan Mode** to `scanning` and the layer gets a
-cursor that sweeps rows or columns (**Scan Axis**, **Scan Dir**) at the
-**Scan Unit** rate, from `1/32T` up to `1/1`. When the cursor finds a lit tile
-it plays **Instrument** with **Action**; crossing a dark tile can fire the
-separate **Empty Inst** / **Empty Act** pair, handy for release notes or a
-ghostly counter-rhythm. **Sections** (1, 2, 4 or 8) splits the sweep into
-shorter lanes, so one grid becomes several short loops.
+line that sweeps rows or columns (**Scan Axis**, **Scan Dir**) at the
+**Scan Unit** rate, from `1/32T` up to `1/1`. **Sections** (1, 2, 4 or 8)
+splits the sweep into shorter lanes, so one grid becomes several short loops.
 
-On a `hold` instrument the cursor plays tiles like a piano roll: lit steps in a
-row on one pitch make one long note, and the first dark step ends it. A
-`oneshot` instrument hits again on every lit step.
+A scan plays the same **Events** rows as the grid does, it just reads them
+differently. Each tile the line reaches is compared with the tile it touched
+one step before in the same row (or column):
+
+| Before | Now | Fires |
+|---|---|---|
+| dark | lit | On |
+| lit | lit | Hold |
+| lit | dark | Off |
+| dark | dark | nothing |
+
+The row is a loop, so a row lit at its last and first column carries on
+across the wrap; with Sections, each lane loops on its own. Say one row is lit
+at columns 1 to 3 and 6: that's On at 1, Hold at 2 and 3, Off at 4, On at 6
+and Off at 7, lap after lap.
+
+So with just **On Trig** at `note on`, a run of lit tiles sounds once, at its
+start. Set **Hold Trig** to `note on` too and every lit step sounds, which is
+what a drum line usually wants. On a `hold` instrument, On starts a note and
+Off ends it, so a run plays like a piano-roll bar. **Event Triggers** switches
+the scan's On and Off, **State Notes** its Hold, and Delay and Retrig count
+scan steps. While a layer scans, its grid changes and presses play nothing on
+their own; only the line does.
 
 Scanning suits slow, sculptural worlds like `dla`, `coral` and `vines`: their
 shape becomes a sequence instead of a trickle of birth events.
@@ -262,7 +279,7 @@ point at them.
   staccato blips on one layer and long tones on another. MIDI Inst. slots
   follow it too. An Off event set to `note off` can still end a one-shot
   early. `hold` keeps the note
-  sounding until its tile's Off event, or on a scan until the first dark step.
+  sounding until its tile's Off event, or on a scan until the run's Off.
   Drum hits are always one-shot.
 - **Envelopes.** Attack, Decay, Sustain and Release do what they say, and
   Decay runs after the attack whatever the attack length. A sampler's Amp Env

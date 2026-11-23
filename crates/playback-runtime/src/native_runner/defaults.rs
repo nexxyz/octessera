@@ -40,8 +40,6 @@ pub(super) fn default_instruments() -> Vec<NativeInstrumentSlot> {
 pub(super) fn default_link_layer(index: usize) -> NativeLinkLayer {
     let mut layer = NativeLinkLayer::default();
     let slot = index.min(INSTRUMENT_COUNT.saturating_sub(1));
-    layer.scanned_slot = slot;
-    layer.scanned_empty_slot = slot;
     layer.activate_slot = slot;
     layer.stable_slot = slot;
     layer.deactivate_slot = slot;

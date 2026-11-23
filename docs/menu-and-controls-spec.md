@@ -1485,20 +1485,26 @@ Input events:
 
 ### Trigger types
 
-All behaviors use `TileTriggerType`: `activate`, `stable`, `deactivate`, `scanned`, or `none`.
+Link plays three trigger kinds: `activate` (On), `stable` (Hold) and `deactivate` (Off). They come
+from one of two sources, and everything after the source (gates, probability, mapping, Delay and
+Retrig, Note Mode) is the same for both.
 
-| Type | Source | When |
+| Kind | Direct source (scan mode `none`) | Scan source (scan mode `scanning`) |
 |---|---|---|
-| `activate` | Behavior | Tile becomes active (birth, shape hits tile, etc.) |
-| `stable` | Behavior | Tile stays active (alive, inside shape interior, etc.) |
-| `deactivate` | Behavior | Tile becomes inactive (death, shape leaves tile, etc.) |
-| `scanned` | Scanning layer | Tile found active during a scan (scan mode `scanning` only) |
+| `activate` | Tile becomes active (birth, shape hits tile, etc.) | Line reaches a lit tile after a dark one |
+| `stable` | Tile stays active (alive, inside shape interior, etc.) | Line reaches a lit tile after a lit one |
+| `deactivate` | Tile becomes inactive (death, shape leaves tile, etc.) | Line reaches a dark tile after a lit one |
 
-Scan mode `none` produces no `scanned` triggers. Link fires `stable` (Hold Trig/Hold Inst) at each
-behavior step for every tile lit before and after the step that fired no On or Off event, while
-`State Notes` is on. The play behaviors (`none`, `keys`, `looper`, `sequencer`) and the games
-(`pong`, `blockout`) shape their own events and fire no `stable` triggers. `scanned` triggers stay
-active while scanning, whatever `State Notes` says.
+Behaviors still mark tiles with `TileTriggerType` (`scanned` only colors the LEDs). Direct: Link
+fires `stable` at each behavior step for every tile lit before and after the step that fired no
+On or Off event, while `State Notes` is on; the play behaviors (`none`, `keys`, `looper`,
+`sequencer`) and the games (`pong`, `blockout`) shape their own events and fire no `stable`
+triggers. Scan: each tile the line reaches is compared with the tile the line touched one step
+before in the same row (column scan) or column (row scan), across the lap wrap and per lane with
+Sections > 1; dark to dark fires nothing. `Event Triggers` gates a scan's On and Off and `State
+Notes` its Hold, for every behavior. A scanning layer fires no direct events: neither its grid's
+changes nor presses play on their own. Nothing else ends a scan's note; switching scanning off
+leaves a held scan note sounding until a note-off reaches its pitch or a drain ends it.
 
 Held notes (instruments in `hold` mode):
 
@@ -1509,9 +1515,17 @@ Held notes (instruments in `hold` mode):
   when Off Inst names another slot), and even when a mapping change (Root, Set, 1st Note, Low/High
   Note, Pitch Steps) or modulation has moved that tile to another pitch since. A note-on from a
   tile on a new pitch ends that tile's old note first.
-- Hold, scan and empty-scan `note off` triggers repeat every step, so they only send a note-off
-  when they end a note the layer holds. A Hold `note off` lets go of its own tile only, so a tile
-  that lights on the same pitch that step keeps sounding.
+- On a scan a row (column scan) or column (row scan) holds a note in place of a tile, since the
+  run's Off lands on a later tile than its On: Off ends what that row holds, and a Hold or On on a
+  new pitch from it ends its old one first.
+- A Hold `note off` repeats every step, so it only sends a note-off while the pitch sounds: on its
+  own layer it lets go of its own tile only, so a tile that lights on the same pitch that step
+  keeps sounding.
+- A note-off for a pitch that only another layer or Notes In holds on that instrument ends it
+  there, as that holder sounds it (through its Play Transpose, MIDI channel or Sampler tile), and
+  that holder forgets it: its tiles' Offs end nothing more and its held Arp stops replaying it.
+  The first note-off from another layer or source ends the note; within a layer the holder count
+  decides.
 - With `Event Triggers` off no Off fires, so a tile that goes dark lets go of the notes it holds
   at that step.
 - On a Sampler, a pitch two tiles share plays the first tile's sample, and the last tile's
@@ -1523,9 +1537,8 @@ Held notes (instruments in `hold` mode):
   after it.
 - The count is per layer. Two layers, or a layer and Notes In, holding one pitch on one instrument
   still share one voice, and the first note-off ends it for both.
-- On a scanning layer the scan line is compared with the step before, pitch by pitch: a pitch the
-  line starts playing begins a note, a pitch it keeps playing holds, and a pitch it no longer plays
-  ends at that step, also on a step that finds scanning switched off. Lit steps in a row
-  therefore play one long note, and the next lap plays the same notes again. `oneshot`
-  instruments still hit on every lit step, each hit lasting the layer's `Link > One-Shot Len`
-  (MIDI Inst. slots too).
+- On a scanning layer lit steps in a row therefore play one long note from On to Off, and the next
+  lap plays the same notes again. Instruments of either Note Mode play only what the mappings say:
+  any kind mapped to `note on` sounds, so a `oneshot` instrument sounds every lit step only with
+  Hold mapped to `note on`, each hit lasting the layer's `Link > One-Shot Len` (MIDI Inst. slots
+  too).

@@ -8,6 +8,24 @@ use platform_core::{
 
 const HOLD: [NoteBehavior; 16] = [NoteBehavior::Hold; 16];
 
+impl HeldNotes {
+    /// Plays a direct layer's step on its own, with no other layer or Notes In holding a pitch.
+    fn apply_with(
+        &mut self,
+        events: &[MusicalEvent],
+        event_intents: Vec<Option<TileTriggerIntent>>,
+        behaviors: &[NoteBehavior],
+    ) -> NoteBehaviorWithIntentsResult {
+        let profile = base_config().interpretation_profile;
+        let play = Play {
+            behaviors,
+            profile: &profile,
+            elsewhere: &|_| false,
+        };
+        self.apply(events, event_intents, &play)
+    }
+}
+
 /// A layer engine whose instruments all hold, with the ledger the runner keeps for it.
 struct HoldLayer {
     engine: NativeLayerEngine,
@@ -24,12 +42,15 @@ impl HoldLayer {
 
     fn input(&mut self, input: DeviceInput) -> NoteBehaviorWithIntentsResult {
         let result = self.engine.on_input_with_events(input, 120.0).unwrap();
-        self.held.apply(&result.events, result.event_intents, &HOLD)
+        self.held
+            .apply_with(&result.events, result.event_intents, &HOLD)
     }
 
     fn tick(&mut self) -> NoteBehaviorWithIntentsResult {
         let tick = self.engine.tick(120.0).unwrap();
-        let mut step = self.held.apply(&tick.events, tick.event_intents, &HOLD);
+        let mut step = self
+            .held
+            .apply_with(&tick.events, tick.event_intents, &HOLD);
         let profile = self.engine.interpretation_profile();
         self.held.finish_step(&mut step, &tick.model.tiles, profile);
         step
@@ -87,15 +108,6 @@ fn stable_note_ons(step: &NoteBehaviorWithIntentsResult) -> usize {
                 && matches!(event, MusicalEvent::NoteOn { .. })
         })
         .count()
-}
-
-fn scanned(x: usize, y: usize) -> Option<TileTriggerIntent> {
-    Some(TileTriggerIntent {
-        x,
-        y,
-        degree: 0,
-        kind: TileTriggerKind::Scanned,
-    })
 }
 
 fn on(note: u8) -> MusicalEvent {
@@ -174,7 +186,7 @@ fn note_behavior_suppression_keeps_event_intents_aligned() {
     };
 
     let mut held = HeldNotes::default();
-    let first = held.apply(
+    let first = held.apply_with(
         &[MusicalEvent::NoteOn {
             channel: 0,
             note: 60,
@@ -190,7 +202,7 @@ fn note_behavior_suppression_keeps_event_intents_aligned() {
         note: 60,
     }));
 
-    let result = held.apply(
+    let result = held.apply_with(
         &[
             MusicalEvent::NoteOn {
                 channel: 0,
@@ -225,14 +237,14 @@ fn duplicate_note_ons_keep_distinct_event_intents_for_link_timing() {
         degree: 0,
         kind: TileTriggerKind::Activate,
     };
-    let scanned = TileTriggerIntent {
+    let stable = TileTriggerIntent {
         x: 1,
         y: 1,
         degree: 0,
-        kind: TileTriggerKind::Scanned,
+        kind: TileTriggerKind::Stable,
     };
 
-    let result = HeldNotes::default().apply(
+    let result = HeldNotes::default().apply_with(
         &[
             MusicalEvent::NoteOn {
                 channel: 0,
@@ -247,12 +259,12 @@ fn duplicate_note_ons_keep_distinct_event_intents_for_link_timing() {
                 duration_ms: Some(120),
             },
         ],
-        vec![Some(activate.clone()), Some(scanned.clone())],
+        vec![Some(activate.clone()), Some(stable.clone())],
         &[NoteBehavior::Oneshot],
     );
 
     assert_eq!(result.events.len(), 2);
-    assert_eq!(result.event_intents, vec![Some(activate), Some(scanned)]);
+    assert_eq!(result.event_intents, vec![Some(activate), Some(stable)]);
 }
 
 #[test]
@@ -289,38 +301,6 @@ fn hold_events_on_a_hold_instrument_start_one_note_per_tile_and_keep_it() {
 }
 
 #[test]
-fn a_scan_held_pitch_ends_on_the_first_step_that_does_not_play_it() {
-    let mut held = HeldNotes::default();
-    let hold = [NoteBehavior::Hold];
-
-    let first = held.apply(&[on(60), on(64)], vec![scanned(0, 0), scanned(0, 1)], &hold);
-    assert_eq!(first.events.len(), 2);
-    assert!(held.release_unscanned().is_empty());
-
-    let second = held.apply(&[on(60)], vec![scanned(1, 0)], &hold);
-    assert!(second.events.is_empty());
-    assert_eq!(
-        held.release_unscanned(),
-        vec![MusicalEvent::NoteOff {
-            channel: 0,
-            note: 64,
-        }]
-    );
-
-    assert_eq!(
-        held.release_unscanned(),
-        vec![MusicalEvent::NoteOff {
-            channel: 0,
-            note: 60,
-        }]
-    );
-    assert!(!held.contains(&HeldNote {
-        channel: 0,
-        note: 60,
-    }));
-}
-
-#[test]
 fn a_tiles_off_event_ends_its_hold_on_another_instrument() {
     let mut held = HeldNotes::default();
     let behaviors = [
@@ -332,13 +312,13 @@ fn a_tiles_off_event_ends_its_hold_on_another_instrument() {
     if let MusicalEvent::NoteOn { channel, .. } = &mut hold_on_i3 {
         *channel = 2;
     }
-    held.apply(
+    held.apply_with(
         &[hold_on_i3],
         vec![tile_intent(TileTriggerKind::Stable)],
         &behaviors,
     );
 
-    let released = held.apply(
+    let released = held.apply_with(
         &[off(0, 60)],
         vec![tile_intent(TileTriggerKind::Deactivate)],
         &behaviors,
@@ -357,14 +337,17 @@ fn a_hold_trigger_note_off_sounds_only_when_it_ends_a_held_note() {
     let hold = [NoteBehavior::Hold];
     let stable = || vec![tile_intent(TileTriggerKind::Stable)];
 
-    assert!(held.apply(&[off(0, 60)], stable(), &hold).events.is_empty());
-    held.apply(
+    assert!(held
+        .apply_with(&[off(0, 60)], stable(), &hold)
+        .events
+        .is_empty());
+    held.apply_with(
         &[on(60)],
         vec![tile_intent(TileTriggerKind::Activate)],
         &hold,
     );
     assert_eq!(
-        held.apply(&[off(0, 60)], stable(), &hold).events,
+        held.apply_with(&[off(0, 60)], stable(), &hold).events,
         vec![off(0, 60)]
     );
 }
@@ -378,7 +361,7 @@ fn a_hold_trigger_note_off_spares_the_tile_that_lights_on_the_same_pitch() {
         ..tile_intent(TileTriggerKind::Activate).unwrap()
     });
 
-    let step = held.apply(
+    let step = held.apply_with(
         &[on(60), off(0, 60)],
         vec![other_tile, tile_intent(TileTriggerKind::Stable)],
         &hold,
@@ -395,14 +378,14 @@ fn a_hold_trigger_note_off_spares_the_tile_that_lights_on_the_same_pitch() {
 fn a_drained_tiles_off_sends_no_second_note_off() {
     let mut held = HeldNotes::default();
     let hold = [NoteBehavior::Hold];
-    held.apply(
+    held.apply_with(
         &[on(60)],
         vec![tile_intent(TileTriggerKind::Activate)],
         &hold,
     );
     assert_eq!(held.drain(usize::MAX), vec![off(0, 60)]);
 
-    let released = held.apply(
+    let released = held.apply_with(
         &[off(0, 60)],
         vec![tile_intent(TileTriggerKind::Deactivate)],
         &hold,
@@ -415,11 +398,11 @@ fn a_forgotten_channel_sounds_its_next_note_on_again() {
     let mut held = HeldNotes::default();
     let hold = [NoteBehavior::Hold];
     let press = || vec![tile_intent(TileTriggerKind::Activate)];
-    held.apply(&[on(60)], press(), &hold);
+    held.apply_with(&[on(60)], press(), &hold);
 
     held.forget_channel(0);
 
-    assert_eq!(held.apply(&[on(60)], press(), &hold).events.len(), 1);
+    assert_eq!(held.apply_with(&[on(60)], press(), &hold).events.len(), 1);
 }
 
 fn sounds_as(note: u8) -> TransposedHeldNote {
@@ -435,14 +418,14 @@ fn sounds_as(note: u8) -> TransposedHeldNote {
 fn a_note_off_routed_after_its_last_holder_lets_go_still_finds_its_sound() {
     let mut held = HeldNotes::default();
     let hold = [NoteBehavior::Hold];
-    held.apply(
+    held.apply_with(
         &[on(60)],
         vec![tile_intent(TileTriggerKind::Activate)],
         &hold,
     );
     held.record_sounding(0, 60, sounds_as(67));
 
-    let released = held.apply(
+    let released = held.apply_with(
         &[off(0, 60)],
         vec![tile_intent(TileTriggerKind::Deactivate)],
         &hold,
@@ -457,7 +440,7 @@ fn a_note_off_routed_after_its_last_holder_lets_go_still_finds_its_sound() {
 fn ending_the_sound_of_held_notes_keeps_who_holds_them() {
     let mut held = HeldNotes::default();
     let hold = [NoteBehavior::Hold];
-    held.apply(
+    held.apply_with(
         &[on(60)],
         vec![tile_intent(TileTriggerKind::Activate)],
         &hold,
@@ -480,11 +463,13 @@ fn a_drained_tile_that_plays_one_shot_sounds_its_next_hold_off() {
     let mut held = HeldNotes::default();
     let press = || vec![tile_intent(TileTriggerKind::Activate)];
     let release = || vec![tile_intent(TileTriggerKind::Deactivate)];
-    held.apply(&[on(60)], press(), &[NoteBehavior::Hold]);
+    held.apply_with(&[on(60)], press(), &[NoteBehavior::Hold]);
     held.drain(usize::MAX);
 
-    held.apply(&[on(60)], press(), &[NoteBehavior::Oneshot]);
-    let released = held.apply(&[off(0, 60)], release(), &[NoteBehavior::Hold]);
+    held.apply_with(&[on(60)], press(), &[NoteBehavior::Oneshot]);
+    let released = held.apply_with(&[off(0, 60)], release(), &[NoteBehavior::Hold]);
 
     assert_eq!(released.events, vec![off(0, 60)]);
 }
+
+mod same_step;

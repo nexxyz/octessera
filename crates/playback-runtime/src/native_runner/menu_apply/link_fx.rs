@@ -141,52 +141,6 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
         &format!("{prefix}.scanSections"),
         8,
     );
-    changed |= set_target_slot_from_menu(
-        menu,
-        &mut layer.scanned_slot,
-        &format!("{prefix}.mapping.scanned.slot"),
-    );
-    changed |= set_wire_from_menu(
-        menu,
-        &mut layer.scanned_action,
-        &format!("{prefix}.mapping.scanned.action"),
-        TriggerAction::from_wire_name,
-    );
-    changed |= set_u8_from_menu(
-        menu,
-        &mut layer.scanned_timing.delay_steps,
-        &format!("{prefix}.mapping.scanned.delaySteps"),
-        16,
-    );
-    changed |= set_u8_from_menu(
-        menu,
-        &mut layer.scanned_timing.retrigger_count,
-        &format!("{prefix}.mapping.scanned.retriggerCount"),
-        8,
-    );
-    changed |= set_target_slot_from_menu(
-        menu,
-        &mut layer.scanned_empty_slot,
-        &format!("{prefix}.mapping.scanned_empty.slot"),
-    );
-    changed |= set_wire_from_menu(
-        menu,
-        &mut layer.scanned_empty_action,
-        &format!("{prefix}.mapping.scanned_empty.action"),
-        TriggerAction::from_wire_name,
-    );
-    changed |= set_u8_from_menu(
-        menu,
-        &mut layer.scanned_empty_timing.delay_steps,
-        &format!("{prefix}.mapping.scanned_empty.delaySteps"),
-        16,
-    );
-    changed |= set_u8_from_menu(
-        menu,
-        &mut layer.scanned_empty_timing.retrigger_count,
-        &format!("{prefix}.mapping.scanned_empty.retriggerCount"),
-        8,
-    );
     changed |= set_bool_from_menu(
         menu,
         &mut layer.event_enabled,

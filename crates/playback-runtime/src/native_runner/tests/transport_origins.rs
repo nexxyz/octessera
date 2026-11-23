@@ -75,7 +75,7 @@ pub(crate) fn pause_continue_and_manual_single_step_preserve_phase_but_stop_star
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = "1/16".into();
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.refresh_active_interpretation_profile();
     runner.transport.transport = RuntimeTransportState::Paused;
     runner.display.ui.fn_held = true;

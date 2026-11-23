@@ -131,10 +131,10 @@ steps instead of erasing them.
 | `activate` | A tile turns on. |
 | `stable` | A tile stays on. |
 | `deactivate` | A tile turns off. |
-| `scanned` | The scan cursor finds a lit tile (scanning layers only). |
-| `scanned_empty` | The scan cursor crosses a dark tile (scanning layers only). |
 
-Link turns these into notes. See [Sound and Link](sound-and-link.md#link-what-counts-as-a-note).
+A scanning layer fires the same three as its line moves: On where a run of lit
+tiles starts, Hold along it and Off at the first dark tile after it. Link turns
+these into notes. See [Sound and Link](sound-and-link.md#link-what-counts-as-a-note).
 
 ## Play pages
 

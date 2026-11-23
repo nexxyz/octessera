@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::behavior::TileTriggerType;
-use crate::interpretation_scan::{compute_degree, select_state_candidates};
+use crate::interpretation_scan::{compute_degree, scan_line};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GridSnapshot {
@@ -25,8 +25,6 @@ pub enum TileTriggerKind {
     Activate,
     Deactivate,
     Stable,
-    Scanned,
-    ScannedEmpty,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,7 +38,6 @@ pub struct TileTransition {
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum TickStrategy {
     WholeGridTransitions,
-    WholeGridActive,
     ScanColumnActive {
         #[serde(default)]
         sections: Option<usize>,
@@ -87,6 +84,13 @@ pub struct InterpretationProfile {
     pub state: InterpretationStateProfile,
     pub x: AxisStrategy,
     pub y: AxisStrategy,
+}
+
+impl InterpretationProfile {
+    /// Whether a scan line, not the grid's own changes, plays this layer.
+    pub fn scans(&self) -> bool {
+        self.state.enabled && self.state.tick != TickStrategy::WholeGridTransitions
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -152,17 +156,19 @@ pub(crate) fn interpret_grid_with_marker_authority(
     marker_authority: TriggerMarkerAuthority,
     stable: bool,
 ) -> Vec<TileTriggerIntent> {
-    let mut intents = Vec::new();
-    if profile.event.enabled {
-        intents.extend(select_event_candidates(previous, next, marker_authority));
-    }
-    if stable {
-        let stable_tiles = select_stable_candidates(previous, next, &intents);
-        intents.extend(stable_tiles);
-    }
-    if profile.state.enabled {
-        intents.extend(select_state_candidates(next, tick, &profile.state.tick));
-    }
+    let intents = if profile.scans() {
+        scan_candidates(previous, next, tick, profile, stable)
+    } else {
+        let mut intents = Vec::new();
+        if profile.event.enabled {
+            intents.extend(select_event_candidates(previous, next, marker_authority));
+        }
+        if stable {
+            let stable_tiles = select_stable_candidates(previous, next, &intents);
+            intents.extend(stable_tiles);
+        }
+        intents
+    };
 
     intents
         .into_iter()
@@ -244,6 +250,42 @@ fn select_event_candidates(
     }
 
     boolean_transition_candidates(previous, next)
+}
+
+/// A scan plays the tiles its line touches like a direct step whose grid before was, tile by tile,
+/// what `seen` holds for the tile the line touched one step before in its lane, so dark to lit is
+/// On, lit to lit Hold and lit to dark Off. `seen` is what the line saw on each tile last time.
+fn scan_candidates(
+    seen: &GridSnapshot,
+    next: &GridSnapshot,
+    tick: usize,
+    profile: &InterpretationProfile,
+    stable: bool,
+) -> Vec<(usize, usize, TileTriggerKind)> {
+    let blank = || GridSnapshot {
+        width: next.width,
+        height: next.height,
+        tiles: vec![false; next.tiles.len()],
+        trigger_types: None,
+    };
+    let (mut before, mut after) = (blank(), blank());
+    for (tile, previous_tile) in scan_line(next.width, next.height, tick, &profile.state.tick) {
+        if let Some(lit) = next.tiles.get(tile) {
+            before.tiles[tile] = seen.tiles.get(previous_tile).copied().unwrap_or(false);
+            after.tiles[tile] = *lit;
+        }
+    }
+    let mut candidates = if profile.event.enabled {
+        boolean_transition_candidates(&before, &after)
+    } else {
+        Vec::new()
+    };
+    if stable {
+        let held = select_stable_candidates(&before, &after, &candidates);
+        candidates.extend(held);
+    }
+    candidates.sort_by_key(|&(x, y, _)| y * next.width + x);
+    candidates
 }
 
 /// A tile lit before and after the step that fired no On or Off event this step.

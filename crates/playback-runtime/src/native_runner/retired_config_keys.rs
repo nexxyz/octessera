@@ -10,7 +10,7 @@ type RetiredKey = (
     fn(&Value) -> bool,
 );
 
-const RETIRED_RUNTIME_KEYS: [RetiredKey; 8] = [
+const RETIRED_RUNTIME_KEYS: [RetiredKey; 10] = [
     (SYSTEM_DOCUMENT, &["auxBindings"], holds_no_binding),
     (SYSTEM_DOCUMENT, &["shiftAuxBindings"], holds_no_binding),
     (PATCH_DOCUMENTS, &["sound", "noteLengthMs"], |_| true),
@@ -35,6 +35,16 @@ const RETIRED_RUNTIME_KEYS: [RetiredKey; 8] = [
     (PATCH_DOCUMENTS, &["layers", "*", "link", "y", "to"], |_| {
         true
     }),
+    (
+        PATCH_DOCUMENTS,
+        &["layers", "*", "link", "mapping", "scanned"],
+        |_| true,
+    ),
+    (
+        PATCH_DOCUMENTS,
+        &["layers", "*", "link", "mapping", "scanned_empty"],
+        |_| true,
+    ),
 ];
 
 /// Loading drops each runtime key in `RETIRED_RUNTIME_KEYS` from documents of the listed kinds
@@ -42,7 +52,8 @@ const RETIRED_RUNTIME_KEYS: [RetiredKey; 8] = [
 /// System saved by 0.8.14 still carries empty Aux banks that only the patch owns now, while a
 /// System with real bindings stays rejected, and a patch's global Note Length and per-slot MIDI
 /// Duration went when each layer's Link got its One-Shot Len, and each Link axis's layer-wide
-/// From/To never had a row or any effect. Use an entry only for a value that
+/// From/To never had a row or any effect, and a scan plays the Events mappings now instead of its
+/// own scanned and empty-scan mappings. Use an entry only for a value that
 /// can go; anything a save still needs means normalizing the existing stores.
 pub(crate) fn without_retired_keys(document: &Value) -> Value {
     without_runtime_keys(document, &RETIRED_RUNTIME_KEYS)

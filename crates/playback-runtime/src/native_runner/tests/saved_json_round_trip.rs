@@ -43,13 +43,7 @@ const MIDI_SEND_INSTRUMENTS: [&str; 2] = ["midi", "all"];
 
 const SCAN_MODES: [&str; 2] = ["none", "scanning"];
 const LINK_ACTIONS: [&str; 3] = ["none", "note_on", "note_off"];
-const LINK_MAPPINGS: [&str; 5] = [
-    "scanned",
-    "scanned_empty",
-    "activate",
-    "stable",
-    "deactivate",
-];
+const LINK_MAPPINGS: [&str; 3] = ["activate", "stable", "deactivate"];
 const TRIGGER_PROBABILITY_MODES: [&str; 3] = ["zero", "custom", "full"];
 const TILE_PROBABILITIES: [&str; 4] = ["zero", "low", "high", "full"];
 const SCAN_AXES: [&str; 2] = ["rows", "columns"];

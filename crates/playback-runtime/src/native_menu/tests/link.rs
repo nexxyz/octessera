@@ -207,24 +207,23 @@ pub(crate) fn pitch_note_params_use_canonical_note_name_display() {
 #[test]
 pub(crate) fn link_instrument_targets_show_the_full_name_only_on_the_selected_row() {
     let mut config = config();
-    config.link_layers[0].scan_mode = ScanMode::Scanning;
     config.instrument_labels[0] = "I1: An Instrument Name Longer Than One OLED Line".into();
     let mut menu = NativeMenuModel::new(config);
-    let key = "layers.0.link.mapping.scanned.slot";
+    let key = "layers.0.link.mapping.activate.slot";
     assert!(menu.focus_item_key(key));
 
     let selected = menu.snapshot();
     let row = selected.selected_row.expect("selected row");
     assert_eq!(selected.line_keys[row].as_deref(), Some(key));
     let parts = selected.rows[row].as_ref().expect("row parts");
-    assert_eq!(parts.label, "Instr.");
+    assert_eq!(parts.label, "On Inst");
     assert_eq!(
         parts.value,
         "I1: An Instrument Name Longer Than One OLED Line"
     );
     assert_eq!(
         selected.full_lines[row].as_deref(),
-        Some("  Instr. I1: An Instrument Name Longer Than One OLED Line")
+        Some("  On Inst I1: An Instrument Name Longer Than One OLED Line")
     );
     assert!(selected.lines.len() <= 8);
     let scroll = selected.scroll.expect("menu scroll metadata");
@@ -239,7 +238,7 @@ pub(crate) fn link_instrument_targets_show_the_full_name_only_on_the_selected_ro
 
     let item = menu.current_item();
     let (line, parts) = super::format::format_item_row(item, false, false);
-    assert_eq!(line, "  Instr. I1");
+    assert_eq!(line, "  On Inst I1");
     assert_eq!(parts.expect("row parts").value, "I1");
 }
 
@@ -270,17 +269,6 @@ pub(crate) fn link_event_instrument_targets_keep_item_specific_headings() {
         assert_eq!(parts.label, heading);
         assert_eq!(parts.value, "I1: Synth");
     }
-}
-
-#[test]
-pub(crate) fn scanned_empty_instrument_target_keeps_its_heading() {
-    let mut config = config();
-    config.link_layers[0].scan_mode = ScanMode::Scanning;
-    let mut menu = NativeMenuModel::new(config);
-    assert!(menu.focus_item_key("layers.0.link.mapping.scanned_empty.slot"));
-    let snapshot = menu.snapshot();
-    let row = snapshot.selected_row.expect("selected row");
-    assert_eq!(snapshot.lines[row], "  Empty Inst none");
 }
 
 #[test]

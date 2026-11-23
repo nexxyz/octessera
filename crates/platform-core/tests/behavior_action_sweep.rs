@@ -72,7 +72,7 @@ fn native_layer_engine_mutators_and_scan_modes_are_publicly_stable() {
             event: InterpretationEventProfile { enabled: true },
             state: InterpretationStateProfile {
                 enabled: true,
-                tick: TickStrategy::WholeGridActive,
+                tick: TickStrategy::WholeGridTransitions,
             },
             x: AxisStrategy::ScaleStep { step: 1 },
             y: AxisStrategy::ScaleStep { step: 2 },
@@ -93,7 +93,7 @@ fn native_layer_engine_mutators_and_scan_modes_are_publicly_stable() {
         event: InterpretationEventProfile { enabled: true },
         state: platform_core::InterpretationStateProfile {
             enabled: true,
-            tick: TickStrategy::WholeGridActive,
+            tick: TickStrategy::WholeGridTransitions,
         },
         x: AxisStrategy::ScaleStep { step: 1 },
         y: AxisStrategy::ScaleStep { step: 2 },

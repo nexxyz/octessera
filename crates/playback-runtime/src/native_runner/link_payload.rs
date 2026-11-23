@@ -20,8 +20,6 @@ pub(super) fn link_layer_payload(
         "seeded": layer.seeded,
         "triggerProbabilityMap": &probability_map[..],
         "mapping": {
-            "scanned": mapping_payload(layer.scanned_slot, layer.scanned_action, layer.scanned_timing),
-            "scanned_empty": mapping_payload(layer.scanned_empty_slot, layer.scanned_empty_action, layer.scanned_empty_timing),
             "activate": mapping_payload(layer.activate_slot, layer.activate_action, layer.activate_timing),
             "stable": mapping_payload(layer.stable_slot, layer.stable_action, layer.stable_timing),
             "deactivate": mapping_payload(layer.deactivate_slot, layer.deactivate_action, layer.deactivate_timing)

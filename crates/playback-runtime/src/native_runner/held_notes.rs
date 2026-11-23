@@ -4,19 +4,21 @@
 //! what its instrument sounds for it, so its note-off ends that sound after a transpose too.
 
 use platform_core::{
-    compute_degree, InterpretationProfile, MusicalEvent, NoteBehavior, TileTriggerIntent,
-    TileTriggerKind, GRID_HEIGHT, GRID_WIDTH,
+    compute_degree, holder_tile, InterpretationProfile, MusicalEvent, NoteBehavior,
+    TileTriggerIntent, TileTriggerKind, GRID_HEIGHT, GRID_WIDTH,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::modulation::sampler::TransposedHeldNote;
 use super::NativeRunner;
 
+mod elsewhere;
 mod sounding;
 
 impl NativeRunner {
     /// Lets the Hold instruments of `layer_index` hold what its engine just played; after a step,
-    /// `lit` is the layer's grid, whose dark tiles and passed scan pitches let go.
+    /// `lit` is the layer's grid, whose dark tiles let go. A note-off for a pitch that only
+    /// another layer or Notes In holds ends it there.
     pub(super) fn hold_layer_notes(
         &mut self,
         layer_index: usize,
@@ -24,16 +26,49 @@ impl NativeRunner {
         event_intents: &mut Vec<Option<TileTriggerIntent>>,
         lit: Option<&[bool]>,
     ) {
-        let Some(held) = self.held_notes.get_mut(layer_index) else {
+        let (Some(layer), Some(held)) = (
+            self.layers.get(layer_index),
+            self.held_notes.get_mut(layer_index),
+        ) else {
             return;
         };
-        let mut step = held.apply(events, std::mem::take(event_intents), &self.note_behaviors);
-        if let (Some(lit), Some(layer)) = (lit, self.layers.get(layer_index)) {
-            held.finish_step(&mut step, lit, layer.engine.interpretation_profile());
+        let profile = layer.engine.interpretation_profile();
+        let mut held = std::mem::take(held);
+        let ledgers = &self.held_notes;
+        let keyboard = &self.keyboard_notes;
+        let elsewhere = |key: HeldNote| {
+            ledgers.iter().any(|other| other.is_held(key))
+                || keyboard
+                    .iter()
+                    .any(|note| note.plays(key.channel, key.note))
+        };
+        let play = Play {
+            behaviors: &self.note_behaviors,
+            profile,
+            elsewhere: &elsewhere,
+        };
+        let mut step = held.apply(events, std::mem::take(event_intents), &play);
+        // A scan's holds belong to its lanes, not to grid tiles, and only its own note-offs end
+        // them, so only a direct step lets go of the tiles gone dark.
+        if let Some(lit) = lit.filter(|_| !profile.scans()) {
+            held.finish_step(&mut step, lit, profile);
         }
+        self.held_notes[layer_index] = held;
         *events = step.events;
         *event_intents = step.event_intents;
+        for key in step.ended_elsewhere {
+            self.end_held_note_elsewhere(layer_index, key);
+        }
     }
+}
+
+/// What a layer's ledger plays a step with: each instrument's Note Mode, the layer's
+/// interpretation, which says which tile holds a trigger's note, and whether another layer or
+/// Notes In holds a pitch.
+pub(super) struct Play<'a> {
+    pub(super) behaviors: &'a [NoteBehavior],
+    pub(super) profile: &'a InterpretationProfile,
+    pub(super) elsewhere: &'a dyn Fn(HeldNote) -> bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -42,39 +77,29 @@ pub(super) struct HeldNote {
     pub(super) note: u8,
 }
 
-/// What keeps one held note sounding: the tiles that started it, the scan line while it stays
-/// lit on that pitch, and note-ons that name no tile.
+/// What keeps one held note sounding: the tiles that started it (a scan's lanes count as its
+/// tiles) and note-ons that name no tile.
 #[derive(Debug, Default)]
 struct Holders {
     tiles: Vec<usize>,
-    scan: bool,
     untracked: u16,
 }
 
 impl Holders {
     fn is_empty(&self) -> bool {
-        self.tiles.is_empty() && !self.scan && self.untracked == 0
+        self.tiles.is_empty() && self.untracked == 0
     }
 }
 
 #[derive(Clone, Copy)]
 enum Holder {
     Tile(usize),
-    Scan,
     Untracked,
 }
 
-fn holder(intent: Option<&TileTriggerIntent>) -> Holder {
+fn holder(intent: Option<&TileTriggerIntent>, profile: &InterpretationProfile) -> Holder {
     match intent {
-        Some(intent)
-            if matches!(
-                intent.kind,
-                TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty
-            ) =>
-        {
-            Holder::Scan
-        }
-        Some(intent) => Holder::Tile(intent.y * GRID_WIDTH + intent.x),
+        Some(intent) => Holder::Tile(holder_tile(profile, GRID_WIDTH, intent.x, intent.y)),
         None => Holder::Untracked,
     }
 }
@@ -82,6 +107,10 @@ fn holder(intent: Option<&TileTriggerIntent>) -> Holder {
 pub(super) struct NoteBehaviorWithIntentsResult {
     pub(super) events: Vec<MusicalEvent>,
     pub(super) event_intents: Vec<Option<TileTriggerIntent>>,
+    /// Pitches a note-off of this layer ends where another layer or Notes In holds them.
+    pub(super) ended_elsewhere: Vec<HeldNote>,
+    /// Where each held note this step started sits in `events`.
+    started: Vec<(HeldNote, usize)>,
 }
 
 impl NoteBehaviorWithIntentsResult {
@@ -120,7 +149,6 @@ struct Replay {
 #[derive(Debug, Default)]
 pub(super) struct HeldNotes {
     notes: BTreeMap<HeldNote, HeldEntry>,
-    scanned_this_step: BTreeSet<HeldNote>,
     drained_tiles: BTreeSet<usize>,
     next_onset: u64,
 }
@@ -150,12 +178,11 @@ impl HeldNotes {
                 self.drained_tiles.extend(holders.tiles);
             }
             self.remove_if_idle(*key);
-            self.scanned_this_step.remove(key);
         }
         keys.into_iter().map(note_off).collect()
     }
 
-    fn is_held(&self, key: HeldNote) -> bool {
+    pub(super) fn is_held(&self, key: HeldNote) -> bool {
         self.notes
             .get(&key)
             .is_some_and(|entry| !entry.holders.is_empty())
@@ -185,7 +212,7 @@ impl HeldNotes {
     }
 
     /// Ends what a step let go of: with Event Triggers off, the notes of tiles gone dark as Hold
-    /// note-offs of their tiles, and ahead of the step's events the scan holds it no longer plays.
+    /// note-offs of their tiles.
     pub(super) fn finish_step(
         &mut self,
         step: &mut NoteBehaviorWithIntentsResult,
@@ -204,31 +231,6 @@ impl HeldNotes {
                 }));
             }
         }
-        let released = self.release_unscanned();
-        if !released.is_empty() {
-            step.event_intents
-                .splice(0..0, std::iter::repeat_n(None, released.len()));
-            step.events.splice(0..0, released);
-        }
-    }
-
-    /// Ends the notes the scan line held last step but no longer plays on the same pitch.
-    pub(super) fn release_unscanned(&mut self) -> Vec<MusicalEvent> {
-        let scanned = &self.scanned_this_step;
-        let mut released = Vec::new();
-        self.notes.retain(|key, entry| {
-            let holders = &mut entry.holders;
-            if holders.scan && !scanned.contains(key) {
-                holders.scan = false;
-                if holders.is_empty() {
-                    released.push(note_off(*key));
-                    return !entry.is_idle();
-                }
-            }
-            true
-        });
-        self.scanned_this_step.clear();
-        released
     }
 
     /// Lets go of the tiles that are dark in `lit` and returns, with its tile, the note-off of
@@ -263,23 +265,25 @@ impl HeldNotes {
             }
             !entry.is_idle()
         });
-        self.scanned_this_step.retain(|key| key.channel != channel);
     }
 
     pub(super) fn apply(
         &mut self,
         events: &[MusicalEvent],
         event_intents: Vec<Option<TileTriggerIntent>>,
-        behaviors: &[NoteBehavior],
+        play: &Play<'_>,
     ) -> NoteBehaviorWithIntentsResult {
         let mut out = NoteBehaviorWithIntentsResult {
             events: Vec::with_capacity(events.len()),
             event_intents: Vec::with_capacity(event_intents.len()),
+            ended_elsewhere: Vec::new(),
+            started: Vec::new(),
         };
         for (event, intent) in events.iter().zip(event_intents) {
             let hold = |channel: u8| {
-                behaviors.get(usize::from(channel)).copied() == Some(NoteBehavior::Hold)
+                play.behaviors.get(usize::from(channel)).copied() == Some(NoteBehavior::Hold)
             };
+            let holder = holder(intent.as_ref(), play.profile);
             match *event {
                 MusicalEvent::NoteOn {
                     channel,
@@ -287,23 +291,29 @@ impl HeldNotes {
                     velocity,
                     ..
                 } if hold(channel) => {
-                    self.hold(HeldNote { channel, note }, velocity, intent, &mut out);
+                    self.hold(
+                        HeldNote { channel, note },
+                        velocity,
+                        holder,
+                        intent,
+                        &mut out,
+                    );
                 }
                 MusicalEvent::NoteOn { .. } => {
                     // A tile that plays again has left its drain behind, on any instrument.
-                    if let Holder::Tile(tile) = holder(intent.as_ref()) {
+                    if let Holder::Tile(tile) = holder {
                         self.drained_tiles.remove(&tile);
                     }
                     out.push(event.clone(), intent);
                 }
                 MusicalEvent::NoteOff { channel, note } => {
                     let key = HeldNote { channel, note };
-                    match deactivating_tile(intent.as_ref()) {
-                        Some(tile) => {
-                            self.release_tile_notes(key, tile, hold(channel), intent, &mut out)
-                        }
-                        None if hold(channel) => self.release(key, intent, &mut out),
-                        None => {
+                    let kind = intent.as_ref().map(|intent| intent.kind);
+                    match (holder, kind) {
+                        (Holder::Tile(tile), Some(TileTriggerKind::Deactivate)) => self
+                            .release_tile_notes(key, tile, hold(channel), play, intent, &mut out),
+                        _ if hold(channel) => self.release(key, holder, play, intent, &mut out),
+                        _ => {
                             self.let_go(key);
                             out.push(event.clone(), intent);
                         }
@@ -319,71 +329,72 @@ impl HeldNotes {
         &mut self,
         key: HeldNote,
         velocity: u8,
+        holder: Holder,
         intent: Option<TileTriggerIntent>,
         out: &mut NoteBehaviorWithIntentsResult,
     ) {
-        let holder = holder(intent.as_ref());
-        match holder {
-            Holder::Tile(tile) => {
-                self.drained_tiles.remove(&tile);
-                // A tile holds one pitch per instrument; a new pitch from it ends the old one.
-                if let Some(previous) = self.tile_note(key.channel, tile).filter(|n| *n != key) {
-                    self.release_tile(previous, tile, intent.clone(), out);
-                }
+        if let Holder::Tile(tile) = holder {
+            self.drained_tiles.remove(&tile);
+            // A tile holds one pitch per instrument; a new pitch from it ends the old one.
+            if let Some(previous) = self.tile_note(key.channel, tile).filter(|n| *n != key) {
+                self.release_tile(previous, tile, intent.clone(), out);
             }
-            Holder::Scan => {
-                self.scanned_this_step.insert(key);
-            }
-            Holder::Untracked => {}
         }
         let holders = &mut self.notes.entry(key).or_default().holders;
         let held = !holders.is_empty();
         match holder {
             Holder::Tile(tile) if !holders.tiles.contains(&tile) => holders.tiles.push(tile),
             Holder::Tile(_) => {}
-            Holder::Scan => holders.scan = true,
             Holder::Untracked => holders.untracked = holders.untracked.saturating_add(1),
         }
+        let on = MusicalEvent::NoteOn {
+            channel: key.channel,
+            note: key.note,
+            velocity,
+            duration_ms: None,
+        };
         if !held {
-            out.push(
-                MusicalEvent::NoteOn {
-                    channel: key.channel,
-                    note: key.note,
-                    velocity,
-                    duration_ms: None,
-                },
-                intent,
-            );
+            out.started.push((key, out.events.len()));
+            out.push(on, intent);
+            return;
+        }
+        // Holders that start one pitch in the same step sound it once, as the loudest of them.
+        let Some(&(_, index)) = out.started.iter().find(|(started, _)| *started == key) else {
+            return;
+        };
+        if matches!(out.events[index], MusicalEvent::NoteOn { velocity: first, .. } if velocity > first)
+        {
+            out.events[index] = on;
+            out.event_intents[index] = intent;
         }
     }
 
     fn release(
         &mut self,
         key: HeldNote,
+        holder: Holder,
+        play: &Play<'_>,
         intent: Option<TileTriggerIntent>,
         out: &mut NoteBehaviorWithIntentsResult,
     ) {
-        match intent.as_ref().map(|intent| intent.kind) {
-            // Hold and scan events repeat every step, so their note-off only sounds when it
-            // ends a note this layer holds; a Hold note-off lets go of its own tile only.
-            Some(TileTriggerKind::Stable) => {
-                if let Some(tile) = intent
-                    .as_ref()
-                    .map(|intent| intent.y * GRID_WIDTH + intent.x)
-                {
+        match (holder, intent.as_ref().map(|intent| intent.kind)) {
+            // Hold events repeat every step, so their note-off only sounds while the pitch
+            // sounds; on this layer it lets go of its own tile only.
+            (Holder::Tile(tile), Some(TileTriggerKind::Stable)) => {
+                if self.is_held(key) {
                     self.release_tile(key, tile, intent, out);
+                } else if (play.elsewhere)(key) {
+                    out.ended_elsewhere.push(key);
                 }
             }
-            Some(TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty) => {
-                if self.let_go(key) {
+            (_, Some(_)) => {
+                if !self.let_go(key) && (play.elsewhere)(key) {
+                    out.ended_elsewhere.push(key);
+                } else {
                     out.push(note_off(key), intent);
                 }
             }
-            Some(_) => {
-                self.let_go(key);
-                out.push(note_off(key), intent);
-            }
-            None => {
+            (_, None) => {
                 let Some(holders) = self.holders_mut(key) else {
                     out.push(note_off(key), intent);
                     return;
@@ -402,12 +413,14 @@ impl HeldNotes {
     }
 
     /// A tile going dark ends every note it holds, on any instrument and whatever pitch the
-    /// mapping gives it now; the Off note-off itself only sounds when the tile held nothing there.
+    /// mapping gives it now. When the tile held nothing there, the Off note-off itself ends the
+    /// pitch where another layer or Notes In holds it, or else goes out as it is.
     fn release_tile_notes(
         &mut self,
         key: HeldNote,
         tile: usize,
         hold: bool,
+        play: &Play<'_>,
         intent: Option<TileTriggerIntent>,
         out: &mut NoteBehaviorWithIntentsResult,
     ) {
@@ -431,7 +444,11 @@ impl HeldNotes {
             self.let_go(key);
             out.push(note_off(key), intent);
         } else if !self.is_held(key) {
-            out.push(note_off(key), intent);
+            if (play.elsewhere)(key) {
+                out.ended_elsewhere.push(key);
+            } else {
+                out.push(note_off(key), intent);
+            }
         }
     }
 
@@ -458,12 +475,6 @@ impl HeldNotes {
             .find(|(key, entry)| key.channel == channel && entry.holders.tiles.contains(&tile))
             .map(|(key, _)| *key)
     }
-}
-
-fn deactivating_tile(intent: Option<&TileTriggerIntent>) -> Option<usize> {
-    intent
-        .filter(|intent| intent.kind == TileTriggerKind::Deactivate)
-        .map(|intent| intent.y * GRID_WIDTH + intent.x)
 }
 
 fn note_off(key: HeldNote) -> MusicalEvent {

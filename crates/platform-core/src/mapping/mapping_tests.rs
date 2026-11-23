@@ -225,27 +225,27 @@ fn negative_wrapped_notes_stay_on_selected_scale() {
 }
 
 #[test]
-fn supports_none_note_off_and_scanned_empty_targets() {
+fn supports_none_note_off_and_hold_targets() {
     let mut config = default_mapping_config();
-    config.scanned_empty = TriggerTarget {
+    config.stable = TriggerTarget {
         action: TriggerAction::NoteOn,
         channel: 3,
         velocity: 55,
         duration_ms: 70,
     };
-    config.scanned.action = TriggerAction::None;
+    config.activate.action = TriggerAction::None;
     let result = map_intents_to_musical_events(
         &[
             TileTriggerIntent {
                 x: 0,
                 y: 0,
-                kind: TileTriggerKind::Scanned,
+                kind: TileTriggerKind::Activate,
                 degree: 0,
             },
             TileTriggerIntent {
                 x: 1,
                 y: 0,
-                kind: TileTriggerKind::ScannedEmpty,
+                kind: TileTriggerKind::Stable,
                 degree: 1,
             },
             TileTriggerIntent {

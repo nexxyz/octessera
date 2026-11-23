@@ -138,8 +138,9 @@ pub(crate) fn configured_scanning_sequencer_runner() -> NativeRunner {
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = "1/16".into();
-    runner.layers[0].link.scanned_slot = 0;
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
+    runner.layers[0].link.activate_slot = 0;
+    runner.layers[0].link.stable_slot = 0;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -186,8 +187,9 @@ pub(crate) fn scanning_sequencer_emits_scanned_notes_with_state_notes_disabled()
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = "1/16".into();
     runner.layers[0].link.state_notes_enabled = false;
-    runner.layers[0].link.scanned_slot = 0;
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
+    runner.layers[0].link.activate_slot = 0;
+    runner.layers[0].link.stable_slot = 0;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

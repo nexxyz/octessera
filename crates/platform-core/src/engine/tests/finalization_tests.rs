@@ -19,7 +19,7 @@ fn finalize_events_applies_global_sound_and_preserves_intents() {
         x: 3,
         y: 3,
         degree: 9,
-        kind: TileTriggerKind::Scanned,
+        kind: TileTriggerKind::Stable,
     };
     let mapped = MappingResult {
         events: vec![

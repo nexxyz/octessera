@@ -220,8 +220,6 @@ impl NativeRunner {
             return false;
         };
         [
-            (sense.scanned_slot, sense.scanned_action),
-            (sense.scanned_empty_slot, sense.scanned_empty_action),
             (sense.activate_slot, sense.activate_action),
             (sense.stable_slot, sense.stable_action),
             (sense.deactivate_slot, sense.deactivate_action),

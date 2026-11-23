@@ -3,9 +3,7 @@ use crate::tests::support::FakeHost;
 use crate::{PlaybackRuntime, RuntimeConfig};
 use std::collections::BTreeSet;
 
-fn scanned_empty_note_off_runtime(
-    note_behavior: &str,
-) -> (PlaybackRuntime, NativeRunner, FakeHost) {
+fn scan_off_note_off_runtime(note_behavior: &str) -> (PlaybackRuntime, NativeRunner, FakeHost) {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -19,8 +17,8 @@ fn scanned_empty_note_off_runtime(
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.layers[0].link.scan_axis = ScanAxis::Columns;
     runner.layers[0].link.scan_unit = "1/8".into();
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
-    runner.layers[0].link.scanned_empty_action = TriggerAction::NoteOff;
+    scan_every_lit_step(&mut runner.layers[0].link);
+    runner.layers[0].link.deactivate_action = TriggerAction::NoteOff;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner.sync_engine_runtime_config();
@@ -84,8 +82,8 @@ fn wire_count(host: &FakeHost, status: u8) -> usize {
 }
 
 #[test]
-pub(crate) fn scanned_empty_tiles_send_no_note_offs_for_silent_notes() {
-    let (mut runtime, mut runner, mut host) = scanned_empty_note_off_runtime("oneshot");
+pub(crate) fn scan_offs_send_no_note_offs_for_silent_notes() {
+    let (mut runtime, mut runner, mut host) = scan_off_note_off_runtime("oneshot");
 
     play(&mut runtime, &mut runner, &mut host, 4_000);
 
@@ -99,8 +97,8 @@ pub(crate) fn scanned_empty_tiles_send_no_note_offs_for_silent_notes() {
 }
 
 #[test]
-pub(crate) fn scanned_empty_tile_still_ends_a_held_note() {
-    let (mut runtime, mut runner, mut host) = scanned_empty_note_off_runtime("hold");
+pub(crate) fn a_scan_off_still_ends_a_held_note() {
+    let (mut runtime, mut runner, mut host) = scan_off_note_off_runtime("hold");
 
     play(&mut runtime, &mut runner, &mut host, 4_000);
 

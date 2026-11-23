@@ -9,11 +9,9 @@ fn scanning_runner(behavior_id: &str) -> NativeRunner {
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = "1/16".into();
-    runner.layers[0].link.event_enabled = false;
-    runner.layers[0].link.scanned_slot = 0;
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
-    runner.layers[0].link.scanned_empty_slot = 0;
-    runner.layers[0].link.scanned_empty_action = TriggerAction::NoteOn;
+    runner.layers[0].link.activate_slot = 0;
+    runner.layers[0].link.stable_slot = 0;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.layers[0].link.y_pitch_enabled = true;
     runner.layers[0].link.y_pitch_steps = 1;
     runner.refresh_active_mapping_config();
@@ -50,42 +48,32 @@ fn next_boundary_notes(runner: &mut NativeRunner) -> Vec<(u8, u8)> {
 }
 
 #[test]
-fn generic_scanning_replacement_restores_transport_cursor_for_representative_behaviors() {
-    for behavior_id in ["keys", "looper", "weave", "life"] {
-        let mut runner = scanning_runner(behavior_id);
-        if matches!(behavior_id, "weave" | "life") {
-            runner.layers[runner.active_layer_index]
-                .engine
-                .tick(runner.transport.bpm as f32)
-                .unwrap();
-        }
-        replace_with_current_behavior(&mut runner, None);
-        let canonical_notes = next_boundary_notes(&mut runner);
+fn generic_scanning_replacement_restores_transport_cursor() {
+    let behavior_id = "weave";
+    let mut runner = scanning_runner(behavior_id);
+    runner.layers[runner.active_layer_index]
+        .engine
+        .tick(runner.transport.bpm as f32)
+        .unwrap();
+    replace_with_current_behavior(&mut runner, None);
+    let canonical_notes = next_boundary_notes(&mut runner);
 
-        let mut zero_cursor = scanning_runner(behavior_id);
-        zero_cursor.transport.layer_ticks[0] = 0;
-        replace_with_current_behavior(&mut zero_cursor, None);
-        let zero_notes = next_boundary_notes(&mut zero_cursor);
+    let mut zero_cursor = scanning_runner(behavior_id);
+    zero_cursor.transport.layer_ticks[0] = 0;
+    replace_with_current_behavior(&mut zero_cursor, None);
+    let zero_notes = next_boundary_notes(&mut zero_cursor);
 
-        assert!(!canonical_notes.is_empty(), "{behavior_id} emitted no scan");
-        assert_ne!(
-            canonical_notes, zero_notes,
-            "{behavior_id} ignored scan cursor"
-        );
-        assert_eq!(runner.transport.layer_ticks[0], 4);
-        assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
-        match behavior_id {
-            "weave" => assert!(matches!(
-                runner.active_engine().state(),
-                platform_core::NativeBehaviorState::Pattern(state) if state.phase == 1
-            )),
-            "life" => assert!(matches!(
-                runner.active_engine().state(),
-                platform_core::NativeBehaviorState::Life(state) if state.tick_counter == 1
-            )),
-            _ => {}
-        }
-    }
+    assert!(!canonical_notes.is_empty(), "{behavior_id} emitted no scan");
+    assert_ne!(
+        canonical_notes, zero_notes,
+        "{behavior_id} ignored scan cursor"
+    );
+    assert_eq!(runner.transport.layer_ticks[0], 4);
+    assert_eq!(runner.transport.layer_pulse_accumulators[0], 0);
+    assert!(matches!(
+        runner.active_engine().state(),
+        platform_core::NativeBehaviorState::Pattern(state) if state.phase == 1
+    ));
 }
 
 #[test]

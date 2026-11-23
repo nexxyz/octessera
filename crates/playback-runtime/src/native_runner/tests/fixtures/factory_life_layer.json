@@ -34,18 +34,6 @@
         "retriggerCount": 0,
         "slot": 0
       },
-      "scanned": {
-        "action": "note_on",
-        "delaySteps": 0,
-        "retriggerCount": 0,
-        "slot": 0
-      },
-      "scanned_empty": {
-        "action": "none",
-        "delaySteps": 0,
-        "retriggerCount": 0,
-        "slot": 0
-      },
       "stable": {
         "action": "none",
         "delaySteps": 0,

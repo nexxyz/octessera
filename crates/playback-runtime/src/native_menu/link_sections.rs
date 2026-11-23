@@ -116,11 +116,7 @@ pub(super) fn global_link_lfos_group(config: &NativeMenuConfig) -> NativeMenuIte
     )
 }
 
-pub(super) fn scanning_group(
-    prefix: &str,
-    sense: &NativeLinkLayerConfig,
-    instrument_options: &[String],
-) -> NativeMenuItem {
+pub(super) fn scanning_group(prefix: &str, sense: &NativeLinkLayerConfig) -> NativeMenuItem {
     let mut children = vec![wire_enum_item(
         "Scan Mode",
         format!("{prefix}.scanMode"),
@@ -155,56 +151,6 @@ pub(super) fn scanning_group(
                 format!("{prefix}.scanSections"),
                 vec!["1", "2", "4", "8"],
                 selected_index(&["1", "2", "4", "8"], &sense.scan_sections.to_string()),
-            ),
-            enum_item_from_strings(
-                "Instr.",
-                format!("{prefix}.mapping.scanned.slot"),
-                instrument_options.to_vec(),
-                slot_option_selected(sense.scanned_slot, instrument_options.len()),
-            ),
-            wire_enum_item(
-                "Action",
-                format!("{prefix}.mapping.scanned.action"),
-                TriggerAction::ALL,
-                TriggerAction::wire_name,
-                sense.scanned_action,
-            ),
-            timing_item(
-                "Scan Delay",
-                format!("{prefix}.mapping.scanned.delaySteps"),
-                sense.scanned_timing.delay_steps,
-                16,
-            ),
-            timing_item(
-                "Scan Retrig",
-                format!("{prefix}.mapping.scanned.retriggerCount"),
-                sense.scanned_timing.retrigger_count,
-                8,
-            ),
-            enum_item_from_strings(
-                "Empty Inst",
-                format!("{prefix}.mapping.scanned_empty.slot"),
-                instrument_options.to_vec(),
-                slot_option_selected(sense.scanned_empty_slot, instrument_options.len()),
-            ),
-            wire_enum_item(
-                "Empty Act",
-                format!("{prefix}.mapping.scanned_empty.action"),
-                TriggerAction::ALL,
-                TriggerAction::wire_name,
-                sense.scanned_empty_action,
-            ),
-            timing_item(
-                "Empty Delay",
-                format!("{prefix}.mapping.scanned_empty.delaySteps"),
-                sense.scanned_empty_timing.delay_steps,
-                16,
-            ),
-            timing_item(
-                "Empty Retrig",
-                format!("{prefix}.mapping.scanned_empty.retriggerCount"),
-                sense.scanned_empty_timing.retrigger_count,
-                8,
             ),
         ]);
     }

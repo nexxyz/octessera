@@ -56,13 +56,6 @@ impl NativeRunner {
         mapping.stable = trigger_target(sense.stable_slot, stable_action, 88, length);
         mapping.deactivate =
             trigger_target(sense.deactivate_slot, sense.deactivate_action, 68, length);
-        mapping.scanned = trigger_target(sense.scanned_slot, sense.scanned_action, 88, length);
-        mapping.scanned_empty = trigger_target(
-            sense.scanned_empty_slot,
-            sense.scanned_empty_action,
-            68,
-            length,
-        );
         mapping
     }
 

@@ -19,12 +19,6 @@ pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
         scan_unit: "1/8".into(),
         scan_direction: ScanDirection::Forward,
         scan_sections: 1,
-        scanned_slot: 0,
-        scanned_action: TriggerAction::NoteOn,
-        scanned_empty_slot: usize::MAX,
-        scanned_empty_action: TriggerAction::None,
-        scanned_timing: Default::default(),
-        scanned_empty_timing: Default::default(),
         event_enabled: true,
         activate_slot: 0,
         activate_action: TriggerAction::NoteOn,
@@ -95,7 +89,7 @@ pub(super) fn link_layer_group(
     group(
         label,
         vec![
-            scanning_group(&prefix, sense, &instrument_options),
+            scanning_group(&prefix, sense),
             events_group(&prefix, sense, &instrument_options),
             trigger_probability_group(index, &prefix, sense),
             note_mapping_group(index, &prefix, sense),

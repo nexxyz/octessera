@@ -25,6 +25,12 @@ pub(super) struct HeldKeyboardNote {
     recorded_tiles: [Option<u8>; LAYER_COUNT],
 }
 
+impl HeldKeyboardNote {
+    pub(super) fn plays(&self, slot: u8, note: u8) -> bool {
+        (self.slot, self.note) == (slot, note)
+    }
+}
+
 impl NativeRunner {
     /// A note `PlaybackRuntime` recognized as the echo of one it sent never reaches here.
     pub(super) fn send_midi_note(&mut self, note: MidiNote) -> Result<Vec<RunnerMessage>, String> {
@@ -117,7 +123,12 @@ impl NativeRunner {
         }
     }
 
-    fn release_keyboard_note(&mut self, slot: u8, note: u8, routed: &mut RoutedMusicalEvents) {
+    pub(super) fn release_keyboard_note(
+        &mut self,
+        slot: u8,
+        note: u8,
+        routed: &mut RoutedMusicalEvents,
+    ) {
         let Some(index) = self
             .keyboard_notes
             .iter()

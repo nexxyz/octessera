@@ -175,7 +175,7 @@ pub(crate) fn second_tick_preserves_note_boundaries_between_event_kinds() {
 }
 
 #[test]
-pub(crate) fn same_note_from_two_layers_remains_two_events() {
+pub(crate) fn same_note_from_two_layers_on_one_tick_is_one_hit() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.transport.transport = RuntimeTransportState::Playing;
     runner.layers[1].link.activate_slot = 0;
@@ -187,13 +187,14 @@ pub(crate) fn same_note_from_two_layers_remains_two_events() {
     let messages = pulse(&mut runner, 12);
     let notes = musical_note_ons(&messages);
 
+    assert!(!notes.is_empty());
     assert!(notes
         .iter()
-        .any(|candidate| { notes.iter().filter(|other| *other == candidate).count() >= 2 }));
+        .all(|candidate| { notes.iter().filter(|other| *other == candidate).count() == 1 }));
 }
 
 #[test]
-pub(crate) fn same_external_midi_destination_from_two_mappings_remains_two_events() {
+pub(crate) fn two_instruments_on_one_midi_channel_send_the_louder_hit_once() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     for instrument in runner.instruments.iter_mut().take(2) {
         instrument.kind = InstrumentType::Midi;
@@ -232,7 +233,7 @@ pub(crate) fn same_external_midi_destination_from_two_mappings_remains_two_event
         })
         .unwrap();
 
-    assert_eq!(midi, vec![(3, 60, 80, Some(120)), (3, 60, 100, Some(120))]);
+    assert_eq!(midi, vec![(3, 60, 100, Some(120))]);
 }
 
 #[test]
@@ -366,7 +367,7 @@ pub(crate) fn probability_filtering_happens_before_local_dedupe() {
 }
 
 #[test]
-pub(crate) fn local_dedupe_keeps_duration_none_and_non_note_order() {
+pub(crate) fn a_note_off_between_two_note_ons_keeps_the_re_strike() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let activate = intent(platform_core::TileTriggerKind::Activate);
     let model = runner.active_engine().model().unwrap();
@@ -419,7 +420,7 @@ pub(crate) fn local_dedupe_keeps_duration_none_and_non_note_order() {
             platform_core::MusicalEvent::NoteOn {
                 channel: 0,
                 note: 60,
-                velocity: 100,
+                velocity: 50,
                 duration_ms: None,
             },
             platform_core::MusicalEvent::Cc {
@@ -431,6 +432,12 @@ pub(crate) fn local_dedupe_keeps_duration_none_and_non_note_order() {
                 channel: 0,
                 note: 60,
             },
+            platform_core::MusicalEvent::NoteOn {
+                channel: 0,
+                note: 60,
+                velocity: 100,
+                duration_ms: None,
+            },
             platform_core::MusicalEvent::Cc {
                 channel: 0,
                 controller: 74,
@@ -441,7 +448,7 @@ pub(crate) fn local_dedupe_keeps_duration_none_and_non_note_order() {
 }
 
 #[test]
-pub(crate) fn local_dedupe_keeps_same_note_with_different_durations() {
+pub(crate) fn the_louder_of_two_hits_on_one_tick_wins_with_its_own_length() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let activate = intent(platform_core::TileTriggerKind::Activate);
     let model = runner.active_engine().model().unwrap();
@@ -470,6 +477,6 @@ pub(crate) fn local_dedupe_keeps_same_note_with_different_durations() {
 
     assert_eq!(
         note_ons(&audio_events(&messages)),
-        vec![(0, 60, 50, Some(80)), (0, 60, 100, Some(120))]
+        vec![(0, 60, 100, Some(120))]
     );
 }

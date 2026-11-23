@@ -145,5 +145,5 @@ pub(crate) fn layer_mapping_derives_from_stable_base_config_and_layer_slot_defau
     assert_eq!(layer_two_mapping.starting_midi_note, 60);
     assert_eq!(layer_two_mapping.max_midi_note, 74);
     assert_eq!(layer_two_mapping.activate.channel, 1);
-    assert_eq!(layer_two_mapping.scanned.channel, 1);
+    assert_eq!(layer_two_mapping.stable.channel, 1);
 }

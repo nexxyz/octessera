@@ -7,7 +7,6 @@ use super::{
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
 use platform_core::{MusicalEvent, TileTriggerIntent, TileTriggerKind};
-use std::collections::HashMap;
 
 pub(super) struct LinkRoutingInput<'a> {
     pub(super) events: Vec<MusicalEvent>,
@@ -145,6 +144,11 @@ impl NativeRunner {
         self.layers = layers;
         let mut routed = routed?;
         self.drop_muted_midi_note_ons(&mut routed);
+        if !self.ended_elsewhere.is_empty() {
+            let mut ended = std::mem::take(&mut self.ended_elsewhere);
+            ended.extend(routed);
+            routed = ended;
+        }
         Ok(routed)
     }
 
@@ -255,7 +259,6 @@ impl NativeRunner {
             self.cancel_pending_delayed_hold_note_ons_after(layer_index, &routed, 0);
             return routed;
         }
-        let routed = dedupe_note_ons_in_group(routed, context.instruments);
         self.apply_link_timing_with_sense(context, intents, routed, lit)
     }
 }
@@ -303,73 +306,85 @@ fn arp_batches(events: &[MusicalEvent], intents: &[Option<TileTriggerIntent>]) -
     untagged.into_iter().chain(releases).chain(rest).collect()
 }
 
-fn dedupe_note_ons_in_group(
-    mut routed: RoutedMusicalEvents,
+/// The note-ons that sound together on one tick play one hit per instrument and pitch, whatever
+/// layer, event kind or Delay produced them: the loudest, or the first of the loudest, whole. A
+/// note-off of the pitch between two of them keeps both, so a release and a fresh hit still sound.
+pub(super) fn dedupe_note_ons(
+    routed: &mut RoutedMusicalEvents,
     instruments: &[super::NativeInstrumentSlot],
-) -> RoutedMusicalEvents {
+) {
     dedupe_note_ons_in_lane(&mut routed.audio);
     dedupe_note_ons_in_lane(&mut routed.midi);
     dedupe_sampler_tile_hits(&mut routed.tiles, instruments);
-    routed
 }
 
-/// Tiles stamped with the same sample and pitch that fire together play one voice at the
-/// loudest velocity, as identical sampler notes always have.
+/// Tiles stamped with the same sample and pitch that fire together play one voice, the loudest
+/// hit's, as identical sampler notes always have.
 fn dedupe_sampler_tile_hits(hits: &mut Vec<TileHit>, instruments: &[super::NativeInstrumentSlot]) {
-    let mut deduped: Vec<TileHit> = Vec::with_capacity(hits.len());
-    for hit in hits.drain(..) {
-        let sampler = instruments
-            .get(usize::from(hit.instrument_slot))
-            .is_some_and(|instrument| instrument.kind == InstrumentType::Sampler);
-        let existing = deduped.iter_mut().find(|other| {
-            sampler
-                && hit.velocity > 0
-                && other.velocity > 0
-                && (other.instrument_slot, other.voice, other.pitch_cents)
-                    == (hit.instrument_slot, hit.voice, hit.pitch_cents)
-        });
-        match existing {
-            Some(other) => other.velocity = other.velocity.max(hit.velocity),
-            None => deduped.push(hit),
+    let is_sampler = |slot: u8| {
+        instruments
+            .get(usize::from(slot))
+            .is_some_and(|instrument| instrument.kind == InstrumentType::Sampler)
+    };
+    let mut index = 0;
+    while index < hits.len() {
+        let hit = &hits[index];
+        let (velocity, key) = (
+            hit.velocity,
+            (hit.instrument_slot, hit.voice, hit.pitch_cents),
+        );
+        let earlier = (velocity > 0 && is_sampler(key.0))
+            .then(|| {
+                hits[..index].iter().position(|other| {
+                    other.velocity > 0
+                        && (other.instrument_slot, other.voice, other.pitch_cents) == key
+                })
+            })
+            .flatten();
+        match earlier {
+            Some(first) => {
+                let hit = hits.remove(index);
+                if hit.velocity > hits[first].velocity {
+                    hits[first] = hit;
+                }
+            }
+            None => index += 1,
         }
     }
-    *hits = deduped;
 }
 
 fn dedupe_note_ons_in_lane(events: &mut Vec<MusicalEvent>) {
-    let mut deduped = Vec::with_capacity(events.len());
-    let mut seen = HashMap::<(u8, u8, Option<u32>), usize>::with_capacity(events.len());
-    for event in events.drain(..) {
-        match event {
-            MusicalEvent::NoteOn {
-                channel,
-                note,
-                velocity,
-                duration_ms,
-            } => {
-                let key = (channel, note, duration_ms);
-                if let Some(index) = seen.get(&key).copied() {
-                    if let MusicalEvent::NoteOn {
-                        velocity: existing_velocity,
-                        ..
-                    } = &mut deduped[index]
-                    {
-                        *existing_velocity = (*existing_velocity).max(velocity);
-                    }
-                } else {
-                    seen.insert(key, deduped.len());
-                    deduped.push(MusicalEvent::NoteOn {
-                        channel,
-                        note,
-                        velocity,
-                        duration_ms,
-                    });
+    let mut index = 0;
+    while index < events.len() {
+        let MusicalEvent::NoteOn {
+            channel,
+            note,
+            velocity,
+            ..
+        } = events[index]
+        else {
+            index += 1;
+            continue;
+        };
+        let last = events[..index].iter().rposition(|event| {
+            matches!(
+                *event,
+                MusicalEvent::NoteOn { channel: c, note: n, .. }
+                    | MusicalEvent::NoteOff { channel: c, note: n }
+                    if (c, n) == (channel, note)
+            )
+        });
+        match last.filter(|last| matches!(events[*last], MusicalEvent::NoteOn { .. })) {
+            Some(first) => {
+                let louder = events.remove(index);
+                if matches!(events[first], MusicalEvent::NoteOn { velocity: v, .. } if velocity > v)
+                {
+                    events[first] = louder;
                 }
             }
-            event => deduped.push(event),
+            None => index += 1,
         }
     }
-    *events = deduped;
 }
 
 fn note_off_keys(events: &[MusicalEvent]) -> Vec<(u8, u8)> {
@@ -417,8 +432,6 @@ fn link_timing_for_intents(
         Some(TileTriggerKind::Activate) => layer.activate_timing,
         Some(TileTriggerKind::Stable) => layer.stable_timing,
         Some(TileTriggerKind::Deactivate) => layer.deactivate_timing,
-        Some(TileTriggerKind::Scanned) => layer.scanned_timing,
-        Some(TileTriggerKind::ScannedEmpty) => layer.scanned_empty_timing,
         None => LinkEventTiming::default(),
     }
 }

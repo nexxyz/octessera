@@ -16,9 +16,9 @@ fn configure_active_scan(runner: &mut NativeRunner, scan_unit: &str, scanned_slo
     layer.scan_axis = ScanAxis::Rows;
     layer.scan_unit = scan_unit.into();
     layer.scan_sections = 1;
-    layer.scanned_slot = scanned_slot;
-    layer.scanned_action = TriggerAction::NoteOn;
-    layer.scanned_empty_action = TriggerAction::None;
+    layer.activate_slot = scanned_slot;
+    layer.stable_slot = scanned_slot;
+    scan_every_lit_step(layer);
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
 }
@@ -281,7 +281,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
     let mut runner = scanning_runner("1/16", 0);
     runner.instruments[0].note_behavior = NoteBehavior::Hold;
     runner.sync_engine_runtime_config();
-    runner.layers[0].link.scanned_timing.delay_steps = 2;
+    runner.layers[0].link.activate_timing.delay_steps = 2;
     runner.layers[0].link.arp.mode = ArpMode::Direct;
     runner.delayed_link_events[0].push(DelayedRoutedEvents {
         remaining_steps: 1,

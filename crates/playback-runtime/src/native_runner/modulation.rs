@@ -31,7 +31,6 @@ impl NativeRunner {
                 matches!(
                     intent.kind,
                     platform_core::TileTriggerKind::Activate
-                        | platform_core::TileTriggerKind::Scanned
                         | platform_core::TileTriggerKind::Stable
                 )
             })

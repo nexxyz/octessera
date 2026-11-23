@@ -247,15 +247,19 @@ fn a_slower_rate_lands_its_next_step_on_the_beat() {
 
 fn scanning_rows_runner() -> NativeRunner {
     let mut runner = rate_runner();
+    let block = (0..GRID_WIDTH * GRID_HEIGHT)
+        .map(|tile| tile % GRID_WIDTH < 2 && tile / GRID_WIDTH < 2)
+        .collect::<Vec<_>>();
+    runner
+        .replace_layer_engine_with_config(0, NativeBehavior::Life, json!({ "cells": block }), None)
+        .unwrap();
     let link = &mut runner.layers[0].link;
     link.scan_mode = ScanMode::Scanning;
     link.scan_axis = ScanAxis::Rows;
     link.scan_unit = "1/8T".into();
-    link.event_enabled = false;
-    link.scanned_slot = 0;
-    link.scanned_action = TriggerAction::NoteOn;
-    link.scanned_empty_slot = 0;
-    link.scanned_empty_action = TriggerAction::NoteOn;
+    link.activate_slot = 0;
+    link.stable_slot = 0;
+    scan_every_lit_step(link);
     link.y_pitch_enabled = true;
     link.y_pitch_steps = 1;
     runner.refresh_active_mapping_config();

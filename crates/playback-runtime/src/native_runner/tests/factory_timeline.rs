@@ -58,13 +58,7 @@ pub(crate) fn factory_variant_timeline() -> String {
     midi["type"] = json!("midi");
     midi["midi"] = json!({ "channel": 8, "enabled": true, "velocity": 100 });
     config["layers"][1]["link"]["oneShotLengthMs"] = json!(200);
-    for mapping in [
-        "activate",
-        "deactivate",
-        "scanned",
-        "scanned_empty",
-        "stable",
-    ] {
+    for mapping in ["activate", "deactivate", "stable"] {
         config["layers"][1]["link"]["mapping"][mapping]["slot"] = json!(7);
         config["layers"][3]["link"]["mapping"][mapping]["slot"] = json!(4);
     }

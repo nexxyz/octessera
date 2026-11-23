@@ -35,10 +35,7 @@ fn context_for(key: &str) -> Context {
         Context::RowScan
     } else if field.starts_with("triggerProbability") || field == "seeded" {
         Context::Probability
-    } else if field.starts_with("scan")
-        || field.starts_with("mapping.scanned")
-        || field.ends_with("restartEachSection")
-    {
+    } else if field.starts_with("scan") || field.ends_with("restartEachSection") {
         Context::Scan
     } else if [".velocity.", ".filterCutoff.", ".filterResonance."]
         .iter()
@@ -109,7 +106,7 @@ fn runner_in(context: Context) -> NativeRunner {
             set(&mut runner, &link("scanSections"), &enumerated("2"));
             set(
                 &mut runner,
-                &link("mapping.scanned_empty.action"),
+                &link("mapping.stable.action"),
                 &enumerated("note_on"),
             );
             if context == Context::RowScan {

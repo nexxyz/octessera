@@ -144,8 +144,9 @@ pub(crate) fn a_one_shot_midi_slot_plays_the_layer_one_shot_length() {
     );
 }
 
-/// A scanning Sequencer on a Hold instrument: lit steps in a row form one held note, an empty
-/// step ends it, and the second lap plays the same notes instead of droning.
+/// A scanning Sequencer on a Hold instrument with On note on and Off note off: lit steps in a row
+/// form one held note, an empty step ends it, and the second lap plays the same notes instead of
+/// droning.
 #[test]
 pub(crate) fn a_scanned_hold_note_lasts_while_its_pitch_stays_lit() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
@@ -158,7 +159,7 @@ pub(crate) fn a_scanned_hold_note_lasts_while_its_pitch_stays_lit() {
     link.scan_mode = ScanMode::Scanning;
     link.scan_axis = ScanAxis::Columns;
     link.scan_unit = "1/16".into();
-    link.event_enabled = false;
+    link.event_enabled = true;
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     for x in [0, 1, 3] {
@@ -269,39 +270,6 @@ pub(crate) fn a_held_pitch_sounds_again_after_its_instrument_drops_its_voices() 
         1,
         "{pressed_again:?}"
     );
-}
-
-/// A scan that stops on an otherwise idle `none` layer still ends the notes it held.
-#[test]
-pub(crate) fn an_idle_layer_ends_its_scan_hold_once_scanning_stops() {
-    let mut runner = keys_runner(1);
-    let link = &mut runner.layers[1].link;
-    link.scan_mode = ScanMode::Scanning;
-    link.scan_unit = "1/16".into();
-    link.scanned_empty_slot = 0;
-    link.scanned_empty_action = TriggerAction::NoteOn;
-    let step = |runner: &mut NativeRunner| {
-        let messages = runner
-            .send(HostMessage::TransportPulseStep {
-                pulses: runner.step_pulses_for_layer(1),
-                source: SyncSource::Internal,
-                at_ppqn_pulse: None,
-                request_snapshot: Some(false),
-            })
-            .unwrap();
-        on_off(&notes(&messages))
-    };
-    let held = step(&mut runner);
-    assert!(
-        !held.is_empty() && held.iter().all(|(on, _)| *on),
-        "{held:?}"
-    );
-
-    runner.layers[1].link.scan_mode = ScanMode::None;
-    let released = step(&mut runner);
-
-    assert_eq!(released.len(), held.len(), "{released:?}");
-    assert!(released.iter().all(|(on, _)| !on), "{released:?}");
 }
 
 #[test]

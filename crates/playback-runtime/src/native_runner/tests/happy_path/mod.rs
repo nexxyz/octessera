@@ -46,7 +46,7 @@ pub(crate) fn link_scanning_params_and_scan_step_are_usable() {
         .is_some());
     assert!(runner
         .menu
-        .value_for_key("layers.0.link.mapping.scanned.slot")
+        .value_for_key("layers.0.link.scanSections")
         .is_some());
 
     edit_visible_params(&mut runner, "layers.0.link", link_param_is_safe);

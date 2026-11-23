@@ -344,7 +344,9 @@ pub(crate) fn scanning_sequencer_pattern_emits_different_rows_over_scan_steps() 
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = "1/4".into();
-    runner.layers[0].link.scanned_slot = 1;
+    runner.layers[0].link.activate_slot = 1;
+    runner.layers[0].link.stable_slot = 1;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner

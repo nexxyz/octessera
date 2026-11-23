@@ -109,14 +109,12 @@ fn cyclic_consecutive_presses_keep_both_activation_intents() {
 
 #[test]
 fn scan_interpretation_advances_with_engine_ticks() {
-    let mut mapping_config = default_mapping_config();
-    mapping_config.scanned_empty.action = TriggerAction::NoteOn;
     let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
         behavior: NativeBehavior::Sequencer,
         behavior_config: Value::Null,
         interpretation_profile: InterpretationProfile {
             id: "scan_profile".into(),
-            event: InterpretationEventProfile { enabled: false },
+            event: InterpretationEventProfile { enabled: true },
             state: InterpretationStateProfile {
                 enabled: true,
                 tick: TickStrategy::ScanRowActive {
@@ -128,29 +126,32 @@ fn scan_interpretation_advances_with_engine_ticks() {
             x: AxisStrategy::ScaleStep { step: 1 },
             y: AxisStrategy::ScaleStep { step: 2 },
         },
-        mapping_config,
+        mapping_config: default_mapping_config(),
         ..base_config()
     })
     .unwrap();
-    engine
-        .on_input(DeviceInput::GridPress { x: 0, y: 1 }, 120.0)
+    let pressed = engine
+        .on_input_with_events(DeviceInput::GridPress { x: 0, y: 1 }, 120.0)
         .unwrap();
+    assert!(pressed.events.is_empty(), "a scanning layer plays no press");
+    let kinds = |engine: &mut NativeLayerEngine| {
+        engine
+            .tick(120.0)
+            .unwrap()
+            .event_intents
+            .into_iter()
+            .flatten()
+            .map(|intent| (intent.x, intent.y, intent.kind))
+            .collect::<Vec<_>>()
+    };
 
-    let first = engine.tick(120.0).unwrap();
-    let second = engine.tick(120.0).unwrap();
-
-    assert!(!first.events.is_empty());
-    assert!(!second.events.is_empty());
+    assert!(kinds(&mut engine).is_empty());
+    assert_eq!(kinds(&mut engine), [(0, 1, TileTriggerKind::Activate)]);
+    assert_eq!(kinds(&mut engine), [(0, 2, TileTriggerKind::Deactivate)]);
 
     engine.reset_transport_phase();
-    let after_reset = engine.tick(120.0).unwrap();
-    assert!(!after_reset.events.is_empty());
-    assert_eq!(after_reset.mapped_intents[0].x, 0);
-    assert_eq!(after_reset.mapped_intents[0].y, 0);
-    assert_eq!(
-        after_reset.mapped_intents[0].kind,
-        TileTriggerKind::ScannedEmpty
-    );
+    assert!(kinds(&mut engine).is_empty());
+    assert_eq!(kinds(&mut engine), [(0, 1, TileTriggerKind::Activate)]);
 }
 
 #[test]

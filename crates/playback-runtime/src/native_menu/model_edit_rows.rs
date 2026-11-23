@@ -160,14 +160,9 @@ impl NativeMenuModel {
         self.clamp_cursor_to_siblings();
     }
 
-    pub fn show_link_scanning_rows(
-        &mut self,
-        layer_index: usize,
-        sense: &NativeLinkLayerConfig,
-        instrument_labels: &[String],
-    ) {
+    pub fn show_link_scanning_rows(&mut self, layer_index: usize, sense: &NativeLinkLayerConfig) {
         let prefix = format!("layers.{layer_index}.link");
-        let scanning = scanning_group(&prefix, sense, &link_instrument_options(instrument_labels));
+        let scanning = scanning_group(&prefix, sense);
         replace_group_children_containing_direct_key(
             &mut self.root,
             &format!("{prefix}.scanMode"),

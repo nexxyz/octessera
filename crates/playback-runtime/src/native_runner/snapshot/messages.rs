@@ -331,7 +331,7 @@ impl NativeRunner {
         let mut messages = Vec::new();
         self.apply_runtime_modulation(&result.mapped_intents, layer_index);
         let transpose_offset = self.play_transpose_offset_for_layer(layer_index);
-        let events = self.route_events_with_link_timing(
+        let mut events = self.route_events_with_link_timing(
             layer_index,
             LinkRoutingInput {
                 events: result.events,
@@ -340,6 +340,7 @@ impl NativeRunner {
                 lit_tiles: &result.model.tiles,
             },
         )?;
+        super::super::link_routing::dedupe_note_ons(&mut events, &self.instruments);
         self.track_emitted_route_notes(layer_index, &events);
         self.append_music_first_audio_commands(&mut messages);
         if !events.is_empty() {
@@ -365,8 +366,9 @@ impl NativeRunner {
 
     pub(in crate::native_runner) fn messages_with_routed_events(
         &mut self,
-        events: super::super::RoutedMusicalEvents,
+        mut events: super::super::RoutedMusicalEvents,
     ) -> Result<Vec<RunnerMessage>, String> {
+        super::super::link_routing::dedupe_note_ons(&mut events, &self.instruments);
         self.track_emitted_route_notes(self.active_layer_index, &events);
         let mut messages = Vec::new();
         self.append_music_first_audio_commands(&mut messages);

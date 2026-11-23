@@ -20,6 +20,14 @@ pub(super) fn pi_audio_command_rejection(command: &RuntimeAudioCommand) -> Optio
     }
 }
 
+/// Maps a scanning layer's On and Hold to note on, so every lit step the line reaches sounds.
+pub(super) fn scan_every_lit_step(link: &mut NativeLinkLayer) {
+    link.activate_action = TriggerAction::NoteOn;
+    link.stable_action = TriggerAction::NoteOn;
+    link.event_enabled = true;
+    link.state_notes_enabled = true;
+}
+
 impl NativeRunner {
     pub(super) fn apply_current_menu_edit(&mut self) -> Result<(), String> {
         let key = self
@@ -191,6 +199,7 @@ mod sample_preview_indicator;
 mod sampler_tiles;
 mod save_failure_retries;
 mod saved_json_round_trip;
+mod scan_events;
 mod scan_note_offs;
 mod scan_replacement;
 mod selected_menu_row;

@@ -25,18 +25,6 @@
       7,
       10
     ],
-    "scanned": {
-      "action": "note_on",
-      "channel": 0,
-      "durationMs": 130,
-      "velocity": 88
-    },
-    "scanned_empty": {
-      "action": "none",
-      "channel": 0,
-      "durationMs": 90,
-      "velocity": 68
-    },
     "stable": {
       "action": "none",
       "channel": 0,
@@ -1561,18 +1549,6 @@
               "retriggerCount": 0,
               "slot": 0
             },
-            "scanned": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 0
-            },
-            "scanned_empty": {
-              "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 0
-            },
             "stable": {
               "action": "none",
               "delaySteps": 0,
@@ -1913,18 +1889,6 @@
               "retriggerCount": 0,
               "slot": 1
             },
-            "scanned": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 1
-            },
-            "scanned_empty": {
-              "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 1
-            },
             "stable": {
               "action": "none",
               "delaySteps": 0,
@@ -2184,18 +2148,6 @@
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 2
-            },
-            "scanned": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 2
-            },
-            "scanned_empty": {
-              "action": "none",
               "delaySteps": 0,
               "retriggerCount": 0,
               "slot": 2
@@ -2513,18 +2465,6 @@
               "retriggerCount": 0,
               "slot": 3
             },
-            "scanned": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 3
-            },
-            "scanned_empty": {
-              "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 3
-            },
             "stable": {
               "action": "none",
               "delaySteps": 0,
@@ -2788,18 +2728,6 @@
               "retriggerCount": 0,
               "slot": 4
             },
-            "scanned": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 4
-            },
-            "scanned_empty": {
-              "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 4
-            },
             "stable": {
               "action": "none",
               "delaySteps": 0,
@@ -2988,18 +2916,6 @@
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 5
-            },
-            "scanned": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 5
-            },
-            "scanned_empty": {
-              "action": "none",
               "delaySteps": 0,
               "retriggerCount": 0,
               "slot": 5
@@ -3196,18 +3112,6 @@
               "retriggerCount": 0,
               "slot": 6
             },
-            "scanned": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 6
-            },
-            "scanned_empty": {
-              "action": "none",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 6
-            },
             "stable": {
               "action": "none",
               "delaySteps": 0,
@@ -3396,18 +3300,6 @@
             },
             "deactivate": {
               "action": "note_off",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 7
-            },
-            "scanned": {
-              "action": "note_on",
-              "delaySteps": 0,
-              "retriggerCount": 0,
-              "slot": 7
-            },
-            "scanned_empty": {
-              "action": "none",
               "delaySteps": 0,
               "retriggerCount": 0,
               "slot": 7

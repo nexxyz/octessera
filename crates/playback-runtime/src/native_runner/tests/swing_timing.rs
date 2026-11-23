@@ -18,9 +18,9 @@ fn start_eighth_note_layer(mut runner: NativeRunner, swing: (u8, u8)) -> NativeR
     layer.scan_axis = ScanAxis::Rows;
     layer.scan_unit = "1/8".into();
     layer.scan_sections = 1;
-    layer.scanned_slot = 0;
-    layer.scanned_action = TriggerAction::NoteOn;
-    layer.scanned_empty_action = TriggerAction::None;
+    layer.activate_slot = 0;
+    layer.stable_slot = 0;
+    scan_every_lit_step(layer);
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     for y in 0..GRID_HEIGHT {

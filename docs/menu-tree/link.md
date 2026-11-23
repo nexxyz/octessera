@@ -41,15 +41,7 @@ Link
 │   │   ├── Scan Axis: [rows | columns]
 │   │   ├── Scan Unit: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]
 │   │   ├── Scan Dir: [forward | reverse]
-│   │   ├── Sections: [1 | 2 | 4 | 8]
-│   │   ├── Instr.: [none | I1: <name> .. I8: <name>]
-│   │   ├── Action: [none | note on | note off]
-│   │   ├── Scan Delay: [0..16]
-│   │   ├── Scan Retrig: [0..8]
-│   │   ├── Empty Inst: [none | I1: <name> .. I8: <name>]
-│   │   ├── Empty Act: [none | note on | note off]
-│   │   ├── Empty Delay: [0..16]
-│   │   └── Empty Retrig: [0..8]
+│   │   └── Sections: [1 | 2 | 4 | 8]
 │   ├── Events (group)
 │   │   ├── Event Triggers: [on | off]            default on
 │   │   ├── State Notes: [on | off]               default on; lets Hold events fire
@@ -134,18 +126,28 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 - `Event Triggers` gates On and Off events, `State Notes` gates Hold events. A Hold event fires at
   each behavior step for a tile that stays lit; play and game behaviors send none. Which tiles
-  count as holders of a held note, and how a scan holds a pitch, is defined under
+  count as holders of a held note is defined under
   [Trigger types](../menu-and-controls-spec.md#trigger-types).
+- A scanning layer plays the same On, Hold and Off rows, from its scan line instead of its grid's
+  changes; its grid changes and presses play nothing themselves. Each tile the line reaches is
+  compared with the tile it touched one step before in the same row (column scan) or column (row
+  scan): dark to lit fires On, lit to lit Hold, lit to dark Off, dark to dark nothing. The row
+  loops across the lap wrap, and with Sections > 1 each lane loops on its own. The gates apply
+  as above, and Hold fires on a scan for every behavior. With only On mapped a run of lit tiles
+  sounds once; mapping Hold to `note on` as well sounds every lit step.
 - `Steps` on Pitch Steps counts notes of the set (scale degrees), not semitones; negative steps go
   down.
-- Event mappings (`activate`, `stable`, `deactivate`, `scanned`, `scanned_empty`) each have Delay
-  and Retrig. Delay counts that layer's Link ticks. Retrig adds extra repeats after the original,
-  at delay+1, delay+2, and so on. Trigger probability is rolled once before scheduling; delayed
-  repeats do not re-roll.
-- Link collapses only same-tick NoteOn duplicates within one TileTriggerKind group and mapping
-  context, after final instrument routing and before Delay/Retrig scheduling. It keeps the first
-  event and duration and uses the highest velocity. Other event kinds, lanes, ticks, layers,
-  mappings, and durations stay distinct.
+- Event mappings (`activate`, `stable`, `deactivate`) each have Delay and Retrig. Delay counts
+  that layer's Link ticks, which on a scanning layer are its scan steps (`Scan Unit`): an On with
+  Delay 2 and Retrig 1 sounds 2 and 3 scan steps after the line reaches the tile. Retrig adds
+  extra repeats after the original, at delay+1, delay+2, and so on. Trigger probability is rolled
+  once before scheduling; delayed repeats do not re-roll.
+- After Delay/Retrig scheduling, the note-ons that sound on one tick play one hit per instrument
+  and pitch (MIDI channel and note on MIDI out), whatever layer, event kind or delay produced
+  them: the loudest wins whole, with its velocity, length and tile, and the first of equals wins
+  a tie. A note-off of that pitch between two note-ons on the tick keeps both, so a release and a
+  fresh hit still sound. On a Hold instrument every tile that started the pitch still holds it.
+  Note-offs and other events are not merged.
 - Scanning lanes are defined in
   [Sectioned scanning](../menu-and-controls-spec.md#sectioned-scanning).
 

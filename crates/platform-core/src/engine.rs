@@ -6,6 +6,7 @@ use crate::interpretation::{
     interpret_grid_with_marker_authority, GridSnapshot, InterpretationProfile, TileTriggerIntent,
     TriggerMarkerAuthority,
 };
+use crate::interpretation_scan::scan_line;
 use crate::mapping::{
     activate_tile_for_note, map_intents_to_musical_events, MappingConfig, MappingResult,
     TriggerAction,
@@ -52,6 +53,8 @@ pub struct NativeLayerEngine {
     tick: usize,
     random: LayerRandom,
     step_phase: StepPhase,
+    /// What the scan line saw on each tile the last time it touched it.
+    scan_seen: GridSnapshot,
 }
 
 impl NativeLayerEngine {
@@ -89,6 +92,7 @@ impl NativeLayerEngine {
             tick: 0,
             random: LayerRandom::new(config.random_seed),
             step_phase: StepPhase::Stopped,
+            scan_seen: unscanned_grid(),
         })
     }
 
@@ -137,7 +141,9 @@ impl NativeLayerEngine {
             .random
             .scope(|| behavior.on_input(state, input, &mut context))?;
         let after = self.behavior.render_model(&self.state)?;
-        let mapped = if self.behavior.interpret_input_transitions() {
+        let mapped = if self.behavior.interpret_input_transitions()
+            && !self.interpretation_profile.scans()
+        {
             let mut profile = self.interpretation_profile.clone();
             profile.state.enabled = false;
             let intents = interpret_grid_with_marker_authority(
@@ -189,16 +195,28 @@ impl NativeLayerEngine {
             .scope(|| behavior.on_tick(state, &mut context))?;
         let after = self.behavior.render_model(&self.state)?;
 
-        let stable = self.behavior.reports_stable_tiles()
+        let scanning = self.interpretation_profile.scans();
+        let stable = (scanning || self.behavior.reports_stable_tiles())
             && self.mapping_config.stable.action != TriggerAction::None;
+        let next = to_snapshot(&after);
+        let direct_before;
+        let previous = if scanning {
+            &self.scan_seen
+        } else {
+            direct_before = to_snapshot(&before);
+            &direct_before
+        };
         let intents = interpret_grid_with_marker_authority(
-            &to_snapshot(&before),
-            &to_snapshot(&after),
+            previous,
+            &next,
             self.tick,
             &self.interpretation_profile,
             TriggerMarkerAuthority::FreshTick,
             stable,
         );
+        if scanning {
+            self.remember_scanned_line(&next);
+        }
         let intents = intents
             .into_iter()
             .filter(|intent| filter_intent(intent))
@@ -229,12 +247,24 @@ impl NativeLayerEngine {
         self.interpretation_profile = interpretation_profile;
     }
 
+    fn remember_scanned_line(&mut self, next: &GridSnapshot) {
+        let strategy = &self.interpretation_profile.state.tick;
+        for (tile, _) in scan_line(next.width, next.height, self.tick, strategy) {
+            if let (Some(seen), Some(lit)) =
+                (self.scan_seen.tiles.get_mut(tile), next.tiles.get(tile))
+            {
+                *seen = *lit;
+            }
+        }
+    }
+
     pub fn set_global_sound(&mut self, global_sound: GlobalSoundConfig) {
         self.global_sound = global_sound;
     }
 
     pub fn reset_transport_phase(&mut self) {
         self.tick = 0;
+        self.scan_seen = unscanned_grid();
         let state = &mut self.state;
         self.random.scope(|| state.reset_transport_phase());
     }
@@ -315,6 +345,15 @@ impl NativeLayerEngine {
             return Err("event intent metadata length mismatch after global sound".into());
         }
         Ok((events, event_intents))
+    }
+}
+
+fn unscanned_grid() -> GridSnapshot {
+    GridSnapshot {
+        width: GRID_WIDTH,
+        height: GRID_HEIGHT,
+        tiles: vec![false; GRID_WIDTH * GRID_HEIGHT],
+        trigger_types: None,
     }
 }
 

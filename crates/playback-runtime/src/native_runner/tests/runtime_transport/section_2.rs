@@ -21,8 +21,9 @@ pub(crate) fn layer_two_scanning_uses_second_instrument_slot_without_bleeding_to
     runner.layers[1].link.scan_mode = ScanMode::Scanning;
     runner.layers[1].link.scan_axis = ScanAxis::Rows;
     runner.layers[1].link.scan_unit = "1/16".into();
-    runner.layers[1].link.scanned_slot = 1;
-    runner.layers[1].link.scanned_action = TriggerAction::NoteOn;
+    runner.layers[1].link.activate_slot = 1;
+    runner.layers[1].link.stable_slot = 1;
+    scan_every_lit_step(&mut runner.layers[1].link);
     runner.select_active_layer(1).unwrap();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
@@ -59,7 +60,7 @@ pub(crate) fn triplet_scan_unit_advances_at_expected_pulse_count() {
     runner.layers[0].link.scan_mode = ScanMode::Scanning;
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = "1/8T".into();
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -104,8 +105,9 @@ pub(crate) fn changing_layer_four_behavior_does_not_reset_layer_two_playback_pha
     runner.layers[1].link.scan_mode = ScanMode::Scanning;
     runner.layers[1].link.scan_axis = ScanAxis::Rows;
     runner.layers[1].link.scan_unit = "1/16".into();
-    runner.layers[1].link.scanned_slot = 1;
-    runner.layers[1].link.scanned_action = TriggerAction::NoteOn;
+    runner.layers[1].link.activate_slot = 1;
+    runner.layers[1].link.stable_slot = 1;
+    scan_every_lit_step(&mut runner.layers[1].link);
     runner.select_active_layer(1).unwrap();
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
@@ -204,9 +206,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
                         "mapping": {
                             "activate": { "slot": 0, "action": "note_on" },
                             "stable": { "slot": "none", "action": "none" },
-                            "deactivate": { "slot": 0, "action": "note_off" },
-                            "scanned": { "slot": "none", "action": "none" },
-                            "scanned_empty": { "slot": "none", "action": "none" }
+                            "deactivate": { "slot": 0, "action": "note_off" }
                         }
                     }
                 },
@@ -231,7 +231,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
                         "stepRate": "1/16"
                     },
                     "link": {
-                        "eventEnabled": false,
+                        "eventEnabled": true,
                         "stateNotesEnabled": true,
                         "scanMode": "scanning",
                         "scanAxis": "rows",
@@ -239,11 +239,9 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
                         "scanSections": 1,
                         "scanUnit": "1/16",
                         "mapping": {
-                            "activate": { "slot": 0, "action": "note_on" },
-                            "stable": { "slot": 0, "action": "none" },
-                            "deactivate": { "slot": 0, "action": "note_off" },
-                            "scanned": { "slot": 1, "action": "note_on" },
-                            "scanned_empty": { "slot": "none", "action": "none" }
+                            "activate": { "slot": 1, "action": "note_on" },
+                            "stable": { "slot": 1, "action": "note_on" },
+                            "deactivate": { "slot": 1, "action": "none" }
                         }
                     }
                 }

@@ -106,8 +106,6 @@ fn link_action(layer: &NativeLinkLayer, kind: TileTriggerKind) -> TriggerAction 
         TileTriggerKind::Activate => layer.activate_action,
         TileTriggerKind::Deactivate => layer.deactivate_action,
         TileTriggerKind::Stable => layer.stable_action,
-        TileTriggerKind::Scanned => layer.scanned_action,
-        TileTriggerKind::ScannedEmpty => layer.scanned_empty_action,
     }
 }
 

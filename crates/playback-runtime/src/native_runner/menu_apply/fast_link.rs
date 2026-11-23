@@ -1,7 +1,7 @@
 use super::super::action_bindings::BindingTarget;
 use super::super::modulation::source::ModulationAxis;
 use super::super::{
-    instrument_labels, link_layer_config, menu_apply::fast_values::parse_indexed_key, NativeRunner,
+    link_layer_config, menu_apply::fast_values::parse_indexed_key, NativeRunner,
     TriggerProbabilityMode,
 };
 
@@ -76,11 +76,7 @@ impl NativeRunner {
         if changed {
             if suffix == "link.scanMode" {
                 let sense = link_layer_config(layer);
-                self.menu.show_link_scanning_rows(
-                    index,
-                    &sense,
-                    &instrument_labels(&self.instruments),
-                );
+                self.menu.show_link_scanning_rows(index, &sense);
             }
             if (suffix.starts_with("link.x.") || suffix.starts_with("link.y."))
                 && suffix.ends_with(".enabled")

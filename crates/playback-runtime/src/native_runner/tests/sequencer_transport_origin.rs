@@ -10,9 +10,9 @@ fn scanning_runner(scan_sections: u8, scan_unit: &str) -> NativeRunner {
     runner.layers[0].link.scan_axis = ScanAxis::Rows;
     runner.layers[0].link.scan_unit = scan_unit.into();
     runner.layers[0].link.scan_sections = scan_sections;
-    runner.layers[0].link.scanned_slot = 0;
-    runner.layers[0].link.scanned_action = TriggerAction::NoteOn;
-    runner.layers[0].link.scanned_empty_action = TriggerAction::None;
+    runner.layers[0].link.activate_slot = 0;
+    runner.layers[0].link.stable_slot = 0;
+    scan_every_lit_step(&mut runner.layers[0].link);
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     runner
@@ -88,9 +88,9 @@ fn active_and_inactive_sequencer_replacements_keep_canonical_phase() {
     runner.layers[1].link.scan_axis = ScanAxis::Rows;
     runner.layers[1].link.scan_unit = "1/8".into();
     runner.layers[1].link.event_enabled = false;
-    runner.layers[1].link.scanned_slot = 0;
-    runner.layers[1].link.scanned_action = TriggerAction::NoteOn;
-    runner.layers[1].link.scanned_empty_action = TriggerAction::None;
+    runner.layers[1].link.activate_slot = 0;
+    runner.layers[1].link.stable_slot = 0;
+    scan_every_lit_step(&mut runner.layers[1].link);
     runner.refresh_active_mapping_config();
     runner.refresh_active_interpretation_profile();
     add_tile(&mut runner, 0, 7);

@@ -79,8 +79,6 @@ pub struct MappingConfig {
     pub activate: TriggerTarget,
     pub deactivate: TriggerTarget,
     pub stable: TriggerTarget,
-    pub scanned: TriggerTarget,
-    pub scanned_empty: TriggerTarget,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -116,18 +114,6 @@ pub fn default_mapping_config() -> MappingConfig {
             channel: 0,
             velocity: 88,
             duration_ms: 130,
-        },
-        scanned: TriggerTarget {
-            action: TriggerAction::NoteOn,
-            channel: 0,
-            velocity: 88,
-            duration_ms: 130,
-        },
-        scanned_empty: TriggerTarget {
-            action: TriggerAction::None,
-            channel: 0,
-            velocity: 68,
-            duration_ms: 90,
         },
     }
 }
@@ -198,8 +184,6 @@ fn target_for_kind(kind: TileTriggerKind, config: &MappingConfig) -> &TriggerTar
     match kind {
         TileTriggerKind::Activate => &config.activate,
         TileTriggerKind::Deactivate => &config.deactivate,
-        TileTriggerKind::ScannedEmpty => &config.scanned_empty,
-        TileTriggerKind::Scanned => &config.scanned,
         TileTriggerKind::Stable => &config.stable,
     }
 }
@@ -242,8 +226,6 @@ fn validate_config(config: &MappingConfig) -> MappingConfig {
         activate: sanitize_target(&config.activate),
         deactivate: sanitize_target(&config.deactivate),
         stable: sanitize_target(&config.stable),
-        scanned: sanitize_target(&config.scanned),
-        scanned_empty: sanitize_target(&config.scanned_empty),
     }
 }
 

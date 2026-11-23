@@ -57,149 +57,151 @@ fn extracts_transitions() {
     );
 }
 
+fn rows(sections: Option<usize>, reverse: bool) -> TickStrategy {
+    TickStrategy::ScanRowActive {
+        sections,
+        reverse,
+        restart_pitch: false,
+    }
+}
+
+/// What a scan plays at `tick` when the line last saw `seen` and the grid is `next` now, Hold
+/// events included.
+fn scan(
+    seen: &[u8],
+    next: &[u8],
+    tick: usize,
+    profile: &InterpretationProfile,
+) -> Vec<(usize, usize, TileTriggerKind)> {
+    interpret_grid_with_marker_authority(
+        &snapshot(seen),
+        &snapshot(next),
+        tick,
+        profile,
+        TriggerMarkerAuthority::FreshTick,
+        true,
+    )
+    .into_iter()
+    .map(|intent| (intent.x, intent.y, intent.kind))
+    .collect()
+}
+
 #[test]
-fn interprets_scan_row_with_degree() {
-    let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
-    let next = snapshot(&[1, 0, 1, 0, 1, 1, 0, 0]);
+fn a_scan_compares_each_tile_with_the_tile_the_line_touched_one_step_before() {
     let intents = interpret_grid(
-        &previous,
-        &next,
+        &snapshot(&[1, 1, 0, 0, 0, 0, 0, 0]),
+        &snapshot(&[0, 0, 0, 0, 1, 0, 1, 0]),
         1,
-        &profile(TickStrategy::ScanRowActive {
-            sections: None,
-            reverse: false,
-            restart_pitch: false,
-        }),
+        &profile(rows(None, false)),
     );
     assert_eq!(
         intents,
         vec![
             TileTriggerIntent {
-                x: 0,
-                y: 0,
-                kind: TileTriggerKind::Activate,
-                degree: 0
-            },
-            TileTriggerIntent {
-                x: 2,
-                y: 0,
-                kind: TileTriggerKind::Activate,
-                degree: 2
-            },
-            TileTriggerIntent {
-                x: 0,
-                y: 1,
-                kind: TileTriggerKind::Activate,
-                degree: 2
-            },
-            TileTriggerIntent {
                 x: 1,
                 y: 1,
-                kind: TileTriggerKind::Activate,
-                degree: 3
-            },
-            TileTriggerIntent {
-                x: 0,
-                y: 1,
-                kind: TileTriggerKind::Scanned,
-                degree: 2
-            },
-            TileTriggerIntent {
-                x: 1,
-                y: 1,
-                kind: TileTriggerKind::Scanned,
+                kind: TileTriggerKind::Deactivate,
                 degree: 3
             },
             TileTriggerIntent {
                 x: 2,
                 y: 1,
-                kind: TileTriggerKind::ScannedEmpty,
+                kind: TileTriggerKind::Activate,
                 degree: 4
             },
-            TileTriggerIntent {
-                x: 3,
-                y: 1,
-                kind: TileTriggerKind::ScannedEmpty,
-                degree: 5
-            },
+        ]
+    );
+    assert_eq!(
+        scan(
+            &[1, 1, 0, 0, 0, 0, 0, 0],
+            &[0, 0, 0, 0, 1, 0, 1, 0],
+            1,
+            &profile(rows(None, false))
+        ),
+        vec![
+            (0, 1, TileTriggerKind::Stable),
+            (1, 1, TileTriggerKind::Deactivate),
+            (2, 1, TileTriggerKind::Activate),
         ]
     );
 }
 
 #[test]
-fn reverse_scan_row_starts_from_last_row() {
-    let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
-    let next = snapshot(&[1, 0, 0, 0, 0, 0, 0, 1]);
-    let intents = interpret_grid(
-        &previous,
-        &next,
-        0,
-        &profile(TickStrategy::ScanRowActive {
-            sections: None,
-            reverse: true,
-            restart_pitch: false,
-        }),
+fn a_scan_compares_across_the_lap_wrap() {
+    assert_eq!(
+        scan(
+            &[0, 0, 0, 0, 0, 1, 0, 1],
+            &[0, 1, 1, 0, 0, 0, 0, 0],
+            0,
+            &profile(rows(None, false))
+        ),
+        vec![
+            (1, 0, TileTriggerKind::Stable),
+            (2, 0, TileTriggerKind::Activate),
+            (3, 0, TileTriggerKind::Deactivate),
+        ]
     );
-    assert!(intents
-        .iter()
-        .any(|intent| intent.x == 3 && intent.y == 1 && intent.kind == TileTriggerKind::Scanned));
-    assert!(!intents
-        .iter()
-        .any(|intent| intent.x == 0 && intent.y == 0 && intent.kind == TileTriggerKind::Scanned));
 }
 
 #[test]
-fn sectioned_scan_row_limits_output_to_current_section() {
-    let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
-    let next = snapshot(&[1, 1, 1, 1, 0, 0, 0, 0]);
-    let intents = interpret_grid(
-        &previous,
-        &next,
-        0,
-        &profile(TickStrategy::ScanRowActive {
-            sections: Some(2),
-            reverse: false,
-            restart_pitch: false,
-        }),
+fn a_reverse_scan_starts_on_the_last_row_and_compares_with_the_row_above() {
+    assert_eq!(
+        scan(
+            &[1, 0, 0, 0, 0, 0, 0, 0],
+            &[0, 0, 0, 0, 1, 0, 0, 1],
+            0,
+            &profile(rows(None, true))
+        ),
+        vec![
+            (0, 1, TileTriggerKind::Stable),
+            (3, 1, TileTriggerKind::Activate),
+        ]
     );
-    let scanned = intents
-        .iter()
-        .filter(|intent| {
-            matches!(
-                intent.kind,
-                TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty
-            )
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(scanned.len(), 2);
-    assert!(scanned.iter().all(|intent| intent.y == 0 && intent.x < 2));
 }
 
 #[test]
-fn sectioned_scan_column_limits_output_to_current_section_and_reverse() {
-    let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
-    let next = snapshot(&[1, 0, 0, 0, 0, 1, 0, 0]);
-    let intents = interpret_grid(
-        &previous,
-        &next,
-        0,
-        &profile(TickStrategy::ScanColumnActive {
-            sections: Some(2),
-            reverse: true,
-            restart_pitch: false,
-        }),
+fn a_sectioned_scan_plays_only_its_lane_and_wraps_inside_it() {
+    assert_eq!(
+        scan(
+            &[0, 0, 0, 0, 1, 0, 1, 1],
+            &[1, 1, 1, 1, 0, 0, 0, 0],
+            0,
+            &profile(rows(Some(2), false))
+        ),
+        vec![
+            (0, 0, TileTriggerKind::Stable),
+            (1, 0, TileTriggerKind::Activate),
+        ]
     );
-    let scanned = intents
-        .iter()
-        .filter(|intent| {
-            matches!(
-                intent.kind,
-                TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty
-            )
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(scanned.len(), 1);
-    assert_eq!((scanned[0].x, scanned[0].y), (3, 1));
+    let columns = TickStrategy::ScanColumnActive {
+        sections: Some(2),
+        reverse: true,
+        restart_pitch: false,
+    };
+    assert_eq!(
+        scan(
+            &[0, 0, 0, 0, 0, 0, 1, 0],
+            &[0, 0, 0, 0, 0, 0, 0, 1],
+            0,
+            &profile(columns)
+        ),
+        vec![(3, 1, TileTriggerKind::Activate)]
+    );
+}
+
+#[test]
+fn event_triggers_off_leave_a_scan_only_its_hold_events() {
+    let mut profile = profile(rows(None, false));
+    profile.event.enabled = false;
+    assert_eq!(
+        scan(
+            &[1, 1, 0, 0, 0, 0, 0, 0],
+            &[0, 0, 0, 0, 1, 0, 1, 0],
+            1,
+            &profile
+        ),
+        vec![(0, 1, TileTriggerKind::Stable)]
+    );
 }
 
 #[test]
@@ -221,82 +223,6 @@ fn zero_sized_scan_snapshot_is_safe() {
         }),
     )
     .is_empty());
-}
-
-#[test]
-fn scan_column_emits_scanned_and_scanned_empty_for_all_rows() {
-    let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
-    let next = snapshot(&[1, 0, 0, 0, 0, 1, 0, 0]);
-    let intents = interpret_grid(
-        &previous,
-        &next,
-        1,
-        &profile(TickStrategy::ScanColumnActive {
-            sections: None,
-            reverse: false,
-            restart_pitch: false,
-        }),
-    );
-    let state_intents = intents
-        .iter()
-        .filter(|intent| {
-            matches!(
-                intent.kind,
-                TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty
-            )
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(state_intents.len(), 2);
-    assert!(state_intents.iter().any(|intent| intent.x == 1
-        && intent.y == 0
-        && intent.kind == TileTriggerKind::ScannedEmpty));
-    assert!(state_intents
-        .iter()
-        .any(|intent| intent.x == 1 && intent.y == 1 && intent.kind == TileTriggerKind::Scanned));
-}
-
-#[test]
-fn scan_row_emits_scanned_empty_for_dead_tiles() {
-    let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
-    let next = snapshot(&[1, 0, 1, 0, 0, 0, 0, 0]);
-    let intents = interpret_grid(
-        &previous,
-        &next,
-        0,
-        &profile(TickStrategy::ScanRowActive {
-            sections: None,
-            reverse: false,
-            restart_pitch: false,
-        }),
-    );
-    let state_intents = intents
-        .iter()
-        .filter(|intent| {
-            matches!(
-                intent.kind,
-                TileTriggerKind::Scanned | TileTriggerKind::ScannedEmpty
-            )
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(state_intents.len(), 4);
-    assert!(state_intents.iter().any(|intent| intent.x == 1
-        && intent.y == 0
-        && intent.kind == TileTriggerKind::ScannedEmpty));
-}
-
-#[test]
-fn whole_grid_active_emits_only_live_tiles() {
-    let previous = snapshot(&[0, 0, 0, 0, 0, 0, 0, 0]);
-    let next = snapshot(&[1, 0, 1, 0, 0, 0, 1, 0]);
-    let intents = interpret_grid(&previous, &next, 0, &profile(TickStrategy::WholeGridActive));
-    let state_intents = intents
-        .iter()
-        .filter(|intent| intent.kind == TileTriggerKind::Scanned)
-        .collect::<Vec<_>>();
-    assert_eq!(state_intents.len(), 3);
-    assert!(state_intents
-        .iter()
-        .any(|intent| intent.x == 2 && intent.y == 0));
 }
 
 #[test]
@@ -426,7 +352,7 @@ fn restart_pitch_counts_from_each_section_lane_on_the_split_axis() {
     let degrees = |tick: TickStrategy, step: usize| {
         let mut intents = interpret_grid(&previous, &next, step, &profile(tick))
             .into_iter()
-            .filter(|intent| intent.kind == TileTriggerKind::Scanned)
+            .filter(|intent| intent.kind == TileTriggerKind::Activate)
             .map(|intent| (intent.x, intent.y, intent.degree))
             .collect::<Vec<_>>();
         intents.sort();

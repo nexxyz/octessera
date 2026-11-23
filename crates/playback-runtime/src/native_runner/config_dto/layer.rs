@@ -83,11 +83,6 @@ pub struct LinkDto {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct MappingDto {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) scanned: Option<MappingEventDto>,
-    #[serde(rename = "scanned_empty")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(in crate::native_runner) scanned_empty: Option<MappingEventDto>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) activate: Option<MappingEventDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) stable: Option<MappingEventDto>,
