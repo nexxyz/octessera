@@ -182,11 +182,17 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
             if let Some((x, y)) = release_walkers(&cells) {
                 set_cluster_cell(&mut cells, &mut ages, x, y);
             }
+        } else if cell_life > 0 && outlived(&cells, &ages, cell_life) {
+            if let Some((x, y)) = release_walkers(&cells) {
+                break_off_oldest(&mut cells, &mut ages);
+                set_cluster_cell(&mut cells, &mut ages, x, y);
+            }
         }
     }
     if cell_life > 0 {
+        let mut rng = crate::behavior_random::rng();
         for (cell, age) in cells.iter_mut().zip(ages.iter_mut()) {
-            if *cell && usize::from(*age) >= cell_life {
+            if *cell && rng.gen_range(0..cell_life) == 0 {
                 *cell = false;
                 *age = 0;
             }
@@ -203,6 +209,21 @@ pub fn dla_on_tick(state: DlaState, _context: &mut BehaviorContext) -> DlaState 
         cell_life,
         tick_counter,
         ..state
+    }
+}
+
+fn outlived(cells: &[bool], ages: &[u16], cell_life: usize) -> bool {
+    (0..TILE_COUNT).any(|index| cells[index] && usize::from(ages[index]) >= cell_life)
+}
+
+/// A full cluster makes room for a walker that sticks by losing its oldest cell.
+fn break_off_oldest(cells: &mut [bool], ages: &mut [u16]) {
+    let oldest = (0..TILE_COUNT)
+        .filter(|index| cells[*index])
+        .max_by_key(|index| ages[*index]);
+    if let Some(index) = oldest {
+        cells[index] = false;
+        ages[index] = 0;
     }
 }
 

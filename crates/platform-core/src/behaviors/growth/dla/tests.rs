@@ -124,7 +124,7 @@ fn seed_cluster_action_and_no_frontier_tick_are_stable() {
 }
 
 #[test]
-fn cell_life_expires_old_cells_and_reseeds_when_empty() {
+fn cell_life_one_breaks_every_cell_off_and_reseeds_when_empty() {
     let mut context = BehaviorContext::new(120.0);
     let state = DlaState {
         cells: vec![true; TILE_COUNT],
@@ -140,6 +140,28 @@ fn cell_life_expires_old_cells_and_reseeds_when_empty() {
 
     assert_eq!(ticked.cells.iter().filter(|cell| **cell).count(), 3);
     assert!(ticked.ages.iter().all(|age| *age == 0));
+}
+
+#[test]
+fn a_full_cluster_keeps_renewing_at_a_rate_set_by_cell_life() {
+    let churn = |cell_life: usize| {
+        crate::behavior_random::LayerRandom::new(Some(1)).scope(|| {
+            let mut context = BehaviorContext::new(120.0);
+            let mut state = dla_init(serde_json::json!({ "cellLife": cell_life })).unwrap();
+            let mut changes = 0;
+            for tick in 0..400 {
+                let previous = state.cells.clone();
+                state = dla_on_tick(state, &mut context);
+                if tick >= 200 {
+                    changes += previous.iter().zip(&state.cells).filter(|(a, b)| a != b).count();
+                }
+            }
+            changes
+        })
+    };
+    let (short, long) = (churn(128), churn(256));
+    assert!(long > 20, "a long-lived cluster still renews: {long}");
+    assert!(short > long * 3 / 2, "{short} vs {long}");
 }
 
 #[test]
