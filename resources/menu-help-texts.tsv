@@ -189,12 +189,13 @@ scan_axis	*	key:layers.*.link.scanAxis	enum	Scan Axis	rows scans across row lane
 scan_unit	*	key:layers.*.link.scanUnit	enum	Scan Unit	How often the scan cursor moves, from 1/32T to 1/1.	T means triplet.
 scan_direction	*	key:layers.*.link.scanDirection	enum	Scan Dir	forward runs from the first lane to the last; reverse from the last to the first.	It does not bounce.
 scan_sections	*	key:layers.*.link.scanSections	enum	Sections	1 scans the whole grid; 2, 4 or 8 split it into that many sections, played in sequence.	
+scan_lanes	*	key:layers.*.link.scanLanes	enum	Lanes	poly plays each cell's own note; mono plays one note per row or column, each new note replacing the last.	In mono a lane's note-off ends its last note, whatever cell it fires on.
 event_enabled	*	key:layers.*.link.eventEnabled	bool	Event Triggers	Plays notes when tiles light up, stay lit or go dark.	Off silences those triggers but keeps the rest of Link.
 targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Which instrument each kind of trigger plays, and how.	Use note off for triggers that should end a held note.
 map_activate_action	*	key:layers.*.link.mapping.activate.action	enum	On Trig	What a tile does when it lights up: none, note on or note off.	note on starts a note; note off ends a held one.
 map_activate_slot	*	key:layers.*.link.mapping.activate.slot	enum	On Inst	The instrument a tile plays when it turns on: I1 to I8, or none.	The label shows what that slot holds now.
 map_stable_action	*	key:layers.*.link.mapping.stable.action	enum	Hold Trig	What a tile does at each step it stays lit: none, note on or note off.	note on repeats a one-shot and strikes a hold note again each step. Play and game behaviors send none.
-map_stable_slot	*	key:layers.*.link.mapping.stable.slot	enum	Hold Inst	The instrument a tile plays while it stays on: I1 to I8, or none.	A hold note here ends only on a note off for its pitch on this instrument.
+map_stable_slot	*	key:layers.*.link.mapping.stable.slot	enum	Hold Inst	The instrument a tile plays while it stays on: I1 to I8, or none.	Set Off Inst to the same instrument to end Hold notes; an Off acts only on its own Inst.
 map_deactivate_action	*	key:layers.*.link.mapping.deactivate.action	enum	Off Trig	What a tile does when it goes dark: none, note on or note off.	note off ends a held note; note on plays one.
 map_deactivate_slot	*	key:layers.*.link.mapping.deactivate.slot	enum	Off Inst	The instrument that hears a tile turn off, usually to stop its note: I1 to I8, or none.	The label shows what that slot holds now.
 voices_section	Menu > Shape		group	Shape	Defines pitch mapping and instrument slot sound engines.	This layer controls how sensed events become audible voices.
@@ -700,7 +701,9 @@ native_tile_fine	*	key:instruments.*.tile.tuneCents	number	Tile Fine	Cent offset
 native_tile_level	*	key:instruments.*.tile.level	enum	Tile Level	The velocity Assign stamps on each tile.	High, Medium and Low use the Vel Levels; Base the normal velocity.
 native_sampler_follow_transpose	*	key:instruments.*.sample.followTranspose	bool	Follow Transpose	When on, Play Transpose also shifts this sampler's assigned tiles.	Off keeps sampled tiles at their stamped pitch whatever the transpose.
 native_sampler_follow_pitch	*	key:instruments.*.sample.followPitch	bool	Follow Pitch	When on, tiles play the Link note, with C4 at the stamped pitch.	Stamp Tile Tune/Fine so each sample sounds right at C4; off plays stamped pitch only.
+native_sampler_note_off	*	key:instruments.*.sample.noteOff	enum	Note Off	cut lets a note-off end this sampler's tile sample; ignore lets each sample play out.	Any source's note-off counts; MIDI copies keep their own fixed length.
 native_drum_follow_pitch	*	key:instruments.*.drum.followPitch	bool	Follow Pitch	When on, drum tiles play the Link note, with C4 at the stamped pitch.	Off keeps each tile at its stamped pitch whatever note Link sends.
+native_drum_note_off	*	key:instruments.*.drum.noteOff	enum	Note Off	ignore lets every hit play its full length; cut lets a note-off fade the hit.	Any source's note-off counts; MIDI copies keep their own fixed length.
 native_drum_follow_transpose	*	key:instruments.*.drum.followTranspose	bool	Follow Transpose	When on, Play Transpose also shifts this drum kit's assigned tiles.	Off keeps drum tiles at their stamped pitch whatever the transpose.
 native_drum_level_high	*	key:instruments.*.drum.velocityLevels.high	number	Level High	Velocity played by drum tiles stamped with Tile Level High.	Final velocity is still scaled by Link/global velocity shaping.
 native_drum_level_medium	*	key:instruments.*.drum.velocityLevels.medium	number	Level Medium	Velocity played by drum tiles stamped with Tile Level Medium.	Final velocity is still scaled by Link/global velocity shaping.
@@ -804,7 +807,7 @@ native_param_browser_sound	Menu > * > Sound		group	Sound Parameters	Lists global
 native_binding_range_min	*	key:*.rangeMin	number	Range Min	The lowest value this control may set.	Use Min and Max to keep a control in a sweet spot.
 native_binding_range_max	*	key:*.rangeMax	number	Range Max	Sets the high end of the current numeric binding's user range.	Set equal to Range Min for a fixed modulation value.
 native_link_delay	*	key:layers.*.link.mapping.*.delaySteps	number	Link Delay	Delays this Link event target by layer link ticks; a scanning layer ticks once per scan step.	0 is immediate; delayed events use the already-routed event and do not re-roll probability.
-native_link_retrigger	*	key:layers.*.link.mapping.*.retriggerCount	number	Link Retrig	Adds extra repeats after this Link event target.	A value of 2 repeats at delay+1 and delay+2 layer ticks.
+native_link_retrigger	*	key:layers.*.link.mapping.*.retriggerCount	number	Link Retrig	Adds extra repeats after this Link event target.	A value of 2 repeats at delay+1 and delay+2 layer ticks; on a note off it ends only a key pressed again since.
 native_fx_amount	*	key:mixer.buses.*.slot*.params.amountPct	number	Duck Amount	Sets how strongly ducking reduces the target bus (0–100%).	Higher percentages create deeper ducking.
 native_fx_attack	Menu > Shape > FX Buses > B*: * > Slot *: * > Attack		number	Attack	Sets how quickly this effect reacts after input crosses its trigger condition.	Short values respond faster.
 native_fx_attack_duck	Menu > Shape > FX Buses > B*: * > Slot *: Duck > Attack		number	Attack	Sets Duck attack time; accepted values are 1–500 ms.	Short values respond faster.

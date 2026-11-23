@@ -433,7 +433,8 @@ pub(crate) fn link_scan_menu_keeps_only_the_scan_line_rows() {
             "Scan Axis",
             "Scan Unit",
             "Scan Dir",
-            "Sections"
+            "Sections",
+            "Lanes"
         ]
     );
 }

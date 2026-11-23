@@ -7,7 +7,8 @@ use super::modulation::validate_layer_modulation;
 use super::Value;
 use crate::native_runner::trigger_probability::TileProbability;
 use crate::native_runner::{
-    ArpMode, ArpSource, LaneCurve, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode,
+    ArpMode, ArpSource, LaneCurve, ScanAxis, ScanDirection, ScanLanes, ScanMode,
+    TriggerProbabilityMode,
 };
 use crate::timing_units::NOTE_UNIT_OPTIONS;
 use platform_core::{note_set_ids, KeysQuantize, RangeMode, LAYER_COUNT, NOTE_SET_ROOTS};
@@ -102,6 +103,12 @@ fn validate_link(link: &Map<String, Value>, path: &str) -> Result<(), String> {
         &ScanDirection::ALL.map(ScanDirection::wire_name),
     )?;
     unsigned_field(link, "scanSections", path, 1, 8)?;
+    enum_field(
+        link,
+        "scanLanes",
+        path,
+        &ScanLanes::ALL.map(ScanLanes::wire_name),
+    )?;
     if let Some(value) = link.get("scanSections") {
         if !matches!(value.as_u64(), Some(1 | 2 | 4 | 8)) {
             return Err(format!("{path}.scanSections is unsupported"));

@@ -90,6 +90,9 @@ pub(in crate::native_runner) struct KeyPress {
     pub(in crate::native_runner) sound: Sound,
     /// How long the note sounds on its own; None holds it until a release.
     pub(in crate::native_runner) length_ms: Option<u32>,
+    /// False for a Drum or Sampler tile set to ignore note-offs: its release ends the key but
+    /// leaves the sound to play out.
+    pub(in crate::native_runner) cuts: bool,
 }
 
 impl KeyPress {
@@ -142,6 +145,7 @@ pub(in crate::native_runner) enum KeyEvent {
 struct HeldKey {
     pitch: u8,
     sound: Sound,
+    cuts: bool,
     ends_at_us: Option<u64>,
 }
 
@@ -214,9 +218,11 @@ impl HeldKeys {
                 continue;
             }
             if key.sound.voice() != voice {
-                self.end_voice(&key.sound, out);
+                self.end_voice(&key.sound, key.cuts, out);
             } else if !struck {
-                key.sound.end_into(out);
+                if key.cuts {
+                    key.sound.end_into(out);
+                }
                 struck = true;
             }
         }
@@ -227,6 +233,7 @@ impl HeldKeys {
                 .flatten()
                 .flatten()
                 .find(|key| is_live(key, now) && key.sound.voice() == voice)
+                .filter(|key| key.cuts)
             {
                 sounding.sound.end_into(out);
             }
@@ -237,7 +244,7 @@ impl HeldKeys {
         if full {
             // A full table lets go of its first key to hold the new one.
             if let Some(oldest) = self.keys[slot][0].take() {
-                self.end_voice(&oldest.sound, out);
+                self.end_voice(&oldest.sound, oldest.cuts, out);
             }
         }
         press.sound_into(out);
@@ -247,6 +254,7 @@ impl HeldKeys {
                 .length_ms
                 .map(|ms| now.saturating_add(u64::from(ms) * 1000)),
             sound: press.sound,
+            cuts: press.cuts,
         };
         if let Some(free) = self.keys[slot]
             .iter_mut()
@@ -265,16 +273,19 @@ impl HeldKeys {
         for index in 0..KEYS_PER_INSTRUMENT {
             if let Some(key) = self.keys[slot][index].take_if(|key| key.pitch == pitch) {
                 if is_live(&key, now) {
-                    self.end_voice(&key.sound, out);
+                    self.end_voice(&key.sound, key.cuts, out);
                 }
             }
         }
     }
 
-    /// Ends `sound` and lets go of every other key that shares its voice.
-    fn end_voice(&mut self, sound: &Sound, out: &mut RoutedMusicalEvents) {
+    /// Ends `sound`, unless its note-offs are ignored, and lets go of every other key that
+    /// shares its voice.
+    fn end_voice(&mut self, sound: &Sound, cuts: bool, out: &mut RoutedMusicalEvents) {
         let voice = sound.voice();
-        sound.end_into(out);
+        if cuts {
+            sound.end_into(out);
+        }
         for entry in self.keys.iter_mut().flatten() {
             entry.take_if(|key| key.sound.voice() == voice);
         }
@@ -292,7 +303,7 @@ impl HeldKeys {
             for index in 0..KEYS_PER_INSTRUMENT {
                 if let Some(key) = self.keys[slot][index].take_if(|key| matches(&key.sound)) {
                     if is_live(&key, now) {
-                        self.end_voice(&key.sound, out);
+                        self.end_voice(&key.sound, key.cuts, out);
                     }
                 }
             }

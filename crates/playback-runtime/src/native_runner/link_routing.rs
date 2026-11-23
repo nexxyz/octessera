@@ -141,6 +141,15 @@ impl NativeRunner {
             routed.extend(self.release_layer_arp(layer_index));
             routed.keys.push(KeyEvent::ReleaseAll { slots });
         }
+        let mono = self.mono_lane_events(layer_index, &input.events, input.event_intents);
+        let input = match &mono {
+            Some((events, event_intents)) => LinkRoutingInput {
+                events: events.clone(),
+                event_intents,
+                transpose_offset: input.transpose_offset,
+            },
+            None => input,
+        };
         let instruments = std::mem::take(&mut self.instruments);
         let layers = std::mem::take(&mut self.layers);
         let step = self.route_with_instruments(

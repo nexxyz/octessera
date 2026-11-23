@@ -34,6 +34,8 @@ pub(super) struct NativeInstrumentSlot {
     pub(super) sample_velocity_medium: u8,
     pub(super) sample_velocity_low: u8,
     pub(super) sample_follow_transpose: bool,
+    /// A note-off cuts this Sampler's tile; off, the sample plays out.
+    pub(super) sample_note_off_cuts: bool,
     pub(super) sample_follow_pitch: bool,
     /// The Tile Tune / Tile Fine / Tile Level rows: what Assign stamps next.
     pub(super) tile_stamp: NativeTileStamp,
@@ -128,6 +130,7 @@ impl NativeInstrumentSlot {
             sample_amp_velocity_sensitivity_pct: 100,
             sample_velocity_levels_enabled: false,
             sample_follow_transpose: false,
+            sample_note_off_cuts: true,
             sample_follow_pitch: false,
             tile_stamp: NativeTileStamp::default(),
             sample_velocity_high: 120,

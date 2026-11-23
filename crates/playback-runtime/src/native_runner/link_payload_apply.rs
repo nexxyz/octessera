@@ -1,7 +1,8 @@
 use super::{
     ArpDto, ArpMode, ArpSource, AxisDto, LaneCurve, LinkDto, LinkEventTiming, MappingEventDto,
     NativeLinkArp, NativeLinkLayer, NativeValueLane, PitchDto, RangeMode, ScanAxis, ScanDirection,
-    ScanMode, SlotDto, TriggerAction, TriggerProbabilityMode, ValueLaneDto, INSTRUMENT_COUNT,
+    ScanLanes, ScanMode, SlotDto, TriggerAction, TriggerProbabilityMode, ValueLaneDto,
+    INSTRUMENT_COUNT,
 };
 
 pub(super) fn apply_link_payload(layer: &mut NativeLinkLayer, payload: &LinkDto) {
@@ -126,6 +127,11 @@ fn apply_scan_and_trigger_payload(layer: &mut NativeLinkLayer, payload: &LinkDto
     assign(
         payload.scan_sections.map(|value| value.min(8)),
         &mut layer.scan_sections,
+    );
+    assign_wire(
+        &payload.scan_lanes,
+        &mut layer.scan_lanes,
+        ScanLanes::from_wire_name,
     );
     assign(payload.event_enabled, &mut layer.event_enabled);
     assign(payload.state_notes_enabled, &mut layer.state_notes_enabled);

@@ -87,8 +87,19 @@ So with just **On Trig** at `note on`, a run of lit tiles sounds once, at its
 start. Set **Hold Trig** to `note on` too and every lit step sounds, which is
 what a drum line usually wants. On a `hold` instrument, On starts a note and
 Off ends it, so a run plays like a piano-roll bar, as long as the pitch stays
-the same along the line. The Off names the tile where the run ends, so with
-pitch steps along the scan the run's first note keeps sounding. **Event Triggers** switches
+the same along the line.
+
+**Lanes** picks how each row (or column) of the scan plays. `poly`, the
+default, lets every cell play its own note, so with pitch steps along the
+line notes pile up into a wash, which can be lovely. `mono` makes each lane a
+little monosynth: every new note replaces the lane's last one, and an Off ends
+whatever the lane is playing, so a lit row becomes a melody and a few lit rows
+become moving chords.
+
+Flip **Scan Dir** whenever you like: nothing stops, the line just turns round.
+**Scan Unit** only changes the speed. A new **Scan Axis**, or switching the
+scan off, starts over with a clean slate, and a new **Sections** count lets go
+of the mono lanes' notes. **Event Triggers** switches
 the scan's On and Off, **State Notes** its Hold, and Delay and Retrig count
 scan steps. While a layer scans, its grid changes and presses play nothing on
 their own; only the line does.
@@ -302,8 +313,8 @@ point at them.
   follow it too. An Off event set to `note off` can still end a one-shot
   early. `hold` keeps the note
   sounding until a note off for its pitch arrives, from any layer or source.
-  Drum hits are always one-shot, though an Off set to `note off` fades a hit
-  out early through the kit's short release.
+  Drum hits are always one-shot; with the kit's **Note Off** at `cut`, an
+  Off set to `note off` fades a hit out early through its short release.
 - **Envelopes.** Attack, Decay, Sustain and Release do what they say, and
   Decay runs after the attack whatever the attack length. A sampler's Amp Env
   starts out flat (no attack, full sustain, a 5 ms release) and its filter
@@ -429,6 +440,9 @@ kit swaps the sounds but keeps your stamps.
 
 - **Follow Transp.** lets Play's Transpose page shift these tiles too. Off by
   default.
+- **Note Off** decides what a note off does to a tile: `cut` stops the
+  sample or fades the drum hit, `ignore` lets it ring out. Drums start at
+  `ignore`, so every hit plays its whole tail; Samplers start at `cut`.
 - **Follow Pitch** makes the tiles play Link's note instead of a fixed pitch,
   measured from C4. Tile Tune and Tile Fine then answer "how far do I nudge
   this sample so it sounds like a C4?". Stamp a bass hit with `-5` and it

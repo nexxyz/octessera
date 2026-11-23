@@ -56,7 +56,7 @@ Data sources the spec relies on:
 | Fn + Space | Reset stop | Stops/resets, silences internal audio, and clears held MIDI notes without broad panic. Takes priority over sample preview. |
 | Combined modifier + Space | Reserved | No-op. |
 | Fn + leftmost grid column | Select layer (1..8) | Makes that layer active and leaves any Play overlay. The menu position does not change. |
-| Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Turning a layer to `0%` releases every key held on the instruments its note-on rows play, whoever pressed it (other layers, Keys, Notes In and the Looper too), lets go of its Arp's keys and stops its pattern; the key or tile that played a released note sends no second note-off when it lets go; a One-Shot hit still inside its One-Shot Len ends too, a Drum hit through the kit's release. The Play Trigger Gate page and `Link > Trigger Prob. > Mode` do the same when they set a layer to `0%`. While the gate is closed, triggers mapped to `note off` still pass unless the layer's `Link > Trigger Prob. > Prob Note Off` is on. Other layers are unaffected, and re-enabling does not resurrect released notes. |
+| Combined modifier + leftmost grid column | Layer trigger gate toggle | Toggles that layer between `0%` and its previous trigger mode without changing the active layer. Turning a layer to `0%` releases every key held on the instruments its note-on rows play, whoever pressed it (other layers, Keys, Notes In and the Looper too), lets go of its Arp's keys and stops its pattern; the key or tile that played a released note sends no second note-off when it lets go; a One-Shot hit still inside its One-Shot Len ends too, a Drum or Sampler tile as its Note Off says. The Play Trigger Gate page and `Link > Trigger Prob. > Mode` do the same when they set a layer to `0%`. While the gate is closed, triggers mapped to `note off` still pass unless the layer's `Link > Trigger Prob. > Prob Note Off` is on. Other layers are unaffected, and re-enabling does not resurrect released notes. |
 | Fn held | Navigation LEDs | Left column: blue = active layer (or, while a Play page is active, every configured layer), green = configured layer, dim gray = `none` layer. A layer whose trigger mode is `0%` shows magenta instead of blue and dim magenta instead of green. See [Grid overlays](#overlays-and-priority). |
 | Fn + rightmost grid column | Select technical Play page | Selects and activates the technical-bank page on that row and moves the menu to it ([banks](menu-tree/play.md#pages-and-navigation)); in the performance view the menu stays at root. Free rows do nothing. It never exits Play; Back or Fn + leftmost column leaves the Play overlay. |
 | Combined modifier + rightmost grid column | Select musical Play page | The same for the musical bank. |
@@ -1503,9 +1503,9 @@ triggers. Scan: each tile the line reaches is compared with the tile the line to
 before in the same row (column scan) or column (row scan), across the lap wrap and per lane with
 Sections > 1; dark to dark fires nothing. `Event Triggers` gates a scan's On and Off and `State
 Notes` its Hold, for every behavior. A scanning layer fires no direct events: neither its grid's
-changes nor presses play on their own. Changing Scan Mode, Scan Axis, Scan Dir or Sections drains the
-layer on the spot, as a closing trigger gate does, and the line starts again as if it had seen
-only dark tiles.
+changes nor presses play on their own. A new Scan Axis, or Scan Mode turned off, drains the layer on the
+spot, as a closing trigger gate does, and the line starts again as if it had seen only dark tiles;
+Scan Dir and Scan Unit release nothing, and Sections only ends the mono lanes' notes.
 
 Keys (instruments in either Note Mode):
 
@@ -1539,8 +1539,8 @@ Keys (instruments in either Note Mode):
   its note-on rows play, whoever pressed it, at the layer's next step or event. A change that moves
   nothing, such as a modulation landing on the same Root or a Root change on the chromatic set,
   releases nothing.
-- Drains: a layer's trigger gate closing, a behavior change and a Scan Mode, Scan Axis, Scan Dir
-  or Sections change release every key on the instruments its note-on rows play and stop its Arp;
+- Drains: a layer's trigger gate closing, a behavior change, a new Scan Axis and Scan Mode turned
+  off release every key on the instruments its note-on rows play and stop its Arp;
   Stop and a patch load release every key. A note-off still waiting for its row's Delay lands with
   the drain. Changing an instrument's type, resetting it or changing its MIDI route releases its
   keys; muting a MIDI slot in Play Mix releases its MIDI keys.
@@ -1549,16 +1549,23 @@ Keys (instruments in either Note Mode):
   release and a fresh hit still sound in order. Drum hits never merge, Sampler tiles only when they
   play one sample at one pitch.
 - On a Sampler a note-off ends the samples of its pitch, whatever tile picked them; on a `hold`
-  Sampler a second tile on a held pitch strikes the key again with its own sample. A note-off on a
-  Drum slot fades its hit out through the kit's 30 ms release.
+  Sampler a second tile on a held pitch strikes the key again with its own sample. A Drum or
+  Sampler slot's `Note Off` decides whether a note-off from any source, or a drain, ends its tile's
+  sound: `cut` ends the sample or fades the Drum hit through the kit's 30 ms release, `ignore`
+  lets it play out. A Drum starts at `ignore`, a Sampler at `cut`; a Send MIDI copy of a hit keeps
+  its fixed 100 ms note and note-off either way.
 - The runtime still passes a note-off to the engine and MIDI out only while its note sounds on
   that lane (held, or inside its One-Shot Len), so a note-off after a One-Shot note ended on its
   own, which the runner cannot see while the transport is stopped, sends nothing either. A re-strike
   of a sounding MIDI note sends that note-off first, then the new note-on.
-- A scan's Off releases the key of the dark tile the line reaches. A run's note ends there while
-  its pitch stays the same along the scan lane (no Pitch Steps along a row on a column scan, or
-  along a column on a row scan); with Pitch Steps along the lane the Off names another pitch and
-  the run's note keeps sounding until something releases it.
+- In `Scanning > Lanes: poly` (the default) each scanned cell plays its own mapped pitch, and an
+  Off releases the key of the dark tile the line reaches; with Pitch Steps along the scan lane
+  notes stack and may keep sounding, as intended. In `mono` each lane remembers its last note per
+  instrument: a note-on from the lane ends that note first and replaces it, and the lane's
+  note-off ends that note. See [Link > Scanning](menu-tree/link.md#events-and-scanning) for what
+  each scan setting change releases; a CC, Aux or Fader change acts exactly as the menu edit.
+- An Off acts only on its own Off Inst, so a Hold Inst note ends when Off Inst names the same
+  instrument.
 - A held Arp keeps its own list of keys down: see [Link > Arp](menu-tree/link.md#arp).
 - So on a scanning layer whose pitch stays put along the lane, lit steps in a row play one long
   note from On to Off, and the next lap plays the same notes again. Instruments of either Note Mode play only what the mappings say:

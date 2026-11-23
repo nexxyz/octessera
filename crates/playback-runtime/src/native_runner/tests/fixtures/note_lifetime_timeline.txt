@@ -282,6 +282,6 @@
 # patch load while held on a hold MIDI Inst.
 0: m+2.66.96.h
 0: m+2.71.96.h
-48: m-2.66 m-2.71
+25: m-2.66 m-2.71
 48: m+2.62.96.h
 72: m-2.62

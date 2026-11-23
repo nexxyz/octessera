@@ -3,6 +3,7 @@
 
 use super::drum_config::drum_voice_midi_note;
 use super::held_keys::{KeyEvent, KeyPress, Sound};
+use super::modulation::sampler::note_off_cuts;
 use super::modulation::RoutedMusicalEvents;
 use super::{InstrumentType, NativeRunner, GRID_HEIGHT, GRID_WIDTH, INSTRUMENT_COUNT, LAYER_COUNT};
 use crate::protocol::{RunnerMessage, TileHit};
@@ -52,8 +53,8 @@ impl NativeRunner {
         Ok(messages)
     }
 
-    /// Presses the key on its slot, untransposed. A Drum hit is a one-shot the key's note-off
-    /// leaves alone.
+    /// Presses the key on its slot, untransposed; a Drum or Sampler key's note-off follows the
+    /// slot's Note Off.
     fn play_keyboard_note(&mut self, note: MidiNote, routed: &mut RoutedMusicalEvents) {
         let slot = note.channel;
         let Some(instrument) = self.instruments.get(usize::from(slot)) else {
@@ -90,8 +91,7 @@ impl NativeRunner {
                     return;
                 };
                 stamped_tile = Some(lowest_drum_stamp(&instrument.drum_config, hit.voice));
-                routed.tiles.push(hit);
-                None
+                Some(Sound::Drum(hit))
             }
             InstrumentType::Midi | InstrumentType::MidiDrum => {
                 let Some(channel) = instrument.midi_output_channel() else {
@@ -112,23 +112,28 @@ impl NativeRunner {
             }
             InstrumentType::None => return,
         };
+        let cuts = note_off_cuts(instrument);
         let recorded_tiles = self.record_keyboard_press(slot, note.note, stamped_tile);
-        match sound {
-            Some(sound) => {
-                routed.keys.push(KeyEvent::Press(KeyPress {
-                    slot,
-                    pitch: note.note,
-                    sound,
-                    length_ms: None,
-                }));
-                self.keyboard_notes.push(HeldKeyboardNote {
-                    slot,
-                    note: note.note,
-                    recorded_tiles,
-                });
-            }
-            None => self.record_keyboard_release(&recorded_tiles),
+        let Some(sound) = sound else {
+            return;
+        };
+        // A drum key records as a tap: the Looper has its press and release at once.
+        if kind == InstrumentType::Drum {
+            self.record_keyboard_release(&recorded_tiles);
+        } else {
+            self.keyboard_notes.push(HeldKeyboardNote {
+                slot,
+                note: note.note,
+                recorded_tiles,
+            });
         }
+        routed.keys.push(KeyEvent::Press(KeyPress {
+            slot,
+            pitch: note.note,
+            sound,
+            length_ms: None,
+            cuts,
+        }));
     }
 
     /// Lets up the keyboard key `slot` and `note` if it is down: each Looper that recorded its

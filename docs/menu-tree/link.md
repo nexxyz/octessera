@@ -41,7 +41,8 @@ Link
 │   │   ├── Scan Axis: [rows | columns]
 │   │   ├── Scan Unit: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]
 │   │   ├── Scan Dir: [forward | reverse]
-│   │   └── Sections: [1 | 2 | 4 | 8]
+│   │   ├── Sections: [1 | 2 | 4 | 8]
+│   │   └── Lanes: [poly | mono]                  default poly
 │   ├── Events (group)
 │   │   ├── Event Triggers: [on | off]            default on
 │   │   ├── State Notes: [on | off]               default on; lets Hold events fire
@@ -135,6 +136,19 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   loops across the lap wrap, and with Sections > 1 each lane loops on its own. The gates apply
   as above, and Hold fires on a scan for every behavior. With only On mapped a run of lit tiles
   sounds once; mapping Hold to `note on` as well sounds every lit step.
+- `Lanes` (`layers.N.link.scanLanes`, saved with the patch, default `poly`). In `poly` every
+  scanned cell plays its own mapped pitch: an Off releases the key of the cell it fires on, so
+  with Pitch Steps along the lane notes stack and may keep sounding, as intended. In `mono` each
+  lane (a row on a column scan, a column on a row scan) remembers the last note it played on each
+  instrument, its only memory: a note-on from the lane first sends a note-off for that note, so
+  the new note replaces it, and a note-off from the lane ends that note, not the pitch of the
+  cell it fires on. A row of `none` does nothing either way. Direct layers are unchanged.
+- Scan setting changes, from the menu or a CC, Aux or Fader binding alike: a new Scan Axis or Scan
+  Mode turned off releases every key on the layer's target instruments and clears the mono lanes
+  and the line's memory, so the next step compares with dark tiles; Scan Mode turned on starts the
+  line afresh and keeps what sounds. Scan Dir keeps every note and the mono lanes; the line keeps
+  comparing each lane with the tile it last touched there. Scan Unit only changes the tempo.
+  Sections and Lanes end each mono lane's last note and clear the lanes, nothing else.
 - `Steps` on Pitch Steps counts notes of the set (scale degrees), not semitones; negative steps go
   down.
 - Event mappings (`activate`, `stable`, `deactivate`) each have Delay and Retrig. Delay counts
@@ -147,7 +161,10 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   produced them: the loudest wins whole, with its velocity, length and tile, and the first of
   equals wins a tie. A note-off of that key between two note-ons on the tick keeps both, so a
   release and a fresh hit still sound in order; a second note-off of the key finds nothing left
-  to end. A Retrig repeats a note-off too, which ends only a key pressed again in between.
+  to end. A Retrig repeats a note-off too, which ends only a key pressed again in between, so on
+  an Off row it usually has no effect.
+- An Off acts only on its own Off Inst: set Off Inst to the instrument Hold Inst or On Inst plays
+  to end those notes.
 - Scanning lanes are defined in
   [Sectioned scanning](../menu-and-controls-spec.md#sectioned-scanning).
 

@@ -21,6 +21,9 @@ impl NativeRunner {
         }
         let events = self.advance_algorithm(pulses)?;
         self.append_music_first_audio_commands(&mut out);
+        // A drain during the step (a binding changing a scan setting) ends its notes before the
+        // step's own notes start.
+        self.append_pending_transpose_note_offs(&mut out);
         self.push_routed_events(&mut out, events);
         if self.outbox.has_platform_effects() {
             out.push(RunnerMessage::PlatformEffects {

@@ -1,7 +1,8 @@
 use crate::native_runner::play_pages::PlayMode;
 use crate::native_runner::{
     ArpMode, ArpSource, AudioOptimization, AudioOutputSet, AuxPriority, InstrumentType, LaneCurve,
-    MidiSendInstruments, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode, UsbDataRole,
+    MidiSendInstruments, ScanAxis, ScanDirection, ScanLanes, ScanMode, TriggerProbabilityMode,
+    UsbDataRole,
 };
 use crate::protocol::SyncSource;
 use platform_core::{NoteBehavior, RangeMode, TriggerAction};
@@ -61,6 +62,7 @@ pub struct NativeMenuConfig {
     pub instrument_sample_velocity_levels_enabled: Vec<bool>,
     pub instrument_sample_follow_transpose: Vec<bool>,
     pub instrument_sample_follow_pitch: Vec<bool>,
+    pub instrument_sample_note_off_cuts: Vec<bool>,
     pub instrument_tile_stamps: Vec<NativeMenuTileStamp>,
     /// Each instrument's selected sample slot's Start and Loop rows.
     pub instrument_sample_playback: Vec<NativeSamplePlayback>,
@@ -181,6 +183,7 @@ pub struct NativeLinkLayerConfig {
     pub scan_unit: String,
     pub scan_direction: ScanDirection,
     pub scan_sections: u8,
+    pub scan_lanes: ScanLanes,
     pub event_enabled: bool,
     pub activate_slot: usize,
     pub activate_action: TriggerAction,

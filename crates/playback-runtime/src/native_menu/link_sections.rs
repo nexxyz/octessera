@@ -5,7 +5,7 @@ use super::{
     NativeMenuConfig, NativeMenuItem, PlatformAction,
 };
 use crate::native_runner::{
-    ArpMode, ArpSource, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode,
+    ArpMode, ArpSource, ScanAxis, ScanDirection, ScanLanes, ScanMode, TriggerProbabilityMode,
 };
 use platform_core::TriggerAction;
 
@@ -151,6 +151,13 @@ pub(super) fn scanning_group(prefix: &str, sense: &NativeLinkLayerConfig) -> Nat
                 format!("{prefix}.scanSections"),
                 vec!["1", "2", "4", "8"],
                 selected_index(&["1", "2", "4", "8"], &sense.scan_sections.to_string()),
+            ),
+            wire_enum_item(
+                "Lanes",
+                format!("{prefix}.scanLanes"),
+                ScanLanes::ALL,
+                ScanLanes::wire_name,
+                sense.scan_lanes,
             ),
         ]);
     }

@@ -20,6 +20,8 @@ pub(super) struct NativeLayer {
     pub(super) trigger_gate_restore_mode: Option<TriggerProbabilityMode>,
     /// The pitch mapping the layer last played with; a change releases its instruments' keys.
     pub(super) pitch_mapping: Option<super::pitch_mapping_change::PitchMapping>,
+    /// The last note each lane of a mono scan played.
+    pub(super) mono_lanes: super::scan_lanes::MonoLanes,
 }
 
 impl NativeLayer {
@@ -42,6 +44,7 @@ impl NativeLayer {
             trigger_probability_map: FULL_PROBABILITY_MAP,
             trigger_gate_restore_mode: None,
             pitch_mapping: None,
+            mono_lanes: Default::default(),
         }
     }
 }

@@ -10,6 +10,7 @@ pub(super) fn link_layer_payload(
         "scanUnit": layer.scan_unit.clone(),
         "scanDirection": layer.scan_direction,
         "scanSections": layer.scan_sections,
+        "scanLanes": layer.scan_lanes,
         "eventEnabled": layer.event_enabled,
         "triggerProbabilityMode": layer.trigger_probability_mode,
         "triggerProbabilityLowPct": layer.trigger_probability_low_pct,

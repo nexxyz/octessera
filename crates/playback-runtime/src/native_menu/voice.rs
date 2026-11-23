@@ -75,6 +75,7 @@ pub(super) struct InstrumentMenuConfig<'a> {
     pub(super) sample_velocity_levels_enabled: bool,
     pub(super) sample_follow_transpose: bool,
     pub(super) sample_follow_pitch: bool,
+    pub(super) sample_note_off_cuts: bool,
     pub(super) tile_stamp: super::NativeMenuTileStamp,
     pub(super) sample_playback: super::NativeSamplePlayback,
     pub(super) midi_drum: super::NativeMenuMidiDrum,

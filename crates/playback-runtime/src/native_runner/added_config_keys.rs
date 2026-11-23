@@ -11,7 +11,7 @@ struct AddedKey {
     default: fn() -> Value,
 }
 
-const ADDED_RUNTIME_KEYS: [AddedKey; 5] = [
+const ADDED_RUNTIME_KEYS: [AddedKey; 8] = [
     AddedKey {
         kinds: SYSTEM_DOCUMENTS,
         path: &["midi", "notesIn"],
@@ -36,6 +36,21 @@ const ADDED_RUNTIME_KEYS: [AddedKey; 5] = [
         kinds: PATCH_DOCUMENTS,
         path: &["layers", "*", "link", "oneShotLengthMs"],
         default: || Value::from(DEFAULT_ONE_SHOT_LENGTH_MS),
+    },
+    AddedKey {
+        kinds: PATCH_DOCUMENTS,
+        path: &["layers", "*", "link", "scanLanes"],
+        default: || Value::String("poly".into()),
+    },
+    AddedKey {
+        kinds: PATCH_DOCUMENTS,
+        path: &["instruments", "*", "sample", "noteOff"],
+        default: || Value::String("cut".into()),
+    },
+    AddedKey {
+        kinds: PATCH_DOCUMENTS,
+        path: &["instruments", "*", "drum", "noteOff"],
+        default: || Value::String("ignore".into()),
     },
 ];
 
@@ -113,13 +128,16 @@ mod tests {
     const PI_DEFAULT: &str = include_str!("../../../../config/generated/pi/default.json");
     const DESKTOP_DEFAULT: &str = include_str!("../../../../config/generated/desktop/default.json");
 
-    /// The value at `path`, reading a `*` step at the array's first item.
+    /// The value at `path`, reading a `*` step at the first array item that has the rest.
     fn value_at<'a>(document: &'a Value, path: &[&str]) -> Option<&'a Value> {
-        path.iter()
-            .try_fold(&document["runtimeConfig"], |value, key| match *key {
-                "*" => value.get(0),
-                key => value.get(key),
-            })
+        fn step<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
+            match path.split_first() {
+                None => Some(value),
+                Some((&"*", rest)) => value.as_array()?.iter().find_map(|item| step(item, rest)),
+                Some((key, rest)) => step(value.get(*key)?, rest),
+            }
+        }
+        step(&document["runtimeConfig"], path)
     }
 
     #[test]

@@ -51,6 +51,7 @@ impl NativeRunner {
                 | "link.scanUnit"
                 | "link.scanDirection"
                 | "link.scanSections"
+                | "link.scanLanes"
                 | "link.eventEnabled"
                 | "link.stateNotesEnabled"
         ) || suffix.starts_with("link.mapping.")
@@ -90,18 +91,13 @@ impl NativeRunner {
             if suffix == "link.seeded" {
                 self.restart_link_random_stream(index);
             }
-            let scan_changed = matches!(
-                suffix,
-                "link.scanMode" | "link.scanAxis" | "link.scanSections" | "link.scanDirection"
-            );
-            // A scan change drains the layer, and the line starts afresh.
-            if scan_changed {
-                self.layers[index].engine.forget_scanned_line();
-            }
-            if scan_changed
-                || gate_was_open
-                    && self.layers[index].link.trigger_probability_mode
-                        == TriggerProbabilityMode::Zero
+            if let Some(field) = suffix
+                .strip_prefix("link.")
+                .filter(|field| super::super::scan_lanes::is_scan_setting(field))
+            {
+                self.apply_scan_setting_change(index, field);
+            } else if gate_was_open
+                && self.layers[index].link.trigger_probability_mode == TriggerProbabilityMode::Zero
             {
                 self.drain_layer_owned_notes(index);
             }

@@ -52,6 +52,7 @@
     },
     "scanAxis": "columns",
     "scanDirection": "forward",
+    "scanLanes": "poly",
     "scanMode": "none",
     "scanSections": 1,
     "scanUnit": "1/16",

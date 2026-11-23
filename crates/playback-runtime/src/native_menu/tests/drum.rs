@@ -55,6 +55,7 @@ fn drum_type_hides_note_mode_and_lists_drum_rows() {
             "Vel Levels",
             "Follow Transp.",
             "Follow Pitch",
+            "Note Off",
             "Filter",
             "Volume"
         ]

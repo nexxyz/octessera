@@ -145,12 +145,17 @@ fn a_layer_note_off_ends_a_notes_in_key_and_a_key_ends_nothing_twice() {
     assert!(words(&key_up, false).is_empty(), "{key_up:?}");
 }
 
+/// Switching scanning on keeps what the grid held; switching it off ends the layer's notes.
 #[test]
-fn switching_scanning_on_ends_the_notes_the_grid_held() {
+fn switching_scanning_off_ends_the_notes_switching_it_on_kept() {
     let mut runner = two_keys_layers();
     let on = tile(&mut runner, 0, "grid_press", false);
     runner.menu.rebuild(runner.menu_config());
     runner.edit_menu_key("layers.0.link.scanMode", 1).unwrap();
+    assert!(words(&runner.messages_without_snapshot().unwrap(), false).is_empty());
+    assert_eq!(runner.held_keys.held_count(), 1);
+    runner.menu.rebuild(runner.menu_config());
+    runner.edit_menu_key("layers.0.link.scanMode", -1).unwrap();
     let ended = words(&runner.messages_without_snapshot().unwrap(), false);
     assert_eq!(ended, [on[0].replace('+', "-")]);
     assert_eq!(runner.held_keys.held_count(), 0);

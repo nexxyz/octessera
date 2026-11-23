@@ -26,6 +26,9 @@ impl NativeRunner {
     }
 
     pub(super) fn drain_layer_owned_notes(&mut self, layer_index: usize) {
+        if let Some(layer) = self.layers.get_mut(layer_index) {
+            layer.mono_lanes.forget();
+        }
         let mut drained = self.release_layer_arp(layer_index);
         drained
             .keys
@@ -42,6 +45,9 @@ impl NativeRunner {
             self.clear_delayed_link_events_for_layer(layer_index);
         }
         self.clear_all_link_arp_state();
+        for layer in &mut self.layers {
+            layer.mono_lanes.forget();
+        }
         self.forget_keyboard_notes();
         let mut released = RoutedMusicalEvents::default();
         self.held_keys.release_all(&mut released);

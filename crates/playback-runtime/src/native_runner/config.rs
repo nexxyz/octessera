@@ -103,6 +103,11 @@ impl NativeRunner {
                 &self.instruments,
             ),
             instrument_sample_follow_pitch: instrument_sample_follow_pitch(&self.instruments),
+            instrument_sample_note_off_cuts: self
+                .instruments
+                .iter()
+                .map(|instrument| instrument.sample_note_off_cuts)
+                .collect(),
             instrument_tile_stamps: self
                 .instruments
                 .iter()

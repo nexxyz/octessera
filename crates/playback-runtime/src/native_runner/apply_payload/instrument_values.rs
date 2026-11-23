@@ -159,6 +159,9 @@ fn apply_sample_payload(sample: &SampleDto, instrument: &mut NativeInstrumentSlo
     if let Some(follow) = sample.follow_pitch {
         instrument.sample_follow_pitch = follow;
     }
+    if let Some(note_off) = &sample.note_off {
+        instrument.sample_note_off_cuts = note_off == "cut";
+    }
     if let Some(levels) = &sample.velocity_levels {
         for (level, target) in [
             (levels.high, &mut instrument.sample_velocity_high),

@@ -70,7 +70,11 @@ impl NativeRunner {
             scale: link.scale.clone(),
             root: link.root.clone(),
         };
-        self.layers[layer_index].pitch_mapping = Some(next);
+        let layer = &mut self.layers[layer_index];
+        layer.pitch_mapping = Some(next);
+        if moved {
+            layer.mono_lanes.forget();
+        }
         moved
             .then(|| self.layer_target_slots(layer_index))
             .filter(|slots| *slots != 0)

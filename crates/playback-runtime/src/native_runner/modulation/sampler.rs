@@ -232,7 +232,26 @@ fn press_for_intent(
         pitch: note,
         sound,
         length_ms,
+        cuts: note_off_cuts(instrument),
     })
+}
+
+/// Whether a note-off ends what `instrument` sounds: always, but on a Drum or Sampler only with
+/// its Note Off at `cut` (a Drum hit otherwise plays its full length).
+pub(in crate::native_runner) fn note_off_cuts(
+    instrument: &super::super::NativeInstrumentSlot,
+) -> bool {
+    match instrument.kind {
+        InstrumentType::Drum => {
+            instrument
+                .drum_config
+                .get("noteOff")
+                .and_then(serde_json::Value::as_str)
+                == Some("cut")
+        }
+        InstrumentType::Sampler => instrument.sample_note_off_cuts,
+        _ => true,
+    }
 }
 
 /// What a pitched instrument sounds for `note` on `channel` under `transpose_offset`: an internal
@@ -368,6 +387,7 @@ fn route_event_without_intent(
                 pitch: note,
                 sound,
                 length_ms,
+                cuts: instrument.is_none_or(note_off_cuts),
             }));
             return;
         }

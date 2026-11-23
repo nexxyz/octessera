@@ -52,6 +52,7 @@ pub(super) fn instrument_audio_payload(instrument: &NativeInstrumentSlot) -> Val
             "velocityLevelsEnabled": instrument.sample_velocity_levels_enabled,
             "followTranspose": instrument.sample_follow_transpose,
             "followPitch": instrument.sample_follow_pitch,
+            "noteOff": if instrument.sample_note_off_cuts { "cut" } else { "ignore" },
             "velocityLevels": {
                 "high": instrument.sample_velocity_high,
                 "medium": instrument.sample_velocity_medium,

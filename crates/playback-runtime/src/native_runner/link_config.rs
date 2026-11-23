@@ -7,6 +7,7 @@ pub(super) fn link_layer_config(layer: &NativeLinkLayer) -> NativeLinkLayerConfi
         scan_unit: layer.scan_unit.clone(),
         scan_direction: layer.scan_direction,
         scan_sections: layer.scan_sections,
+        scan_lanes: layer.scan_lanes,
         event_enabled: layer.event_enabled,
         activate_slot: layer.activate_slot,
         activate_action: layer.activate_action,

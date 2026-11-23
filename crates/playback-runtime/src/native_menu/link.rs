@@ -1,5 +1,6 @@
 use crate::native_runner::{
-    ArpMode, ArpSource, LaneCurve, ScanAxis, ScanDirection, ScanMode, TriggerProbabilityMode,
+    ArpMode, ArpSource, LaneCurve, ScanAxis, ScanDirection, ScanLanes, ScanMode,
+    TriggerProbabilityMode,
 };
 use platform_core::{RangeMode, TriggerAction};
 
@@ -19,6 +20,7 @@ pub(super) fn default_link_layer_config() -> NativeLinkLayerConfig {
         scan_unit: "1/8".into(),
         scan_direction: ScanDirection::Forward,
         scan_sections: 1,
+        scan_lanes: ScanLanes::Poly,
         event_enabled: true,
         activate_slot: 0,
         activate_action: TriggerAction::NoteOn,

@@ -14,6 +14,7 @@ fn press(pitch: u8, note: u8, length_ms: Option<u32>) -> KeyEvent {
             velocity: 100,
         },
         length_ms,
+        cuts: true,
     })
 }
 

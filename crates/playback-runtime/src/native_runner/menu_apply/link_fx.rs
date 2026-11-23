@@ -3,7 +3,7 @@ use super::super::{
     apply_value_lane_menu_state, set_bool_from_menu, set_i32_from_menu, set_string_from_menu,
     set_target_slot_from_menu, set_u8_enum_from_menu, set_u8_from_menu, set_wire_from_menu,
     ArpMode, ArpSource, NativeLinkLayer, NativeRunner, RangeMode, ScanAxis, ScanDirection,
-    ScanMode, TriggerAction, TriggerProbabilityMode,
+    ScanLanes, ScanMode, TriggerAction, TriggerProbabilityMode,
 };
 impl NativeRunner {
     pub(in crate::native_runner) fn apply_play_fx_menu_state(&mut self) -> bool {
@@ -140,6 +140,12 @@ pub(super) fn apply_link_scan_and_mapping_menu_state(
         &mut layer.scan_sections,
         &format!("{prefix}.scanSections"),
         8,
+    );
+    changed |= set_wire_from_menu(
+        menu,
+        &mut layer.scan_lanes,
+        &format!("{prefix}.scanLanes"),
+        ScanLanes::from_wire_name,
     );
     changed |= set_bool_from_menu(
         menu,

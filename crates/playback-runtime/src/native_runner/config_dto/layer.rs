@@ -51,6 +51,8 @@ pub struct LinkDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) scan_sections: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(in crate::native_runner) scan_lanes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) event_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(in crate::native_runner) seeded: Option<bool>,

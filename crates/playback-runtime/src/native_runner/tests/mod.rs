@@ -31,6 +31,7 @@ pub(super) fn arp_key(slot: u8, pitch: u8) -> crate::native_runner::held_keys::K
             velocity: 100,
         },
         length_ms: None,
+        cuts: true,
     }
 }
 
@@ -156,7 +157,9 @@ mod instrument_option_sweep;
 mod instruments;
 mod key_model;
 mod key_model_arp;
+mod key_model_note_off;
 mod key_model_releases;
+mod key_model_scan;
 mod layer_replacement;
 mod layer_select_presentation;
 mod layer_trigger_gate_device_replay;

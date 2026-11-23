@@ -25,8 +25,10 @@ pub(super) fn apply_drum_menu_key(
     if field == "drum.filter.type" {
         return apply_drum_filter_type(runner, slot, key);
     }
-    if matches!(field, "drum.followTranspose" | "drum.followPitch")
-        || field.starts_with("drum.velocityLevels.")
+    if matches!(
+        field,
+        "drum.followTranspose" | "drum.followPitch" | "drum.noteOff"
+    ) || field.starts_with("drum.velocityLevels.")
     {
         return apply_drum_tile_setting(runner, slot, key, field);
     }
@@ -131,6 +133,7 @@ fn apply_drum_tile_setting(
     let level = field.strip_prefix("drum.velocityLevels.");
     let next = match level {
         Some(_) => json!(runner.menu.number_for_key(key)?.clamp(1, 127)),
+        None if field == "drum.noteOff" => json!(runner.menu.value_for_key(key)?),
         None => json!(runner.menu.value_for_key(key)? == "true"),
     };
     let config = &mut runner.instruments.get_mut(slot)?.drum_config;

@@ -92,9 +92,10 @@ fn every_drain_releases_the_notes_on_the_layers_instruments_whoever_pressed_them
                 .unwrap();
             runner.messages_without_snapshot().unwrap()
         }),
-        ("scan setting", |runner| {
+        ("scan axis", |runner| {
+            runner.layers[0].link.scan_mode = ScanMode::Scanning;
             runner.menu.rebuild(runner.menu_config());
-            runner.edit_menu_key("layers.0.link.scanMode", 1).unwrap();
+            runner.edit_menu_key("layers.0.link.scanAxis", -1).unwrap();
             runner.messages_without_snapshot().unwrap()
         }),
         ("stop", |runner| {

@@ -247,13 +247,22 @@ impl NativeLayerEngine {
         self.interpretation_profile = interpretation_profile;
     }
 
+    /// Remembers what the line saw on each lane it touched, for the whole lane (a row on a
+    /// column scan, a column on a row scan), so the next step in that lane compares with the
+    /// tile the line last touched there, whichever way the line now runs.
     fn remember_scanned_line(&mut self, next: &GridSnapshot) {
         let strategy = &self.interpretation_profile.state.tick;
-        for (tile, _) in scan_line(next.width, next.height, self.tick, strategy) {
-            if let (Some(seen), Some(lit)) =
-                (self.scan_seen.tiles.get_mut(tile), next.tiles.get(tile))
-            {
-                *seen = *lit;
+        let width = next.width;
+        let rows = matches!(strategy, crate::TickStrategy::ScanColumnActive { .. });
+        for (tile, _) in scan_line(width, next.height, self.tick, strategy) {
+            let Some(&lit) = next.tiles.get(tile) else {
+                continue;
+            };
+            let (x, y) = (tile % width, tile / width);
+            for (index, seen) in self.scan_seen.tiles.iter_mut().enumerate() {
+                if (rows && index / width == y) || (!rows && index % width == x) {
+                    *seen = lit;
+                }
             }
         }
     }

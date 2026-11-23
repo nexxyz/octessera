@@ -208,6 +208,9 @@ impl NativeRunner {
         if changed && field.starts_with("arp.") {
             self.clear_link_arp_state_for_layer(index);
         }
+        if changed && super::scan_lanes::is_scan_setting(field) {
+            self.apply_scan_setting_change(index, field);
+        }
         changed
     }
 

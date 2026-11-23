@@ -212,6 +212,7 @@ fn sampler_kit_precedes_unchanged_sample_rows_with_or_without_velocity_levels() 
             "Tune",
             "Follow Transp.",
             "Follow Pitch",
+            "Note Off",
             "Gain",
             "Base Vel",
             "Vel Levels",
@@ -225,21 +226,21 @@ fn sampler_kit_precedes_unchanged_sample_rows_with_or_without_velocity_levels() 
 }
 
 #[test]
-fn drum_volume_is_selected_after_twelve_body_rows_without_losing_scroll() {
+fn drum_volume_is_selected_after_thirteen_body_rows_without_losing_scroll() {
     let mut cfg = config();
     cfg.instrument_types[0] = InstrumentType::Drum;
     let mut menu = NativeMenuModel::new(cfg);
     assert!(menu.focus_item_key("instruments.0.type"));
     assert!(menu.focus_current_group_label("Drum"));
     assert_eq!(menu.press(), Some(NativeMenuPressResult::EnteredGroup));
-    assert_eq!(menu.snapshot().scroll.as_ref().unwrap().total_rows, 13);
-    menu.turn(12);
+    assert_eq!(menu.snapshot().scroll.as_ref().unwrap().total_rows, 14);
+    menu.turn(13);
     let snapshot = menu.snapshot();
     assert_eq!(menu.current_item().label, "Volume");
     assert_eq!(snapshot.lines.len(), 8);
     assert!(snapshot.lines[snapshot.selected_row.unwrap()].starts_with("  Volume"));
     assert!(snapshot.scroll.as_ref().unwrap().scroll_offset > 0);
-    assert_eq!(snapshot.scroll.as_ref().unwrap().total_rows, 13);
+    assert_eq!(snapshot.scroll.as_ref().unwrap().total_rows, 14);
     assert_eq!(menu.press(), Some(NativeMenuPressResult::EnteredGroup));
     assert!(menu
         .snapshot()

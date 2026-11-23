@@ -56,6 +56,37 @@ impl Serialize for ScanAxis {
     }
 }
 
+/// Whether each lane of a scan plays every cell's own note (`poly`) or one note at a time, the
+/// next note-on replacing its last note and its note-off ending that note (`mono`).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ScanLanes {
+    Poly,
+    Mono,
+}
+
+impl ScanLanes {
+    pub(crate) const ALL: [Self; 2] = [Self::Poly, Self::Mono];
+
+    pub(crate) const fn wire_name(self) -> &'static str {
+        match self {
+            Self::Poly => "poly",
+            Self::Mono => "mono",
+        }
+    }
+
+    pub(crate) fn from_wire_name(value: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|lanes| lanes.wire_name() == value)
+    }
+}
+
+impl Serialize for ScanLanes {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.wire_name())
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ScanDirection {
     Forward,

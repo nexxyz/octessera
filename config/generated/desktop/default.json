@@ -340,7 +340,8 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false
+          "velocityLevelsEnabled": false,
+          "noteOff": "cut"
         },
         "synth": {
           "amp": {
@@ -640,7 +641,8 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false
+          "velocityLevelsEnabled": false,
+          "noteOff": "cut"
         },
         "synth": {
           "amp": {
@@ -827,7 +829,8 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false
+          "velocityLevelsEnabled": false,
+          "noteOff": "cut"
         },
         "synth": {
           "amp": {
@@ -1019,7 +1022,8 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false
+          "velocityLevelsEnabled": false,
+          "noteOff": "cut"
         },
         "synth": {
           "amp": {
@@ -1211,7 +1215,8 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false
+          "velocityLevelsEnabled": false,
+          "noteOff": "cut"
         },
         "synth": {
           "amp": {
@@ -1428,7 +1433,8 @@
               "tonePct": 80,
               "tuneSemis": 0
             }
-          ]
+          ],
+          "noteOff": "ignore"
         },
         "midi": {
           "channel": 1,
@@ -1535,7 +1541,8 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false
+          "velocityLevelsEnabled": false,
+          "noteOff": "cut"
         },
         "synth": {
           "amp": {
@@ -1690,7 +1697,8 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false
+          "velocityLevelsEnabled": false,
+          "noteOff": "cut"
         },
         "synth": {
           "amp": {
@@ -1845,7 +1853,8 @@
             "low": 45,
             "medium": 85
           },
-          "velocityLevelsEnabled": false
+          "velocityLevelsEnabled": false,
+          "noteOff": "cut"
         },
         "synth": {
           "amp": {
@@ -2079,7 +2088,8 @@
               "to": 127
             }
           },
-          "seeded": false
+          "seeded": false,
+          "scanLanes": "poly"
         },
         "build": {
           "behaviorConfig": null,
@@ -2486,7 +2496,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "scanLanes": "poly"
         },
         "name": "sequencer",
         "paramMods": {
@@ -2800,7 +2811,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "scanLanes": "poly"
         },
         "name": "looper",
         "paramMods": {
@@ -3064,7 +3076,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "scanLanes": "poly"
         },
         "name": "sequencer",
         "paramMods": {
@@ -3399,7 +3412,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "scanLanes": "poly"
         },
         "name": "twinkle",
         "paramMods": {
@@ -3732,7 +3746,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "scanLanes": "poly"
         },
         "name": "raindrops",
         "paramMods": {
@@ -3925,7 +3940,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "scanLanes": "poly"
         },
         "name": "none",
         "paramMods": {
@@ -4118,7 +4134,8 @@
               "gridOffset": 0,
               "to": 127
             }
-          }
+          },
+          "scanLanes": "poly"
         },
         "name": "none",
         "paramMods": {

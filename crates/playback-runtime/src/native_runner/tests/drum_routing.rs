@@ -243,6 +243,7 @@ fn saved_hold_is_effectively_oneshot_and_probability_zero_blocks_behavior_hits()
     payload["runtimeConfig"]["instruments"][0]["drum"]["assignments"] = json!([
         { "x": 2, "y": 0, "voice": 0 }
     ]);
+    payload["runtimeConfig"]["instruments"][0]["drum"]["noteOff"] = json!("cut");
     runner.apply_config_payload(payload).unwrap();
     assert_eq!(
         runner.note_behaviors[0],
@@ -266,7 +267,11 @@ fn saved_hold_is_effectively_oneshot_and_probability_zero_blocks_behavior_hits()
         })
         .unwrap();
     let released = hits(&release);
-    assert_eq!(released.len(), 1, "the Off fades the hit out");
+    assert_eq!(
+        released.len(),
+        1,
+        "with Note Off cut the Off fades the hit out"
+    );
     assert_eq!((released[0].voice, released[0].velocity), (0, 0));
     assert!(!release.iter().any(|message| matches!(
         message,

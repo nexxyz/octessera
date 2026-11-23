@@ -54,6 +54,15 @@ impl NativeRunner {
             "sample.followTranspose" | "sample.followPitch" => {
                 return Some(self.fast_sample_follow_key(index, key, suffix))
             }
+            "sample.noteOff" => {
+                let cuts = self.menu.value_for_key(key)? == "cut";
+                let instrument = self.instruments.get_mut(index)?;
+                if instrument.sample_note_off_cuts != cuts {
+                    instrument.sample_note_off_cuts = cuts;
+                    self.mark_fast_autosave_dirty();
+                }
+                return Some(true);
+            }
             "sample.tuneSemis" => {
                 self.fast_sample_bank_key(index, number_value, "sample.tuneSemis", fast_sample_tune)
             }

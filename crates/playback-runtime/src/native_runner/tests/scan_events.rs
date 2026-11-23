@@ -3,7 +3,7 @@ use platform_core::MusicalEvent;
 
 /// A Sequencer on each listed layer scanning columns at 1/16 on instrument 1, with `lit`
 /// columns of row 2 lit on layer 0 and the instrument in `note_mode`.
-fn scan_runner(note_mode: &str, lit: &[usize]) -> NativeRunner {
+pub(super) fn scan_runner(note_mode: &str, lit: &[usize]) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "sequencer".into(),
         ..NativeRunnerConfig::default()
@@ -43,7 +43,7 @@ fn scan_layer(runner: &mut NativeRunner, layer: usize) {
     runner.refresh_active_interpretation_profile();
 }
 
-fn set_actions(runner: &mut NativeRunner, layer: usize, actions: [TriggerAction; 3]) {
+pub(super) fn set_actions(runner: &mut NativeRunner, layer: usize, actions: [TriggerAction; 3]) {
     let link = &mut runner.layers[layer].link;
     [
         link.activate_action,
@@ -54,7 +54,7 @@ fn set_actions(runner: &mut NativeRunner, layer: usize, actions: [TriggerAction;
 }
 
 /// What one scan step plays on the internal lane: `+note` for a note-on, `-note` for a note-off.
-fn step(runner: &mut NativeRunner) -> Vec<String> {
+pub(super) fn step(runner: &mut NativeRunner) -> Vec<String> {
     let messages = runner
         .send(HostMessage::TransportPulseStep {
             pulses: runner.step_pulses_for_layer(0),
@@ -322,14 +322,16 @@ fn another_layers_direct_off_ends_a_scanned_hold_note() {
     assert!(steps(&mut runner, 9).iter().all(Vec::is_empty));
 }
 
-/// A scan setting change drains the layer: the notes of its instruments end on the change.
+/// Scan Mode off and a new Scan Axis drain the layer; Scan Dir, Scan Unit and, in poly lanes,
+/// Sections leave a held scan note sounding.
 #[test]
-fn scan_setting_changes_end_a_held_scan_note() {
-    for (key, delta) in [
-        ("layers.0.link.scanMode", -1),
-        ("layers.0.link.scanAxis", -1),
-        ("layers.0.link.scanDirection", 1),
-        ("layers.0.link.scanSections", 1),
+fn only_scan_mode_off_and_a_new_axis_end_a_held_scan_note() {
+    for (key, delta, ends) in [
+        ("layers.0.link.scanMode", -1, 1),
+        ("layers.0.link.scanAxis", -1, 1),
+        ("layers.0.link.scanDirection", 1, 0),
+        ("layers.0.link.scanUnit", 1, 0),
+        ("layers.0.link.scanSections", 1, 0),
     ] {
         let mut runner = scan_runner("hold", &[0, 1, 2, 3, 4, 5, 6, 7]);
         set_actions(&mut runner, 0, ON_OFF);
@@ -342,8 +344,8 @@ fn scan_setting_changes_end_a_held_scan_note() {
             .into_iter()
             .filter(|event| matches!(event, MusicalEvent::NoteOff { .. }))
             .count();
-        assert_eq!(ended, 1, "{key}");
-        assert_eq!(runner.held_keys.held_count(), 0, "{key}");
+        assert_eq!(ended, ends, "{key}");
+        assert_eq!(runner.held_keys.held_count(), 1 - ends, "{key}");
     }
 }
 
