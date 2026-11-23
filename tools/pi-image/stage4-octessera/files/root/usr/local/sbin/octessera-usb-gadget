@@ -268,7 +268,7 @@ configured_storage_device() {
     return 1
   fi
   source="$(findmnt -nro SOURCE --mountpoint "$SD_MOUNT" 2>/dev/null || true)"
-  [ -n "$source" ] || { log "no USB storage backing configured; set $STORAGE_CONFIG or insert the OCTESSERA SD2 card"; return 1; }
+  [ -n "$source" ] || { log "no USB storage backing configured; set $STORAGE_CONFIG or insert an SD2 card"; return 1; }
   printf '%s\n' "$source"
 }
 

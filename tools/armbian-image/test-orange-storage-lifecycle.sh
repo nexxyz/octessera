@@ -99,7 +99,7 @@ EOF
 cat > "$bin/blkid" <<'EOF'
 #!/bin/sh
 case "$*" in
-  *LABEL=OCTESSERA*)
+  "-o device")
     case "${BLKID_MODE:-one}" in
       one) printf '%s\n' "$TEST_DEV" ;;
       duplicate) printf '%s\n' "$TEST_DEV" /dev/sdc1 ;;
@@ -219,7 +219,7 @@ test ! -e "$fixture/storage.state"
 reset_fixture
 BLKID_MODE=usb
 expect_failure storage-start
-grep -qF 'no OCTESSERA card found' "$work/stderr"
+grep -qF 'no SD2 card found' "$work/stderr"
 test -e "$fixture/normal-active"
 test ! -e "$fixture/storage.state"
 

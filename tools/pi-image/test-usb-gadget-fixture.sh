@@ -238,9 +238,30 @@ EOF
 chmod +x "$FAKE_BIN/umount"
 cat > "$FAKE_BIN/blkid" <<'EOF'
 #!/bin/sh
+if [ "$*" = '-o device' ]; then
+    for device in ${FAKE_BLKID_DEVICES:-}; do printf '%s\n' "$device"; done
+    exit 0
+fi
 printf 'vfat\n'
 EOF
 chmod +x "$FAKE_BIN/blkid"
+cat > "$FAKE_BIN/readlink" <<'EOF'
+#!/bin/sh
+if [ "${1:-}" = -f ]; then
+    case "$2" in
+        "/sys/class/block/${FAKE_SLOT_BLOCK:-none}")
+            printf '%s\n' "/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.1/mmc_host/mmc2/mmc2:0000/block/mmcblk2/$FAKE_SLOT_BLOCK"
+            exit 0
+            ;;
+        /sys/class/block/*)
+            printf '%s\n' "/sys/devices/platform/soc/3f980000.usb/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/sda/${2##*/}"
+            exit 0
+            ;;
+    esac
+fi
+exec /usr/bin/readlink "$@"
+EOF
+chmod +x "$FAKE_BIN/readlink"
 cat > "$FAKE_BIN/chown" <<'EOF'
 #!/bin/sh
 printf '%s\n' "$*" >> "$FAKE_CHOWN_LOG"

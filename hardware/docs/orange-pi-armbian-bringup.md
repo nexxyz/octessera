@@ -164,8 +164,8 @@ production reference](orange-pi-production-reference.md#usb-identity-boundary)
 for the fixed USB identity contract.
 
 The Orange SD2 source/image contract includes the fixed
-`/run/octessera-orange-storage-control/storage.sock` seam and label-safe
-`OCTESSERA` lifecycle.
+`/run/octessera-orange-storage-control/storage.sock` seam and slot-bound SD2
+lifecycle.
 
 For USB hardware testing:
 

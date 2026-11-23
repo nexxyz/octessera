@@ -83,10 +83,12 @@ until the next Octessera image.
 
 USB host mode is for keyboards and MIDI controllers. The kernel enumerates USB
 drives, but Octessera keeps samples and saves on the microSD card and SD2 and
-mounts nothing else. SD2 is only an `OCTESSERA`-labelled partition behind the
-SPI SD host from the SPI1 overlay
+mounts nothing else. SD2 is the single FAT32/exFAT partition, whatever its
+label, on the card behind the SPI SD host from the SPI1 overlay
 (`/sys/devices/platform/soc/5011000.spi/spi_master/spi1/spi1.1/mmc_host/`;
-the Raspberry uses `3f204000.spi/.../spi0.1`); a labelled USB drive is ignored.
+the Raspberry uses `3f204000.spi/.../spi0.1`). An empty slot or a card without
+such a partition means no SD2, a card with several is refused, and USB drives
+are ignored.
 
 ## Updater contract
 
@@ -262,7 +264,7 @@ The Orange combined configfs service accepts only the verified UDC
 existing configfs gadget fails closed. It creates only UAC2 and MIDI functions,
 binds the UDC last, and exposes no mass storage during normal operation.
 SD2 transfer is a separate fixed root-owned storage-control action using the
-same UDC and lifecycle lock. It unmounts the label-safe `OCTESSERA` card
+same UDC and lifecycle lock. It unmounts the slot-bound SD2 card
 before binding a writable/removable mass-storage LUN and restores the normal
 UAC2/MIDI gadget after host eject and stop. The fake-configfs composer follows
 the same lifecycle. Teardown unbinds first, removes configuration links and functions,

@@ -19,9 +19,9 @@ fi
 grep -qF "[ \"\$dev\" != \"\$root\" ]" "$library"
 grep -qF "[ -z \"\$root_pk\" ] || [ \"\$dev_pk\" != \"\$root_pk\" ]" "$library"
 grep -qFx 'Environment=OCTESSERA_SD_OWNER=octessera-runtime' "$service"
-grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"' "$rule"
+grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_PATH}=="platform-5011000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-orange-sd-card.service"' "$rule"
 grep -qFx 'Environment=OCTESSERA_SD_OWNER=pi' "$pi_service"
-grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_FS_LABEL}=="OCTESSERA", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-sd-card.service"' "$pi_rule"
+grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", ENV{ID_PATH}=="platform-3f204000.spi-cs-1", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="octessera-sd-card.service"' "$pi_rule"
 
 export OCTESSERA_SD_MOUNT="$work/mount"
 export OCTESSERA_SD_OWNER=octessera-runtime
@@ -45,65 +45,55 @@ readlink() {
   esac
 }
 
+probe_devices=""
+probe_types=""
+probe() { probe_devices="$1"; probe_types="$2"; }
 blkid() {
   case "$*" in
-    *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdb1 ;;
-    *'-s TYPE'*) printf '%s\n' vfat ;;
+    '-o device') [ -z "$probe_devices" ] || printf '%s\n' "${probe_devices// /$'\n'}" ;;
+    *'-s TYPE'*)
+      local args="$*"
+      for entry in $probe_types; do
+        [ "${entry%%=*}" = "${args##* }" ] && printf '%s\n' "${entry#*=}"
+      done
+      return 0
+      ;;
   esac
 }
-test "$(configured_device)" = /dev/sdb1
+expect_no_sd2() {
+  local expected="$1" message="$2"
+  if configured_device; then
+    echo "$message" >&2
+    exit 1
+  else
+    test "$?" = "$expected"
+  fi
+}
 
-blkid() {
-  case "$*" in
-    *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sde1 ;;
-  esac
-}
+probe /dev/sdb1 /dev/sdb1=vfat
+test "$(configured_device)" = /dev/sdb1
+probe /dev/sde1 /dev/sde1=exfat
 test "$(configured_device)" = /dev/sde1
-
-blkid() {
-  case "$*" in
-    *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdd1 ;;
-  esac
-}
-if configured_device; then
-  echo 'SD helper took a USB drive labelled OCTESSERA as SD2.' >&2
-  exit 1
-else
-  test "$?" = 1
-fi
-
-blkid() {
-  case "$*" in
-    *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdd1 /dev/sdb1 ;;
-    *'-s TYPE'*) printf '%s\n' vfat ;;
-  esac
-}
+probe /dev/sdd1 /dev/sdd1=vfat
+expect_no_sd2 1 'SD helper took a USB FAT drive as SD2.'
+probe '/dev/sdd1 /dev/sdb1' '/dev/sdd1=vfat /dev/sdb1=vfat'
 test "$(configured_device)" = /dev/sdb1
-test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec
-for filesystem in exfat ext4; do
-  blkid() {
-    case "$*" in
-      *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdb1 ;;
-      *'-s TYPE'*) printf '%s\n' "$filesystem" ;;
-    esac
-  }
+probe /dev/sdb1 /dev/sdb1=ext4
+expect_no_sd2 1 'SD helper took a card without a FAT32/exFAT partition as SD2.'
+probe '/dev/sdb1 /dev/sdc1' '/dev/sdb1=vfat /dev/sdc1=ext4'
+test "$(configured_device)" = /dev/sdb1
+probe '/dev/sdb1 /dev/sdc1' '/dev/sdb1=vfat /dev/sdc1=exfat'
+expect_no_sd2 2 'SD helper picked one of two FAT32/exFAT partitions.'
+probe '' ''
+expect_no_sd2 1 'SD helper found an SD2 card in an empty slot.'
+
+for filesystem in vfat exfat ext4; do
+  probe /dev/sdb1 "/dev/sdb1=$filesystem"
   case "$filesystem" in
-    exfat) test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec ;;
+    vfat|exfat) test "$(mount_options_for /dev/sdb1)" = uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec ;;
     ext4) test "$(mount_options_for /dev/sdb1)" = nosuid,nodev,noexec ;;
   esac
 done
-
-blkid() {
-  case "$*" in
-    *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdb1 /dev/sdc1 ;;
-  esac
-}
-if configured_device; then
-  echo 'SD helper accepted duplicate OCTESSERA labels.' >&2
-  exit 1
-else
-  test "$?" = 2
-fi
 
 findmnt() {
   case "$*" in
@@ -134,12 +124,7 @@ findmnt() {
     *'FSTYPE'*) printf '%s\n' vfat ;;
   esac
 }
-blkid() {
-  case "$*" in
-    *'LABEL=OCTESSERA'*) printf '%s\n' /dev/sdb1 ;;
-    *'-s TYPE'*) printf '%s\n' vfat ;;
-  esac
-}
+probe /dev/sdb1 /dev/sdb1=vfat
 SD_DISKSEQ_STATE="$work/diskseq"
 card_sequence=7
 disk_sequence() { printf '%s
@@ -166,4 +151,4 @@ test "$lazy_unmounts" = 1
 test -e "$mount_marker"
 test "$(cat "$SD_DISKSEQ_STATE")" = 8
 
-echo 'Octessera shared SD helper, service, udev, safety, label, SD2-slot, USB-drive, mount, replaced-card, and folder tests passed.'
+echo 'Octessera shared SD helper, service, udev, safety, SD2-slot, filesystem, USB-drive, two-partition, mount, replaced-card, and folder tests passed.'

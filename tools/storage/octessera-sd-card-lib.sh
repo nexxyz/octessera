@@ -46,21 +46,22 @@ on_sd2_slot() {
 }
 
 configured_device() {
-  labelled="$(blkid -t LABEL=OCTESSERA -o device 2>/dev/null || true)"
+  probed="$(blkid -o device 2>/dev/null || true)"
   devices=""
-  for candidate in $labelled; do
+  for candidate in $probed; do
     candidate="$(canonical_block "$candidate")"
-    if on_sd2_slot "$candidate"; then
-      devices="$devices$candidate
-"
-    fi
+    on_sd2_slot "$candidate" || continue
+    case "$(blkid -o value -s TYPE "$candidate" 2>/dev/null || true)" in
+      vfat|exfat) devices="$devices$candidate
+" ;;
+    esac
   done
   count="$(printf '%s\n' "$devices" | awk 'NF { count++ } END { print count + 0 }')"
   case "$count" in
     0) return 1 ;;
     1) printf '%s' "$devices" ;;
     *)
-      log "refusing duplicate OCTESSERA labels"
+      log "refusing SD2 card with more than one FAT32/exFAT partition"
       return 2
       ;;
   esac
@@ -160,10 +161,10 @@ mount_card() {
     status=$?
     if [ "$status" = 1 ]; then
       if mountpoint -q "$SD_MOUNT"; then
-        log "$SD_MOUNT is mounted but no OCTESSERA card is present"
+        log "$SD_MOUNT is mounted but no SD2 card is present"
         return 1
       fi
-      log "no OCTESSERA card found"
+      log "no SD2 card found"
       return 0
     fi
     return "$status"

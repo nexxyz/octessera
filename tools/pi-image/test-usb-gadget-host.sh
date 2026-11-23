@@ -37,6 +37,23 @@ assert_file_value fake-udc "$gadget/UDC"
 run_teardown "$root" > "$root/teardown.log"
 test ! -e "$gadget"
 
+root=$TEST_ROOT/storage-slot-card
+new_fake_configfs "$root"
+run_setup "$root" "$COMBINED_CONFIG" > "$root/setup-normal.log"
+run_storage_action "$root" storage-start "$COMBINED_CONFIG" FAKE_BLKID_DEVICES='/dev/loop1 /dev/loop0' FAKE_SLOT_BLOCK=loop0 > "$root/setup-storage.log"
+grep -q '^DEV=/dev/loop0$' "$root/storage.state"
+test -L "$root/config/usb_gadget/octessera/configs/c.1/mass_storage.usb0"
+run_storage_action "$root" storage-stop "$COMBINED_CONFIG" > "$root/stop-storage.log"
+test ! -e "$root/storage.state"
+
+root=$TEST_ROOT/storage-usb-drive-ignored
+new_fake_configfs "$root"
+run_setup "$root" "$COMBINED_CONFIG" > "$root/setup-normal.log"
+assert_failed run_storage_action "$root" storage-start "$COMBINED_CONFIG" FAKE_BLKID_DEVICES=/dev/loop1 FAKE_SLOT_BLOCK=loop0
+test ! -e "$root/storage.state"
+test ! -e "$root/config/usb_gadget/octessera/configs/c.1/mass_storage.usb0"
+test -L "$root/config/usb_gadget/octessera/configs/c.1/midi.usb0"
+
 root=$TEST_ROOT/storage-naming-restore-failure
 prepare_storage_root "$root"
 : > "$root/mounted"
