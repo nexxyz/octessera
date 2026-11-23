@@ -40,6 +40,13 @@ fn flip_threshold(energy: i32, temperature: i32) -> u32 {
     (odds.min(0.5) * 4_294_967_296.0) as u32
 }
 
+/// Noise rises almost one for one at low values and eases into flipping half the visited spins at
+/// 100, so full noise is restless rather than a strobe.
+fn noise_threshold(pct: u32) -> u32 {
+    let pct = pct.min(100);
+    pct_threshold(pct * (200 - pct) / 200)
+}
+
 fn pct_threshold(pct: u32) -> u32 {
     (u64::from(pct.min(100)) * u64::from(u32::MAX) / 100) as u32
 }
@@ -140,7 +147,7 @@ pub fn ising_on_tick(mut state: IsingState, _: &mut BehaviorContext) -> IsingSta
     let field =
         i32::from(state.field_sign) * i32::from(state.field_strength_pct) * FIELD_UNITS_AT_FULL
             / 100;
-    let noise = pct_threshold(u32::from(state.noise_pct) + heat_bonus) / 2;
+    let noise = noise_threshold(u32::from(state.noise_pct) + heat_bonus);
     let parity = (state.tick_counter % 2) as usize;
     let mut rng = crate::behavior_random::rng();
     for y in 0..GRID_HEIGHT {
