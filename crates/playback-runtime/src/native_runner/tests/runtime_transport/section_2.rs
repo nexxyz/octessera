@@ -200,8 +200,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
                 {
                     "build": { "behaviorId": "life", "behaviorConfig": {} },
                     "link": {
-                        "eventEnabled": true,
-                        "stateNotesEnabled": false,
+                        "notePreview": true,
                         "scanMode": "none",
                         "mapping": {
                             "activate": { "slot": 0, "action": "note_on" },
@@ -231,8 +230,7 @@ pub(crate) fn inactive_scanning_layer_uses_its_sampler_slot_after_config_load() 
                         "stepRate": "1/16"
                     },
                     "link": {
-                        "eventEnabled": true,
-                        "stateNotesEnabled": true,
+                        "notePreview": true,
                         "scanMode": "scanning",
                         "scanAxis": "rows",
                         "scanDirection": "forward",

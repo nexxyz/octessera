@@ -12,6 +12,7 @@ Shape
 │   ├── <overview label> (group)                 ← one per slot, e.g. `I1: Synth direct`, `I2: FM fxb1`, `I3: Plucked direct`, `I4: Drum direct`, `I5: Sampler fxb1`, `I6: MIDI Inst. ch1`, `I7: MIDI Drum ch10`, `I8: None`
 │   │   ├── Type: [none | synth | sampler | midi | fm | pluck | drum | midi_drum]   ← fm shows as FM, pluck as Plucked, drum as Drum, midi as MIDI Inst., midi_drum as MIDI Drum
 │   │   ├── Note Mode: [oneshot | hold]          ← default oneshot; hidden for none, Drum and MIDI Drum (both are always one-shot)
+│   │   ├── Note Off: [cut | ignore]             ← default ignore; One-Shot instruments only, hidden in hold and for none
 │   │   ├── Synth (group)                        ← type synth
 │   │   │   ├── Preset (group) > Load (group)    ← Init | Round Bass | Acid Bass | Saw Lead | Soft Pad | Bright Pluck | Brass Stab | Organ | Hollow PWM | Chip Blip | Zap
 │   │   │   ├── Osc 1 (group)                    ← Wave, Octave, Level, Detune, Pulse Width
@@ -47,7 +48,6 @@ Shape
 │   │   │   ├── Vel Levels (group)               ← High 120, Medium 85, Low 45: [1..127]
 │   │   │   ├── Follow Transp.: [on | off]       ← default off
 │   │   │   ├── Follow Pitch: [on | off]         ← default off
-│   │   │   ├── Note Off: [cut | ignore]         ← default ignore
 │   │   │   ├── Filter (group)                   ← Type, Cutoff, Res, Env Amount, Key Tracking
 │   │   │   └── Volume (group)                   ← Gain, Vel Sens
 │   │   ├── Sampler (group)                      ← type sampler
@@ -67,7 +67,6 @@ Shape
 │   │   │   ├── Tune: [-24..24] st               ← slot-wide
 │   │   │   ├── Follow Transp.: [on | off]       ← default off
 │   │   │   ├── Follow Pitch: [on | off]         ← default off
-│   │   │   ├── Note Off: [cut | ignore]         ← default cut
 │   │   │   ├── Gain: [0..300] %                 ← default 100 (a synth's level); 286 plays a sample as recorded
 │   │   │   ├── Base Vel: [1..127]               ← used by Base-level tiles
 │   │   │   ├── Vel Levels: [on | off]
@@ -277,15 +276,17 @@ Shape
 - Follow Pitch (default off) plays each tile at the incoming Link note relative to C4 (MIDI 60); the
   stamped Tile Tune/Fine then says how far to retune the sample so it sounds right at C4.
 - The combined tile pitch is clamped to ±48 semitones.
-- Note Off (`instruments.N.drum.noteOff` and `instruments.N.sample.noteOff`, saved with the patch)
-  decides what a note-off does to a tile's sound, from any source (a layer, Keys, Notes In, the
-  Looper) and on any release, drains included: `cut` ends the Sampler sample or fades the Drum
-  hit through the kit's 30 ms release, `ignore` lets it play out while the key still lets go. A
-  Drum starts at `ignore`, so hits play their full length; a Sampler at `cut`. A Send MIDI copy
-  of a hit is a fixed 100 ms note with its own note-off either way. The Sampler's Note Off is not a
-  binding target, like Follow Transp. and Follow Pitch.
+- Note Off (`instruments.N.noteOff`, saved with the patch, default `ignore`) decides what a
+  note-off from any source (a layer, Keys, Notes In, the Looper) does to a One-Shot note: `cut`
+  ends it early (the Sampler sample stops, the Drum hit fades through the kit's 30 ms release),
+  `ignore` lets it play its length while the key still lets go. It shows on every One-Shot
+  instrument, Drum and MIDI Drum always, and hides in Note Mode `hold`, where a note-off always
+  ends the note. A drain (Stop, a gate, a retarget, a patch load) ends every sound whatever it
+  says. A Send MIDI copy of a hit is a fixed 100 ms note with its own note-off either way. Note
+  Off is not a binding target.
 - On these slots a key is the pitch on one sample pad (sample slot or kit voice): tiles on
-  different pads never cut each other, and the same pad again strikes its key again.
+  different pads never cut each other, not even on one note, and the same pad again strikes its
+  key again.
 
 ### Binding targets
 

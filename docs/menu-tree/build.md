@@ -97,6 +97,12 @@ Build
   through the native runtime, and returns focus to the layer's `Beh.` row. The selector opens on
   the active behavior's category, and the category on the behavior. Only the affected Build
   layer rows refresh; the full menu tree is not rebuilt.
+- Each behavior has a play style that Link reads when the behavior is picked (menu or binding):
+  grid sequencers (sequencer, euclid, polyrhythm, breaks, clave, groove, contour, cadence) set the
+  layer to scan columns with Note Preview on; keys, looper and none, and the games pong and
+  blockout, play directly with Note Preview off; every other behavior plays directly with Note
+  Preview on. Build itself knows nothing of Link; the values stay editable, and a patch load keeps
+  the saved ones. See [Link > Events and scanning](link.md#events-and-scanning).
 - With Auto Label on, the layer label follows the behavior ID (for example `life`, `brain`). Layer
   selectors (Fn + left column, Link layer groups) show the computed label, for example `L1: life`.
 - For behavior `none` the layer group shows only Beh., Auto Label, and Layer Label. Step Rate,

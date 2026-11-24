@@ -21,7 +21,7 @@ setups:
   unknown_runtime_key  System with an unknown key in runtimeConfig
   truncated_patch the patch cut to half its bytes
   full_card       Auto Save on, View on Back off, keyboard capture allowed
-  usb_hold_trig   the usb_midi rig; only the store's Life layer (L1), Event Triggers on, On none, Hold = note
+  usb_hold_trig   the usb_midi rig; only the store's Life layer (L1), Note Preview on, On none, Hold = note
                   on and Off = note off for slot 1, a Synth with Hold, seeded with a diagonal of three
                   cells whose middle one stays lit for one step and then dies with the rest
   usb_echo_midi   the usb_midi rig; slot 1 a MIDI Inst. on channel 1, Notes In on; L1 steps C4 on slot 1
@@ -60,7 +60,7 @@ def sequencer(layer, slot, tiles):
                           savedState={"tiles": [(i % 8, i // 8) in tiles for i in range(64)], "width": 8, "height": 8})
     layer["name"] = "sequencer"
     link = layer["link"]
-    link.update(eventEnabled=True, stateNotesEnabled=True, scanAxis="columns", scanDirection="forward",
+    link.update(notePreview=True, scanAxis="columns", scanDirection="forward",
                 scanMode="scanning", scanSections=1, scanUnit="1/8", triggerProbabilityMode="full",
                 triggerProbabilityMap=["full"] * 64)
     # A scan plays the On, Hold and Off rows: dark to lit fires On, lit to lit Hold, so Hold = note on
@@ -83,7 +83,7 @@ def looper(layer, slot, length):
     config = {"lengthSteps": length, "mode": "overdub"}
     layer["build"].update(behaviorId="looper", behaviorConfig=config, behaviorConfigHistory={"looper": config},
                           savedState=dict(config, steps=[[] for _ in range(length)]))
-    layer["link"].update(eventEnabled=True, scanMode="none")
+    layer["link"].update(notePreview=True, scanMode="none")
     layer["name"] = "looper"
 
 
@@ -176,7 +176,7 @@ def main():
         music["layers"][0] = life
         music.update(activeBehavior="life", activeLayerIndex=0)
         instruments[0].update(type="synth", name="Synth", autoName=True, noteBehavior="hold")
-        life["link"].update(eventEnabled=True, stateNotesEnabled=True)
+        life["link"].update(notePreview=True)
         life["link"]["mapping"]["activate"].update(action="none", slot=0)
         life["link"]["mapping"]["stable"].update(action="note_on", slot=0)
         life["link"]["mapping"]["deactivate"].update(action="note_off", slot=0)

@@ -60,7 +60,7 @@ fn play(loop_mode: &str) -> Take {
     take.open(&["Link", "L2:", "Scanning"]);
     take.set_value("Scan Mode", "layers.1.link.scanMode", "none");
     take.open(&["Link", "L2:", "Events"]);
-    take.set_value("Event Triggers", "layers.1.link.eventEnabled", "true");
+    take.set_value("Note Preview", "layers.1.link.notePreview", "true");
     take.open(&["Shape", "Instruments", "I2:"]);
     take.set_value("Note Mode", "instruments.1.noteBehavior", "hold");
     take.enter("Sampler");

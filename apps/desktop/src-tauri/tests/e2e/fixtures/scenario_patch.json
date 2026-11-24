@@ -127,6 +127,7 @@
         },
         "name": "Synth",
         "noteBehavior": "oneshot",
+        "noteOff": "cut",
         "sample": {
           "amp": {
             "gainPct": 286,
@@ -275,6 +276,7 @@
         },
         "name": "Sampler",
         "noteBehavior": "oneshot",
+        "noteOff": "cut",
         "sample": {
           "amp": {
             "gainPct": 286,
@@ -568,6 +570,7 @@
         },
         "name": "Plucked",
         "noteBehavior": "hold",
+        "noteOff": "cut",
         "pluck": {
           "amp": {
             "gainPct": 80,
@@ -748,6 +751,7 @@
         },
         "name": "FM",
         "noteBehavior": "oneshot",
+        "noteOff": "cut",
         "fm": {
           "amp": {
             "gainPct": 80,
@@ -933,6 +937,7 @@
         },
         "name": "None",
         "noteBehavior": "oneshot",
+        "noteOff": "cut",
         "sample": {
           "amp": {
             "gainPct": 286,
@@ -1081,6 +1086,7 @@
         },
         "name": "None",
         "noteBehavior": "oneshot",
+        "noteOff": "cut",
         "sample": {
           "amp": {
             "gainPct": 286,
@@ -1229,6 +1235,7 @@
         },
         "name": "None",
         "noteBehavior": "oneshot",
+        "noteOff": "cut",
         "sample": {
           "amp": {
             "gainPct": 286,
@@ -1377,6 +1384,7 @@
         },
         "name": "None",
         "noteBehavior": "oneshot",
+        "noteOff": "cut",
         "sample": {
           "amp": {
             "gainPct": 286,
@@ -1535,7 +1543,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -1570,7 +1577,6 @@
           "scanMode": "none",
           "scanSections": 1,
           "scanUnit": "1/16",
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -1696,7 +1702,8 @@
               "to": 127
             }
           },
-          "seeded": false
+          "seeded": false,
+          "notePreview": true
         },
         "build": {
           "behaviorConfig": null,
@@ -1875,7 +1882,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -1910,7 +1916,6 @@
           "scanMode": "scanning",
           "scanSections": 1,
           "scanUnit": "1/8",
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -2036,7 +2041,8 @@
               "to": 127
             }
           },
-          "seeded": false
+          "seeded": false,
+          "notePreview": false
         },
         "build": {
           "behaviorConfig": null,
@@ -2138,7 +2144,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -2173,7 +2178,6 @@
           "scanMode": "none",
           "scanSections": 1,
           "scanUnit": "1/16",
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -2299,7 +2303,8 @@
               "to": 127
             }
           },
-          "seeded": false
+          "seeded": false,
+          "notePreview": true
         },
         "build": {
           "behaviorConfig": {
@@ -2451,7 +2456,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": true,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -2486,7 +2490,6 @@
           "scanMode": "scanning",
           "scanSections": 1,
           "scanUnit": "1/16",
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -2612,7 +2615,8 @@
               "to": 127
             }
           },
-          "seeded": false
+          "seeded": false,
+          "notePreview": false
         },
         "build": {
           "behaviorConfig": null,
@@ -2714,7 +2718,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -2749,7 +2752,6 @@
           "scanMode": "none",
           "scanSections": 1,
           "scanUnit": "1/16",
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -2875,7 +2877,8 @@
               "to": 127
             }
           },
-          "seeded": false
+          "seeded": false,
+          "notePreview": false
         },
         "build": {
           "behaviorConfig": null,
@@ -2906,7 +2909,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -2941,7 +2943,6 @@
           "scanMode": "none",
           "scanSections": 1,
           "scanUnit": "1/16",
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -3067,7 +3068,8 @@
               "to": 127
             }
           },
-          "seeded": false
+          "seeded": false,
+          "notePreview": false
         },
         "build": {
           "behaviorConfig": null,
@@ -3098,7 +3100,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -3133,7 +3134,6 @@
           "scanMode": "none",
           "scanSections": 1,
           "scanUnit": "1/16",
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -3259,7 +3259,8 @@
               "to": 127
             }
           },
-          "seeded": false
+          "seeded": false,
+          "notePreview": false
         },
         "build": {
           "behaviorConfig": null,
@@ -3290,7 +3291,6 @@
             "source": "simultaneous",
             "stepIntervalSteps": 1
           },
-          "eventEnabled": false,
           "mapping": {
             "activate": {
               "action": "note_on",
@@ -3325,7 +3325,6 @@
           "scanMode": "none",
           "scanSections": 1,
           "scanUnit": "1/16",
-          "stateNotesEnabled": true,
           "triggerProbabilityHighPct": 75,
           "triggerProbabilityLowPct": 25,
           "triggerProbabilityMap": [
@@ -3451,7 +3450,8 @@
               "to": 127
             }
           },
-          "seeded": false
+          "seeded": false,
+          "notePreview": false
         },
         "build": {
           "behaviorConfig": null,

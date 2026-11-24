@@ -98,16 +98,16 @@ pub(super) fn configure_link_from_visible_ui(device: &mut DeviceDriver) {
     menu.edit_enum_to("Scan Unit", "1/8");
     menu.back();
     menu.open_group("Events");
-    menu.edit_bool_to("Event Triggers", "On");
-    menu.expect_visible_value("Event Triggers", "On");
+    menu.edit_bool_to("Note Preview", "On");
+    menu.expect_visible_value("Note Preview", "On");
     menu.expect_visible_value("On Inst", "I2");
     menu.back();
     menu.back();
 
     menu.open_group("L3:");
     menu.open_group("Events");
-    menu.edit_bool_to("Event Triggers", "On");
-    menu.expect_visible_value("Event Triggers", "On");
+    menu.edit_bool_to("Note Preview", "On");
+    menu.expect_visible_value("Note Preview", "On");
     menu.expect_visible_value("On Inst", "I3");
     menu.expect_visible_value("On Trig", "note on");
     menu.expect_visible_value("Off Inst", "I3");

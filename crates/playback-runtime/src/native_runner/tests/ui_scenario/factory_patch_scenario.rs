@@ -231,7 +231,7 @@ fn expected_factory_patch_fixture() -> Value {
                         }
                     },
                     "link": {
-                        "eventEnabled": true,
+                        "notePreview": true,
                         "scanAxis": "rows",
                         "scanMode": "scanning",
                         "scanUnit": "1/8"
@@ -249,7 +249,7 @@ fn expected_factory_patch_fixture() -> Value {
                         }
                     },
                     "link": {
-                        "eventEnabled": true,
+                        "notePreview": true,
                         "pitch": { "startingNote": 62 }
                     }
                 }

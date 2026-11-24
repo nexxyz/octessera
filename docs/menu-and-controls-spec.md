@@ -387,7 +387,7 @@ change; only the distance per detent does.
   through the audio engine (a Drum slot plays the voice whose Sound has that GM note, a Sampler
   slot 1..8 for notes 36..43, other notes nothing) and sound while the key is held, One-Shot slots
   too, until its note-off or the instrument's own decay; an enabled MIDI Inst. or MIDI Drum slot forwards the note to its
-  own MIDI channel. An incoming note-on is taken as an echo and dropped (no sound, no forward, no recording) when Octessera itself played a note-on on that channel and key to MIDI out (a layer's MIDI part, a Keys press, a Send MIDI copy) less than 1 s before, at any velocity, counting from when it goes on the wire or is due to; the trade-off is that a player really pressing that channel and key within that second is not heard. A key forwarded from MIDI In only drops an identical note-on (channel, note, velocity) arriving while that key is still down, as a real repeat needs a key-up first; only a tap released before a slower thru sends it back can loop. Note-offs are never dropped, and an incoming note-off forgets the forwarded note-ons for its key, so a player repeating a key, even at a fixed velocity, plays every hit; it leaves Octessera's own notes remembered, as a device echoes a retrigger's note-off right before its note-on. Stop, Pause, Panic, a patch load, MIDI Active off and Notes In off send a
+  own MIDI channel. An incoming note-on is taken as an echo and dropped (no sound, no forward, no recording) when Octessera itself played a note-on on that channel and key to MIDI out (a layer's MIDI part, a Keys press, a Send MIDI copy) less than 250 ms before, at any velocity, counting from when it goes on the wire or is due to; the trade-off is that a player really pressing that channel and key within that window is not heard. A key-up releases only a key Notes In pressed, so the echo of Octessera's own note-off ends nothing. A key forwarded from MIDI In only drops an identical note-on (channel, note, velocity) arriving while that key is still down, as a real repeat needs a key-up first; only a tap released before a slower thru sends it back can loop, and once the same forwarded note-on repeats eight times at one steady interval with no other key coming in, its copy is no longer sent. Note-offs are never dropped, and an incoming note-off forgets the forwarded note-ons for its key, so a player repeating a key, even at a fixed velocity, plays every hit; it leaves Octessera's own notes remembered, as a device echoes a retrigger's note-off right before its note-on. Stop, Pause, Panic, a patch load, MIDI Active off and Notes In off send a
   note-off for every held keyboard note, forwarded ones included. Each overdubbing Looper whose
   Link Activate plays that slot records the note as a press and release of the lowest-index tile
   its current mapping plays as that note (for Drum, Sampler and MIDI Drum slots: stamped with that voice,
@@ -1038,19 +1038,21 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
 ### Sectioned scanning
 
 - `Sections=1` scans one full column per step for `columns` and one full row per step for `rows`.
-- `Sections=2`, `4`, or `8` split the grid into that many lanes across the scan direction and scan
-  each lane in turn:
-  - `columns`: lanes are `8 / Sections` rows tall, starting at the bottom. The column-segment ray
-    moves left to right across lane 1, then lane 2, and so on. Total steps: `gridWidth * sections`.
-  - `rows`: lanes are `8 / Sections` columns wide, starting at the left. The row-segment ray moves
-    bottom to top through lane 1, then lane 2. Total steps: `gridHeight * sections`.
-  - `reverse` runs the same step sequence backwards.
+- `Sections=2`, `4`, or `8` split the grid into that many sections across the scan direction and
+  scan each section in turn:
+  - `columns`: sections are `8 / Sections` rows tall, starting at the bottom. The column-segment
+    line moves left to right across section 1, then section 2, and so on. Total steps:
+    `gridWidth * sections`.
+  - `rows`: sections are `8 / Sections` columns wide, starting at the left. The row-segment line
+    moves bottom to top through section 1, then section 2. Total steps: `gridHeight * sections`.
+  - `reverse` runs the same step sequence backwards; flipping Scan Dir turns the line round where
+    it is.
 - Stop and emergency reset return the scan index to origin.
-- `Restart Section` on Pitch Steps makes pitch stepping local to each lane on the axis the lanes
-  split: Y Restart applies to `columns` sections (Y counts from the bottom row of each lane), X
-  Restart applies to `rows` sections (X counts from the left column of each lane). It changes the
+- `Restart Section` on Pitch Steps makes pitch stepping local to each section on the axis the
+  sections split: Y Restart applies to `columns` sections (Y counts from the bottom row of each
+  section), X Restart applies to `rows` sections (X counts from the left column of each section). It changes the
   pitch of every trigger on that layer, scanned or not. With `Sections=1`, the other scan axis, or
-  scanning off, the switch has no effect. Off keeps one continuous pitch index across lanes.
+  scanning off, the switch has no effect. Off keeps one continuous pitch index across sections.
 
 ## Aux Encoder Binding
 
@@ -1486,8 +1488,8 @@ Input events:
 ### Trigger types
 
 Link plays three trigger kinds: `activate` (On), `stable` (Hold) and `deactivate` (Off). They come
-from one of two sources, and everything after the source (gates, probability, mapping, Delay and
-Retrig, Note Mode) is the same for both.
+from one of two sources, and everything after the source (probability, mapping, Delay and Retrig,
+Note Mode) is the same for both. No switch gates either source; only the rows decide.
 
 | Kind | Direct source (scan mode `none`) | Scan source (scan mode `scanning`) |
 |---|---|---|
@@ -1497,15 +1499,15 @@ Retrig, Note Mode) is the same for both.
 
 Behaviors still mark tiles with `TileTriggerType` (`scanned` only colors the LEDs). Direct: Link
 fires `stable` at each behavior step for every tile lit before and after the step that fired no
-On or Off event, while `State Notes` is on; the play behaviors (`none`, `keys`, `looper`,
-`sequencer`) and the games (`pong`, `blockout`) shape their own events and fire no `stable`
-triggers. Scan: each tile the line reaches is compared with the tile the line touched one step
-before in the same row (column scan) or column (row scan), across the lap wrap and per lane with
-Sections > 1; dark to dark fires nothing. `Event Triggers` gates a scan's On and Off and `State
-Notes` its Hold, for every behavior. A scanning layer fires no direct events: neither its grid's
-changes nor presses play on their own. A new Scan Axis, or Scan Mode turned off, drains the layer on the
-spot, as a closing trigger gate does, and the line starts again as if it had seen only dark tiles;
-Scan Dir and Scan Unit release nothing, and Sections only ends the mono lanes' notes.
+On or Off event; the play behaviors (`none`, `keys`, `looper`, `sequencer`) and the games
+(`pong`, `blockout`) shape their own events and fire no `stable` triggers. Scan: each tile the
+line reaches is compared with the tile the line touched one step before in the same lane (the row
+a column scan runs along, the column a row scan runs along), across the lap wrap and per section
+with Sections > 1; dark to dark fires nothing, and Hold fires for every behavior. A scanning
+layer's grid changes play nothing on their own; a Sequencer page turn starts the line afresh.
+`Note Preview` (default on) plays a tile press or release at once, as its On or Off, scanning or
+not; with it off a press only changes the grid. Picking a behavior sets Scan Mode and Note Preview
+from its play style; see [Link > Events and scanning](menu-tree/link.md#events-and-scanning).
 
 Keys (instruments in either Note Mode):
 
@@ -1523,14 +1525,17 @@ Keys (instruments in either Note Mode):
   to another pad, or clearing it, ends the keys held on its old pad at once.
 - Each instrument keeps one table of its held keys with what each sounds as (internal voice, MIDI
   channel and note, or Sampler and Drum tile). A key on a `oneshot` instrument lets go by itself
-  after its layer's One-Shot Len.
+  after its layer's One-Shot Len, counted on the transport while it plays and in host time while
+  it does not.
 - A note-on for a held key strikes it again: a `hold` instrument ends the note and sounds it anew
   (on MIDI out a note-off, then the note-on), a `oneshot` instrument sounds it once more over the
   ringing one.
 - A note-off releases every held key of its pitch on its instrument, from any source, so the
   first note-off ends it. A note-off with no held key sends nothing, to the engine, MIDI out or a
-  Send MIDI copy. A mapped note-off may cut a One-Shot note before its length; that note then sends
-  no second note-off, and an earlier scheduled end never cuts a note struck again.
+  Send MIDI copy. With the instrument's `Note Off` at `cut` a note-off may cut a One-Shot note
+  before its length; that note then sends no second note-off, and an earlier scheduled end never
+  cuts a note struck again. A One-Shot strike of a key still held from before a Note Mode change
+  ends that held sound first.
 - Play Transpose changes only how later presses sound. A held key keeps sounding as it started,
   and the note-off of the note as played ends exactly that key, whatever the transpose is now.
 - Two keys that sound alike share one voice: with C4 held, an A#3 pressed under +2 also sounds
@@ -1548,31 +1553,38 @@ Keys (instruments in either Note Mode):
   its note-on rows play, whoever pressed it, at the layer's next step or event. A change that moves
   nothing, such as a modulation landing on the same Root or a Root change on the chromatic set,
   releases nothing.
-- Drains: a layer's trigger gate closing, a behavior change, a new Scan Axis, Scan Mode turned
-  off, and its Arp turning on or off (Mode leaving or entering `none`, from the menu or a binding)
-  release every key on the instruments its note-on rows play and stop its Arp;
-  Stop and a patch load release every key. A note-off still waiting for its row's Delay lands with
-  the drain. Changing an instrument's type, resetting it or changing its MIDI route releases its
-  keys; muting a MIDI slot in Play Mix releases its MIDI keys.
-- After scheduling, presses of one key, or of one sound, that land on one tick merge into the
-  loudest, whole, and the first of equals wins; a note-off between two presses keeps both, so a
-  release and a fresh hit still sound in order. Drum hits never merge, Sampler tiles only when they
-  play one sample at one pitch.
+- Drains: a behavior change and any change to where a layer's presses and releases go (a row's
+  Inst or Trig, Note Preview, Scan Mode on or off, Scan Axis, Sections, Lanes, the Arp turning on
+  or off, the trigger gate closing, from the menu or a binding) release every key on the
+  instruments the layer's note-on rows played before the change, stop its Arp, drop its queued
+  presses and forget its mono lanes and scan line. Stop, Pause, Panic, a patch load (the patch
+  that already plays included) release every key and drop every queued note. A note-off still
+  waiting for its row's Delay lands with the drain, and a drain ends every sound, whatever the
+  instrument's Note Off says. Changing an instrument's type, resetting it or changing its MIDI
+  route releases its keys; muting a MIDI slot in Play Mix releases its MIDI keys. A layer's Delay
+  and Arp queue holds at most 1024 pending steps; past that it takes only releases.
+- Within one layer step every release of a key plays before any press of it, whatever layer,
+  source or Delay produced them, and the layers sound in layer order, whichever layer is
+  selected. After scheduling, presses of one key, or of one sound, that land on one step merge
+  into the loudest, whole, and the first of equals in layer order wins. Drum hits never merge,
+  Sampler tiles only when they play one sample at one pitch. A held press drops its layer's queued
+  releases of that key, so an Off Delay never cuts the tile's next note.
 - On a Sampler a note-off ends the samples of its pitch, whatever tile picked them; on a `hold`
-  Sampler a second tile on a held pitch strikes the key again with its own sample. A Drum or
-  Sampler slot's `Note Off` decides whether a note-off from any source, or a drain, ends its tile's
-  sound: `cut` ends the sample or fades the Drum hit through the kit's 30 ms release, `ignore`
-  lets it play out. A Drum starts at `ignore`, a Sampler at `cut`; a Send MIDI copy of a hit keeps
-  its fixed 100 ms note and note-off either way.
+  Sampler a second tile on a held pitch strikes the key again with its own sample. Every One-Shot
+  instrument's `Note Off` (default `ignore`, hidden in Note Mode `hold`) decides whether a note-off
+  from any source ends its note early: `cut` ends it (the sample stops, the Drum hit fades through
+  the kit's 30 ms release, a pitched note ends), `ignore` lets it play its length. A Drum tile's
+  release ends only its own pad's hit. A Send MIDI copy of a hit keeps its fixed 100 ms note and
+  note-off either way. An Arp passes a Drum or Sampler tile's release on, so it still ends.
 - The runtime still passes a note-off to the engine and MIDI out only while its note sounds on
   that lane (held, or inside its One-Shot Len), so a note-off after a One-Shot note ended on its
   own, which the runner cannot see while the transport is stopped, sends nothing either. A re-strike
   of a sounding MIDI note sends that note-off first, then the new note-on.
-- In `Scanning > Lanes: poly` (the default) each scanned cell plays its own mapped pitch, and an
+- In `Scanning > Lanes: poly` (the default) each scanned tile plays its own mapped pitch, and an
   Off releases the key of the dark tile the line reaches; with Pitch Steps along the scan lane
-  notes stack and may keep sounding, as intended. In `mono` each lane remembers its last note per
-  instrument: a note-on from the lane ends that note first and replaces it, and the lane's
-  note-off ends that note. See [Link > Scanning](menu-tree/link.md#events-and-scanning) for what
+  notes stack and may keep sounding, as intended. In `mono` each lane remembers the pitch and tile
+  of its last note per instrument: a note-on from the lane ends that note first and replaces it,
+  and the lane's note-off ends that note on its own sample pad. See [Link > Scanning](menu-tree/link.md#events-and-scanning) for what
   each scan setting change releases; a CC, Aux or Fader change acts exactly as the menu edit.
 - An Off acts only on its own Off Inst, so a Hold Inst note ends when Off Inst names the same
   instrument.

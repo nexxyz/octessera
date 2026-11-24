@@ -35,17 +35,27 @@ Each event has an **Inst** (instrument slot 1 to 8), a **Trig** (`none`,
 (0 to 8 extra repeats, one tick apart). Delay and Retrig are a cheap way to
 turn one blip into a little echo figure without touching an effect.
 
-**Event Triggers** switches On and Off off for the layer without losing their
-settings. **State Notes** does the same for Hold, which fires at every step for
-each tile that stays lit. The play behaviors (`keys`, `looper`, `sequencer`) and
-the games make their own events, so Hold stays quiet on them.
+Hold fires at every step for each tile that stays lit. The play behaviors
+(`keys`, `looper`, `sequencer`) and the games make their own events, so Hold
+stays quiet on them. No switch silences a layer's own events; the rows decide,
+so set a Trig to `none` to quiet one.
+
+**Note Preview** is about your fingers: on, a tile you press or let go plays
+its On or Off right away, even while the layer scans; off, a press just
+changes the grid and the layer plays whatever follows from it. Picking a
+behavior sets it for you (and Scan Mode too): the step sequencers scan left to
+right with Note Preview on, the living worlds play directly with it on, and
+Keys, Looper, None and the games play directly with it off. Change either
+afterwards and it stays put until you pick another behavior.
 
 Think of every instrument as having a keyboard. A note on presses a key (the
 note as Link played it, before Play's Transpose) and a note off lets that key
 up, whoever sends it: another layer, Keys, a MIDI keyboard or the Looper. The
 first note off ends the note. Press a key that's already down and it plays
 again: a `hold` instrument stops the old note first, a `oneshot` one just hits
-again. A note off for a key nobody holds does nothing at all.
+again. A note off for a key nobody holds does nothing at all. If one tile lets
+go of a key just as another presses it on the same step, the let-go comes
+first, so the new note always sounds.
 
 Nothing lets a key up behind your back, so a note that never gets its note
 off keeps going. The default pair, On to `note on` and Off to `note off`,
@@ -64,8 +74,10 @@ alone.
 
 Under **Scanning**, set **Scan Mode** to `scanning` and the layer gets a
 line that sweeps rows or columns (**Scan Axis**, **Scan Dir**) at the
-**Scan Unit** rate, from `1/32T` up to `1/1`. **Sections** (1, 2, 4 or 8)
-splits the sweep into shorter lanes, so one grid becomes several short loops.
+**Scan Unit** rate, from `1/32T` up to `1/1`. With `columns` the line is a
+column moving left to right, with `rows` a row moving bottom to top; each row
+(or column) it runs along is a lane. **Sections** (1, 2, 4 or 8) splits the
+sweep into shorter sections, so one grid becomes several short loops.
 
 A scan plays the same **Events** rows as the grid does, it just reads them
 differently. Each tile the line reaches is compared with the tile it touched
@@ -78,8 +90,10 @@ one step before in the same row (or column):
 | lit | dark | Off |
 | dark | dark | nothing |
 
-The row is a loop, so a row lit at its last and first column carries on
-across the wrap; with Sections, each lane loops on its own. Say one row is lit
+The lane is a loop, so a row lit at its last and first column carries on
+across the wrap; with Sections, each section's lane loops on its own. A
+Sequencer page turn starts the line fresh, so the new page's first lit column
+plays its On. Say one row is lit
 at columns 1 to 3 and 6: that's On at 1, Hold at 2 and 3, Off at 4, On at 6
 and Off at 7, lap after lap.
 
@@ -89,20 +103,20 @@ what a drum line usually wants. On a `hold` instrument, On starts a note and
 Off ends it, so a run plays like a piano-roll bar, as long as the pitch stays
 the same along the line.
 
-**Lanes** picks how each row (or column) of the scan plays. `poly`, the
-default, lets every cell play its own note, so with pitch steps along the
-line notes pile up into a wash, which can be lovely. `mono` makes each lane a
-little monosynth: every new note replaces the lane's last one, and an Off ends
-whatever the lane is playing, so a lit row becomes a melody and a few lit rows
-become moving chords.
+**Lanes** picks how each lane of the scan plays. `poly`, the default, lets
+every tile play its own note, so with pitch steps along the line notes pile up
+into a wash, which can be lovely (on a `hold` instrument, `mono` is usually
+what you want). `mono` makes each lane a little monosynth: every new note
+replaces the lane's last one, and an Off ends whatever the lane is playing,
+sample and all, so a lit row becomes a melody and a few lit rows become moving
+chords.
 
-Flip **Scan Dir** whenever you like: nothing stops, the line just turns round.
-**Scan Unit** only changes the speed. A new **Scan Axis**, or switching the
-scan off, starts over with a clean slate, and a new **Sections** count lets go
-of the mono lanes' notes. **Event Triggers** switches
-the scan's On and Off, **State Notes** its Hold, and Delay and Retrig count
-scan steps. While a layer scans, its grid changes and presses play nothing on
-their own; only the line does.
+Flip **Scan Dir** whenever you like: nothing stops, the line just turns round
+where it is. **Scan Unit** only changes the speed. Switching the scan on or
+off, a new **Scan Axis**, **Sections** count or **Lanes** setting starts over
+with a clean slate: the layer lets go of its notes first. Delay and Retrig
+count scan steps. While a layer scans, its grid changes play nothing on their
+own; only the line does (and your presses, with Note Preview on).
 
 Scanning suits slow, sculptural worlds like `dla`, `coral` and `vines`: their
 shape becomes a sequence instead of a trickle of birth events.
@@ -259,14 +273,15 @@ wander in by accident.
   Octessera without re-patching cables. Gear that echoes its input straight
   back is fine too. When Octessera plays a note on MIDI out itself (MIDI
   parts, Keys presses, Send MIDI copies), a note coming back on that channel
-  and key within a second counts as our own echo and is ignored, so it can't
-  bounce around forever. The catch: if you play that very
-  key on that channel within the same second, you won't hear it. A key you
-  play through to MIDI out ignores an identical copy only while you're still
+  and key within a quarter of a second counts as our own echo and is ignored,
+  so it can't bounce around forever. The catch: if you play that very key on
+  that channel within that quarter second, you won't hear it. A key you play
+  through to MIDI out ignores an identical copy only while you're still
   holding it, so drumming one pad fast always plays every hit. A quick tap
-  through gear that's slow to send it back can still bounce around; if you
-  hear that, hold keys a little longer or turn that thru off. Letting go of a
-  key always counts, echo or not.
+  through gear that's slow to send it back can bounce around for a moment, but
+  after eight identical round trips Octessera stops passing it on. Letting go
+  of a key only lets up keys you pressed, so an echoed note off never cuts a
+  note Octessera is playing.
 - Stop, Pause, Panic and loading a patch let go of every key you're still
   holding, notes passed on to MIDI out included, so nothing gets stuck.
 - **Recording into a Looper.** Every `looper` layer that is overdubbing and
@@ -310,11 +325,12 @@ point at them.
   playing layer's **Link > One-Shot Len** says (150 ms to start with). That's
   an arrangement choice, so it lives with the layer: one synth can play
   staccato blips on one layer and long tones on another. MIDI Inst. slots
-  follow it too. An Off event set to `note off` can still end a one-shot
-  early. `hold` keeps the note
+  follow it too. Next to it, **Note Off** decides whether a note off may end
+  a one-shot note early: `ignore` (the default) lets every note play its
+  length, `cut` lets an Off set to `note off` stop it. `hold` keeps the note
   sounding until a note off for its pitch arrives, from any layer or source.
-  Drum hits are always one-shot; with the kit's **Note Off** at `cut`, an
-  Off set to `note off` fades a hit out early through its short release.
+  Drum hits are always one-shot; with **Note Off** at `cut`, an Off set to
+  `note off` fades a hit out early through its short release.
 - **Envelopes.** Attack, Decay, Sustain and Release do what they say, and
   Decay runs after the attack whatever the attack length. A sampler's Amp Env
   starts out flat (no attack, full sustain, a 5 ms release) and its filter
@@ -442,9 +458,9 @@ kit swaps the sounds but keeps your stamps.
 
 - **Follow Transp.** lets Play's Transpose page shift these tiles too. Off by
   default.
-- **Note Off** decides what a note off does to a tile: `cut` stops the
-  sample or fades the drum hit, `ignore` lets it ring out. Drums start at
-  `ignore`, so every hit plays its whole tail; Samplers start at `cut`.
+- **Note Off** (next to Note Mode) decides what a note off does to a one-shot
+  tile: `cut` stops the sample or fades the drum hit, `ignore` (the default)
+  lets it ring out. A `hold` Sampler always stops on its note off.
 - **Follow Pitch** makes the tiles play Link's note instead of a fixed pitch,
   measured from C4. Tile Tune and Tile Fine then answer "how far do I nudge
   this sample so it sounds like a C4?". Stamp a bass hit with `-5` and it

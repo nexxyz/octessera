@@ -124,14 +124,13 @@ fn playing_two_lane_device() -> DeviceDriver {
                 "height": 8,
                 "width": 8
             });
-            layer["link"]["eventEnabled"] = json!(true);
+            layer["link"]["notePreview"] = json!(true);
             layer["link"]["scanMode"] = json!("scanning");
             layer["link"]["scanAxis"] = json!("rows");
             layer["link"]["scanUnit"] = json!("1/16");
             layer["link"]["scanSections"] = json!(1);
             layer["link"]["mapping"]["activate"]["action"] = json!("note_on");
             layer["link"]["mapping"]["stable"]["action"] = json!("note_on");
-            layer["link"]["stateNotesEnabled"] = json!(true);
             if index == 0 {
                 layer["link"]["mapping"]["activate"]["slot"] = json!(2);
                 layer["link"]["mapping"]["stable"]["slot"] = json!(2);

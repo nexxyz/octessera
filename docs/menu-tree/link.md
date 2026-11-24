@@ -38,14 +38,13 @@ Link
 ├── L1: <label> (group)                           ← one group per layer; entering it makes that layer active
 │   ├── Scanning (group)
 │   │   ├── Scan Mode: [none | scanning]          ← the rows below show only while scanning
-│   │   ├── Scan Axis: [rows | columns]
+│   │   ├── Scan Axis: [rows | columns]           ← columns: a column moving left to right; rows: a row moving bottom to top
 │   │   ├── Scan Unit: [1/32T | 1/32 | 1/16T | 1/16 | 1/8T | 1/8 | 1/4T | 1/4 | 1/2T | 1/2 | 1/1T | 1/1]
 │   │   ├── Scan Dir: [forward | reverse]
 │   │   ├── Sections: [1 | 2 | 4 | 8]
 │   │   └── Lanes: [poly | mono]                  default poly
 │   ├── Events (group)
-│   │   ├── Event Triggers: [on | off]            default on
-│   │   ├── State Notes: [on | off]               default on; lets Hold events fire
+│   │   ├── Note Preview: [on | off]              default on; a behavior pick sets it from the behavior's play style
 │   │   ├── On Inst / On Trig / On Delay / On Retrig          ← activate
 │   │   ├── Hold Inst / Hold Trig / Hold Delay / Hold Retrig  ← stable
 │   │   └── Off Inst / Off Trig / Off Delay / Off Retrig      ← deactivate
@@ -125,33 +124,45 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 ## Events and scanning
 
-- `Event Triggers` gates On and Off events, `State Notes` gates Hold events. A Hold event fires at
-  each behavior step for a tile that stays lit; play and game behaviors send none. How note-ons
-  press and note-offs release an instrument's keys is defined under
+- The layer's own steps, direct or scanned, always play through the On, Hold and Off rows; no
+  switch gates them, only the rows decide. A Hold event fires at each behavior step for a tile
+  that stays lit; play and game behaviors send none. How note-ons press and note-offs release an
+  instrument's keys is defined under
   [Trigger types](../menu-and-controls-spec.md#trigger-types).
+- `Note Preview` (`layers.N.link.notePreview`, saved with the patch, default on): on, a tile you
+  press or release fires its On or Off at once through the rows, scanning or not; off, a press
+  only changes the grid and the layer's steps play what follows from it.
+- Picking a behavior, from the menu or a binding, sets Scan Mode and Note Preview from the
+  behavior's play style: a grid sequencer (Sequencer, Euclid, Polyrhythm, Breaks, Clave, Groove,
+  Contour, Cadence) scans with Scan Axis `columns`, the line moving left to right, Note Preview
+  on; Keys, Looper and None, and the games Pong and Blockout, play directly with Note Preview off;
+  every other behavior plays directly with Note Preview on. Both stay as edited until the next
+  pick; a patch load, the Factory Patch included, keeps the saved values. The pick drains the
+  layer like any change below.
 - A scanning layer plays the same On, Hold and Off rows, from its scan line instead of its grid's
-  changes; its grid changes and presses play nothing themselves. Each tile the line reaches is
-  compared with the tile it touched one step before in the same row (column scan) or column (row
-  scan): dark to lit fires On, lit to lit Hold, lit to dark Off, dark to dark nothing. The row
-  loops across the lap wrap, and with Sections > 1 each lane loops on its own. The gates apply
-  as above, and Hold fires on a scan for every behavior. With only On mapped a run of lit tiles
-  sounds once; mapping Hold to `note on` as well sounds every lit step.
+  changes. Each tile the line reaches is compared with the tile it touched one step before in the
+  same lane, the row a column scan runs along or the column a row scan runs along: dark to lit
+  fires On, lit to lit Hold, lit to dark Off, dark to dark nothing. The lane loops across the lap
+  wrap, and with Sections > 1 each section's lane loops on its own. Hold fires on a scan for
+  every behavior. With only On mapped a run of lit tiles sounds once; mapping Hold to `note on`
+  as well sounds every lit step. A Sequencer page turn starts the line afresh, so the new page's
+  first lit column fires On.
 - `Lanes` (`layers.N.link.scanLanes`, saved with the patch, default `poly`). In `poly` every
-  scanned cell plays its own mapped pitch: an Off releases the key of the cell it fires on, so
+  scanned tile plays its own mapped pitch: an Off releases the key of the tile it fires on, so
   with Pitch Steps along the lane notes stack and may keep sounding, as intended. In `mono` each
-  lane (a row on a column scan, a column on a row scan) remembers the last note it played on each
-  instrument, its only memory: a note-on from the lane first sends a note-off for that note, so
-  the new note replaces it, and a note-off from the lane ends that note, not the pitch of the
-  cell it fires on. A row of `none` does nothing either way. Direct layers are unchanged.
-- Scan setting changes, from the menu or a CC, Aux or Fader binding alike: a new Scan Axis or Scan
-  Mode turned off releases every key on the layer's target instruments and clears the mono lanes
-  and the line's memory, so the next step compares with dark tiles; Scan Mode turned on starts the
-  line afresh and keeps what sounds. Scan Dir keeps every note and the mono lanes; the line keeps
-  comparing each lane with the tile it last touched there. Scan Unit only changes the tempo.
-  Sections and Lanes end each mono lane's last note and clear the lanes, nothing else. Lanes takes
-  bindings like the other scan rows.
-- Turning the Arp on or off (Mode leaving or entering `none`) drains the layer, as a closing
-  trigger gate does, since its note-offs change between the instruments and the Arp.
+  lane remembers the pitch and tile of the last note it played on each instrument, its only
+  memory: a note-on from the lane first sends a note-off for that note, so the new note replaces
+  it, and a note-off from the lane ends that note and its sample pad, not the pitch of the tile
+  it fires on. A row of `none` does nothing either way. Direct layers are unchanged.
+- A change to where the layer's presses and releases go, from the menu or a CC, Aux or Fader
+  binding alike, drains the instruments the layer's note-on rows played before the change: a
+  row's Inst or Trig, Note Preview, Scan Mode on or off, Scan Axis, Sections, Lanes, the Arp
+  turned on or off (Mode leaving or entering `none`) and the trigger gate closing. A drain
+  releases every key on those instruments, drops the layer's queued presses (their releases still
+  land), lets go of the Arp's keys, and clears the mono lanes and the line's memory, so the next
+  step compares with dark tiles. Scan Dir turns the line round where it is and keeps every note;
+  Scan Unit only changes the tempo. An Arp Mode or Source change also lets go of the keys the Arp
+  holds; its other rows keep them.
 - `Steps` on Pitch Steps counts notes of the set (scale degrees), not semitones; negative steps go
   down.
 - Event mappings (`activate`, `stable`, `deactivate`) each have Delay and Retrig. Delay counts
@@ -159,12 +170,14 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   Delay 2 and Retrig 1 sounds 2 and 3 scan steps after the line reaches the tile. Retrig adds
   extra repeats after the original, at delay+1, delay+2, and so on. Trigger probability is rolled
   once before scheduling; delayed repeats do not re-roll.
-- After Delay/Retrig scheduling, the note-ons that sound on one tick play one hit per instrument
-  and key, or per sound (MIDI channel and note on MIDI out), whatever layer, event kind or delay
-  produced them: the loudest wins whole, with its velocity, length and tile, and the first of
-  equals wins a tie. A note-off of that key between two note-ons on the tick keeps both, so a
-  release and a fresh hit still sound in order; a second note-off of the key finds nothing left
-  to end. A Retrig repeats a note-off too, which ends only a key pressed again in between, so on
+- Within one layer step every release of a key plays before any press of it, whatever layer,
+  source or Delay produced them, and the layers' events sound in layer order, whichever layer is
+  selected: a tile going dark never silences a note another tile starts on the same step. After
+  Delay/Retrig scheduling, the note-ons that sound on one step play one hit per instrument and
+  key, or per sound (MIDI channel and note on MIDI out): the loudest wins whole, with its
+  velocity, length and tile, and the first of equals in layer order wins a tie. A second note-off
+  of the key finds nothing left to end. A held press drops its layer's queued releases of that
+  key, so an Off Delay never cuts the tile's next note. A Retrig repeats a note-off too, which ends only a key pressed again in between, so on
   an Off row it usually has no effect.
 - An Off acts only on its own Off Inst: set Off Inst to the instrument Hold Inst or On Inst plays
   to end those notes.
@@ -191,7 +204,8 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
 
 - Stored as `layers.N.link.oneShotLengthMs` (10..2000 ms, default 150) and saved with the patch.
   Every note the layer plays on a `oneshot` instrument lasts this long, MIDI Inst. slots
-  included, and its key lets go by itself then; a `note off` may cut it earlier. A `hold`
+  included, and its key lets go by itself then; with the instrument's `Note Off` at `cut` a
+  `note off` may end it earlier. A `hold`
   instrument ignores it and ends the note at its note-off. Arp notes keep the
   Arp's own Length, Sampler and Drum hits play their sample or voice, and MIDI Drum its own
   Duration.
