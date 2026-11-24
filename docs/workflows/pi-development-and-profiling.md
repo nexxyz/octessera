@@ -212,6 +212,10 @@ only while scanning or pairing, the Raspberry network-health job runs every
 10 minutes, and avahi answers for the hostname over IPv4 only, without the
 workstation record or wide-area browsing. Look for a non-worker task between
 a worker's `sched_wakeup` and its `sched_switch` on CPU 2 or 3.
+A traced soak later caught a short-lived `systemd-udevd` worker running for
+6 ms on core 2 over a DSP worker; udev forks those workers for every hotplug
+event (USB, Bluetooth, the SD2 card), so both images keep `systemd-udevd.service`,
+and with it its workers, on core 0 (`AllowedCPUs=0`).
 
 The Orange is less exposed but not immune: NetworkManager's dispatcher, which
 starts on every DHCP lease renewal (about every 20 minutes on Wi-Fi), D-Bus and
