@@ -91,9 +91,9 @@ one step before in the same row (or column):
 | dark | dark | nothing |
 
 The lane is a loop, so a row lit at its last and first column carries on
-across the wrap; with Sections, each section's lane loops on its own. A
-Sequencer page turn starts the line fresh, so the new page's first lit column
-plays its On. Say one row is lit
+across the wrap; with Sections, each section's lane loops on its own. On a
+Sequencer page turn the new page's first lit column plays its On even after a
+lit column, and the old page's notes still get their Off. Say one row is lit
 at columns 1 to 3 and 6: that's On at 1, Hold at 2 and 3, Off at 4, On at 6
 and Off at 7, lap after lap.
 
@@ -280,7 +280,9 @@ wander in by accident.
   holding it, so drumming one pad fast always plays every hit. A quick tap
   through gear that sends it back can bounce around for a moment, but after
   eight identical quick round trips Octessera stops passing it on. A drum
-  machine repeating one note at a musical pace is never cut. Letting go
+  machine repeating one note at a musical pace is never cut. Gear whose thru
+  takes 40 ms or more to send it back looks just like a musical repeat, so a
+  quick tap through it can keep going; keep thru off on such slow devices. Letting go
   of a key only lets up keys you pressed, so an echoed note off never cuts a
   note Octessera is playing.
 - Stop, Pause, Panic and loading a patch let go of every key you're still

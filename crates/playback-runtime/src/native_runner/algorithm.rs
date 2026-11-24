@@ -3,6 +3,7 @@ use super::modulation::RoutedMusicalEvents;
 use super::trigger_probability::trigger_probability_allows;
 use super::{
     NativeRunner, RuntimeTransportState, ScanMode, SyncSource, TransportFlash, GRID_HEIGHT,
+    LAYER_COUNT,
 };
 use crate::timing_units::{BAR_PULSES, BEAT_PULSES};
 use platform_core::{DeviceInput, StepPhase};
@@ -89,7 +90,9 @@ impl NativeRunner {
     pub(super) fn advance_due_layer_ticks(&mut self) -> Result<RoutedMusicalEvents, String> {
         // The active layer steps first, but its notes take their place in layer order, so the
         // selected layer never changes what a tick plays.
-        let mut layer_ticks: Vec<LayerTicks> = vec![Vec::new(); self.layers.len()];
+        let mut layer_ticks = std::mem::take(&mut self.transport.layer_tick_buffers);
+        layer_ticks.resize_with(self.layers.len(), Vec::new);
+        layer_ticks.iter_mut().for_each(Vec::clear);
         if let Some(active) = layer_ticks.get_mut(self.active_layer_index) {
             self.advance_active_layer(active)?;
         }
@@ -99,17 +102,23 @@ impl NativeRunner {
         }
         let mut events = RoutedMusicalEvents::default();
         let steps = layer_ticks.iter().map(Vec::len).max().unwrap_or(0);
-        let mut layer_ticks = layer_ticks
-            .into_iter()
-            .map(Vec::into_iter)
-            .collect::<Vec<_>>();
         for step in 0..steps {
-            for (offset, mut tick_events) in layer_ticks.iter_mut().filter_map(Iterator::next) {
+            // One boundary per step and output group, so every layer's step-n events order
+            // their releases together.
+            let mut marked = [None; LAYER_COUNT];
+            for (layer, ticks) in layer_ticks.iter_mut().enumerate() {
+                let Some((offset, tick_events)) = ticks.get_mut(step) else {
+                    continue;
+                };
+                let (offset, mut tick_events) = (*offset, std::mem::take(tick_events));
                 if tick_events.is_empty() {
                     continue;
                 }
-                if step > 0 {
+                if step > 0 && !marked.contains(&Some(offset)) {
                     tick_events.keys.insert(0, KeyEvent::NextTick);
+                    if let Some(slot) = marked.get_mut(layer) {
+                        *slot = Some(offset);
+                    }
                 }
                 push_tick_events(
                     &mut events,
@@ -119,6 +128,8 @@ impl NativeRunner {
                 );
             }
         }
+        layer_ticks.iter_mut().for_each(Vec::clear);
+        self.transport.layer_tick_buffers = layer_ticks;
         if !events.is_empty() || !self.transport.swung_events.is_empty() {
             let now = self.display.transients.now();
             self.display.transients.trigger_event_dot(now);

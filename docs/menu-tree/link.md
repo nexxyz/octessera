@@ -136,7 +136,8 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   behavior's play style: a grid sequencer (Sequencer, Euclid, Polyrhythm, Breaks, Clave, Groove,
   Contour, Cadence) scans with Scan Axis `columns`, the line moving left to right, Note Preview
   on; Keys, Looper and None, and the games Pong and Blockout, play directly with Note Preview off;
-  every other behavior plays directly with Note Preview on. Both stay as edited until the next
+  every other behavior plays directly with Note Preview on. Scan Dir starts forward. A layer saved
+  without Note Preview loads with what its behavior's pick would set. Both stay as edited until the next
   pick; a patch load, the Factory Patch included, keeps the saved values. The pick drains the
   layer like any change below.
 - A scanning layer plays the same On, Hold and Off rows, from its scan line instead of its grid's
@@ -145,8 +146,9 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   fires On, lit to lit Hold, lit to dark Off, dark to dark nothing. The lane loops across the lap
   wrap, and with Sections > 1 each section's lane loops on its own. Hold fires on a scan for
   every behavior. With only On mapped a run of lit tiles sounds once; mapping Hold to `note on`
-  as well sounds every lit step. A Sequencer page turn starts the line afresh, so the new page's
-  first lit column fires On.
+  as well sounds every lit step. On a Sequencer page turn the new page's lit tiles after lit ones
+  fire On instead of Hold, so its first lit column is a downbeat, and the old page's Offs still
+  fire.
 - `Lanes` (`layers.N.link.scanLanes`, saved with the patch, default `poly`). In `poly` every
   scanned tile plays its own mapped pitch: an Off releases the key of the tile it fires on, so
   with Pitch Steps along the lane notes stack and may keep sounding, as intended. In `mono` each

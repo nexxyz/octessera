@@ -8,17 +8,19 @@ use super::{InstrumentType, NativeInstrumentSlot};
 /// Within a tick every release of a key plays before any press of it, whatever layer, source or
 /// Delay produced them, so a key that goes dark on one tile as it lights on another sounds.
 pub(super) fn releases_before_presses(keys: &mut [KeyEvent]) {
+    let mut tick_start = 0;
     for index in 0..keys.len() {
-        let tick_start = keys[..index]
-            .iter()
-            .rposition(|event| *event == KeyEvent::NextTick)
-            .map_or(0, |next| next + 1);
-        let first_press = keys[tick_start..index]
-            .iter()
-            .position(|earlier| match earlier {
-                KeyEvent::Press(press) => releases(&keys[index], press),
-                _ => false,
-            });
+        match keys[index] {
+            KeyEvent::NextTick => {
+                tick_start = index + 1;
+                continue;
+            }
+            KeyEvent::Release { .. } | KeyEvent::ReleaseAll { .. } => {}
+            KeyEvent::Press(_) | KeyEvent::Control { .. } => continue,
+        }
+        let first_press = keys[tick_start..index].iter().position(
+            |earlier| matches!(earlier, KeyEvent::Press(press) if releases(&keys[index], press)),
+        );
         if let Some(first) = first_press {
             keys[tick_start + first..=index].rotate_right(1);
         }

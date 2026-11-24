@@ -192,6 +192,8 @@ pub(super) struct NativeTransportState {
     pub(super) applied_swing: super::algorithm::swing::Swing,
     /// Swung layer steps of the current pulse step that sound after its stamp, by offset.
     pub(super) swung_events: Vec<(u64, RoutedMusicalEvents)>,
+    /// Each layer's steps of the current pulse step, kept between pulse steps for their room.
+    pub(super) layer_tick_buffers: Vec<super::algorithm::LayerTicks>,
     pub(super) tick: u64,
     pub(super) layer_ticks: Vec<u64>,
     pub(super) algorithm_step_pulses: u32,
@@ -226,6 +228,7 @@ impl NativeTransportState {
             swung_ppqn_pulse: 0,
             applied_swing: super::algorithm::swing::Swing::new(swing_a, swing_b),
             swung_events: Vec::new(),
+            layer_tick_buffers: vec![Vec::new(); LAYER_COUNT],
             tick: 0,
             layer_ticks: vec![0; LAYER_COUNT],
             algorithm_step_pulses,

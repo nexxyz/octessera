@@ -331,11 +331,14 @@ fn arp_batches(events: &[MusicalEvent], intents: &[Option<TileTriggerIntent>]) -
     untagged.into_iter().chain(releases).chain(rest).collect()
 }
 
-/// A layer's Delay and Arp queue holds at most this many pending steps' worth of notes.
+/// A layer's Delay and Arp queue takes presses only while it holds fewer entries than this.
 const DELAYED_ENTRIES_PER_LAYER: usize = 1024;
 
-/// Queues `events` to land `remaining_steps` from now; a full queue takes only their releases, so
-/// a runaway Arp or Retrig can neither grow it for good nor leave a note hanging.
+/// Queues `events` to land `remaining_steps` from now. A full queue takes only their releases:
+/// a release is never dropped, as that would leave its note hanging. The queue stays bounded
+/// all the same, since releases only come from tiles going dark, at most one per tile and row
+/// each step, and each waits no longer than its row's Delay and Retrig (16 + 8 steps), so past the
+/// cap at most 64 tiles x 3 rows x 25 steps of releases can be waiting.
 pub(super) fn queue_delayed(
     queue: &mut Vec<DelayedRoutedEvents>,
     remaining_steps: u16,
