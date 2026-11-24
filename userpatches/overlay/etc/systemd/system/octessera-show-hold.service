@@ -3,6 +3,7 @@ Description=octessera Live Show Mode and Wi-Fi switch apply
 After=NetworkManager.service
 
 [Service]
+AllowedCPUs=0
 Type=oneshot
 ExecStart=/usr/local/sbin/octessera-show-hold-apply
 

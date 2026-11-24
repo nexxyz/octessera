@@ -7,6 +7,7 @@ Before=sysinit.target octessera.service
 Wants=systemd-udev-trigger.service systemd-modules-load.service systemd-udevd.service
 
 [Service]
+AllowedCPUs=0
 Type=notify
 NotifyAccess=main
 User=octessera-runtime

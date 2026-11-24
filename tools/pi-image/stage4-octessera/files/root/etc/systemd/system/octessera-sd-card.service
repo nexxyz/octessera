@@ -3,6 +3,7 @@ Description=octessera OLED SD card mount
 After=local-fs.target systemd-udev-trigger.service
 
 [Service]
+AllowedCPUs=0
 Type=oneshot
 Environment=OCTESSERA_SD_MOUNT=/home/pi/samples/sd-card
 Environment=OCTESSERA_SD_OWNER=pi

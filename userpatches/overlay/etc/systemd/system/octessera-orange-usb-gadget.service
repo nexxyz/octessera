@@ -6,6 +6,7 @@ Before=sound.target octessera.service
 Requires=octessera-provision-musical-default.service
 
 [Service]
+AllowedCPUs=0
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/local/sbin/octessera-orange-usb-gadget setup

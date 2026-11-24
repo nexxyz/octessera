@@ -2,6 +2,7 @@
 Description=Octessera release switch to %i
 
 [Service]
+AllowedCPUs=0
 Type=oneshot
 User=root
 ExecStart=/usr/local/sbin/octessera-update switch %i

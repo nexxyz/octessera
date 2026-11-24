@@ -2,6 +2,7 @@
 Description=Octessera validated device power request
 
 [Service]
+AllowedCPUs=0
 Type=oneshot
 User=root
 Group=root

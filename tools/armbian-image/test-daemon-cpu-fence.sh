@@ -19,6 +19,7 @@ common=(
   "NetworkManager.service:zero" "NetworkManager-dispatcher.service:zero" "wpa_supplicant.service:zero"
   "bluetooth.service:zero" "systemd-logind.service:zero" "systemd-timesyncd.service:zero" "ssh.service:zero"
   "bluealsa-aplay.service:zero" "getty@.service:zero" "user.slice:slice" "bluealsa.service:bluealsa"
+  "fstrim.service:zero" "logrotate.service:zero" "systemd-tmpfiles-clean.service:zero"
 )
 pi=("${common[@]}" "polkit.service:zero_nice" "avahi-daemon.service:zero_nice" "ModemManager.service:zero"
   "udisks2.service:zero" "triggerhappy.service:zero")
@@ -50,7 +51,14 @@ installs_every_fence() { grep -qF "for dropin in \"\$$1\"$2/etc/systemd/system/*
 installs_every_fence STAGE_FILES /root "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh" || fail "the Raspberry image does not install every fence"
 installs_every_fence IMAGE_ROOT "" "$root/tools/pi/provision/provision.sh" || fail "Raspberry provisioning does not install every fence"
 installs_every_fence overlay_dir "" "$root/userpatches/customize-image.sh" || fail "the Orange image does not install every fence"
-grep -qxF 'AllowedCPUs=0' "$pi_units/octessera-network-health.service" || fail "the Raspberry network-health job is not on CPU 0"
+# Every Octessera unit except the app itself carries the fence in its own [Service] section.
+service_on_cpu0() {
+  awk '/^\[/ { in_service = ($0 == "[Service]") } in_service && $0 == "AllowedCPUs=0" { found = 1 } END { exit !found }' "$1"
+}
+for unit in "$pi_units"/octessera*.service "$orange_units"/octessera*.service; do
+  [[ "$(basename "$unit")" == octessera.service ]] && continue
+  service_on_cpu0 "$unit" || fail "$unit does not set AllowedCPUs=0 in its [Service] section"
+done
 grep -qxF 'ExecStartPost=-/bin/systemctl set-property --runtime init.scope AllowedCPUs=0' \
   "$pi_units/octessera-performance-governor.service" || fail "the Raspberry does not keep systemd itself on CPU 0"
 grep -qxF 'ExecStartPre=+-/bin/systemctl set-property --runtime init.scope AllowedCPUs=0' \

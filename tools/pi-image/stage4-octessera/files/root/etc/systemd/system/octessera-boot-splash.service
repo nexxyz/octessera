@@ -6,6 +6,7 @@ After=systemd-modules-load.service systemd-udevd.service systemd-udev-trigger.se
 Before=sysinit.target octessera.service
 
 [Service]
+AllowedCPUs=0
 Type=simple
 User=pi
 Group=pi

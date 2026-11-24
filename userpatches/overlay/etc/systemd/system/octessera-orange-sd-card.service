@@ -3,6 +3,7 @@ Description=octessera Orange OLED SD card mount
 After=local-fs.target systemd-modules-load.service systemd-udev-trigger.service
 
 [Service]
+AllowedCPUs=0
 Type=oneshot
 User=root
 Environment=OCTESSERA_SD_MOUNT=/var/lib/octessera/samples/sd-card

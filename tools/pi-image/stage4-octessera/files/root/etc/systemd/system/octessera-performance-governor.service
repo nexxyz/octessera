@@ -3,6 +3,7 @@ Description=octessera Performance CPU Governor
 Before=octessera.service
 
 [Service]
+AllowedCPUs=0
 Type=oneshot
 ExecStart=/bin/sh -c 'for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -e "$gov" ] || continue; printf performance > "$gov" || true; done'
 # systemd itself stays on CPU 0 with the other system daemons, off the audio core and

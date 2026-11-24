@@ -6,6 +6,7 @@ After=local-fs.target systemd-modules-load.service sys-kernel-config.mount
 DefaultDependencies=no
 
 [Service]
+AllowedCPUs=0
 Type=oneshot
 RemainAfterExit=yes
 ExecCondition=/usr/local/sbin/octessera-usb-role is-gadget

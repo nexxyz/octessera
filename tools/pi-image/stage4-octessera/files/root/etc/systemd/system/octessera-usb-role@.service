@@ -3,5 +3,6 @@ Description=octessera live USB data-role switch to %i
 After=octessera-usb-gadget.service
 
 [Service]
+AllowedCPUs=0
 Type=oneshot
 ExecStart=/usr/local/sbin/octessera-usb-role %i
