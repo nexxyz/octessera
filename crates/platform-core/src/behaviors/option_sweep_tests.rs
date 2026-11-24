@@ -149,16 +149,33 @@ fn menu_defaults(behavior: NativeBehavior, menu: &[BehaviorConfigItem]) -> Map<S
 
 /// What the sweep saw for one behavior, one line per finding.
 fn sweep_findings(id: &str) -> Vec<String> {
+    let mut findings = sweep_options(id, &[], &[], "");
+    if id == "cyclic" {
+        findings.extend(sweep_options(
+            id,
+            &[("threshold", 3)],
+            &["states", "range"],
+            "at threshold=3 ",
+        ));
+    }
+    findings
+}
+
+/// Sweeps the named options (all when `only` is empty) from defaults changed by `overrides`.
+fn sweep_options(id: &str, overrides: &[(&str, i64)], only: &[&str], tag: &str) -> Vec<String> {
     let behavior = get_native_behavior(id).unwrap();
     let menu = behavior
         .config_menu(&behavior.init(Value::Null).unwrap())
         .unwrap()
         .unwrap_or_default();
-    let defaults = menu_defaults(behavior, &menu);
+    let mut defaults = menu_defaults(behavior, &menu);
+    for (key, value) in overrides {
+        defaults.insert((*key).into(), json!(value));
+    }
     let play = PLAY_FAMILY.contains(&id);
     let mut findings = Vec::new();
     let mut find = |text: String| {
-        let text = format!("{id}: {text}");
+        let text = format!("{id}: {tag}{text}");
         if !findings.contains(&text) {
             findings.push(text);
         }
@@ -167,13 +184,17 @@ fn sweep_findings(id: &str) -> Vec<String> {
     let untouched = run(behavior, base.clone(), None, SEEDS[0]);
     let pressed = |tile| run(behavior, base.clone(), Some(tile), SEEDS[0]);
     if !play
+        && only.is_empty()
         && PRESS_TILES
             .into_iter()
             .all(|tile| pressed(tile) == untouched)
     {
         find("a press changes nothing".into());
     }
-    for item in &menu {
+    for item in menu
+        .iter()
+        .filter(|item| only.is_empty() || only.contains(&item.key.as_str()))
+    {
         let key = item.key.as_str();
         let values = sweep_values(item, defaults.get(key));
         let mut traces = Vec::new();
@@ -276,8 +297,6 @@ const EXPECTED: &[(&str, &str)] = &[
     ("cyclic: threshold=1 pressed freezes", SPIRAL),
     ("cyclic: range=1 untouched freezes", SPIRAL),
     ("cyclic: range=1 pressed freezes", SPIRAL),
-    ("cyclic: range=2 untouched freezes", SPIRAL),
-    ("cyclic: range=2 pressed freezes", SPIRAL),
     ("rivers: rainPct=100 untouched saturates", FLOOD),
     ("rivers: rainPct=100 pressed saturates", FLOOD),
     (

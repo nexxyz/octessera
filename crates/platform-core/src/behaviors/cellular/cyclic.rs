@@ -13,6 +13,8 @@ use serde_json::Value;
 const STALL_TICKS: u8 = 8;
 /// The state a resting cell moves into; its tiles light, so the waves show as moving fronts.
 const FRONT: u8 = 1;
+/// Range 2 sees 24 neighbors against Range 1's 8; each Threshold step asks for 4 times as many, as 3 times lets Threshold 1 lock into turning.
+const RANGE_2_SCALE: u8 = 4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CyclicState {
@@ -83,12 +85,13 @@ pub fn cyclic_on_tick(mut state: CyclicState, _context: &mut BehaviorContext) ->
     let mut next = state.cells.clone();
     let mut ages = state.ages.clone();
     let mut rng = crate::behavior_random::rng();
+    let needed = state.threshold * RANGE_2_SCALE.pow(u32::from(state.range - 1));
     for y in 0..GRID_HEIGHT {
         for x in 0..GRID_WIDTH {
             let index = grid_index(x, y);
             let target = (previous[index] + 1) % state.states;
             let support = count_neighbors(&previous, x, y, target, state.range);
-            if support >= state.threshold || rng.gen_range(0..state.threshold) < support {
+            if support >= needed || rng.gen_range(0..needed) < support {
                 next[index] = target;
                 ages[index] = 0;
             } else {
