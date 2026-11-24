@@ -11,8 +11,14 @@ const PLAYED_WINDOW: Duration = Duration::from_millis(250);
 
 /// A tap shorter than the thru latency comes back after its own key-up, so the passed-on note
 /// can loop for good: the same keyboard note-on passed on this many times in a row, at one
-/// steady interval with no other key coming in, is that loop, and that copy is not sent.
+/// steady interval under `LOOP_MAX_INTERVAL` with no other key coming in, is that loop, and that
+/// copy is not sent.
 const LOOP_REPEATS: u8 = 8;
+
+/// A loop repeats at the thru's round trip, a few ms to a few tens of ms; a clocked source or a
+/// player repeats a key no faster than about 32nds at 240 BPM (62 ms). Only identical repeats
+/// closer together than this count toward the loop, so a steady drum machine is never cut.
+const LOOP_MAX_INTERVAL: Duration = Duration::from_millis(40);
 
 /// How far apart two intervals may be and still count as one steady interval.
 const LOOP_INTERVAL_SLACK: Duration = Duration::from_millis(2);
@@ -122,7 +128,11 @@ impl SentMidiNotes {
             return false;
         };
         let now = at;
-        let repeat = match self.repeat.filter(|repeat| repeat.note == note) {
+        let fast = |last: &Repeat| now.saturating_duration_since(last.at) < LOOP_MAX_INTERVAL;
+        let repeat = match self
+            .repeat
+            .filter(|repeat| repeat.note == note && fast(repeat))
+        {
             Some(last) => {
                 let gap = now.saturating_duration_since(last.at);
                 let steady = last

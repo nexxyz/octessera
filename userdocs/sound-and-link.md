@@ -278,8 +278,9 @@ wander in by accident.
   that channel within that quarter second, you won't hear it. A key you play
   through to MIDI out ignores an identical copy only while you're still
   holding it, so drumming one pad fast always plays every hit. A quick tap
-  through gear that's slow to send it back can bounce around for a moment, but
-  after eight identical round trips Octessera stops passing it on. Letting go
+  through gear that sends it back can bounce around for a moment, but after
+  eight identical quick round trips Octessera stops passing it on. A drum
+  machine repeating one note at a musical pace is never cut. Letting go
   of a key only lets up keys you pressed, so an echoed note off never cuts a
   note Octessera is playing.
 - Stop, Pause, Panic and loading a patch let go of every key you're still

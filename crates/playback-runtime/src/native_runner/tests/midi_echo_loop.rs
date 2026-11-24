@@ -293,9 +293,11 @@ fn an_echoing_device_never_doubles_a_repeated_pitch_on_an_internal_slot() {
     assert_eq!(rig.keyboard_audio_notes(), 0);
 }
 
+/// A drum machine's steady hits through a forwarding slot all go out, at any musical rate:
+/// 16ths at 120 BPM (125 ms) and 32nds (62 ms), at one fixed velocity.
 #[test]
-fn a_fixed_velocity_pad_repeating_a_key_plays_every_hit_without_an_echoing_device() {
-    for midi in [true, false] {
+fn a_steady_fixed_velocity_source_repeating_a_key_plays_every_hit() {
+    for (midi, interval) in [(true, 125), (true, 62), (false, 125), (false, 62)] {
         let mut rig = EchoRig::new(midi);
         rig.layer.playing = false;
         let press = |rig: &mut EchoRig, ms: u64, bytes: [u8; 3]| {
@@ -305,16 +307,17 @@ fn a_fixed_velocity_pad_repeating_a_key_plays_every_hit_without_an_echoing_devic
                 .dispatch_host_message(message, &mut rig.layer, &mut rig.host)
                 .unwrap();
         };
-        // A player's hits never land on one exact interval.
-        let mut at = 0;
-        for hit in 0..10 {
-            at += 40 + hit % 3 * 7;
-            press(&mut rig, at, [0x90, 60, 100]);
-            press(&mut rig, at + 20, [0x80, 60, 0]);
+        for hit in 0..32 {
+            press(&mut rig, hit * interval, [0x90, 60, 100]);
+            press(&mut rig, hit * interval + 20, [0x80, 60, 0]);
         }
-        assert_eq!(rig.midi_note_ons(), 10, "midi={midi}: every hit goes out");
+        assert_eq!(
+            rig.midi_note_ons(),
+            32,
+            "midi={midi} {interval} ms: every hit goes out"
+        );
         if !midi {
-            assert_eq!(rig.keyboard_audio_notes(), 10, "every hit sounds");
+            assert_eq!(rig.keyboard_audio_notes(), 32, "every hit sounds");
         }
     }
 }
@@ -351,23 +354,35 @@ fn a_key_held_through_a_slow_thru_plays_once_and_its_echoes_stay_harmless() {
     }
 }
 
-/// A tap shorter than a slow thru comes back after its own key-up, so it would pass on for good;
-/// once it repeats eight times at the thru's steady interval its copy is no longer sent.
+/// A tap shorter than the thru's round trip comes back after its own key-up, so it would pass
+/// on for good; once it repeats eight times at that steady, fast interval its copy is no longer
+/// sent.
 #[test]
-fn a_tap_shorter_than_the_thru_latency_stops_looping() {
-    let mut rig = EchoRig::new(true);
-    rig.layer.playing = false;
-    rig.echo_ms = 300;
-    for bytes in [[0x90, 60, 100], [0x80, 60, 0]] {
-        let message: HostMessage = MidiNote::parse(&bytes).unwrap().into();
-        rig.runtime
-            .dispatch_host_message(message, &mut rig.layer, &mut rig.host)
-            .unwrap();
-        rig.collect_sent();
+fn a_tap_shorter_than_a_fast_thru_round_trip_stops_looping() {
+    for echo_ms in [5, 15, 30] {
+        let mut rig = EchoRig::new(true);
+        rig.layer.playing = false;
+        rig.echo_ms = echo_ms;
+        for (at, bytes) in [(0, [0x90, 60, 100]), (2, [0x80, 60, 0])] {
+            rig.host.clock = Some(rig.start + Duration::from_millis(at));
+            let message: HostMessage = MidiNote::parse(&bytes).unwrap().into();
+            rig.runtime
+                .dispatch_host_message(message, &mut rig.layer, &mut rig.host)
+                .unwrap();
+            rig.collect_sent();
+        }
+        rig.ms = 2;
+        rig.run_for(2_000);
+        let looped = rig.midi_note_ons();
+        assert!(
+            (2..=8).contains(&looped),
+            "{echo_ms} ms: {looped} copies went out"
+        );
+        rig.run_for(1_000);
+        assert_eq!(
+            rig.midi_note_ons(),
+            looped,
+            "{echo_ms} ms: the loop has ended"
+        );
     }
-    rig.run_for(5_000);
-    let looped = rig.midi_note_ons();
-    assert!((2..=8).contains(&looped), "{looped} copies went out");
-    rig.run_for(2_000);
-    assert_eq!(rig.midi_note_ons(), looped, "the loop has ended");
 }
