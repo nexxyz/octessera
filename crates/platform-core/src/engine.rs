@@ -186,6 +186,7 @@ impl NativeLayerEngine {
         mut filter_intent: impl FnMut(&TileTriggerIntent) -> bool,
     ) -> Result<NativeTickResult, String> {
         let before = self.behavior.render_model(&self.state)?;
+        let page_before = self.state.page_in_view();
         let mut context = BehaviorContext::new(bpm);
         let behavior = self.behavior;
         let state = self.state.clone();
@@ -195,6 +196,10 @@ impl NativeLayerEngine {
         let after = self.behavior.render_model(&self.state)?;
 
         let scanning = self.interpretation_profile.scans();
+        // A new page starts the line afresh: its first lit column is a downbeat, not a Hold.
+        if scanning && self.state.page_in_view() != page_before {
+            self.forget_scanned_line();
+        }
         let stable = (scanning || self.behavior.reports_stable_tiles())
             && self.mapping_config.stable.action != TriggerAction::None;
         let next = to_snapshot(&after);

@@ -198,6 +198,14 @@ impl NativeBehavior {
 }
 
 impl NativeBehaviorState {
+    /// The page of a Sequencer canvas in view; None for every other behavior.
+    pub(crate) fn page_in_view(&self) -> Option<(usize, usize)> {
+        match self {
+            NativeBehaviorState::Sequencer(state) => Some((state.page_x, state.page_y)),
+            _ => None,
+        }
+    }
+
     /// True for a Looper that is overdubbing.
     pub(crate) fn records_outside_tiles(&self) -> bool {
         matches!(self, NativeBehaviorState::Looper(state)

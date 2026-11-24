@@ -107,6 +107,56 @@ fn cyclic_consecutive_presses_keep_both_activation_intents() {
     assert_eq!(second.mapped_intents[0].kind, TileTriggerKind::Activate);
 }
 
+/// Page 1 lit at its last column and page 2 at its first: the page turn starts the line afresh,
+/// so page 2's downbeat is an On, not a Hold that an On-only row never plays.
+#[test]
+fn a_sequencer_page_turn_makes_the_new_pages_downbeat_an_on() {
+    let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
+        behavior: NativeBehavior::Sequencer,
+        behavior_config: serde_json::json!({ "pagesX": 2, "advanceSteps": 8 }),
+        interpretation_profile: InterpretationProfile {
+            id: "scan_profile".into(),
+            event: InterpretationEventProfile { enabled: false },
+            state: InterpretationStateProfile {
+                enabled: true,
+                tick: TickStrategy::ScanColumnActive {
+                    sections: None,
+                    reverse: false,
+                    restart_pitch: false,
+                },
+            },
+            x: AxisStrategy::ScaleStep { step: 1 },
+            y: AxisStrategy::ScaleStep { step: 2 },
+        },
+        mapping_config: default_mapping_config(),
+        ..base_config()
+    })
+    .unwrap();
+    let mut kinds_at = |engine: &mut NativeLayerEngine| {
+        engine
+            .tick(120.0)
+            .unwrap()
+            .mapped_intents
+            .into_iter()
+            .filter(|intent| (intent.x, intent.y) == (0, 0))
+            .map(|intent| intent.kind)
+            .collect::<Vec<_>>()
+    };
+    engine
+        .on_input_with_events(DeviceInput::GridPress { x: 7, y: 0 }, 120.0)
+        .unwrap();
+    for _ in 0..9 {
+        kinds_at(&mut engine);
+    }
+    engine
+        .on_input_with_events(DeviceInput::GridPress { x: 0, y: 0 }, 120.0)
+        .unwrap();
+    for _ in 9..24 {
+        kinds_at(&mut engine);
+    }
+    assert_eq!(kinds_at(&mut engine), [TileTriggerKind::Activate]);
+}
+
 #[test]
 fn scan_interpretation_advances_with_engine_ticks() {
     let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
