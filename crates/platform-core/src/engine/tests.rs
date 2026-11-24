@@ -132,7 +132,7 @@ fn a_sequencer_page_turn_makes_the_new_pages_downbeat_an_on() {
         ..base_config()
     })
     .unwrap();
-    let mut kinds_at = |engine: &mut NativeLayerEngine| {
+    let kinds_at = |engine: &mut NativeLayerEngine| {
         engine
             .tick(120.0)
             .unwrap()

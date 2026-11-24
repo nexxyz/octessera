@@ -135,9 +135,9 @@ pub fn looper_on_tick(mut state: LooperState, _context: &mut BehaviorContext) ->
     let mut playback_tiles = state.playback_tiles.clone();
     // A press the loop never releases within its length, as a shorter Length can leave one,
     // plays for one step rather than on and on.
-    for tile in 0..TILE_COUNT {
-        if playback_tiles[tile] && !releases_in_loop(&state, tile) {
-            playback_tiles[tile] = false;
+    for (tile, lit) in playback_tiles.iter_mut().enumerate() {
+        if *lit && !releases_in_loop(&state, tile) {
+            *lit = false;
         }
     }
     let step = state.step_index;
