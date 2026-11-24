@@ -4,8 +4,8 @@
 //! with the drain.
 
 use super::held_keys::KeyEvent;
-use super::link_routing::{dedupe_note_ons, releases_before_presses};
 use super::modulation::RoutedMusicalEvents;
+use super::tick_keys::{dedupe_note_ons, releases_before_presses};
 use super::NativeRunner;
 use platform_core::MusicalEvent;
 

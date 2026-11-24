@@ -1,10 +1,7 @@
 use super::held_keys::{KeyEvent, KeyPress, Sound};
 use super::link_routing::GroupRouting;
 use super::modulation::RoutedMusicalEvents;
-use super::{
-    ArpMode, ArpSource, DelayedRoutedEvents, LinkEventTiming, NativeLinkArp, NativeLinkLayer,
-    NativeRunner,
-};
+use super::{ArpMode, ArpSource, LinkEventTiming, NativeLinkArp, NativeLinkLayer, NativeRunner};
 use crate::protocol::MIN_NOTE_DURATION_MS;
 use platform_core::LAYER_COUNT;
 
@@ -109,10 +106,7 @@ impl NativeRunner {
                 if remaining_steps == 0 {
                     immediate.extend(event);
                 } else if let Some(queue) = self.delayed_link_events.get_mut(layer_index) {
-                    queue.push(DelayedRoutedEvents {
-                        remaining_steps,
-                        events: event,
-                    });
+                    super::link_routing::queue_delayed(queue, remaining_steps, event);
                 }
             }
         }

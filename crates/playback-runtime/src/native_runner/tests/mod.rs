@@ -158,6 +158,7 @@ mod key_model;
 mod key_model_arp;
 mod key_model_note_off;
 mod key_model_releases;
+mod key_model_retarget;
 mod key_model_scan;
 mod layer_replacement;
 mod layer_select_presentation;

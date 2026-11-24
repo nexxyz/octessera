@@ -341,6 +341,8 @@ impl NativeRunner {
         )?;
         self.sound_keys(&mut events);
         self.append_music_first_audio_commands(&mut messages);
+        // A drain the press caused (a gate or setting change) ends its notes before the press.
+        self.append_pending_transpose_note_offs(&mut messages);
         if !events.is_empty() {
             let now = self.display.transients.now();
             self.display.transients.trigger_event_dot(now);

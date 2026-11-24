@@ -1,8 +1,8 @@
-use super::held_keys::{KeyEvent, KeyPress, Sound};
+use super::held_keys::{KeyEvent, KeyPress};
 use super::modulation::sampler::event_channel;
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
+use super::tick_keys::releases;
 use super::{ArpMode, DelayedRoutedEvents, LinkEventTiming, NativeRunner};
-use crate::native_runner::InstrumentType;
 use platform_core::{MusicalEvent, TileTriggerIntent, TileTriggerKind};
 
 pub(super) struct LinkRoutingInput<'a> {
@@ -87,10 +87,11 @@ impl NativeRunner {
         if let Some(queue) = self.delayed_link_events.get_mut(layer_index) {
             let first_repeat = if timing.delay_steps == 0 { 1 } else { 0 };
             for repeat in first_repeat..=retrigger_count {
-                queue.push(DelayedRoutedEvents {
-                    remaining_steps: u16::from(timing.delay_steps.saturating_add(repeat)),
-                    events: routed.clone(),
-                });
+                queue_delayed(
+                    queue,
+                    u16::from(timing.delay_steps.saturating_add(repeat)),
+                    routed.clone(),
+                );
             }
         }
         immediate
@@ -330,89 +331,38 @@ fn arp_batches(events: &[MusicalEvent], intents: &[Option<TileTriggerIntent>]) -
     untagged.into_iter().chain(releases).chain(rest).collect()
 }
 
-/// Within a tick every release of a key plays before any press of it, whatever layer, source or
-/// Delay produced them, so a key that goes dark on one tile as it lights on another sounds.
-pub(super) fn releases_before_presses(keys: &mut [KeyEvent]) {
-    for index in 0..keys.len() {
-        let tick_start = keys[..index]
-            .iter()
-            .rposition(|event| *event == KeyEvent::NextTick)
-            .map_or(0, |next| next + 1);
-        let first_press = keys[tick_start..index]
-            .iter()
-            .position(|earlier| match earlier {
-                KeyEvent::Press(press) => releases(&keys[index], press),
-                _ => false,
-            });
-        if let Some(first) = first_press {
-            keys[tick_start + first..=index].rotate_right(1);
-        }
-    }
-}
+/// A layer's Delay and Arp queue holds at most this many pending steps' worth of notes.
+const DELAYED_ENTRIES_PER_LAYER: usize = 1024;
 
-fn releases(event: &KeyEvent, press: &KeyPress) -> bool {
-    match event {
-        KeyEvent::Release { slot, pitch, pad } => {
-            (*slot, *pitch) == (press.slot, press.pitch)
-                && pad.is_none_or(|pad| press.sound.pad() == Some(pad))
-        }
-        KeyEvent::ReleaseAll { slots } => slots & (1 << press.slot) != 0,
-        KeyEvent::Press(_) | KeyEvent::Control { .. } | KeyEvent::NextTick => false,
-    }
-}
-
-/// The presses that sound together on one tick play one hit per key, or per sound, whatever
-/// layer, event kind or Delay produced them: the loudest, or the first of the loudest, whole. A
-/// release between two presses keeps both, so a release and a fresh hit still sound in order. On a
-/// Sampler, tiles stamped with the same sample and pitch merge; Drum hits never do.
-pub(super) fn dedupe_note_ons(
-    routed: &mut RoutedMusicalEvents,
-    instruments: &[super::NativeInstrumentSlot],
+/// Queues `events` to land `remaining_steps` from now; a full queue takes only their releases, so
+/// a runaway Arp or Retrig can neither grow it for good nor leave a note hanging.
+pub(super) fn queue_delayed(
+    queue: &mut Vec<DelayedRoutedEvents>,
+    remaining_steps: u16,
+    mut events: RoutedMusicalEvents,
 ) {
-    let keys = &mut routed.keys;
-    let mut index = 0;
-    while index < keys.len() {
-        let KeyEvent::Press(press) = &keys[index] else {
-            index += 1;
-            continue;
+    if queue.len() >= DELAYED_ENTRIES_PER_LAYER {
+        events = RoutedMusicalEvents {
+            keys: events
+                .keys
+                .into_iter()
+                .filter(|event| {
+                    matches!(
+                        event,
+                        KeyEvent::Release { .. } | KeyEvent::ReleaseAll { .. }
+                    )
+                })
+                .collect(),
+            ..RoutedMusicalEvents::default()
         };
-        let earlier = keys[..index].iter().rposition(|event| match event {
-            KeyEvent::Press(other) => merges(other, press, instruments),
-            KeyEvent::NextTick => true,
-            release => releases(release, press),
-        });
-        match earlier {
-            Some(first) if matches!(&keys[first], KeyEvent::Press(other) if merges(other, press, instruments)) =>
-            {
-                let KeyEvent::Press(louder) = keys.remove(index) else {
-                    unreachable!("checked a press");
-                };
-                if let KeyEvent::Press(first) = &mut keys[first] {
-                    if louder.sound.velocity() > first.sound.velocity() {
-                        *first = louder;
-                    }
-                }
-            }
-            _ => index += 1,
+        if events.is_empty() {
+            return;
         }
     }
-}
-
-fn merges(first: &KeyPress, next: &KeyPress, instruments: &[super::NativeInstrumentSlot]) -> bool {
-    match (&first.sound, &next.sound) {
-        (Sound::Sample(a), Sound::Sample(b)) => {
-            instruments
-                .get(usize::from(a.instrument_slot))
-                .is_some_and(|instrument| instrument.kind == InstrumentType::Sampler)
-                && (a.instrument_slot, a.voice, a.pitch_cents)
-                    == (b.instrument_slot, b.voice, b.pitch_cents)
-        }
-        (Sound::Drum(_), _)
-        | (_, Sound::Drum(_))
-        | (Sound::Sample(_), _)
-        | (_, Sound::Sample(_)) => false,
-        (a, b) => (first.slot, first.pitch) == (next.slot, next.pitch) || a.same_voice(b),
-    }
+    queue.push(DelayedRoutedEvents {
+        remaining_steps,
+        events,
+    });
 }
 
 /// A press of a key that its instrument holds until a release; a Retrig repeats none of them.

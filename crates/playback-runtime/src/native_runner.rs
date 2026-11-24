@@ -141,6 +141,7 @@ mod retired_config_keys;
 mod system_document_tests;
 #[cfg(test)]
 mod system_store_result_tests;
+mod tick_keys;
 mod tile_stamp;
 pub(crate) use modulation::audio::is_live_link_lfo_target as is_live_link_lfo_target_for_picker;
 mod aux_view;

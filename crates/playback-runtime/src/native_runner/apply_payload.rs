@@ -29,7 +29,7 @@ impl NativeRunner {
             self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
-        self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
+        self.commit_transaction_candidate(candidate, source_revision, &before, plan, false)?;
         Ok(())
     }
 
@@ -119,9 +119,14 @@ impl NativeRunner {
         source_revision: Option<u64>,
         before: &ConfigurationAggregate,
         plan: ConfigurationRuntimePlan,
+        patch_load: bool,
     ) -> Result<(), String> {
         let ended_live = std::mem::take(&mut self.play_live);
         if before == &candidate.configuration_aggregate() {
+            // Loading the patch that already plays still starts it afresh.
+            if patch_load {
+                self.drain_all_layer_notes();
+            }
             self.commit_loaded_revision(source_revision);
             self.restore_after_live_play(&ended_live);
             return Ok(());
@@ -209,7 +214,7 @@ impl NativeRunner {
             self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
-        self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
+        self.commit_transaction_candidate(candidate, source_revision, &before, plan, true)?;
         Ok(())
     }
 
@@ -226,7 +231,7 @@ impl NativeRunner {
             self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
-        self.commit_transaction_candidate(candidate, source_revision, &before, plan)?;
+        self.commit_transaction_candidate(candidate, source_revision, &before, plan, true)?;
         Ok(())
     }
 
