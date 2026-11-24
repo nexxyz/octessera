@@ -110,8 +110,8 @@ default (an optional fourth argument sets the seconds). It runs detached on the
 board, so no SSH traffic disturbs the measurement. Afterwards it restores the
 installed service, checks that the original presets are unchanged, and prints
 underruns, pulse cadence, and runtime lateness. Harness processes (payloads,
-pollers, key drivers, samplers) must never run on the DSP worker cores 2–3:
-the smoke and the scenario payloads run on CPU 0, because polling on 2–3
+pollers, key drivers, samplers) must never run on the DSP worker cores 2â€“3:
+the smoke and the scenario payloads run on CPU 0, because polling on 2â€“3
 preempts a worker and shows up as missed Capacity quanta.
 
 ```bash
@@ -229,7 +229,7 @@ The Raspberry's worst waits (up to about 0.7 ms) were `avahi-daemon` and
 `polkitd` running on CPU 0, so the image runs both at `Nice=10`. They briefly
 lived on cores 2 and 3, but the DSP workers there suffer more from a stray
 task than the runtime thread does: with every system daemon back on CPU 0,
-2026-11 smokes kept the same runtime lateness (Raspberry 119 to 122 µs
+2026-11 smokes kept the same runtime lateness (Raspberry 119 to 122 Âµs
 average) with no underruns or missed quanta. The Orange's
 worst waits were the app's own CPU 0 threads; interrupts took at most about
 45 Âµs on either board. The largest of them was the rolling backup (due on the
@@ -535,7 +535,7 @@ on the Orange, `Octessera Line In` on the Raspberry).
   `host_usb_midi.py ... tempo_mod` sends no clock: it sweeps CC1 0-127-0 (254
   messages in about 1 s) four times, 3 s apart, the last sweep stopping at 64,
   and records the board's clock out. From 1 s after the last CC, the clock
-  must average the held BPM (40 + 64/127 × 200, about 140.8) within 3 BPM per
+  must average the held BPM (40 + 64/127 Ã— 200, about 140.8) within 3 BPM per
   pulse and still swing by at least 20 BPM (the LFO). The journal must show no
   underruns or late timed events and at most 1 pulse per runtime dispatch
   while the host plays (the peak 240 BPM pulses every 10.4 ms, the runtime
