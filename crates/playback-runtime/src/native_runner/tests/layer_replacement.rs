@@ -307,6 +307,7 @@ fn assert_replacement_releases_held_note(midi: bool) {
     runner.delayed_link_events[0].push(DelayedRoutedEvents {
         remaining_steps: 1,
         events: RoutedMusicalEvents::default(),
+        queued_by: 0,
     });
     runner.link_arp.keys[0].push(arp_key(0, 60));
 

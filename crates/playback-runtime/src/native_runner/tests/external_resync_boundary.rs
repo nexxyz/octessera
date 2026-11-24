@@ -289,6 +289,7 @@ fn external_resync_clears_old_link_and_arp_state_but_keeps_new_origin_delay() {
             ))],
             ..RoutedMusicalEvents::default()
         },
+        queued_by: 0,
     });
     runner.link_arp.keys[0].push(arp_key(0, 99));
     add_tile(&mut runner, 0, 0);

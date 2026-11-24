@@ -4,7 +4,7 @@
 //! its release must still have something behind it; at the end every tile goes dark and the
 //! queues run out, every key is released, every held note ended once per start, and none of it
 //! depends on which layer is selected. Every layer keeps its Off row on note off, on the
-//! instrument its other rows play.
+//! instrument its other rows play, and scans in mono lanes, so no note hangs by design.
 
 mod setup;
 
@@ -227,8 +227,9 @@ fn play(seed: u64, selected: usize) -> (Sinks, usize) {
     (run.sinks, held)
 }
 
-/// Every tile goes dark: the Keys layers let go, the Looper and Sequencer layers end, the
-/// keyboard lets up, and the queues run out.
+/// Every tile goes dark without a drain: the Keys layers let go, the keyboard lets up, the Looper
+/// clears its loop, the Sequencer's pages are cleared as they come round, and the queues run
+/// out.
 fn finish(run: &mut Run) {
     for layer in 0..KEYS_LAYERS {
         for index in 0..GRID_WIDTH * GRID_HEIGHT {
@@ -244,8 +245,21 @@ fn finish(run: &mut Run) {
     if run.runner.transport.transport != RuntimeTransportState::Playing {
         run.input("dark", json!({ "type": "button_s", "pressed": true }));
     }
-    for layer in [LOOPER, SEQUENCER] {
-        run.runner.select_layer_behavior(layer, "none").unwrap();
+    let clear = platform_core::BehaviorActionInput {
+        action_type: "clearLoop".into(),
+    };
+    run.press("dark", LOOPER, DeviceInput::BehaviorAction(clear));
+    // Each Sequencer page goes dark as it comes into view.
+    for page in 0..3 {
+        let tiles = run.runner.layers[SEQUENCER].engine.model().unwrap().tiles;
+        for index in (0..tiles.len()).filter(|index| tiles[*index]) {
+            let (x, y) = (index % GRID_WIDTH, index / GRID_WIDTH);
+            run.press("dark", SEQUENCER, DeviceInput::GridPress { x, y });
+            run.press("dark", SEQUENCER, DeviceInput::GridRelease { x, y });
+        }
+        for offset in 0..2 * STEP {
+            run.pulse(&format!("page{page}+{offset}"));
+        }
     }
     for offset in 0..16 * STEP {
         run.pulse(&format!("drain+{offset}"));

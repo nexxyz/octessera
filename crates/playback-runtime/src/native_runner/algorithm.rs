@@ -34,10 +34,21 @@ impl NativeRunner {
         let bpm = self.clock_bpm() as f32;
         let mut rng = self.probability_rng(layer_index);
         let phase = self.layer_step_phase(layer_index);
+        // Another layer's engine takes its Link at its own steps; a press on it takes it now.
+        let link_setup = (layer_index != self.active_layer_index).then(|| {
+            (
+                self.interpretation_profile_for_layer(layer_index),
+                self.mapping_config_for_layer(layer_index),
+            )
+        });
         let layer = self
             .layers
             .get_mut(layer_index)
             .ok_or_else(|| format!("layer {} has no engine", layer_index + 1))?;
+        if let Some((profile, mapping)) = link_setup {
+            layer.engine.set_interpretation_profile(profile);
+            layer.engine.set_mapping_config(mapping);
+        }
         layer.engine.set_step_phase(phase);
         if paused {
             let result = layer.engine.on_input_with_events(input, bpm)?;
@@ -93,11 +104,16 @@ impl NativeRunner {
         let mut layer_ticks = std::mem::take(&mut self.transport.layer_tick_buffers);
         layer_ticks.resize_with(self.layers.len(), Vec::new);
         layer_ticks.iter_mut().for_each(Vec::clear);
+        let mut active_updates = Vec::new();
         if let Some(active) = layer_ticks.get_mut(self.active_layer_index) {
-            self.advance_active_layer(active)?;
+            self.advance_active_layer(active, &mut active_updates)?;
         }
-        let inactive_modulation_updates = self.advance_inactive_layers(&mut layer_ticks)?;
-        for (index, mapped_intents) in inactive_modulation_updates {
+        let mut modulation_updates = self.advance_inactive_layers(&mut layer_ticks)?;
+        // Every layer's step modulation lands after all the layers stepped, in layer order, so
+        // the selected layer modulates exactly as the others do.
+        modulation_updates.extend(active_updates);
+        modulation_updates.sort_by_key(|(index, _)| *index);
+        for (index, mapped_intents) in modulation_updates {
             self.apply_runtime_modulation(&mapped_intents, index);
         }
         let mut events = RoutedMusicalEvents::default();
@@ -279,8 +295,17 @@ impl NativeRunner {
         swing.offset_nanos(warped, self.transport.current_ppqn_pulse, self.clock_bpm())
     }
 
-    fn advance_active_layer(&mut self, ticks: &mut LayerTicks) -> Result<(), String> {
+    fn advance_active_layer(
+        &mut self,
+        ticks: &mut LayerTicks,
+        modulation_updates: &mut Vec<(usize, Vec<platform_core::TileTriggerIntent>)>,
+    ) -> Result<(), String> {
         let active_step_pulses = self.step_pulses_for_layer(self.active_layer_index);
+        if self.transport.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses {
+            // The selected layer steps on its Link as it is now, as every other layer does.
+            self.refresh_active_mapping_config();
+            self.refresh_active_interpretation_profile();
+        }
         while self.transport.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses
         {
             self.transport.layer_pulse_accumulators[self.active_layer_index] -= active_step_pulses;
@@ -293,7 +318,6 @@ impl NativeRunner {
                 *layer_tick = self.transport.tick;
             }
             let mut due_events = self.take_due_link_events(self.active_layer_index);
-            self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
             let transpose_offset = self.play_transpose_offset_for_layer(self.active_layer_index);
             let tick_events = self.route_events_with_link_timing(
                 self.active_layer_index,
@@ -303,6 +327,10 @@ impl NativeRunner {
                     transpose_offset,
                 },
             )?;
+            // As on the other layers, the step's modulation lands after the notes, so a pitch
+            // move drains at the next step before anything queued falls due.
+            modulation_updates.push((self.active_layer_index, tick.mapped_intents));
+            super::link_routing::drop_due_presses_released_by(&mut due_events, &tick_events);
             due_events.extend(tick_events);
             ticks.push((offset, due_events));
         }

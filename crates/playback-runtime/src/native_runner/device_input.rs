@@ -473,16 +473,18 @@ impl NativeRunner {
             *layer_tick = self.transport.tick;
         }
         let mut events = self.take_due_link_events(self.active_layer_index);
-        self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
         let transpose_offset = self.play_transpose_offset_for_layer(self.active_layer_index);
-        events.extend(self.route_events_with_link_timing(
+        let step_events = self.route_events_with_link_timing(
             self.active_layer_index,
             LinkRoutingInput {
                 events: tick.events,
                 event_intents: &tick.event_intents,
                 transpose_offset,
             },
-        )?);
+        )?;
+        super::link_routing::drop_due_presses_released_by(&mut events, &step_events);
+        events.extend(step_events);
+        self.apply_runtime_modulation(&tick.mapped_intents, self.active_layer_index);
         let mut messages = self.messages_with_routed_events(events)?;
         messages.extend(self.messages_with_snapshot()?);
         Ok(messages)

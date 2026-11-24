@@ -329,7 +329,6 @@ impl NativeRunner {
         result: platform_core::NativeInputResult,
     ) -> Result<Vec<RunnerMessage>, String> {
         let mut messages = Vec::new();
-        self.apply_runtime_modulation(&result.mapped_intents, layer_index);
         let transpose_offset = self.play_transpose_offset_for_layer(layer_index);
         let mut events = self.route_events_with_link_timing(
             layer_index,
@@ -339,6 +338,9 @@ impl NativeRunner {
                 transpose_offset,
             },
         )?;
+        // As at a step, the press's modulation lands after its notes, so a pitch move drains at
+        // the layer's next step before anything it queued falls due.
+        self.apply_runtime_modulation(&result.mapped_intents, layer_index);
         self.sound_keys(&mut events);
         self.append_music_first_audio_commands(&mut messages);
         // A drain the press caused (a gate or setting change) ends its notes before the press.

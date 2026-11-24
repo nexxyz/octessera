@@ -55,6 +55,9 @@ pub struct NativeLayerEngine {
     step_phase: StepPhase,
     /// What the scan line saw on each tile the last time it touched it.
     scan_seen: GridSnapshot,
+    /// The grid before the first press since the last step that played nothing at once, so the
+    /// next step plays what the presses changed.
+    unplayed_before: Option<GridSnapshot>,
 }
 
 impl NativeLayerEngine {
@@ -93,6 +96,7 @@ impl NativeLayerEngine {
             random: LayerRandom::new(config.random_seed),
             step_phase: StepPhase::Stopped,
             scan_seen: unscanned_grid(),
+            unplayed_before: None,
         })
     }
 
@@ -141,8 +145,15 @@ impl NativeLayerEngine {
             .random
             .scope(|| behavior.on_input(state, input, &mut context))?;
         let after = self.behavior.render_model(&self.state)?;
-        // Note Preview: a press or release plays its tile's change at once, scanning or not.
-        let mapped = if self.interpretation_profile.event.enabled {
+        // Note Preview: a press or release plays its tile's change at once, scanning or not. Keys
+        // and the Looper play their presses as their own events while they play directly.
+        let scanning = self.interpretation_profile.scans();
+        let plays_now = self.interpretation_profile.event.enabled
+            || (self.behavior.plays_its_presses() && !scanning);
+        if !plays_now && !scanning && self.unplayed_before.is_none() {
+            self.unplayed_before = Some(to_snapshot(&before));
+        }
+        let mapped = if plays_now {
             let mut profile = self.interpretation_profile.clone();
             profile.state.enabled = false;
             let intents = interpret_grid_with_marker_authority(
@@ -209,7 +220,7 @@ impl NativeLayerEngine {
             direct_before = to_snapshot(&before);
             &direct_before
         };
-        let intents = interpret_grid_with_marker_authority(
+        let mut intents = interpret_grid_with_marker_authority(
             previous,
             &next,
             self.tick,
@@ -217,6 +228,15 @@ impl NativeLayerEngine {
             TriggerMarkerAuthority::FreshTick,
             stable,
         );
+        if let Some(unplayed) = self.unplayed_before.take().filter(|_| !scanning) {
+            intents = unplayed_presses::fold_unplayed_presses(
+                &unplayed,
+                previous,
+                &next,
+                &self.interpretation_profile,
+                intents,
+            );
+        }
         if scanning {
             self.remember_scanned_line(&next);
         }
@@ -295,13 +315,14 @@ impl NativeLayerEngine {
         tiles.into_iter().map(|(tile, _)| tile)
     }
 
-    /// Keeps the scan line where it is when it starts running the other way.
-    pub fn turn_scan_line_round(&mut self) {
+    /// Keeps the scan line where `before`, the scan it ran until now, left it when it starts
+    /// running the other way.
+    pub fn turn_scan_line_round(&mut self, before: &crate::TickStrategy) {
         self.tick = crate::interpretation_scan::turned_round_tick(
             GRID_WIDTH,
             GRID_HEIGHT,
             self.tick,
-            &self.interpretation_profile.state.tick,
+            before,
         );
     }
 
@@ -313,6 +334,7 @@ impl NativeLayerEngine {
     pub fn reset_transport_phase(&mut self) {
         self.tick = 0;
         self.scan_seen = unscanned_grid();
+        self.unplayed_before = None;
         let state = &mut self.state;
         self.random.scope(|| state.reset_transport_phase());
     }
@@ -413,6 +435,8 @@ fn to_snapshot(model: &BehaviorRenderModel) -> GridSnapshot {
         trigger_types: model.trigger_types.clone(),
     }
 }
+
+mod unplayed_presses;
 
 #[cfg(test)]
 mod tests;

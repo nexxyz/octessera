@@ -102,6 +102,7 @@ impl NativeRunner {
                     transpose_offset,
                 },
             )?;
+            super::super::link_routing::drop_due_presses_released_by(&mut due, &tick_events);
             due.extend(tick_events);
             ticks.push((offset, due));
         }

@@ -164,6 +164,12 @@ impl NativeBehavior {
         }
     }
 
+    /// Keys and the Looper are played by hand: a press is their own event, whatever Note Preview
+    /// says.
+    pub fn plays_its_presses(self) -> bool {
+        matches!(self, NativeBehavior::Keys | NativeBehavior::Looper)
+    }
+
     /// Whether Link plays Hold events for this behavior's tiles that stay lit through a step.
     /// The play behaviors and the games shape their own events, so they get none.
     pub fn reports_stable_tiles(self) -> bool {

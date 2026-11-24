@@ -44,6 +44,24 @@ impl LinkRouting {
         }
     }
 
+    /// The scan the line ran on, as the engine reads it.
+    fn scan_strategy(&self) -> platform_core::TickStrategy {
+        let sections = (self.scan_sections > 1).then_some(usize::from(self.scan_sections));
+        let reverse = self.scan_direction == ScanDirection::Reverse;
+        match self.scan_axis {
+            ScanAxis::Columns => platform_core::TickStrategy::ScanColumnActive {
+                sections,
+                reverse,
+                restart_pitch: false,
+            },
+            ScanAxis::Rows => platform_core::TickStrategy::ScanRowActive {
+                sections,
+                reverse,
+                restart_pitch: false,
+            },
+        }
+    }
+
     /// Whether going to `after` moves where the layer's presses and releases go.
     fn retargets(&self, after: &Self) -> bool {
         let lanes = |routing: &Self| {
@@ -83,8 +101,8 @@ impl NativeRunner {
             return;
         };
         let after = LinkRouting::of(&layer.link);
-        if before.scan_direction != after.scan_direction {
-            layer.engine.turn_scan_line_round();
+        if before.scan_direction != after.scan_direction && before.scan_mode == ScanMode::Scanning {
+            layer.engine.turn_scan_line_round(&before.scan_strategy());
         }
         if before.retargets(&after) {
             self.drain_layer_notes(index, before.target_slots());

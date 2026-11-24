@@ -128,6 +128,8 @@ pub(super) struct LinkEventTiming {
 pub(super) struct DelayedRoutedEvents {
     pub(super) remaining_steps: u16,
     pub(super) events: RoutedMusicalEvents,
+    /// Which routing pass queued it, so a release names only presses queued before it.
+    pub(super) queued_by: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

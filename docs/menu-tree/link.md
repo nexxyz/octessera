@@ -131,15 +131,17 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   [Trigger types](../menu-and-controls-spec.md#trigger-types).
 - `Note Preview` (`layers.N.link.notePreview`, saved with the patch, default on): on, a tile you
   press or release fires its On or Off at once through the rows, scanning or not; off, a press
-  only changes the grid and the layer's steps play what follows from it.
+  only changes the grid, and on a direct layer its next step plays what the press changed, so a
+  press that turns a sounding tile off still ends its note. Keys and the Looper are played by
+  hand: their presses play at once whatever Note Preview says, unless the layer scans.
 - Picking a behavior, from the menu or a binding, sets Scan Mode and Note Preview from the
   behavior's play style: a grid sequencer (Sequencer, Euclid, Polyrhythm, Breaks, Clave, Groove,
   Contour, Cadence) scans with Scan Axis `columns`, the line moving left to right, Note Preview
   on; Keys, Looper and None, and the games Pong and Blockout, play directly with Note Preview off;
   every other behavior plays directly with Note Preview on. Scan Dir starts forward. A layer saved
-  without Note Preview loads with what its behavior's pick would set. Both stay as edited until the next
-  pick; a patch load, the Factory Patch included, keeps the saved values. The pick drains the
-  layer like any change below.
+  without Note Preview loads with what its behavior's pick would set. Scan Mode, Scan Dir and
+  Note Preview stay as edited until the next pick; a patch load, the Factory Patch included,
+  keeps the saved values. The pick drains the layer like any change below.
 - A scanning layer plays the same On, Hold and Off rows, from its scan line instead of its grid's
   changes. Each tile the line reaches is compared with the tile it touched one step before in the
   same lane, the row a column scan runs along or the column a row scan runs along: dark to lit

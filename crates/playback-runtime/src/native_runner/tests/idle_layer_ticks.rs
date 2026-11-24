@@ -96,6 +96,7 @@ fn eight_bar_trace(mut runner: NativeRunner) -> String {
             }],
             ..RoutedMusicalEvents::default()
         },
+        queued_by: 0,
     });
     let mut pulse = 0_u32;
     let mut late_scanner_started = false;

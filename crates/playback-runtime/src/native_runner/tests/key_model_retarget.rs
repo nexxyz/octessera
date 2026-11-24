@@ -219,3 +219,56 @@ fn a_root_change_drops_a_delayed_press_of_the_old_pitch() {
     }
     assert_eq!(runner.held_keys.held_count(), 0);
 }
+
+/// An X binding on the selected layer's Root, a Hold synth and On Delay 1: each step's tile
+/// moves the Root after the step's notes, so the next step drains before its queued press of the
+/// old pitch falls due, and no note is left behind once the tiles let go.
+pub(super) fn root_on_x(runner: &mut NativeRunner, layer: usize) {
+    runner.layers[layer].param_mods.x[0] = Some(NativeParamBinding {
+        key: format!("layers.{layer}.link.pitch.root"),
+        label: Some("Root".into()),
+        kind: "enum".into(),
+        min: None,
+        max: None,
+        step: None,
+        user_min: None,
+        user_max: None,
+        options: platform_core::NOTE_SET_ROOTS
+            .iter()
+            .map(|root| (*root).to_string())
+            .collect(),
+        invert: false,
+    });
+}
+
+#[test]
+fn a_root_moved_by_the_selected_layers_x_binding_leaves_no_note_behind() {
+    let mut runner = keys_layers(true);
+    runner.layers[0].behavior_id = "keys".into();
+    runner
+        .replace_layer_engine_with_config(
+            0,
+            NativeBehavior::Keys,
+            json!({ "quantize": "step" }),
+            None,
+        )
+        .unwrap();
+    runner.layers[0].link.activate_timing.delay_steps = 1;
+    runner.layers[0].link.scale = "major".into();
+    root_on_x(&mut runner, 0);
+    runner.refresh_active_mapping_config();
+    runner.refresh_active_interpretation_profile();
+    let step = runner.step_pulses_for_layer(0);
+    tile(&mut runner, 0, "grid_press", 0, 2);
+    pulse(&mut runner, step);
+    tile(&mut runner, 0, "grid_press", 6, 2);
+    for _ in 0..2 {
+        pulse(&mut runner, step);
+    }
+    tile(&mut runner, 0, "grid_release", 0, 2);
+    tile(&mut runner, 0, "grid_release", 6, 2);
+    for _ in 0..4 {
+        pulse(&mut runner, step);
+    }
+    assert_eq!(runner.held_keys.held_count(), 0);
+}

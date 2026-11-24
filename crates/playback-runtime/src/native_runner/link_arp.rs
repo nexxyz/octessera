@@ -106,7 +106,12 @@ impl NativeRunner {
                 if remaining_steps == 0 {
                     immediate.extend(event);
                 } else if let Some(queue) = self.delayed_link_events.get_mut(layer_index) {
-                    super::link_routing::queue_delayed(queue, remaining_steps, event);
+                    super::link_routing::queue_delayed(
+                        queue,
+                        remaining_steps,
+                        event,
+                        self.link_route_calls,
+                    );
                 }
             }
         }

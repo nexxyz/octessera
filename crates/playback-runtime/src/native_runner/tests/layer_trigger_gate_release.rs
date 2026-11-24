@@ -360,10 +360,12 @@ pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_
     runner.delayed_link_events[0].push(DelayedRoutedEvents {
         remaining_steps: 2,
         events: RoutedMusicalEvents::default(),
+        queued_by: 0,
     });
     runner.delayed_link_events[1].push(DelayedRoutedEvents {
         remaining_steps: 2,
         events: RoutedMusicalEvents::default(),
+        queued_by: 0,
     });
 
     let _ = disable_layer(&mut runner, 0);

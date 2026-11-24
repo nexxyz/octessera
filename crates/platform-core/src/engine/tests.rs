@@ -437,3 +437,44 @@ fn brain_grid_press_clears_stale_trigger_types_before_interpretation() {
     );
     assert!(!input.events.is_empty());
 }
+
+/// With Note Preview off a press plays nothing at once; the next step plays what it changed, so
+/// a press that turns a sounding tile off still ends its note.
+#[test]
+fn a_press_without_note_preview_plays_at_the_next_step() {
+    let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
+        behavior: NativeBehavior::Sequencer,
+        interpretation_profile: InterpretationProfile {
+            event: InterpretationEventProfile { enabled: false },
+            ..base_config().interpretation_profile
+        },
+        mapping_config: {
+            let mut mapping = default_mapping_config();
+            mapping.deactivate.action = TriggerAction::NoteOff;
+            mapping
+        },
+        ..base_config()
+    })
+    .unwrap();
+    let kinds = |engine: &mut NativeLayerEngine| {
+        engine
+            .tick(120.0)
+            .unwrap()
+            .event_intents
+            .into_iter()
+            .flatten()
+            .map(|intent| (intent.x, intent.y, intent.kind))
+            .collect::<Vec<_>>()
+    };
+    let press = |engine: &mut NativeLayerEngine| {
+        engine
+            .on_input_with_events(DeviceInput::GridPress { x: 2, y: 1 }, 120.0)
+            .unwrap()
+            .events
+    };
+    assert!(press(&mut engine).is_empty());
+    assert_eq!(kinds(&mut engine), [(2, 1, TileTriggerKind::Activate)]);
+    assert!(press(&mut engine).is_empty());
+    assert_eq!(kinds(&mut engine), [(2, 1, TileTriggerKind::Deactivate)]);
+    assert!(kinds(&mut engine).is_empty());
+}

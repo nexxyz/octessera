@@ -93,6 +93,7 @@ impl NativeRunner {
                     queue,
                     u16::from(timing.delay_steps.saturating_add(repeat)),
                     routed.clone(),
+                    self.link_route_calls,
                 );
             }
         }
@@ -124,8 +125,14 @@ impl NativeRunner {
         let Some(queue) = self.delayed_link_events.get_mut(layer_index) else {
             return;
         };
+        let this_pass = self.link_route_calls;
         queue.retain_mut(|entry| {
-            if entry.remaining_steps <= u16::from(note_off_due_steps) {
+            // A press queued by an earlier pass that falls due with the release is the press the
+            // release ends, as when a mono lane replaces a note that has not sounded yet.
+            let due = u16::from(note_off_due_steps);
+            if entry.remaining_steps < due
+                || (entry.remaining_steps == due && entry.queued_by == this_pass)
+            {
                 return true;
             }
             // Only the held presses go; a release queued with them still lands.
@@ -176,6 +183,7 @@ impl NativeRunner {
         layer_index: usize,
         input: LinkRoutingInput<'_>,
     ) -> Result<RoutedMusicalEvents, String> {
+        self.link_route_calls = self.link_route_calls.wrapping_add(1);
         let mut routed = RoutedMusicalEvents::default();
         routed.extend(self.drain_moved_pitch_mapping(layer_index));
         let mono_intents;
@@ -331,6 +339,19 @@ fn arp_batches(events: &[MusicalEvent], intents: &[Option<TileTriggerIntent>]) -
     untagged.into_iter().chain(releases).chain(rest).collect()
 }
 
+/// A release on the layer's step drops the held presses of its key that fell due on that step
+/// from the layer's queue: the tile went dark before its delayed On sounded, so the note never
+/// starts, as when the release comes a step earlier and cancels the press while it waits.
+pub(super) fn drop_due_presses_released_by(
+    due: &mut RoutedMusicalEvents,
+    step: &RoutedMusicalEvents,
+) {
+    let released = |press: &KeyPress| step.keys.iter().any(|event| releases(event, press));
+    due.keys.retain(
+        |event| !matches!(event, KeyEvent::Press(press) if press.length_ms.is_none() && released(press)),
+    );
+}
+
 /// A layer's Delay and Arp queue takes presses only while it holds fewer entries than this.
 const DELAYED_ENTRIES_PER_LAYER: usize = 1024;
 
@@ -343,6 +364,7 @@ pub(super) fn queue_delayed(
     queue: &mut Vec<DelayedRoutedEvents>,
     remaining_steps: u16,
     mut events: RoutedMusicalEvents,
+    queued_by: u64,
 ) {
     if queue.len() >= DELAYED_ENTRIES_PER_LAYER {
         events = RoutedMusicalEvents {
@@ -365,6 +387,7 @@ pub(super) fn queue_delayed(
     queue.push(DelayedRoutedEvents {
         remaining_steps,
         events,
+        queued_by,
     });
 }
 

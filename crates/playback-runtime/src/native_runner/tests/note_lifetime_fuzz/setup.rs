@@ -88,6 +88,12 @@ pub(super) fn fuzz_runner() -> NativeRunner {
         .map(|layer| &mut layer.link)
     {
         link.note_preview = true;
+        // A poly scan's Off names the dark tile's own pitch and pad, so along a lane with Pitch
+        // Steps or other pads it leaves notes sounding by design; mono lanes always close.
+        link.scan_lanes = ScanLanes::Mono;
+        // Unseeded layers share one random stream, drawn in the order the layers step, which
+        // the selected layer leads; seeded ones each draw their own.
+        link.seeded = true;
     }
     runner.sync_engine_runtime_config();
     runner.skip_startup_splash();
@@ -126,12 +132,7 @@ fn menu_pick(runner: &mut NativeRunner, key: &str, choice: u64) {
     let option = &options[choice as usize % options.len()];
     if runner.menu.set_enum_value_for_key(key, option) {
         runner.apply_or_schedule_menu_key(key).unwrap();
-        if let Some(pending) = runner.pending.pending_menu_apply.as_mut() {
-            pending.due_at = std::time::Instant::now();
-            runner
-                .apply_due_menu_key(std::time::Instant::now())
-                .unwrap();
-        }
+        assert!(runner.pending.pending_menu_apply.is_none(), "{key} waits");
     }
 }
 
@@ -139,12 +140,7 @@ fn menu_number(runner: &mut NativeRunner, key: &str, value: i32) {
     runner.menu.rebuild(runner.menu_config());
     if runner.menu.set_number_value_for_key(key, value) {
         runner.apply_or_schedule_menu_key(key).unwrap();
-        if let Some(pending) = runner.pending.pending_menu_apply.as_mut() {
-            pending.due_at = std::time::Instant::now();
-            runner
-                .apply_due_menu_key(std::time::Instant::now())
-                .unwrap();
-        }
+        assert!(runner.pending.pending_menu_apply.is_none(), "{key} waits");
     }
 }
 
@@ -180,7 +176,8 @@ fn link_setting(
 pub(super) fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames) {
     let layer = rng.below(SEQUENCER as u64 + 1) as usize;
     let prefix = format!("layers.{layer}.link");
-    match rng.below(16) {
+    let case = rng.below(17);
+    match case {
         0 => {
             let row = ["activate", "stable", "deactivate"][rng.below(3) as usize];
             let slot = rng.below(6);
@@ -242,7 +239,7 @@ pub(super) fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames)
             let slot = [0, 2, 3, 4, 5][rng.below(5) as usize];
             menu_pick(runner, &format!("instruments.{slot}.noteOff"), rng.below(2));
         }
-        11 => link_setting(runner, rng, layer, "scanLanes", &["poly", "mono"]),
+        11 => link_setting(runner, rng, layer, "scanUnit", &["1/16", "1/8", "1/32"]),
         12 => {
             let key = format!("{prefix}.notePreview");
             let on = rng.chance(50);
@@ -267,6 +264,14 @@ pub(super) fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames)
             runner.select_layer_behavior(layer, "keys").unwrap();
             lit[layer] = [false; GRID_WIDTH * GRID_HEIGHT];
         }
+        // An X binding moving the layer's Root with each step's tiles, or none.
+        15 => {
+            if rng.chance(50) {
+                super::super::key_model_retarget::root_on_x(runner, layer);
+            } else {
+                runner.layers[layer].param_mods.x[0] = None;
+            }
+        }
         _ => bind(
             runner,
             &format!("{prefix}.y.pitch.steps"),
@@ -275,12 +280,15 @@ pub(super) fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames)
     }
 }
 
-/// What the sinks heard, one line per call that sounded anything, and how many starts of each
-/// held note and looping pad have not ended yet.
+/// What the sinks heard, one line per call that sounded anything, how many starts of each held
+/// note and looping pad have not ended yet, how many One-Shot starts an end may still cut, and
+/// every end that found nothing left to end.
 #[derive(Default)]
 pub(super) struct Sinks {
     pub(super) lines: Vec<String>,
     open: BTreeMap<String, usize>,
+    finite: BTreeMap<String, usize>,
+    extra_ends: Vec<String>,
 }
 
 impl Sinks {
@@ -289,10 +297,10 @@ impl Sinks {
         for message in messages {
             match message {
                 RunnerMessage::MusicalEvents { events } => {
-                    words.extend(events.iter().map(|event| self.note(event, "a")));
+                    words.extend(events.iter().map(|event| self.note(event, "a", at)));
                 }
                 RunnerMessage::MidiEvents { events } => {
-                    words.extend(events.iter().map(|event| self.note(event, "m")));
+                    words.extend(events.iter().map(|event| self.note(event, "m", at)));
                 }
                 RunnerMessage::TileHits { hits } => {
                     for hit in hits {
@@ -305,9 +313,14 @@ impl Sinks {
                                     && slot.note_behavior == NoteBehavior::Hold
                             });
                         if hit.velocity == 0 {
-                            self.end(&voice);
-                        } else if holds {
-                            *self.open.entry(voice.clone()).or_default() += 1;
+                            self.end(&voice, at);
+                        } else {
+                            let starts = if holds {
+                                &mut self.open
+                            } else {
+                                &mut self.finite
+                            };
+                            *starts.entry(voice.clone()).or_default() += 1;
                         }
                         words.push(format!("{voice}.{}", hit.velocity));
                     }
@@ -321,7 +334,7 @@ impl Sinks {
         }
     }
 
-    fn note(&mut self, event: &MusicalEvent, lane: &str) -> String {
+    fn note(&mut self, event: &MusicalEvent, lane: &str, at: &str) -> String {
         match *event {
             MusicalEvent::NoteOn {
                 channel,
@@ -329,28 +342,33 @@ impl Sinks {
                 velocity,
                 duration_ms,
             } => {
-                if duration_ms.is_none() {
-                    *self
-                        .open
-                        .entry(format!("{lane}{channel}.{note}"))
-                        .or_default() += 1;
-                }
+                let starts = if duration_ms.is_none() {
+                    &mut self.open
+                } else {
+                    &mut self.finite
+                };
+                *starts.entry(format!("{lane}{channel}.{note}")).or_default() += 1;
                 let length = duration_ms.map_or("h".to_string(), |ms| ms.to_string());
                 format!("+{lane}{channel}.{note}.{velocity}.{length}")
             }
             MusicalEvent::NoteOff { channel, note } => {
-                self.end(&format!("{lane}{channel}.{note}"));
+                self.end(&format!("{lane}{channel}.{note}"), at);
                 format!("-{lane}{channel}.{note}")
             }
             MusicalEvent::Cc { .. } => String::new(),
         }
     }
 
-    /// One end ends one start; an end with no held start ended a One-Shot note.
-    fn end(&mut self, key: &str) {
-        if let Some(count) = self.open.get_mut(key) {
-            *count = count.saturating_sub(1);
+    /// One end ends one held start, or else cuts one One-Shot start; with neither left it is
+    /// a doubled end.
+    fn end(&mut self, key: &str, at: &str) {
+        for starts in [&mut self.open, &mut self.finite] {
+            if let Some(count) = starts.get_mut(key).filter(|count| **count > 0) {
+                *count -= 1;
+                return;
+            }
         }
+        self.extra_ends.push(format!("{at}: {key}"));
     }
 
     pub(super) fn assert_all_ended(&self, seed: u64) {
@@ -362,6 +380,11 @@ impl Sinks {
         assert!(
             open.is_empty(),
             "seed {seed}: notes still sounding: {open:?}"
+        );
+        assert!(
+            self.extra_ends.is_empty(),
+            "seed {seed}: ends of nothing sounding: {:?}",
+            self.extra_ends
         );
     }
 }

@@ -60,6 +60,7 @@ impl NativeRunner {
                 seed.algorithm_step_pulses,
             ),
             delayed_link_events: vec![Vec::new(); LAYER_COUNT],
+            link_route_calls: 0,
             link_arp: Default::default(),
             display: NativeDisplayState::new(seed.ui, seed.now, seed.hdmi),
             midi: Default::default(),

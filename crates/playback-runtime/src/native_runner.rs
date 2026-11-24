@@ -316,6 +316,8 @@ pub struct NativeRunner {
     note_behaviors: Vec<NoteBehavior>,
     transport: NativeTransportState,
     delayed_link_events: Vec<Vec<DelayedRoutedEvents>>,
+    /// Routing passes so far, stamped on what each pass queues.
+    link_route_calls: u64,
     link_arp: link_arp::LinkArpState,
     display: NativeDisplayState,
     midi: midi_settings::NativeMidiSettings,

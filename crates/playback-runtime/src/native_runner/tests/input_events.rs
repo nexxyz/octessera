@@ -174,9 +174,11 @@ pub(crate) fn probability_suppressed_events_do_not_apply_runtime_modulation() {
 }
 
 #[test]
+/// With Note Preview off a press only changes the grid; Keys and the Looper, played by hand,
+/// still play their presses.
 pub(crate) fn note_preview_false_suppresses_input_transition_events() {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
-        behavior_id: "keys".into(),
+        behavior_id: "life".into(),
         ..NativeRunnerConfig::default()
     })
     .unwrap();
@@ -191,6 +193,20 @@ pub(crate) fn note_preview_false_suppresses_input_transition_events() {
         .unwrap();
 
     assert!(musical_note_ons(&press).is_empty());
+}
+
+/// Keys is played by hand: its presses sound with Note Preview off too, as a behavior pick sets it.
+#[test]
+pub(crate) fn keys_play_their_presses_with_note_preview_off() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig {
+        behavior_id: "life".into(),
+        ..NativeRunnerConfig::default()
+    })
+    .unwrap();
+    runner.select_behavior("keys").unwrap();
+    assert!(!runner.layers[0].link.note_preview);
+    let press = device_input(&mut runner, json!({ "type": "grid_press", "x": 2, "y": 3 }));
+    assert!(!musical_note_ons(&press).is_empty());
 }
 
 #[test]
