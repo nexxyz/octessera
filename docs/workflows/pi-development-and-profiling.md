@@ -184,58 +184,53 @@ one that clicked every few minutes. Judge long runs only with sampling off.
 Each of these took a soak, a trace, and some head-scratching to find. They are
 fixed in the images; the notes say what to look for if one comes back.
 
-On the Raspberry, ordinary tasks that wake on the audio core (CPU 1) can take
-it from the callback for a few milliseconds: the kernel's fair server reserves
-them time even against real-time threads. The network-health job (then once a
-minute), D-Bus, systemd launching that job and the hourly cron run were the culprits,
-so all four are limited to cores 2 and 3 (`AllowedCPUs=2-3`; systemd's
-`init.scope` is set at every boot by `octessera-performance-governor.service`,
-as scopes keep no persistent drop-ins). Quiet Latency soaks with 16 held notes
-went from about 10 underruns per 2 hours to none, and Live Show Mode stops the
-job entirely. If underruns come back, trace CPU 1 and look for the callback
-being switched out while still runnable (`prev_state=R`). The same
-unit also keeps unbound kernel workers, such as the SD-card writeback behind a
-long recording, off the audio core (`/sys/devices/virtual/workqueue/cpumask` =
-`d`); a traced recording underrun showed about 60 of their slices interrupting
-the callback in its last few milliseconds. Render blocks that take longer than
-the audio they produce are logged as `audio block overran: ...` with their
-event and voice counts.
+On both boards the audio callback runs on CPU 1 and the DSP workers on cores
+2 and 3, and the kernel's fair server reserves ordinary tasks time even against
+real-time threads: any of them that wakes there can take a core from the
+callback or a worker for a few milliseconds. Over 2026-10 and 2026-11 traces
+caught, in turn, the network-health job, D-Bus, systemd launching that job, the
+hourly cron run, NetworkManager's dispatcher (every DHCP lease renewal),
+Armbian's `armbian-truncate-logs` job with journald logging it, `bluetoothd`
+and D-Bus answering the app's Bluetooth status poll, `avahi-daemon`, and a
+short-lived `systemd-udevd` worker (6 ms on core 2; udev forks those for every
+hotplug event: USB, Bluetooth, the SD2 card). So both images keep every system
+daemon, the login and SSH sessions (`user.slice`, `getty@`) and systemd itself
+on CPU 0, which they share with the app's runtime thread, each through a
+`10-octessera-background.conf` drop-in with `AllowedCPUs=0`;
+`tools/armbian-image/test-daemon-cpu-fence.sh` pins the list. `init.scope` keeps
+no persistent drop-ins, so the Raspberry's
+`octessera-performance-governor.service` and the Orange's `octessera.service`
+set it at every start. bluealsa, which encodes the Bluetooth audio monitor,
+stays on cores 2 and 3 at `Nice=10`, below the DSP workers. The work itself is
+rarer too: the Bluetooth worker sleeps until BlueZ signals a change and polls
+only while scanning or pairing, the Raspberry network-health job runs every 10
+minutes (and Live Show Mode stops it), and avahi answers for the hostname over
+IPv4 only, without the workstation record or wide-area browsing. Quiet Latency
+soaks with 16 held notes went from about 10 underruns per 2 hours to none. If
+underruns come back, trace CPU 1 and look for the callback being switched out
+while still runnable (`prev_state=R`); if `audio quantum missed its deadline`
+lines come back, look for a non-worker task between a worker's `sched_wakeup`
+and its `sched_switch` on CPU 2 or 3.
 
-The fence moves the same problem to the DSP workers on cores 2 and 3. A
-traced 3-hour soak (2026-11) found that every rare `audio quantum missed its
-deadline` line was an ordinary task running there through the fair server
-while a worker waited, or even preempting a running one: D-Bus and
-`bluetoothd` answering the app's Bluetooth status poll (both boards), systemd
-starting the network-health job, and `avahi-daemon`. So the work itself is
-now rarer: the Bluetooth worker sleeps until BlueZ signals a change and polls
-only while scanning or pairing, the Raspberry network-health job runs every
-10 minutes, and avahi answers for the hostname over IPv4 only, without the
-workstation record or wide-area browsing. Look for a non-worker task between
-a worker's `sched_wakeup` and its `sched_switch` on CPU 2 or 3.
-A traced soak later caught a short-lived `systemd-udevd` worker running for
-6 ms on core 2 over a DSP worker; udev forks those workers for every hotplug
-event (USB, Bluetooth, the SD2 card), so both images keep `systemd-udevd.service`,
-and with it its workers, on core 0 (`AllowedCPUs=0`).
-
-The Orange is less exposed but not immune: NetworkManager's dispatcher, which
-starts on every DHCP lease renewal (about every 20 minutes on Wi-Fi), D-Bus and
-the hourly cron run took its audio core the same way, so D-Bus and the
-dispatcher are fenced to cores 2 and 3 there. Cron and journald are fenced to
-core 0 instead: a traced soak caught Armbian's `armbian-truncate-logs` job
-(every 15 minutes) and journald logging its cron session holding a DSP worker
-off core 2 for 4 ms. Core 0 runs only ordinary app threads at a higher
-priority and is mostly idle, so the job just waits its turn there. A traced
-Orange recording underrun showed an unbound kernel worker (SD-card writeback)
-holding CPU 1 for about 2 ms with preemption off, so the Orange image also sets the workqueue mask to `d`
-(`/etc/tmpfiles.d/octessera-audio.conf`).
+Unbound kernel workers, such as the SD-card writeback behind a long recording,
+stay off the audio core too (`/sys/devices/virtual/workqueue/cpumask` = `d`,
+set by the Raspberry's governor unit and the Orange's
+`/etc/tmpfiles.d/octessera-audio.conf`): traced recording underruns showed
+about 60 of their slices interrupting the Raspberry callback in its last few
+milliseconds, and one holding the Orange's CPU 1 for about 2 ms with preemption
+off. Render blocks that take longer than the audio they produce are logged as
+`audio block overran: ...` with their event and voice counts.
 
 Runtime lateness (the `runtime_late` profile figure) is sub-millisecond and not
 audible, but a CPU 0 trace (scheduler, IRQ and hrtimer events) explained it on
 both boards in 2026-10. About 50 µs of every wakeup was the kernel's default
 timer slack for normal threads, so the app sets its slack to 1 ns at startup.
 The Raspberry's worst waits (up to about 0.7 ms) were `avahi-daemon` and
-`polkitd` running on CPU 0, so the image keeps both on cores 2 and 3 at
-`Nice=10`, low enough for the DSP workers there to preempt them. The Orange's
+`polkitd` running on CPU 0, so the image runs both at `Nice=10`. They briefly
+lived on cores 2 and 3, but the DSP workers there suffer more from a stray
+task than the runtime thread does: with every system daemon back on CPU 0,
+2026-11 smokes kept the same runtime lateness (Raspberry 119 to 122 �s
+average) with no underruns or missed quanta. The Orange's
 worst waits were the app's own CPU 0 threads; interrupts took at most about
 45 µs on either board. The largest of them was the rolling backup (due on the
 first change after start, then every five minutes while the patch stays dirty):
