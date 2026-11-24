@@ -164,18 +164,9 @@ ensure_raspberry_uart_inactive() {
     for setting in use-ipv6=no publish-workstation=no enable-wide-area=no; do
         grep -qx "$setting" "$(target_path /etc/avahi/avahi-daemon.conf)"
     done
-    sudo install -d "$(target_path /etc/systemd/system/bluealsa.service.d)"
-    printf '[Service]\nNice=10\nCPUAffinity=2 3\n' | sudo tee "$(target_path /etc/systemd/system/bluealsa.service.d)"/10-octessera-background.conf >/dev/null
-    for unit in dbus cron; do
-        sudo install -d "$(target_path "/etc/systemd/system/$unit.service.d")"
-        printf '[Service]\nAllowedCPUs=2-3\n' | sudo tee "$(target_path "/etc/systemd/system/$unit.service.d")"/10-octessera-background.conf >/dev/null
+    for dropin in "$IMAGE_ROOT"/etc/systemd/system/*.d/10-octessera-background.conf; do
+        install_file 0644 "$dropin" "${dropin#"$IMAGE_ROOT"}"
     done
-    for unit in avahi-daemon polkit; do
-        sudo install -d "$(target_path "/etc/systemd/system/$unit.service.d")"
-        printf '[Service]\nNice=10\nAllowedCPUs=2-3\n' | sudo tee "$(target_path "/etc/systemd/system/$unit.service.d")"/10-octessera-background.conf >/dev/null
-    done
-    sudo install -d "$(target_path /etc/systemd/system/systemd-udevd.service.d)"
-    printf '[Service]\nAllowedCPUs=0\n' | sudo tee "$(target_path /etc/systemd/system/systemd-udevd.service.d)"/10-octessera-background.conf >/dev/null
     sudo install -d "$(target_path /etc/sysctl.d)"
     printf '# Locked audio memory must not be moved by compaction: the callback would stall on it.\nvm.compact_unevictable_allowed = 0\n' | sudo tee "$(target_path /etc/sysctl.d/60-octessera-audio.conf)" >/dev/null
     sudo rm -f "$(target_path /usr/local/lib/octessera/rpi_uart_release.py)"

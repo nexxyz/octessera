@@ -331,12 +331,11 @@ install -D -m 0644 -o root -g root "$welcome_overlay" /etc/profile.d/octessera-w
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
 install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
 octessera_install_orange_runtime_assets "$overlay_dir"
-install_overlay_file etc/systemd/system/bluealsa.service.d/10-octessera-background.conf /etc/systemd/system/bluealsa.service.d/10-octessera-background.conf 0644
-install_overlay_file etc/systemd/system/dbus.service.d/10-octessera-background.conf /etc/systemd/system/dbus.service.d/10-octessera-background.conf 0644
-install_overlay_file etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf /etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf 0644
-install_overlay_file etc/systemd/system/cron.service.d/10-octessera-background.conf /etc/systemd/system/cron.service.d/10-octessera-background.conf 0644
-install_overlay_file etc/systemd/system/systemd-journald.service.d/10-octessera-background.conf /etc/systemd/system/systemd-journald.service.d/10-octessera-background.conf 0644
-install_overlay_file etc/systemd/system/systemd-udevd.service.d/10-octessera-background.conf /etc/systemd/system/systemd-udevd.service.d/10-octessera-background.conf 0644
+# System daemons stay on CPU 0 and leave cores 1-3 to the app (bluealsa, which encodes audio,
+# stays on 2-3): the fair server lets any ordinary task run above the realtime audio threads.
+for dropin in "$overlay_dir"/etc/systemd/system/*.d/10-octessera-background.conf; do
+  install_overlay_file "${dropin#"$overlay_dir/"}" "/${dropin#"$overlay_dir/"}" 0644
+done
 install_overlay_file etc/systemd/journald.conf.d/10-octessera.conf /etc/systemd/journald.conf.d/10-octessera.conf 0644
 [[ -f /etc/default/armbian-ramlog ]] || { echo "Missing Armbian ramlog defaults." >&2; exit 1; }
 sed -i -E 's/^ENABLED=.*/ENABLED=false/' /etc/default/armbian-ramlog

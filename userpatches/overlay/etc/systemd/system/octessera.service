@@ -38,6 +38,9 @@ LockPersonality=yes
 LimitRTPRIO=70
 LimitMEMLOCK=infinity
 Nice=-10
+# systemd itself stays on CPU 0 with the other system daemons, off the audio core and the
+# DSP workers; init.scope has no persistent drop-ins, so this is set at every start.
+ExecStartPre=+-/bin/systemctl set-property --runtime init.scope AllowedCPUs=0
 ExecStart=/usr/local/bin/octessera-pi
 ExecStopPost=-+/usr/bin/python3 -c 'import fcntl;t=open("/dev/tty1","w");fcntl.ioctl(t,0x4B3A,0);fcntl.ioctl(t,0x5606,2)'
 Restart=on-failure

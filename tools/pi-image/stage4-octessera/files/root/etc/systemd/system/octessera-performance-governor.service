@@ -5,9 +5,9 @@ Before=octessera.service
 [Service]
 Type=oneshot
 ExecStart=/bin/sh -c 'for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -e "$gov" ] || continue; printf performance > "$gov" || true; done'
-# systemd itself starts services on CPU 1 otherwise; keep it off the audio core.
-# init.scope has no persistent drop-ins, so this is set at every boot.
-ExecStartPost=-/bin/systemctl set-property --runtime init.scope AllowedCPUs=2-3
+# systemd itself stays on CPU 0 with the other system daemons, off the audio core and
+# the DSP workers; init.scope has no persistent drop-ins, so this is set at every boot.
+ExecStartPost=-/bin/systemctl set-property --runtime init.scope AllowedCPUs=0
 # Unbound kernel workers (such as SD-card writeback) stay off the audio core too.
 ExecStartPost=-/bin/sh -c 'printf d > /sys/devices/virtual/workqueue/cpumask'
 ExecStartPost=-/bin/sh -c 'for pid in $(pgrep -x "irq/[0-9]+-mmc1"); do taskset -pc 2,3 "$pid"; done'

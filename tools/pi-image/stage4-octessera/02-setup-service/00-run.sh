@@ -227,26 +227,12 @@ sed -i -E \
 for setting in use-ipv6=no publish-workstation=no enable-wide-area=no; do
     grep -qx "$setting" "$ROOTFS_DIR/etc/avahi/avahi-daemon.conf"
 done
-# bluez-alsa encodes the Bluetooth audio monitor; keep it below the audio threads.
-install -d "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d"
-printf '[Service]\nNice=10\nCPUAffinity=2 3\n' > "$ROOTFS_DIR/etc/systemd/system/bluealsa.service.d/10-octessera-background.conf"
-# D-Bus wakes for every service start and the hourly cron run can briefly take
-# the audio core (CPU 1) from the callback; keep them, like the network-health
-# job and systemd itself (octessera-performance-governor.service), on cores 2 and 3.
-for unit in dbus cron; do
-    install -d "$ROOTFS_DIR/etc/systemd/system/$unit.service.d"
-    printf '[Service]\nAllowedCPUs=2-3\n' > "$ROOTFS_DIR/etc/systemd/system/$unit.service.d/10-octessera-background.conf"
+# System daemons stay on CPU 0 and leave cores 1-3 to the app: on this kernel the fair server
+# lets any ordinary task run above the realtime audio callback (CPU 1) and DSP workers (2-3).
+# bluez-alsa encodes the Bluetooth audio monitor, so it stays on 2-3 below the audio threads.
+for dropin in "$STAGE_FILES"/root/etc/systemd/system/*.d/10-octessera-background.conf; do
+    install -D -m 0644 "$dropin" "$ROOTFS_DIR${dropin#"$STAGE_FILES/root"}"
 done
-# avahi (mDNS) and polkit otherwise run on CPU 0 and hold the runtime thread back for up to a
-# millisecond; on cores 2 and 3 their low priority lets the DSP workers there preempt them.
-for unit in avahi-daemon polkit; do
-    install -d "$ROOTFS_DIR/etc/systemd/system/$unit.service.d"
-    printf '[Service]\nNice=10\nAllowedCPUs=2-3\n' > "$ROOTFS_DIR/etc/systemd/system/$unit.service.d/10-octessera-background.conf"
-done
-# Every udev event (USB or Bluetooth hotplug, the SD2 card) forks udev workers; on a DSP
-# core one held a realtime worker off for 6 ms, so udevd and its workers stay on CPU 0.
-install -d "$ROOTFS_DIR/etc/systemd/system/systemd-udevd.service.d"
-printf '[Service]\nAllowedCPUs=0\n' > "$ROOTFS_DIR/etc/systemd/system/systemd-udevd.service.d/10-octessera-background.conf"
 install -d "$ROOTFS_DIR/etc/sysctl.d"
 printf '# Locked audio memory must not be moved by compaction: the callback would stall on it.\nvm.compact_unevictable_allowed = 0\n' > "$ROOTFS_DIR/etc/sysctl.d/60-octessera-audio.conf"
 # The daily apt and man-db jobs install nothing here, but their cache and index
