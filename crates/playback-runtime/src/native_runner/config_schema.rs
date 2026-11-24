@@ -29,6 +29,7 @@ pub(super) fn prepare_config_payload(
     input: Value,
     current: &Value,
 ) -> Result<PreparedConfigPayload, String> {
+    let input = with_added_keys(&without_retired_keys(&input));
     let (mut input, source_revision) = parse_envelope(input, CONFIG_KIND)?;
     validate_canonical_lfo_bank_shape(&input)?;
     if !has_global_lfo_bank(&input) {

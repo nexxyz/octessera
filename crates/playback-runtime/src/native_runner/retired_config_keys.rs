@@ -239,4 +239,39 @@ mod tests {
             documents.patch
         );
     }
+
+    /// A full config takes the same retired and added keys as a patch: one saved before Note
+    /// Preview and the One-Shot Note Off, with the scan's own mappings, State Notes and the
+    /// Drum's and Sampler's Note Off, applies with the new keys at their defaults.
+    #[test]
+    fn a_full_config_with_this_releases_retired_keys_applies() {
+        let mut full: Value = serde_json::from_str(PI_DEFAULT).unwrap();
+        let runtime = &mut full["runtimeConfig"];
+        for layer in runtime["layers"].as_array_mut().unwrap() {
+            let link = layer["link"].as_object_mut().unwrap();
+            link.remove("notePreview");
+            link.remove("scanLanes");
+            link.insert("eventEnabled".into(), json!(true));
+            link.insert("stateNotesEnabled".into(), json!(true));
+            link["mapping"]["scanned"] = json!({ "slot": 0, "action": "note_on" });
+        }
+        for instrument in runtime["instruments"].as_array_mut().unwrap() {
+            instrument.as_object_mut().unwrap().remove("noteOff");
+            instrument["sample"]["noteOff"] = json!("cut");
+            instrument["drum"]["noteOff"] = json!("ignore");
+        }
+        let mut runner = crate::NativeRunner::new(crate::NativeRunnerConfig::default()).unwrap();
+        runner
+            .apply_config_payload(full)
+            .expect("an older full config applies");
+        let saved = runner.config_payload();
+        for layer in saved["runtimeConfig"]["layers"].as_array().unwrap() {
+            assert_eq!(layer["link"]["notePreview"], json!(true));
+            assert!(layer["link"].get("eventEnabled").is_none());
+        }
+        for instrument in saved["runtimeConfig"]["instruments"].as_array().unwrap() {
+            assert_eq!(instrument["noteOff"], json!("ignore"));
+            assert!(instrument["sample"].get("noteOff").is_none());
+        }
+    }
 }
