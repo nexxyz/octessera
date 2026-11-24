@@ -369,3 +369,29 @@ fn a_note_off_cuts_a_drum_hit_of_its_pitch_through_the_release() {
     assert!(!cut.synth_voice_pool.lane(0).unwrap().active);
     assert!(kept.synth_voice_pool.lane(0).unwrap().active);
 }
+
+/// A tile's release ends its own pad's hit, not another pad's hit that lands on the same note.
+#[test]
+fn a_tile_release_ends_only_its_pads_hit() {
+    let mut engine = drum_engine(DrumConfig::default(), 44_100);
+    engine.tile_hit(0, 0, 0, 0, 120);
+    let note = engine.synth_voice_pool.lane(0).unwrap().midi_note;
+    engine.tile_hit(0, 1, 1, 0, 120);
+    let other = engine.synth_voice_pool.lane(1).unwrap().midi_note;
+    let cents = (i16::from(note) - i16::from(other)) * 100;
+    engine.tile_hit(0, 1, 1, cents, 120);
+    let same_note_lane = (0..4)
+        .find(|lane| {
+            engine
+                .synth_voice_pool
+                .lane(*lane)
+                .is_some_and(|voice| voice.active && voice.drum_pad == 1 && voice.midi_note == note)
+        })
+        .expect("pad 2 sounds on pad 1's note");
+    engine.tile_hit(0, 0, 0, 0, 0);
+    for _ in 0..(44_100 / 20) {
+        engine.next_sample();
+    }
+    assert!(!engine.synth_voice_pool.lane(0).unwrap().active);
+    assert!(engine.synth_voice_pool.lane(same_note_lane).unwrap().active);
+}

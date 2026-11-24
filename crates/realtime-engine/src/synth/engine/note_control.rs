@@ -140,7 +140,7 @@ impl SynthEngine {
                     + (f32::from(pitch_cents) / 100.0).round() as i32)
                     .clamp(0, 127) as u8;
                 if velocity == 0 {
-                    self.note_off(instrument_slot, note);
+                    self.release_synth_voices(slot, note, Some(voice));
                     return;
                 }
                 self.note_on_with_drum(
@@ -148,7 +148,7 @@ impl SynthEngine {
                     note,
                     velocity,
                     kit_voice.decay_ms as u32,
-                    Some((kit_voice, pitch_cents)),
+                    Some((kit_voice, pitch_cents, voice)),
                 );
             }
             InstrumentKind::Sample if velocity == 0 => {
@@ -180,7 +180,7 @@ impl SynthEngine {
         midi_note: u8,
         velocity: u8,
         duration_ms: u32,
-        drum: Option<(DrumVoiceConfig, i16)>,
+        drum: Option<(DrumVoiceConfig, i16, u8)>,
     ) {
         let slot = usize::from(instrument_slot);
         if slot >= INSTRUMENT_SLOT_COUNT {
@@ -314,7 +314,8 @@ impl SynthEngine {
             fm: self.slot_kind[slot] == InstrumentKind::Fm,
             pluck_voice: self.slot_kind[slot] == InstrumentKind::Pluck,
             drum_voice: drum.is_some(),
-            drum: if let Some((kit_voice, local_cents)) = drum {
+            drum_pad: drum.map_or(0, |(_, _, pad)| pad),
+            drum: if let Some((kit_voice, local_cents, _)) = drum {
                 crate::synth::drum_state::DrumState::note_on(
                     kit_voice,
                     local_cents,
@@ -391,6 +392,18 @@ impl SynthEngine {
         if slot >= INSTRUMENT_SLOT_COUNT || !self.voice_pools_home() {
             return;
         }
+        self.release_synth_voices(slot, midi_note, None);
+        let sample_slot = sample_slot_for_note(midi_note);
+        self.release_sample_voices(slot, |voice| {
+            voice.tile.is_none() && voice.sample_slot == sample_slot
+        });
+    }
+
+    /// Releases `slot`'s synth and drum voices of `midi_note`, on drum pad `pad` only when given.
+    fn release_synth_voices(&mut self, slot: usize, midi_note: u8, pad: Option<u8>) {
+        if slot >= INSTRUMENT_SLOT_COUNT || !self.voice_pools_home() {
+            return;
+        }
         let offset = self.event_frame_offset;
         let event_sample_clock = self.event_block_sample_clock() + u64::from(offset);
         let cfg = self.instruments[slot];
@@ -405,7 +418,10 @@ impl SynthEngine {
                 let Some(voice) = self.synth_voice_pool.lane_mut(lane) else {
                     return;
                 };
-                if !voice.active || voice.midi_note != midi_note {
+                if !voice.active
+                    || voice.midi_note != midi_note
+                    || pad.is_some_and(|pad| !voice.drum_voice || voice.drum_pad != pad)
+                {
                     continue;
                 }
                 if offset > 0 {
@@ -424,11 +440,6 @@ impl SynthEngine {
                 voice.note_off_sample = event_sample_clock;
             }
         }
-
-        let sample_slot = sample_slot_for_note(midi_note);
-        self.release_sample_voices(slot, |voice| {
-            voice.tile.is_none() && voice.sample_slot == sample_slot
-        });
     }
 
     /// Forgets every slot's latched CC74/CC71, as a patch load or Panic does.

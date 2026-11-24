@@ -29,6 +29,8 @@ pub(super) struct Voice {
     pub(super) fm: bool,
     pub(super) pluck_voice: bool,
     pub(super) drum_voice: bool,
+    /// The kit pad a drum voice plays, so a tile's release ends that pad's hit only.
+    pub(super) drum_pad: u8,
     pub(super) drum: DrumState,
     pub(super) pluck: PluckState,
     pub(super) source_generation: u32,
@@ -77,6 +79,7 @@ impl Voice {
             fm: false,
             pluck_voice: false,
             drum_voice: false,
+            drum_pad: 0,
             drum: DrumState::off(),
             pluck: PluckState::off(),
             source_generation: 0,
