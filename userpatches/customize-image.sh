@@ -331,8 +331,9 @@ install -D -m 0644 -o root -g root "$welcome_overlay" /etc/profile.d/octessera-w
 install_overlay_file etc/octessera/armbian-image.txt /etc/octessera/armbian-image.txt 0644
 install_overlay_file usr/local/sbin/octessera-update /usr/local/sbin/octessera-update 0755
 octessera_install_orange_runtime_assets "$overlay_dir"
-# System daemons stay on CPU 0 and leave cores 1-3 to the app (bluealsa, which encodes audio,
-# stays on 2-3): the fair server lets any ordinary task run above the realtime audio threads.
+# System daemons share CPU 0 with the app's runtime thread and stay off the audio callback (1)
+# and the DSP workers (2-3), where the fair server lets an ordinary task run above them.
+# bluealsa, which encodes audio, stays on 2-3.
 for dropin in "$overlay_dir"/etc/systemd/system/*.d/10-octessera-background.conf; do
   install_overlay_file "${dropin#"$overlay_dir/"}" "/${dropin#"$overlay_dir/"}" 0644
 done

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Both images keep system daemons on CPU 0 and leave cores 1-3 to the app; bluealsa,
-# which encodes audio, stays on 2-3. This pins every drop-in so none can drop out quietly.
+# System daemons share CPU 0 with the app's runtime thread, off the audio callback (1) and the
+# DSP workers (2-3); bluealsa, which encodes audio, stays on 2-3. This pins every drop-in so none can drop out quietly.
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 pi_units="$root/tools/pi-image/stage4-octessera/files/root/etc/systemd/system"
 orange_units="$root/userpatches/overlay/etc/systemd/system"
@@ -50,6 +50,7 @@ installs_every_fence() { grep -qF "for dropin in \"\$$1\"$2/etc/systemd/system/*
 installs_every_fence STAGE_FILES /root "$root/tools/pi-image/stage4-octessera/02-setup-service/00-run.sh" || fail "the Raspberry image does not install every fence"
 installs_every_fence IMAGE_ROOT "" "$root/tools/pi/provision/provision.sh" || fail "Raspberry provisioning does not install every fence"
 installs_every_fence overlay_dir "" "$root/userpatches/customize-image.sh" || fail "the Orange image does not install every fence"
+grep -qxF 'AllowedCPUs=0' "$pi_units/octessera-network-health.service" || fail "the Raspberry network-health job is not on CPU 0"
 grep -qxF 'ExecStartPost=-/bin/systemctl set-property --runtime init.scope AllowedCPUs=0' \
   "$pi_units/octessera-performance-governor.service" || fail "the Raspberry does not keep systemd itself on CPU 0"
 grep -qxF 'ExecStartPre=+-/bin/systemctl set-property --runtime init.scope AllowedCPUs=0' \

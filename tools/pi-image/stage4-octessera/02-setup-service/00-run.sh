@@ -227,8 +227,8 @@ sed -i -E \
 for setting in use-ipv6=no publish-workstation=no enable-wide-area=no; do
     grep -qx "$setting" "$ROOTFS_DIR/etc/avahi/avahi-daemon.conf"
 done
-# System daemons stay on CPU 0 and leave cores 1-3 to the app: on this kernel the fair server
-# lets any ordinary task run above the realtime audio callback (CPU 1) and DSP workers (2-3).
+# System daemons share CPU 0 with the app's runtime thread and stay off the audio callback (1)
+# and the DSP workers (2-3): on this kernel the fair server lets an ordinary task run above them.
 # bluez-alsa encodes the Bluetooth audio monitor, so it stays on 2-3 below the audio threads.
 for dropin in "$STAGE_FILES"/root/etc/systemd/system/*.d/10-octessera-background.conf; do
     install -D -m 0644 "$dropin" "$ROOTFS_DIR${dropin#"$STAGE_FILES/root"}"
