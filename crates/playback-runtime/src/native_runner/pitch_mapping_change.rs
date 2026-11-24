@@ -78,6 +78,18 @@ impl NativeRunner {
             .filter(|slots| *slots != 0)
     }
 
+    /// What draining the layer plays when its pitch mapping moved since it last played; nothing
+    /// otherwise.
+    pub(super) fn drain_moved_pitch_mapping(
+        &mut self,
+        layer_index: usize,
+    ) -> super::RoutedMusicalEvents {
+        match self.changed_pitch_mapping_targets(layer_index) {
+            Some(slots) => self.layer_drain(layer_index, slots),
+            None => super::RoutedMusicalEvents::default(),
+        }
+    }
+
     /// The instrument slots the layer's On, Hold and Off rows play notes on, as a bit mask.
     pub(super) fn layer_target_slots(&self, layer_index: usize) -> u16 {
         self.layers

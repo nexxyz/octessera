@@ -12,8 +12,10 @@ pub(super) struct LinkRoutingInput<'a> {
 }
 
 impl NativeRunner {
+    /// The layer's events due at this step. A pitch-mapping move drains the layer first, so a
+    /// press queued at the old pitch never outlives the release.
     pub(super) fn take_due_link_events(&mut self, layer_index: usize) -> RoutedMusicalEvents {
-        let mut due = RoutedMusicalEvents::default();
+        let mut due = self.drain_moved_pitch_mapping(layer_index);
         let Some(queue) = self.delayed_link_events.get_mut(layer_index) else {
             return due;
         };
@@ -175,9 +177,7 @@ impl NativeRunner {
         input: LinkRoutingInput<'_>,
     ) -> Result<RoutedMusicalEvents, String> {
         let mut routed = RoutedMusicalEvents::default();
-        if let Some(slots) = self.changed_pitch_mapping_targets(layer_index) {
-            routed.extend(self.layer_drain(layer_index, slots));
-        }
+        routed.extend(self.drain_moved_pitch_mapping(layer_index));
         let mono_intents;
         let input = match self.mono_lane_events(layer_index, &input.events, input.event_intents) {
             Some((events, event_intents)) => {

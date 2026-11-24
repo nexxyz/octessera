@@ -403,6 +403,18 @@ impl HeldKeys {
         self.release_where(slots, |sound| matches!(sound, Sound::Midi { .. }), out);
     }
 
+    /// The keys `slot` holds with no end of their own: only a release ends them.
+    #[cfg(test)]
+    pub(in crate::native_runner) fn held_until_released(&self, slot: u8) -> usize {
+        self.keys
+            .get(usize::from(slot))
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|key| key.ends_at_us.is_none())
+            .count()
+    }
+
     #[cfg(test)]
     pub(in crate::native_runner) fn held(&self, slot: u8) -> Vec<u8> {
         self.keys

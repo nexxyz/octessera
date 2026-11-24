@@ -39,6 +39,11 @@ impl MonoLanes {
     pub(super) fn forget(&mut self) {
         *self = Self::default();
     }
+
+    #[cfg(test)]
+    pub(super) fn remembers_a_note(&self) -> bool {
+        self.last.iter().flatten().any(Option::is_some)
+    }
 }
 
 impl NativeRunner {

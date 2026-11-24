@@ -198,3 +198,24 @@ fn the_delay_queue_stays_bounded() {
     }
     assert!(runner.delayed_link_events[0].len() <= 1024);
 }
+
+/// On Delay 1 on a Hold synth: a Root change while the press waits drains the layer before the
+/// press is due, so the old pitch never sounds and nothing sticks.
+#[test]
+fn a_root_change_drops_a_delayed_press_of_the_old_pitch() {
+    let mut runner = keys_layers(true);
+    runner.layers[0].link.activate_timing.delay_steps = 1;
+    runner.refresh_active_mapping_config();
+    let step = runner.step_pulses_for_layer(0);
+    tile(&mut runner, 0, "grid_press", 0, 2);
+    runner.layers[0].link.root = "G#".into();
+    runner.refresh_active_mapping_config();
+    for _ in 0..3 {
+        pulse(&mut runner, step);
+    }
+    tile(&mut runner, 0, "grid_release", 0, 2);
+    for _ in 0..3 {
+        pulse(&mut runner, step);
+    }
+    assert_eq!(runner.held_keys.held_count(), 0);
+}

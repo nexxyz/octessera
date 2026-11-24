@@ -1,393 +1,255 @@
-//! Seeded note lifetimes: random tile frames on four layers and random Link, instrument and
-//! behavior changes, then every tile dark and the queues run out. Every key is released by then,
-//! every held note that reached a sink has ended, and none of it depends on which layer is
-//! selected. Every layer keeps its Off row on note off, on the instrument its other rows play.
+//! Seeded note lifetimes: random tile frames on four Keys layers, a Looper and a paged
+//! Sequencer, with sparse Link, instrument, behavior and transport changes made through the menu,
+//! bindings, the gate page and shortcut, Panic and Notes In. After every step a note held until
+//! its release must still have something behind it; at the end every tile goes dark and the
+//! queues run out, every key is released, every held note ended once per start, and none of it
+//! depends on which layer is selected. Every layer keeps its Off row on note off, on the
+//! instrument its other rows play.
+
+mod setup;
 
 use super::*;
 use platform_core::DeviceInput;
-use std::collections::BTreeMap;
+use setup::{change, fuzz_runner, Frames, Rng, Sinks, KEYS_LAYERS, LOOPER, SEQUENCER};
 
-const LAYERS: usize = 4;
 const STEP: u32 = 24;
+const STEPS: usize = 160;
+/// Steps a held note may outlast everything that could still end it: a scan's slowest lap with
+/// four sections and its Delay.
+const GRACE_STEPS: usize = 10;
+const SLOTS: [u8; 6] = [0, 1, 2, 3, 4, 5];
 
-struct Rng(u64);
-
-impl Rng {
-    fn below(&mut self, bound: u64) -> u64 {
-        self.0 ^= self.0 << 13;
-        self.0 ^= self.0 >> 7;
-        self.0 ^= self.0 << 17;
-        self.0 % bound
-    }
-
-    fn chance(&mut self, percent: u64) -> bool {
-        self.below(100) < percent
-    }
+struct Run {
+    runner: NativeRunner,
+    sinks: Sinks,
+    rng: Rng,
+    lit: Frames,
+    /// Notes In keys down, as (channel, note).
+    keyboard: Vec<(u8, u8)>,
+    /// Steps each slot has held notes with nothing behind them.
+    unbacked: [usize; 6],
+    clock: std::time::Instant,
 }
 
-/// Slot 1 One-Shot Synth, 2 Hold Synth, 3 Hold Sampler with looped pads, 4 Drum, 5 Hold MIDI
-/// Inst. on channel 6 and 6 One-Shot FM; the Sampler and Drum stamp most tiles with one of four
-/// pads, and leave the rightmost column unstamped.
-fn fuzz_runner() -> NativeRunner {
-    let mut runner = NativeRunner::new(NativeRunnerConfig {
-        behavior_id: "keys".into(),
-        ..NativeRunnerConfig::default()
-    })
-    .unwrap();
-    runner.test_set_midi_enabled(true);
-    let mut payload = runner.config_payload();
-    let instruments = &mut payload["runtimeConfig"]["instruments"];
-    let stamps = |pad: &str| {
-        (0..GRID_HEIGHT)
-            .flat_map(|y| (0..GRID_WIDTH - 1).map(move |x| (x, y)))
-            .map(|(x, y)| match pad {
-                "voice" => json!({ "x": x, "y": y, "voice": (x + y) % 4 }),
-                _ => json!({
-                    "x": x, "y": y, "sampleSlot": (x * 3 + y) % 4, "tuneSemis": 0, "tuneCents": 0
-                }),
-            })
-            .collect::<Vec<_>>()
-    };
-    for (slot, kind, mode) in [
-        (0, "synth", "oneshot"),
-        (1, "synth", "hold"),
-        (2, "sampler", "hold"),
-        (3, "drum", "oneshot"),
-        (4, "midi", "hold"),
-        (5, "fm", "oneshot"),
-    ] {
-        instruments[slot]["type"] = json!(kind);
-        instruments[slot]["noteBehavior"] = json!(mode);
+impl Run {
+    fn hear(&mut self, at: &str, messages: &[RunnerMessage]) {
+        self.sinks.hear(&self.runner, at, messages);
     }
-    instruments[2]["sample"]["assignments"] = json!(stamps("sampleSlot"));
-    for pad in 0..4 {
-        instruments[2]["sample"]["slots"][pad]["loop"] = json!("forward");
+
+    fn input(&mut self, at: &str, input: Value) {
+        let messages = device_input(&mut self.runner, input);
+        self.hear(at, &messages);
     }
-    instruments[3]["drum"]["assignments"] = json!(stamps("voice"));
-    instruments[4]["midi"] = json!({ "channel": 5, "enabled": true, "velocity": 100 });
-    runner.apply_config_payload(payload).unwrap();
-    for layer in 0..LAYERS {
-        let quantize = if layer == 2 { "immediate" } else { "step" };
-        runner
-            .replace_layer_engine_with_config(
-                layer,
-                NativeBehavior::Keys,
-                json!({ "quantize": quantize }),
-                None,
-            )
+
+    fn press(&mut self, at: &str, layer: usize, input: DeviceInput) {
+        let result = self.runner.layer_engine_input_result(layer, input).unwrap();
+        let messages = self
+            .runner
+            .messages_with_layer_input_result(layer, result)
             .unwrap();
-        let link = &mut runner.layers[layer].link;
-        set_rows(link, layer, TriggerAction::NoteOn, TriggerAction::None);
-        link.note_preview = true;
-    }
-    runner.sync_engine_runtime_config();
-    runner.skip_startup_splash();
-    runner.send(HostMessage::TransportStop).unwrap();
-    runner
-}
-
-fn set_rows(link: &mut NativeLinkLayer, slot: usize, on: TriggerAction, hold: TriggerAction) {
-    link.activate_slot = slot;
-    link.stable_slot = slot;
-    link.deactivate_slot = slot;
-    link.activate_action = on;
-    link.stable_action = hold;
-    link.deactivate_action = TriggerAction::NoteOff;
-}
-
-/// What the sinks heard, one line per call that sounded anything.
-#[derive(Default)]
-struct Sinks {
-    lines: Vec<String>,
-    /// Held notes and looping pads that started and have not ended yet.
-    open: BTreeMap<String, usize>,
-}
-
-impl Sinks {
-    fn hear(&mut self, runner: &NativeRunner, at: &str, messages: &[RunnerMessage]) {
-        let mut words = Vec::new();
-        for message in messages {
-            match message {
-                RunnerMessage::MusicalEvents { events } => {
-                    for event in events {
-                        words.push(self.note(event, "a"));
-                    }
-                }
-                RunnerMessage::MidiEvents { events } => {
-                    for event in events {
-                        words.push(self.note(event, "m"));
-                    }
-                }
-                RunnerMessage::TileHits { hits } => {
-                    for hit in hits {
-                        let voice = format!("t{}.{}.{}", hit.instrument_slot, hit.voice, hit.tile);
-                        let holds = runner
-                            .instruments
-                            .get(usize::from(hit.instrument_slot))
-                            .is_some_and(|slot| {
-                                slot.kind == InstrumentType::Sampler
-                                    && slot.note_behavior == NoteBehavior::Hold
-                            });
-                        if hit.velocity == 0 {
-                            self.open.remove(&voice);
-                        } else if holds {
-                            *self.open.entry(voice.clone()).or_default() += 1;
-                        }
-                        words.push(format!("{voice}.{}", hit.velocity));
-                    }
-                }
-                RunnerMessage::SequencedOffset { nanos } => words.push(format!("@{nanos}")),
-                _ => {}
-            }
-        }
-        if !words.is_empty() {
-            self.lines.push(format!("{at}: {}", words.join(" ")));
-        }
+        self.hear(at, &messages);
     }
 
-    fn note(&mut self, event: &MusicalEvent, lane: &str) -> String {
-        match *event {
-            MusicalEvent::NoteOn {
+    fn pulse(&mut self, at: &str) {
+        self.clock += std::time::Duration::from_micros(20_833);
+        self.runner.test_set_display_time(self.clock);
+        let messages = self
+            .runner
+            .send(HostMessage::TransportPulseStep {
+                pulses: 1,
+                source: SyncSource::Internal,
+                at_ppqn_pulse: None,
+                request_snapshot: Some(false),
+            })
+            .unwrap();
+        self.hear(at, &messages);
+    }
+
+    fn midi_note(&mut self, at: &str, channel: u8, note: u8, velocity: u8) {
+        let messages = self
+            .runner
+            .send_midi_note(crate::runtime::MidiNote {
                 channel,
                 note,
                 velocity,
-                duration_ms,
-            } => {
-                if duration_ms.is_none() {
-                    *self
-                        .open
-                        .entry(format!("{lane}{channel}.{note}"))
-                        .or_default() += 1;
-                }
-                let length = duration_ms.map_or("h".to_string(), |ms| ms.to_string());
-                format!("+{lane}{channel}.{note}.{velocity}.{length}")
-            }
-            MusicalEvent::NoteOff { channel, note } => {
-                self.open.remove(&format!("{lane}{channel}.{note}"));
-                format!("-{lane}{channel}.{note}")
-            }
-            MusicalEvent::Cc { .. } => String::new(),
-        }
+            })
+            .unwrap();
+        self.hear(at, &messages);
     }
-}
 
-/// Changes one Link setting of `layer` as the menu or a binding would.
-fn edit_link(runner: &mut NativeRunner, layer: usize, edit: impl FnOnce(&mut NativeLinkLayer)) {
-    let before = runner.layers[layer].link.clone();
-    edit(&mut runner.layers[layer].link);
-    runner.apply_link_change(layer, &before);
-    if layer == runner.active_layer_index {
-        runner.refresh_active_mapping_config();
-        runner.refresh_active_interpretation_profile();
-    }
-}
-
-type Frames = [[bool; GRID_WIDTH * GRID_HEIGHT]; LAYERS];
-
-/// One random Link, instrument or behavior change.
-fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames) {
-    let layer = rng.below(LAYERS as u64) as usize;
-    match rng.below(15) {
-        0 => {
-            let slot = rng.below(6) as usize;
-            let on = if rng.chance(80) {
-                TriggerAction::NoteOn
-            } else {
-                TriggerAction::None
-            };
-            let hold = if rng.chance(30) {
-                TriggerAction::NoteOn
-            } else {
-                TriggerAction::None
-            };
-            let delays = [rng.below(3), rng.below(3), rng.below(3), rng.below(2)];
-            edit_link(runner, layer, |link| {
-                set_rows(link, slot, on, hold);
-                link.activate_timing.delay_steps = delays[0] as u8;
-                link.stable_timing.delay_steps = delays[1] as u8;
-                link.deactivate_timing.delay_steps = delays[2] as u8;
-                link.activate_timing.retrigger_count = delays[3] as u8;
-            });
-        }
-        1 => {
-            let root = ["C", "D", "E", "F#", "A"][rng.below(5) as usize];
-            edit_link(runner, layer, |link| link.root = root.into());
-        }
-        2 => edit_link(runner, layer, |link| {
-            link.scan_mode = match link.scan_mode {
-                ScanMode::None => ScanMode::Scanning,
-                ScanMode::Scanning => ScanMode::None,
-            };
-        }),
-        3 => edit_link(runner, layer, |link| {
-            link.scan_axis = match link.scan_axis {
-                ScanAxis::Columns => ScanAxis::Rows,
-                ScanAxis::Rows => ScanAxis::Columns,
-            };
-        }),
-        4 => edit_link(runner, layer, |link| {
-            link.scan_direction = match link.scan_direction {
-                ScanDirection::Forward => ScanDirection::Reverse,
-                ScanDirection::Reverse => ScanDirection::Forward,
-            };
-        }),
-        5 => {
-            let sections = [1, 2, 4][rng.below(3) as usize];
-            edit_link(runner, layer, |link| link.scan_sections = sections);
-        }
-        6 => {
-            let mode =
-                [ArpMode::None, ArpMode::Up, ArpMode::Down, ArpMode::Random][rng.below(4) as usize];
-            let source = ArpSource::ALL[rng.below(2) as usize];
-            edit_link(runner, layer, |link| {
-                link.arp.mode = mode;
-                link.arp.source = source;
-            });
-        }
-        7 => {
-            let gate = 20 + rng.below(80) as u8;
-            edit_link(runner, layer, |link| link.arp.gate_pct = gate);
-        }
-        8 => edit_link(runner, layer, |link| {
-            link.trigger_probability_mode = match link.trigger_probability_mode {
-                TriggerProbabilityMode::Zero => TriggerProbabilityMode::Full,
-                _ => TriggerProbabilityMode::Zero,
-            };
-        }),
-        9 => {
-            let slot = [0, 1, 2, 4, 5][rng.below(5) as usize];
-            let key = format!("instruments.{slot}.noteBehavior");
-            let mode = if runner.instruments[slot].note_behavior == NoteBehavior::Hold {
-                "oneshot"
-            } else {
-                "hold"
-            };
-            runner.menu.rebuild(runner.menu_config());
-            runner.menu.set_enum_value_for_key(&key, mode);
-            assert_eq!(
-                runner.menu.value_for_key(&key).as_deref(),
-                Some(mode),
-                "{key}"
-            );
-            runner.apply_or_schedule_menu_key(&key).unwrap();
-        }
-        10 => {
-            let slot = [0, 2, 3, 4, 5][rng.below(5) as usize];
-            let key = format!("instruments.{slot}.noteOff");
-            let value = ["cut", "ignore"][rng.below(2) as usize];
-            runner.menu.rebuild(runner.menu_config());
-            // Hold instruments show no Note Off: their notes always end on a note-off.
-            if runner.menu.set_enum_value_for_key(&key, value) {
-                runner.apply_or_schedule_menu_key(&key).unwrap();
-            }
-        }
-        11 => edit_link(runner, layer, |link| {
-            link.scan_lanes = match link.scan_lanes {
-                ScanLanes::Poly => ScanLanes::Mono,
-                ScanLanes::Mono => ScanLanes::Poly,
-            };
-        }),
-        12 => edit_link(runner, layer, |link| {
-            link.note_preview = !link.note_preview;
-        }),
-        // A behavior pick takes its play style's Link setup, and back on Keys the grid starts
-        // dark.
-        14 => {
-            runner.select_layer_behavior(layer, "sequencer").unwrap();
-            runner.select_layer_behavior(layer, "keys").unwrap();
-            lit[layer] = [false; GRID_WIDTH * GRID_HEIGHT];
-        }
-        _ => {
-            let steps = rng.below(3) as i32;
-            edit_link(runner, layer, |link| link.y_pitch_steps = steps);
-        }
-    }
-}
-
-fn press(runner: &mut NativeRunner, sinks: &mut Sinks, at: &str, layer: usize, input: DeviceInput) {
-    let result = runner.layer_engine_input_result(layer, input).unwrap();
-    let messages = runner
-        .messages_with_layer_input_result(layer, result)
-        .unwrap();
-    sinks.hear(runner, at, &messages);
-}
-
-fn pulse(runner: &mut NativeRunner, sinks: &mut Sinks, at: &str) {
-    let messages = runner
-        .send(HostMessage::TransportPulseStep {
-            pulses: 1,
-            source: SyncSource::Internal,
-            at_ppqn_pulse: None,
-            request_snapshot: Some(false),
-        })
-        .unwrap();
-    sinks.hear(runner, at, &messages);
-}
-
-/// Plays `seed`'s script with `selected` as the selected layer and returns what the sinks heard
-/// and what is left over.
-fn play(seed: u64, selected: usize) -> (Sinks, usize) {
-    let mut runner = fuzz_runner();
-    runner.select_active_layer(selected).unwrap();
-    let mut sinks = Sinks::default();
-    let play = device_input(&mut runner, json!({ "type": "button_s", "pressed": true }));
-    sinks.hear(&runner, "play", &play);
-    let mut rng = Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1);
-    let mut lit: Frames = [[false; GRID_WIDTH * GRID_HEIGHT]; LAYERS];
-    for step in 0..96 {
-        for (layer, tiles) in lit.iter_mut().enumerate() {
-            if !rng.chance(60) {
+    /// Moves each Keys layer's held tiles to a new frame now and then, fully dark a third of
+    /// the time, on a few columns and rows only, so pitches and pads collide.
+    fn frames(&mut self, step: usize) {
+        for layer in 0..KEYS_LAYERS {
+            if !self.rng.chance(50) {
                 continue;
             }
-            for (index, tile) in tiles.iter_mut().enumerate() {
-                // A few columns and rows only, so pitches and pads collide.
+            let dark = self.rng.chance(35);
+            for index in 0..GRID_WIDTH * GRID_HEIGHT {
                 let (x, y) = (index % GRID_WIDTH, index / GRID_WIDTH);
-                let wanted = x % 3 != 1 && y < 4 && rng.chance(25);
-                if wanted != *tile {
-                    *tile = wanted;
+                let wanted = !dark && x % 3 != 1 && y < 4 && self.rng.chance(20);
+                if wanted != self.lit[layer][index] {
+                    self.lit[layer][index] = wanted;
                     let input = if wanted {
                         DeviceInput::GridPress { x, y }
                     } else {
                         DeviceInput::GridRelease { x, y }
                     };
-                    press(
-                        &mut runner,
-                        &mut sinks,
-                        &format!("{step}.{layer}"),
-                        layer,
-                        input,
-                    );
+                    self.press(&format!("{step}.{layer}"), layer, input);
                 }
             }
         }
-        if rng.chance(35) {
-            change(&mut runner, &mut rng, &mut lit);
-        }
-        for offset in 0..STEP {
-            if rng.chance(2) {
-                change(&mut runner, &mut rng, &mut lit);
+        for layer in [LOOPER, SEQUENCER] {
+            if self.rng.chance(15) {
+                let (x, y) = (self.rng.below(8) as usize, self.rng.below(4) as usize);
+                let at = format!("{step}.{layer}");
+                self.press(&at, layer, DeviceInput::GridPress { x, y });
+                self.press(&at, layer, DeviceInput::GridRelease { x, y });
             }
-            pulse(&mut runner, &mut sinks, &format!("{step}+{offset}"));
         }
     }
-    for (layer, tiles) in lit.iter().enumerate() {
-        for (index, _) in tiles.iter().enumerate().filter(|(_, lit)| **lit) {
-            let (x, y) = (index % GRID_WIDTH, index / GRID_WIDTH);
-            let input = DeviceInput::GridRelease { x, y };
-            press(
-                &mut runner,
-                &mut sinks,
-                &format!("dark.{layer}"),
-                layer,
-                input,
+
+    /// Stop, Pause, Panic, a One-Shot press while stopped, or a Notes In key and an echo.
+    fn transport_or_midi(&mut self, step: usize) {
+        let at = format!("{step}!");
+        match self.rng.below(12) {
+            0 => {
+                let messages = self.runner.send(HostMessage::TransportStop).unwrap();
+                self.hear(&at, &messages);
+                let x = self.rng.below(8) as usize;
+                self.press(&at, 0, DeviceInput::GridPress { x, y: 0 });
+                self.lit[0][x] = true;
+                self.clock += std::time::Duration::from_millis(400);
+                self.runner.test_set_display_time(self.clock);
+                self.input(&at, json!({ "type": "button_s", "pressed": true }));
+            }
+            1 => {
+                self.input(&at, json!({ "type": "button_s", "pressed": true }));
+                self.input(&at, json!({ "type": "button_s", "pressed": true }));
+            }
+            2 => {
+                self.runner
+                    .execute_platform_action(crate::native_menu::PlatformAction::MidiPanic)
+                    .unwrap();
+                self.keyboard.clear();
+                let messages = self.runner.messages_without_snapshot().unwrap();
+                self.hear(&at, &messages);
+            }
+            3 | 4 => {
+                let key = (self.rng.below(6) as u8, 48 + self.rng.below(24) as u8);
+                if let Some(index) = self.keyboard.iter().position(|down| *down == key) {
+                    self.keyboard.swap_remove(index);
+                    self.midi_note(&at, key.0, key.1, 0);
+                } else {
+                    self.keyboard.push(key);
+                    self.midi_note(&at, key.0, key.1, 100);
+                }
+            }
+            5 => {
+                // The echo of a note-off this runtime sent: a key-up of a key nobody holds.
+                let key = (self.rng.below(6) as u8, 48 + self.rng.below(24) as u8);
+                if !self.keyboard.contains(&key) {
+                    self.midi_note(&at, key.0, key.1, 0);
+                }
+            }
+            6 => {
+                let punch = platform_core::BehaviorActionInput {
+                    action_type: "toggleMode".into(),
+                };
+                self.press(&at, LOOPER, DeviceInput::BehaviorAction(punch));
+            }
+            _ => {}
+        }
+    }
+
+    /// Counts the steps each Hold slot keeps a note with nothing left that could end it: no
+    /// layer playing it with a lit tile, a queued event, Arp keys or a mono lane note, and no
+    /// Notes In key down on it.
+    fn check_backing(&mut self, step: usize) {
+        for slot in SLOTS {
+            let held = self.runner.held_keys.held_until_released(slot);
+            let backed = self.keyboard.iter().any(|(channel, _)| *channel == slot)
+                || (0..LAYER_COUNT).any(|layer| self.backs(layer, slot));
+            let counter = &mut self.unbacked[usize::from(slot)];
+            *counter = if held > 0 && !backed { *counter + 1 } else { 0 };
+            assert!(
+                *counter <= GRACE_STEPS,
+                "step {step}: slot {slot} holds {held} notes nothing can end"
             );
         }
     }
-    for offset in 0..16 * STEP {
-        pulse(&mut runner, &mut sinks, &format!("drain+{offset}"));
+
+    fn backs(&self, index: usize, slot: u8) -> bool {
+        let layer = &self.runner.layers[index];
+        let link = &layer.link;
+        let plays = [link.activate_slot, link.stable_slot, link.deactivate_slot]
+            .contains(&usize::from(slot));
+        plays
+            && (layer.engine.model().unwrap().tiles.iter().any(|tile| *tile)
+                || !self.runner.delayed_link_events[index].is_empty()
+                || !self.runner.link_arp.keys[index].is_empty()
+                || layer.mono_lanes.remembers_a_note())
     }
-    let held = runner.held_keys.held_count();
-    (sinks, held)
+}
+
+/// Plays `seed`'s script with `selected` as the selected layer and returns what the sinks heard
+/// and what is left over.
+fn play(seed: u64, selected: usize) -> (Sinks, usize) {
+    let mut run = Run {
+        runner: fuzz_runner(),
+        sinks: Sinks::default(),
+        rng: Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1),
+        lit: [[false; GRID_WIDTH * GRID_HEIGHT]; KEYS_LAYERS],
+        keyboard: Vec::new(),
+        unbacked: [0; 6],
+        clock: std::time::Instant::now(),
+    };
+    run.runner.test_set_display_time(run.clock);
+    run.runner.select_active_layer(selected).unwrap();
+    run.input("play", json!({ "type": "button_s", "pressed": true }));
+    for step in 0..STEPS {
+        run.frames(step);
+        if run.rng.chance(25) {
+            change(&mut run.runner, &mut run.rng, &mut run.lit);
+            let messages = run.runner.messages_without_snapshot().unwrap();
+            run.hear(&format!("{step}*"), &messages);
+        }
+        if run.rng.chance(8) {
+            run.transport_or_midi(step);
+        }
+        for offset in 0..STEP {
+            run.pulse(&format!("{step}+{offset}"));
+        }
+        run.check_backing(step);
+    }
+    finish(&mut run);
+    let held = run.runner.held_keys.held_count();
+    (run.sinks, held)
+}
+
+/// Every tile goes dark: the Keys layers let go, the Looper and Sequencer layers end, the
+/// keyboard lets up, and the queues run out.
+fn finish(run: &mut Run) {
+    for layer in 0..KEYS_LAYERS {
+        for index in 0..GRID_WIDTH * GRID_HEIGHT {
+            if run.lit[layer][index] {
+                let (x, y) = (index % GRID_WIDTH, index / GRID_WIDTH);
+                run.press("dark", layer, DeviceInput::GridRelease { x, y });
+            }
+        }
+    }
+    for (channel, note) in std::mem::take(&mut run.keyboard) {
+        run.midi_note("dark", channel, note, 0);
+    }
+    if run.runner.transport.transport != RuntimeTransportState::Playing {
+        run.input("dark", json!({ "type": "button_s", "pressed": true }));
+    }
+    for layer in [LOOPER, SEQUENCER] {
+        run.runner.select_layer_behavior(layer, "none").unwrap();
+    }
+    for offset in 0..16 * STEP {
+        run.pulse(&format!("drain+{offset}"));
+    }
 }
 
 #[test]
@@ -395,12 +257,8 @@ fn every_note_ends_once_its_tiles_go_dark_whichever_layer_is_selected() {
     for seed in 1..=12 {
         let (first, held) = play(seed, 0);
         assert_eq!(held, 0, "seed {seed}: keys still held");
-        assert!(
-            first.open.is_empty(),
-            "seed {seed}: notes still sounding: {:?}",
-            first.open
-        );
-        for selected in 1..LAYERS {
+        first.assert_all_ended(seed);
+        for selected in 1..LAYER_COUNT.min(6) {
             let (other, _) = play(seed, selected);
             let difference = first
                 .lines
