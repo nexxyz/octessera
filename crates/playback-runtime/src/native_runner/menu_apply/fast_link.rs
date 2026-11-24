@@ -37,7 +37,7 @@ impl NativeRunner {
             return Some(self.fast_param_mod_invert_key(index, lane, key));
         }
         let layer = self.layers.get_mut(index).map(|layer| &mut layer.link)?;
-        let before = layer.clone();
+        let before = super::super::link_retarget::LinkRouting::of(layer);
         let changed = if suffix.starts_with("link.arp.") {
             let prefix = format!("layers.{index}.link.arp");
             super::link_fx::apply_link_arp_menu_state(&self.menu, layer, &prefix)
@@ -84,7 +84,7 @@ impl NativeRunner {
             if suffix == "link.seeded" {
                 self.restart_link_random_stream(index);
             }
-            self.apply_link_change(index, &before);
+            self.apply_link_change(index, before);
             if index == self.active_layer_index {
                 self.refresh_active_mapping_config();
                 self.refresh_active_interpretation_profile();

@@ -203,10 +203,10 @@ impl NativeRunner {
         let Some(link) = self.layers.get_mut(index).map(|layer| &mut layer.link) else {
             return false;
         };
-        let before = link.clone();
+        let before = super::link_retarget::LinkRouting::of(link);
         let changed = apply_link_binding_value(link, field, value);
         if changed {
-            self.apply_link_change(index, &before);
+            self.apply_link_change(index, before);
         }
         changed
     }

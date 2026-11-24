@@ -30,7 +30,12 @@ fn every_behavior_pick_sets_its_play_styles_scan_mode_and_note_preview() {
             .unwrap();
             runner.select_layer_behavior(layer, start).unwrap();
             runner.layers[layer].link.scan_axis = ScanAxis::Rows;
+            runner.layers[layer].link.scan_direction = ScanDirection::Reverse;
             runner.select_layer_behavior(layer, entry.id).unwrap();
+            assert_eq!(
+                runner.layers[layer].link.scan_direction,
+                ScanDirection::Forward
+            );
             assert_eq!(
                 link_of(&runner, layer),
                 expected(behavior.play_style()),
