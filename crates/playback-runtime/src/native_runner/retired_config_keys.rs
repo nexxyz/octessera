@@ -266,7 +266,9 @@ mod tests {
             .expect("an older full config applies");
         let saved = runner.config_payload();
         for layer in saved["runtimeConfig"]["layers"].as_array().unwrap() {
-            assert_eq!(layer["link"]["notePreview"], json!(true));
+            let behavior = layer["build"]["behaviorId"].as_str().unwrap();
+            let previews = !matches!(behavior, "keys" | "looper" | "none" | "pong" | "blockout");
+            assert_eq!(layer["link"]["notePreview"], json!(previews), "{behavior}");
             assert!(layer["link"].get("eventEnabled").is_none());
         }
         for instrument in saved["runtimeConfig"]["instruments"].as_array().unwrap() {

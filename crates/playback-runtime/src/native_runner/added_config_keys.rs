@@ -11,7 +11,7 @@ struct AddedKey {
     default: fn() -> Value,
 }
 
-const ADDED_RUNTIME_KEYS: [AddedKey; 8] = [
+const ADDED_RUNTIME_KEYS: [AddedKey; 7] = [
     AddedKey {
         kinds: SYSTEM_DOCUMENTS,
         path: &["midi", "notesIn"],
@@ -44,11 +44,6 @@ const ADDED_RUNTIME_KEYS: [AddedKey; 8] = [
     },
     AddedKey {
         kinds: PATCH_DOCUMENTS,
-        path: &["layers", "*", "link", "notePreview"],
-        default: || Value::Bool(true),
-    },
-    AddedKey {
-        kinds: PATCH_DOCUMENTS,
         path: &["instruments", "*", "noteOff"],
         default: || Value::String("ignore".into()),
     },
@@ -65,13 +60,42 @@ const ADDED_RUNTIME_KEYS: [AddedKey; 8] = [
 /// or re-ranging a saved key still means normalizing the existing stores, unless the key only
 /// needs dropping (`retired_config_keys`).
 /// Patches saved before every instrument carried a tile stamp with a `level` get the
-/// defaults the same way.
+/// defaults the same way, and a layer saved before Note Preview gets what picking its behavior
+/// sets.
 pub(crate) fn with_added_keys(document: &Value) -> Value {
     let mut upgraded = with_runtime_keys(document, &ADDED_RUNTIME_KEYS);
     if is_kind(document, &[super::PATCH_KIND, CONFIG_KIND]) {
         super::config_schema::normalize_missing_tile_stamps(&mut upgraded);
+        default_missing_note_previews(&mut upgraded);
     }
     upgraded
+}
+
+/// Note Preview for a layer saved without one: on for grid sequencers and generative worlds,
+/// off for Keys, Looper, None and the games, as a behavior pick sets it.
+fn default_missing_note_previews(document: &mut Value) {
+    let Some(layers) = document
+        .get_mut("runtimeConfig")
+        .and_then(|runtime| runtime.get_mut("layers"))
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for layer in layers {
+        let previews = layer
+            .pointer("/build/behaviorId")
+            .and_then(Value::as_str)
+            .and_then(platform_core::get_native_behavior)
+            .is_none_or(|behavior| {
+                matches!(
+                    behavior.play_style(),
+                    platform_core::PlayStyle::GridSequencer | platform_core::PlayStyle::Generative
+                )
+            });
+        if let Some(link) = layer.get_mut("link").and_then(Value::as_object_mut) {
+            link.entry("notePreview").or_insert(Value::Bool(previews));
+        }
+    }
 }
 
 pub(super) fn is_kind(document: &Value, kinds: &[&str]) -> bool {
@@ -152,6 +176,22 @@ mod tests {
             for key in &ADDED_RUNTIME_KEYS {
                 assert_eq!(value_at(&full, key.path), Some(&(key.default)()));
             }
+        }
+    }
+
+    #[test]
+    fn a_layer_saved_before_note_preview_gets_its_behaviors_play_style() {
+        let full: Value = serde_json::from_str(PI_DEFAULT).unwrap();
+        let documents = split_system_patch_documents(&full).unwrap();
+        let mut old_patch = documents.patch.clone();
+        for layer in old_patch["runtimeConfig"]["layers"].as_array_mut().unwrap() {
+            layer["link"].as_object_mut().unwrap().remove("notePreview");
+        }
+        let upgraded = with_added_keys(&old_patch);
+        for layer in upgraded["runtimeConfig"]["layers"].as_array().unwrap() {
+            let behavior = layer["build"]["behaviorId"].as_str().unwrap();
+            let expected = !matches!(behavior, "keys" | "looper" | "none" | "pong" | "blockout");
+            assert_eq!(layer["link"]["notePreview"], json!(expected), "{behavior}");
         }
     }
 
