@@ -243,6 +243,10 @@ for unit in avahi-daemon polkit; do
     install -d "$ROOTFS_DIR/etc/systemd/system/$unit.service.d"
     printf '[Service]\nNice=10\nAllowedCPUs=2-3\n' > "$ROOTFS_DIR/etc/systemd/system/$unit.service.d/10-octessera-background.conf"
 done
+# Every udev event (USB or Bluetooth hotplug, the SD2 card) forks udev workers; on a DSP
+# core one held a realtime worker off for 6 ms, so udevd and its workers stay on CPU 0.
+install -d "$ROOTFS_DIR/etc/systemd/system/systemd-udevd.service.d"
+printf '[Service]\nAllowedCPUs=0\n' > "$ROOTFS_DIR/etc/systemd/system/systemd-udevd.service.d/10-octessera-background.conf"
 install -d "$ROOTFS_DIR/etc/sysctl.d"
 printf '# Locked audio memory must not be moved by compaction: the callback would stall on it.\nvm.compact_unevictable_allowed = 0\n' > "$ROOTFS_DIR/etc/sysctl.d/60-octessera-audio.conf"
 # The daily apt and man-db jobs install nothing here, but their cache and index

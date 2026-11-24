@@ -336,6 +336,7 @@ install_overlay_file etc/systemd/system/dbus.service.d/10-octessera-background.c
 install_overlay_file etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf /etc/systemd/system/NetworkManager-dispatcher.service.d/10-octessera-background.conf 0644
 install_overlay_file etc/systemd/system/cron.service.d/10-octessera-background.conf /etc/systemd/system/cron.service.d/10-octessera-background.conf 0644
 install_overlay_file etc/systemd/system/systemd-journald.service.d/10-octessera-background.conf /etc/systemd/system/systemd-journald.service.d/10-octessera-background.conf 0644
+install_overlay_file etc/systemd/system/systemd-udevd.service.d/10-octessera-background.conf /etc/systemd/system/systemd-udevd.service.d/10-octessera-background.conf 0644
 install_overlay_file etc/systemd/journald.conf.d/10-octessera.conf /etc/systemd/journald.conf.d/10-octessera.conf 0644
 [[ -f /etc/default/armbian-ramlog ]] || { echo "Missing Armbian ramlog defaults." >&2; exit 1; }
 sed -i -E 's/^ENABLED=.*/ENABLED=false/' /etc/default/armbian-ramlog
