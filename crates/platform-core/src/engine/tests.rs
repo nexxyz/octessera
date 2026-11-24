@@ -157,6 +157,53 @@ fn a_sequencer_page_turn_makes_the_new_pages_downbeat_an_on() {
     assert_eq!(kinds_at(&mut engine), [TileTriggerKind::Activate]);
 }
 
+/// Page 1 lit at its first column and page 2 dark there: the turn still plays page 1's Off.
+#[test]
+fn a_sequencer_page_turn_keeps_the_old_pages_off() {
+    let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {
+        behavior: NativeBehavior::Sequencer,
+        behavior_config: serde_json::json!({ "pagesX": 2, "advanceSteps": 8 }),
+        interpretation_profile: InterpretationProfile {
+            id: "scan_profile".into(),
+            event: InterpretationEventProfile { enabled: false },
+            state: InterpretationStateProfile {
+                enabled: true,
+                tick: TickStrategy::ScanColumnActive {
+                    sections: None,
+                    reverse: false,
+                    restart_pitch: false,
+                },
+            },
+            x: AxisStrategy::ScaleStep { step: 1 },
+            y: AxisStrategy::ScaleStep { step: 2 },
+        },
+        mapping_config: {
+            let mut mapping = default_mapping_config();
+            mapping.deactivate.action = TriggerAction::NoteOff;
+            mapping
+        },
+        ..base_config()
+    })
+    .unwrap();
+    for x in 0..GRID_WIDTH {
+        engine
+            .on_input_with_events(DeviceInput::GridPress { x, y: 0 }, 120.0)
+            .unwrap();
+    }
+    for _ in 0..8 {
+        engine.tick(120.0).unwrap();
+    }
+    let turn = engine.tick(120.0).unwrap();
+    assert!(
+        turn.event_intents
+            .iter()
+            .flatten()
+            .any(|intent| (intent.x, intent.y, intent.kind) == (0, 0, TileTriggerKind::Deactivate)),
+        "{:?}",
+        turn.event_intents
+    );
+}
+
 #[test]
 fn scan_interpretation_advances_with_engine_ticks() {
     let mut engine = NativeLayerEngine::new(NativeLayerEngineConfig {

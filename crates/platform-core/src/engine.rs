@@ -196,12 +196,11 @@ impl NativeLayerEngine {
         let after = self.behavior.render_model(&self.state)?;
 
         let scanning = self.interpretation_profile.scans();
-        // A new page starts the line afresh: its first lit column is a downbeat, not a Hold.
-        if scanning && self.state.page_in_view() != page_before {
-            self.forget_scanned_line();
-        }
-        let stable = (scanning || self.behavior.reports_stable_tiles())
-            && self.mapping_config.stable.action != TriggerAction::None;
+        // A new page's first lit column is a downbeat, not a Hold; the old page's Offs still go.
+        let page_turned = scanning && self.state.page_in_view() != page_before;
+        let stable = page_turned
+            || (scanning || self.behavior.reports_stable_tiles())
+                && self.mapping_config.stable.action != TriggerAction::None;
         let next = to_snapshot(&after);
         let direct_before;
         let previous = if scanning {
@@ -223,6 +222,12 @@ impl NativeLayerEngine {
         }
         let intents = intents
             .into_iter()
+            .map(|mut intent| {
+                if page_turned && intent.kind == crate::TileTriggerKind::Stable {
+                    intent.kind = crate::TileTriggerKind::Activate;
+                }
+                intent
+            })
             .filter(|intent| filter_intent(intent))
             .collect::<Vec<_>>();
         self.tick = self.tick.saturating_add(1);
