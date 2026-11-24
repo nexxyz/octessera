@@ -440,3 +440,48 @@ fn a_press_in_the_second_half_lands_on_the_next_step_and_skips_it_once() {
         assert!(!state.tiles[tile], "keyboard {keyboard}: and releases it");
     }
 }
+
+/// No recorded press plays on pass after pass without an end.
+#[test]
+fn punching_out_with_a_key_down_records_its_release() {
+    let mut context = context();
+    let mut state =
+        looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
+    state = looper_on_input(state, DeviceInput::GridPress { x: 0, y: 0 }, &mut context);
+    state = looper_on_tick(state, &mut context);
+    let punch_out = crate::behavior::BehaviorActionInput {
+        action_type: "toggleMode".into(),
+    };
+    state = looper_on_input(state, DeviceInput::BehaviorAction(punch_out), &mut context);
+    assert_eq!(state.mode, LooperMode::Play);
+    state = looper_on_input(state, DeviceInput::GridRelease { x: 0, y: 0 }, &mut context);
+    let lit = (0..12)
+        .filter(|_| {
+            state = looper_on_tick(state.clone(), &mut context);
+            state.tiles[0]
+        })
+        .count();
+    assert!((1..12).contains(&lit), "lit on {lit} of 12 steps");
+}
+
+/// A press whose release a shorter Length cut off plays a step per pass, not for good.
+#[test]
+fn a_press_whose_release_a_shorter_length_cut_off_plays_one_step() {
+    let mut context = context();
+    let mut state =
+        looper_init(serde_json::json!({ "mode": "overdub", "lengthSteps": 4 })).unwrap();
+    state = looper_on_input(state, DeviceInput::GridPress { x: 0, y: 0 }, &mut context);
+    for _ in 0..3 {
+        state = looper_on_tick(state, &mut context);
+    }
+    state = looper_on_input(state, DeviceInput::GridRelease { x: 0, y: 0 }, &mut context);
+    let mut state = with_length(&state, 2);
+    state.mode = LooperMode::Play;
+    let lit = (0..8)
+        .map(|_| {
+            state = looper_on_tick(state.clone(), &mut context);
+            state.tiles[0]
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(lit.iter().filter(|lit| **lit).count(), 4, "{lit:?}");
+}

@@ -115,20 +115,17 @@ pub fn looper_on_input(
             clear_loop(state)
         }
         DeviceInput::BehaviorAction(action) => {
-            if let Some(mode) = action.action_type.strip_prefix("setMode:") {
-                return LooperState {
-                    mode: normalize_mode(Some(mode)),
-                    ..state
-                };
-            }
-            if action.action_type == "toggleMode" {
-                let mode = match state.mode {
+            let mode = if let Some(mode) = action.action_type.strip_prefix("setMode:") {
+                normalize_mode(Some(mode))
+            } else if action.action_type == "toggleMode" {
+                match state.mode {
                     LooperMode::Overdub => LooperMode::Play,
                     LooperMode::Play => LooperMode::Overdub,
-                };
-                return LooperState { mode, ..state };
-            }
-            state
+                }
+            } else {
+                return state;
+            };
+            punch(state, mode, phase)
         }
         _ => state,
     }
@@ -136,6 +133,13 @@ pub fn looper_on_input(
 
 pub fn looper_on_tick(mut state: LooperState, _context: &mut BehaviorContext) -> LooperState {
     let mut playback_tiles = state.playback_tiles.clone();
+    // A press the loop never releases within its length, as a shorter Length can leave one,
+    // plays for one step rather than on and on.
+    for tile in 0..TILE_COUNT {
+        if playback_tiles[tile] && !releases_in_loop(&state, tile) {
+            playback_tiles[tile] = false;
+        }
+    }
     let step = state.step_index;
     for event in state.steps.get(step).into_iter().flatten() {
         if event.tile >= TILE_COUNT || take_skip_once(&mut state.skip_once, step, event) {
@@ -335,6 +339,33 @@ fn take_skip_once(skip_once: &mut [SkipOnce], step: usize, event: &LooperEvent) 
     };
     *slot = None;
     true
+}
+
+/// Switches to `mode`; punching out with keys still down records their releases now, so no
+/// recorded press plays on pass after pass without an end.
+fn punch(mut state: LooperState, mode: LooperMode, phase: StepPhase) -> LooperState {
+    if state.mode == LooperMode::Overdub && mode == LooperMode::Play {
+        for tile in 0..TILE_COUNT {
+            if !state.held_tiles[tile] {
+                continue;
+            }
+            let release = LooperEvent {
+                tile,
+                kind: LooperEventKind::Release,
+            };
+            record_event(&mut state, release, phase);
+        }
+    }
+    LooperState { mode, ..state }
+}
+
+/// Whether the loop releases `tile` anywhere within its length.
+fn releases_in_loop(state: &LooperState, tile: usize) -> bool {
+    state.steps.iter().take(state.length_steps).any(|events| {
+        events
+            .iter()
+            .any(|event| event.tile == tile && event.kind == LooperEventKind::Release)
+    })
 }
 
 fn clear_loop(state: LooperState) -> LooperState {
