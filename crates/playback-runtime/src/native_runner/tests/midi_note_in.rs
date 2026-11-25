@@ -214,6 +214,27 @@ fn a_patch_load_releases_held_keyboard_notes() {
 }
 
 #[test]
+fn loading_the_identical_patch_releases_held_keyboard_notes_once() {
+    let mut runner = keyboard_runner("keys");
+    let load = |runner: &mut NativeRunner| {
+        let patch = split_local_system_patch_documents(&runner.config_payload())
+            .unwrap()
+            .patch;
+        runner.apply_patch_payload_preserving_device(patch).unwrap();
+    };
+    runner.config_revision = 0;
+    hold_two_notes(&mut runner);
+
+    load(&mut runner);
+    let messages = runner.messages_without_snapshot().unwrap();
+
+    assert_both_released(&messages);
+    assert_eq!(midi(&messages).len(), 1, "{:?}", midi(&messages));
+    assert_eq!(runner.held_keys.held_count(), 0);
+    assert_key_releases_stay_silent(&mut runner);
+}
+
+#[test]
 fn a_patch_load_ends_each_held_midi_instrument_note_exactly_once() {
     let mut runner = keyboard_runner("keys");
     let held = [60, 64, 67];
