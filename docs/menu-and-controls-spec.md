@@ -841,6 +841,8 @@ behavior primary red), so a mute never reads as a section color.
   takes no input. It clears when a save of that kind works, when `Save Patch` or `Save System`
   is started by hand, and, for the patch autosave, when Auto Save is turned off or a patch,
   preset or factory patch is loaded with Auto Save off. A preset `Save As` does not clear it.
+  A failed hand save with Auto Save off shows the cross too; it stays until a later save of that
+  kind works, and nothing retries it.
 - A red `CLIP` in the small font sits at `x=88..103` on the breadcrumb line while the output
   clips: a render block had a sample whose magnitude after Master Vol was above 1.0 before the
   final hard clamp (exactly 1.0 is not a clip), or a non-finite sample. A non-finite frame is

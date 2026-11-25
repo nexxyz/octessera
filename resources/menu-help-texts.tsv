@@ -189,7 +189,7 @@ scan_axis	*	key:layers.*.link.scanAxis	enum	Scan Axis	columns moves a column lin
 scan_unit	*	key:layers.*.link.scanUnit	enum	Scan Unit	How often the scan cursor moves, from 1/32T to 1/1.	T means triplet.
 scan_direction	*	key:layers.*.link.scanDirection	enum	Scan Dir	forward moves the line left to right or bottom to top; reverse the other way.	A flip turns the line round where it is; it does not bounce.
 scan_sections	*	key:layers.*.link.scanSections	enum	Sections	1 scans the whole grid; 2, 4 or 8 split it into that many sections, played in sequence.	
-scan_lanes	*	key:layers.*.link.scanLanes	enum	Lanes	poly plays each tile's own note; mono plays one note per lane, each new note replacing the last.	In mono a lane's note-off ends the note and pad it started, whatever tile it fires on.
+scan_lanes	*	key:layers.*.link.scanLanes	enum	Lanes	poly plays each tile's own note; mono plays one note per lane, each new note replacing the last.	In mono a lane's note-off ends the note and pad it started, whatever tile it fires on. A hold instrument usually wants mono.
 note_preview	*	key:layers.*.link.notePreview	bool	Note Preview	A tile you press or release plays its On or Off at once, scanning or not.	Off: a direct layer's next step plays the press. Keys and Looper always play presses unless scanning.
 targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Which instrument each kind of trigger plays, and how.	Use note off for triggers that should end a held note.
 map_activate_action	*	key:layers.*.link.mapping.activate.action	enum	On Trig	What a tile does when it lights up: none, note on or note off.	note on starts a note; note off ends a held one.
@@ -403,13 +403,13 @@ link_y_cutoff_group	Menu > Link > L*: * > Y Axis > Filter Cutoff		group	Filter C
 link_y_res_group	Menu > Link > L*: * > Y Axis > Filter Res		group	Filter Res	Lets bottom-top position set the filter resonance.	Sent as MIDI CC71. Go easy, it can squeal.
 axis_pitch_enabled_x_part	*	key:layers.*.link.x.pitch.enabled	bool	X Pitch Enabled	Enables pitch stepping derived from X position.	Disable to remove horizontal pitch influence for this layer.
 axis_pitch_steps_x_part	*	key:layers.*.link.x.pitch.steps	number	X Pitch Steps	How many notes of the set each step to the right moves the pitch.	Negative steps go down; larger values make wider intervals.
-axis_pitch_restart_x_part	*	key:layers.*.link.x.pitch.restartEachSection	bool	Restart Section	When On with row scan sections, X pitch counts from the left edge of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
+axis_pitch_restart_x_part	*	key:layers.*.link.x.pitch.restartEachSection	bool	Restart Section	When On with row scan sections, X pitch counts from the left edge of each section.	Each section then plays the same register; Off keeps pitch climbing across sections.
 axis_vel_enabled_x_part	*	key:layers.*.link.x.velocity.enabled	bool	X Velocity Enabled	Enables velocity modulation from X position.	Disable for fixed mapped velocity from the trigger target.
 axis_cut_enabled_x_part	*	key:layers.*.link.x.filterCutoff.enabled	bool	Enabled	Lets left-right position move the filter cutoff.	Also sends MIDI CC74.
 axis_res_enabled_x_part	*	key:layers.*.link.x.filterResonance.enabled	bool	Enabled	Lets left-right position move the filter resonance.	Also sends MIDI CC71.
 axis_pitch_enabled_y_part	*	key:layers.*.link.y.pitch.enabled	bool	Y Pitch Enabled	Enables pitch stepping derived from Y position.	Disable to remove vertical pitch influence for this layer.
 axis_pitch_steps_y_part	*	key:layers.*.link.y.pitch.steps	number	Y Pitch Steps	How many notes of the set each step up moves the pitch.	Negative steps go down; larger values make wider intervals.
-axis_pitch_restart_y_part	*	key:layers.*.link.y.pitch.restartEachSection	bool	Restart Section	When On with column scan sections, Y pitch counts from the bottom of each lane.	Each lane then plays the same register; Off keeps pitch climbing across lanes.
+axis_pitch_restart_y_part	*	key:layers.*.link.y.pitch.restartEachSection	bool	Restart Section	When On with column scan sections, Y pitch counts from the bottom of each section.	Each section then plays the same register; Off keeps pitch climbing across sections.
 axis_vel_enabled_y_part	*	key:layers.*.link.y.velocity.enabled	bool	Y Velocity Enabled	Enables velocity modulation from Y position.	Disable for fixed mapped velocity from the trigger target.
 axis_cut_enabled_y_part	*	key:layers.*.link.y.filterCutoff.enabled	bool	Enabled	Lets bottom-top position move the filter cutoff.	Also sends MIDI CC74.
 axis_res_enabled_y_part	*	key:layers.*.link.y.filterResonance.enabled	bool	Enabled	Lets bottom-top position move the filter resonance.	Also sends MIDI CC71.

@@ -150,8 +150,8 @@ has its own **Enabled** switch.
 
 - **Pitch Steps** moves the pitch by **Steps** (-16 to 16) notes of the set per
   tile along that axis, so `1` walks up the scale and `-1` walks down it. **Restart Section** turns scan sections into little grids of their own:
-  each lane counts from its own edge, so they all play in the same register.
-  It works on the axis the lanes split (Y for column sections, X for row
+  each section counts from its own edge, so they all play in the same register.
+  It works on the axis the sections split (Y for column sections, X for row
   sections).
 - **Velocity**, **Filter Cutoff** and **Filter Res** map position onto a
   **From** to **To** range, with a **Curve** and a small **Grid Offs** nudge.
