@@ -4360,7 +4360,7 @@
               "feedback": 0.35,
               "mixPct": 35,
               "timeMode": "note",
-              "timeMs": 273,
+              "timeMs": 250,
               "timeNote": "1/8"
             },
             "type": "delay"
