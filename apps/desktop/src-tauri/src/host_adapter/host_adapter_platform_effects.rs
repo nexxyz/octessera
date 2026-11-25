@@ -25,7 +25,7 @@ impl DesktopPlaybackHostAdapter {
                 }])
             }
             RuntimePlatformEffect::StoreLoadPreset { name } => {
-                Ok(self.load_preset_result(request, name)?)
+                Ok(self.load_preset_result(request, name))
             }
             RuntimePlatformEffect::StoreSavePreset {
                 name,

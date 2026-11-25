@@ -90,35 +90,35 @@ impl DesktopPlaybackHostAdapter {
         &self,
         request: &RuntimePlatformRequest,
         name: &str,
-    ) -> Result<Vec<HostMessage>, String> {
+    ) -> Vec<HostMessage> {
         if self.pending_default_save.is_pending() {
-            return Ok(vec![HostMessage::RuntimeResult {
+            return vec![HostMessage::RuntimeResult {
                 result: pending_patch_load_failure(RuntimeOperation::StoreLoadPreset)
                     .with_identity(request.request_id.clone(), request.revision),
-            }]);
+            }];
         }
-        let payload = self.load_preset_payload(name)?;
-        if let Some(Err(message)) = payload.as_ref().map(|patch| self.validate_preset(patch)) {
-            return Ok(vec![HostMessage::RuntimeResult {
-                result: RuntimeStoreResult::RuntimeFailure {
-                    error: request.failure_facts(message),
-                },
-            }]);
-        }
-        Ok(vec![HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::LoadPresetResult {
+        let result = match self.load_validated_preset(name) {
+            Ok(payload) => RuntimeStoreResult::LoadPresetResult {
                 name: name.to_string(),
                 payload,
             }
             .with_identity(request.request_id.clone(), request.revision),
-        }])
+            Err(message) => RuntimeStoreResult::RuntimeFailure {
+                error: request.failure_facts(message),
+            },
+        };
+        vec![HostMessage::RuntimeResult { result }]
     }
 
-    fn validate_preset(&self, patch: &serde_json::Value) -> Result<(), String> {
+    fn load_validated_preset(&self, name: &str) -> Result<Option<serde_json::Value>, String> {
+        let Some(patch) = self.load_preset_payload(name)? else {
+            return Ok(None);
+        };
         let system = self
             .load_system_payload()?
             .ok_or_else(|| "System settings are missing".to_string())?;
-        playback_runtime::compose_system_patch_documents(&system, patch).map(|_| ())
+        playback_runtime::compose_system_patch_documents(&system, &patch)?;
+        Ok(Some(patch))
     }
 
     pub(super) fn load_preset_payload(

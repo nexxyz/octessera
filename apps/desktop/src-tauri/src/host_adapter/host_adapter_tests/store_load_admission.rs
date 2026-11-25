@@ -139,40 +139,68 @@ fn default_and_preset_loads_succeed_without_pending_default_save() {
     let _ = std::fs::remove_dir_all(temp_dir);
 }
 
-#[test]
-fn a_damaged_preset_is_refused_with_the_boards_error() {
+fn load_named_preset_in_factory_store(label: &str, preset_bytes: &[u8]) -> Vec<HostMessage> {
     let (mut adapter, _) = test_adapter();
-    let temp_dir = temp_store_dir("damaged-preset-load");
+    let temp_dir = temp_store_dir(label);
     adapter.store_dir = temp_dir.clone();
-    let documents = factory_documents();
     std::fs::write(
         temp_dir.join("system.json"),
-        serde_json::to_vec(&documents.system).unwrap(),
+        serde_json::to_vec(&factory_documents().system).unwrap(),
     )
     .unwrap();
-    let mut damaged = documents.patch;
-    damaged["runtimeConfig"]["fromTheFuture"] = serde_json::json!(true);
-    let expected =
-        playback_runtime::compose_system_patch_documents(&documents.system, &damaged).unwrap_err();
     let preset_path = temp_dir.join("presets").join("patches").join("Named.json");
     std::fs::create_dir_all(preset_path.parent().unwrap()).unwrap();
-    std::fs::write(&preset_path, serde_json::to_vec(&damaged).unwrap()).unwrap();
-
+    std::fs::write(&preset_path, preset_bytes).unwrap();
     let result = adapter
         .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreLoadPreset {
             name: "Named".into(),
         }))
         .unwrap();
-
-    assert!(matches!(
-        result.as_slice(),
-        [HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::RuntimeFailure { error }
-        }] if error.operation == playback_runtime::RuntimeOperation::StoreLoadPreset
-            && error.code == playback_runtime::RuntimeErrorCode::OperationFailed
-            && error.preset_name.as_deref() == Some("Named")
-            && error.request_id.as_deref() == Some("test-request")
-            && error.message.as_deref() == Some(expected.as_str())
-    ));
     let _ = std::fs::remove_dir_all(temp_dir);
+    result
+}
+
+fn preset_refusal(result: &[HostMessage]) -> String {
+    let [HostMessage::RuntimeResult {
+        result: RuntimeStoreResult::RuntimeFailure { error },
+    }] = result
+    else {
+        panic!("expected a preset load failure, got {result:?}");
+    };
+    assert_eq!(
+        error.operation,
+        playback_runtime::RuntimeOperation::StoreLoadPreset
+    );
+    assert_eq!(
+        error.code,
+        playback_runtime::RuntimeErrorCode::OperationFailed
+    );
+    assert_eq!(error.preset_name.as_deref(), Some("Named"));
+    assert_eq!(error.request_id.as_deref(), Some("test-request"));
+    error.message.clone().unwrap()
+}
+
+#[test]
+fn a_damaged_preset_is_refused_with_the_boards_error() {
+    let documents = factory_documents();
+    let mut damaged = documents.patch;
+    damaged["runtimeConfig"]["fromTheFuture"] = serde_json::json!(true);
+    let expected =
+        playback_runtime::compose_system_patch_documents(&documents.system, &damaged).unwrap_err();
+
+    let result = load_named_preset_in_factory_store(
+        "damaged-preset-load",
+        &serde_json::to_vec(&damaged).unwrap(),
+    );
+
+    let message = preset_refusal(&result);
+    assert_eq!(message, expected);
+    assert!(message.contains("saved by a newer Octessera"), "{message}");
+}
+
+#[test]
+fn a_preset_that_is_not_json_is_refused_as_on_the_boards() {
+    let result = load_named_preset_in_factory_store("non-json-preset-load", b"not json");
+
+    assert!(!preset_refusal(&result).is_empty());
 }
