@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 const MOUNTINFO_PATH: &str = "/proc/self/mountinfo";
-/// Written by the SD helper after a repair that left the card clean: device and disk sequence.
+/// Written by the SD helper once a repaired card has mounted: device, disk sequence and timestamp.
 const REPAIR_MARKER_PATH: &str = "/run/octessera-sd-card.repaired";
 
 pub(crate) struct SdCardWatch {

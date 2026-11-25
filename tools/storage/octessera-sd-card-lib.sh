@@ -220,6 +220,7 @@ remount_card_after_transfer() {
 # its own result.
 remount_card() {
   dev="$1"
+  card_repaired=0
   mkdir -p "$SD_MOUNT" || return 1
   if mountpoint -q "$SD_MOUNT"; then
     mounted_dev="$(mounted_device)" || return 1
@@ -228,7 +229,6 @@ remount_card() {
       return 1
     }
   else
-    card_repaired=0
     repair_dirty_card "$dev" || return 1
     if ! mount -o "$(mount_options_for "$dev")" "$dev" "$SD_MOUNT"; then
       log "could not mount $dev at $SD_MOUNT"
@@ -237,14 +237,13 @@ remount_card() {
       fi
       return 1
     fi
+    if [ "$card_repaired" = 1 ]; then
+      printf '%s %s %s\n' "$dev" "$(disk_sequence "$dev")" "$(date +%s%N)" > "$SD_REPAIRED_STATE" || log "could not record that $dev was repaired"
+    fi
   fi
   rm -f -- "$SD_REPAIR_STATE"
   prepare_folders || return 1
   remember_disk_sequence "$dev"
-  if [ "${card_repaired:-0}" = 1 ]; then
-    card_repaired=0
-    printf '%s %s %s\n' "$dev" "$(disk_sequence "$dev")" "$(date +%s%N)" > "$SD_REPAIRED_STATE" || log "could not record that $dev was repaired"
-  fi
 }
 
 mount_card() {

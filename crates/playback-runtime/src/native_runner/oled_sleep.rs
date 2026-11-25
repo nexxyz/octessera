@@ -45,8 +45,9 @@ impl NativeRunner {
                 self.display.oled_splash_until = None;
                 self.display.last_interaction_at = now;
                 self.display.performance_view |= self.display.ui.perf_view_at_boot;
+                let repaired = std::mem::take(&mut self.display.sd_card_repaired_after_splash);
                 if self.display.runtime_error_presentation.is_none() {
-                    if std::mem::take(&mut self.display.sd_card_repaired_after_splash) {
+                    if repaired {
                         self.show_toast(SD_CARD_REPAIRED_TOAST);
                     } else {
                         self.show_toast("Help: Sh+Fn+Main");
