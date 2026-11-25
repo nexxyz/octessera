@@ -25,6 +25,8 @@ grep -qFx 'ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-3f2
 grep -qFx 'ACTION=="remove", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-5011000.spi-cs-1", RUN+="/bin/systemctl --no-block start octessera-orange-sd-card.service"' "$rule"
 grep -qFx 'ACTION=="remove", SUBSYSTEM=="block", ENV{ID_PATH}=="platform-3f204000.spi-cs-1", RUN+="/bin/systemctl --no-block start octessera-sd-card.service"' "$pi_rule"
 grep -qF ':-/run/octessera-sd-card.needs-repair}' "$library"
+grep -qF ':-/run/octessera-sd-card.repaired}' "$library"
+grep -qF 'const REPAIR_MARKER_PATH: &str = "/run/octessera-sd-card.repaired";' "$root/apps/pi-zero/src/sd_card_watch.rs"
 
 export OCTESSERA_SD_MOUNT="$work/mount"
 export OCTESSERA_SD_OWNER=octessera-runtime
@@ -250,7 +252,11 @@ fresh_mount vfat 1
 remount_card /dev/sdb1
 test -e "$mount_marker"
 grep -qx 'fsck.vfat -a /dev/sdb1' "$work/fsck.log"
-grep -qx "/dev/sdb1 $card_sequence" "$SD_REPAIRED_STATE"
+grep -q "^/dev/sdb1 $card_sequence [0-9][0-9]*$" "$SD_REPAIRED_STATE"
+first_repair="$(cat "$SD_REPAIRED_STATE")"
+fresh_mount vfat 1
+remount_card /dev/sdb1
+[ "$(cat "$SD_REPAIRED_STATE")" != "$first_repair" ] || { echo 'A second repair of the same card left the same repair record.' >&2; exit 1; }
 
 fat16_size=32
 fresh_mount vfat 1

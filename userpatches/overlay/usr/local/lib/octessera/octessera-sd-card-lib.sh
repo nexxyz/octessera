@@ -188,7 +188,7 @@ repair_dirty_card() {
         return 0
       else
         log "$dev checked and repaired"
-        printf '%s %s\n' "$dev" "$(disk_sequence "$dev")" > "$SD_REPAIRED_STATE" || log "could not record that $dev was repaired"
+        printf '%s %s %s\n' "$dev" "$(disk_sequence "$dev")" "$(date +%s%N)" > "$SD_REPAIRED_STATE" || log "could not record that $dev was repaired"
         return 0
       fi
       ;;
