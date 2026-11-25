@@ -10,7 +10,6 @@ use crate::timing_input::{fail_study, TimingInput};
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::{AudioOptimization, HostMessage, NativeRunner, PlaybackRuntime};
 use std::path::PathBuf;
-use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -32,9 +31,9 @@ pub(crate) struct RaspberryRuntimeConfig {
     pub(crate) audio_optimization: AudioOptimization,
     #[cfg(board_raspberry)]
     pub(crate) audio_load_rx: Option<rodio_engine_source::AudioLoadStatusReceiver>,
-    pub(crate) midi_rx: mpsc::Receiver<MidiMessage>,
-    pub(crate) input_rx: mpsc::Receiver<HostMessage>,
-    pub(crate) encoder_rx: mpsc::Receiver<HardwareEvent>,
+    pub(crate) midi_rx: crate::runtime_handoff::Receiver<MidiMessage>,
+    pub(crate) input_rx: crate::runtime_handoff::Receiver<HostMessage>,
+    pub(crate) encoder_rx: crate::runtime_handoff::Receiver<HardwareEvent>,
     pub(crate) early_boot_splash: bool,
     pub(crate) keyboard: KeyboardCapture,
 }
@@ -106,6 +105,8 @@ fn scheduler_loop(
         input_rx: &input_rx,
         encoder_rx: &encoder_rx,
     };
+    #[cfg(all(target_os = "linux", not(board_host)))]
+    crate::audio_priority::promote_runtime_thread();
     let result = run_runtime_loop(
         &mut state,
         &mut playback,
@@ -115,6 +116,8 @@ fn scheduler_loop(
         &inputs,
         &mut board,
     );
+    #[cfg(all(target_os = "linux", not(board_host)))]
+    crate::audio_priority::demote_runtime_thread();
     if let Err(message) = result {
         present_audio_fault(
             message,

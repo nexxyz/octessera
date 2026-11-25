@@ -1,7 +1,7 @@
 use platform_core::AUX_ENCODER_COUNT;
 use playback_runtime::HostMessage;
 use serde_json::json;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use std::time::Instant;
 
 pub enum MidiMessage {
@@ -114,8 +114,11 @@ pub fn midi_input_message(bytes: &[u8]) -> Option<MidiMessage> {
 pub(crate) type MidiInputHandler = Arc<dyn Fn(Vec<u8>) + Send + Sync>;
 
 /// The MIDI input callback the host adapter calls, and the receiver the runtime loop drains.
-pub(crate) fn midi_input_channel() -> (MidiInputHandler, mpsc::Receiver<MidiMessage>) {
-    let (midi_tx, midi_rx) = mpsc::channel::<MidiMessage>();
+pub(crate) fn midi_input_channel() -> (
+    MidiInputHandler,
+    crate::runtime_handoff::Receiver<MidiMessage>,
+) {
+    let (midi_tx, midi_rx) = crate::runtime_handoff::channel::<MidiMessage>();
     let midi_handler = Arc::new(move |bytes: Vec<u8>| {
         if let Some(message) = midi_input_message(&bytes) {
             let _ = midi_tx.send(message);

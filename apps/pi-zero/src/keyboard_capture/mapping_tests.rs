@@ -365,7 +365,7 @@ fn aux_clicks_emit_once_until_release_and_clear_on_cleanup() {
             Some(KeyboardInput::EncoderPress { id })
         );
 
-        let (input_tx, input_rx) = std::sync::mpsc::channel();
+        let (input_tx, input_rx) = crate::runtime_handoff::channel();
         state.commit(state.prepare(key, 1).unwrap());
         assert!(release_held_inputs(&mut state, &input_tx));
         assert!(release_held_inputs(&mut state, &input_tx));

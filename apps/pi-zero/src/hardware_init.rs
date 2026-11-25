@@ -4,7 +4,6 @@ use octessera_hal::{
     encoder_gpio::HardwareEvent, EncoderGpio, I2CBus, I2sDac, NeoKey, NeoTrellis, OledSsd1351,
     SeesawInterrupt,
 };
-use std::sync::mpsc;
 
 use crate::hardware_fault::HardwareFault;
 
@@ -67,9 +66,15 @@ pub(crate) fn init_hardware(open_oled: bool) -> Result<HardwareDevices, Box<Hard
     }
 }
 
-pub(crate) fn init_encoders(
-) -> Result<(mpsc::Receiver<HardwareEvent>, Vec<EncoderGpio>), Box<HardwareFault>> {
-    let (event_tx, event_rx) = mpsc::channel::<HardwareEvent>();
+pub(crate) fn init_encoders() -> Result<
+    (
+        crate::runtime_handoff::Receiver<HardwareEvent>,
+        Vec<EncoderGpio>,
+    ),
+    Box<HardwareFault>,
+> {
+    let (event_tx, event_rx) = crate::runtime_handoff::channel::<HardwareEvent>();
+    let event_sink = crate::encoder_queue::event_sink(event_tx);
     let mut encoders = Vec::new();
     let mut fault = HardwareFault::new();
     for (index, pins) in octessera_hal::pinmap::ENCODERS.iter().enumerate() {
@@ -80,7 +85,7 @@ pub(crate) fn init_encoders(
             3 => "encoder_aux_3",
             _ => unreachable!("encoder pin count follows platform capabilities"),
         };
-        match EncoderGpio::new(id, pins, event_tx.clone()) {
+        match EncoderGpio::new(id, pins, event_sink.clone()) {
             Ok(encoder) => encoders.push(encoder),
             Err(error) => fault.push(id, error),
         }

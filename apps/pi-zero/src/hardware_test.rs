@@ -218,7 +218,7 @@ fn print_summary(warnings: &[String], failures: &[String]) {
 fn input_event_check(
     trellis: &mut NeoTrellis,
     neokey: &mut NeoKey,
-    event_rx: &mpsc::Receiver<HardwareEvent>,
+    event_rx: &crate::runtime_handoff::Receiver<HardwareEvent>,
 ) -> bool {
     let mut passed = true;
     println!(

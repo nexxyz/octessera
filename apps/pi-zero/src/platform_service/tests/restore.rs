@@ -292,7 +292,7 @@ fn native_default_queue_rejection_clears_pending_and_allows_retry() {
                     None,
                 ),
                 PlatformJobKind::QueueBarrier {
-                    completed: mpsc::sync_channel(1).0,
+                    completed: crate::runtime_handoff::bounded(1).0,
                 },
             ))
             .unwrap();

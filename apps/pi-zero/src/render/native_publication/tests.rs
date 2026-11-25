@@ -3,7 +3,6 @@ use crate::render::oled_output::OledRenderDevice;
 use crate::render::HardwareRenderCache;
 use crate::render_loop_queue::NativeSceneCommand;
 use playback_runtime::{NativeRunner, NativeRunnerConfig};
-use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 struct OffRetryOled {
@@ -40,7 +39,7 @@ fn state_only_display_off_retry_completes_generation_once_without_rewriting_pixe
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     let scene = runner.capture_display_scene().unwrap();
     let generation = scene.generation();
-    let (completion, received) = mpsc::channel();
+    let (completion, received) = crate::runtime_handoff::channel();
     let mut latest = prepare_native_scene(
         Box::new(NativeSceneCommand {
             scene,
@@ -92,7 +91,7 @@ fn state_only_display_off_retry_completes_generation_once_without_rewriting_pixe
 #[test]
 fn prepared_scene_maps_oled_bright_to_the_master_contrast_step() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let (completion, _received) = mpsc::channel();
+    let (completion, _received) = crate::runtime_handoff::channel();
     let latest = prepare_native_scene(
         Box::new(NativeSceneCommand {
             scene: runner.capture_display_scene().unwrap(),

@@ -4,7 +4,7 @@ use playback_runtime::{
     RuntimeErrorCode, RuntimeErrorDomain, RuntimeErrorFacts, RuntimeOperation, SyncSource,
 };
 use serde_json::json;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 
 struct Started {
     root: std::path::PathBuf,

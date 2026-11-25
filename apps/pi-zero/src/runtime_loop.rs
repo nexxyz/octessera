@@ -84,9 +84,9 @@ impl LoopState {
 }
 
 pub(crate) struct LoopInputs<'a> {
-    pub(crate) midi_rx: &'a mpsc::Receiver<MidiMessage>,
-    pub(crate) input_rx: &'a mpsc::Receiver<HostMessage>,
-    pub(crate) encoder_rx: &'a mpsc::Receiver<HardwareEvent>,
+    pub(crate) midi_rx: &'a crate::runtime_handoff::Receiver<MidiMessage>,
+    pub(crate) input_rx: &'a crate::runtime_handoff::Receiver<HostMessage>,
+    pub(crate) encoder_rx: &'a crate::runtime_handoff::Receiver<HardwareEvent>,
 }
 
 /// Runs until a power request or a termination signal ends it (`Ok`; the
@@ -182,7 +182,7 @@ pub(crate) fn run_runtime_loop(
 /// Sleeps until the next scheduled tick, but wakes as soon as a grid, NeoKey,
 /// or keyboard input arrives so live presses don't wait for the tick.
 fn wait_for_input(
-    input_rx: &mpsc::Receiver<HostMessage>,
+    input_rx: &crate::runtime_handoff::Receiver<HostMessage>,
     sleep: Duration,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
@@ -213,7 +213,7 @@ fn advance(
 }
 
 pub(crate) fn drain_host_messages(
-    input_rx: &mpsc::Receiver<HostMessage>,
+    input_rx: &crate::runtime_handoff::Receiver<HostMessage>,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut PiHostAdapter,
@@ -230,7 +230,7 @@ pub(crate) fn drain_host_messages(
 }
 
 pub(crate) fn drain_encoder_events(
-    event_rx: &mpsc::Receiver<HardwareEvent>,
+    event_rx: &crate::runtime_handoff::Receiver<HardwareEvent>,
     pending_encoder_turns: &mut PendingEncoderTurns,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,

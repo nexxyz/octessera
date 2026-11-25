@@ -34,7 +34,7 @@ fn spawn_fake_worker() -> (
 
 #[test]
 fn shutdown_ack_preserves_display_off_failure() {
-    let (ack_tx, ack_rx) = mpsc::channel();
+    let (ack_tx, ack_rx) = crate::runtime_handoff::channel();
     ack_tx
         .send(display_off_ack(Err("SPI write failed".into())))
         .unwrap();
@@ -65,7 +65,7 @@ fn preserving_terminal_teardown_acknowledges_and_joins_worker() {
 #[test]
 fn native_scene_is_rejected_once_terminal_command_is_queued() {
     let state = rendered_state();
-    let (ack, _received) = mpsc::channel();
+    let (ack, _received) = crate::runtime_handoff::channel();
     let (scene, _completion) = test_scene_command();
     state.0.lock().unwrap().command = Some(RenderCommand::PreserveTerminal { scene, ack });
     let worker = idle_worker(Arc::clone(&state));
@@ -157,7 +157,7 @@ fn a_poisoned_render_state_stops_the_worker_instead_of_panicking_it() {
 #[test]
 fn pending_work_decision_covers_command_and_scene_lanes() {
     let state = Arc::new((Mutex::new(RenderState::default()), Condvar::new()));
-    let (ack, _received) = mpsc::channel();
+    let (ack, _received) = crate::runtime_handoff::channel();
     let mut guard = state.0.lock().unwrap();
     assert!(!pending_work_wins_over_expired_animation_deadline(&guard));
 
@@ -190,7 +190,7 @@ fn native_scene_publication_reports_a_poisoned_worker() {
 #[test]
 fn native_scene_publication_reports_a_pending_shutdown() {
     let state = rendered_state();
-    let (ack, _received) = mpsc::channel();
+    let (ack, _received) = crate::runtime_handoff::channel();
     state.0.lock().unwrap().command = Some(RenderCommand::Shutdown { ack });
 
     assert_eq!(
@@ -236,7 +236,7 @@ fn mark_failed_ack_reports_failed_status_persistence() {
 #[test]
 fn ownership_lane_keeps_latest_scene_pending() {
     let state = rendered_state();
-    let (ack, _received) = mpsc::channel();
+    let (ack, _received) = crate::runtime_handoff::channel();
     state.0.lock().unwrap().command = Some(RenderCommand::Ownership {
         stage: OledOwnershipStage::PrepareRelease,
         cancellation: Arc::new(AtomicBool::new(false)),

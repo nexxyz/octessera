@@ -22,7 +22,7 @@ fn connections(
     input_names: impl IntoIterator<Item = String>,
     results: impl IntoIterator<Item = Result<(), String>>,
 ) -> MidiConnections {
-    let (events, _) = mpsc::channel();
+    let (events, _) = crate::runtime_handoff::channel();
     let mut connections = MidiConnections::new(events, Arc::new(|_| {}), usb_midi_out_enabled);
     connections.set_test_backend(backend(output_names, input_names, results));
     connections
@@ -104,7 +104,7 @@ fn a_remembered_host_port_connects_when_it_is_plugged_in() {
 
 #[test]
 fn another_device_coming_or_going_keeps_connected_host_ports() {
-    let (events, sent) = mpsc::channel();
+    let (events, sent) = crate::runtime_handoff::channel();
     let mut host = MidiConnections::new(events, Arc::new(|_| {}), false);
     host.set_test_backend(backend(["Keyboard".to_string()], [], [Ok(())]));
     assert_eq!(host.select_output(Some("name:Keyboard".into())), Ok(()));
@@ -130,7 +130,7 @@ fn another_device_coming_or_going_keeps_connected_host_ports() {
 
 #[test]
 fn a_missing_remembered_host_port_reports_not_connected_until_it_is_plugged_in() {
-    let (events, received) = mpsc::channel();
+    let (events, received) = crate::runtime_handoff::channel();
     let mut host = MidiConnections::new(events, Arc::new(|_| {}), false);
     host.set_test_backend(backend(Vec::new(), Vec::new(), []));
 
@@ -215,7 +215,7 @@ fn a_gadget_port_listed_after_its_device_node_still_connects() {
 
 #[test]
 fn gadget_retries_reconnect_only_the_missing_input_and_keep_the_output_sink() {
-    let (events, sent) = mpsc::channel();
+    let (events, sent) = crate::runtime_handoff::channel();
     let mut host = MidiConnections::new(events, Arc::new(|_| {}), false);
     host.set_test_backend(backend(Vec::new(), Vec::new(), []));
     host.set_usb_midi_out_enabled(true);

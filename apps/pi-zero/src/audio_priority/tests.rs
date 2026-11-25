@@ -1,4 +1,5 @@
 use super::*;
+use std::time::Duration;
 
 #[test]
 fn pi_roles_use_cpu_zero_for_runtime_and_mirrors() {
@@ -9,6 +10,92 @@ fn pi_roles_use_cpu_zero_for_runtime_and_mirrors() {
     assert_eq!(ORANGE_WORKER_PRIORITY, 70);
     assert_eq!(PI_JACK_CALLBACK_PRIORITY, 70);
     assert_eq!(PI_MIRROR_CALLBACK_PRIORITY, 60);
+}
+
+#[test]
+fn runtime_thread_promotion_pins_cpu_zero_before_fifo_one() {
+    assert_eq!(PI_RUNTIME_PRIORITY, 1);
+    let guard = install_test_scheduling(InjectedSchedulingOutcomes::success_for_cpu(0));
+    promote_runtime_thread();
+    assert_eq!(
+        guard.trace_for_cpu(0),
+        vec![
+            SchedulingSyscall::SetAffinity,
+            SchedulingSyscall::GetAffinity,
+            SchedulingSyscall::SetScheduling,
+            SchedulingSyscall::GetScheduling
+        ]
+    );
+    drop(guard);
+
+    let outcomes = InjectedSchedulingOutcomes {
+        scheduling_set_errno: Some(1),
+        ..InjectedSchedulingOutcomes::success_for_cpu(0)
+    };
+    let guard = install_test_scheduling(outcomes);
+    promote_runtime_thread();
+    assert_eq!(
+        guard.trace_for_cpu(0),
+        vec![
+            SchedulingSyscall::SetAffinity,
+            SchedulingSyscall::GetAffinity,
+            SchedulingSyscall::SetScheduling
+        ]
+    );
+}
+
+#[test]
+fn runtime_thread_promotion_requires_reset_on_fork() {
+    let _guard = install_test_scheduling(InjectedSchedulingOutcomes::success_for_cpu(0));
+    let effective =
+        syscalls::configure_strict_reset_on_fork(PI_RUNTIME_CPU, PI_RUNTIME_PRIORITY).unwrap();
+    assert_eq!(
+        effective.policy,
+        SCHED_FIFO_POLICY | syscalls::SCHED_RESET_ON_FORK_FLAG
+    );
+    drop(_guard);
+
+    let outcomes = InjectedSchedulingOutcomes {
+        observed_scheduling: Some(EffectiveScheduling {
+            policy: SCHED_FIFO_POLICY,
+            priority: PI_RUNTIME_PRIORITY,
+            cpu: Some(0),
+        }),
+        ..InjectedSchedulingOutcomes::success_for_cpu(0)
+    };
+    let _guard = install_test_scheduling(outcomes);
+    let failure =
+        syscalls::configure_strict_reset_on_fork(PI_RUNTIME_CPU, PI_RUNTIME_PRIORITY).unwrap_err();
+    assert_eq!(failure.stage, SchedulingFailureStage::SchedulingMismatch);
+}
+
+#[test]
+fn runtime_thread_demotion_sets_normal_scheduling() {
+    let guard = install_test_scheduling(InjectedSchedulingOutcomes::success());
+    demote_runtime_thread();
+    assert_eq!(
+        guard.trace_for_cpu(usize::MAX),
+        vec![SchedulingSyscall::SetScheduling]
+    );
+    assert_eq!(
+        syscalls::restore_normal_scheduling(),
+        Ok(syscalls::SCHED_OTHER_POLICY | syscalls::SCHED_RESET_ON_FORK_FLAG)
+    );
+}
+
+#[test]
+fn runtime_thread_failure_names_the_runtime_thread() {
+    let failure = SchedulingFailure {
+        stage: SchedulingFailureStage::SchedulingSet,
+        errno: 1,
+        requested_cpu: PI_RUNTIME_CPU,
+        requested_priority: PI_RUNTIME_PRIORITY,
+        observed_mask: CpuMask::single(0),
+        observed_policy: 0,
+        observed_priority: 0,
+    };
+    assert!(syscalls::format_failure("runtime", failure)
+        .starts_with("runtime thread RT placement not qualified: stage=scheduling_set errno=1"));
 }
 
 #[test]

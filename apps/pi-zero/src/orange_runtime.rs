@@ -15,7 +15,6 @@ use octessera_hal::board_profiles::ORANGE_PI_ZERO_2W_DEVICES;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351, OrangeEncoderGpio, SeesawInterrupt};
 use playback_runtime::{HostAdapter, NativeRunner, PlaybackRuntime};
-use std::sync::mpsc::{self, Receiver};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -70,7 +69,7 @@ pub(crate) fn run_normal_startup() {
 }
 
 struct OrangeRuntimeServices {
-    midi_rx: Receiver<MidiMessage>,
+    midi_rx: crate::runtime_handoff::Receiver<MidiMessage>,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     usb_midi_out_enabled: bool,
 }
@@ -159,7 +158,7 @@ pub fn run() -> Result<(), String> {
 #[allow(clippy::too_many_arguments)]
 fn run_runtime(
     seesaw: &SeesawIo,
-    encoder_rx: &Receiver<HardwareEvent>,
+    encoder_rx: &crate::runtime_handoff::Receiver<HardwareEvent>,
     render: &RenderWorker,
     audio: &AudioService,
     audio_manager: &mut AudioManager,
@@ -198,8 +197,15 @@ fn ensure_required_audio_health(status: OrangeDacStatus) -> Result<(), String> {
         Ok(())
     }
 }
-pub(crate) fn init_encoders() -> Result<(Receiver<HardwareEvent>, Vec<OrangeEncoderGpio>), String> {
-    let (event_tx, event_rx) = mpsc::channel();
+pub(crate) fn init_encoders() -> Result<
+    (
+        crate::runtime_handoff::Receiver<HardwareEvent>,
+        Vec<OrangeEncoderGpio>,
+    ),
+    String,
+> {
+    let (event_tx, event_rx) = crate::runtime_handoff::channel();
+    let event_sink = crate::encoder_queue::event_sink(event_tx);
     let mut encoders = Vec::new();
     for (index, pins) in ORANGE_PI_ZERO_2W_DEVICES.encoders.iter().enumerate() {
         let id = encoder_id(index)?;
@@ -207,7 +213,7 @@ pub(crate) fn init_encoders() -> Result<(Receiver<HardwareEvent>, Vec<OrangeEnco
             id,
             pins,
             ORANGE_UART0_ACTIVE,
-            event_tx.clone(),
+            event_sink.clone(),
         )?);
     }
     Ok((event_rx, encoders))

@@ -75,6 +75,7 @@ mod raspberry_startup;
 #[cfg(board_not_orange)]
 mod rpi_oled_handoff_runtime;
 mod runtime_dispatch;
+mod runtime_handoff;
 mod runtime_init;
 mod runtime_loop;
 mod runtime_output;

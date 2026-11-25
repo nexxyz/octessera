@@ -2,9 +2,9 @@ use super::mapping::{AUX_ENCODERS, GRID_KEY_COLUMNS, GRID_KEY_ROWS};
 use super::{
     emit, release_held_inputs, KeyboardBuses, KeyboardCaptureControl, KeyboardKey, KeyboardState,
 };
+use crate::runtime_handoff::Sender;
 use playback_runtime::HostMessage;
 use std::io;
-use std::sync::mpsc::Sender;
 
 pub(super) enum Acquisition<Device> {
     None,

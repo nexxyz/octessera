@@ -170,7 +170,31 @@ pub(super) fn configure_strict(
 ) -> Result<EffectiveScheduling, SchedulingFailure> {
     let outcomes = *TEST_OUTCOMES.lock().unwrap();
     let observed = configure_affinity(&outcomes, requested_cpu, requested_priority)?;
-    configure_sched(&outcomes, requested_cpu, requested_priority, observed)
+    configure_sched(&outcomes, requested_cpu, requested_priority, observed, 0)
+}
+
+pub(super) fn configure_strict_reset_on_fork(
+    requested_cpu: usize,
+    requested_priority: i32,
+) -> Result<EffectiveScheduling, SchedulingFailure> {
+    let outcomes = *TEST_OUTCOMES.lock().unwrap();
+    let observed = configure_affinity(&outcomes, requested_cpu, requested_priority)?;
+    configure_sched(
+        &outcomes,
+        requested_cpu,
+        requested_priority,
+        observed,
+        SCHED_RESET_ON_FORK_FLAG,
+    )
+}
+
+pub(super) fn restore_normal_scheduling(policy: i32) -> Result<i32, i32> {
+    record(SchedulingSyscall::SetScheduling, usize::MAX);
+    TEST_OUTCOMES
+        .lock()
+        .unwrap()
+        .scheduling_set_errno
+        .map_or(Ok(policy), Err)
 }
 
 pub(super) fn configure_affinity_only(requested_cpu: usize) -> Result<CpuMask, SchedulingFailure> {
@@ -232,7 +256,9 @@ fn configure_sched(
     requested_cpu: usize,
     requested_priority: i32,
     observed_mask: CpuMask,
+    policy_flags: i32,
 ) -> Result<EffectiveScheduling, SchedulingFailure> {
+    let policy_requested = SCHED_FIFO_POLICY | policy_flags;
     record(SchedulingSyscall::SetScheduling, requested_cpu);
     maybe_block(SchedulingSyscall::SetScheduling);
     if let Some(errno) = outcomes.scheduling_set_errno {
@@ -259,11 +285,11 @@ fn configure_sched(
         ));
     }
     let effective = outcomes.observed_scheduling.unwrap_or(EffectiveScheduling {
-        policy: SCHED_FIFO_POLICY,
+        policy: policy_requested,
         priority: requested_priority,
         cpu: (requested_cpu != usize::MAX).then_some(requested_cpu),
     });
-    if effective.policy != SCHED_FIFO_POLICY || effective.priority != requested_priority {
+    if effective.policy != policy_requested || effective.priority != requested_priority {
         return Err(failure(
             SchedulingFailureStage::SchedulingMismatch,
             0,

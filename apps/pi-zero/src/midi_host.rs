@@ -2,7 +2,7 @@ use playback_runtime::{
     HostAdapter, HostMessage, MidiControlChangeBatch, NativeRunner, PlaybackRuntime,
     RuntimePlatformEffect, TimedMidiSender,
 };
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
 
 use crate::input::MidiMessage;
@@ -24,7 +24,7 @@ pub(crate) trait RuntimeOutputSink: HostAdapter {
 /// end of the drain and keep only the latest value per channel and controller, so a knob sweep
 /// cannot crowd clock pulses out of the tick.
 pub(crate) fn drain_midi_messages<A: HostAdapter + RuntimeOutputSink>(
-    midi_rx: &Receiver<MidiMessage>,
+    midi_rx: &crate::runtime_handoff::Receiver<MidiMessage>,
     playback: &mut PlaybackRuntime,
     runner: &mut NativeRunner,
     adapter: &mut A,
@@ -87,7 +87,7 @@ fn dispatch_midi_output<A: HostAdapter + RuntimeOutputSink>(
 pub(crate) struct MidiHost {
     midi_out: TimedMidiSender,
     commands: Sender<MidiConnectCommand>,
-    events: Receiver<MidiConnectEvent>,
+    events: crate::runtime_handoff::Receiver<MidiConnectEvent>,
     host_midi_output_id: Option<String>,
     host_midi_input_id: Option<String>,
 }
@@ -98,7 +98,7 @@ impl MidiHost {
         usb_midi_out_enabled: bool,
     ) -> Self {
         let (commands, command_rx) = mpsc::channel();
-        let (event_tx, events) = mpsc::channel();
+        let (event_tx, events) = crate::runtime_handoff::channel();
         let connections = MidiConnections::new(event_tx, midi_in_handler, usb_midi_out_enabled);
         std::thread::Builder::new()
             .name("octessera-midi-connect".into())

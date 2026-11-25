@@ -9,13 +9,13 @@ mod device;
 mod monitor;
 mod worker;
 
+use crate::runtime_handoff::{self, Receiver, Sender};
 pub(crate) use device::DeviceRecord;
 pub(crate) use monitor::BluetoothAudioMonitor;
 use playback_runtime::{
     HostMessage, RuntimeBluetoothDeviceAction, RuntimeBluetoothStatus, RuntimePlatformEffect,
     RuntimeStoreResult,
 };
-use std::sync::mpsc::{Receiver, Sender};
 
 /// Long BlueZ calls (pairing, connecting) run on short helper threads and
 /// report back through the worker's event channel.
@@ -77,8 +77,8 @@ impl BluetoothHandle {
     fn spawn<B: Bluez>(
         connect: impl FnOnce(Sender<WorkerEvent>) -> Result<B, String> + Send + 'static,
     ) -> Option<Self> {
-        let (events, rx) = std::sync::mpsc::channel();
-        let (status_tx, status) = std::sync::mpsc::channel();
+        let (events, rx) = runtime_handoff::channel();
+        let (status_tx, status) = runtime_handoff::channel();
         let worker_events = events.clone();
         let unavailable = status_tx.clone();
         std::thread::Builder::new()

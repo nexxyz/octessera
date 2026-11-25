@@ -1,9 +1,10 @@
 use super::{status_message, Bluez, WorkerEvent};
+use crate::runtime_handoff::{Receiver, Sender};
 use playback_runtime::{
     HostMessage, RuntimeBluetoothDevice, RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind,
     RuntimeBluetoothPairing, RuntimeBluetoothStatus,
 };
-use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::RecvTimeoutError;
 use std::time::{Duration, Instant};
 
 const SCAN_LIMIT: Duration = Duration::from_secs(60);

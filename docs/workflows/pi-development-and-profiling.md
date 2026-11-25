@@ -237,6 +237,36 @@ first change after start, then every five minutes while the patch stays dirty):
 at the runtime's priority its validate, serialize and write held dispatches off
 for up to 2.5 ms, so the store worker runs at nice 10.
 
+Fencing the daemons onto CPU 0 left the runtime thread exposed to their bursts
+(`systemd-tmpfiles-clean`, a daemon reload) and to the kernel's HDMI probe and
+udev, which delayed it by 4 to 10 ms, so timed MIDI and note events came out
+late. The runtime thread now raises itself to `SCHED_FIFO` 1 on CPU 0 just
+before its loop starts (startup logs `runtime thread scheduling qualified:
+cpu=0 policy=SCHED_FIFO priority=1 reset_on_fork=1`, or a `runtime thread RT
+placement not qualified` line, and keeps running at normal priority). In the
+board trial every trigger window stayed under 0.6 ms with no late events, the
+thread used about 4% of CPU 0, and SSH and journald stayed responsive. FIFO 1
+is the lowest realtime priority (the Raspberry kernel runs `ksoftirqd` there
+too), below the MIDI threads (50), the mirror callback (60) and the IRQ threads
+(50). Reset-on-fork starts every thread or process it spawns from then on at
+`SCHED_OTHER` nice 0, not the service's `Nice=-10`, because it also resets a
+negative nice value.
+
+While its loop runs at FIFO 1, the runtime thread never busy-waits on a
+lower-priority thread on its CPU: a `std::sync::mpsc` receive can spin while a
+preempted sender finishes its push, and at FIFO 1 that spin lasts until the
+kernel's RT throttle stops it (close to a second). So the queues it receives
+from, or shares with other senders, on CPU 0 (platform jobs and results, the
+queue barrier, host input, encoder events, render acknowledgements, MIDI input
+and connection events, Bluetooth) are `runtime_handoff` queues: a mutex and
+condvar, whose polling receive gives up when the lock is held. The MIDI connect
+commands stay on `mpsc`, which is safe because the runtime is their only sender.
+The Orange's callback-scheduling check waits on a condvar for the same reason.
+When the loop returns, the runtime thread drops back to `SCHED_OTHER` (keeping
+its nice value), so the shutdown and teardown work after it cannot spin. It
+keeps reset-on-fork, because clearing that needs `CAP_SYS_NICE`, which the
+Orange service does not have.
+
 The Orange keeps Armbian's `ondemand` governor, but its dips to 480 and 720 MHz
 (about 200 ms every 2 seconds, right in the runtime's heavy layer steps)
 doubled the worst dispatch time. The image sets `MIN_SPEED=1200000` in

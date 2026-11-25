@@ -11,6 +11,7 @@ use playback_runtime::{
     PresentationScene,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(all(test, board_not_orange))]
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -97,8 +98,8 @@ impl RenderWorker {
         scene: PresentationScene,
         metrics: OledPresentationMetrics,
         error: Option<OledRuntimeErrorMetadata>,
-    ) -> Result<mpsc::Receiver<NativeSceneCompletion>, String> {
-        let (completion, receiver) = mpsc::channel();
+    ) -> Result<crate::runtime_handoff::Receiver<NativeSceneCompletion>, String> {
+        let (completion, receiver) = crate::runtime_handoff::channel();
         let command = NativeSceneCommand {
             scene,
             metrics,
@@ -133,7 +134,7 @@ impl RenderWorker {
         metrics: OledPresentationMetrics,
         error: Option<OledRuntimeErrorMetadata>,
     ) -> Result<(u64, Arc<[u8]>), String> {
-        let (completion, receiver) = mpsc::channel();
+        let (completion, receiver) = crate::runtime_handoff::channel();
         let command = NativeSceneCommand {
             scene,
             metrics,
@@ -172,7 +173,7 @@ impl RenderWorker {
     }
 
     pub fn mark_first_menu_rendered(&self) -> Result<(), String> {
-        let (ack_tx, ack_rx) = mpsc::channel();
+        let (ack_tx, ack_rx) = crate::runtime_handoff::channel();
         let (lock, ready) = &*self.state;
         let mut state = lock.lock().map_err(|_| {
             "render worker state mutex poisoned during OLED handoff acknowledgement".to_string()
@@ -194,7 +195,7 @@ impl RenderWorker {
     }
 
     pub fn mark_oled_failed(&self) -> Result<(), String> {
-        let (ack_tx, ack_rx) = mpsc::channel();
+        let (ack_tx, ack_rx) = crate::runtime_handoff::channel();
         let (lock, ready) = &*self.state;
         let mut state = lock.lock().map_err(|_| {
             "render worker state mutex poisoned during OLED failure publication".to_string()
@@ -218,7 +219,7 @@ impl RenderWorker {
 
     #[cfg_attr(board_not_orange, allow(dead_code))]
     pub(crate) fn ownership_stage(&self, stage: OledOwnershipStage) -> Result<(), String> {
-        let (ack_tx, ack_rx) = mpsc::channel();
+        let (ack_tx, ack_rx) = crate::runtime_handoff::channel();
         let cancellation = Arc::new(AtomicBool::new(false));
         let (lock, ready) = &*self.state;
         let mut state = lock

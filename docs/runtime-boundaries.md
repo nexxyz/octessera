@@ -39,12 +39,16 @@ owns no board, hardware, audio, adapter, or thread.
 
 `main` pins itself to CPU0 (affinity only, `audio_priority::pin_main_thread_to_cpu0`) before it
 spawns anything, so every thread below inherits CPU0 at normal priority unless the last column
-says otherwise. CPU placement and priorities apply on the boards only; host builds skip them.
+says otherwise. While its loop runs, the runtime thread is `SCHED_FIFO` 1; it returns to
+`SCHED_OTHER` when the loop returns. It sets reset-on-fork with the promotion and keeps it (the
+Orange service may not clear it), so every thread or process it spawns from then on starts at
+`SCHED_OTHER` nice 0 instead of inheriting its priority. CPU placement and priorities apply on
+the boards only; host builds skip them.
 Unnamed threads have no `Builder::name`.
 
 | Thread | Spawned by | Channels | Stops | Priority / CPU |
 | --- | --- | --- | --- | --- |
-| `octessera-runtime` | `apps/pi-zero/src/runtime_thread.rs`, from both board startups | input `HostMessage` channel, platform result lane, audio control requests | runtime loop returns; `main` joins it | inherited CPU0; 8 MiB stack |
+| `octessera-runtime` | `apps/pi-zero/src/runtime_thread.rs`, from both board startups | input `HostMessage` channel, platform result lane, audio control requests | runtime loop returns; `main` joins it | `SCHED_FIFO` 1 with reset-on-fork while its loop runs (`audio_priority::promote_runtime_thread` / `demote_runtime_thread`), CPU0; 8 MiB stack |
 | Jack callback (cpal) | cpal stream, `audio/audio_output/cpal_audio_output.rs` | engine event queue into `EngineSource` | stream dropped | `SCHED_FIFO` 70, CPU1, set on its first callback |
 | USB/HDMI mirror callback (cpal) | cpal mirror stream, `cpal_audio_output/cpal_audio_mirror.rs` | PCM mirror ring | stream dropped | `SCHED_FIFO` 60, CPU0 |
 | `oct-dsp-tree-0`, `oct-dsp-tree-1` | `realtime-engine` `source_worker/lifecycle/worker.rs` (routing tree, Capacity mode) | work and completion mailboxes | work channel closes at engine shutdown | `SCHED_FIFO` 70, CPU2 / CPU3 (`pi_worker_start_hook`) |

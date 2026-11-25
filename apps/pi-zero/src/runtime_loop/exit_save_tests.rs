@@ -128,9 +128,9 @@ fn a_termination_signal_writes_the_coalesced_autosave_before_the_loop_ends() {
         HardwareRuntimeScheduler::new(Instant::now(), playback.last_snapshot_revision()),
         None,
     );
-    let (_midi_tx, midi_rx) = mpsc::channel();
-    let (_input_tx, input_rx) = mpsc::channel();
-    let (_encoder_tx, encoder_rx) = mpsc::channel();
+    let (_midi_tx, midi_rx) = crate::runtime_handoff::channel();
+    let (_input_tx, input_rx) = crate::runtime_handoff::channel();
+    let (_encoder_tx, encoder_rx) = crate::runtime_handoff::channel();
     let inputs = LoopInputs {
         midi_rx: &midi_rx,
         input_rx: &input_rx,

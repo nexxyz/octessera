@@ -1,7 +1,7 @@
 #[cfg(target_os = "linux")]
 use crate::board_profiles::{OrangeEncoderPins, ORANGE_PI_ZERO_2W_DEVICES};
 #[cfg(target_os = "linux")]
-use crate::encoder_gpio::{HardwareEvent, QuadratureState, SWITCH_DEBOUNCE_MS};
+use crate::encoder_gpio::{HardwareEvent, HardwareEventSink, QuadratureState, SWITCH_DEBOUNCE_MS};
 #[cfg(target_os = "linux")]
 use gpiocdev::line::{Bias, EdgeDetection, EdgeKind, Value};
 #[cfg(target_os = "linux")]
@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 #[cfg(target_os = "linux")]
 use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(target_os = "linux")]
-use std::sync::{mpsc::Sender, Arc};
+use std::sync::Arc;
 #[cfg(target_os = "linux")]
 use std::thread::{self, JoinHandle};
 #[cfg(target_os = "linux")]
@@ -35,7 +35,7 @@ impl OrangeEncoderGpio {
     pub fn new(
         id: &'static str,
         pins: &OrangeEncoderPins,
-        tx: Sender<HardwareEvent>,
+        tx: HardwareEventSink,
     ) -> Result<Self, String> {
         Self::new_with_uart0_active(id, pins, true, tx)
     }
@@ -44,7 +44,7 @@ impl OrangeEncoderGpio {
         id: &'static str,
         pins: &OrangeEncoderPins,
         uart0_active: bool,
-        tx: Sender<HardwareEvent>,
+        tx: HardwareEventSink,
     ) -> Result<Self, String> {
         let offsets: Vec<u32> = pins
             .requested_gpio_offsets(uart0_active)
@@ -132,7 +132,7 @@ fn run_worker(
     switch: Option<Request>,
     mut state: QuadratureState,
     stop: Arc<AtomicBool>,
-    tx: Sender<HardwareEvent>,
+    tx: HardwareEventSink,
 ) {
     let mut quadrature_events = quadrature.edge_events();
     let mut switch_events = switch.as_ref().map(|request| request.edge_events());
@@ -153,7 +153,7 @@ fn run_worker(
                     }
                 };
                 if let Some(delta) = state.update(next) {
-                    let _ = tx.send(HardwareEvent::EncoderTurn {
+                    tx(HardwareEvent::EncoderTurn {
                         id,
                         delta: descriptor.canonical_turn_delta(delta),
                     });
@@ -171,7 +171,7 @@ fn run_worker(
                     Ok(event) => {
                         handled = true;
                         if let Some(message) = switch_event(id, event.kind) {
-                            let _ = tx.send(message);
+                            tx(message);
                         }
                     }
                     Err(error) => {
@@ -314,7 +314,7 @@ impl OrangeEncoderGpio {
     pub fn new(
         _id: &'static str,
         _pins: &crate::board_profiles::OrangeEncoderPins,
-        _tx: std::sync::mpsc::Sender<crate::encoder_gpio::HardwareEvent>,
+        _tx: crate::encoder_gpio::HardwareEventSink,
     ) -> Result<Self, String> {
         Err("Orange encoder GPIO requires a Linux target".into())
     }
@@ -323,7 +323,7 @@ impl OrangeEncoderGpio {
         _id: &'static str,
         _pins: &crate::board_profiles::OrangeEncoderPins,
         _uart0_active: bool,
-        _tx: std::sync::mpsc::Sender<crate::encoder_gpio::HardwareEvent>,
+        _tx: crate::encoder_gpio::HardwareEventSink,
     ) -> Result<Self, String> {
         Err("Orange encoder GPIO requires a Linux target".into())
     }

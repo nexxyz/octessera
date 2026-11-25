@@ -2,6 +2,10 @@ use super::{CpuMask, EffectiveScheduling, SchedulingFailure, SchedulingFailureSt
 
 #[cfg(test)]
 pub(super) const SCHED_FIFO_POLICY: i32 = 1;
+#[cfg(test)]
+pub(super) const SCHED_OTHER_POLICY: i32 = 0;
+#[cfg(test)]
+pub(super) const SCHED_RESET_ON_FORK_FLAG: i32 = 0x4000_0000;
 pub(super) const CPU_MASK_WORDS: usize = 1;
 
 pub(super) fn configure_affinity_only(requested_cpu: usize) -> Result<CpuMask, SchedulingFailure> {
@@ -37,6 +41,41 @@ pub(super) fn configure_strict(
     }
 }
 
+#[cfg(any(test, all(target_os = "linux", not(board_host))))]
+pub(super) fn configure_strict_reset_on_fork(
+    requested_cpu: usize,
+    requested_priority: i32,
+) -> Result<EffectiveScheduling, SchedulingFailure> {
+    #[cfg(test)]
+    {
+        test::configure_strict_reset_on_fork(requested_cpu, requested_priority)
+    }
+    #[cfg(not(test))]
+    {
+        linux::configure_strict_reset_on_fork(requested_cpu, requested_priority)
+    }
+}
+
+/// Returns the calling thread to SCHED_OTHER; the kernel keeps its nice value. Reset-on-fork
+/// stays set, because clearing it needs CAP_SYS_NICE, which the Orange service lacks.
+#[cfg(any(test, all(target_os = "linux", not(board_host))))]
+pub(super) fn restore_normal_scheduling() -> Result<i32, i32> {
+    #[cfg(test)]
+    {
+        test::restore_normal_scheduling(SCHED_OTHER_POLICY | SCHED_RESET_ON_FORK_FLAG)
+    }
+    #[cfg(not(test))]
+    {
+        let policy = libc::SCHED_OTHER | libc::SCHED_RESET_ON_FORK;
+        let params = libc::sched_param { sched_priority: 0 };
+        // SAFETY: pthread_self names the live calling thread and `params` outlives the call.
+        match unsafe { libc::pthread_setschedparam(libc::pthread_self(), policy, &params) } {
+            0 => Ok(policy),
+            errno => Err(errno),
+        }
+    }
+}
+
 #[cfg(all(not(test), not(target_os = "linux")))]
 fn unsupported(requested_cpu: usize, requested_priority: i32) -> SchedulingFailure {
     SchedulingFailure {
@@ -60,7 +99,21 @@ mod linux {
         requested_priority: i32,
     ) -> Result<EffectiveScheduling, SchedulingFailure> {
         let observed = configure_affinity(requested_cpu, requested_priority)?;
-        configure_sched(requested_cpu, requested_priority, observed)
+        configure_sched(requested_cpu, requested_priority, observed, 0)
+    }
+
+    #[cfg(not(board_host))]
+    pub(super) fn configure_strict_reset_on_fork(
+        requested_cpu: usize,
+        requested_priority: i32,
+    ) -> Result<EffectiveScheduling, SchedulingFailure> {
+        let observed = configure_affinity(requested_cpu, requested_priority)?;
+        configure_sched(
+            requested_cpu,
+            requested_priority,
+            observed,
+            libc::SCHED_RESET_ON_FORK,
+        )
     }
 
     pub(super) fn configure_affinity_only(
@@ -127,14 +180,16 @@ mod linux {
         requested_cpu: usize,
         requested_priority: i32,
         observed_mask: CpuMask,
+        policy_flags: i32,
     ) -> Result<EffectiveScheduling, SchedulingFailure> {
+        let policy_requested = libc::SCHED_FIFO | policy_flags;
         let params = libc::sched_param {
             sched_priority: requested_priority,
         };
         // SAFETY: pthread_self has no preconditions and always returns the calling thread.
         let thread = unsafe { libc::pthread_self() };
         // SAFETY: `thread` is the live calling thread and `params` outlives the call.
-        let result = unsafe { libc::pthread_setschedparam(thread, libc::SCHED_FIFO, &params) };
+        let result = unsafe { libc::pthread_setschedparam(thread, policy_requested, &params) };
         if result != 0 {
             return Err(failure(
                 SchedulingFailureStage::SchedulingSet,
@@ -167,7 +222,7 @@ mod linux {
             priority: observed_params.sched_priority,
             cpu: (requested_cpu != usize::MAX).then_some(requested_cpu),
         };
-        if policy != libc::SCHED_FIFO || observed_params.sched_priority != requested_priority {
+        if policy != policy_requested || observed_params.sched_priority != requested_priority {
             return Err(failure(
                 SchedulingFailureStage::SchedulingMismatch,
                 0,
@@ -215,10 +270,10 @@ fn failure(
 }
 
 pub(super) fn format_failure(label: &str, failure: SchedulingFailure) -> String {
-    let prefix = if label == "worker" {
-        "Orange DSP worker RT placement not qualified".to_string()
-    } else {
-        format!("{label} audio callback RT placement not qualified")
+    let prefix = match label {
+        "worker" => "Orange DSP worker RT placement not qualified".to_string(),
+        "runtime" => "runtime thread RT placement not qualified".to_string(),
+        _ => format!("{label} audio callback RT placement not qualified"),
     };
     if failure.stage == SchedulingFailureStage::Unsupported {
         return format!(

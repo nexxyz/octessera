@@ -38,7 +38,7 @@ fn queue_failure_returns_an_identified_error_without_retrying() {
     entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
     let mut completed = Vec::new();
     for index in 0..32 {
-        let (completed_tx, completed_rx) = std::sync::mpsc::sync_channel(1);
+        let (completed_tx, completed_rx) = crate::runtime_handoff::bounded(1);
         completed.push(completed_rx);
         service
             .enqueue(PlatformJob::new(

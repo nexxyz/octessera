@@ -10,11 +10,11 @@ mod timing_input_tests;
 pub(crate) fn run_prepared_runtime(
     prepared: PreparedRuntime,
     seesaw: &SeesawIo,
-    encoder_rx: &Receiver<HardwareEvent>,
+    encoder_rx: &crate::runtime_handoff::Receiver<HardwareEvent>,
     render: &RenderWorker,
     audio_manager: &mut AudioManager,
     candidate_readiness: &mut CandidateReadiness,
-    midi_rx: Receiver<MidiMessage>,
+    midi_rx: crate::runtime_handoff::Receiver<MidiMessage>,
     initial_rendered: bool,
 ) -> Result<(), String> {
     let PreparedRuntime {
@@ -81,7 +81,9 @@ pub(crate) fn run_prepared_runtime(
             input_rx: &seesaw.input_rx,
             encoder_rx,
         };
-        run_runtime_loop(
+        #[cfg(all(target_os = "linux", not(board_host)))]
+        crate::audio_priority::promote_runtime_thread();
+        let loop_result = run_runtime_loop(
             &mut state,
             &mut playback,
             &mut runner,
@@ -89,8 +91,10 @@ pub(crate) fn run_prepared_runtime(
             render,
             &inputs,
             &mut board,
-        )?;
-        Ok::<(), String>(())
+        );
+        #[cfg(all(target_os = "linux", not(board_host)))]
+        crate::audio_priority::demote_runtime_thread();
+        loop_result
     })();
     match (result, host.take_power_request()) {
         (Ok(()), Some(request)) => {

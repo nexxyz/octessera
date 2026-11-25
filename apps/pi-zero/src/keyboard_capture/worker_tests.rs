@@ -3,11 +3,11 @@ use super::KeyboardCapture;
 use super::{
     worker, HostMessage, KeyboardBuses, KeyboardCaptureControl, KeyboardInput, KeyboardKey,
 };
+use crate::runtime_handoff::Receiver;
 use serde_json::Value;
 use std::collections::VecDeque;
 use std::io;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -139,7 +139,7 @@ fn harness(
     outcomes: impl IntoIterator<Item = worker::Acquisition<FakeDevice>>,
     drops: Arc<Mutex<Vec<usize>>>,
 ) -> WorkerHarness {
-    let (input_tx, input_rx) = mpsc::channel();
+    let (input_tx, input_rx) = crate::runtime_handoff::channel();
     let outcomes = outcomes.into_iter().collect::<VecDeque<_>>();
     let control = KeyboardCaptureControl::new(true);
     let worker_control = control.clone();
@@ -458,7 +458,7 @@ fn keyboard_acceptance_requires_usb_bus_and_every_capability() {
 #[cfg(not(target_os = "linux"))]
 #[test]
 fn non_linux_enabled_worker_shutdown_is_bounded() {
-    let (input_tx, input_rx) = mpsc::channel();
+    let (input_tx, input_rx) = crate::runtime_handoff::channel();
     let capture = KeyboardCapture::spawn(input_tx, true);
     let control = capture.control();
     control.observe_snapshot(&serde_json::json!({ "hdmi": { "mode": "live-grid" } }));

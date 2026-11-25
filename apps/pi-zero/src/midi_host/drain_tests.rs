@@ -4,7 +4,6 @@ use playback_runtime::{
     HostAdapter, HostMessage, MusicalEvent, NativeRunner, NativeRunnerConfig, PlaybackRuntime,
     RuntimeAdapterError, RuntimeAudioCommand, RuntimeConfig, RuntimeIngest, RuntimePlatformRequest,
 };
-use std::sync::mpsc;
 
 #[derive(Default)]
 struct TestHost {
@@ -65,7 +64,7 @@ impl RuntimeOutputSink for TestHost {
 
 #[test]
 fn control_changes_do_not_spend_the_realtime_budget_and_coalesce_per_drain() {
-    let (tx, rx) = mpsc::channel::<MidiMessage>();
+    let (tx, rx) = crate::runtime_handoff::channel::<MidiMessage>();
     for value in 0..40 {
         tx.send(midi_input_message(&[0xB0, 74, value]).unwrap())
             .unwrap();
@@ -86,7 +85,7 @@ fn control_changes_do_not_spend_the_realtime_budget_and_coalesce_per_drain() {
 
 #[test]
 fn keyboard_notes_dispatch_one_by_one_as_they_arrive() {
-    let (tx, rx) = mpsc::channel::<MidiMessage>();
+    let (tx, rx) = crate::runtime_handoff::channel::<MidiMessage>();
     for bytes in [[0x90, 60, 100], [0x90, 64, 90], [0x80, 60, 0]] {
         tx.send(midi_input_message(&bytes).unwrap()).unwrap();
     }

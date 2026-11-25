@@ -10,13 +10,12 @@ use playback_runtime::{
     oled_frame::{OledPresentationMetrics, OledRuntimeErrorMetadata},
     PresentationScene,
 };
-use std::sync::mpsc;
 #[cfg(test)]
 use std::sync::{Arc, Condvar, Mutex};
 
 impl RenderWorker {
     pub(crate) fn publish_shutdown(&self) -> Result<(), String> {
-        let (ack_tx, ack_rx) = mpsc::channel();
+        let (ack_tx, ack_rx) = crate::runtime_handoff::channel();
         let (lock, ready) = &*self.state;
         if let Ok(mut state) = lock.lock() {
             reject_pending_command(&mut state, "render worker was preempted by shutdown");
@@ -46,14 +45,14 @@ impl RenderWorker {
         metrics: OledPresentationMetrics,
         error: Option<OledRuntimeErrorMetadata>,
     ) -> Result<(), String> {
-        let (completion, _) = mpsc::channel();
+        let (completion, _) = crate::runtime_handoff::channel();
         let scene = Box::new(NativeSceneCommand {
             scene,
             metrics,
             error,
             completion,
         });
-        let (ack_tx, ack_rx) = mpsc::channel();
+        let (ack_tx, ack_rx) = crate::runtime_handoff::channel();
         let (lock, ready) = &*self.state;
         if let Ok(mut state) = lock.lock() {
             reject_pending_command(
@@ -91,7 +90,7 @@ impl RenderWorker {
     }
 
     pub(crate) fn abort(&self) -> Result<(), String> {
-        let (ack_tx, ack_rx) = mpsc::channel();
+        let (ack_tx, ack_rx) = crate::runtime_handoff::channel();
         let (lock, ready) = &*self.state;
         if let Ok(mut state) = lock.lock() {
             reject_pending_command(&mut state, "render worker was preempted by abort");

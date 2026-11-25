@@ -4,7 +4,7 @@ pub(crate) fn run(
     mut audio: AudioManager,
     usb_config: crate::usb_config::UsbRuntimeConfig,
     audio_optimization: playback_runtime::AudioOptimization,
-    midi_rx: Receiver<MidiMessage>,
+    midi_rx: crate::runtime_handoff::Receiver<MidiMessage>,
     midi_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     mut candidate_readiness: CandidateReadiness,
     hdmi: crate::render::hdmi::HdmiFramebuffer,

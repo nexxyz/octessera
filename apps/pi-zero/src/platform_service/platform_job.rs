@@ -1,7 +1,6 @@
 use playback_runtime::RuntimePlatformRequest;
 #[cfg(test)]
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{Receiver, SyncSender};
 
 pub struct PlatformJob {
     pub request: RuntimePlatformRequest,
@@ -45,7 +44,7 @@ pub enum PlatformJobKind {
     Rollback,
     SystemInfo,
     QueueBarrier {
-        completed: SyncSender<()>,
+        completed: crate::runtime_handoff::Sender<()>,
     },
     #[cfg(test)]
     #[cfg_attr(all(test, board_orange), allow(dead_code))]

@@ -1,10 +1,10 @@
 use super::worker::Worker;
 use super::{BluetoothHandle, Bluez, DeviceRecord, WorkerEvent};
+use crate::runtime_handoff::{self, Sender};
 use playback_runtime::{
     HostMessage, RuntimeBluetoothDeviceAction, RuntimeBluetoothDeviceKind, RuntimePlatformEffect,
     RuntimeStoreResult,
 };
-use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -77,7 +77,7 @@ fn keyboard(address: &str, name: Option<&str>, paired: bool) -> DeviceRecord {
 fn worker_with(devices: Vec<DeviceRecord>) -> (Worker<FakeBluez>, FakeBluez) {
     let fake = FakeBluez::default();
     *fake.devices.lock().unwrap() = devices;
-    let (done, _) = mpsc::channel();
+    let (done, _) = runtime_handoff::channel();
     (Worker::new(fake.clone(), done), fake)
 }
 

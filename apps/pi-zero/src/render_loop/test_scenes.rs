@@ -2,7 +2,6 @@ use crate::render_loop_queue::{NativeSceneCommand, NativeSceneCompletion};
 use playback_runtime::{
     oled_frame::OledPresentationMetrics, NativeRunner, NativeRunnerConfig, PresentationScene,
 };
-use std::sync::mpsc;
 
 pub(crate) fn test_runner() -> NativeRunner {
     let payload: serde_json::Value =
@@ -19,9 +18,9 @@ pub(crate) fn test_scene() -> PresentationScene {
 
 pub(crate) fn test_scene_command() -> (
     Box<NativeSceneCommand>,
-    mpsc::Receiver<NativeSceneCompletion>,
+    crate::runtime_handoff::Receiver<NativeSceneCompletion>,
 ) {
-    let (completion, receiver) = mpsc::channel();
+    let (completion, receiver) = crate::runtime_handoff::channel();
     let command = Box::new(NativeSceneCommand {
         scene: test_scene(),
         metrics: OledPresentationMetrics::default(),

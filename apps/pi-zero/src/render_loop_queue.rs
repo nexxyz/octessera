@@ -4,32 +4,33 @@ use playback_runtime::{
     PresentationScene,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(test)]
 use std::sync::mpsc;
 use std::sync::Arc;
 
 pub(crate) enum RenderCommand {
     Scene(Box<NativeSceneCommand>),
     MarkFirstMenuRendered {
-        ack: mpsc::Sender<Result<(), String>>,
+        ack: crate::runtime_handoff::Sender<Result<(), String>>,
     },
     MarkFailed {
-        ack: mpsc::Sender<Result<(), String>>,
+        ack: crate::runtime_handoff::Sender<Result<(), String>>,
     },
     Shutdown {
-        ack: mpsc::Sender<Result<(), String>>,
+        ack: crate::runtime_handoff::Sender<Result<(), String>>,
     },
     PreserveTerminal {
         scene: Box<NativeSceneCommand>,
-        ack: mpsc::Sender<Result<(), String>>,
+        ack: crate::runtime_handoff::Sender<Result<(), String>>,
     },
     Abort {
-        ack: mpsc::Sender<Result<(), String>>,
+        ack: crate::runtime_handoff::Sender<Result<(), String>>,
     },
     #[cfg_attr(board_not_orange, allow(dead_code))]
     Ownership {
         stage: OledOwnershipStage,
         cancellation: Arc<AtomicBool>,
-        ack: mpsc::Sender<Result<(), String>>,
+        ack: crate::runtime_handoff::Sender<Result<(), String>>,
     },
 }
 
@@ -43,7 +44,7 @@ pub(crate) struct NativeSceneCommand {
     pub(crate) scene: PresentationScene,
     pub(crate) metrics: OledPresentationMetrics,
     pub(crate) error: Option<OledRuntimeErrorMetadata>,
-    pub(crate) completion: mpsc::Sender<NativeSceneCompletion>,
+    pub(crate) completion: crate::runtime_handoff::Sender<NativeSceneCompletion>,
 }
 
 #[derive(Default)]

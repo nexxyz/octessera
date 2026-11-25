@@ -279,7 +279,7 @@ fn preset_queue_rejection_and_restore_generation_never_delete_rename_source() {
                     None,
                 ),
                 crate::platform_service::PlatformJobKind::QueueBarrier {
-                    completed: mpsc::sync_channel(1).0,
+                    completed: crate::runtime_handoff::bounded(1).0,
                 },
             ))
             .unwrap();

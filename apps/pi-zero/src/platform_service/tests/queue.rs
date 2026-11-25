@@ -143,7 +143,7 @@ fn a_running_update_does_not_hold_back_store_jobs() {
             PlatformJobKind::UpdateCheck,
         ))
         .unwrap();
-    let (completed_tx, completed_rx) = std::sync::mpsc::sync_channel(1);
+    let (completed_tx, completed_rx) = crate::runtime_handoff::bounded(1);
     service
         .enqueue(PlatformJob::new(
             request(
@@ -255,4 +255,30 @@ fn an_update_request_while_one_runs_is_refused_and_the_worker_takes_the_next() {
         matches!(next, Some((false, message)) if message.contains("held update released")),
         "the next update must run once the first is done"
     );
+}
+
+#[test]
+fn waiting_for_queued_jobs_hands_their_results_to_the_next_drain() {
+    let root = crate::test_temp_dir::unique_temp_path("octessera-platform-barrier-results");
+    let service = PiPlatformService::new(root.join("store"), root.join("samples"));
+    service
+        .enqueue(PlatformJob::new(
+            RuntimePlatformRequest::new(
+                playback_runtime::RuntimePlatformEffect::SystemInfoRequest,
+                "before-barrier".into(),
+                None,
+            ),
+            PlatformJobKind::SystemInfo,
+        ))
+        .unwrap();
+    service
+        .wait_for_queued_jobs(std::time::Duration::from_secs(5))
+        .unwrap();
+    assert!(service.results.try_recv().is_err());
+    assert!(service.drain_results(4).into_iter().any(|message| matches!(
+        message,
+        HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::Identified { request_id, .. }
+        } if request_id == "before-barrier"
+    )));
 }

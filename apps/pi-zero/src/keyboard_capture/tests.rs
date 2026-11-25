@@ -126,7 +126,7 @@ fn release_held_inputs_emits_ordered_releases_once_and_is_idempotent() {
     ] {
         state.commit(state.prepare(key, 1).unwrap());
     }
-    let (input_tx, input_rx) = std::sync::mpsc::channel();
+    let (input_tx, input_rx) = crate::runtime_handoff::channel();
     assert!(release_held_inputs(&mut state, &input_tx));
     assert!(release_held_inputs(&mut state, &input_tx));
     let messages = input_rx
@@ -168,7 +168,7 @@ fn event_nodes_are_selected_by_lowest_numeric_suffix() {
 
 #[test]
 fn owning_guard_shutdown_joins_without_physical_evdev() {
-    let (_tx, rx) = std::sync::mpsc::channel();
+    let (_tx, rx) = crate::runtime_handoff::channel();
     let capture = KeyboardCapture::spawn(_tx, true);
     drop(rx);
     capture.shutdown().unwrap();

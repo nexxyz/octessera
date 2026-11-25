@@ -3,7 +3,6 @@ use super::{HardwareRenderCache, HardwareRenderTargets};
 use crate::render_loop_queue::{NativeSceneCommand, NativeSceneCompletion};
 use playback_runtime::oled_frame::{render_oled_frame_into, OLED_FRAME_BYTES};
 use playback_runtime::NativeHardwarePresentation;
-use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -13,7 +12,7 @@ mod tests;
 pub(crate) struct LatestPresentation {
     pub(crate) hardware: Box<NativeHardwarePresentation>,
     pub(crate) oled: OledFramePublication,
-    pub(crate) completion: Option<mpsc::Sender<NativeSceneCompletion>>,
+    pub(crate) completion: Option<crate::runtime_handoff::Sender<NativeSceneCompletion>>,
 }
 
 pub(crate) fn prepare_native_scene(

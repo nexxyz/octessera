@@ -5,7 +5,7 @@ use crate::render::{
     OledOwnershipStage,
 };
 use crate::render_loop_queue::RenderState;
-use std::sync::{mpsc, Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Instant;
 
 pub(super) fn handle_ownership_command(
@@ -14,7 +14,7 @@ pub(super) fn handle_ownership_command(
     presentation: &mut PresentationState,
     stage: OledOwnershipStage,
     cancellation: Arc<std::sync::atomic::AtomicBool>,
-    ack: mpsc::Sender<Result<(), String>>,
+    ack: crate::runtime_handoff::Sender<Result<(), String>>,
     animation_deadline: &mut Option<Instant>,
 ) -> bool {
     let cancelled = super::ownership_command_cancelled(&cancellation);

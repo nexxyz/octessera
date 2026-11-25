@@ -56,7 +56,7 @@ fn playing_save_error_and_dismissal_snapshots_reach_the_physical_worker() {
         initial_revision,
     );
     let mut state = crate::runtime_loop::LoopState::new(scheduler, None);
-    let (input_tx, input_rx) = mpsc::channel();
+    let (input_tx, input_rx) = crate::runtime_handoff::channel();
     for message in [
         HostMessage::DeviceInput {
             input: serde_json::json!({"type":"button_s","pressed":true}),

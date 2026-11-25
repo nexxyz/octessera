@@ -2,7 +2,7 @@ use octessera_hal::encoder_gpio::HardwareEvent;
 use octessera_hal::{NeoKey, NeoTrellis, OledSsd1351};
 use platform_core::palette;
 use std::any::Any;
-use std::sync::mpsc::{Receiver, RecvTimeoutError};
+use std::sync::mpsc::RecvTimeoutError;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -24,7 +24,7 @@ pub(crate) struct HardwareFault {
 }
 
 struct WakeInput {
-    events: Receiver<HardwareEvent>,
+    events: crate::runtime_handoff::Receiver<HardwareEvent>,
     _encoders: Box<dyn Any>,
 }
 
@@ -68,7 +68,7 @@ impl HardwareFault {
 
     pub(crate) fn attach_wake_encoders<E: 'static>(
         &mut self,
-        events: Receiver<HardwareEvent>,
+        events: crate::runtime_handoff::Receiver<HardwareEvent>,
         encoders: E,
     ) {
         self.wake = Some(WakeInput {
@@ -120,7 +120,7 @@ impl HardwareFault {
         self.oled.as_mut()
     }
 
-    pub(crate) fn wake_events(&self) -> Option<&Receiver<HardwareEvent>> {
+    pub(crate) fn wake_events(&self) -> Option<&crate::runtime_handoff::Receiver<HardwareEvent>> {
         self.wake.as_ref().map(|wake| &wake.events)
     }
 
@@ -221,7 +221,7 @@ enum Wake {
     Lost,
 }
 
-fn wait_for_wake(events: &Receiver<HardwareEvent>, until: Instant) -> Wake {
+fn wait_for_wake(events: &crate::runtime_handoff::Receiver<HardwareEvent>, until: Instant) -> Wake {
     match events.recv_timeout(until.saturating_duration_since(Instant::now())) {
         Ok(_) => {
             while events.try_recv().is_ok() {}

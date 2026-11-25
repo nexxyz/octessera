@@ -3,8 +3,6 @@
 
 #[cfg(feature = "raspberry-pi-zero-2w")]
 use rppal::gpio::{Gpio, InputPin, Level, Trigger};
-#[cfg(not(feature = "orange-pi-zero-2w"))]
-use std::sync::mpsc::Sender;
 #[cfg(feature = "raspberry-pi-zero-2w")]
 use std::sync::{Arc, Mutex};
 #[cfg(feature = "raspberry-pi-zero-2w")]
@@ -23,6 +21,9 @@ pub enum HardwareEvent {
     EncoderPress { id: &'static str },
     EncoderRelease { id: &'static str },
 }
+
+/// Receives each encoder event on the thread that decoded it.
+pub type HardwareEventSink = std::sync::Arc<dyn Fn(HardwareEvent) + Send + Sync>;
 
 #[cfg(any(
     feature = "raspberry-pi-zero-2w",
@@ -98,7 +99,7 @@ impl EncoderGpio {
     pub fn new(
         id: &'static str,
         pins: &crate::pinmap::EncoderPins,
-        tx: Sender<HardwareEvent>,
+        tx: HardwareEventSink,
     ) -> Result<Self, String> {
         let gpio = Gpio::new().map_err(|e| e.to_string())?;
 
@@ -128,7 +129,7 @@ impl EncoderGpio {
                 };
                 let next = levels_to_bits(lines.a.read(), lines.b.read());
                 if let Some(delta) = lines.state.update(next) {
-                    let _ = tx.send(HardwareEvent::EncoderTurn { id, delta });
+                    tx(HardwareEvent::EncoderTurn { id, delta });
                 }
             })
             .map_err(|e| e.to_string())?;
@@ -149,7 +150,7 @@ impl EncoderGpio {
                 Trigger::RisingEdge => HardwareEvent::EncoderRelease { id: id_sw },
                 _ => return,
             };
-            let _ = tx_sw.send(message);
+            tx_sw(message);
         })
         .map_err(|e| e.to_string())?;
 
@@ -203,7 +204,7 @@ impl EncoderGpio {
     pub fn new(
         _id: &'static str,
         _pins: &crate::pinmap::EncoderPins,
-        _tx: Sender<HardwareEvent>,
+        _tx: HardwareEventSink,
     ) -> Result<Self, String> {
         Ok(Self { _private: () })
     }

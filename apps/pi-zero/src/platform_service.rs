@@ -1,5 +1,6 @@
 use crate::device_apply::UsbApplier;
 use crate::device_update;
+use crate::runtime_handoff::{self, Receiver, Sender};
 #[cfg(all(test, any(unix, windows)))]
 use crate::setup_portal::SetupPortalEnvironment;
 use crate::setup_portal::SetupPortalService;
@@ -17,7 +18,7 @@ use std::collections::VecDeque;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
+use std::sync::mpsc::{self, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 mod pi_pending_persistence;
@@ -66,7 +67,7 @@ pub(crate) const USB_STORAGE_STATE_PATH: &str = "/run/octessera-usb-storage.stat
 
 pub struct PiPlatformService {
     store_dir: PathBuf,
-    jobs: SyncSender<PlatformWorkItem>,
+    jobs: Sender<PlatformWorkItem>,
     results: Receiver<PlatformResult>,
     preserved_results: Mutex<VecDeque<PlatformResult>>,
     store_lock: Arc<Mutex<()>>,
@@ -168,8 +169,8 @@ impl PiPlatformService {
         store_write_barrier: StoreWriteBarrier,
         worker_config: platform_service_worker::PlatformWorkerConfig,
     ) -> Self {
-        let (jobs_tx, jobs_rx) = mpsc::sync_channel(JOB_QUEUE_CAPACITY);
-        let (results_tx, results_rx) = mpsc::sync_channel(RESULT_QUEUE_CAPACITY);
+        let (jobs_tx, jobs_rx) = runtime_handoff::bounded(JOB_QUEUE_CAPACITY);
+        let (results_tx, results_rx) = runtime_handoff::bounded(RESULT_QUEUE_CAPACITY);
         let result_lane = Arc::new(PlatformResultLane::new(results_tx));
         let legacy_patch_writes = Arc::new(Mutex::new(LegacyPatchWrites::default()));
         let worker_store_dir = store_dir.clone();
@@ -293,7 +294,7 @@ impl PiPlatformService {
     }
 
     pub(crate) fn enqueue_barrier(&self) -> Result<Receiver<()>, String> {
-        let (completed_tx, completed_rx) = mpsc::sync_channel(0);
+        let (completed_tx, completed_rx) = runtime_handoff::bounded(1);
         let request = RuntimePlatformRequest::new(
             RuntimePlatformEffect::SystemInfoRequest,
             "queue-barrier".into(),
@@ -308,11 +309,18 @@ impl PiPlatformService {
         Ok(completed_rx)
     }
 
-    /// Returns once the worker has finished every job queued before this call.
+    /// Returns once the worker has finished every job queued before this call. Their results
+    /// move to the preserved queue, so the next drain sees them even if a result sender holds
+    /// the result queue's lock then.
     pub(crate) fn wait_for_queued_jobs(&self, timeout: Duration) -> Result<(), String> {
         self.enqueue_barrier()?
             .recv_timeout(timeout)
-            .map_err(|error| format!("queued store jobs did not finish: {error}"))
+            .map_err(|error| format!("queued store jobs did not finish: {error}"))?;
+        self.preserved_results
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .extend(self.results.drain_queued());
+        Ok(())
     }
 
     pub(crate) fn handle_transfer_input(&self, input: &serde_json::Value) -> bool {

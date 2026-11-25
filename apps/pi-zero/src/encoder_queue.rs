@@ -1,7 +1,6 @@
 use crate::input::encoder_turn_message;
 use octessera_hal::encoder_gpio::HardwareEvent;
 use playback_runtime::HostMessage;
-use std::sync::mpsc::Receiver;
 
 pub(crate) const ENCODER_EVENT_BUDGET: usize = 16;
 
@@ -46,8 +45,16 @@ impl PendingEncoderTurns {
     }
 }
 
+pub(crate) fn event_sink(
+    event_tx: crate::runtime_handoff::Sender<HardwareEvent>,
+) -> octessera_hal::encoder_gpio::HardwareEventSink {
+    std::sync::Arc::new(move |event| {
+        let _ = event_tx.send(event);
+    })
+}
+
 pub(crate) fn drain_encoder_events<E, D>(
-    event_rx: &Receiver<HardwareEvent>,
+    event_rx: &crate::runtime_handoff::Receiver<HardwareEvent>,
     pending: &mut PendingEncoderTurns,
     mut dispatch: D,
 ) -> Result<usize, E>
@@ -94,7 +101,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::mpsc;
 
     #[test]
     fn coalesces_turns_per_encoder() {
@@ -184,7 +190,7 @@ mod tests {
 
     #[test]
     fn bounded_drain_preserves_remaining_events_for_fairness() {
-        let (event_tx, event_rx) = mpsc::channel();
+        let (event_tx, event_rx) = crate::runtime_handoff::channel();
         for _ in 0..=ENCODER_EVENT_BUDGET {
             event_tx
                 .send(HardwareEvent::EncoderTurn {
@@ -210,7 +216,7 @@ mod tests {
 
     #[test]
     fn pending_turns_flush_before_encoder_press() {
-        let (event_tx, event_rx) = mpsc::channel();
+        let (event_tx, event_rx) = crate::runtime_handoff::channel();
         event_tx
             .send(HardwareEvent::EncoderTurn {
                 id: "encoder_aux_2",

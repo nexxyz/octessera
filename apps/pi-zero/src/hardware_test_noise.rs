@@ -1,6 +1,5 @@
 use octessera_hal::{encoder_gpio::HardwareEvent, NeoKey, NeoTrellis};
 use std::io;
-use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -40,7 +39,7 @@ impl CheckOutcome {
 pub(crate) fn input_idle_noise_check(
     mut trellis: Option<&mut NeoTrellis>,
     mut neokey: Option<&mut NeoKey>,
-    event_rx: Option<&mpsc::Receiver<HardwareEvent>>,
+    event_rx: Option<&crate::runtime_handoff::Receiver<HardwareEvent>>,
 ) -> CheckOutcome {
     println!(
         "STEP no-touch input noise check for {} seconds",
@@ -109,7 +108,7 @@ fn poll_neokey_noise(neokey: &mut Option<&mut NeoKey>, started: Instant, noise: 
 }
 
 fn poll_encoder_noise(
-    event_rx: Option<&mpsc::Receiver<HardwareEvent>>,
+    event_rx: Option<&crate::runtime_handoff::Receiver<HardwareEvent>>,
     encoder_events: &mut Vec<String>,
 ) {
     if let Some(event_rx) = event_rx {

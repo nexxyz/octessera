@@ -12,10 +12,10 @@ pub(crate) use mapping::map_key_event;
 pub(crate) use mapping::KeyboardKey;
 pub(crate) use mapping::{KeyboardInput, KeyboardState};
 
+use crate::runtime_handoff::Sender;
 use playback_runtime::HostMessage;
 use serde_json::Value;
 use std::path::PathBuf;
-use std::sync::mpsc::Sender;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;

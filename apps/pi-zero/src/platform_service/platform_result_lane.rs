@@ -1,15 +1,15 @@
 use super::platform_native_persistence::PlatformResult;
+use crate::runtime_handoff::Sender;
 use playback_runtime::HostMessage;
-use std::sync::mpsc::SyncSender;
 use std::sync::Mutex;
 
 pub(crate) struct PlatformResultLane {
-    sender: SyncSender<PlatformResult>,
+    sender: Sender<PlatformResult>,
     producer_lock: Mutex<()>,
 }
 
 impl PlatformResultLane {
-    pub(crate) fn new(sender: SyncSender<PlatformResult>) -> Self {
+    pub(crate) fn new(sender: Sender<PlatformResult>) -> Self {
         Self {
             sender,
             producer_lock: Mutex::new(()),

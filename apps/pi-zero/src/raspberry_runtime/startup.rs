@@ -13,12 +13,11 @@ use octessera_hal::encoder_gpio::HardwareEvent;
 #[cfg(test)]
 use playback_runtime::{AudioOptimization, NativeRunnerConfig, RuntimeConfig, SyncSource};
 use playback_runtime::{HostMessage, NativeRunner, PlaybackRuntime};
-use std::sync::mpsc;
 
 pub(crate) struct PreparedRuntime {
-    pub(super) midi_rx: mpsc::Receiver<MidiMessage>,
-    pub(super) input_rx: mpsc::Receiver<HostMessage>,
-    pub(super) encoder_rx: mpsc::Receiver<HardwareEvent>,
+    pub(super) midi_rx: crate::runtime_handoff::Receiver<MidiMessage>,
+    pub(super) input_rx: crate::runtime_handoff::Receiver<HostMessage>,
+    pub(super) encoder_rx: crate::runtime_handoff::Receiver<HardwareEvent>,
     pub(super) playback: PlaybackRuntime,
     pub(super) runner: NativeRunner,
     pub(super) adapter: PiHostAdapter,
@@ -235,9 +234,9 @@ mod tests {
             playback_runtime::AudioOutputSet::jack(),
         );
         let (playback, runner) = init_runtime(AudioOptimization::Latency);
-        let (_, midi_rx) = mpsc::channel::<MidiMessage>();
-        let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
-        let (_, encoder_rx) = mpsc::channel::<HardwareEvent>();
+        let (_, midi_rx) = crate::runtime_handoff::channel::<MidiMessage>();
+        let (input_tx, input_rx) = crate::runtime_handoff::channel::<HostMessage>();
+        let (_, encoder_rx) = crate::runtime_handoff::channel::<HardwareEvent>();
         let marker = root.join("candidate-ready.json");
         let mut prepared = PreparedRuntime {
             midi_rx,

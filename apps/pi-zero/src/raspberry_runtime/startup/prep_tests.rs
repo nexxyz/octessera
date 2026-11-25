@@ -239,9 +239,9 @@ fn prepared_runtime(
     )
     .unwrap();
     wait_for_initial_audio_prep(&mut playback, &mut runner, &mut adapter).unwrap();
-    let (_, midi_rx) = mpsc::channel();
-    let (input_tx, input_rx) = mpsc::channel();
-    let (_, encoder_rx) = mpsc::channel();
+    let (_, midi_rx) = crate::runtime_handoff::channel();
+    let (input_tx, input_rx) = crate::runtime_handoff::channel();
+    let (_, encoder_rx) = crate::runtime_handoff::channel();
     PreparedRuntime {
         midi_rx,
         input_rx,

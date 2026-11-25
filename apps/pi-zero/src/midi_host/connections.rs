@@ -5,7 +5,7 @@
 
 use midir::MidiInputConnection;
 use playback_runtime::{MidiPort, MidiSink, RuntimePlatformEffect, RuntimeStoreResult};
-use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -39,7 +39,7 @@ pub(super) enum MidiConnectEvent {
 }
 
 pub(super) struct MidiConnections {
-    events: Sender<MidiConnectEvent>,
+    events: crate::runtime_handoff::Sender<MidiConnectEvent>,
     midi_in: Option<MidiInputConnection<()>>,
     midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
     pub(super) host_midi_output_id: Option<String>,
@@ -59,7 +59,7 @@ pub(super) struct MidiConnections {
 
 impl MidiConnections {
     pub(super) fn new(
-        events: Sender<MidiConnectEvent>,
+        events: crate::runtime_handoff::Sender<MidiConnectEvent>,
         midi_in_handler: Arc<dyn Fn(Vec<u8>) + Send + Sync>,
         usb_midi_out_enabled: bool,
     ) -> Self {

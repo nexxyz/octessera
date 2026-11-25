@@ -1,4 +1,5 @@
 use crate::input::{grid_message, neokey_message};
+use crate::runtime_handoff;
 use octessera_hal::{NeoKey, NeoTrellis, SeesawInterrupt};
 use playback_runtime::HostMessage;
 use scan_schedule::ScanSchedule;
@@ -31,8 +32,8 @@ pub(crate) enum SeesawCommand {
 }
 
 pub(crate) struct SeesawIo {
-    pub(crate) input_rx: Receiver<HostMessage>,
-    pub(crate) input_tx: Sender<HostMessage>,
+    pub(crate) input_rx: runtime_handoff::Receiver<HostMessage>,
+    pub(crate) input_tx: runtime_handoff::Sender<HostMessage>,
     pub(crate) command_tx: Sender<SeesawCommand>,
     #[cfg(board_orange)]
     worker: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
@@ -179,7 +180,7 @@ fn spawn(
     interrupt: SeesawInterrupt,
     mut board: impl BoardWorker,
 ) -> SeesawIo {
-    let (input_tx, input_rx) = mpsc::channel::<HostMessage>();
+    let (input_tx, input_rx) = runtime_handoff::channel::<HostMessage>();
     let (command_tx, command_rx) = mpsc::channel::<SeesawCommand>();
     let worker_input_tx = input_tx.clone();
     let worker = thread::spawn(move || {
@@ -273,7 +274,7 @@ fn scan_inputs(
     trellis: &mut NeoTrellis,
     neokey: &mut NeoKey,
     previous_neokey: &mut [bool; 4],
-    input_tx: &Sender<HostMessage>,
+    input_tx: &runtime_handoff::Sender<HostMessage>,
 ) -> Result<bool, String> {
     let mut presses = Vec::new();
     let trellis_result = trellis.scan_keys(&mut presses);

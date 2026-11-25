@@ -1,7 +1,7 @@
 use super::agent::{Agent, AgentState};
 use super::{Bluez, DeviceRecord, WorkerEvent};
+use crate::runtime_handoff::Sender;
 use std::collections::HashMap;
-use std::sync::mpsc::Sender;
 use zbus::blocking::{Connection, MessageIterator, Proxy};
 use zbus::message::Type as MessageType;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};

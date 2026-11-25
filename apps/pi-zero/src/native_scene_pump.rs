@@ -2,13 +2,13 @@ use crate::hardware_runtime_scheduler::DisplaySnapshotDue;
 use crate::host_adapter::PiHostAdapter;
 use crate::render_loop::RenderWorker;
 use playback_runtime::{NativeRunner, PlaybackRuntime};
-use std::sync::mpsc::{self, TryRecvError};
+use std::sync::mpsc::TryRecvError;
 use std::time::Instant;
 
 struct PendingNativeScene {
     generation: u64,
     cutoff_value: Option<u16>,
-    receiver: mpsc::Receiver<crate::render_loop_queue::NativeSceneCompletion>,
+    receiver: crate::runtime_handoff::Receiver<crate::render_loop_queue::NativeSceneCompletion>,
 }
 
 pub(crate) struct NativeScenePump {

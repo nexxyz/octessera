@@ -141,7 +141,7 @@ fn only_audio_faults_restart_to_retry() {
 
 #[test]
 fn encoder_input_wakes_the_fault_screen_and_lost_encoders_keep_it_on() {
-    let (tx, rx) = std::sync::mpsc::channel();
+    let (tx, rx) = crate::runtime_handoff::channel();
     let soon = || Instant::now() + Duration::from_millis(20);
     assert_eq!(wait_for_wake(&rx, soon()), Wake::Quiet);
     tx.send(HardwareEvent::EncoderTurn {
