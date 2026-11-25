@@ -188,7 +188,7 @@ repair_dirty_card() {
         return 0
       else
         log "$dev checked and repaired"
-        printf '%s %s %s\n' "$dev" "$(disk_sequence "$dev")" "$(date +%s%N)" > "$SD_REPAIRED_STATE" || log "could not record that $dev was repaired"
+        card_repaired=1
         return 0
       fi
       ;;
@@ -228,12 +228,23 @@ remount_card() {
       return 1
     }
   else
+    card_repaired=0
     repair_dirty_card "$dev" || return 1
-    mount -o "$(mount_options_for "$dev")" "$dev" "$SD_MOUNT" || { log "could not mount $dev at $SD_MOUNT"; return 1; }
+    if ! mount -o "$(mount_options_for "$dev")" "$dev" "$SD_MOUNT"; then
+      log "could not mount $dev at $SD_MOUNT"
+      if [ "$card_repaired" = 1 ]; then
+        printf '%s\n' "$dev" > "$SD_REPAIR_STATE" || log "could not record that $dev needs repair"
+      fi
+      return 1
+    fi
   fi
   rm -f -- "$SD_REPAIR_STATE"
   prepare_folders || return 1
   remember_disk_sequence "$dev"
+  if [ "${card_repaired:-0}" = 1 ]; then
+    card_repaired=0
+    printf '%s %s %s\n' "$dev" "$(disk_sequence "$dev")" "$(date +%s%N)" > "$SD_REPAIRED_STATE" || log "could not record that $dev was repaired"
+  fi
 }
 
 mount_card() {

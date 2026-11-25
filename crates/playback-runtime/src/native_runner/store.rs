@@ -1,7 +1,10 @@
 use crate::protocol::RuntimeStoreResult;
 
 use super::preset_native_completion::NativePresetResultAction;
-use super::{native_factory_payload, portable_patch_payload_for_save, NativeRunner};
+use super::{
+    native_factory_payload, portable_patch_payload_for_save, NativeOledMode, NativeRunner,
+    OLED_STARTUP_SPLASH_KEY, SD_CARD_REPAIRED_TOAST,
+};
 
 impl NativeRunner {
     pub(super) fn apply_factory_payload(&mut self) -> Result<(), String> {
@@ -251,7 +254,13 @@ impl NativeRunner {
                 Ok(())
             }
             RuntimeStoreResult::SdCardRepaired => {
-                self.show_toast("SD card checked and repaired");
+                if self.display.oled_mode == NativeOledMode::Splash
+                    && self.display.oled_splash_text == OLED_STARTUP_SPLASH_KEY
+                {
+                    self.display.sd_card_repaired_after_splash = true;
+                } else {
+                    self.show_toast(SD_CARD_REPAIRED_TOAST);
+                }
                 Ok(())
             }
             RuntimeStoreResult::Identified { .. }

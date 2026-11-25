@@ -36,8 +36,15 @@ impl SdCardWatch {
             return None;
         }
         self.next_poll = now + POLL_INTERVAL;
-        self.observe(current_card(&self.mount_point))
-            .or_else(|| self.observe_repair(std::fs::read_to_string(&self.repair_marker).ok()))
+        let mounted = current_card(&self.mount_point);
+        let marker = std::fs::read_to_string(&self.repair_marker).ok();
+        self.step(mounted, marker)
+    }
+
+    /// A mount reported in the same poll as a repair goes first; the repair follows next poll.
+    fn step(&mut self, mounted: Option<String>, marker: Option<String>) -> Option<HostMessage> {
+        self.observe(mounted)
+            .or_else(|| self.observe_repair(marker))
     }
 
     fn observe(&mut self, mounted: Option<String>) -> Option<HostMessage> {
@@ -189,6 +196,25 @@ mod tests {
         );
         assert_eq!(repairs(&mut watch, &[Some("/dev/mmcblk2p1 7\n")]), 0);
         assert_eq!(repairs(&mut watch, &[Some("/dev/mmcblk2p1 9\n")]), 1);
+    }
+
+    #[test]
+    fn a_mount_and_a_repair_seen_together_report_the_mount_first() {
+        let mut watch = watch();
+        let repaired = || Some("/dev/mmcblk2p1 7 1764000000000000000\n".to_string());
+        let reported = |message: Option<HostMessage>| match message {
+            Some(HostMessage::RuntimeResult { result }) => Some(result),
+            _ => None,
+        };
+        assert!(matches!(
+            reported(watch.step(Some("41".into()), repaired())),
+            Some(RuntimeStoreResult::SdCardMounted)
+        ));
+        assert!(matches!(
+            reported(watch.step(Some("41".into()), repaired())),
+            Some(RuntimeStoreResult::SdCardRepaired)
+        ));
+        assert!(reported(watch.step(Some("41".into()), repaired())).is_none());
     }
 
     #[test]

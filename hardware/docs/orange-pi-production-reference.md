@@ -100,8 +100,10 @@ flag (exFAT VolumeFlags, FAT boot-sector state) and, if it is set, runs
 ignores the stop), logging the result. Only a check that leaves the flag clear
 counts as a repair, since exit code 1 also covers read errors. A repair writes
 `/run/octessera-sd-card.repaired` (device, disk sequence and a timestamp); the
-app shows `SD card checked and repaired` once per new value while it runs, and
-pulling the card clears it. A
+app shows `SD card checked and repaired` once per new value while the app runs
+(after the startup splash if it arrives during it). The marker is written only
+once the repaired card has mounted; a repaired card that then fails to mount
+gets the needs-repair marker instead. Pulling the card clears both. A
 failed or timed-out check leaves SD2 unmounted and writes
 `/run/octessera-sd-card.needs-repair`, so the sample browser says the card
 needs repair; the marker goes when a card mounts or the slot is empty.

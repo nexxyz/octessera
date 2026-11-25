@@ -74,6 +74,8 @@ pub(super) struct NativeDisplayState {
     pub(super) oled_splash_text: String,
     pub(super) oled_splash_until: Option<Instant>,
     pub(super) startup_splash_presented: bool,
+    /// An SD2 repair reported while the startup splash still covers the toast line.
+    pub(super) sd_card_repaired_after_splash: bool,
     pub(super) last_interaction_at: Instant,
     pub(super) held_inputs: super::held_inputs::HeldInputs,
     pub(super) aux_mapping_peek_visible: bool,
@@ -123,6 +125,7 @@ impl NativeDisplayState {
             oled_splash_text: OLED_STARTUP_SPLASH_KEY.into(),
             oled_splash_until: Some(now + Duration::from_millis(OLED_STARTUP_SPLASH_MS)),
             startup_splash_presented: false,
+            sd_card_repaired_after_splash: false,
             last_interaction_at: now,
             held_inputs: Default::default(),
             aux_mapping_peek_visible: false,

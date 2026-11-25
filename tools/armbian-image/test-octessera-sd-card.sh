@@ -333,6 +333,18 @@ grep -qF 'could not return' "$work/remount-ro.log"
 test ! -e "$mount_marker"
 unset FAKE_REMOUNT_RO_FAIL
 
+rm -f "$SD_REPAIRED_STATE" "$SD_REPAIR_STATE"
+fresh_mount vfat 1
+export FAKE_MOUNT_FAIL=1
+if remount_card /dev/sdb1; then
+  echo 'SD helper reported a repaired card that failed to mount as mounted.' >&2
+  exit 1
+fi
+grep -qx /dev/sdb1 "$SD_REPAIR_STATE"
+test ! -e "$SD_REPAIRED_STATE"
+unset FAKE_MOUNT_FAIL
+rm -f "$SD_REPAIR_STATE"
+
 fresh_mount vfat 0
 export FAKE_MOUNT_FAIL=1
 if remount_card /dev/sdb1; then

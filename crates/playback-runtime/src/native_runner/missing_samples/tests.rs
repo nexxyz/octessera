@@ -1,6 +1,7 @@
 use super::super::{InstrumentType, NativeRunnerConfig, NativeSampleAvailability};
 use super::*;
 use crate::{CoreRunner, HostMessage, RunnerMessage, RuntimeAudioCommand, RuntimeStoreResult};
+use std::time::{Duration, Instant};
 
 fn runner_with_two_samples() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
@@ -203,6 +204,25 @@ fn a_repaired_sd_card_says_so_in_a_toast() {
             result: RuntimeStoreResult::SdCardRepaired,
         })
         .unwrap();
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "SD card checked and repaired"
+    );
+}
+
+#[test]
+fn a_repair_reported_under_the_startup_splash_shows_once_the_splash_ends() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.display.oled_splash_until = Some(Instant::now() + Duration::from_secs(5));
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SdCardRepaired,
+        })
+        .unwrap();
+    assert!(runner.display.toast.is_none());
+
+    runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
+    let _ = runner.messages_with_snapshot().unwrap();
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
         "SD card checked and repaired"
