@@ -2,6 +2,15 @@ use super::{platform_request, temp_store_dir, test_adapter};
 use playback_runtime::{HostAdapter, HostMessage, RuntimePlatformEffect, RuntimeStoreResult};
 use std::time::Instant;
 
+fn factory_documents() -> playback_runtime::SystemPatchDocuments {
+    let bundled = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../config/generated/desktop/default.json"
+    )))
+    .unwrap();
+    playback_runtime::split_system_patch_documents(&bundled).unwrap()
+}
+
 #[test]
 fn pending_default_save_rejects_default_and_preset_loads_without_losing_bytes() {
     let (mut adapter, _) = test_adapter();
@@ -81,7 +90,13 @@ fn default_and_preset_loads_succeed_without_pending_default_save() {
     let temp_dir = temp_store_dir("patch-load-without-pending-save");
     adapter.store_dir = temp_dir.clone();
     let default_payload = serde_json::json!({ "default": true });
-    let preset_payload = serde_json::json!({ "preset": true });
+    let documents = factory_documents();
+    std::fs::write(
+        temp_dir.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    let preset_payload = documents.patch;
     std::fs::write(
         temp_dir.join("default.patch.json"),
         serde_json::to_vec(&default_payload).unwrap(),
@@ -121,5 +136,43 @@ fn default_and_preset_loads_succeed_without_pending_default_save() {
                 }
         ));
     }
+    let _ = std::fs::remove_dir_all(temp_dir);
+}
+
+#[test]
+fn a_damaged_preset_is_refused_with_the_boards_error() {
+    let (mut adapter, _) = test_adapter();
+    let temp_dir = temp_store_dir("damaged-preset-load");
+    adapter.store_dir = temp_dir.clone();
+    let documents = factory_documents();
+    std::fs::write(
+        temp_dir.join("system.json"),
+        serde_json::to_vec(&documents.system).unwrap(),
+    )
+    .unwrap();
+    let mut damaged = documents.patch;
+    damaged["runtimeConfig"]["fromTheFuture"] = serde_json::json!(true);
+    let expected =
+        playback_runtime::compose_system_patch_documents(&documents.system, &damaged).unwrap_err();
+    let preset_path = temp_dir.join("presets").join("patches").join("Named.json");
+    std::fs::create_dir_all(preset_path.parent().unwrap()).unwrap();
+    std::fs::write(&preset_path, serde_json::to_vec(&damaged).unwrap()).unwrap();
+
+    let result = adapter
+        .handle_platform_effect(&platform_request(RuntimePlatformEffect::StoreLoadPreset {
+            name: "Named".into(),
+        }))
+        .unwrap();
+
+    assert!(matches!(
+        result.as_slice(),
+        [HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::RuntimeFailure { error }
+        }] if error.operation == playback_runtime::RuntimeOperation::StoreLoadPreset
+            && error.code == playback_runtime::RuntimeErrorCode::OperationFailed
+            && error.preset_name.as_deref() == Some("Named")
+            && error.request_id.as_deref() == Some("test-request")
+            && error.message.as_deref() == Some(expected.as_str())
+    ));
     let _ = std::fs::remove_dir_all(temp_dir);
 }

@@ -98,6 +98,13 @@ impl DesktopPlaybackHostAdapter {
             }]);
         }
         let payload = self.load_preset_payload(name)?;
+        if let Some(Err(message)) = payload.as_ref().map(|patch| self.validate_preset(patch)) {
+            return Ok(vec![HostMessage::RuntimeResult {
+                result: RuntimeStoreResult::RuntimeFailure {
+                    error: request.failure_facts(message),
+                },
+            }]);
+        }
         Ok(vec![HostMessage::RuntimeResult {
             result: RuntimeStoreResult::LoadPresetResult {
                 name: name.to_string(),
@@ -105,6 +112,13 @@ impl DesktopPlaybackHostAdapter {
             }
             .with_identity(request.request_id.clone(), request.revision),
         }])
+    }
+
+    fn validate_preset(&self, patch: &serde_json::Value) -> Result<(), String> {
+        let system = self
+            .load_system_payload()?
+            .ok_or_else(|| "System settings are missing".to_string())?;
+        playback_runtime::compose_system_patch_documents(&system, patch).map(|_| ())
     }
 
     pub(super) fn load_preset_payload(
