@@ -1,4 +1,4 @@
-//! The fuzz runner's instruments and layers, its random changes, and what its sinks heard.
+//! The fuzz runner's instruments and layers and its random changes.
 
 use super::super::*;
 use std::collections::BTreeMap;
@@ -7,6 +7,9 @@ pub(super) const KEYS_LAYERS: usize = 4;
 pub(super) const LOOPER: usize = 4;
 pub(super) const SEQUENCER: usize = 5;
 pub(super) const LIFE: usize = 6;
+pub(super) const WANDERER: usize = 7;
+/// The wanderer's own Hold Synth slot, which no change or Notes In key reaches.
+pub(super) const WANDERER_SLOT: usize = 6;
 
 pub(super) type Frames = [[bool; GRID_WIDTH * GRID_HEIGHT]; KEYS_LAYERS];
 
@@ -25,14 +28,32 @@ impl Rng {
     }
 }
 
+/// Behaviors that animate their tiles on their own; each seed gives the last layer one.
+const WANDERERS: [NativeBehavior; 12] = [
+    NativeBehavior::Bounce,
+    NativeBehavior::Bubbles,
+    NativeBehavior::Ant,
+    NativeBehavior::Boids,
+    NativeBehavior::Orbit,
+    NativeBehavior::Gravity,
+    NativeBehavior::Twinkle,
+    NativeBehavior::Raindrops,
+    NativeBehavior::Pong,
+    NativeBehavior::ForestFire,
+    NativeBehavior::Brain,
+    NativeBehavior::Cyclic,
+];
+
 /// Slot 1 One-Shot Synth, 2 Hold Synth, 3 Hold Sampler with looped pads, 4 Drum, 5 Hold MIDI
-/// Inst. on channel 6 and 6 One-Shot FM; the Sampler and Drum stamp most tiles with one of four
-/// pads and leave the rightmost column unstamped. Layers 1-4 play Keys, 5 an overdubbing Looper
-/// on slot 2, 6 a two-page Sequencer scanning on slot 3 and 7 a dark, unspawning Life on slot 2
-/// with Note Preview off, so its next step plays what a press changed. With `poly` the Sequencer
-/// plays slot 2 in poly lanes with no pitch steps, so a scan's Off, from another tile of its
-/// lane, ends the notes it started.
-pub(super) fn fuzz_runner(poly: bool) -> NativeRunner {
+/// Inst. on channel 6, 6 One-Shot FM and 7 a Hold Synth only the wanderer plays; the Sampler and
+/// Drum stamp most tiles with one of four pads and leave the rightmost column unstamped.
+/// Layers 1-4 play Keys, 5 an overdubbing Looper on slot 2, 6 a two-page Sequencer scanning on
+/// slot 3, 7 a dark, unspawning Life on slot 2 with Note Preview off, so its next step plays
+/// what a press changed, and 8 a seed's self-animating behavior on slot 7. With `poly` the
+/// Sequencer plays slot 2 in poly lanes with no pitch steps, so a scan's Off, from another tile
+/// of its lane, ends the notes it started. Every layer is seeded, so each draws its own random
+/// stream whichever layer is selected.
+pub(super) fn fuzz_runner(poly: bool, seed: u64) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
@@ -60,6 +81,7 @@ pub(super) fn fuzz_runner(poly: bool) -> NativeRunner {
         (3, "drum", "oneshot"),
         (4, "midi", "hold"),
         (5, "fm", "oneshot"),
+        (6, "synth", "hold"),
     ] {
         instruments[slot]["type"] = json!(kind);
         instruments[slot]["noteBehavior"] = json!(mode);
@@ -71,6 +93,9 @@ pub(super) fn fuzz_runner(poly: bool) -> NativeRunner {
     instruments[3]["drum"]["assignments"] = json!(stamps("voice"));
     instruments[4]["midi"] = json!({ "channel": 5, "enabled": true, "velocity": 100 });
     runner.apply_config_payload(payload).unwrap();
+    for layer in &mut runner.layers {
+        layer.seeded = true;
+    }
     for layer in 0..KEYS_LAYERS {
         let quantize = if layer == 2 { "immediate" } else { "step" };
         let config = json!({ "quantize": quantize });
@@ -88,18 +113,20 @@ pub(super) fn fuzz_runner(poly: bool) -> NativeRunner {
     let dark = json!({ "cells": vec![false; GRID_WIDTH * GRID_HEIGHT], "randomCellsPerTick": 0 });
     new_behavior(&mut runner, LIFE, NativeBehavior::Life, dark);
     set_rows(&mut runner.layers[LIFE].link, 1, TriggerAction::NoteOn);
+    let wanderer = WANDERERS[seed as usize % WANDERERS.len()];
+    new_behavior(&mut runner, WANDERER, wanderer, json!({}));
+    let rows = &mut runner.layers[WANDERER].link;
+    set_rows(rows, WANDERER_SLOT, TriggerAction::NoteOn);
     for link in runner
         .layers
         .iter_mut()
-        .take(LIFE + 1)
+        .take(WANDERER + 1)
         .map(|layer| &mut layer.link)
     {
         link.note_preview = true;
         // A poly scan's Off names the dark tile's own pitch and pad, so along a lane with Pitch
         // Steps or other pads it leaves notes sounding by design; mono lanes always close.
         link.scan_lanes = ScanLanes::Mono;
-        // Unseeded layers share one random stream, drawn in the order the layers step, which
-        // the selected layer leads; seeded ones each draw their own.
         link.seeded = true;
     }
     runner.layers[LIFE].link.note_preview = false;
@@ -187,12 +214,20 @@ fn link_setting(
     }
 }
 
-/// One random Link, instrument, gate or behavior change; with `poly` the Sequencer keeps its
-/// instrument.
+fn assert_slot_released(runner: &NativeRunner, slot: usize, what: &str) {
+    let held = runner.held_keys.held_until_released(slot as u8);
+    assert_eq!(
+        held, 0,
+        "slot {slot} keeps {held} keys after a {what} change"
+    );
+}
+
+/// One random change on one of the first six layers: Link, instrument, gate, behavior, Play
+/// Transpose, tempo or One-Shot length; with `poly` the Sequencer keeps its instrument.
 pub(super) fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames, poly: bool) {
     let layer = rng.below(SEQUENCER as u64 + 1) as usize;
     let prefix = format!("layers.{layer}.link");
-    let case = rng.below(17);
+    let case = rng.below(23);
     match case {
         0 if poly && layer == SEQUENCER => {}
         0 => {
@@ -289,119 +324,54 @@ pub(super) fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames,
                 runner.layers[layer].param_mods.x[0] = None;
             }
         }
-        _ => bind(
+        16 => bind(
             runner,
             &format!("{prefix}.y.pitch.steps"),
             json!(rng.below(3)),
         ),
-    }
-}
-
-/// What the sinks heard, one line per call that sounded anything, how many starts of each held
-/// note and looping pad have not ended yet, how many One-Shot starts an end may still cut, and
-/// every end that found nothing left to end.
-#[derive(Default)]
-pub(super) struct Sinks {
-    pub(super) lines: Vec<String>,
-    open: BTreeMap<String, usize>,
-    finite: BTreeMap<String, usize>,
-    extra_ends: Vec<String>,
-}
-
-impl Sinks {
-    pub(super) fn hear(&mut self, runner: &NativeRunner, at: &str, messages: &[RunnerMessage]) {
-        let mut words = Vec::new();
-        for message in messages {
-            match message {
-                RunnerMessage::MusicalEvents { events } => {
-                    words.extend(events.iter().map(|event| self.note(event, "a", at)));
-                }
-                RunnerMessage::MidiEvents { events } => {
-                    words.extend(events.iter().map(|event| self.note(event, "m", at)));
-                }
-                RunnerMessage::TileHits { hits } => {
-                    for hit in hits {
-                        let voice = format!("t{}.{}.{}", hit.instrument_slot, hit.voice, hit.tile);
-                        let holds = runner
-                            .instruments
-                            .get(usize::from(hit.instrument_slot))
-                            .is_some_and(|slot| {
-                                slot.kind == InstrumentType::Sampler
-                                    && slot.note_behavior == NoteBehavior::Hold
-                            });
-                        if hit.velocity == 0 {
-                            self.end(&voice, at);
-                        } else {
-                            let starts = if holds {
-                                &mut self.open
-                            } else {
-                                &mut self.finite
-                            };
-                            *starts.entry(voice.clone()).or_default() += 1;
-                        }
-                        words.push(format!("{voice}.{}", hit.velocity));
-                    }
-                }
-                RunnerMessage::SequencedOffset { nanos } => words.push(format!("@{nanos}")),
-                _ => {}
+        // Play Transpose, or a layer's Transpose toggle, with keys down.
+        17 => runner.handle_play_transpose_grid_press(rng.below(8) as usize, rng.below(8) as usize),
+        // A new instrument type on a slot, or a new MIDI channel on the MIDI Inst.: either ends
+        // every key the slot holds.
+        18 => {
+            let slot = [0, 2, 3, 4, 5][rng.below(5) as usize];
+            let before = runner.instruments[slot].kind;
+            menu_pick(runner, &format!("instruments.{slot}.type"), rng.below(16));
+            if runner.instruments[slot].kind != before {
+                assert_slot_released(runner, slot, "type");
             }
         }
-        if !words.is_empty() {
-            self.lines.push(format!("{at}: {}", words.join(" ")));
-        }
-    }
-
-    fn note(&mut self, event: &MusicalEvent, lane: &str, at: &str) -> String {
-        match *event {
-            MusicalEvent::NoteOn {
-                channel,
-                note,
-                velocity,
-                duration_ms,
-            } => {
-                let starts = if duration_ms.is_none() {
-                    &mut self.open
-                } else {
-                    &mut self.finite
-                };
-                *starts.entry(format!("{lane}{channel}.{note}")).or_default() += 1;
-                let length = duration_ms.map_or("h".to_string(), |ms| ms.to_string());
-                format!("+{lane}{channel}.{note}.{velocity}.{length}")
-            }
-            MusicalEvent::NoteOff { channel, note } => {
-                self.end(&format!("{lane}{channel}.{note}"), at);
-                format!("-{lane}{channel}.{note}")
-            }
-            MusicalEvent::Cc { .. } => String::new(),
-        }
-    }
-
-    /// One end ends one held start, or else cuts one One-Shot start; with neither left it is
-    /// a doubled end.
-    fn end(&mut self, key: &str, at: &str) {
-        for starts in [&mut self.open, &mut self.finite] {
-            if let Some(count) = starts.get_mut(key).filter(|count| **count > 0) {
-                *count -= 1;
-                return;
+        19 => {
+            let before = runner.instruments[4].midi_channel;
+            menu_number(
+                runner,
+                "instruments.4.midi.channel",
+                1 + rng.below(16) as i32,
+            );
+            if runner.instruments[4].midi_channel != before {
+                assert_slot_released(runner, 4, "channel");
             }
         }
-        self.extra_ends.push(format!("{at}: {key}"));
-    }
-
-    pub(super) fn assert_all_ended(&self, seed: u64) {
-        let open = self
-            .open
-            .iter()
-            .filter(|(_, count)| **count > 0)
-            .collect::<Vec<_>>();
-        assert!(
-            open.is_empty(),
-            "seed {seed}: notes still sounding: {open:?}"
-        );
-        assert!(
-            self.extra_ends.is_empty(),
-            "seed {seed}: ends of nothing sounding: {:?}",
-            self.extra_ends
-        );
+        20 => {
+            let row = ["activate", "stable", "deactivate"][rng.below(3) as usize];
+            let key = format!("{prefix}.mapping.{row}.retriggerCount");
+            menu_number(runner, &key, rng.below(4) as i32);
+        }
+        21 => {
+            let key = ["transport.swingA", "transport.swingB"][rng.below(2) as usize];
+            menu_number(runner, key, 1 + rng.below(7) as i32);
+        }
+        // A new tempo or One-Shot length while One-Shot notes sound.
+        _ => {
+            if rng.chance(50) {
+                menu_number(runner, "transport.bpm", 40 + rng.below(200) as i32);
+            } else {
+                bind(
+                    runner,
+                    &format!("{prefix}.oneShotLengthMs"),
+                    json!(10 + rng.below(1990)),
+                );
+            }
+        }
     }
 }

@@ -1,25 +1,31 @@
 //! Seeded note lifetimes: random tile frames on four Keys layers, a Looper, a paged Sequencer
 //! and a Life whose presses play at its next step, with sparse Link, instrument, behavior and
 //! transport changes made through the menu, bindings, the gate page and shortcut, Panic and
-//! Notes In. After every step a note held until its release must still have something behind
-//! it; at the end every tile goes dark and the queues run out, every key is released, every
-//! held note ended once per start, and none of it depends on which layer is selected. Every
-//! layer keeps its Off row on note off, on the instrument its other rows play, and scans in mono
-//! lanes, or on every third seed the Sequencer in poly lanes with no pitch steps on the Hold
-//! Synth, so no note hangs by design.
+//! Notes In, with every fourth seed paced by an external MIDI clock, plus instrument, Play
+//! Transpose, tempo and patch-load changes, and a last layer running a self-animating behavior
+//! on a slot of its own. After every step a note held until its release must still have
+//! something behind it; at the end every tile goes dark and the queues run out, every key is
+//! released, every held note ended once per start, and none of it depends on which layer is
+//! selected. Every layer keeps its Off row on note off, on the instrument its other rows play,
+//! and scans in mono lanes, or on every third seed the Sequencer in poly lanes with no pitch
+//! steps on the Hold Synth, so no note hangs by design.
 
 mod setup;
+mod sinks;
 
 use super::*;
 use platform_core::DeviceInput;
-use setup::{change, fuzz_runner, Frames, Rng, Sinks, KEYS_LAYERS, LIFE, LOOPER, SEQUENCER};
+use setup::{
+    change, fuzz_runner, Frames, Rng, KEYS_LAYERS, LIFE, LOOPER, SEQUENCER, WANDERER, WANDERER_SLOT,
+};
+use sinks::Sinks;
 
 const STEP: u32 = 24;
 const STEPS: usize = 160;
 /// Steps a held note may outlast everything that could still end it: a scan's slowest lap with
 /// four sections and its Delay.
 const GRACE_STEPS: usize = 10;
-const SLOTS: [u8; 6] = [0, 1, 2, 3, 4, 5];
+const SLOTS: [u8; 7] = [0, 1, 2, 3, 4, 5, WANDERER_SLOT as u8];
 
 struct Run {
     runner: NativeRunner,
@@ -29,7 +35,9 @@ struct Run {
     /// Notes In keys down, as (channel, note).
     keyboard: Vec<(u8, u8)>,
     /// Steps each slot has held notes with nothing behind them.
-    unbacked: [usize; 6],
+    unbacked: [usize; 7],
+    /// Whether the pulses come from an external MIDI clock.
+    external: bool,
     clock: std::time::Instant,
 }
 
@@ -55,15 +63,17 @@ impl Run {
     fn pulse(&mut self, at: &str) {
         self.clock += std::time::Duration::from_micros(20_833);
         self.runner.test_set_display_time(self.clock);
-        let messages = self
-            .runner
-            .send(HostMessage::TransportPulseStep {
+        let message = if self.external {
+            HostMessage::MidiRealtimeClock { pulses: 1 }
+        } else {
+            HostMessage::TransportPulseStep {
                 pulses: 1,
                 source: SyncSource::Internal,
                 at_ppqn_pulse: None,
                 request_snapshot: Some(false),
-            })
-            .unwrap();
+            }
+        };
+        let messages = self.runner.send(message).unwrap();
         self.hear(at, &messages);
     }
 
@@ -87,9 +97,10 @@ impl Run {
                 continue;
             }
             let dark = self.rng.chance(35);
+            let full = !dark && self.rng.chance(10);
             for index in 0..GRID_WIDTH * GRID_HEIGHT {
                 let (x, y) = (index % GRID_WIDTH, index / GRID_WIDTH);
-                let wanted = !dark && x % 3 != 1 && y < 4 && self.rng.chance(20);
+                let wanted = full || !dark && x % 3 != 1 && y < 4 && self.rng.chance(20);
                 if wanted != self.lit[layer][index] {
                     self.lit[layer][index] = wanted;
                     let input = if wanted {
@@ -118,7 +129,8 @@ impl Run {
         }
     }
 
-    /// Stop, Pause, Panic, a One-Shot press while stopped, or a Notes In key and an echo.
+    /// Stop, Pause, Panic, a One-Shot press while stopped, a Notes In key and an echo, a Looper
+    /// punch or a patch load.
     fn transport_or_midi(&mut self, step: usize) {
         let at = format!("{step}!");
         match self.rng.below(12) {
@@ -167,18 +179,58 @@ impl Run {
                 };
                 self.press(&at, LOOPER, DeviceInput::BehaviorAction(punch));
             }
+            7 => self.patch_load(&at, false),
+            8 => self.patch_load(&at, true),
             _ => {}
+        }
+    }
+
+    /// Loads the running patch, sometimes at another tempo, as a Load does through the patch
+    /// store, which also stops the transport, or straight into the runtime as a preset load
+    /// does; either way the load drains every key, so none stays held.
+    fn patch_load(&mut self, at: &str, through_store: bool) {
+        let mut payload = self.runner.config_payload();
+        if self.rng.chance(30) {
+            payload["runtimeConfig"]["transport"]["bpm"] = json!(60 + self.rng.below(120));
+        }
+        if through_store {
+            let patch = split_local_system_patch_documents(&payload).unwrap().patch;
+            let result = RuntimeStoreResult::LoadDefaultResult {
+                payload: Some(patch),
+            };
+            self.runner.apply_store_result(result).unwrap();
+        } else {
+            let patch = split_local_system_patch_documents(&payload).unwrap().patch;
+            self.runner
+                .apply_patch_payload_preserving_device(patch)
+                .unwrap();
+        }
+        self.keyboard.clear();
+        let held = self.runner.held_keys.held_count();
+        assert_eq!(held, 0, "{at}: a patch load leaves {held} keys held");
+        let messages = self.runner.messages_without_snapshot().unwrap();
+        self.hear(at, &messages);
+        for layer in 0..KEYS_LAYERS {
+            let tiles = self.runner.layers[layer].engine.model().unwrap().tiles;
+            self.lit[layer].copy_from_slice(&tiles);
+        }
+        if self.runner.transport.transport != RuntimeTransportState::Playing {
+            self.input(at, json!({ "type": "button_s", "pressed": true }));
         }
     }
 
     /// Counts the steps each Hold slot keeps a note with nothing left that could end it: no
     /// layer playing it with a lit tile, a queued event, Arp keys or a mono lane note, and no
-    /// Notes In key down on it.
+    /// Notes In key down on it. The wanderer's slot may hold no more notes than its tiles lit.
     fn check_backing(&mut self, step: usize) {
         for slot in SLOTS {
             let held = self.runner.held_keys.held_until_released(slot);
-            let backed = self.keyboard.iter().any(|(channel, _)| *channel == slot)
-                || (0..LAYER_COUNT).any(|layer| self.backs(layer, slot));
+            let backed = if usize::from(slot) == WANDERER_SLOT {
+                held <= self.wanderer_notes()
+            } else {
+                self.keyboard.iter().any(|(channel, _)| *channel == slot)
+                    || (0..LAYER_COUNT).any(|layer| self.backs(layer, slot))
+            };
             let counter = &mut self.unbacked[usize::from(slot)];
             *counter = if held > 0 && !backed { *counter + 1 } else { 0 };
             assert!(
@@ -186,6 +238,16 @@ impl Run {
                 "step {step}: slot {slot} holds {held} notes nothing can end"
             );
         }
+    }
+
+    /// The notes the wanderer's lit tiles and queued events can account for: its pitch follows
+    /// the tile's row, so each lit row is at most one note.
+    fn wanderer_notes(&self) -> usize {
+        let lit = self.runner.layers[WANDERER].engine.model().unwrap().tiles;
+        let rows = (0..GRID_HEIGHT)
+            .filter(|y| (0..GRID_WIDTH).any(|x| lit[y * GRID_WIDTH + x]))
+            .count();
+        rows + self.runner.delayed_link_events[WANDERER].len()
     }
 
     fn backs(&self, index: usize, slot: u8) -> bool {
@@ -207,15 +269,20 @@ fn play(seed: u64, selected: usize) -> (Sinks, usize, usize) {
     let poly = seed.is_multiple_of(3);
     let mut folds = 0;
     let mut run = Run {
-        runner: fuzz_runner(poly),
+        runner: fuzz_runner(poly, seed),
         sinks: Sinks::default(),
         rng: Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1),
         lit: [[false; GRID_WIDTH * GRID_HEIGHT]; KEYS_LAYERS],
         keyboard: Vec::new(),
-        unbacked: [0; 6],
+        unbacked: [0; 7],
+        external: seed % 4 == 1,
         clock: std::time::Instant::now(),
     };
     run.runner.test_set_display_time(run.clock);
+    if run.external {
+        run.runner.transport.sync_source = SyncSource::External;
+        run.runner.midi.clock_in_enabled = true;
+    }
     run.runner.select_active_layer(selected).unwrap();
     run.input("play", json!({ "type": "button_s", "pressed": true }));
     for step in 0..STEPS {
@@ -245,7 +312,7 @@ fn play(seed: u64, selected: usize) -> (Sinks, usize, usize) {
 
 /// Every tile goes dark without a drain: the Keys layers let go, the keyboard lets up, the Looper
 /// clears its loop, Life's cells are pressed out, the Sequencer's pages are cleared as they come
-/// round, and the queues run out.
+/// round, the wanderer's layer turns dark Keys, and the queues run out.
 fn finish(run: &mut Run) {
     for layer in 0..KEYS_LAYERS {
         for index in 0..GRID_WIDTH * GRID_HEIGHT {
@@ -282,6 +349,9 @@ fn finish(run: &mut Run) {
             run.pulse(&format!("page{page}+{offset}"));
         }
     }
+    // The wanderer never goes dark by itself: its layer becomes a dark Keys layer once the
+    // others have drained.
+    run.runner.select_layer_behavior(WANDERER, "keys").unwrap();
     for offset in 0..16 * STEP {
         run.pulse(&format!("drain+{offset}"));
     }
