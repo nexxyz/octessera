@@ -15,7 +15,7 @@ fn press(pitch: u8, note: u8, length_ms: Option<u32>) -> KeyEvent {
         },
         length_ms,
         cuts: true,
-        tile: None,
+        origin: None,
     })
 }
 
@@ -24,7 +24,7 @@ fn release(pitch: u8) -> KeyEvent {
         slot: SYNTH,
         pitch,
         pad: None,
-        tile: None,
+        origin: None,
     }
 }
 

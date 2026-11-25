@@ -1,6 +1,6 @@
 //! Presses a direct layer did not play when they came (Note Preview off) play at its next step:
 //! it plays each pressed tile's change since before the press, so a tile that ends where it
-//! started plays nothing, and a press that turns off a sounding tile still ends its note.
+//! started plays no On or Off, and a press that turns off a sounding tile still ends its note.
 
 use crate::interpretation::{
     GridSnapshot, InterpretationProfile, TileTriggerIntent, TileTriggerKind,
@@ -10,13 +10,14 @@ use crate::interpretation_scan::compute_degree;
 /// The step's `intents`, in their order, then the net change to `next` of each tile a press
 /// changed since the last step (`unplayed` before the press, `before` the grid the step started
 /// from). On such a tile the net change wins: the step's own event stays only where it plays
-/// that change, or a Stable on a tile lit throughout, and a tile that ends where it started
-/// plays nothing else.
+/// that change, and a tile that ends where it started plays no On or Off; one lit throughout
+/// plays a Stable when the layer plays `stable` tiles, as a tile nobody pressed does.
 pub(super) fn fold_unplayed_presses(
     unplayed: &GridSnapshot,
     before: &GridSnapshot,
     next: &GridSnapshot,
     profile: &InterpretationProfile,
+    stable: bool,
     intents: Vec<TileTriggerIntent>,
 ) -> Vec<TileTriggerIntent> {
     let width = next.width.max(1);
@@ -39,8 +40,9 @@ pub(super) fn fold_unplayed_presses(
         .collect::<Vec<_>>();
     for index in (0..next.tiles.len()).filter(|index| pressed(*index)) {
         let kind = match net(index) {
-            Some(kind @ (TileTriggerKind::Activate | TileTriggerKind::Deactivate)) => kind,
-            _ => continue,
+            Some(TileTriggerKind::Stable) if !stable => continue,
+            Some(kind) => kind,
+            None => continue,
         };
         let (x, y) = (index % width, index / width);
         if folded

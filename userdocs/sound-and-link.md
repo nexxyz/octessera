@@ -33,7 +33,10 @@ Under **Events**, three moments in a tile's life can each trigger something:
 Each event has an **Inst** (instrument slot 1 to 8), a **Trig** (`none`,
 `note on` or `note off`), a **Delay** (0 to 16 layer ticks) and a **Retrig**
 (0 to 8 extra repeats, one tick apart). Delay and Retrig are a cheap way to
-turn one blip into a little echo figure without touching an effect.
+turn one blip into a little echo figure without touching an effect. On a
+scanning layer, give the Off row the same Delay as the On row: a longer On
+Delay shortens every lit run by the difference, so a Hold note from a lone tile
+never gets to sound.
 
 Hold fires at every step for each tile that stays lit. The play behaviors
 (`keys`, `looper`, `sequencer`) and the games make their own events, so Hold
@@ -43,7 +46,7 @@ so set a Trig to `none` to quiet one.
 **Note Preview** is about your fingers: on, a tile you press or let go plays
 its On or Off right away, even while the layer scans; off, a press just
 changes the grid, and the layer's next step plays each pressed tile's change
-since before your press, so a tile that ends where it started plays nothing. Keys and
+since before your press, so a tile that ends where it started plays no On or Off. Keys and
 the Looper always play your presses straight away, unless the layer scans. Picking a
 behavior sets it for you (and Scan Mode too): the step sequencers scan left to
 right with Note Preview on, the living worlds play directly with it on, and

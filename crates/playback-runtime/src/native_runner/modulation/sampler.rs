@@ -1,3 +1,4 @@
+use super::super::scan_lanes::scan_lane;
 use super::super::{NativeLinkLayer, ScanMode};
 use crate::native_runner::held_keys::{KeyEvent, KeyPress, Sound};
 use crate::native_runner::InstrumentType;
@@ -125,10 +126,13 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
         };
         let channel = event_channel(event);
         let route = instrument_route(instruments, channel);
-        // A scan's Off comes from the lane's next tile, so a scan's keys name no tile.
-        let tile = sense
-            .is_none_or(|sense| sense.scan_mode != ScanMode::Scanning)
-            .then(|| tile_index(intent.x, intent.y));
+        // A scan's Off comes from the lane's next tile, so a scan's keys name their lane.
+        let origin = Some(match sense {
+            Some(sense) if sense.scan_mode == ScanMode::Scanning => {
+                scan_lane(sense.scan_axis, intent) as u8
+            }
+            _ => tile_index(intent.x, intent.y),
+        });
         if let Some(sense) = sense {
             let cc_events =
                 cc_events_from_intent(intent, sense, midi_event_channel(instruments, channel));
@@ -155,7 +159,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                     duration_ms,
                     transpose_offset,
                 ) {
-                    press.tile = tile;
+                    press.origin = origin;
                     routed.keys.push(KeyEvent::Press(press));
                 }
             }
@@ -165,7 +169,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                         slot: channel,
                         pitch: note,
                         pad,
-                        tile,
+                        origin,
                     });
                 }
             }
@@ -180,7 +184,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
 }
 
 /// The press of `channel`'s key `note` from `intent`'s tile, sounding as the instrument plays it
-/// now, naming no tile yet; None when the instrument plays nothing for it.
+/// now, naming no origin yet; None when the instrument plays nothing for it.
 fn press_for_intent(
     instruments: &[super::super::NativeInstrumentSlot],
     intent: &TileTriggerIntent,
@@ -244,7 +248,7 @@ fn press_for_intent(
         sound,
         length_ms,
         cuts: length_ms.is_none() || note_off_cuts(instrument),
-        tile: None,
+        origin: None,
     })
 }
 
@@ -376,7 +380,7 @@ fn route_event_without_intent(
                 slot: channel,
                 pitch: note,
                 pad: None,
-                tile: None,
+                origin: None,
             });
             return;
         }
@@ -417,7 +421,7 @@ fn route_event_without_intent(
                 sound,
                 length_ms,
                 cuts: length_ms.is_none() || instrument.is_none_or(note_off_cuts),
-                tile: None,
+                origin: None,
             }));
             return;
         }

@@ -46,6 +46,14 @@ impl MonoLanes {
     }
 }
 
+/// The lane a scanned tile plays in: its row on a column scan, its column on a row scan.
+pub(super) fn scan_lane(axis: ScanAxis, intent: &TileTriggerIntent) -> usize {
+    match axis {
+        ScanAxis::Columns => intent.y,
+        ScanAxis::Rows => intent.x,
+    }
+}
+
 impl NativeRunner {
     /// The step's events as a mono scan plays them, each with its intent; None when the layer
     /// plays poly lanes or does not scan.
@@ -60,12 +68,12 @@ impl NativeRunner {
         if link.scan_mode != ScanMode::Scanning || link.scan_lanes != ScanLanes::Mono {
             return None;
         }
-        let columns = link.scan_axis == ScanAxis::Columns;
+        let axis = link.scan_axis;
         let mut out_events = Vec::with_capacity(events.len() + 4);
         let mut out_intents = Vec::with_capacity(events.len() + 4);
         for (event, intent) in events.iter().zip(intents) {
             let lane_slot = intent.as_ref().and_then(|intent| {
-                let lane = if columns { intent.y } else { intent.x };
+                let lane = scan_lane(axis, intent);
                 let slot = match *event {
                     MusicalEvent::NoteOn { channel, .. }
                     | MusicalEvent::NoteOff { channel, .. } => usize::from(channel),

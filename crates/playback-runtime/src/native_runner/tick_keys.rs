@@ -27,18 +27,20 @@ pub(super) fn releases_before_presses(keys: &mut [KeyEvent]) {
     }
 }
 
-/// Whether `event` releases `press` and comes from the tile that pressed it, or names no tile.
+/// Whether `event` releases `press` and comes from the tile, or on a scan the lane, that pressed
+/// it, or either names no origin.
 pub(super) fn ends_its_own_press(event: &KeyEvent, press: &KeyPress) -> bool {
-    let same_tile = match (event, press.tile) {
+    let same_origin = match (event, press.origin) {
         (
             KeyEvent::Release {
-                tile: Some(tile), ..
+                origin: Some(origin),
+                ..
             },
             Some(pressed),
-        ) => *tile == pressed,
+        ) => *origin == pressed,
         _ => true,
     };
-    same_tile && releases(event, press)
+    same_origin && releases(event, press)
 }
 
 pub(super) fn releases(event: &KeyEvent, press: &KeyPress) -> bool {

@@ -203,15 +203,14 @@ fn a_cc_on_lanes_ends_the_mono_lanes_notes() {
     assert_eq!(ended, [played[0].replace('+', "-")]);
 }
 
-/// A poly column scan with no pitch steps, On Delay 1 and a Hold Synth, with (0, 2) lit: a scan's
-/// Off comes from the row's next tile, not the one whose On it ends, and still ends that On by
-/// its key, so nothing sounds once (0, 2) goes dark.
-#[test]
-fn a_poly_scans_delayed_on_ends_with_the_lanes_off() {
-    let mut runner = scan_runner("hold", &[0]);
+/// A poly column scan of a Hold Synth with no pitch steps, so every lane plays one key, On Delay 1
+/// and Off Delay 0, with `lit` lit.
+fn delayed_poly_scan(lit: &[(usize, usize)]) -> NativeRunner {
+    let mut runner = scan_runner("hold", &[]);
     let link = &mut runner.layers[0].link;
     link.scan_lanes = ScanLanes::Poly;
     link.x_pitch_enabled = false;
+    link.y_pitch_enabled = false;
     link.activate_timing.delay_steps = 1;
     set_actions(
         &mut runner,
@@ -223,12 +222,48 @@ fn a_poly_scans_delayed_on_ends_with_the_lanes_off() {
         ],
     );
     runner.refresh_active_interpretation_profile();
-    for _ in 0..20 {
-        step(&mut runner);
+    for (x, y) in lit {
+        grid_tap(&mut runner, *x, *y);
     }
-    grid_tap(&mut runner, 0, 2);
-    for _ in 0..40 {
-        step(&mut runner);
+    runner
+}
+
+/// Runs a lap, darkens `lit`, runs two more laps and returns what the first lap played.
+fn lap_then_dark(runner: &mut NativeRunner, lit: &[(usize, usize)]) -> Vec<String> {
+    let lap = (0..GRID_WIDTH).flat_map(|_| step(runner)).collect();
+    for (x, y) in lit {
+        grid_tap(runner, *x, *y);
     }
+    for _ in 0..2 * GRID_WIDTH {
+        step(runner);
+    }
+    lap
+}
+
+/// (0, 2) and (1, 2) lit: the On delayed to (1, 2)'s step sounds, and the Off from (2, 2) ends
+/// it though another tile sent it.
+#[test]
+fn a_poly_scans_delayed_on_sounds_and_ends_with_its_lanes_off() {
+    let lit = [(0, 2), (1, 2)];
+    let mut runner = delayed_poly_scan(&lit);
+    let lap = lap_then_dark(&mut runner, &lit);
+    let on = lap.iter().position(|word| word.starts_with('+'));
+    let off = lap.iter().position(|word| word.starts_with('-'));
+    assert!(on.is_some() && on < off, "{lap:?}");
+    assert_eq!(runner.held_keys.held_count(), 0);
+}
+
+/// (0, 2) alone and (0, 5) with (1, 5), all on one key: row 2's Off from (1, 2) drops only row
+/// 2's delayed On, so row 5's note sounds and ends.
+#[test]
+fn a_poly_scans_off_drops_only_its_own_lanes_delayed_on() {
+    let lit = [(0, 2), (0, 5), (1, 5)];
+    let mut runner = delayed_poly_scan(&lit);
+    let lap = lap_then_dark(&mut runner, &lit);
+    assert_eq!(
+        lap.iter().filter(|word| word.starts_with('+')).count(),
+        1,
+        "{lap:?}"
+    );
     assert_eq!(runner.held_keys.held_count(), 0);
 }

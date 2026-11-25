@@ -234,6 +234,7 @@ impl NativeLayerEngine {
                 previous,
                 &next,
                 &self.interpretation_profile,
+                stable,
                 intents,
             );
         }
