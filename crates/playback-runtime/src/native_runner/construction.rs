@@ -18,6 +18,15 @@ impl NativeRunner {
 
     /// Startup and configuration transactions build the menu once, after loading.
     pub fn new_with_unbuilt_menu(config: NativeRunnerConfig) -> Result<Self, String> {
+        let mut runner = Self::new_without_system_baseline(config)?;
+        let documents = super::split_system_patch_documents(&runner.config_payload())?;
+        runner.restart_settings = RestartSettingsState::new(documents.system.clone());
+        runner.pending.system_persistence.saved_baseline = Some(Arc::new(documents.system));
+        Ok(runner)
+    }
+
+    /// A configuration transaction's candidate takes its system baseline from the runner it replaces.
+    pub(super) fn new_without_system_baseline(config: NativeRunnerConfig) -> Result<Self, String> {
         if !config
             .audio_optimization
             .is_supported(config.audio_optimization_capacity_available)
@@ -147,9 +156,6 @@ impl NativeRunner {
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();
         runner.refresh_active_interpretation_profile();
-        let documents = super::split_system_patch_documents(&runner.config_payload())?;
-        runner.restart_settings = RestartSettingsState::new(documents.system.clone());
-        runner.pending.system_persistence.saved_baseline = Some(Arc::new(documents.system));
         Ok(runner)
     }
 }

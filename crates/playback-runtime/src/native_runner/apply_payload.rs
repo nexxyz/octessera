@@ -23,7 +23,7 @@ impl NativeRunner {
         let current = self.config_payload();
         let before = self.configuration_aggregate();
         let prepared = prepare_config_payload(payload, &current)?;
-        let candidate = self.build_transaction_candidate(&prepared, true)?;
+        let candidate = self.build_transaction_candidate(&current, &prepared, true)?;
         let plan = before.resolve_plan(
             &candidate.configuration_aggregate(),
             self.audio_revisions.revision,
@@ -35,16 +35,16 @@ impl NativeRunner {
 
     fn build_transaction_candidate(
         &self,
+        current_payload: &Value,
         prepared: &PreparedConfigPayload,
         apply_device: bool,
     ) -> Result<NativeRunner, String> {
-        let mut candidate = NativeRunner::new_with_unbuilt_menu(NativeRunnerConfig {
+        let mut candidate = NativeRunner::new_without_system_baseline(NativeRunnerConfig {
             sample_builtin_favourite_dirs: self.sample_builtin_favourite_dirs.clone(),
             ..NativeRunnerConfig::default()
         })?;
         candidate.copy_non_config_state_from(self);
-        let current_payload = self.config_payload();
-        let current_envelope = ConfigDto::decode(&current_payload)?;
+        let current_envelope = ConfigDto::decode(current_payload)?;
         candidate.apply_config_payload_unchecked(true, &current_envelope)?;
         candidate.outbox = self.outbox.clone();
         candidate.copy_live_runtime_state_from(self);
@@ -208,7 +208,7 @@ impl NativeRunner {
         let current = self.config_payload();
         let before = self.configuration_aggregate();
         let prepared = prepare_patch_payload(payload, &current)?;
-        let candidate = self.build_transaction_candidate(&prepared, false)?;
+        let candidate = self.build_transaction_candidate(&current, &prepared, false)?;
         let plan = before.resolve_plan(
             &candidate.configuration_aggregate(),
             self.audio_revisions.revision,
@@ -225,7 +225,7 @@ impl NativeRunner {
         let current = self.config_payload();
         let before = self.configuration_aggregate();
         let prepared = super::prepare_local_patch_payload(payload, &current)?;
-        let candidate = self.build_transaction_candidate(&prepared, false)?;
+        let candidate = self.build_transaction_candidate(&current, &prepared, false)?;
         let plan = before.resolve_plan(
             &candidate.configuration_aggregate(),
             self.audio_revisions.revision,

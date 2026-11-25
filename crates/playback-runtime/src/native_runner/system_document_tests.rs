@@ -328,3 +328,21 @@ fn system_aux_device_sides_merge_with_patch_sides() {
     }
     assert_eq!(runner.patch_payload().unwrap(), patch);
 }
+
+#[test]
+fn a_patch_load_serializes_no_state_of_its_default_candidate() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let mut full = runner.config_payload();
+    for layer in full["runtimeConfig"]["layers"].as_array_mut().unwrap() {
+        layer["build"] = json!({ "behaviorId": "none" });
+    }
+    let patch = split_system_patch_documents(&full).unwrap().patch;
+
+    runner.apply_patch_payload_preserving_device(patch).unwrap();
+
+    assert!(runner
+        .layers
+        .iter()
+        .all(|layer| layer.behavior_id == "none"));
+    assert_eq!(runner.behavior_state_serialization_calls.get(), 0);
+}
