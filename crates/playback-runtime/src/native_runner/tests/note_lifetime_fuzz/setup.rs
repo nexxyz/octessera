@@ -29,8 +29,10 @@ impl Rng {
 /// Inst. on channel 6 and 6 One-Shot FM; the Sampler and Drum stamp most tiles with one of four
 /// pads and leave the rightmost column unstamped. Layers 1-4 play Keys, 5 an overdubbing Looper
 /// on slot 2, 6 a two-page Sequencer scanning on slot 3 and 7 a dark, unspawning Life on slot 2
-/// with Note Preview off, so its next step plays what a press changed.
-pub(super) fn fuzz_runner() -> NativeRunner {
+/// with Note Preview off, so its next step plays what a press changed. With `poly` the Sequencer
+/// plays slot 2 in poly lanes with no pitch steps, so a scan's Off, from another tile of its
+/// lane, ends the notes it started.
+pub(super) fn fuzz_runner(poly: bool) -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
         ..NativeRunnerConfig::default()
@@ -101,6 +103,13 @@ pub(super) fn fuzz_runner() -> NativeRunner {
         link.seeded = true;
     }
     runner.layers[LIFE].link.note_preview = false;
+    if poly {
+        let link = &mut runner.layers[SEQUENCER].link;
+        set_rows(link, 1, TriggerAction::NoteOn);
+        link.scan_lanes = ScanLanes::Poly;
+        link.x_pitch_enabled = false;
+        link.y_pitch_enabled = false;
+    }
     runner.sync_engine_runtime_config();
     runner.skip_startup_splash();
     runner.send(HostMessage::TransportStop).unwrap();
@@ -178,12 +187,14 @@ fn link_setting(
     }
 }
 
-/// One random Link, instrument, gate or behavior change.
-pub(super) fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames) {
+/// One random Link, instrument, gate or behavior change; with `poly` the Sequencer keeps its
+/// instrument.
+pub(super) fn change(runner: &mut NativeRunner, rng: &mut Rng, lit: &mut Frames, poly: bool) {
     let layer = rng.below(SEQUENCER as u64 + 1) as usize;
     let prefix = format!("layers.{layer}.link");
     let case = rng.below(17);
     match case {
+        0 if poly && layer == SEQUENCER => {}
         0 => {
             let row = ["activate", "stable", "deactivate"][rng.below(3) as usize];
             let slot = rng.below(6);

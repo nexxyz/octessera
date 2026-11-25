@@ -202,3 +202,33 @@ fn a_cc_on_lanes_ends_the_mono_lanes_notes() {
     assert_eq!(runner.layers[0].link.scan_lanes, ScanLanes::Poly);
     assert_eq!(ended, [played[0].replace('+', "-")]);
 }
+
+/// A poly column scan with no pitch steps, On Delay 1 and a Hold Synth, with (0, 2) lit: a scan's
+/// Off comes from the row's next tile, not the one whose On it ends, and still ends that On by
+/// its key, so nothing sounds once (0, 2) goes dark.
+#[test]
+fn a_poly_scans_delayed_on_ends_with_the_lanes_off() {
+    let mut runner = scan_runner("hold", &[0]);
+    let link = &mut runner.layers[0].link;
+    link.scan_lanes = ScanLanes::Poly;
+    link.x_pitch_enabled = false;
+    link.activate_timing.delay_steps = 1;
+    set_actions(
+        &mut runner,
+        0,
+        [
+            TriggerAction::NoteOn,
+            TriggerAction::None,
+            TriggerAction::NoteOff,
+        ],
+    );
+    runner.refresh_active_interpretation_profile();
+    for _ in 0..20 {
+        step(&mut runner);
+    }
+    grid_tap(&mut runner, 0, 2);
+    for _ in 0..40 {
+        step(&mut runner);
+    }
+    assert_eq!(runner.held_keys.held_count(), 0);
+}

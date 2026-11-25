@@ -1506,8 +1506,8 @@ a column scan runs along, the column a row scan runs along), across the lap wrap
 with Sections > 1; dark to dark fires nothing, and Hold fires for every behavior. A scanning
 layer's grid changes play nothing on their own; on a Sequencer page turn a lit tile after a lit one plays as an On, and the old page's Offs still play.
 `Note Preview` (default on) plays a tile press or release at once, as its On or Off, scanning or
-not; with it off a press only changes the grid, and a direct layer's next step plays what it
-changed; a tile the behavior itself turns on or off on that step plays that change instead. Keys and the Looper play their presses at once either way while they play directly. A
+not; with it off a press only changes the grid, and a direct layer's next step plays each pressed
+tile's change since before the press, so a tile that ends where it started plays nothing. Keys and the Looper play their presses at once either way while they play directly. A
 step's or press's modulation lands after its notes, on every layer alike. Picking a behavior sets Scan Mode and Note Preview
 from its play style; see [Link > Events and scanning](menu-tree/link.md#events-and-scanning).
 

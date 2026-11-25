@@ -1,4 +1,4 @@
-use super::super::NativeLinkLayer;
+use super::super::{NativeLinkLayer, ScanMode};
 use crate::native_runner::held_keys::{KeyEvent, KeyPress, Sound};
 use crate::native_runner::InstrumentType;
 use crate::protocol::TileHit;
@@ -125,6 +125,10 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
         };
         let channel = event_channel(event);
         let route = instrument_route(instruments, channel);
+        // A scan's Off comes from the lane's next tile, so a scan's keys name no tile.
+        let tile = sense
+            .is_none_or(|sense| sense.scan_mode != ScanMode::Scanning)
+            .then(|| tile_index(intent.x, intent.y));
         if let Some(sense) = sense {
             let cc_events =
                 cc_events_from_intent(intent, sense, midi_event_channel(instruments, channel));
@@ -142,7 +146,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                 let velocity = sense
                     .and_then(|sense| velocity_from_intent(intent, sense))
                     .unwrap_or(velocity);
-                if let Some(press) = press_for_intent(
+                if let Some(mut press) = press_for_intent(
                     instruments,
                     intent,
                     channel,
@@ -151,6 +155,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                     duration_ms,
                     transpose_offset,
                 ) {
+                    press.tile = tile;
                     routed.keys.push(KeyEvent::Press(press));
                 }
             }
@@ -160,7 +165,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                         slot: channel,
                         pitch: note,
                         pad,
-                        tile: Some(tile_index(intent.x, intent.y)),
+                        tile,
                     });
                 }
             }
@@ -175,7 +180,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
 }
 
 /// The press of `channel`'s key `note` from `intent`'s tile, sounding as the instrument plays it
-/// now; None when the instrument plays nothing for it.
+/// now, naming no tile yet; None when the instrument plays nothing for it.
 fn press_for_intent(
     instruments: &[super::super::NativeInstrumentSlot],
     intent: &TileTriggerIntent,
@@ -239,7 +244,7 @@ fn press_for_intent(
         sound,
         length_ms,
         cuts: length_ms.is_none() || note_off_cuts(instrument),
-        tile: Some(tile_index(intent.x, intent.y)),
+        tile: None,
     })
 }
 

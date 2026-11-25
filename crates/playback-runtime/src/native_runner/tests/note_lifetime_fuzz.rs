@@ -1,10 +1,12 @@
 //! Seeded note lifetimes: random tile frames on four Keys layers, a Looper, a paged Sequencer
-//! and a Life whose presses play at its next step, with sparse Link, instrument, behavior and transport changes made through the menu,
-//! bindings, the gate page and shortcut, Panic and Notes In. After every step a note held until
-//! its release must still have something behind it; at the end every tile goes dark and the
-//! queues run out, every key is released, every held note ended once per start, and none of it
-//! depends on which layer is selected. Every layer keeps its Off row on note off, on the
-//! instrument its other rows play, and scans in mono lanes, so no note hangs by design.
+//! and a Life whose presses play at its next step, with sparse Link, instrument, behavior and
+//! transport changes made through the menu, bindings, the gate page and shortcut, Panic and
+//! Notes In. After every step a note held until its release must still have something behind
+//! it; at the end every tile goes dark and the queues run out, every key is released, every
+//! held note ended once per start, and none of it depends on which layer is selected. Every
+//! layer keeps its Off row on note off, on the instrument its other rows play, and scans in mono
+//! lanes, or on every third seed the Sequencer in poly lanes with no pitch steps on the Hold
+//! Synth, so no note hangs by design.
 
 mod setup;
 
@@ -199,11 +201,13 @@ impl Run {
     }
 }
 
-/// Plays `seed`'s script with `selected` as the selected layer and returns what the sinks heard
-/// and what is left over.
-fn play(seed: u64, selected: usize) -> (Sinks, usize) {
+/// Plays `seed`'s script with `selected` as the selected layer and returns what the sinks heard,
+/// how many keys are left held and how many steps played Life's waiting presses.
+fn play(seed: u64, selected: usize) -> (Sinks, usize, usize) {
+    let poly = seed.is_multiple_of(3);
+    let mut folds = 0;
     let mut run = Run {
-        runner: fuzz_runner(),
+        runner: fuzz_runner(poly),
         sinks: Sinks::default(),
         rng: Rng(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1),
         lit: [[false; GRID_WIDTH * GRID_HEIGHT]; KEYS_LAYERS],
@@ -217,21 +221,26 @@ fn play(seed: u64, selected: usize) -> (Sinks, usize) {
     for step in 0..STEPS {
         run.frames(step);
         if run.rng.chance(25) {
-            change(&mut run.runner, &mut run.rng, &mut run.lit);
+            change(&mut run.runner, &mut run.rng, &mut run.lit, poly);
             let messages = run.runner.messages_without_snapshot().unwrap();
             run.hear(&format!("{step}*"), &messages);
         }
         if run.rng.chance(8) {
             run.transport_or_midi(step);
         }
+        let waiting = run.runner.transport.transport == RuntimeTransportState::Playing
+            && run.runner.layers[LIFE].engine.has_unplayed_presses();
         for offset in 0..STEP {
             run.pulse(&format!("{step}+{offset}"));
+        }
+        if waiting && !run.runner.layers[LIFE].engine.has_unplayed_presses() {
+            folds += 1;
         }
         run.check_backing(step);
     }
     finish(&mut run);
     let held = run.runner.held_keys.held_count();
-    (run.sinks, held)
+    (run.sinks, held, folds)
 }
 
 /// Every tile goes dark without a drain: the Keys layers let go, the keyboard lets up, the Looper
@@ -281,11 +290,15 @@ fn finish(run: &mut Run) {
 #[test]
 fn every_note_ends_once_its_tiles_go_dark_whichever_layer_is_selected() {
     for seed in 1..=12 {
-        let (first, held) = play(seed, 0);
+        let (first, held, folds) = play(seed, 0);
         assert_eq!(held, 0, "seed {seed}: keys still held");
+        assert!(
+            folds > 0,
+            "seed {seed}: Life's presses never waited for a step"
+        );
         first.assert_all_ended(seed);
         for selected in 1..LAYER_COUNT.min(6) {
-            let (other, _) = play(seed, selected);
+            let (other, ..) = play(seed, selected);
             let difference = first
                 .lines
                 .iter()

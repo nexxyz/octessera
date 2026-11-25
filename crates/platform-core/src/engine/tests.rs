@@ -11,6 +11,7 @@ mod persistence_tests;
 mod seeded_random_tests;
 mod stable_hold_tests;
 mod twinkle_tests;
+mod unplayed_presses_tests;
 
 fn base_config() -> NativeLayerEngineConfig {
     NativeLayerEngineConfig {

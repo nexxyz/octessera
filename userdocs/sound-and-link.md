@@ -42,7 +42,8 @@ so set a Trig to `none` to quiet one.
 
 **Note Preview** is about your fingers: on, a tile you press or let go plays
 its On or Off right away, even while the layer scans; off, a press just
-changes the grid and the layer's next step plays what you changed. Keys and
+changes the grid, and the layer's next step plays each pressed tile's change
+since before your press, so a tile that ends where it started plays nothing. Keys and
 the Looper always play your presses straight away, unless the layer scans. Picking a
 behavior sets it for you (and Scan Mode too): the step sequencers scan left to
 right with Note Preview on, the living worlds play directly with it on, and

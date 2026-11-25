@@ -326,6 +326,11 @@ impl NativeLayerEngine {
         );
     }
 
+    /// Whether presses wait for the next step to play them (Note Preview off on a direct layer).
+    pub fn has_unplayed_presses(&self) -> bool {
+        self.unplayed_before.is_some()
+    }
+
     /// Forgets what the scan line saw, so its next step compares with dark tiles.
     pub fn forget_scanned_line(&mut self) {
         self.scan_seen = unscanned_grid();
