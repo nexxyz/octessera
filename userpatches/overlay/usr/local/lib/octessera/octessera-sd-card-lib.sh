@@ -8,6 +8,7 @@ SD_DISKSEQ_STATE=${SD_DISKSEQ_STATE:-/run/octessera-sd-card.diskseq}
 SD_FSCK_TIMEOUT=${SD_FSCK_TIMEOUT:-60}
 SD_FSCK_KILL_AFTER=${SD_FSCK_KILL_AFTER:-5}
 SD_REPAIR_STATE=${SD_REPAIR_STATE:-/run/octessera-sd-card.needs-repair}
+SD_REPAIRED_STATE=${SD_REPAIRED_STATE:-/run/octessera-sd-card.repaired}
 
 log() { logger -t "$LOG" "$*"; echo "$LOG: $*" >&2; }
 canonical_block() { readlink -f "$1"; }
@@ -187,6 +188,7 @@ repair_dirty_card() {
         return 0
       else
         log "$dev checked and repaired"
+        printf '%s %s\n' "$dev" "$(disk_sequence "$dev")" > "$SD_REPAIRED_STATE" || log "could not record that $dev was repaired"
         return 0
       fi
       ;;
@@ -245,7 +247,7 @@ mount_card() {
   else
     status=$?
     if [ "$status" = 1 ]; then
-      rm -f -- "$SD_REPAIR_STATE"
+      rm -f -- "$SD_REPAIR_STATE" "$SD_REPAIRED_STATE"
       if mountpoint -q "$SD_MOUNT"; then
         log "SD2 card was removed; lazily unmounting $SD_MOUNT"
         umount -l "$SD_MOUNT"

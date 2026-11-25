@@ -98,7 +98,10 @@ shared SD helper reads the volume's dirty
 flag (exFAT VolumeFlags, FAT boot-sector state) and, if it is set, runs
 `fsck.exfat -p` or `fsck.vfat -a` with a 60 s timeout (killed 5 s later if it
 ignores the stop), logging the result. Only a check that leaves the flag clear
-counts as a repair, since exit code 1 also covers read errors. A
+counts as a repair, since exit code 1 also covers read errors. A repair writes
+`/run/octessera-sd-card.repaired` (device and disk sequence); the app shows
+`SD card checked and repaired` once per new value, and pulling the card clears
+it. A
 failed or timed-out check leaves SD2 unmounted and writes
 `/run/octessera-sd-card.needs-repair`, so the sample browser says the card
 needs repair; the marker goes when a card mounts or the slot is empty.

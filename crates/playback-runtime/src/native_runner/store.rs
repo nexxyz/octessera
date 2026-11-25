@@ -250,6 +250,10 @@ impl NativeRunner {
                 self.reload_sd_card_samples();
                 Ok(())
             }
+            RuntimeStoreResult::SdCardRepaired => {
+                self.show_toast("SD card checked and repaired");
+                Ok(())
+            }
             RuntimeStoreResult::Identified { .. }
             | RuntimeStoreResult::OperationSucceeded { .. }
             | RuntimeStoreResult::SamplePreviewError { .. } => Ok(()),

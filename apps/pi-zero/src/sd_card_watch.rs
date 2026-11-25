@@ -1,5 +1,6 @@
 //! Notices a card being mounted in the OLED board's SD slot (SD2), so the runtime loads the
-//! patch's card samples that are not loaded yet.
+//! patch's card samples that are not loaded yet, and a card the SD helper's pre-mount check
+//! repaired, so the runtime says so once.
 
 use playback_runtime::{HostMessage, RuntimeStoreResult};
 use std::path::{Path, PathBuf};
@@ -7,10 +8,14 @@ use std::time::{Duration, Instant};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 const MOUNTINFO_PATH: &str = "/proc/self/mountinfo";
+/// Written by the SD helper after a repair that left the card clean: device and disk sequence.
+const REPAIR_MARKER_PATH: &str = "/run/octessera-sd-card.repaired";
 
 pub(crate) struct SdCardWatch {
     mount_point: PathBuf,
     mounted: Option<String>,
+    repair_marker: PathBuf,
+    repair_shown: Option<String>,
     next_poll: Instant,
 }
 
@@ -20,6 +25,8 @@ impl SdCardWatch {
         Self {
             mounted: current_card(&mount_point),
             mount_point,
+            repair_marker: REPAIR_MARKER_PATH.into(),
+            repair_shown: None,
             next_poll: Instant::now() + POLL_INTERVAL,
         }
     }
@@ -30,6 +37,7 @@ impl SdCardWatch {
         }
         self.next_poll = now + POLL_INTERVAL;
         self.observe(current_card(&self.mount_point))
+            .or_else(|| self.observe_repair(std::fs::read_to_string(&self.repair_marker).ok()))
     }
 
     fn observe(&mut self, mounted: Option<String>) -> Option<HostMessage> {
@@ -37,6 +45,19 @@ impl SdCardWatch {
         self.mounted = mounted;
         arrived.then_some(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::SdCardMounted,
+        })
+    }
+
+    fn observe_repair(&mut self, marker: Option<String>) -> Option<HostMessage> {
+        let repair = marker
+            .map(|marker| marker.trim().to_string())
+            .filter(|marker| !marker.is_empty())?;
+        if self.repair_shown.as_ref() == Some(&repair) {
+            return None;
+        }
+        self.repair_shown = Some(repair);
+        Some(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SdCardRepaired,
         })
     }
 }
@@ -83,6 +104,8 @@ mod tests {
         SdCardWatch {
             mount_point: CARD.into(),
             mounted: None,
+            repair_marker: "/nonexistent/octessera-test-repair-marker".into(),
+            repair_shown: None,
             next_poll: Instant::now(),
         }
     }
@@ -136,6 +159,36 @@ mod tests {
             mountinfo(41),
         ];
         assert_eq!(mounts(&mut watch, &pulled_then_checked_then_mounted), 1);
+    }
+
+    fn repairs(watch: &mut SdCardWatch, markers: &[Option<&str>]) -> usize {
+        markers
+            .iter()
+            .filter_map(|marker| watch.observe_repair(marker.map(str::to_string)))
+            .filter(|message| {
+                matches!(
+                    message,
+                    HostMessage::RuntimeResult {
+                        result: RuntimeStoreResult::SdCardRepaired
+                    }
+                )
+            })
+            .count()
+    }
+
+    #[test]
+    fn each_repair_is_reported_once() {
+        let mut watch = watch();
+        assert_eq!(repairs(&mut watch, &[None, Some(""), Some("\n")]), 0);
+        assert_eq!(
+            repairs(
+                &mut watch,
+                &[Some("/dev/mmcblk2p1 7\n"), Some("/dev/mmcblk2p1 7\n"), None]
+            ),
+            1
+        );
+        assert_eq!(repairs(&mut watch, &[Some("/dev/mmcblk2p1 7\n")]), 0);
+        assert_eq!(repairs(&mut watch, &[Some("/dev/mmcblk2p1 9\n")]), 1);
     }
 
     #[test]

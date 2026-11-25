@@ -125,6 +125,8 @@ pub enum RuntimeStoreResult {
     },
     /// An OLED board SD card (SD2) was mounted.
     SdCardMounted,
+    /// The pre-mount check of the OLED board SD card (SD2) repaired it.
+    SdCardRepaired,
     DeviceUpdateStatus {
         ok: bool,
         message: String,
@@ -229,9 +231,10 @@ impl RuntimeStoreResult {
             Self::SamplePreviewError { .. } | Self::SamplePreviewStarted { .. } => {
                 RuntimeOperation::SamplePreview
             }
-            Self::SamplesMissing { .. } | Self::SamplesLoaded { .. } | Self::SdCardMounted => {
-                RuntimeOperation::AudioCommand
-            }
+            Self::SamplesMissing { .. }
+            | Self::SamplesLoaded { .. }
+            | Self::SdCardMounted
+            | Self::SdCardRepaired => RuntimeOperation::AudioCommand,
             Self::DeviceUpdateStatus { .. } => RuntimeOperation::DeviceUpdate,
             Self::RecordingStatus { .. } => RuntimeOperation::Recording,
             Self::SystemInfoResult { .. } | Self::SystemInfoError { .. } => {
@@ -365,6 +368,7 @@ impl RuntimeStoreResult {
             | Self::SamplesMissing { .. }
             | Self::SamplesLoaded { .. }
             | Self::SdCardMounted
+            | Self::SdCardRepaired
             | Self::DeviceUpdateStatus { .. }
             | Self::DeviceConfigStatus { .. }
             | Self::RecordingStatus { .. }

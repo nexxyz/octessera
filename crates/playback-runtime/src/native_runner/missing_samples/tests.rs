@@ -194,3 +194,17 @@ fn a_reload_of_one_instrument_does_not_mark_another_instrument_playing_the_same_
         NativeSampleAvailability::Available
     );
 }
+
+#[test]
+fn a_repaired_sd_card_says_so_in_a_toast() {
+    let mut runner = runner_with_an_sd_card_sample();
+    runner
+        .send(HostMessage::RuntimeResult {
+            result: RuntimeStoreResult::SdCardRepaired,
+        })
+        .unwrap();
+    assert_eq!(
+        runner.display.toast.as_ref().unwrap().message,
+        "SD card checked and repaired"
+    );
+}

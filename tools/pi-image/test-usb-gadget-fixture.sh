@@ -338,6 +338,7 @@ run_action() {
         "FAKE_CHOWN_LOG=$root/chown.log" \
         "FAKE_SYSTEMCTL_LOG=$root/systemctl.log" \
         "SD_REPAIR_STATE=$root/needs-repair" \
+        "SD_REPAIRED_STATE=$root/repaired" \
         "$@" \
         "OCTESSERA_USB_CONFIG=$config" \
         "OCTESSERA_DEVICE_CONFIG_VALIDATOR=$SCRIPT_DIR/stage4-octessera/files/root/usr/local/lib/octessera/device_config.py" \

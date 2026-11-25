@@ -32,7 +32,8 @@ SD_MOUNT="$OCTESSERA_SD_MOUNT"
 SD_OWNER="$OCTESSERA_SD_OWNER"
 STORAGE_STATE="$work/storage.state"
 SD_REPAIR_STATE="$work/needs-repair"
-: "$SD_MOUNT" "$SD_OWNER" "$STORAGE_STATE" "$SD_REPAIR_STATE"
+SD_REPAIRED_STATE="$work/repaired"
+: "$SD_MOUNT" "$SD_OWNER" "$STORAGE_STATE" "$SD_REPAIR_STATE" "$SD_REPAIRED_STATE"
 # shellcheck source=tools/storage/octessera-sd-card-lib.sh
 source "$library"
 
@@ -171,10 +172,12 @@ test "$(cat "$SD_DISKSEQ_STATE")" = 8
 
 probe '' ''
 printf '%s\n' /dev/sdb1 > "$SD_REPAIR_STATE"
+printf '%s\n' '/dev/sdb1 8' > "$SD_REPAIRED_STATE"
 mount_card
 test "$lazy_unmounts" = 2
 test ! -e "$mount_marker"
 test ! -e "$SD_REPAIR_STATE"
+test ! -e "$SD_REPAIRED_STATE"
 mount_card
 test "$lazy_unmounts" = 2
 
@@ -229,10 +232,12 @@ fresh_mount() {
   printf '%s\n' "$2" > "$work/sector"
 }
 
+rm -f "$SD_REPAIRED_STATE"
 fresh_mount vfat 0
 remount_card /dev/sdb1
 test -e "$mount_marker"
 test ! -e "$work/fsck.log"
+test ! -e "$SD_REPAIRED_STATE"
 test "$(head -n 1 "$work/mount.log")" = "-o ro,uid=octessera-runtime,gid=octessera-runtime,umask=002,nosuid,nodev,noexec /dev/sdb1 $OCTESSERA_SD_MOUNT"
 test "$(sed -n 2,3p "$work/mount.log")" = "-o remount,rw $OCTESSERA_SD_MOUNT
 -o remount,ro $OCTESSERA_SD_MOUNT"
@@ -245,6 +250,7 @@ fresh_mount vfat 1
 remount_card /dev/sdb1
 test -e "$mount_marker"
 grep -qx 'fsck.vfat -a /dev/sdb1' "$work/fsck.log"
+grep -qx "/dev/sdb1 $card_sequence" "$SD_REPAIRED_STATE"
 
 fat16_size=32
 fresh_mount vfat 1
@@ -264,6 +270,7 @@ fresh_mount exfat 1
 remount_card /dev/sdb1
 test ! -e "$work/fsck.log"
 
+rm -f "$SD_REPAIRED_STATE"
 fresh_mount vfat 1
 export FAKE_FSCK_STATUS=4
 if remount_card /dev/sdb1; then
@@ -272,6 +279,7 @@ if remount_card /dev/sdb1; then
 fi
 test ! -e "$mount_marker"
 grep -qx /dev/sdb1 "$SD_REPAIR_STATE"
+test ! -e "$SD_REPAIRED_STATE"
 unset FAKE_FSCK_STATUS
 fresh_mount vfat 1
 remount_card /dev/sdb1

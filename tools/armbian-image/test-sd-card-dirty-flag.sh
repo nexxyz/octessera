@@ -12,7 +12,8 @@ SD_MOUNT="$work/mount"
 SD_OWNER=root
 STORAGE_STATE="$work/storage.state"
 SD_REPAIR_STATE="$work/needs-repair"
-: "$SD_MOUNT" "$SD_OWNER" "$STORAGE_STATE" "$SD_REPAIR_STATE"
+SD_REPAIRED_STATE="$work/repaired"
+: "$SD_MOUNT" "$SD_OWNER" "$STORAGE_STATE" "$SD_REPAIR_STATE" "$SD_REPAIRED_STATE"
 # shellcheck source=tools/storage/octessera-sd-card-lib.sh
 source "$root/tools/storage/octessera-sd-card-lib.sh"
 logger() { :; }
