@@ -2,10 +2,9 @@ use super::grid_assign::GridAssign;
 use super::play_fx::config::PlayFxConfig;
 use super::NativeHdmiMode;
 use super::{
-    prepare_config_payload, prepare_patch_payload, ConfigDto, ConfigurationAggregate,
-    ConfigurationRuntimePlan, NativePlayFxAssignment, NativeRunner, NativeRunnerConfig,
-    PlayConfigDto, PlayFxDto, PreparedConfigPayload, RuntimeConfigDto, Value,
-    DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
+    prepare_config_payload, prepare_patch_payload, ConfigDto, ConfigurationRuntimePlan,
+    NativePlayFxAssignment, NativeRunner, NativeRunnerConfig, PlayConfigDto, PlayFxDto,
+    PreparedConfigPayload, RuntimeConfigDto, Value, DEFAULT_ALGORITHM_STEP_RED, GRID_HEIGHT,
 };
 
 impl NativeRunner {
@@ -29,7 +28,7 @@ impl NativeRunner {
             self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
-        self.commit_transaction_candidate(candidate, source_revision, &before, plan, false)?;
+        self.commit_transaction_candidate(candidate, source_revision, plan)?;
         Ok(())
     }
 
@@ -117,20 +116,9 @@ impl NativeRunner {
         &mut self,
         mut candidate: NativeRunner,
         source_revision: Option<u64>,
-        before: &ConfigurationAggregate,
         plan: ConfigurationRuntimePlan,
-        patch_load: bool,
     ) -> Result<(), String> {
         let ended_live = std::mem::take(&mut self.play_live);
-        if before == &candidate.configuration_aggregate() {
-            // Loading the patch that already plays still starts it afresh.
-            if patch_load {
-                self.drain_all_layer_notes();
-            }
-            self.commit_loaded_revision(source_revision);
-            self.restore_after_live_play(&ended_live);
-            return Ok(());
-        }
         self.drain_all_layer_notes();
         candidate.transpose.pending_note_offs = self.transpose.pending_note_offs.clone();
         candidate.held_keys = std::mem::take(&mut self.held_keys);
@@ -214,7 +202,7 @@ impl NativeRunner {
             self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
-        self.commit_transaction_candidate(candidate, source_revision, &before, plan, true)?;
+        self.commit_transaction_candidate(candidate, source_revision, plan)?;
         Ok(())
     }
 
@@ -231,7 +219,7 @@ impl NativeRunner {
             self.audio_revisions.revision,
         );
         let source_revision = prepared.source_revision;
-        self.commit_transaction_candidate(candidate, source_revision, &before, plan, true)?;
+        self.commit_transaction_candidate(candidate, source_revision, plan)?;
         Ok(())
     }
 

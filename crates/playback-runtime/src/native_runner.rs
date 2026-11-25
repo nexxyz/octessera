@@ -251,7 +251,7 @@ use binding_specs::*;
 use config_dto::*;
 use config_schema::*;
 use config_schema_validation::*;
-use configuration_transaction::{ConfigurationAggregate, ConfigurationRuntimePlan};
+use configuration_transaction::ConfigurationRuntimePlan;
 use display_transients::{DisplayTransientPresentation, TransportFlash};
 use factory_payload::*;
 use fx_bus_config::*;

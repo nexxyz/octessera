@@ -18,15 +18,16 @@ fn shift_press(runner: &mut NativeRunner, x: usize, y: usize) -> Vec<RunnerMessa
     messages
 }
 
+fn open_mix_page(runner: &mut NativeRunner) {
+    let _ = device_input(runner, json!({ "type": "button_fn", "pressed": true }));
+    let _ = device_input(runner, json!({ "type": "grid_press", "x": 7, "y": 0 }));
+    let _ = device_input(runner, json!({ "type": "button_fn", "pressed": false }));
+    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Mix));
+}
+
 fn mix_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    let _ = device_input(&mut runner, json!({ "type": "button_fn", "pressed": true }));
-    let _ = device_input(&mut runner, json!({ "type": "grid_press", "x": 7, "y": 0 }));
-    let _ = device_input(
-        &mut runner,
-        json!({ "type": "button_fn", "pressed": false }),
-    );
-    assert_eq!(runner.active_play_mode, ActivePlayMode::Page(PlayMode::Mix));
+    open_mix_page(&mut runner);
     let _ = runner.messages_with_snapshot().unwrap();
     runner.config_dirty = false;
     runner.dirty_revision = None;
@@ -183,6 +184,7 @@ fn patch_load_and_clear_all_unmute_buses() {
     let volume = f64::from(runner.fx_buses[2].volume_pct);
     assert_eq!(engine_bus_volumes(&loaded, 2).last(), Some(&volume));
 
+    open_mix_page(&mut runner);
     let _ = shift_press(&mut runner, 3, 0);
     assert!(runner.bus_muted(3));
     runner.clear_patch_state().unwrap();
