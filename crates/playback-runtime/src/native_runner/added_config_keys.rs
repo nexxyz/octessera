@@ -11,7 +11,7 @@ struct AddedKey {
     default: fn() -> Value,
 }
 
-const ADDED_RUNTIME_KEYS: [AddedKey; 7] = [
+const ADDED_RUNTIME_KEYS: [AddedKey; 8] = [
     AddedKey {
         kinds: SYSTEM_DOCUMENTS,
         path: &["midi", "notesIn"],
