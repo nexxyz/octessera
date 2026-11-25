@@ -158,7 +158,8 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   memory: a note-on from the lane first sends a note-off for that note, so the new note replaces
   it, and a note-off from the lane ends that note and its sample pad, not the pitch of the tile
   it fires on. A Hold instrument usually wants `mono`, because a poly Off carries the dark tile's
-  pitch, which on a row scan with default Y Steps is not the held note's. A row of `none` does nothing either way. Direct layers are unchanged.
+  pitch, which on a row scan with default Y Steps is not the held note's. A row of `none` does
+  nothing either way. Direct layers are unchanged.
 - A change to where the layer's presses and releases go, from the menu or a CC, Aux or Fader
   binding alike, drains the instruments the layer's note-on rows played before the change: a
   row's Inst or Trig, Note Preview, Scan Mode on or off, Scan Axis, Sections, Lanes, the Arp
