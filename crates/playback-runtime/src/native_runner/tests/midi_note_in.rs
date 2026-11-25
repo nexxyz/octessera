@@ -214,6 +214,34 @@ fn a_patch_load_releases_held_keyboard_notes() {
 }
 
 #[test]
+fn a_patch_load_ends_each_held_midi_instrument_note_exactly_once() {
+    let mut runner = keyboard_runner("keys");
+    let held = [60, 64, 67];
+    for note in held {
+        send_note(&mut runner, [0x92, note, 90]);
+    }
+    let payload = runner.config_payload();
+
+    runner.apply_config_payload(payload).unwrap();
+    let mut messages = runner.messages_without_snapshot().unwrap();
+    messages.extend(runner.send(HostMessage::TransportStop).unwrap());
+
+    let offs = midi(&messages);
+    for note in held {
+        let ends = offs
+            .iter()
+            .filter(|event| **event == note_off(MIDI_OUT_CHANNEL, note))
+            .count();
+        assert_eq!(ends, 1, "note {note}: {offs:?}");
+    }
+    assert_eq!(offs.len(), held.len(), "{offs:?}");
+    for note in held {
+        let messages = send_note(&mut runner, [0x82, note, 0]);
+        assert!(midi(&messages).is_empty(), "note {note} was left held");
+    }
+}
+
+#[test]
 fn notes_in_off_ignores_notes_and_switching_it_off_releases_held_ones() {
     let mut runner = keyboard_runner("keys");
     assert_eq!(runner.menu.value_for_key(NOTES_IN).as_deref(), Some("true"));
