@@ -316,7 +316,8 @@ tools/board-dev/board-scenarios.sh opi "$OrangeTarget"
 
 Name scenarios to run a subset: `boot save_restore recording oled soak keymap
 presets stop_save show_mode update_fail fuzz resets bad_stores full_card usb_midi
-usb_midi_cc usb_looper usb_notes_in usb_audio usb_audio_fx`.
+usb_midi_cc usb_looper usb_notes_in usb_hold_trig usb_echo_repeat usb_two_layers tempo_mod usb_audio
+usb_audio_fx`.
 
 - `boot` reboots the board and only reads the live service: kernel, splash,
   service, audio and menu-ready times from the journal and readiness marker, an
@@ -461,7 +462,7 @@ Backup and restore over HTTP needs the transfer code that only the OLED shows;
 `user_data_transfer` and `user_data_restore` tests cover the interrupted upload,
 the staging leftovers and the restore.
 
-`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_hold_trig`, `usb_echo_repeat`, `tempo_mod`, `usb_audio` and `usb_audio_fx` are driven from this
+`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_hold_trig`, `usb_echo_repeat`, `usb_two_layers`, `tempo_mod`, `usb_audio` and `usb_audio_fx` are driven from this
 host over the board's USB connection, so plug both boards in and install `python-rtmidi`,
 `sounddevice` and `numpy` (`pip install python-rtmidi sounddevice numpy`);
 `ffmpeg` decodes the recording. The payload waits at a gate for each host
@@ -499,8 +500,8 @@ on the Orange, `Octessera Line In` on the Raspberry).
 - `usb_notes_in` is the `usb_midi` rig with slot 1 a Synth with Hold and L1
   stepping slot 5, a MIDI Inst. on channel 1, on a tile that plays note 60.
   The host plays 20 keys, then 10 with every note echoed back after 5 ms,
-  holds key 60 (more than 1 s after the last sequenced note 60, since MIDI In
-  drops a note-on of a key Octessera itself played within the last second)
+  holds key 60 (well over 250 ms after the last sequenced note 60, since MIDI In
+  drops a note-on of a key Octessera itself played within the last 250 ms)
   and releases it 2 ms after the sequenced note-off of note 60,
   then plays 10 with an 80 ms echo and sends Stop. Every key needs its mirrored
   note-on and a note-off within 1 s of the release, the echoed keys at most 2
@@ -516,20 +517,32 @@ on the Orange, `Octessera Line In` on the Raspberry).
   Preview on, On none, Hold Trig = note on and Off = note off for slot 1, a
   Synth with Hold, seeded with a diagonal of three cells whose middle one stays
   lit for one step and then dies. (With Off at `none` a Hold Trig note keeps
-  sounding by design: nothing releases a key no Off reaches.) `host_usb_midi.py ... hold_trig` clocks 100 BPM for 6 s. The mirrored
-  Hold note must end while the clock still runs, at least 1 s before Stop.
+  sounding by design: nothing releases a key no Off reaches.) `host_usb_midi.py ... hold_trig` clocks 100 BPM for 6 s. Exactly
+  one mirrored Hold note must sound, last the one step its tile stays lit
+  (a 1/16 at 100 BPM, 150 ± 3 ms) and end at least 1 s before Stop.
   A case listed in `EXPECTED_FAIL` in `board-scenarios-check.py` reports
   `XFAIL` while it fails and `XPASS` once it passes; neither counts as FAIL.
 - `usb_echo_repeat` is the `usb_midi` rig with Notes In on and L1 stepping C4
   every 1/16 on slot 1 (One-Shot Len 150 ms), first a MIDI Inst. on channel 1,
   then a Synth mirrored by Send MIDI all inst. `host_usb_midi_echo.py` clocks
   120 BPM for 4 s while it echoes every note back after 3 ms, then sends Stop
-  and echoes for 3 s more: one C4 per step (32) and none after Stop. With the
-  MIDI Inst. it then plays, echo off and stopped, 10 key 60 presses 40 ms
-  apart, which must all be forwarded, and one key 60 press 300 ms after a
-  sequenced C4, which must not be (the 1 s own-note rule), and key 60 held
+  and echoes for 3 s more: one C4 per step (32), none after Stop, and no
+  echoed note-off cutting a C4 short: before Stop every C4 note-off must pair
+  with a C4 note-on, and each note so paired must last at least 100 ms (its
+  One-Shot Len is 150 ms). With the MIDI Inst. it then plays, echo off and stopped, 10
+  key 60 presses 60 ms apart, which must all be forwarded (the loop cap only
+  stops steady repeats under 40 ms), and one key 60 press 150 ms after a
+  sequenced C4, which must not be (the 250 ms own-note rule), and key 60 held
   for 1 s through a 300 ms echo, which must be forwarded as exactly one
   note-on and one note-off.
+- `usb_two_layers` is the `usb_midi` rig with slot 1 a Synth with Hold,
+  mirrored by Send MIDI all inst., and two scanning layers on one pitch: L1
+  lights row 0 columns 1-4 and L2 columns 3-6 at 1/8, every tile on note 60.
+  `host_usb_midi_layers.py` clocks 100 BPM for five 8-step passes, first with
+  L1 selected, then with L2. In passes 2-4 note 60 must be released by each
+  pass's last step and every pass must play the same note-ons and note-offs
+  on the same steps; nothing may sound after Stop, and the pass pattern must
+  be the same whichever layer is selected.
 - `tempo_mod` plays the store's own patch on the board's internal clock with
   Clock Out on USB MIDI, Link LFO 1 on BPM (1/4, depth 75%) and CC1 on BPM.
   `host_usb_midi.py ... tempo_mod` sends no clock: it sweeps CC1 0-127-0 (254

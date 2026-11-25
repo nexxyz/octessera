@@ -8,7 +8,7 @@ looper: 100 BPM for four passes of an 8-step 1/8 Looper, keyboard notes on chann
 in step 3 and late in step 5, and one more after Stop. notes_in: 20 keyboard notes, 10 with every
 note echoed back after 5 ms, a key released just after the sequenced note-off of the same note, then
 10 echoed after 80 ms and Stop. hold_trig: 100 BPM for 6 s while the board's Life layer lights one tile
-for a step and goes dark; its Hold note must end while the clock still runs. tempo_mod: no clock; on the board's own clock, with an LFO and CC1 both
+for a step and goes dark; its one Hold note must last that step (a 1/16 at 100 BPM, 150 ms). tempo_mod: no clock; on the board's own clock, with an LFO and CC1 both
 on BPM, four fast CC1 sweeps, the last held at 64, then 6 s of the board's clock out. Every incoming message is stamped with perf_counter while the same loop
 sends the clock, so the stamps share the clock's time base. Intervals near a clock pulse the host
 itself sent more than 1 ms late are left out of the interval checks and counted. Needs python-rtmidi.
@@ -25,6 +25,7 @@ DRUM, MIDI_DRUM = 0, 9
 TOLERANCE_MS = 2.0
 HOST_LATE_S = 0.001
 DURATION_TOLERANCE_MS = 3.0
+HOLD_TRIG_STEP_MS = 60000 / 100 / 4
 CC_STEPS = [(0.0, 16), (12.0, 48), (24.0, 96)]
 # One 1/8 step at 100 BPM plus a margin: a CC applies from the next step on.
 CC_SETTLE_S = 0.35
@@ -106,8 +107,8 @@ def drive(name, segments, sends=(), react=None, clock=True):
     until(stop + 3.0)
     midi_in.close_port()
     midi_out.close_port()
-    return {"start": sent, "stop": stop, "ticks": ticks, "changes": changes, "received": received, "host_late": late,
-            "sent": sent_log, "ccs": [(t, message[2]) for t, message in sent_log if message[0] == 0xB0]}
+    return {"start": sent, "origin": origin, "stop": stop, "ticks": ticks, "changes": changes, "received": received,
+            "host_late": late, "sent": sent_log, "ccs": [(t, message[2]) for t, message in sent_log if message[0] == 0xB0]}
 
 
 def notes(received):
@@ -193,7 +194,9 @@ def analyze_looper(run):
 def analyze_notes_in(run):
     problems, metrics = [], {}
     found = [n for n in notes(run["received"]) if n[0] == DRUM]
-    origin = run["start"]
+    # Keys go out at their offsets from the origin the sends are scheduled on, which Start follows by up
+    # to a millisecond; the Orange mirrors a key in less than that.
+    origin = run["origin"]
     open_keys = [k for k in NOTES_PLAIN if not any(n[1] == k[1] and k[0] <= n[2] - origin <= k[0] + 0.1
                                                    and n[3] is not None and n[3] - origin <= k[0] + 0.15 + 1.0 for n in found)]
     metrics["plain_unreleased"] = len(open_keys)
@@ -252,7 +255,8 @@ def analyze_tempo(run):
 
 
 def analyze_hold_trig(run):
-    """Every mirrored Hold note must end while the clock still runs, at least 1 s before Stop."""
+    """One mirrored Hold note, held for the one step its tile stays lit and ended by its Off when the tile
+    goes dark, well before Stop."""
     found = [n for n in notes(run["received"]) if n[0] == DRUM]
     hanging = [n for n in found if n[3] is None or n[3] > run["stop"] - 1.0]
     metrics = {"notes": [[n[1], round(n[2] - run["start"], 3), None if n[3] is None else round(n[3] - run["start"], 3)]
@@ -260,6 +264,9 @@ def analyze_hold_trig(run):
     problems = [] if found else ["no Hold note sounded: the case did not set up its tile"]
     if hanging:
         problems.append(f"{len(hanging)} Hold notes still sounded 1 s before Stop, after the grid went dark: {metrics['notes'][:4]}")
+    lengths = [(n[3] - n[2]) * 1000 for n in found if n[3] is not None]
+    if len(found) != 1 or any(abs(d - HOLD_TRIG_STEP_MS) > DURATION_TOLERANCE_MS for d in lengths):
+        problems.append(f"Hold notes {metrics['notes'][:4]}: not one note of one step ({HOLD_TRIG_STEP_MS} ms)")
     return problems, metrics
 
 

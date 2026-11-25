@@ -27,6 +27,9 @@ setups:
   usb_echo_midi   the usb_midi rig; slot 1 a MIDI Inst. on channel 1, Notes In on; L1 steps C4 on slot 1
                   every 1/16 (all of row 0 plays note 60) with One-Shot Len 150 ms
   usb_echo_synth  usb_echo_midi with slot 1 a Synth instead, mirrored by Send MIDI all inst.
+  usb_two_layers_l1  the usb_midi rig; slot 1 a Synth with Hold, mirrored by Send MIDI all inst.; L1 scans
+                  row 0 columns 0-3 and L2 columns 2-5 on slot 1, every tile playing note 60; L1 selected
+  usb_two_layers_l2  usb_two_layers_l1 with L2 selected
   tempo_mod       the store's own patch with Auto Save on, internal clock with Clock Out on USB MIDI,
                   Link LFO 1 on BPM (1/4, depth 75%) and CC1 (any channel) on BPM
   presets         Auto Save on, View on Back off, keyboard capture allowed; presets A and AB, the
@@ -196,6 +199,14 @@ def main():
             instruments[0]["midi"].update(enabled=True, channel=1)
         else:
             instruments[0].update(type="synth", name="Synth", autoName=True, noteBehavior="oneshot")
+    elif setup.startswith("usb_two_layers"):
+        midi_rig(config)
+        instruments[0].update(type="synth", name="Synth", autoName=True, noteBehavior="hold")
+        patch_layers(music, {0: (0, {(x, 0) for x in range(4)}), 1: (0, {(x, 0) for x in range(2, 6)})})
+        for layer in music["layers"][:2]:
+            chromatic(layer)
+            layer["link"]["x"]["pitch"]["steps"] = 0
+        music["activeLayerIndex"] = 0 if setup.endswith("l1") else 1
     elif setup == "tempo_mod":
         config.update(autoSaveDefault=True, perfViewOnBack=False)
         allow_keyboard(config)

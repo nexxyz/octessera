@@ -8,7 +8,7 @@
 #   board-scenarios-payload.sh <rpi|opi> <root> boot
 #   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap presets
 #     stop_save show_mode update_fail fuzz resets bad_stores full_card
-#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_hold_trig|usb_echo_repeat|tempo_mod|usb_audio|usb_audio_fx
+#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_hold_trig|usb_echo_repeat|usb_two_layers|tempo_mod|usb_audio|usb_audio_fx
 # Root reads privileged files; the redirects deliberately write as the unprivileged payload user.
 # shellcheck disable=SC2024
 set -u
@@ -356,6 +356,14 @@ usb_echo_repeat() {
   start OCTESSERA_RUNTIME_TIMING_TRACE=1 || return
   sleep 5
   gate usb_echo_synth
+}
+# The same two layers on one pitch, first with L1 selected, then with L2.
+usb_two_layers() {
+  usb_midi_phase usb_two_layers_l1 || return
+  prepare usb_two_layers_l2
+  start OCTESSERA_RUNTIME_TIMING_TRACE=1 || return
+  sleep 5
+  gate usb_two_layers_l2
 }
 # The store's own patch plays on the board's clock while the host sweeps CC1 over BPM against a BPM
 # LFO; after the host is done, Stop, and the saved patch must hold the last CC's BPM.

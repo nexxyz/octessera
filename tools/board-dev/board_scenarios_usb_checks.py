@@ -149,6 +149,19 @@ def usb_hold_trig(board, out):
     return host_midi(out, "usb_hold_trig")
 
 
+def usb_two_layers(board, out):
+    """Each selection's own checks, plus one pass pattern whichever layer is selected."""
+    problems, evidence, patterns = [], [], {}
+    for selected in ("l1", "l2"):
+        more, shown = host_midi(out, f"usb_two_layers_{selected}")
+        problems += [f"{selected}: {p}" for p in more]
+        evidence.append(f"{selected} {shown}")
+        patterns[selected] = json.loads((out / f"usb-midi-two_layers_{selected}.json").read_text())["metrics"].get("pattern")
+    if patterns["l1"] != patterns["l2"]:
+        problems.append(f"the pass plays {patterns['l1']} with L1 selected but {patterns['l2']} with L2 selected")
+    return problems, "; ".join(evidence)
+
+
 def usb_echo_repeat(board, out):
     problems, evidence = [], []
     for setup in ("usb_echo_midi", "usb_echo_synth"):
