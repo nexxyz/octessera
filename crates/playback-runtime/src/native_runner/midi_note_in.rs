@@ -42,6 +42,7 @@ impl NativeRunner {
                 slot: note.channel,
                 pitch: note.note,
                 pad: None,
+                tile: None,
             });
         }
         self.drop_muted_midi_note_ons(&mut routed);
@@ -139,6 +140,7 @@ impl NativeRunner {
             sound,
             length_ms: None,
             cuts,
+            tile: None,
         }));
     }
 
@@ -165,6 +167,7 @@ impl NativeRunner {
                 slot: held.slot,
                 pitch: held.note,
                 pad: None,
+                tile: None,
             });
             self.record_keyboard_release(&held.recorded_tiles);
         }

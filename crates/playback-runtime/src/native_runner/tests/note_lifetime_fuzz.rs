@@ -1,5 +1,5 @@
-//! Seeded note lifetimes: random tile frames on four Keys layers, a Looper and a paged
-//! Sequencer, with sparse Link, instrument, behavior and transport changes made through the menu,
+//! Seeded note lifetimes: random tile frames on four Keys layers, a Looper, a paged Sequencer
+//! and a Life whose presses play at its next step, with sparse Link, instrument, behavior and transport changes made through the menu,
 //! bindings, the gate page and shortcut, Panic and Notes In. After every step a note held until
 //! its release must still have something behind it; at the end every tile goes dark and the
 //! queues run out, every key is released, every held note ended once per start, and none of it
@@ -10,7 +10,7 @@ mod setup;
 
 use super::*;
 use platform_core::DeviceInput;
-use setup::{change, fuzz_runner, Frames, Rng, Sinks, KEYS_LAYERS, LOOPER, SEQUENCER};
+use setup::{change, fuzz_runner, Frames, Rng, Sinks, KEYS_LAYERS, LIFE, LOOPER, SEQUENCER};
 
 const STEP: u32 = 24;
 const STEPS: usize = 160;
@@ -106,6 +106,13 @@ impl Run {
                 self.press(&at, layer, DeviceInput::GridPress { x, y });
                 self.press(&at, layer, DeviceInput::GridRelease { x, y });
             }
+        }
+        // Presses in one corner of Life, so some grow into blocks and blinkers.
+        for _ in 0..self.rng.below(4) {
+            let (x, y) = (self.rng.below(4) as usize, 4 + self.rng.below(4) as usize);
+            let at = format!("{step}.{LIFE}");
+            self.press(&at, LIFE, DeviceInput::GridPress { x, y });
+            self.press(&at, LIFE, DeviceInput::GridRelease { x, y });
         }
     }
 
@@ -228,8 +235,8 @@ fn play(seed: u64, selected: usize) -> (Sinks, usize) {
 }
 
 /// Every tile goes dark without a drain: the Keys layers let go, the keyboard lets up, the Looper
-/// clears its loop, the Sequencer's pages are cleared as they come round, and the queues run
-/// out.
+/// clears its loop, Life's cells are pressed out, the Sequencer's pages are cleared as they come
+/// round, and the queues run out.
 fn finish(run: &mut Run) {
     for layer in 0..KEYS_LAYERS {
         for index in 0..GRID_WIDTH * GRID_HEIGHT {
@@ -249,6 +256,11 @@ fn finish(run: &mut Run) {
         action_type: "clearLoop".into(),
     };
     run.press("dark", LOOPER, DeviceInput::BehaviorAction(clear));
+    let cells = run.runner.layers[LIFE].engine.model().unwrap().tiles;
+    for index in (0..cells.len()).filter(|index| cells[*index]) {
+        let (x, y) = (index % GRID_WIDTH, index / GRID_WIDTH);
+        run.press("dark", LIFE, DeviceInput::GridPress { x, y });
+    }
     // Each Sequencer page goes dark as it comes into view.
     for page in 0..3 {
         let tiles = run.runner.layers[SEQUENCER].engine.model().unwrap().tiles;

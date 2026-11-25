@@ -1,7 +1,7 @@
 use super::held_keys::{KeyEvent, KeyPress};
 use super::modulation::sampler::event_channel;
 use super::modulation::{apply_sampler_assignments_for_instruments_routed, RoutedMusicalEvents};
-use super::tick_keys::releases;
+use super::tick_keys::{ends_its_own_press, releases};
 use super::{ArpMode, DelayedRoutedEvents, LinkEventTiming, NativeRunner};
 use platform_core::{MusicalEvent, TileTriggerIntent, TileTriggerKind};
 
@@ -109,11 +109,10 @@ impl NativeRunner {
         note_off_due_steps: u8,
     ) {
         let released = |press: &KeyPress| {
-            routed.keys.iter().any(|event| {
-                matches!(*event, KeyEvent::Release { slot, pitch, pad }
-                    if (slot, pitch) == (press.slot, press.pitch)
-                        && pad.is_none_or(|pad| press.sound.pad() == Some(pad)))
-            })
+            routed
+                .keys
+                .iter()
+                .any(|event| ends_its_own_press(event, press))
         };
         if !routed
             .keys
@@ -339,14 +338,19 @@ fn arp_batches(events: &[MusicalEvent], intents: &[Option<TileTriggerIntent>]) -
     untagged.into_iter().chain(releases).chain(rest).collect()
 }
 
-/// A release on the layer's step drops the held presses of its key that fell due on that step
-/// from the layer's queue: the tile went dark before its delayed On sounded, so the note never
-/// starts, as when the release comes a step earlier and cancels the press while it waits.
+/// A release on the layer's step drops the held presses its own tile queued that fell due on
+/// that step: the tile went dark before its delayed On sounded, so the note never starts, as
+/// when the release comes a step earlier and cancels the press while it waits. Another tile's
+/// press of the same key still sounds.
 pub(super) fn drop_due_presses_released_by(
     due: &mut RoutedMusicalEvents,
     step: &RoutedMusicalEvents,
 ) {
-    let released = |press: &KeyPress| step.keys.iter().any(|event| releases(event, press));
+    let released = |press: &KeyPress| {
+        step.keys
+            .iter()
+            .any(|event| ends_its_own_press(event, press))
+    };
     due.keys.retain(
         |event| !matches!(event, KeyEvent::Press(press) if press.length_ms.is_none() && released(press)),
     );

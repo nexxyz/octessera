@@ -115,3 +115,27 @@ impl Serialize for ScanDirection {
         serializer.serialize_str(self.wire_name())
     }
 }
+
+/// The engine's scan line for a scanning Link: its axis, direction, sections (one is the whole
+/// grid) and whether the pitch restarts each section.
+pub(crate) fn scan_line_strategy(
+    axis: ScanAxis,
+    direction: ScanDirection,
+    sections: u8,
+    restart_pitch: bool,
+) -> platform_core::TickStrategy {
+    let sections = (sections > 1).then_some(usize::from(sections));
+    let reverse = direction == ScanDirection::Reverse;
+    match axis {
+        ScanAxis::Columns => platform_core::TickStrategy::ScanColumnActive {
+            sections,
+            reverse,
+            restart_pitch,
+        },
+        ScanAxis::Rows => platform_core::TickStrategy::ScanRowActive {
+            sections,
+            reverse,
+            restart_pitch,
+        },
+    }
+}

@@ -27,9 +27,25 @@ pub(super) fn releases_before_presses(keys: &mut [KeyEvent]) {
     }
 }
 
+/// Whether `event` releases `press` and comes from the tile that pressed it, or names no tile.
+pub(super) fn ends_its_own_press(event: &KeyEvent, press: &KeyPress) -> bool {
+    let same_tile = match (event, press.tile) {
+        (
+            KeyEvent::Release {
+                tile: Some(tile), ..
+            },
+            Some(pressed),
+        ) => *tile == pressed,
+        _ => true,
+    };
+    same_tile && releases(event, press)
+}
+
 pub(super) fn releases(event: &KeyEvent, press: &KeyPress) -> bool {
     match event {
-        KeyEvent::Release { slot, pitch, pad } => {
+        KeyEvent::Release {
+            slot, pitch, pad, ..
+        } => {
             (*slot, *pitch) == (press.slot, press.pitch)
                 && pad.is_none_or(|pad| press.sound.pad() == Some(pad))
         }

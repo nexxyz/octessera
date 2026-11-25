@@ -301,11 +301,6 @@ impl NativeRunner {
         modulation_updates: &mut Vec<(usize, Vec<platform_core::TileTriggerIntent>)>,
     ) -> Result<(), String> {
         let active_step_pulses = self.step_pulses_for_layer(self.active_layer_index);
-        if self.transport.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses {
-            // The selected layer steps on its Link as it is now, as every other layer does.
-            self.refresh_active_mapping_config();
-            self.refresh_active_interpretation_profile();
-        }
         while self.transport.layer_pulse_accumulators[self.active_layer_index] >= active_step_pulses
         {
             self.transport.layer_pulse_accumulators[self.active_layer_index] -= active_step_pulses;

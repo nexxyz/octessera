@@ -6,7 +6,7 @@ use platform_core::{MusicalEvent, NoteBehavior, TileTriggerIntent};
 
 mod tile_hits;
 use tile_hits::sampler_hit_for_intent;
-pub(in crate::native_runner) use tile_hits::{drum_hit_for_intent, tile_release};
+pub(in crate::native_runner) use tile_hits::{drum_hit_for_intent, tile_index, tile_release};
 mod intent_values;
 #[cfg(test)]
 pub(in crate::native_runner) use intent_values::value_from_lane;
@@ -160,6 +160,7 @@ pub(in crate::native_runner) fn apply_sampler_assignments_for_instruments_routed
                         slot: channel,
                         pitch: note,
                         pad,
+                        tile: Some(tile_index(intent.x, intent.y)),
                     });
                 }
             }
@@ -238,6 +239,7 @@ fn press_for_intent(
         sound,
         length_ms,
         cuts: length_ms.is_none() || note_off_cuts(instrument),
+        tile: Some(tile_index(intent.x, intent.y)),
     })
 }
 
@@ -369,6 +371,7 @@ fn route_event_without_intent(
                 slot: channel,
                 pitch: note,
                 pad: None,
+                tile: None,
             });
             return;
         }
@@ -409,6 +412,7 @@ fn route_event_without_intent(
                 sound,
                 length_ms,
                 cuts: length_ms.is_none() || instrument.is_none_or(note_off_cuts),
+                tile: None,
             }));
             return;
         }

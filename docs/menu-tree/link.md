@@ -181,7 +181,9 @@ The flat `Set` IDs used for binding and modulation are, in order: `chromatic`, `
   key, or per sound (MIDI channel and note on MIDI out): the loudest wins whole, with its
   velocity, length and tile, and the first of equals in layer order wins a tie. A second note-off
   of the key finds nothing left to end. A held press drops its layer's queued releases of that
-  key, so an Off Delay never cuts the tile's next note. A Retrig repeats a note-off too, which ends only a key pressed again in between, so on
+  key, so an Off Delay never cuts the tile's next note. A tile's Off on the step its delayed On
+  falls due drops that On, so the note never starts; another tile's On of the same key still
+  sounds. A Retrig repeats a note-off too, which ends only a key pressed again in between, so on
   an Off row it usually has no effect.
 - An Off acts only on its own Off Inst: set Off Inst to the instrument Hold Inst or On Inst plays
   to end those notes.

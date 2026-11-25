@@ -65,26 +65,17 @@ impl NativeRunner {
         let mut profile = self.base_interpretation_profile.clone();
         profile.event.enabled = sense.note_preview;
         profile.state.enabled = sense.scan_mode == ScanMode::Scanning;
-        let sections = if sense.scan_sections <= 1 {
-            None
-        } else {
-            Some(usize::from(sense.scan_sections))
-        };
         profile.state.tick = if sense.scan_mode == ScanMode::Scanning {
-            let reverse = sense.scan_direction == ScanDirection::Reverse;
-            if sense.scan_axis == ScanAxis::Columns {
-                TickStrategy::ScanColumnActive {
-                    sections,
-                    reverse,
-                    restart_pitch: sense.y_pitch_restart_each_section,
-                }
-            } else {
-                TickStrategy::ScanRowActive {
-                    sections,
-                    reverse,
-                    restart_pitch: sense.x_pitch_restart_each_section,
-                }
-            }
+            let restart_pitch = match sense.scan_axis {
+                ScanAxis::Columns => sense.y_pitch_restart_each_section,
+                ScanAxis::Rows => sense.x_pitch_restart_each_section,
+            };
+            scan_line_strategy(
+                sense.scan_axis,
+                sense.scan_direction,
+                sense.scan_sections,
+                restart_pitch,
+            )
         } else {
             TickStrategy::WholeGridTransitions
         };

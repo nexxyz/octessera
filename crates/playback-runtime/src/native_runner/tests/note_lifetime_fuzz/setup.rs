@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 pub(super) const KEYS_LAYERS: usize = 4;
 pub(super) const LOOPER: usize = 4;
 pub(super) const SEQUENCER: usize = 5;
+pub(super) const LIFE: usize = 6;
 
 pub(super) type Frames = [[bool; GRID_WIDTH * GRID_HEIGHT]; KEYS_LAYERS];
 
@@ -27,7 +28,8 @@ impl Rng {
 /// Slot 1 One-Shot Synth, 2 Hold Synth, 3 Hold Sampler with looped pads, 4 Drum, 5 Hold MIDI
 /// Inst. on channel 6 and 6 One-Shot FM; the Sampler and Drum stamp most tiles with one of four
 /// pads and leave the rightmost column unstamped. Layers 1-4 play Keys, 5 an overdubbing Looper
-/// on slot 2 and 6 a two-page Sequencer scanning on slot 3.
+/// on slot 2, 6 a two-page Sequencer scanning on slot 3 and 7 a dark, unspawning Life on slot 2
+/// with Note Preview off, so its next step plays what a press changed.
 pub(super) fn fuzz_runner() -> NativeRunner {
     let mut runner = NativeRunner::new(NativeRunnerConfig {
         behavior_id: "keys".into(),
@@ -81,10 +83,13 @@ pub(super) fn fuzz_runner() -> NativeRunner {
     let link = &mut runner.layers[SEQUENCER].link;
     set_rows(link, 2, TriggerAction::NoteOn);
     link.scan_mode = ScanMode::Scanning;
+    let dark = json!({ "cells": vec![false; GRID_WIDTH * GRID_HEIGHT], "randomCellsPerTick": 0 });
+    new_behavior(&mut runner, LIFE, NativeBehavior::Life, dark);
+    set_rows(&mut runner.layers[LIFE].link, 1, TriggerAction::NoteOn);
     for link in runner
         .layers
         .iter_mut()
-        .take(SEQUENCER + 1)
+        .take(LIFE + 1)
         .map(|layer| &mut layer.link)
     {
         link.note_preview = true;
@@ -95,6 +100,7 @@ pub(super) fn fuzz_runner() -> NativeRunner {
         // the selected layer leads; seeded ones each draw their own.
         link.seeded = true;
     }
+    runner.layers[LIFE].link.note_preview = false;
     runner.sync_engine_runtime_config();
     runner.skip_startup_splash();
     runner.send(HostMessage::TransportStop).unwrap();

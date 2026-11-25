@@ -5,8 +5,8 @@
 //! line round; an Arp Mode or Source change lets go of the keys the Arp holds.
 
 use super::{
-    link_layer_config, ArpMode, ArpSource, NativeLinkLayer, NativeRunner, ScanAxis, ScanDirection,
-    ScanLanes, ScanMode, TriggerAction, TriggerProbabilityMode,
+    link_layer_config, scan_line_strategy, ArpMode, ArpSource, NativeLinkLayer, NativeRunner,
+    ScanAxis, ScanDirection, ScanLanes, ScanMode, TriggerAction, TriggerProbabilityMode,
 };
 use platform_core::{NativeBehavior, PlayStyle};
 
@@ -46,20 +46,12 @@ impl LinkRouting {
 
     /// The scan the line ran on, as the engine reads it.
     fn scan_strategy(&self) -> platform_core::TickStrategy {
-        let sections = (self.scan_sections > 1).then_some(usize::from(self.scan_sections));
-        let reverse = self.scan_direction == ScanDirection::Reverse;
-        match self.scan_axis {
-            ScanAxis::Columns => platform_core::TickStrategy::ScanColumnActive {
-                sections,
-                reverse,
-                restart_pitch: false,
-            },
-            ScanAxis::Rows => platform_core::TickStrategy::ScanRowActive {
-                sections,
-                reverse,
-                restart_pitch: false,
-            },
-        }
+        scan_line_strategy(
+            self.scan_axis,
+            self.scan_direction,
+            self.scan_sections,
+            false,
+        )
     }
 
     /// Whether going to `after` moves where the layer's presses and releases go.

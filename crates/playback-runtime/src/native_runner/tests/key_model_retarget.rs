@@ -272,3 +272,34 @@ fn a_root_moved_by_the_selected_layers_x_binding_leaves_no_note_behind() {
     }
     assert_eq!(runner.held_keys.held_count(), 0);
 }
+
+/// On Delay 1, Keys stepping: (1, 2) lights as (5, 2), on the same row and pitch, goes dark the
+/// step its delayed On falls due. The dark tile's Off ends only its own note, so (1, 2) sounds.
+#[test]
+fn another_tiles_off_never_drops_a_lit_tiles_delayed_on() {
+    let mut runner = keys_layers(true);
+    runner.layers[0].behavior_id = "keys".into();
+    runner
+        .replace_layer_engine_with_config(
+            0,
+            NativeBehavior::Keys,
+            json!({ "quantize": "step" }),
+            None,
+        )
+        .unwrap();
+    runner.layers[0].link.activate_timing.delay_steps = 1;
+    runner.refresh_active_mapping_config();
+    runner.refresh_active_interpretation_profile();
+    let step = runner.step_pulses_for_layer(0);
+    tile(&mut runner, 0, "grid_press", 5, 2);
+    pulse(&mut runner, step);
+    tile(&mut runner, 0, "grid_press", 1, 2);
+    pulse(&mut runner, step);
+    tile(&mut runner, 0, "grid_release", 5, 2);
+    let played = pulse(&mut runner, step);
+    assert!(
+        played.iter().any(|word| word.starts_with('+')),
+        "(1, 2) sounds: {played:?}"
+    );
+    assert_eq!(runner.held_keys.held_count(), 1);
+}

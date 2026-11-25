@@ -103,6 +103,8 @@ pub(in crate::native_runner) struct KeyPress {
     /// False for a Drum or Sampler tile set to ignore note-offs: its release ends the key but
     /// leaves the sound to play out.
     pub(in crate::native_runner) cuts: bool,
+    /// The tile whose On pressed it, when a tile did.
+    pub(in crate::native_runner) tile: Option<u8>,
 }
 
 impl KeyPress {
@@ -141,6 +143,8 @@ pub(in crate::native_runner) enum KeyEvent {
         slot: u8,
         pitch: u8,
         pad: Option<u8>,
+        /// The tile whose Off sent it, when a tile did.
+        tile: Option<u8>,
     },
     /// Releases every key the slots in this bit mask hold.
     ReleaseAll {
@@ -219,7 +223,9 @@ impl HeldKeys {
                     let hold = behaviors.get(usize::from(press.slot)) == Some(&NoteBehavior::Hold);
                     self.press(press, hold, out);
                 }
-                KeyEvent::Release { slot, pitch, pad } => self.release(slot, pitch, pad, out),
+                KeyEvent::Release {
+                    slot, pitch, pad, ..
+                } => self.release(slot, pitch, pad, out),
                 KeyEvent::ReleaseAll { slots } => self.release_slots(slots, out),
                 KeyEvent::Control { midi: false, event } => out.audio.push(event),
                 KeyEvent::Control { midi: true, event } => out.midi.push(event),

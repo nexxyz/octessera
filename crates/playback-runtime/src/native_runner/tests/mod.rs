@@ -32,6 +32,7 @@ pub(super) fn arp_key(slot: u8, pitch: u8) -> crate::native_runner::held_keys::K
         },
         length_ms: None,
         cuts: true,
+        tile: None,
     }
 }
 

@@ -190,7 +190,7 @@ scan_unit	*	key:layers.*.link.scanUnit	enum	Scan Unit	How often the scan cursor 
 scan_direction	*	key:layers.*.link.scanDirection	enum	Scan Dir	forward moves the line left to right or bottom to top; reverse the other way.	A flip turns the line round where it is; it does not bounce.
 scan_sections	*	key:layers.*.link.scanSections	enum	Sections	1 scans the whole grid; 2, 4 or 8 split it into that many sections, played in sequence.	
 scan_lanes	*	key:layers.*.link.scanLanes	enum	Lanes	poly plays each tile's own note; mono plays one note per lane, each new note replacing the last.	In mono a lane's note-off ends the note and pad it started, whatever tile it fires on.
-note_preview	*	key:layers.*.link.notePreview	bool	Note Preview	A tile you press or release plays its On or Off at once, scanning or not.	Off: a press only changes the grid. The layer's own steps always play.
+note_preview	*	key:layers.*.link.notePreview	bool	Note Preview	A tile you press or release plays its On or Off at once, scanning or not.	Off: a direct layer's next step plays the press. Keys and Looper always play presses unless scanning.
 targets_group	Menu > Link > L*: * > Events > Instrument Targets		group	Instrument Targets	Which instrument each kind of trigger plays, and how.	Use note off for triggers that should end a held note.
 map_activate_action	*	key:layers.*.link.mapping.activate.action	enum	On Trig	What a tile does when it lights up: none, note on or note off.	note on starts a note; note off ends a held one.
 map_activate_slot	*	key:layers.*.link.mapping.activate.slot	enum	On Inst	The instrument a tile plays when it turns on: I1 to I8, or none.	The label shows what that slot holds now.
