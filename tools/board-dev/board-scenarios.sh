@@ -145,7 +145,8 @@ for scenario in usb_midi usb_midi_cc usb_looper usb_notes_in usb_hold_trig usb_e
     open_gate "$scenario"
     collect looper-patch.json tempo-system.json tempo-patch.json
   elif [ "$scenario" = usb_audio_hold ]; then
-    await_gate usb_audio_hold && open_gate usb_audio_hold && { python tools/board-dev/host_usb_audio.py 20 "$out/usb-audio-hold" hold || true; }
+    await_gate usb_audio_hold && open_gate usb_audio_hold && { date +%s.%N > "$out/usb-audio-hold.opened"
+      python tools/board-dev/host_usb_audio.py 24 "$out/usb-audio-hold" hold || true; }
     collect
   elif [ "$scenario" = usb_audio_fx ]; then
     await_gate usb_audio_fx && open_gate usb_audio_fx && { python tools/board-dev/host_usb_audio.py 32 "$out/usb-audio-fx" fx || true; }

@@ -549,7 +549,7 @@ on the Orange, `Octessera Line In` on the Raspberry).
   lit for one step and then dies. (With Off at `none` a Hold Trig note keeps
   sounding by design: nothing releases a key no Off reaches.) `host_usb_midi.py ... hold_trig` clocks 100 BPM for 6 s. Exactly
   one mirrored Hold note must sound, last the one step its tile stays lit
-  (a 1/16 at 100 BPM, 150 ± 3 ms) and end at least 1 s before Stop.
+  (a 1/16 at 100 BPM, 150 Â± 3 ms) and end at least 1 s before Stop.
   A case listed in `EXPECTED_FAIL` in `board-scenarios-check.py` reports
   `XFAIL` while it fails and `XPASS` once it passes; neither counts as FAIL.
 - `usb_echo_repeat` is the `usb_midi` rig with Notes In on and L1 stepping C4
@@ -607,12 +607,18 @@ on the Orange, `Octessera Line In` on the Raspberry).
   more and come back within 3 dB of it after the release, with no underruns
   while held.
 - `usb_audio_hold` is `usb_audio` with L1 scanning all of row 0 on slot 2, a
-  Sampler with Hold whose sample loops forward, routed direct so no FX tail
-  follows it: every lit step holds its note on. While `host_usb_audio.py ...
-  hold` records 20 s, `board-keys.py` taps the bottom grid row's eight keys
-  about 7 s in, so every tile goes dark while the transport runs on. The take
-  must sound at the start and stay below -60 dBFS for its last 6 s, with no
-  underruns.
+  Sampler with Hold whose row-0 slot loops a sustained sample with no silent
+  frames (the factory kick starts every retrigger with 20 ms of silence),
+  routed direct so no FX tail follows it: every lit step holds its note on. While `host_usb_audio.py ...
+  hold` records 24 s, `board-keys.py` taps the bottom grid row's eight keys
+  about 11 s after the gate opens, so every tile goes dark while the transport
+  runs on. The check places the taps in the take from the board's tap marks
+  and the host's gate and capture times, with 1 s of clock slack before them
+  and the 2 s scan pass plus 1 s after them. The take must sound in its first
+  1.5 s, have no block below -60 dBFS and no exact-zero run of 64 frames or
+  more before the taps (the sound may break up while they darken the tiles
+  one by one), stop within that window and stay below -60 dBFS for its last
+  6 s, with no underruns.
 
 Each run writes its evidence and a `summary.txt` of PASS/FAIL lines to
 `target/board-scenarios/<board>-<stamp>/`. Afterwards the payload stops any

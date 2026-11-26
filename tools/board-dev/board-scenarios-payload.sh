@@ -393,14 +393,14 @@ usb_audio_fx() {
   gate usb_audio_fx || return
   keys fx "esc*8 wait:5 shift+ctrl+/ wait:2 mark:hold hold:7:6 mark:release wait:20"
 }
-# A scanning Hold Sampler plays row 0 while the host captures USB Audio; 8 s in, the bottom grid row's
-# keys turn its tiles dark while the transport runs on.
+# A scanning Hold Sampler plays row 0 while the host captures USB Audio; about 11 s after the gate
+# opens, the bottom grid row's keys turn its tiles dark while the transport runs on.
 usb_audio_hold() {
   prepare usb_audio_hold
   gadget_from_clone
   start OCTESSERA_TIMING_AUTOPLAY=1 || return
   gate usb_audio_hold || return
-  keys dark "esc*8 wait:6 mark:dark c v b n m , . / mark:dark_done wait:14"
+  keys hold "esc*8 wait:10 mark:taps c v b n m , . / mark:taps_done wait:14"
 }
 usb_audio() {
   prepare usb_audio

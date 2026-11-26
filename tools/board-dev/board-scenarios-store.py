@@ -10,8 +10,8 @@ setups:
   usb_audio_fx    usb_audio with a tape stop on master mapped to Play FX tile (3, 3)
   usb_audio_clip  USB Audio on, Master Vol 100, eight synth notes per step pushed past full scale
   usb_audio_hold  USB Audio on, keyboard capture allowed; L1 scans all of row 0 on slot 2, a Sampler with
-                  Hold whose row-0 sample loops forward, routed direct (no FX tail), so its notes sound
-                  until an Off ends them
+                  Hold whose row-0 slot plays a sustained sample with no silent frames, looping forward
+                  and routed direct (no FX tail), so its notes sound without a gap until an Off ends them
   keymap          Auto Save on, L1 a sequencer with an empty grid, keyboard capture allowed
   usb_looper      the usb_midi rig with Auto Save on; L1 an empty 8-step 1/8 Looper on a Synth
                   with Hold, tile (x, y) playing note 60 + x + 8y
@@ -52,6 +52,9 @@ VEL_SCALE = {"invert": False, "key": "sound.velocityScalePct", "kind": "number",
 FACTORY_DEVICE = {"usb": {"dataRole": "gadget", "midiOutEnabled": False},
                   "audioOutputs": {"dac": True, "hdmi": False, "usb": False}}
 BPM = {"invert": False, "key": "transport.bpm", "kind": "number", "label": "BPM", "max": 240, "min": 40, "step": 1}
+# Sustained and free of exact-zero runs, unlike the factory kick (20 ms of leading silence on every
+# retrigger), so usb_audio_hold's dropout check sees only real gaps in the stream.
+HOLD_SAMPLE = "samples/FX/guitar-fx/a-harm.wav"
 TAPE_STOP = {"fxType": "tape_stop", "params": {"startMs": 300, "stopMs": 200}, "targetKey": "master"}
 
 
@@ -146,10 +149,10 @@ def main():
             instruments[1]["mixer"]["route"] = "direct"
             sample = instruments[1]["sample"]
             row = {a["sampleSlot"] for a in sample["assignments"] if a["y"] == 0}
-            if len(row) != 1 or not sample["slots"][row.pop()]["path"]:
-                sys.exit("usb_audio_hold needs the store's Sampler to play one sample on row 0")
-            for slot in sample["slots"]:
-                slot["loop"] = "forward"
+            if len(row) != 1:
+                sys.exit("usb_audio_hold needs the store's Sampler to play one slot on row 0")
+            sample["slots"][row.pop()].update(path=HOLD_SAMPLE, loop="forward", startPct=0, loopStartPct=0,
+                                              loopEndPct=100)
         if setup == "usb_audio_clip":
             allow_keyboard(config)
             config["masterVolume"] = 100

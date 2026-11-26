@@ -10,7 +10,9 @@ run), no exact-zero run of 64 frames or more while sounding, and no full-scale s
 it only reports the full-scale runs a clipping patch should show. With fx the take holds a tape stop
 on master: the level must fall at least 20 dB below the take's opening level for 3 s or more, then
 come back within 3 dB of it. With hold the take plays a held looping Sampler whose tiles go dark mid-take:
-it must sound at the start and stay below -60 dBFS for its last 6 s. Needs numpy and sounddevice.
+it must sound in its first 1.5 s and stay below -60 dBFS for its last 6 s; it reports when the sound
+stopped and where it broke off or ran exact zero, and the board check, which knows when the taps were,
+requires no break before the taps and the sound to stop where they were. Every take records when its capture started (epoch seconds). Needs numpy and sounddevice.
 """
 import json
 import sys
@@ -24,6 +26,9 @@ import sounddevice
 FULL_SCALE = 32767
 FX_DIP_DB = 20
 FX_DIP_S = 3
+BLOCKS_PER_S = 20
+HOLD_LOUD_DBFS = -50
+HOLD_OPENING_S = 1.5
 HOLD_SILENT_DBFS = -60
 HOLD_TAIL_S = 6
 # The first seconds after the host opens the stream are judged apart: there the board's USB stream
@@ -54,7 +59,7 @@ def runs(mask):
 
 
 def block_dbfs(level, rate):
-    block = rate // 20
+    block = rate // BLOCKS_PER_S
     return 20 * np.log10(np.sqrt(np.mean(level[: len(level) // block * block].reshape(-1, block, level.shape[1]) ** 2,
                                           axis=(1, 2))) + 1e-12)
 
@@ -79,16 +84,22 @@ def analyze_fx(level, rate):
     return problems, metrics
 
 
-def analyze_hold(level, rate):
-    """Held Sampler notes whose tiles went dark: sounding at first, silent at the end."""
+def analyze_hold(level, rate, dropouts):
+    """Held Sampler notes whose tiles went dark: sounding at first, silent at the end, with the times (s into
+    the judged take) of every quiet block and exact-zero run before the sound stopped. While the taps darken
+    the tiles one by one the sound may break up, so the board check judges those times against the taps."""
     blocks = block_dbfs(level, rate)
-    opening = float(np.median(blocks[:60]))
-    tail = float(blocks[-HOLD_TAIL_S * 20:].max())
+    opening = float(np.median(blocks[: int(HOLD_OPENING_S * BLOCKS_PER_S)]))
+    tail = float(blocks[-HOLD_TAIL_S * BLOCKS_PER_S:].max())
     loud = np.flatnonzero(blocks >= HOLD_SILENT_DBFS)
+    end = int(loud[-1]) + 1 if len(loud) else 0
+    quiet = [round(int(i) / BLOCKS_PER_S, 2) for i in np.flatnonzero(blocks[:end] < HOLD_SILENT_DBFS)]
+    zero_runs = [round(start / rate - STARTUP_S, 3) for start, _ in dropouts]
     metrics = {"opening_rms_dbfs": round(opening, 2), "tail_max_dbfs": round(tail, 2),
-               "last_sound_s": round(float(loud[-1] + 1) / 20, 2) if len(loud) else None, "seconds": round(len(blocks) / 20, 2)}
+               "last_sound_s": round(end / BLOCKS_PER_S, 2) if end else None, "quiet_block_s": quiet[:40],
+               "zero_run_s": zero_runs[:40], "seconds": round(len(blocks) / BLOCKS_PER_S, 2)}
     problems = []
-    if opening < -50:
+    if opening < HOLD_LOUD_DBFS:
         problems.append("the held Sampler is silent at the start")
     if tail >= HOLD_SILENT_DBFS:
         problems.append(f"the last {HOLD_TAIL_S} s peak at {tail:.2f} dBFS after the tiles went dark: a held note "
@@ -112,7 +123,7 @@ def analyze(path, baseline):
     if baseline == "fx":
         return analyze_fx(level, rate)
     if baseline == "hold":
-        return analyze_hold(level, rate)
+        return analyze_hold(level, rate, dropouts)
     rms = float(20 * np.log10(np.sqrt(np.mean(level ** 2)) + 1e-12))
     loud = np.abs(frames).max(axis=1) >= FULL_SCALE
     flat = [int(n) for _, n in runs(loud) if n >= 3]
@@ -149,7 +160,9 @@ def main():
     seconds, stem = float(sys.argv[1]), Path(sys.argv[2])
     baseline = None if len(sys.argv) < 4 else sys.argv[3] if sys.argv[3] in ("fx", "hold") else Path(sys.argv[3])
     wav = stem.with_suffix(".wav")
-    frames = sounddevice.rec(int((seconds + STARTUP_S) * 44100), samplerate=44100, channels=2, dtype="int16", device=device(),
+    source = device()
+    started = time.time()
+    frames = sounddevice.rec(int((seconds + STARTUP_S) * 44100), samplerate=44100, channels=2, dtype="int16", device=source,
                              extra_settings=sounddevice.WasapiSettings(exclusive=True))
     sounddevice.wait()
     with wave.open(str(wav), "wb") as take:
@@ -158,6 +171,7 @@ def main():
         take.setframerate(44100)
         take.writeframes(frames.tobytes())
     problems, metrics = analyze(wav, baseline)
+    metrics["capture_started"] = round(started, 3)
     stem.with_suffix(".json").write_text(json.dumps({"problems": problems, "metrics": metrics}))
     print(f"{'FAIL' if problems else 'PASS'} {stem.name}: {json.dumps(metrics)}")
     for problem in problems:

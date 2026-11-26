@@ -6,6 +6,9 @@ import subprocess
 
 from board_scenarios_evidence import journal, marks, window_counts, window_errors
 
+# host_usb_audio.py judges a take after its first STARTUP_S seconds.
+STARTUP_S = 2
+
 
 def usb_midi(board, out):
     problems, evidence = [], []
@@ -162,13 +165,37 @@ def usb_two_layers(board, out):
     return problems, "; ".join(evidence)
 
 
+# The board marks .go up to 1 s after the host touched it, the host notes the gate open up to about 1 s
+# after the touch, and the last tile's note ends at its next scan step, up to one 2 s pass of 8 1/8 steps.
+HOLD_MARK_SLACK_S, HOLD_RELEASE_S = 1.0, 2.0
+
+
 def usb_audio_hold(board, out):
+    """The take's own checks, plus: no quiet block or exact-zero run before the taps, and the sound stopping
+    where the board's taps turned the tiles dark. The board marks give the taps' offset from the gate, the
+    host the capture start's offset from it."""
     result = json.loads((out / "usb-audio-hold.json").read_text())
+    metrics = result["metrics"]
+    found = marks(out)
+    opened = float((out / "usb-audio-hold.opened").read_text())
+    take_start = metrics["capture_started"] + STARTUP_S - opened
+    taps = found["hold_taps"] - found["usb_audio_hold_go"] - take_start
+    done = found["hold_taps_done"] - found["usb_audio_hold_go"] - take_start
+    window = (round(taps - HOLD_MARK_SLACK_S, 2), round(done + HOLD_RELEASE_S + HOLD_MARK_SLACK_S, 2))
     underruns, _, worst, _ = window_counts(out, "usb_audio_hold_go", "usb_audio_hold_end")
     problems = result["problems"] + window_errors(out, "usb_audio_hold")
+    early = [t for t in metrics["quiet_block_s"] + metrics["zero_run_s"] if t < window[0]]
+    if early:
+        problems.append(f"the held Sampler broke off or ran exact zero at {early[:6]} s, before the taps at "
+                        f"{taps:.2f} s")
+    last = metrics["last_sound_s"]
+    if last is None or not window[0] <= last <= window[1]:
+        problems.append(f"the sound stopped at {last} s into the take, not between {window[0]} and {window[1]} s "
+                        f"where the taps turned the tiles dark")
     if underruns:
         problems.append(f"{underruns} underruns while the held Sampler played")
-    return problems, f"{json.dumps(result['metrics'])}, {underruns} underruns, worst runtime_late {worst}us"
+    return problems, (f"{json.dumps(metrics)}, taps at {taps:.2f}-{done:.2f} s into the take, {underruns} underruns, "
+                      f"worst runtime_late {worst}us")
 
 
 def usb_echo_repeat(board, out):
