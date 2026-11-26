@@ -182,8 +182,13 @@ fn the_exit_save_is_still_written_when_the_first_store_barrier_times_out() {
         .unwrap();
     entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
     let barrier_timeout = Duration::from_secs(1);
+    let queued_jobs = adapter.core.platform_service.queued_jobs_probe();
+    // A job behind the first barrier is only queued once that barrier has timed out.
     let releaser = std::thread::spawn(move || {
-        std::thread::sleep(barrier_timeout + barrier_timeout / 2);
+        let give_up = Instant::now() + 10 * barrier_timeout;
+        while queued_jobs() < 2 && Instant::now() < give_up {
+            std::thread::sleep(Duration::from_millis(5));
+        }
         release_tx.send(()).unwrap();
     });
 

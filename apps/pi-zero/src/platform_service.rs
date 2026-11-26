@@ -293,6 +293,12 @@ impl PiPlatformService {
             })
     }
 
+    #[cfg(all(test, board_not_orange))]
+    pub(crate) fn queued_jobs_probe(&self) -> impl Fn() -> usize + Send + 'static {
+        let jobs = self.jobs.clone();
+        move || jobs.queued()
+    }
+
     pub(crate) fn enqueue_barrier(&self) -> Result<Receiver<()>, String> {
         let (completed_tx, completed_rx) = runtime_handoff::bounded(1);
         let request = RuntimePlatformRequest::new(

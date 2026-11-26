@@ -111,6 +111,11 @@ impl<T> Sender<T> {
         self.shared.arrived.notify_one();
         Ok(())
     }
+
+    #[cfg(all(test, board_not_orange))]
+    pub(crate) fn queued(&self) -> usize {
+        self.shared.lock().items.len()
+    }
 }
 
 impl<T> Clone for Sender<T> {
