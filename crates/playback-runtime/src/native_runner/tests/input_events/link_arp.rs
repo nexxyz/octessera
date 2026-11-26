@@ -252,10 +252,10 @@ pub(crate) fn link_arp_held_source_holds_a_one_shot_key_until_its_release_and_st
 
     route(&mut runner, vec![note_on(64)]);
     assert!(!runner.link_arp.keys[0].is_empty());
-    runner.link_arp.random_state = 123;
+    *runner.arp_random_state_mut(0, false) = 123;
     runner.reset_transport_position();
     assert!(runner.link_arp.keys[0].is_empty());
-    assert_eq!(runner.link_arp.random_state, 0x4f43_5441);
+    assert_ne!(*runner.arp_random_state_mut(0, false), 123);
 }
 
 #[test]
@@ -291,12 +291,10 @@ pub(crate) fn link_arp_rotating_and_random_vary() {
     );
 
     runner.layers[0].link.arp.mode = ArpMode::Random;
-    let first = route(&mut runner, routed());
-    let second = route(&mut runner, routed());
-    assert_ne!(
-        musical_note_ons_from_events(&first.audio),
-        musical_note_ons_from_events(&second.audio)
-    );
+    let leads = (0..8)
+        .map(|_| musical_note_ons_from_events(&route(&mut runner, routed()).audio))
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(leads.len() > 1, "{leads:?}");
 }
 
 #[test]
@@ -342,12 +340,19 @@ fn random_arp_orders_are_not_a_fixed_cycle() {
 }
 
 #[test]
-fn routed_random_arp_draws_from_the_seeded_layer_stream() {
+fn routed_random_arp_draws_from_its_layers_seeded_or_unseeded_stream() {
     for seeded in [false, true] {
         let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
         runner.layers[0].link.arp.mode = ArpMode::Random;
         runner.layers[0].link.seeded = seeded;
-        let shared_walk = runner.link_arp.random_state;
+        let walks = |runner: &mut NativeRunner| {
+            [
+                *runner.arp_random_state_mut(0, false),
+                *runner.arp_random_state_mut(0, true),
+                *runner.arp_random_state_mut(1, false),
+            ]
+        };
+        let before = walks(&mut runner);
         let intents: Vec<_> = (0..3)
             .map(|x| {
                 Some(platform_core::TileTriggerIntent {
@@ -368,11 +373,10 @@ fn routed_random_arp_draws_from_the_seeded_layer_stream() {
                 },
             )
             .unwrap();
-        assert_eq!(
-            runner.link_arp.random_state == shared_walk,
-            seeded,
-            "seeded={seeded}"
-        );
+        let after = walks(&mut runner);
+        assert_eq!(before[0] != after[0], !seeded, "seeded={seeded}");
+        assert_eq!(before[1] != after[1], seeded, "seeded={seeded}");
+        assert_eq!(before[2], after[2], "seeded={seeded}");
     }
 }
 

@@ -18,6 +18,8 @@ impl NativeRunner {
 
     /// Startup and configuration transactions build the menu once, after loading.
     pub fn new_with_unbuilt_menu(config: NativeRunnerConfig) -> Result<Self, String> {
+        #[cfg(test)]
+        super::random_streams::restart_test_unseeded_seeds();
         let mut runner = Self::new_without_system_baseline(config)?;
         let documents = super::split_system_patch_documents(&runner.config_payload())?;
         runner.restart_settings = RestartSettingsState::new(documents.system.clone());
@@ -108,9 +110,11 @@ impl NativeRunner {
             held_keys: Default::default(),
             layers,
             random_seed: super::random_streams::DEFAULT_RANDOM_SEED,
-            seeded_link_streams: super::random_streams::SeededLinkStreams::new(
+            seeded_link_streams: super::random_streams::LinkStreams::seeded(
                 super::random_streams::DEFAULT_RANDOM_SEED,
             ),
+            unseeded_link_streams: super::random_streams::LinkStreams::unseeded(),
+            unseeded_build_seeds: super::random_streams::unseeded_build_seeds(),
             link_lfos: seed.link_lfos,
             midi_cc_mappings: super::midi_cc_in::default_midi_cc_mappings(),
             midi_cc_learn: None,
@@ -135,7 +139,6 @@ impl NativeRunner {
             config_revision: 0,
             dirty_revision: None,
             audio_revisions: Default::default(),
-            trigger_probability_rng: TRIGGER_PROBABILITY_RNG_INITIAL_SEED,
             pending: NativePendingState::default(),
             restart_settings: RestartSettingsState::default(),
             #[cfg(test)]
@@ -156,6 +159,7 @@ impl NativeRunner {
         runner.seed_visible_state()?;
         runner.refresh_active_mapping_config();
         runner.refresh_active_interpretation_profile();
+        runner.sync_layer_random_seeds();
         Ok(runner)
     }
 }

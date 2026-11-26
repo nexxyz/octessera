@@ -1,5 +1,5 @@
 use crate::behavior::{BehaviorContext, BehaviorRenderModel, DeviceInput, StepPhase};
-use crate::behavior_random::LayerRandom;
+use crate::behavior_random::{LayerRandom, RandomSeed};
 use crate::behaviors::{NativeBehavior, NativeBehaviorState};
 use crate::grid::{GRID_HEIGHT, GRID_WIDTH};
 use crate::interpretation::{
@@ -23,7 +23,7 @@ pub struct NativeLayerEngineConfig {
     pub mapping_config: MappingConfig,
     pub global_sound: GlobalSoundConfig,
     pub layer_index: usize,
-    pub random_seed: Option<u64>,
+    pub random_seed: Option<RandomSeed>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -62,7 +62,7 @@ pub struct NativeLayerEngine {
 
 impl NativeLayerEngine {
     pub fn new(config: NativeLayerEngineConfig) -> Result<Self, String> {
-        let mut random = LayerRandom::new(config.random_seed);
+        let mut random = LayerRandom::for_seed(config.random_seed);
         let behavior = config.behavior;
         let behavior_config = config.behavior_config.clone();
         let state = random.scope(|| behavior.init(behavior_config))?;
@@ -75,7 +75,7 @@ impl NativeLayerEngine {
         config: NativeLayerEngineConfig,
         state: Value,
     ) -> Result<Self, String> {
-        let mut random = LayerRandom::new(config.random_seed);
+        let mut random = LayerRandom::for_seed(config.random_seed);
         let state = random.scope(|| config.behavior.deserialize(state))?;
         let mut engine = Self::from_state(config, state)?;
         engine.random = random;
@@ -93,7 +93,7 @@ impl NativeLayerEngine {
             mapping_config: config.mapping_config,
             global_sound: config.global_sound,
             tick: 0,
-            random: LayerRandom::new(config.random_seed),
+            random: LayerRandom::for_seed(config.random_seed),
             step_phase: StepPhase::Stopped,
             scan_seen: unscanned_grid(),
             unplayed_before: None,
@@ -345,9 +345,9 @@ impl NativeLayerEngine {
         self.random.scope(|| state.reset_transport_phase());
     }
 
-    pub fn set_random_seed(&mut self, seed: Option<u64>) {
-        if self.random.seed() != seed {
-            self.random = LayerRandom::new(seed);
+    pub fn set_random_seed(&mut self, seed: RandomSeed) {
+        if self.random.random_seed() != Some(seed) {
+            self.random = LayerRandom::for_seed(Some(seed));
         }
     }
 

@@ -237,13 +237,17 @@ Aux mappings modal:
 
 ## Seeded Randomness
 
-- Randomness is unseeded unless a source opts in.
+- Randomness is unseeded unless a source opts in. Every layer draws its Build and Link randomness
+  from streams of its own, so neither another layer nor which layer is selected changes what a
+  layer rolls. An unseeded layer's streams start from fresh OS randomness when the runtime starts,
+  on every transport reset and patch load, when its Seeded switch turns off, and whenever its world
+  is built again (Reset, a behavior change, or a setting that restarts the world).
 - `Build > Seed` (`randomSeed`, `1..9999`, default `1`) is one shared per-patch seed.
 - `Build > Lx > Seeded` (`layers.N.build.seeded`, default off) makes that layer's behavior
   randomness, including hash-style choices and the Rhythm/Musical/weave pattern seed, follow a
   stream mixed from Seed and the layer index.
 - `Link > Lx > Seeded` (`layers.N.link.seeded`, default off) does the same for that layer's trigger
-  probability and random arp order. Unseeded Link layers share the unseeded streams.
+  probability and random arp order.
 - Seeded streams restart on every transport reset (stop, play-from-stop, accepted MIDI Start,
   resync), on patch load, and when Seed or the layer's Seeded switch changes. The same starting
   world, inputs, and timing then replay the same result on every platform.

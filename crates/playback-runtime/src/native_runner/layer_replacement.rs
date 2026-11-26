@@ -1,4 +1,4 @@
-use platform_core::{NativeBehavior, NativeLayerEngine, NativeLayerEngineConfig};
+use platform_core::{NativeBehavior, NativeLayerEngine, NativeLayerEngineConfig, RandomSeed};
 use serde_json::{json, Map, Value};
 
 use super::NativeRunner;
@@ -27,6 +27,13 @@ impl NativeRunner {
                 state
             }
         });
+        let random_seed = if self.layers[layer_index].seeded {
+            self.layer_random_seed(layer_index)
+        } else {
+            RandomSeed::Unseeded(super::random_streams::fresh_unseeded_build_seed(
+                layer_index,
+            ))
+        };
         let config = NativeLayerEngineConfig {
             behavior,
             behavior_config,
@@ -34,7 +41,7 @@ impl NativeRunner {
             mapping_config: self.mapping_config_for_layer(layer_index),
             global_sound: self.global_sound.clone(),
             layer_index,
-            random_seed: self.layer_random_seed(layer_index),
+            random_seed: Some(random_seed),
         };
         let mut next_engine = match state {
             Some(state) => NativeLayerEngine::from_serialized_state(config, state)?,
@@ -50,6 +57,9 @@ impl NativeRunner {
         self.drain_layer_owned_notes(layer_index);
         if let Some(layer) = self.layers.get_mut(layer_index) {
             layer.engine = next_engine;
+        }
+        if let RandomSeed::Unseeded(seed) = random_seed {
+            self.unseeded_build_seeds[layer_index] = seed;
         }
         Ok(())
     }

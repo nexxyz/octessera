@@ -104,11 +104,11 @@ fn menu_edits_drive_the_seed_and_both_seeded_switches() {
     assert!(runner.apply_menu_key_fast("randomSeed"));
     assert_eq!(runner.random_seed, 5);
 
-    assert_eq!(runner.layer_random_seed(0), None);
+    let unseeded = runner.layer_random_seed(0);
     runner.menu.turn_key("layers.0.build.seeded", 1);
     assert!(runner.apply_menu_key_fast("layers.0.build.seeded"));
     assert!(runner.layers[0].seeded);
-    assert!(runner.layer_random_seed(0).is_some());
+    assert_ne!(runner.layer_random_seed(0), unseeded);
 
     runner.menu.turn_key("layers.0.link.seeded", 1);
     assert!(runner.apply_menu_key_fast("layers.0.link.seeded"));
@@ -116,16 +116,18 @@ fn menu_edits_drive_the_seed_and_both_seeded_switches() {
 }
 
 #[test]
-fn seeded_link_streams_restart_while_unseeded_layers_share_the_old_stream() {
+fn seeded_link_streams_restart_and_each_unseeded_layer_keeps_its_own_stream() {
     let mut runner = runner_with(json!({ "runtimeConfig": {
         "randomSeed": 3,
         "layers": [{ "link": { "seeded": true } }, { "link": { "seeded": false } }]
     } }));
     let start = runner.probability_rng(0);
+    let other = runner.probability_rng(2);
     runner.store_probability_rng(0, 99);
     runner.store_probability_rng(1, 77);
     assert_eq!(runner.probability_rng(0), 99);
-    assert_eq!(runner.trigger_probability_rng, 77);
+    assert_eq!(runner.probability_rng(1), 77);
+    assert_eq!(runner.probability_rng(2), other);
 
     press(&mut runner, json!({ "type": "button_s", "pressed": true }));
     assert_eq!(runner.probability_rng(0), start);
@@ -159,4 +161,38 @@ fn loading_a_patch_without_seed_fields_does_not_inherit_seeding() {
         .iter()
         .map(|layer| &layer.link)
         .all(|layer| !layer.seeded));
+}
+
+#[test]
+fn unseeded_layers_draw_the_same_whichever_layer_is_selected() {
+    let worlds = |active: usize| {
+        let mut runner = runner_with(json!({ "runtimeConfig": {
+            "activeLayerIndex": active,
+            "layers": [
+                { "build": { "behaviorId": "forest_fire" } },
+                { "build": { "behaviorId": "forest_fire" } }
+            ]
+        } }));
+        play_from_stop(&mut runner, 16);
+        [0, 1].map(|layer| runner.layers[layer].engine.model().unwrap().tiles)
+    };
+    let first_selected = worlds(0);
+    assert_ne!(first_selected[0], first_selected[1]);
+    assert_eq!(worlds(1), first_selected);
+}
+
+#[test]
+fn resetting_an_unseeded_layer_from_the_menu_grows_a_new_world_each_time() {
+    let mut runner = runner_with(forest_fire_patch(1, false));
+    let mut worlds = Vec::new();
+    for _ in 0..3 {
+        assert!(runner.menu.focus_item_key("behavior.reset"));
+        press(
+            &mut runner,
+            json!({ "type": "encoder_press", "id": "main" }),
+        );
+        worlds.push(runner.active_engine().model().unwrap().tiles);
+    }
+    assert_ne!(worlds[0], worlds[1]);
+    assert_ne!(worlds[1], worlds[2]);
 }

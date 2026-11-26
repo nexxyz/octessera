@@ -352,7 +352,7 @@ pub(crate) fn trigger_prob_mode_menu_zero_releases_held_notes() {
 #[test]
 pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_phase() {
     let mut runner = held_keys_runner();
-    runner.link_arp.random_state = 123;
+    *runner.arp_random_state_mut(0, false) = 123;
     runner.link_arp.keys[0].push(arp_key(0, 60));
     runner.link_arp.keys[1].push(arp_key(0, 64));
     runner.link_arp.rotating_phase[0] = 3;
@@ -370,7 +370,7 @@ pub(crate) fn disabling_layer_clears_only_target_arp_state_and_preserves_random_
 
     let _ = disable_layer(&mut runner, 0);
 
-    assert_eq!(runner.link_arp.random_state, 123);
+    assert_eq!(*runner.arp_random_state_mut(0, false), 123);
     assert!(runner.link_arp.keys[0].is_empty());
     assert_eq!(runner.link_arp.rotating_phase[0], 0);
     assert!(runner.delayed_link_events[0].is_empty());

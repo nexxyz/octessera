@@ -5,15 +5,12 @@ use super::{ArpMode, ArpSource, LinkEventTiming, NativeLinkArp, NativeLinkLayer,
 use crate::protocol::MIN_NOTE_DURATION_MS;
 use platform_core::LAYER_COUNT;
 
-const LINK_ARP_RANDOM_SEED: u32 = 0x4f43_5441;
-
 /// The Link arp's live state: per layer the keys pressed into it and not yet released, oldest
-/// first, and its rotating phase, and the random walk all layers share.
+/// first, and its rotating phase.
 #[derive(Debug)]
 pub(super) struct LinkArpState {
     pub(super) keys: Vec<Vec<KeyPress>>,
     pub(super) rotating_phase: Vec<usize>,
-    pub(super) random_state: u32,
 }
 
 impl Default for LinkArpState {
@@ -21,7 +18,6 @@ impl Default for LinkArpState {
         Self {
             keys: vec![Vec::new(); LAYER_COUNT],
             rotating_phase: vec![0; LAYER_COUNT],
-            random_state: LINK_ARP_RANDOM_SEED,
         }
     }
 }
@@ -32,7 +28,6 @@ impl NativeRunner {
             keys.clear();
         }
         self.link_arp.rotating_phase.fill(0);
-        self.link_arp.random_state = LINK_ARP_RANDOM_SEED;
     }
 
     pub(super) fn clear_link_arp_state_for_layer(&mut self, layer_index: usize) {

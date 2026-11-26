@@ -293,7 +293,6 @@ use xy_smoothing::*;
 
 const DEFAULT_ALGORITHM_STEP_RED: u32 = 12;
 const DEFAULT_XY_SMOOTHING_MS: u16 = 80;
-const TRIGGER_PROBABILITY_RNG_INITIAL_SEED: u64 = 0xC311_5A7E_2024_0001;
 const OLED_BODY_ROWS: usize = 8;
 #[cfg(not(test))]
 const OLED_STARTUP_SPLASH_MS: u64 = 1_500;
@@ -348,7 +347,9 @@ pub struct NativeRunner {
     held_keys: held_keys::HeldKeys,
     layers: Vec<NativeLayer>,
     random_seed: u16,
-    seeded_link_streams: random_streams::SeededLinkStreams,
+    seeded_link_streams: random_streams::LinkStreams,
+    unseeded_link_streams: random_streams::LinkStreams,
+    unseeded_build_seeds: [u64; LAYER_COUNT],
     link_lfos: [NativeLinkLfo; GLOBAL_LFO_COUNT],
     midi_cc_mappings: [midi_cc_in::NativeMidiCcMapping; midi_cc_in::MIDI_CC_SLOT_COUNT],
     midi_cc_learn: Option<midi_cc_in::MidiCcLearn>,
@@ -373,7 +374,6 @@ pub struct NativeRunner {
     config_revision: u64,
     dirty_revision: Option<u64>,
     audio_revisions: audio_config_revisions::NativeAudioConfigRevisions,
-    trigger_probability_rng: u64,
     pending: NativePendingState,
     restart_settings: RestartSettingsState,
     #[cfg(test)]

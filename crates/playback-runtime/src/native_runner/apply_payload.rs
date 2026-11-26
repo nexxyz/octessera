@@ -78,8 +78,6 @@ impl NativeRunner {
         self.patch_store = source.patch_store.clone();
         self.sample_browser = source.sample_browser.clone();
         self.audio_revisions = source.audio_revisions.clone();
-        self.trigger_probability_rng = source.trigger_probability_rng;
-        self.seeded_link_streams = source.seeded_link_streams.clone();
         self.audio_io = source.audio_io;
     }
 

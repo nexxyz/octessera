@@ -97,7 +97,7 @@ pub(crate) fn changed_note_set_drops_held_modulation_clears_link_state_and_delay
 
     runner.link_arp.keys[0].push(arp_key(0, 60));
     runner.link_arp.rotating_phase[0] = 7;
-    runner.link_arp.random_state = 123;
+    *runner.arp_random_state_mut(0, false) = 123;
     runner.config_dirty = false;
     runner.dirty_revision = None;
     runner.pending.pending_autosave_payload_due_at = None;
@@ -122,7 +122,7 @@ pub(crate) fn changed_note_set_drops_held_modulation_clears_link_state_and_delay
         .has_source(crate::native_runner::modulation::source::ModulationSourceId::play_x()));
     assert!(runner.link_arp.keys[0].is_empty());
     assert_eq!(runner.link_arp.rotating_phase[0], 0);
-    assert_eq!(runner.link_arp.random_state, 123);
+    assert_eq!(*runner.arp_random_state_mut(0, false), 123);
     assert!(runner.config_dirty);
     assert!(runner.pending.pending_autosave_payload_due_at.is_some());
     assert_eq!(runner.pending.pending_save_revision, None);

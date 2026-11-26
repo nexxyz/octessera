@@ -10,6 +10,11 @@ thread_local! {
 pub const RANDOM_DOMAIN_BUILD: u64 = 1;
 pub const RANDOM_DOMAIN_LINK: u64 = 2;
 
+/// A seed from the operating system's randomness, for a stream that should not repeat.
+pub fn entropy_seed() -> u64 {
+    rand::random()
+}
+
 pub fn stream_seed(global_seed: u16, domain: u64, layer_index: usize) -> u64 {
     let mut value =
         u64::from(global_seed) ^ domain.rotate_left(32) ^ (layer_index as u64).rotate_left(48);
@@ -18,22 +23,47 @@ pub fn stream_seed(global_seed: u16, domain: u64, layer_index: usize) -> u64 {
     value ^ (value >> 31)
 }
 
+/// A layer's own random stream: `Seeded` follows Seed, hash-style choices included, while
+/// `Unseeded` only gives the layer's draws a stream of their own.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RandomSeed {
+    Seeded(u64),
+    Unseeded(u64),
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct LayerRandom {
     seed: Option<u64>,
+    salt: u64,
     rng: Option<ChaCha12Rng>,
 }
 
 impl LayerRandom {
     pub fn new(seed: Option<u64>) -> Self {
+        Self::with_salt(seed, seed.map_or(0, |seed| seed | 1))
+    }
+
+    pub fn for_seed(seed: Option<RandomSeed>) -> Self {
+        match seed {
+            Some(RandomSeed::Unseeded(stream)) => Self::with_salt(Some(stream), 0),
+            Some(RandomSeed::Seeded(seed)) => Self::new(Some(seed)),
+            None => Self::new(None),
+        }
+    }
+
+    fn with_salt(seed: Option<u64>, salt: u64) -> Self {
         Self {
             seed,
+            salt,
             rng: seed.map(ChaCha12Rng::seed_from_u64),
         }
     }
 
-    pub fn seed(&self) -> Option<u64> {
-        self.seed
+    pub fn random_seed(&self) -> Option<RandomSeed> {
+        self.seed.map(|seed| match self.salt {
+            0 => RandomSeed::Unseeded(seed),
+            _ => RandomSeed::Seeded(seed),
+        })
     }
 
     pub fn restart(&mut self) {
@@ -41,11 +71,10 @@ impl LayerRandom {
     }
 
     pub fn scope<R>(&mut self, apply: impl FnOnce() -> R) -> R {
-        let salt = self.seed.map_or(0, |seed| seed | 1);
         let rng = self.rng.take();
         let _guard = ScopeGuard {
+            previous_salt: ACTIVE_SALT.replace(self.salt),
             owner: self,
-            previous_salt: ACTIVE_SALT.replace(salt),
             previous_rng: ACTIVE_RNG.with(|active| active.replace(rng)),
         };
         apply()

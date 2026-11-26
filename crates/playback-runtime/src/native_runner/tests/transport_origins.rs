@@ -115,11 +115,11 @@ pub(crate) fn pause_continue_and_manual_single_step_preserve_phase_but_stop_star
 }
 
 #[test]
-pub(crate) fn transport_origin_resets_probability_rng_but_pause_continue_and_panic_do_not() {
+pub(crate) fn transport_origin_restarts_probability_rng_but_pause_continue_and_panic_do_not() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.test_set_midi_enabled(true);
     runner.send(HostMessage::MidiRealtimeStart).unwrap();
-    runner.trigger_probability_rng = 42;
+    runner.store_probability_rng(0, 42);
 
     runner
         .send(HostMessage::DeviceInput {
@@ -133,19 +133,16 @@ pub(crate) fn transport_origin_resets_probability_rng_but_pause_continue_and_pan
             request_snapshot: None,
         })
         .unwrap();
-    assert_eq!(runner.trigger_probability_rng, 42);
+    assert_eq!(runner.probability_rng(0), 42);
 
     let panic = runner
         .execute_confirmed_action(NativeMenuAction::PlatformEffect(PlatformAction::MidiPanic))
         .unwrap();
     assert_eq!(panic, Some(RuntimePlatformEffect::MidiPanic));
-    assert_eq!(runner.trigger_probability_rng, 42);
+    assert_eq!(runner.probability_rng(0), 42);
 
     runner.send(HostMessage::MidiRealtimeStop).unwrap();
-    assert_eq!(
-        runner.trigger_probability_rng,
-        TRIGGER_PROBABILITY_RNG_INITIAL_SEED
-    );
+    assert_ne!(runner.probability_rng(0), 42);
 }
 
 #[test]

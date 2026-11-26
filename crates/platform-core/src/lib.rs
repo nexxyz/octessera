@@ -18,7 +18,9 @@ pub use behavior::{
     BehaviorRenderModel, BehaviorRenderPalette, DeviceInput, GridInteraction, StepPhase,
     TileTriggerType,
 };
-pub use behavior_random::{stream_seed, RANDOM_DOMAIN_BUILD, RANDOM_DOMAIN_LINK};
+pub use behavior_random::{
+    entropy_seed, stream_seed, RandomSeed, RANDOM_DOMAIN_BUILD, RANDOM_DOMAIN_LINK,
+};
 pub use behaviors::{
     behavior_catalog, behavior_categories, get_native_behavior, list_native_behavior_ids,
     BehaviorCatalogEntry, BehaviorCategory, KeysQuantize, NativeBehavior, NativeBehaviorState,

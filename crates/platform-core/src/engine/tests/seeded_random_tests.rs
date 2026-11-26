@@ -3,7 +3,7 @@ use super::*;
 fn engine(behavior: NativeBehavior, random_seed: Option<u64>) -> NativeLayerEngine {
     NativeLayerEngine::new(NativeLayerEngineConfig {
         behavior,
-        random_seed,
+        random_seed: random_seed.map(RandomSeed::Seeded),
         ..base_config()
     })
     .unwrap()
@@ -33,7 +33,7 @@ fn restarting_the_stream_replays_from_the_same_state() {
     let mut replay = NativeLayerEngine::from_serialized_state(
         NativeLayerEngineConfig {
             behavior: NativeBehavior::ForestFire,
-            random_seed: Some(7),
+            random_seed: Some(RandomSeed::Seeded(7)),
             ..base_config()
         },
         start,
@@ -72,7 +72,7 @@ fn seeded_twinkle_replays_after_a_transport_reset() {
     let mut replay = NativeLayerEngine::from_serialized_state(
         NativeLayerEngineConfig {
             behavior: NativeBehavior::Twinkle,
-            random_seed: Some(7),
+            random_seed: Some(RandomSeed::Seeded(7)),
             ..base_config()
         },
         start,

@@ -67,7 +67,6 @@ impl NativeRunner {
             queue.clear();
         }
         self.clear_all_link_arp_state();
-        self.trigger_probability_rng = TRIGGER_PROBABILITY_RNG_INITIAL_SEED;
     }
 
     pub(in crate::native_runner) fn sync_engine_runtime_config(&mut self) {
