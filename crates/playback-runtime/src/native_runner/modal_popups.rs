@@ -59,6 +59,13 @@ impl NativeRunner {
         });
     }
 
+    pub(super) fn dismiss_help_popup(&mut self) {
+        self.display.help_popup = None;
+        if std::mem::take(&mut self.display.sd_card_repair_pending) {
+            self.show_sd_card_repaired();
+        }
+    }
+
     pub(super) fn turn_help_popup(&mut self, delta: i8) {
         let Some(help) = &mut self.display.help_popup else {
             return;

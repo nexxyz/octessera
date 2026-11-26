@@ -1379,8 +1379,9 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   or while running (a remount after a transfer that left it dirty). It uses the help popup: Main
   press or Back closes it, and Main turn scrolls it. Under the startup splash it waits for the
   splash to end, and the boot still shows its `Help: Sh+Fn+Main` toast. The `Samples missing` popup
-  outranks it: a repair reported while that popup is open shows nothing, and missing samples
-  reported later replace it.
+  outranks it: a repair reported while that popup is open, or a repair popup that newly missing
+  samples replace, shows once `Samples missing` closes, whether pressed away or closed because
+  the card samples loaded.
 - Named presets are portable patch files. Loading one applies musical patch state only and keeps
   local settings such as brightness, MIDI ports/sync, USB, HDMI, recording settings, audio buffer,
   Auto Save/Backups, and sample favorites. Aux bindings travel with the patch, whatever they target.

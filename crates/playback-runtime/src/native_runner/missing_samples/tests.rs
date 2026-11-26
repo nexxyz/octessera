@@ -250,22 +250,67 @@ fn a_repair_reported_at_boot_pops_up_after_the_splash_until_pressed_away() {
     assert!(next_boot.display.help_popup.is_none());
 }
 
-#[test]
-fn a_repair_while_playing_pops_up_at_once() {
-    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
-    runner.skip_startup_splash();
-    report_repaired(&mut runner);
-    assert_eq!(shown(&mut runner)["display"]["title"], "SD card repaired");
+fn press_back(runner: &mut NativeRunner) -> serde_json::Value {
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: serde_json::json!({ "type": "button_a", "pressed": true }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    crate::native_runner::tests::snapshot_from(&messages)
 }
 
 #[test]
-fn the_missing_samples_popup_outranks_the_repair_popup() {
+fn a_repair_while_playing_pops_up_at_once_and_back_closes_it() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    runner.display.aux_mapping_peek_visible = true;
+    report_repaired(&mut runner);
+    assert_eq!(shown(&mut runner)["display"]["title"], "SD card repaired");
+    assert!(!runner.display.aux_mapping_peek_visible);
+
+    assert_ne!(
+        press_back(&mut runner)["display"]["title"],
+        "SD card repaired"
+    );
+    assert!(runner.display.help_popup.is_none());
+}
+
+#[test]
+fn a_repair_behind_the_missing_samples_popup_shows_once_the_card_samples_load() {
+    let mut runner = runner_with_an_sd_card_sample();
+    runner.skip_startup_splash();
+    report_missing(&mut runner, None, &[SD_CARD_SNARE]);
+    assert_eq!(sd_card_mounted(&mut runner), vec![1]);
+    report_repaired(&mut runner);
+    assert_eq!(shown(&mut runner)["display"]["title"], "Samples missing");
+
+    report_loaded(&mut runner, 1, &[SD_CARD_SNARE]);
+    assert_eq!(shown(&mut runner)["display"]["title"], "SD card repaired");
+    assert_ne!(
+        press_main(&mut runner)["display"]["title"],
+        "SD card repaired"
+    );
+    assert!(runner.display.help_popup.is_none());
+}
+
+#[test]
+fn the_missing_samples_popup_outranks_the_repair_popup_until_pressed_away() {
     let mut runner = runner_with_two_samples();
     runner.skip_startup_splash();
     report_repaired(&mut runner);
     report_missing(&mut runner, None, &["userdata/User Kit/gone.wav"]);
     assert_eq!(shown(&mut runner)["display"]["title"], "Samples missing");
-
     report_repaired(&mut runner);
     assert_eq!(shown(&mut runner)["display"]["title"], "Samples missing");
+
+    assert_eq!(
+        press_main(&mut runner)["display"]["title"],
+        "SD card repaired"
+    );
+    assert_ne!(
+        press_main(&mut runner)["display"]["title"],
+        "SD card repaired"
+    );
+    assert!(runner.display.help_popup.is_none());
 }

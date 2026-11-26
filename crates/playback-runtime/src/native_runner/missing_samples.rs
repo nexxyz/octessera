@@ -57,6 +57,12 @@ impl NativeRunner {
                 ));
             }
         }
+        self.display.sd_card_repair_pending |= self
+            .display
+            .help_popup
+            .as_ref()
+            .is_some_and(|popup| popup.title == SD_CARD_REPAIRED_TITLE);
+        self.display.aux_mapping_peek_visible = false;
         self.display.help_popup = Some(NativeHelpPopup {
             title: MISSING_SAMPLES_TITLE.into(),
             lines,
@@ -65,7 +71,8 @@ impl NativeRunner {
         self.show_instruments_rows(&changed_instruments);
     }
 
-    /// The missing-samples popup outranks this one, since it names slots to fix.
+    /// The missing-samples popup outranks this one, since it names slots to fix; the repair
+    /// shows once that popup closes.
     pub(super) fn show_sd_card_repaired(&mut self) {
         if self
             .display
@@ -73,8 +80,11 @@ impl NativeRunner {
             .as_ref()
             .is_some_and(|popup| popup.title == MISSING_SAMPLES_TITLE)
         {
+            self.display.sd_card_repair_pending = true;
             return;
         }
+        self.display.sd_card_repair_pending = false;
+        self.display.aux_mapping_peek_visible = false;
         self.display.help_popup = Some(NativeHelpPopup {
             title: SD_CARD_REPAIRED_TITLE.into(),
             lines: wrap_text(SD_CARD_REPAIRED_TEXT, MENU_BODY_RECT.columns()),
@@ -149,7 +159,7 @@ impl NativeRunner {
                 .as_ref()
                 .is_some_and(|popup| popup.title == MISSING_SAMPLES_TITLE)
         {
-            self.display.help_popup = None;
+            self.dismiss_help_popup();
         }
         self.show_instruments_rows(&changed_instruments);
     }

@@ -13,7 +13,7 @@ impl NativeRunner {
             return self.handle_aux_press(index);
         } else if id.unwrap_or("main") == "main" {
             if self.display.help_popup.is_some() && !self.display.aux_mapping_peek_visible {
-                self.display.help_popup = None;
+                self.dismiss_help_popup();
                 return self.messages_with_snapshot();
             }
             if self.display.ui.combined_modifier_held {
@@ -155,7 +155,7 @@ impl NativeRunner {
             return self.messages_with_snapshot();
         }
         if self.display.help_popup.is_some() {
-            self.display.help_popup = None;
+            self.dismiss_help_popup();
         } else if self.display.ui.shift_held {
             let editing_key = self
                 .menu
