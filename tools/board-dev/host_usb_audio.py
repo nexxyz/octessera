@@ -9,10 +9,12 @@ With a baseline file the take is a level run: RMS within 3 dB of the baseline (r
 run), no exact-zero run of 64 frames or more while sounding, and no full-scale sample. Without one
 it only reports the full-scale runs a clipping patch should show. With fx the take holds a tape stop
 on master: the level must fall at least 20 dB below the take's opening level for 3 s or more, then
-come back within 3 dB of it. With hold the take plays a held looping Sampler whose tiles go dark mid-take:
-it must sound in its first 1.5 s and stay below -60 dBFS for its last 6 s; it reports when the sound
-stopped and where it broke off or ran exact zero, and the board check, which knows when the taps were,
-requires no break before the taps and the sound to stop where they were. Every take records when its capture started (epoch seconds). Needs numpy and sounddevice.
+come back within 3 dB of it. With hold the take plays a held looping Sampler whose tiles go dark
+mid-take: it must sound in its first 1.5 s and stay below -60 dBFS for its last 6 s; it reports when
+the sound stopped and where it broke off or ran exact zero, and the board check, which knows when the
+taps were, requires no break before the taps and the sound to stop where they were. Every take records
+when its capture started (epoch seconds) and how many leading seconds it left unjudged. Needs numpy and
+sounddevice.
 """
 import json
 import sys
@@ -171,7 +173,7 @@ def main():
         take.setframerate(44100)
         take.writeframes(frames.tobytes())
     problems, metrics = analyze(wav, baseline)
-    metrics["capture_started"] = round(started, 3)
+    metrics.update(capture_started=round(started, 3), startup_s=STARTUP_S)
     stem.with_suffix(".json").write_text(json.dumps({"problems": problems, "metrics": metrics}))
     print(f"{'FAIL' if problems else 'PASS'} {stem.name}: {json.dumps(metrics)}")
     for problem in problems:

@@ -609,10 +609,10 @@ on the Orange, `Octessera Line In` on the Raspberry).
 - `usb_audio_hold` is `usb_audio` with L1 scanning all of row 0 on slot 2, a
   Sampler with Hold whose row-0 slot loops a sustained sample with no silent
   frames (the factory kick starts every retrigger with 20 ms of silence),
-  routed direct so no FX tail follows it: every lit step holds its note on. While `host_usb_audio.py ...
-  hold` records 24 s, `board-keys.py` taps the bottom grid row's eight keys
-  about 11 s after the gate opens, so every tile goes dark while the transport
-  runs on. The check places the taps in the take from the board's tap marks
+  routed direct so no FX tail follows it: every lit step holds its note on.
+  While `host_usb_audio.py ... hold` records 24 s, `board-keys.py` taps the
+  bottom grid row's eight keys about 11 s after the gate opens, so every tile
+  goes dark while the transport runs on. The check places the taps in the take from the board's tap marks
   and the host's gate and capture times, with 1 s of clock slack before them
   and the 2 s scan pass plus 1 s after them. The take must sound in its first
   1.5 s, have no block below -60 dBFS and no exact-zero run of 64 frames or

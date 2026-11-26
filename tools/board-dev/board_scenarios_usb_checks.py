@@ -6,8 +6,6 @@ import subprocess
 
 from board_scenarios_evidence import journal, marks, window_counts, window_errors
 
-# host_usb_audio.py judges a take after its first STARTUP_S seconds.
-STARTUP_S = 2
 
 
 def usb_midi(board, out):
@@ -174,11 +172,14 @@ def usb_audio_hold(board, out):
     """The take's own checks, plus: no quiet block or exact-zero run before the taps, and the sound stopping
     where the board's taps turned the tiles dark. The board marks give the taps' offset from the gate, the
     host the capture start's offset from it."""
+    missing = [name for name in ("usb-audio-hold.json", "usb-audio-hold.opened") if not (out / name).exists()]
+    if missing:
+        return [f"no {' or '.join(missing)}: the host capture did not run or did not finish"], ""
     result = json.loads((out / "usb-audio-hold.json").read_text())
     metrics = result["metrics"]
     found = marks(out)
     opened = float((out / "usb-audio-hold.opened").read_text())
-    take_start = metrics["capture_started"] + STARTUP_S - opened
+    take_start = metrics["capture_started"] + metrics["startup_s"] - opened
     taps = found["hold_taps"] - found["usb_audio_hold_go"] - take_start
     done = found["hold_taps_done"] - found["usb_audio_hold_go"] - take_start
     window = (round(taps - HOLD_MARK_SLACK_S, 2), round(done + HOLD_RELEASE_S + HOLD_MARK_SLACK_S, 2))
