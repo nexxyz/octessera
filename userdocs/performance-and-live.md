@@ -72,6 +72,10 @@ core. Do maintenance before the show, not during it: updates, `apt` over SSH,
 copying big files onto the board. The Orange has a lot more memory headroom
 and shrugs most of this off, but the habit doesn't hurt.
 
+Plug the HDMI screen in before you start playing. On the Orange, plugging it in
+or pulling it mid-song makes the board stop and read the screen's details,
+which can nudge the timing by a few milliseconds for a moment.
+
 One more thing: don't run `apt upgrade` on the board. Octessera boots its own
 tuned kernel and device-tree setup, and a stock kernel or bootloader package
 sneaking in can leave you with a board that boots but makes no sound, or
