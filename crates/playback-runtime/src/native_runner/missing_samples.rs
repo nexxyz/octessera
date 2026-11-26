@@ -71,8 +71,7 @@ impl NativeRunner {
         self.show_instruments_rows(&changed_instruments);
     }
 
-    /// The missing-samples popup outranks this one, since it names slots to fix; the repair
-    /// shows once that popup closes.
+    /// The missing-samples popup outranks this one, since it names slots to fix.
     pub(super) fn show_sd_card_repaired(&mut self) {
         if self
             .display
