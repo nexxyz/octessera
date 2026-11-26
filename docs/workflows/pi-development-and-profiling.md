@@ -347,7 +347,7 @@ tools/board-dev/board-scenarios.sh opi "$OrangeTarget"
 Name scenarios to run a subset: `boot save_restore recording oled soak keymap
 presets stop_save show_mode update_fail fuzz resets bad_stores full_card usb_midi
 usb_midi_cc usb_looper usb_notes_in usb_hold_trig usb_echo_repeat usb_two_layers tempo_mod usb_audio
-usb_audio_fx`.
+usb_audio_fx usb_audio_hold`.
 
 - `boot` reboots the board and only reads the live service: kernel, splash,
   service, audio and menu-ready times from the journal and readiness marker, an
@@ -492,7 +492,7 @@ Backup and restore over HTTP needs the transfer code that only the OLED shows;
 `user_data_transfer` and `user_data_restore` tests cover the interrupted upload,
 the staging leftovers and the restore.
 
-`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_hold_trig`, `usb_echo_repeat`, `usb_two_layers`, `tempo_mod`, `usb_audio` and `usb_audio_fx` are driven from this
+`usb_midi`, `usb_midi_cc`, `usb_looper`, `usb_notes_in`, `usb_hold_trig`, `usb_echo_repeat`, `usb_two_layers`, `tempo_mod`, `usb_audio`, `usb_audio_fx` and `usb_audio_hold` are driven from this
 host over the board's USB connection, so plug both boards in and install `python-rtmidi`,
 `sounddevice` and `numpy` (`pip install python-rtmidi sounddevice numpy`);
 `ffmpeg` decodes the recording. The payload waits at a gate for each host
@@ -606,6 +606,13 @@ on the Orange, `Octessera Line In` on the Raspberry).
   level must fall at least 20 dB below the take's opening level for 3 s or
   more and come back within 3 dB of it after the release, with no underruns
   while held.
+- `usb_audio_hold` is `usb_audio` with L1 scanning all of row 0 on slot 2, a
+  Sampler with Hold whose sample loops forward, routed direct so no FX tail
+  follows it: every lit step holds its note on. While `host_usb_audio.py ...
+  hold` records 20 s, `board-keys.py` taps the bottom grid row's eight keys
+  about 7 s in, so every tile goes dark while the transport runs on. The take
+  must sound at the start and stay below -60 dBFS for its last 6 s, with no
+  underruns.
 
 Each run writes its evidence and a `summary.txt` of PASS/FAIL lines to
 `target/board-scenarios/<board>-<stamp>/`. Afterwards the payload stops any

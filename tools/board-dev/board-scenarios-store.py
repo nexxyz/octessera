@@ -9,6 +9,9 @@ setups:
   usb_audio       USB Audio on, the store's own patch and Master Vol
   usb_audio_fx    usb_audio with a tape stop on master mapped to Play FX tile (3, 3)
   usb_audio_clip  USB Audio on, Master Vol 100, eight synth notes per step pushed past full scale
+  usb_audio_hold  USB Audio on, keyboard capture allowed; L1 scans all of row 0 on slot 2, a Sampler with
+                  Hold whose row-0 sample loops forward, routed direct (no FX tail), so its notes sound
+                  until an Off ends them
   keymap          Auto Save on, L1 a sequencer with an empty grid, keyboard capture allowed
   usb_looper      the usb_midi rig with Auto Save on; L1 an empty 8-step 1/8 Looper on a Synth
                   with Hold, tile (x, y) playing note 60 + x + 8y
@@ -136,6 +139,17 @@ def main():
         if setup == "usb_audio_fx":
             allow_keyboard(config)
             music["playFx"]["assignments"] = [{"config": TAPE_STOP, "x": 3, "y": 3}]
+        if setup == "usb_audio_hold":
+            allow_keyboard(config)
+            patch_layers(music, {0: (1, {(x, 0) for x in range(8)})})
+            instruments[1]["noteBehavior"] = "hold"
+            instruments[1]["mixer"]["route"] = "direct"
+            sample = instruments[1]["sample"]
+            row = {a["sampleSlot"] for a in sample["assignments"] if a["y"] == 0}
+            if len(row) != 1 or not sample["slots"][row.pop()]["path"]:
+                sys.exit("usb_audio_hold needs the store's Sampler to play one sample on row 0")
+            for slot in sample["slots"]:
+                slot["loop"] = "forward"
         if setup == "usb_audio_clip":
             allow_keyboard(config)
             config["masterVolume"] = 100

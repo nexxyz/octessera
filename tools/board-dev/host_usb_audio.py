@@ -1,6 +1,6 @@
 """Captures a board's USB Audio output on the host and checks level, dropouts and clipping (run on the host).
 
-usage: host_usb_audio.py <seconds> <result-stem> [baseline.json | fx]
+usage: host_usb_audio.py <seconds> <result-stem> [baseline.json | fx | hold]
 Waits for the board's capture device, records <stem>.wav and writes <stem>.json. It records through
 WASAPI in exclusive mode: shared-mode capture (ffmpeg dshow) runs the Windows microphone effects,
 which filtered the clipped tops and slowly turned the level down. Windows does not name the board in
@@ -9,7 +9,8 @@ With a baseline file the take is a level run: RMS within 3 dB of the baseline (r
 run), no exact-zero run of 64 frames or more while sounding, and no full-scale sample. Without one
 it only reports the full-scale runs a clipping patch should show. With fx the take holds a tape stop
 on master: the level must fall at least 20 dB below the take's opening level for 3 s or more, then
-come back within 3 dB of it. Needs numpy and sounddevice.
+come back within 3 dB of it. With hold the take plays a held looping Sampler whose tiles go dark mid-take:
+it must sound at the start and stay below -60 dBFS for its last 6 s. Needs numpy and sounddevice.
 """
 import json
 import sys
@@ -23,6 +24,8 @@ import sounddevice
 FULL_SCALE = 32767
 FX_DIP_DB = 20
 FX_DIP_S = 3
+HOLD_SILENT_DBFS = -60
+HOLD_TAIL_S = 6
 # The first seconds after the host opens the stream are judged apart: there the board's USB stream
 # can still be settling, and the take starts with the host's own leading silence.
 STARTUP_S = 2
@@ -50,11 +53,15 @@ def runs(mask):
     return list(zip(edges[::2], edges[1::2] - edges[::2]))
 
 
+def block_dbfs(level, rate):
+    block = rate // 20
+    return 20 * np.log10(np.sqrt(np.mean(level[: len(level) // block * block].reshape(-1, block, level.shape[1]) ** 2,
+                                          axis=(1, 2))) + 1e-12)
+
+
 def analyze_fx(level, rate):
     """A held tape stop: a long dip well below the opening level, and the level back after it."""
-    block = rate // 20
-    blocks = 20 * np.log10(np.sqrt(np.mean(level[: len(level) // block * block].reshape(-1, block, level.shape[1]) ** 2,
-                                           axis=(1, 2))) + 1e-12)
+    blocks = block_dbfs(level, rate)
     before = float(np.median(blocks[: len(blocks) // 4]))
     dips = runs(blocks < before - FX_DIP_DB)
     start, length = (int(value) for value in max(dips, key=lambda run: run[1], default=(0, 0)))
@@ -69,6 +76,23 @@ def analyze_fx(level, rate):
         problems.append(f"the level dipped {FX_DIP_DB} dB below the opening for only {length / 20:.2f} s")
     if abs(back - before) > 3:
         problems.append(f"after the release the level is {back:.2f} dBFS, not within 3 dB of {before:.2f}")
+    return problems, metrics
+
+
+def analyze_hold(level, rate):
+    """Held Sampler notes whose tiles went dark: sounding at first, silent at the end."""
+    blocks = block_dbfs(level, rate)
+    opening = float(np.median(blocks[:60]))
+    tail = float(blocks[-HOLD_TAIL_S * 20:].max())
+    loud = np.flatnonzero(blocks >= HOLD_SILENT_DBFS)
+    metrics = {"opening_rms_dbfs": round(opening, 2), "tail_max_dbfs": round(tail, 2),
+               "last_sound_s": round(float(loud[-1] + 1) / 20, 2) if len(loud) else None, "seconds": round(len(blocks) / 20, 2)}
+    problems = []
+    if opening < -50:
+        problems.append("the held Sampler is silent at the start")
+    if tail >= HOLD_SILENT_DBFS:
+        problems.append(f"the last {HOLD_TAIL_S} s peak at {tail:.2f} dBFS after the tiles went dark: a held note "
+                        f"still sounds")
     return problems, metrics
 
 
@@ -87,6 +111,8 @@ def analyze(path, baseline):
     frames, level = frames[STARTUP_S * rate:], level[STARTUP_S * rate:]
     if baseline == "fx":
         return analyze_fx(level, rate)
+    if baseline == "hold":
+        return analyze_hold(level, rate)
     rms = float(20 * np.log10(np.sqrt(np.mean(level ** 2)) + 1e-12))
     loud = np.abs(frames).max(axis=1) >= FULL_SCALE
     flat = [int(n) for _, n in runs(loud) if n >= 3]
@@ -121,7 +147,7 @@ def analyze(path, baseline):
 
 def main():
     seconds, stem = float(sys.argv[1]), Path(sys.argv[2])
-    baseline = None if len(sys.argv) < 4 else "fx" if sys.argv[3] == "fx" else Path(sys.argv[3])
+    baseline = None if len(sys.argv) < 4 else sys.argv[3] if sys.argv[3] in ("fx", "hold") else Path(sys.argv[3])
     wav = stem.with_suffix(".wav")
     frames = sounddevice.rec(int((seconds + STARTUP_S) * 44100), samplerate=44100, channels=2, dtype="int16", device=device(),
                              extra_settings=sounddevice.WasapiSettings(exclusive=True))

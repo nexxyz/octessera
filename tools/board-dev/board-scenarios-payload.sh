@@ -8,7 +8,7 @@
 #   board-scenarios-payload.sh <rpi|opi> <root> boot
 #   board-scenarios-payload.sh <rpi|opi> <root> run <soak-seconds> save_restore recording oled soak keymap presets
 #     stop_save show_mode update_fail fuzz resets bad_stores full_card
-#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_hold_trig|usb_echo_repeat|usb_two_layers|tempo_mod|usb_audio|usb_audio_fx
+#   board-scenarios-payload.sh <rpi|opi> <root> run 0 usb_midi|usb_midi_cc|usb_looper|usb_notes_in|usb_hold_trig|usb_echo_repeat|usb_two_layers|tempo_mod|usb_audio|usb_audio_fx|usb_audio_hold
 # Root reads privileged files; the redirects deliberately write as the unprivileged payload user.
 # shellcheck disable=SC2024
 set -u
@@ -392,6 +392,15 @@ usb_audio_fx() {
   start OCTESSERA_TIMING_AUTOPLAY=1 || return
   gate usb_audio_fx || return
   keys fx "esc*8 wait:5 shift+ctrl+/ wait:2 mark:hold hold:7:6 mark:release wait:20"
+}
+# A scanning Hold Sampler plays row 0 while the host captures USB Audio; 8 s in, the bottom grid row's
+# keys turn its tiles dark while the transport runs on.
+usb_audio_hold() {
+  prepare usb_audio_hold
+  gadget_from_clone
+  start OCTESSERA_TIMING_AUTOPLAY=1 || return
+  gate usb_audio_hold || return
+  keys dark "esc*8 wait:6 mark:dark c v b n m , . / mark:dark_done wait:14"
 }
 usb_audio() {
   prepare usb_audio

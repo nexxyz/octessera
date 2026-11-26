@@ -162,6 +162,15 @@ def usb_two_layers(board, out):
     return problems, "; ".join(evidence)
 
 
+def usb_audio_hold(board, out):
+    result = json.loads((out / "usb-audio-hold.json").read_text())
+    underruns, _, worst, _ = window_counts(out, "usb_audio_hold_go", "usb_audio_hold_end")
+    problems = result["problems"] + window_errors(out, "usb_audio_hold")
+    if underruns:
+        problems.append(f"{underruns} underruns while the held Sampler played")
+    return problems, f"{json.dumps(result['metrics'])}, {underruns} underruns, worst runtime_late {worst}us"
+
+
 def usb_echo_repeat(board, out):
     problems, evidence = [], []
     for setup in ("usb_echo_midi", "usb_echo_synth"):

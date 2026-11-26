@@ -13,7 +13,7 @@ from board_scenarios_evidence import errors, fields, first, journal, marks, wind
 # Dispatched by name through globals() in main().
 from board_scenarios_store_checks import bad_stores, full_card, resets  # noqa: F401
 from board_scenarios_usb_checks import (  # noqa: F401
-    tempo_mod, usb_audio, usb_audio_fx, usb_echo_repeat, usb_hold_trig, usb_looper, usb_midi, usb_midi_cc,
+    tempo_mod, usb_audio, usb_audio_fx, usb_audio_hold, usb_echo_repeat, usb_hold_trig, usb_looper, usb_midi, usb_midi_cc,
     usb_notes_in, usb_two_layers)
 
 def boot(board, out):
