@@ -5,6 +5,9 @@ use crate::oled_frame::{wrap_text, MENU_BODY_RECT};
 const MISSING_SAMPLES_TITLE: &str = "Samples missing";
 const MISSING_SAMPLES_INTRO: &str =
     "Missing, damaged or too long, so these slots stay silent. Pick a replacement sample:";
+const SD_CARD_REPAIRED_TITLE: &str = "SD card repaired";
+const SD_CARD_REPAIRED_TEXT: &str =
+    "It was pulled or cut off mid-write, so a quick check tidied it up. A file written right then may be missing.";
 
 impl NativeRunner {
     pub(super) fn apply_missing_samples(
@@ -60,6 +63,23 @@ impl NativeRunner {
             scroll: 0,
         });
         self.show_instruments_rows(&changed_instruments);
+    }
+
+    /// The missing-samples popup outranks this one, since it names slots to fix.
+    pub(super) fn show_sd_card_repaired(&mut self) {
+        if self
+            .display
+            .help_popup
+            .as_ref()
+            .is_some_and(|popup| popup.title == MISSING_SAMPLES_TITLE)
+        {
+            return;
+        }
+        self.display.help_popup = Some(NativeHelpPopup {
+            title: SD_CARD_REPAIRED_TITLE.into(),
+            lines: wrap_text(SD_CARD_REPAIRED_TEXT, MENU_BODY_RECT.columns()),
+            scroll: 0,
+        });
     }
 
     /// A card arrived in SD2: instruments with a card sample that has not loaded load again

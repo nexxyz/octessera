@@ -196,35 +196,76 @@ fn a_reload_of_one_instrument_does_not_mark_another_instrument_playing_the_same_
     );
 }
 
-#[test]
-fn a_repaired_sd_card_says_so_in_a_toast() {
-    let mut runner = runner_with_an_sd_card_sample();
+fn report_repaired(runner: &mut NativeRunner) {
     runner
         .send(HostMessage::RuntimeResult {
             result: RuntimeStoreResult::SdCardRepaired,
         })
         .unwrap();
-    assert_eq!(
-        runner.display.toast.as_ref().unwrap().message,
-        "SD card checked and repaired"
-    );
+}
+
+fn press_main(runner: &mut NativeRunner) -> serde_json::Value {
+    let messages = runner
+        .send(HostMessage::DeviceInput {
+            input: serde_json::json!({ "type": "encoder_press", "id": "main" }),
+            request_snapshot: None,
+        })
+        .unwrap();
+    crate::native_runner::tests::snapshot_from(&messages)
+}
+
+fn shown(runner: &mut NativeRunner) -> serde_json::Value {
+    crate::native_runner::tests::snapshot_from(&runner.messages_with_snapshot().unwrap())
 }
 
 #[test]
-fn a_repair_reported_under_the_startup_splash_shows_once_the_splash_ends() {
+fn a_repair_reported_at_boot_pops_up_after_the_splash_until_pressed_away() {
     let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
     runner.display.oled_splash_until = Some(Instant::now() + Duration::from_secs(5));
-    runner
-        .send(HostMessage::RuntimeResult {
-            result: RuntimeStoreResult::SdCardRepaired,
-        })
-        .unwrap();
-    assert!(runner.display.toast.is_none());
+    assert_eq!(shown(&mut runner)["display"]["splash"], "startup");
+    report_repaired(&mut runner);
+    assert_eq!(press_main(&mut runner)["display"]["splash"], "startup");
 
     runner.display.oled_splash_until = Some(Instant::now() - Duration::from_millis(1));
-    let _ = runner.messages_with_snapshot().unwrap();
+    let snapshot = shown(&mut runner);
+    assert_eq!(snapshot["display"]["splash"], "");
+    assert_eq!(snapshot["display"]["title"], "SD card repaired");
+    let text = runner.display.help_popup.as_ref().unwrap().lines.join(" ");
+    assert!(text.contains("quick check tidied it up"), "{text}");
     assert_eq!(
         runner.display.toast.as_ref().unwrap().message,
-        "SD card checked and repaired"
+        "Help: Sh+Fn+Main"
     );
+
+    assert_ne!(
+        press_main(&mut runner)["display"]["title"],
+        "SD card repaired"
+    );
+    assert!(runner.display.help_popup.is_none());
+
+    let mut next_boot = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    let snapshot = shown(&mut next_boot);
+    assert_eq!(snapshot["display"]["splash"], "");
+    assert_ne!(snapshot["display"]["title"], "SD card repaired");
+    assert!(next_boot.display.help_popup.is_none());
+}
+
+#[test]
+fn a_repair_while_playing_pops_up_at_once() {
+    let mut runner = NativeRunner::new(NativeRunnerConfig::default()).unwrap();
+    runner.skip_startup_splash();
+    report_repaired(&mut runner);
+    assert_eq!(shown(&mut runner)["display"]["title"], "SD card repaired");
+}
+
+#[test]
+fn the_missing_samples_popup_outranks_the_repair_popup() {
+    let mut runner = runner_with_two_samples();
+    runner.skip_startup_splash();
+    report_repaired(&mut runner);
+    report_missing(&mut runner, None, &["userdata/User Kit/gone.wav"]);
+    assert_eq!(shown(&mut runner)["display"]["title"], "Samples missing");
+
+    report_repaired(&mut runner);
+    assert_eq!(shown(&mut runner)["display"]["title"], "Samples missing");
 }

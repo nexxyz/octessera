@@ -21,9 +21,9 @@ up. It appears in the sample browser as
 the `SD card` favorite. The instrument only reads the card while you play, so
 you can pull it whenever you like, except during a transfer: let that finish
 first. If a card does get yanked mid-write, it gets a quick automatic check the
-next time it goes in, and the OLED says `SD card checked and repaired` if that
-fixed anything. The check can't bring back a half-written file, though. A pulled
-card keeps playing what's
+next time it goes in, and the OLED pops up `SD card repaired` if that
+fixed anything (press Main to wave it off). The check can't bring back a
+half-written file, though. A pulled card keeps playing what's
 already loaded; the rest comes back when the card does. So a patch loaded
 before the card showed up isn't stuck with silent `N/A-` slots: put the card in
 and they fill in.

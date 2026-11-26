@@ -301,7 +301,6 @@ const OLED_STARTUP_SPLASH_MS: u64 = 1_500;
 const OLED_STARTUP_SPLASH_MS: u64 = 0;
 const OLED_SLEEP_SPLASH_MS: u64 = 3_000;
 const OLED_STARTUP_SPLASH_KEY: &str = "startup";
-const SD_CARD_REPAIRED_TOAST: &str = "SD card checked and repaired";
 const OLED_SLEEP_SPLASH_KEY: &str = "sleep";
 const OLED_SHUTDOWN_SPLASH_KEY: &str = "shutdown";
 const OLED_SHUTDOWN_SPLASH_FAILSAFE_MS: u64 = 30_000;

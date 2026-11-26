@@ -361,7 +361,7 @@ Instrument rows offered as modulation, XY, and Aux targets:
   Platform built-in favorites are added dynamically and cannot be removed from that config.
 - Pi built-in favorites are `Samples` (`/home/pi/samples`) and `SD card`
   (`/home/pi/samples/sd-card/octessera/samples`, with `/home/pi/samples/sd-card` expected to be the
-  mount point of the single FAT32/exFAT partition on the OLED SD2 card). An unmounted SD card shows a clear unavailable message, and a card whose automatic pre-mount check failed shows `SD card needs repair. Fix or reformat it on a computer.` instead. A card that check repaired and then mounted shows the toast `SD card checked and repaired` once per repair while the app runs, after the startup splash if it arrives during it.
+  mount point of the single FAT32/exFAT partition on the OLED SD2 card). An unmounted SD card shows a clear unavailable message, and a card whose automatic pre-mount check failed shows `SD card needs repair. Fix or reformat it on a computer.` instead. A card that check repaired and then mounted opens the `SD card repaired` popup once per repair while the app runs, after the startup splash if it arrives during it (it ranks below `Samples missing`, see [Display priority](../menu-and-controls-spec.md#display-priority)).
   Desktop has a built-in `User data` favorite.
 - Assigned sample playback follows the instrument route, pan, volume, bus FX, and master output gain.
   The browser preview skips all of those and joins the master directly, centered, before master FX.

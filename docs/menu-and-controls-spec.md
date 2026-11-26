@@ -756,7 +756,9 @@ behavior primary red), so a mute never reads as a section color.
    pre-restore archive was written, or put everything back and removed that archive), and over
    `Pre-restore kept` / `Close` when the archive stays.
 6. System info and help. On the boards, Sys. Info shows `IP: unavailable` and `MAC: unavailable`
-   unless `wlan0` is up with a carrier (associated) and holds a usable IPv4 address.
+   unless `wlan0` is up with a carrier (associated) and holds a usable IPv4 address. The
+   `Samples missing` and `SD card repaired` popups are help popups; `Samples missing` outranks
+   `SD card repaired` (see the SD2 samples rules under save/load).
 7. A Shape signal view or the performance view, then the menu, with the footer. Context toasts
    never change LED overlay priority.
 
@@ -1373,6 +1375,12 @@ The SSH `--hardware-test` command (Raspberry only) is separate and has no menu e
   dismissed popup. Pulling the card or starting a transfer reloads nothing; only a later reload of
   that instrument (an edit, a patch load) turns its card slots `N/A-` until the card returns. The
   desktop has no SD2.
+- A card the pre-mount check repaired opens the `SD card repaired` popup once per repair, at boot
+  or while running (a remount after a transfer that left it dirty). It uses the help popup: Main
+  press or Back closes it, and Main turn scrolls it. Under the startup splash it waits for the
+  splash to end, and the boot still shows its `Help: Sh+Fn+Main` toast. The `Samples missing` popup
+  outranks it: a repair reported while that popup is open shows nothing, and missing samples
+  reported later replace it.
 - Named presets are portable patch files. Loading one applies musical patch state only and keeps
   local settings such as brightness, MIDI ports/sync, USB, HDMI, recording settings, audio buffer,
   Auto Save/Backups, and sample favorites. Aux bindings travel with the patch, whatever they target.
